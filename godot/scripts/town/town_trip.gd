@@ -4,8 +4,9 @@ extends Node
 ## (scripts/camp_gate.gd), the road through the forest to the bus stop
 ## (scripts/town/road_south.gd) with its timetable (timetable_closeup.gd, the times from
 ## bus_timetable.gd), the line 380 bus (bus_model.gd outside, bus_ride.gd inside) and
-## Lesna at the other end (town_lesna.gd, built the first time you go); on the way the
-## request stop for Podlesi and its hamlet (hamlet_trip.gd: "ham_*" things, its bus).
+## Lesna at the other end (town_lesna.gd, built the first time you go) with old Vondra's
+## farm at its south end; on the way the request stop at Pristoupim, only its poles in
+## the fields (hamlet_trip.gd: "ham_*" things, its bus, the farm and the Skoda).
 ##
 ## The buses run by the clock, whoever watches: at each stop a bus comes in, stands with
 ## its door open (half an hour at the camp: the end of the line) and goes. Click it while
@@ -34,8 +35,12 @@ const GEO_WORLD = preload("res://scripts/geo/geo_world.gd")
 ## station) stands with its centre this far up the road past the stop, its street along
 ## the route's (tools/geo/design_world.py keeps the road straight there).
 const LIBLICE_PAST_STOP := 110.0
-## The real land is built round you (geo_world.gd); the village and the farm when you
-## come this near them.
+## Old Vondra's farm (hamlet_podlesi.gd): its track leaves the street this far past the
+## stop, on the side the bus from the camp lets you off (tools/geo/design_world.py lays
+## its gardens there).
+const FARM_PAST_STOP := 25.0
+## The real land is built round you (geo_world.gd); the village, and the farm with the
+## request stop's poles, when you come this near them.
 const TOWN_NEAR := 1200.0
 const HAMLET_NEAR := 900.0
 const HAMLET_PLACE = preload("res://scripts/town/hamlet_podlesi.gd")
@@ -88,7 +93,7 @@ var _bought_to := ""
 var _ride
 var _town
 var _masts
-## Podlesi (hamlet_trip.gd): its place, bus and the Skoda.
+## Pristoupim's stop and Vondra's farm (hamlet_trip.gd): its place, bus and the Skoda.
 var _hamlet
 var _camp_bus
 var _town_bus
@@ -598,12 +603,12 @@ func _process(delta: float) -> void:
 	if _geo != null and is_instance_valid(_geo) and me != null:
 		var eye := _eye_for_geo(me)
 		_geo.update(eye)
-		# The village and the hamlet come when you get near, or when Builder's 3D view
-		# goes to look at them.
+		# The village, the farm and the request stop come when you get near, or when
+		# Builder's 3D view goes to look at them.
 		var near_eye := me.global_position if _builder_eye() == Vector3.INF else eye
 		if _town == null and near_eye.distance_to(TOWN.ORIGIN) < TOWN_NEAR:
 			_ensure_town()
-		if near_eye.distance_to(HAMLET_PLACE.HAMLET_ORIGIN) < HAMLET_NEAR:
+		if near_eye.distance_to(HAMLET_PLACE.HAMLET_ORIGIN) < HAMLET_NEAR or near_eye.distance_to(HAMLET_PLACE.STOP_ORIGIN) < HAMLET_NEAR:
 			_hamlet.ensure()
 	if _masts != null and is_instance_valid(_masts):
 		# The world's camera is in main's SubViewport, not ours: the player's eye.
@@ -1252,7 +1257,7 @@ func _on_ride_arrived() -> void:
 	# Co-op: off the same bus, the other warden steps down beside the first.
 	var beside := Vector3(1.1, 0.0, 0.0) if Coop.is_client() else Vector3.ZERO
 	if _ride != null and str(_ride.arrived_where) == "hamlet":
-		# Off at Podlesi's request stop: the bus stands a moment and goes on its way.
+		# Off at Pristoupim's request stop: the bus stands a moment and goes on its way.
 		_hamlet.ensure()
 		_put_player(_hamlet.arrive_spot(towards_town).translated(beside))
 		_hamlet.drop(towards_town)
@@ -1355,8 +1360,8 @@ var debug_mate := {}
 
 
 ## The real land round the camp (scripts/geo/): built once per camp (a new game makes a
-## new road and with it the land again); Liblice's centre and the farm at Pristoupim set
-## in it first, their ground cleared of the real houses.
+## new road and with it the land again); Liblice's centre, Vondra's farm and the poles at
+## Pristoupim set in it first, their ground cleared of the real houses.
 func _ensure_country() -> void:
 	var road := _road()
 	if road == null or (_geo != null and is_instance_valid(_geo) and _country_road_id == road.get_instance_id()):
@@ -1423,23 +1428,28 @@ func _riding_now() -> bool:
 	return _ride != null and _ride.is_open() and _ride_bus != null and is_instance_valid(_ride_bus) and _ride_bus.visible
 
 
-## The game's village in the real Liblice, its street along Bylanska past the stop, and
-## the farm at the Pristoupim stop, its road along 1131 (both frames: local +x along the
-## way the bus goes).
+## The game's village in the real Liblice, its street along Bylanska past the stop; old
+## Vondra's farm at its south end, its track off the street just past the stop; the
+## request stop at Pristoupim out in the fields (all frames: local +x along the way the
+## bus goes to Liblice).
 func _place_towns() -> void:
 	TOWN.GEO_MODE = true
 	var c: Dictionary = GEO.at(GEO.stop_s("liblice") + LIBLICE_PAST_STOP)
 	var d: Vector3 = c["dir"]
 	TOWN.ORIGIN = c["p"]
 	TOWN.YAW = atan2(-d.z, d.x)
+	var f: Dictionary = GEO.at(GEO.stop_s("liblice") + FARM_PAST_STOP)
+	var fd: Vector3 = f["dir"]
+	HAMLET_PLACE.HAMLET_ORIGIN = f["p"]
+	HAMLET_PLACE.HAMLET_YAW = atan2(-fd.z, fd.x)
 	var h: Dictionary = GEO.stop_point("pristoupim")
 	var hd: Vector3 = h["dir"]
-	HAMLET_PLACE.HAMLET_ORIGIN = h["p"]
-	HAMLET_PLACE.HAMLET_YAW = atan2(-hd.z, hd.x)
+	HAMLET_PLACE.STOP_ORIGIN = h["p"]
+	HAMLET_PLACE.STOP_YAW = atan2(-hd.z, hd.x)
 
 
-## The game's own places in the real land (world xz): Liblice's centre and its stop, the
-## farm at Pristoupim with its track, the ruin by the road, its stop poles.
+## The game's own places in the real land (world xz): Liblice's centre and its stop,
+## Vondra's farm with its track and the ruin by the road, the poles at Pristoupim.
 func _clearings() -> Array:
 	var out: Array = []
 	var tb := Basis(Vector3.UP, TOWN.YAW)
@@ -1448,8 +1458,9 @@ func _clearings() -> Array:
 	out.append(_rect_poly(Rect2(-82.0, -62.0, 166.0, 112.0), TOWN.ORIGIN, tb))
 	out.append(_rect_poly(Rect2(stop_local.x - 14.0, -10.0, 28.0, 20.0), TOWN.ORIGIN, tb))
 	var hb := Basis(Vector3.UP, HAMLET_PLACE.HAMLET_YAW)
-	for r in [Rect2(-46.0, 5.0, 92.0, 152.0), Rect2(-84.0, -18.0, 28.0, 16.0), Rect2(-12.0, -9.0, 24.0, 18.0)]:
+	for r in [Rect2(-46.0, 5.0, 92.0, 152.0), Rect2(-84.0, -18.0, 28.0, 16.0)]:
 		out.append(_rect_poly(r, HAMLET_PLACE.HAMLET_ORIGIN, hb))
+	out.append(_rect_poly(Rect2(-12.0, -9.0, 24.0, 18.0), HAMLET_PLACE.STOP_ORIGIN, Basis(Vector3.UP, HAMLET_PLACE.STOP_YAW)))
 	return out
 
 

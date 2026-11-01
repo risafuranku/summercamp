@@ -30,10 +30,12 @@ const BODY := Rect2(66, 0, 188, 240)
 const INK_LCD := Color(0.1, 0.13, 0.09)
 const PANEL := Color(0.12, 0.13, 0.15)
 ## The rows by the stop: [label, the destination (as on the ticket), price $, English]:
-## the stops the bus goes on to from this one, in the order it gets there.
+## the end of the line first (the first button is the one pressed without reading: the
+## user, 1. 11., found himself put off at the request stop instead of Liblice), then the
+## request stop on the way.
 const FARES := {
-	"camp": [["PŘIST.", "PRISTOUPIM", 1, "Pristoupim"], ["LIBL.", "LIBLICE", 2, "Liblice"]],
-	"town": [["PŘIST.", "PRISTOUPIM", 1, "Pristoupim"], ["KEMP", "KEMP", 2, "the camp"]],
+	"camp": [["LIBL.", "LIBLICE", 2, "Liblice"], ["PŘIST.", "PRISTOUPIM", 1, "Pristoupim"]],
+	"town": [["KEMP", "KEMP", 2, "the camp"], ["PŘIST.", "PRISTOUPIM", 1, "Pristoupim"]],
 }
 ## The bottom row.
 const STORNO := ["STORNO", "cancel", 0, ""]

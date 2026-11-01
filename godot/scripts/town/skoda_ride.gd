@@ -2,11 +2,12 @@ extends Node
 
 ## Old Vondra runs you up to the camp in his Skoda 120 once she goes (hamlet_trip.gd: ask
 ## him by day after he has paid). The real road, like the 380's: out of his yard down the
-## dusty track, onto road 12, past the Liblice masts, up the camp's lane to its stop
-## (scripts/geo/). You sit beside him: his dash (karosa.py skoda_dash.png), the windscreen
-## pillars, his wheel, and him at it from your side (Grok vondra_driving.png); his Czech
-## on the way (bus_talk.tsv vd*), the engine's idle pitched up with the speed. The game's
-## clock slows so it takes some six minutes. In at a door's dither, out at the stop.
+## dusty track into Liblice's street, down past the stop and Pristoupim's poles to road
+## 12, past the Liblice masts, up the camp's lane to its stop (scripts/geo/). You sit
+## beside him: his dash (karosa.py skoda_dash.png), the windscreen pillars, his wheel,
+## and him at it from your side (Grok vondra_driving.png); his Czech on the way
+## (bus_talk.tsv vd*), the engine's idle pitched up with the speed. The game's clock
+## slows so it takes some six minutes. In at a door's dither, out at the stop.
 ## The car itself is the garage's (hamlet_podlesi.car_root): it drives the road and is
 ## back in the garage when you are out.
 
@@ -40,6 +41,8 @@ var _cam: Camera3D
 var _path := PackedVector3Array()
 var _dist := PackedFloat32Array()
 var _track_len := 0.0
+## How far along the drive it turns onto road 12 (his line about the twelve comes there).
+var _road12_at := 0.0
 var _s := 0.0
 var _v := 0.0
 var _on := false
@@ -109,8 +112,9 @@ func expected_seconds() -> float:
 	return _track_len / TRACK_V + (_dist[_dist.size() - 1] - _track_len) / (ROAD_V * 0.85) + 8.0
 
 
-## Out of the yard and down the track (the hamlet's frame), then the route to the camp:
-## road 12 west, the camp's lane, its stop (as the 380 comes in).
+## Out of the yard and down the track (the farm's frame) into Liblice's street, then the
+## route to the camp: down past Pristoupim to road 12, west along it, the camp's lane,
+## its stop (as the 380 comes in).
 func _build_path() -> void:
 	_path = PackedVector3Array()
 	for p in [Vector3(16.0, 0, 128.0), Vector3(9.0, 0, 121.0), Vector3(1.5, 0, 112.0), Vector3(0.5, 0, 100.0), Vector3(-2.5, 0, 70.0), Vector3(4.0, 0, 34.0), Vector3(1.2, 0, 10.0), Vector3(0.0, 0, 3.0)]:
@@ -118,8 +122,10 @@ func _build_path() -> void:
 	_track_len = 0.0
 	for i in range(1, _path.size()):
 		_track_len += _path[i].distance_to(_path[i - 1])
-	var s_p := GEO.stop_s("pristoupim")
-	for p in GEO.line_path(s_p - 2.0, 62.0, 1.6, 4.0):
+	# Where the track meets the street (Liblice's, at the farm's frame's origin).
+	var s_f := GEO.s_near(place.w(Vector3.ZERO))
+	_road12_at = _track_len + maxf(0.0, s_f - 2.0 - GEO.mark_s("main_to"))
+	for p in GEO.line_path(s_f - 2.0, 62.0, 1.6, 4.0):
 		if _path[_path.size() - 1].distance_to(p) > 0.6:
 			_path.append(p)
 	var road = trip._road()
@@ -188,7 +194,7 @@ func _process(delta: float) -> void:
 	var frac := _s / maxf(1.0, total)
 	if _s > 4.0:
 		_line("vd1")
-	if _s > _track_len + 300.0:
+	if _s > _road12_at + 120.0:
 		_line("vd2")
 	if frac > 0.55:
 		_line("vd3")

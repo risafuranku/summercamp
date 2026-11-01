@@ -6,9 +6,9 @@ extends "res://scripts/closeup/closeup_view.gd"
 ## down the left the stops on the way with the minutes to each (x: on request), on the
 ## right the hours in their dark column with the minutes past for weekdays and for the
 ## weekend, the small print under. The times straight from scripts/town/bus_timetable.gd,
-## so what you read is what runs. The camp's sheet, Lesna's and the one at Podlesi (both
-## ways) differ; somebody has ringed the last bus in red marker. The strip under says it
-## in English.
+## so what you read is what runs. The camp's sheet (when the bus comes in too), Liblice's
+## and the one at Podlesi (both ways each) differ; somebody has ringed the last bus in red
+## marker. The strip under says it in English.
 
 const LANG := preload("res://scripts/lang.gd")
 const TIMES = preload("res://scripts/town/bus_timetable.gd")
@@ -72,19 +72,24 @@ func _sheet() -> Dictionary:
 					[ride - to_prist + on, "Lstiboř", false]],
 				"notes": ["Zastavuje jen na", "znamení. Stůjte u", "sloupku, ať vás řidič", "vidí."]}
 		"town":
-			return {"name": "Liblice", "towards": "Černé jezero, kemp",
-				"cols": [{"head": ["Pracovní", "dny"], "en": "to the camp", "times": TIMES.TOWN_LEAVE},
-					{"head": ["Sobota,", "neděle"], "en": "", "times": TIMES.TOWN_LEAVE}],
-				"stops": [[-1, "Lstiboř", false], [0, "Liblice", false], [down_prist, "Přistoupim,rozc.", true],
-					[ride, "Černé jezero,kemp", false]],
-				"notes": small + ["Směr Lstiboř:"] + _pairs(TIMES.TOWN_THROUGH),
-				"also": LANG.f("to Lstibor %s", ", ".join(TIMES.TOWN_THROUGH.map(func(t): return TIMES.hm(float(t)))))}
+			# Both ways, the same sheet on both poles: what goes down to the camp and when
+			# the bus from the camp is in (on to Lstibor). The pole you were put off at
+			# showed only the camp's times, none of them the bus you came on (the user,
+			# 1. 11.: "the departures are not the arrivals").
+			return {"name": "Liblice", "towards": "oba směry",
+				"cols": [{"head": ["směr", "kemp"], "en": "to the camp", "times": TIMES.TOWN_LEAVE},
+					{"head": ["směr", "Lstiboř"], "en": "to Lstibor", "times": TIMES.TOWN_THROUGH}],
+				"stops": [[ride, "Černé jezero,kemp", false], [down_prist, "Přistoupim,rozc.", true], [0, "Liblice", false],
+					[on, "Lstiboř", false]],
+				"notes": small + ["Do kempu od čekárny,", "z kempu staví u návsi."]}
 	return {"name": "Černé jezero, kemp", "towards": "Přistoupim, Liblice",
 		"cols": [{"head": ["Pracovní", "dny"], "en": "to Liblice", "times": TIMES.CAMP_LEAVE},
 			{"head": ["Sobota,", "neděle"], "en": "", "times": TIMES.CAMP_LEAVE}],
 		"stops": [[0, "Černé jezero,kemp", false], [to_prist, "Přistoupim,rozc.", true], [ride, "Liblice", false],
 			[ride + on, "Lstiboř", false]],
-		"notes": small + ["Spoj %s zde nestaví." % TIMES.hm(TIMES.WORKS_TOWN)],
+		# The end of the line: when the bus comes in too (it stands half an hour).
+		"notes": small + ["Příjezd z Liblic:"] + _pairs(TIMES.CAMP_ARRIVE) + ["Spoj %s zde nestaví." % TIMES.hm(TIMES.WORKS_TOWN)],
+		"also": LANG.f("in from Liblice %s", ", ".join(TIMES.CAMP_ARRIVE.map(func(t): return TIMES.hm(float(t))))),
 		"scrawl": "NEMÁVAT!"}
 
 

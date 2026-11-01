@@ -1,11 +1,11 @@
 extends Node
 
-## Podlesi and what happens there (the place itself: hamlet_podlesi.gd). Owned by
-## town_trip.gd, which hands it the "ham_*" clicks, its ride's arrivals and the buses'
-## clock:
-##   - built the first time you get off the 380 at the request stop (STOP in the bus,
-##     or a ticket to Podlesi), in the same world far off;
-##   - its bus: the 380 passing both ways by the timetable (bus_timetable.hamlet_*),
+## Pristoupim's request stop and old Vondra's farm at the south end of Liblice, and what
+## happens there (the place itself: hamlet_podlesi.gd). Owned by town_trip.gd, which hands
+## it the "ham_*" clicks, its ride's arrivals and the buses' clock:
+##   - built when you come near the farm or the stop (in Liblice, or off the 380 at the
+##     request stop: STOP in the bus, or a ticket to Pristoupim);
+##   - the stop's bus: the 380 passing both ways by the timetable (bus_timetable.hamlet_*),
 ##     pulling in only for somebody waiting by the pole, else straight through; it
 ##     stands for you while you are on it; it lets you off and goes on;
 ##   - old Vondra and his Skoda (car_closeup.gd): the petrol can in the garage, the
@@ -215,7 +215,7 @@ func _run(towards: bool, stop_id: String, t: float, h: float, stops: bool, delta
 
 ## Somebody (you, or the other warden) by the pole on that side as the bus comes.
 func _waiting(towards: bool) -> bool:
-	var pole: Vector3 = place.w(PLACE.POLE_TOWN if towards else PLACE.POLE_CAMP)
+	var pole: Vector3 = place.stop_w(PLACE.POLE_TOWN if towards else PLACE.POLE_CAMP)
 	var p: Node3D = trip._player()
 	if p != null and p.global_position.distance_to(pole) < WAIT_DIST:
 		return true
@@ -227,13 +227,14 @@ func _waiting(towards: bool) -> bool:
 	return false
 
 
-## The hamlet's day or night round you, and the Skoda ticking over once it runs.
+## The farmyard's day or night round you (over the village's own, town_trip.gd), and the
+## Skoda ticking over once it runs.
 func _update_sound() -> void:
 	if _amb == null:
 		_amb = AudioStreamPlayer.new()
 		add_child(_amb)
 	var p: Node3D = trip._player()
-	var close: bool = p != null and p.global_position.distance_to(place.w(Vector3(0, 0, 70))) < 260.0 and not trip.is_open()
+	var close: bool = p != null and p.global_position.distance_to(place.w(Vector3(0, 0, 122))) < 70.0 and not trip.is_open()
 	var want := SFX + ("hamlet_night.mp3" if _night else "hamlet_day.mp3")
 	if close and ResourceLoader.exists(want):
 		if not _amb.playing or _amb.stream == null or _amb.stream.resource_path != want:
@@ -344,12 +345,12 @@ func _talk() -> void:
 		return
 	if not bool(state["talked"]):
 		state["talked"] = true
-		trip._quote("Vondra", "You got off here? Nobody gets off here. That is my Skoda in the garage. She has not gone since my boy went to Germany. Get her going and there is fifty in it for you. Parts? Everything here is parts.")
+		trip._quote("Vondra", "From the camp at the lake? Nobody comes down from there. That is my Skoda in the garage. She has not gone since my boy went to Germany. Get her going and there is fifty in it for you. Parts? Everything here is parts.")
 		return
 	if not bool(car["battery"]) and not bool(has["battery"]):
 		trip._quote("Vondra", "The battery is as dead as Brezhnev. The Trabant behind my house still has one.")
 	elif float(car["fuel"]) < 0.5 and str(has["canister"]) != "full":
-		trip._quote("Vondra", "Petrol? The Babetta by the Hronek ruin, up at the road. Her tank never emptied. The can is by the wall in the garage.")
+		trip._quote("Vondra", "Petrol? The Babetta by the Hronek ruin, down the road past the stop. Her tank never emptied. The can is by the wall in the garage.")
 	elif (car["belt"] as Array).size() < 4 and not bool(has["stockings"]):
 		trip._quote("Vondra", "The fan belt went in ninety-one. Marie, God rest her, always said a stocking will do. There are some on the line.")
 	elif not bool(car["unstuck"]) and not bool(has["hammer"]):

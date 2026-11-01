@@ -1,12 +1,13 @@
 extends "res://scripts/closeup/closeup_view.gd"
 
-## A look in through the Hronek ruin's doorway (Pristoupim, hamlet_trip.gd "ham_ruin"):
-## the kitchen with no roof over its back, a table laid for one, the chair turned to the
-## wall, the tiled stove, a Jednota calendar, and the back doorway into the dark
-## (Grok closeup_ruin.png). The Hronek boy went fishing at the lake in eighty-four and
-## did not come back (old Vacek tells it on the bus): look long enough and for a moment
-## something small and wet stands in that back doorway (Grok ruin_boy.png), a child
-## humming. Not every time. After the first time the chair faces the door.
+## A look in through the Hronek ruin's doorway (by the road where Liblice starts,
+## hamlet_trip.gd "ham_ruin"): the kitchen with no roof over its back, a table laid for
+## one, the chair turned to the wall, the tiled stove, a Jednota calendar, and the back
+## doorway into the dark (Grok closeup_ruin.png). The Hronek boy went fishing at the
+## lake in eighty-four and did not come back (old Vacek tells it on the bus): look long
+## enough and for a moment something small and wet stands in that back doorway (Grok
+## ruin_boy.png), a child humming. Not every time. After the first time the chair faces
+## the door.
 
 const PIC := "res://assets/textury/town/closeup_ruin.png"
 const BOY := "res://assets/textury/town/ruin_boy.png"

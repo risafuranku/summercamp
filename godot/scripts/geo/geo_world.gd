@@ -10,7 +10,7 @@ extends Node3D
 ## Built by town_trip.gd once (the flat things all at once) and then round your eye in
 ## chunks (CHUNK m squares): the buildings, trees, poles and fences of the chunks within
 ## NEAR are made a few at a time each frame and let go past FAR. Places the game builds
-## itself (Liblice's centre, the farm at Pristoupim, the stops) clear their ground first
+## itself (Liblice's centre, Vondra's farm at its end, the stops) clear their ground first
 ## (clear_area): no real house, tree or fence inside.
 ##
 ## The buildings, the Build-engine way: walls of plaster in the village's colours
@@ -458,9 +458,12 @@ func _land() -> void:
 		var tile := 10.0
 		match k:
 			"farmland":
+				# Autumn's fields: stubble, ploughed clay, winter wheat coming up green, fallow
+				# grass. The ploughed picture is near black: lifted to dry clay (a tint over
+				# one), else whole fields read as black holes from the road (the user, 1. 11.).
 				var pick := hash(int(land[i].get("id", i))) % 5
-				tex = [TEX + "field_plough.png", TEX + "field_stubble.png", TEX + "field_plough.png", TEX + "field_stubble.png", TEX + "meadow.png"][pick]
-				tint = [Color(0.86, 0.8, 0.72), Color(1.0, 1.0, 0.94), Color(0.78, 0.72, 0.64), Color(0.96, 0.92, 0.82), Color(0.74, 0.86, 0.56)][pick]
+				tex = [TEX + "field_plough.png", TEX + "field_stubble.png", TEX + "meadow.png", TEX + "field_stubble.png", TEX + "meadow.png"][pick]
+				tint = [Color(2.05, 1.9, 1.75), Color(1.0, 1.0, 0.94), Color(0.62, 0.84, 0.46), Color(0.96, 0.92, 0.82), Color(0.74, 0.86, 0.56)][pick]
 				tile = 14.0
 			"meadow", "grass", "orchard", "pitch":
 				tex = TEX + "meadow.png"
@@ -821,10 +824,10 @@ func _picture(parent: Node3D, path: String, pos: Vector3, size: Vector2, facing:
 	parent.add_child(mi)
 
 
-## The villages' white name plates where the 380 comes in: Pristoupim off road 12,
-## Liblice at the top of Pristoupimska.
+## The village's white name plate where the 380 comes in: Liblice at the top of
+## Pristoupimska (at the Pristoupim stop there is no village: only its poles).
 func _village_signs() -> void:
-	for s in [[GEO.mark_s("sign_pristoupim"), "obec_pristoupim"], [GEO.mark_s("sign_liblice"), "obec"]]:
+	for s in [[GEO.mark_s("sign_liblice"), "obec"]]:
 		var a := GEO.at(float(s[0]), 5.2)
 		var p: Vector3 = a["p"]
 		var dir: Vector3 = a["dir"]

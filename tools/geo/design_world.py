@@ -8,7 +8,8 @@ road 12, east along it, north at Pristoupim to the stop at the fork, north-east 
 ponds up to Liblice) and the long stretches are half as long as the real ones ("the road
 from the camp is far too long, shorten the main road by half"). Along road 12 there are
 fields and nothing else ("away with the houses left and right of the main road"); the
-houses are the game's own villages (town_lesna.gd, hamlet_podlesi.gd). The rest is made
+houses are the game's one village, Liblice (town_lesna.gd, old Vondra's farm at its south
+end: hamlet_podlesi.gd; at the Pristoupim stop only its poles). The rest is made
 up the way that country looks from a bus: big JZD fields, balks, a wood on the hill, the
 brook with its alders, two ponds, the masts of Liblice B behind their fence, a line of
 pylons, cherry alleys along the side roads.
@@ -223,15 +224,14 @@ CAMP_LINK = fillet([R0, C1, J], [0, 40, 0])
 SIDE = fillet([T, T2, A1, B1] + D + [Q, N] + E, [0, 30, 60, 20, 120, 200, 200, 200, 30, 25, 25, 200, 0])
 BROD = fillet([B1, (900.0, -455.0), (780.0, -580.0), (600.0, -760.0), (380.0, -990.0), (150.0, -1300.0)], [0, 200, 300, 300, 400, 0])
 SOUTH = fillet([T, (1115.0, -40.0), (1125.0, 120.0), (1140.0, 330.0), (1170.0, 1100.0)], [0, 300, 400, 500, 0])
-EAST_Q = fillet([Q, (1460.0, -668.0), (1640.0, -640.0), (1900.0, -610.0), (2600.0, -560.0)], [0, 300, 400, 500, 0])
-NORTH_N = fillet([N, (1275.0, -1110.0), (1255.0, -1260.0), (1220.0, -1500.0)], [0, 200, 300, 0])
+# Liblice has its one street, the 380's (the user, 1. 11.: "no random streets"): no road
+# off east at the foot of the village nor on north past its end.
 MASTS = [(1396.0, -243.0), (1412.0, -301.0)]
 MAST_ROAD = fillet([T2, (1250.0, -232.0), (1352.0, -262.0)], [0, 150, 0])
 TRACKS = [
     fillet([(480.0, -216.0), (490.0, -60.0), (470.0, 150.0), (440.0, 420.0)], [0, 300, 300, 0]),
     fillet([(700.0, -195.0), (692.0, -300.0), (690.0, -380.0)], [0, 200, 0]),
     fillet([(820.0, -182.0), (835.0, 40.0), (900.0, 260.0)], [0, 300, 0]),
-    fillet([(1165.0, -600.0), (1090.0, -700.0), (1040.0, -820.0)], [0, 150, 0]),
     fillet([(-420.0, -515.0), (-390.0, -300.0), (-330.0, -60.0)], [0, 300, 0]),
     fillet([(1800.0, -110.0), (1830.0, 150.0), (1880.0, 420.0)], [0, 300, 0]),
 ]
@@ -242,15 +242,13 @@ roads = [
     {"c": "secondary", "w": 6.5, "p": flat(SIDE), "n": "Pristoupimska"},
     {"c": "tertiary", "w": 5.5, "p": flat(BROD), "n": "na Brod"},
     {"c": "tertiary", "w": 5.5, "p": flat(SOUTH), "n": "Pristoupim"},
-    {"c": "tertiary", "w": 5.5, "p": flat(EAST_Q), "n": "na Tuchoraz"},
-    {"c": "residential", "w": 5.0, "p": flat(NORTH_N), "n": "Liblice"},
     {"c": "service", "w": 4.0, "p": flat(MAST_ROAD), "n": "k vysilaci"},
 ]
 for t in TRACKS:
     roads.append({"c": "track", "w": 3.0, "d": 1, "p": flat(t)})
 for i, r in enumerate(roads):
     r["id"] = 100 + i
-ALL_ROADS = [ROAD12, CAMP_LINK, SIDE, BROD, SOUTH, EAST_Q, NORTH_N, MAST_ROAD] + TRACKS
+ALL_ROADS = [ROAD12, CAMP_LINK, SIDE, BROD, SOUTH, MAST_ROAD] + TRACKS
 
 
 def road_clear(q, margin):
@@ -269,10 +267,13 @@ s_t = project(ROUTE, T)[0]
 s_p = project(ROUTE, P)[0]
 s_l = project(ROUTE, L)[0]
 # The game's places sit in frames along the route (town_trip.gd _place_towns): Liblice's
-# centre LIBLICE_PAST_STOP on from its stop, Pristoupim's at its stop.
+# centre LIBLICE_PAST_STOP on from its stop, old Vondra's farm FARM_PAST_STOP on (its
+# track off to the right). At the Pristoupim stop only its poles stand, in the fields
+# (the user, 1. 11.: "one town, Liblice").
 LIBLICE_PAST_STOP = 110.0
+FARM_PAST_STOP = 25.0
 town_o, town_d = point_at(ROUTE, s_l + LIBLICE_PAST_STOP)
-ham_o, ham_d = point_at(ROUTE, s_p)
+farm_o, farm_d = point_at(ROUTE, s_l + FARM_PAST_STOP)
 
 
 # ── the land ─────────────────────────────────────────────────────────────────
@@ -367,15 +368,15 @@ WOODS = [
 for wd in WOODS:
     add_land("wood", wd)
 
-# Pristoupim (hamlet_podlesi.gd: the road along its local x, the hamlet to its right):
-# the meadow round it, gardens behind the houses, the spruce wood behind them.
-add_land("meadow", rect_in(ham_o, ham_d, -135.0, 4.0, 40.0, 225.0))
-add_land("gardens", rect_in(ham_o, ham_d, -62.0, 88.0, 62.0, 172.0))
-add_land("meadow", rect_in(ham_o, ham_d, -110.0, -60.0, -30.0, -5.0))
-add_land("wood", rect_in(ham_o, ham_d, -150.0, 190.0, 40.0, 330.0))
-# Liblice (town_lesna.gd: the street along its local x): its gardens round the village.
+# Liblice (town_lesna.gd: the street along its local x): its gardens round the village,
+# the orchard behind them on the right.
 add_land("residential", rect_in(town_o, town_d, -125.0, -88.0, 125.0, 78.0))
-add_land("orchard", rect_in(town_o, town_d, -90.0, 92.0, 60.0, 150.0))
+add_land("orchard", rect_in(town_o, town_d, -30.0, 92.0, 100.0, 150.0))
+# Vondra's farm at the south end (hamlet_podlesi.gd: the street along its local x, the
+# farm round z ~120 to the right, the Hronek ruin back down the road on the left): its
+# yard and gardens, the rough grass round the ruin.
+add_land("gardens", rect_in(farm_o, farm_d, -55.0, 80.0, 55.0, 172.0))
+add_land("meadow", rect_in(farm_o, farm_d, -95.0, -34.0, -48.0, -5.0))
 # Liblice B: the masts in their mown enclosure.
 MAST_YARD = [(1350.0, -335.0), (1455.0, -335.0), (1460.0, -212.0), (1352.0, -212.0)]
 add_land("grass", MAST_YARD)
@@ -427,7 +428,6 @@ for off in (-7.5, 7.5):
     row_along(SIDE, off, s_b1 + 30.0, s_q - 30.0)
     row_along(SOUTH, off, 30.0, 700.0)
 row_along(BROD, -7.0, 40.0, 900.0)
-row_along(EAST_Q, 7.0, 40.0, 600.0)
 # Balks with a hedge: a few lines across the fields, square to road 12.
 for u0 in [240.0, 610.0, 980.0, 1650.0, -420.0]:
     for side in (-1.0, 1.0):
@@ -478,9 +478,9 @@ world = {
         "pristoupim": {"s": round(s_p, 1), "p": [round(P[0], 1), round(P[1], 1)], "off": 1.5},
         "liblice": {"s": round(s_l, 1), "p": [round(L[0], 1), round(L[1], 1)], "off": 0.5},
     },
-    # Where along the route: road 12 (the camp's turn to Pristoupim's), the village signs.
+    # Where along the route: road 12 (the camp's turn to Pristoupim's), Liblice's sign.
     "marks": {"main_from": round(s_j, 1), "main_to": round(s_t, 1),
-              "sign_pristoupim": round(s_t + 45.0, 1), "sign_liblice": round(s_l - 55.0, 1)},
+              "sign_liblice": round(s_l - 55.0, 1)},
     "route_len": round(S[-1], 1),
     "masts": [[m[0], m[1]] for m in MASTS],
     "fuel": [{"k": "benzina", "n": "Benzina", "p": [70.1, -281.6]}],

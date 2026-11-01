@@ -82,7 +82,7 @@ static func dial(number: String, ctx: Dictionary) -> Dictionary:
 		"066330150":
 			return _machine("WATER BOARD", 2, [["", "Water board. Blockages inside the camp are the operator's responsibility. Do not flush rags.", "water"]])
 		"066321333":
-			return _machine("BUS STATION", 1, [["", "Hlubocany bus station. Line three-eighty, Lstibor, Liblice, Pristoupim, Cerne jezero: from Liblice at five thirty, thirteen oh five and eighteen thirty. The last bus back from the camp leaves at nineteen fifteen.", "bus"]])
+			return _machine("BUS STATION", 1, [["", "Hlubocany bus station. Line three-eighty, Lstibor, Liblice, Pristoupim, Cerne jezero: from Liblice at five thirty, nine thirty-five, thirteen oh five and eighteen thirty. The last bus back from the camp leaves at nineteen ten.", "bus"]])
 		"066321090":
 			if hour < 7.0 or hour >= 18.0:
 				return {"kind": "noanswer", "rings": 8}

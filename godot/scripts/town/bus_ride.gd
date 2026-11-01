@@ -349,6 +349,7 @@ func open_ride(at_stop: String, hour: float, fog: float, raining: bool) -> void:
 		_built = true
 	RETRO_RENDER.apply_to(_container)
 	_into_world()
+	_cabin_in_world(true)
 	_prepare_path()
 	_state = BOARDING
 	visible = true
@@ -429,6 +430,7 @@ func _shut() -> void:
 	if _main_vp != null and is_instance_valid(_main_vp):
 		_main_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	visible = false
+	_cabin_in_world(false)
 	_glint.clear()
 	_drop_boarder()
 	if _walk_tw != null and _walk_tw.is_valid():
@@ -467,6 +469,19 @@ func _into_world() -> void:
 	if _main_vp != null:
 		_vp.world_3d = _main_vp.find_world_3d()
 		_main_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+
+
+## The cabin rides in the game's world (_into_world), so off the bus it has to leave it:
+## else it stood on where the ride ended, seats, curtains, people and all with no bus
+## round it, and the next bus pulled in round it (the user, 1. 11.: "a weird bus in the
+## village, all scattered by the driver"). Its view and its ears stop with it.
+func _cabin_in_world(on: bool) -> void:
+	if _rig != null:
+		_rig.visible = on
+		_rig.process_mode = Node.PROCESS_MODE_INHERIT if on else Node.PROCESS_MODE_DISABLED
+	if _vp != null:
+		_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS if on else SubViewport.UPDATE_DISABLED
+		_vp.audio_listener_enable_3d = on
 
 
 ## The distances along `path`, and the speed limits if none came with it.

@@ -15,9 +15,11 @@ z kempu po dvanáctce přes Přistoupim do Liblic, Liblice a Přistoupim (Vondr�
   Pěšky: z kempu cestou na sever k dvanáctce a kamkoli po polích (zdi nejsou).
   Cestou můžeš zmáčknout červené **STOP** na tyči: rozsvítí se STOJÍME a autobus
   zastaví na znamení v Přistoupimi.
-- **V Přistoupimi**: oprav panu Vondrovi Škodu 120 v garáži (díly najdeš na statku).
-  Zpátky: postav se k zastávce (podle jízdního řádu na tyči), autobus zastaví jen když
-  tam stojíš.
+- **Vondrův statek na kraji Liblic** (polní cesta vede z ulice kousek za zastávkou,
+  na straně, kde vystupuješ): oprav panu Vondrovi Škodu 120 v garáži (díly najdeš na
+  statku, Babettu u Hronkovy ruiny dole u silnice za zastávkou). Pak tě odveze do
+  kempu. V Přistoupimi jsou už jen sloupky zastávky na znamení v polích: autobus tam
+  zastaví, když tam stojíš nebo zmáčkneš STOP.
 - **Celá cesta na screenshotech** (zastávka, jízda, STOP, Přistoupim, oprava, cesta
   zpět; kvůli skutečné délce jízdy běží ~10 min):
   `godot --path godot --resolution 1280x720 res://tools/bus_tour.tscn -- --out=shots`
@@ -92,6 +94,24 @@ z kempu po dvanáctce přes Přistoupim do Liblic, Liblice a Přistoupim (Vondr�
       Tycoonu
 
 ## Hotovo
+
+- **Ze seznamu (1. 11.)**: ten divný autobus ve městě byl vnitřek busu z jízdy
+  (sedačky, záclonky, lidi, místo řidiče), který po vystoupení zůstal stát na silnici
+  bez karoserie; když pak na totéž místo přijel další bus, byl uvnitř u řidiče binec.
+  Teď po vystoupení zmizí. Zorané lány už nejsou černé (světlejší hlína, část polí jsou
+  zelené ozimy), kolem Liblic nevedou silnice nikam (zmizela odbočka na východ pod
+  vsí, ulice dál na sever za vsí a polní cesta u rybníků). Jízdní řád v Liblicích je
+  na obou sloupcích stejný, oba směry: do kempu (od čekárny) i kdy staví bus z kempu
+  (u návsi, jede dál na Lstiboř); u kempu je navíc příjezd z Liblic, lísteček na
+  nástěnce v kanceláři taky. Automat má nahoře LIBL. (z Liblic KEMP), Přistoupim až
+  pod tím, ať tě první tlačítko nevysadí v Přistoupimi
+- **Jen jedno město (1. 11.)**: to „ghost town“ byla osada u zastávky v Přistoupimi.
+  Vondrův statek se Škodovkou (statek, chalupa, okrový dům, garáž, rybníček, Trabant,
+  prádlo, špalek) je teď na jižním kraji Liblic: polní cesta vede z ulice 25 m za
+  zastávkou, na straně, kde vystupuješ; Hronkova ruina s Babettou stojí u silnice,
+  kde Liblice začínají (za cedulí obce). Vondra tě po opravě veze ze statku přes
+  Liblice dolů na dvanáctku a do kempu. V Přistoupimi zůstaly jen dva sloupky
+  zastávky na znamení v polích (bez domů a bez cedule obce)
 
 - **Kratší cesta bez OpenStreetMap (23. 10.)**: mapa je ručně navržená přes moje GPS
   body (kemp, Přistoupim, Liblice) a moji červenou trasu, hlavní silnice je zhruba

@@ -2,9 +2,10 @@ extends "res://tools/shot_driver.gd"
 
 ## The bus test from the menu (L, "Bus to Lesna") played through for screenshots: the
 ## camp stop as the 380 comes, a ticket from the stop's machine, on board, punched in the
-## orange box, the ride, STOP for Podlesi, the ruin, the turn,
-## the hamlet, Vondra, the parts picked up, the Skoda mended in its close-up, Podlesi at
-## night, the bus back to the camp from the request stop (a ticket from the driver).
+## orange box, the ride, STOP for Pristoupim (its poles in the fields), then Vondra's farm
+## at Liblice's south end: the ruin, the track, the yard, Vondra, the parts picked up, the
+## Skoda mended in its close-up, the farm at night, the bus back to the camp from
+## Pristoupim's request stop (a ticket from the driver).
 ##
 ##   godot --path godot --resolution 1280x720 res://tools/bus_tour.tscn -- --out=<dir>
 
@@ -30,7 +31,7 @@ func _ready() -> void:
 		["wait_menu"], ["eval", "_on_menu_test_night('bus')"], ["wait_gameplay"], ["wait", 3.0],
 		["eval", "get_viewport().warp_mouse(Vector2(640, 360))"], ["shot", "s0_stop"],
 		["eval", "%s._open_machine('camp')" % TT], ["wait", 0.6],
-		["eval", "%s._machine._clicked('row:0')" % TT], ["wait", 0.3], ["shot", "m0_machine_fare"],
+		["eval", "%s._machine._clicked('row:1')" % TT], ["wait", 0.3], ["shot", "m0_machine_fare"],
 		["eval", "%s._machine._clicked('coin')" % TT], ["eval", "%s._machine._start_print()" % TT], ["wait", 0.7], ["shot", "m1_machine_printing"],
 		["wait", 1.2], ["shot", "m2_machine_ticket_out"],
 		["eval", "%s._machine._clicked('ticket')" % TT], ["wait", 0.3], ["eval", "%s._machine.close_view()" % TT], ["wait", 0.5],
@@ -73,7 +74,7 @@ func _ready() -> void:
 	_steps.append_array(_at(0.0, 108.0, 3.1416, "n0_square_night"))
 	# The bus back to the camp from the request stop: wait by the pole for it.
 	_steps.append_array([
-		["eval", "_player.set('global_position', %s.place.w(Vector3(-7.0, 0.2, -6.0)))" % H],
+		["eval", "_player.set('global_position', %s.place.stop_w(Vector3(-7.0, 0.2, -6.0)))" % H],
 		["eval", "time_system.set_time_hours(%s.TIMES.hamlet_to_camp()[2] - 0.2)" % H], ["wait", 1.0],
 		["until", "%s.bus.is_door_open()" % H, 40.0], ["wait", 0.5],
 		["eval", "_player.look_at(%s.bus.global_position)" % H], ["wait", 0.5], ["shot", "b0_bus_back"],

@@ -713,7 +713,7 @@ was left out: the camp's rating is Goggle (§5i); the blueprints open by guests 
 - **Free over the whole map** (the user, 21. 10.: "let me drive the camera wherever I
   want, to the map's edges, to the Liblice masts: we can look the map over like that"):
   the 3D view roams the whole land round the camp and up to a kilometre and a half out;
-  the land, the village and the hamlet are built round what it looks at, the fog and the
+  the land, the village with Vondra's farm and the request stop are built round what it looks at, the fog and the
   far darkness thin the higher it goes.
 - **The camera with legs** (the user, 21. 10.: "for longer Builder sittings: WASD moves
   the camera, the left hand on the keyboard, and I am not getting up"): a toggle in the

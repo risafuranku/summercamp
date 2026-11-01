@@ -67,7 +67,7 @@ static func stop_s(stop: String) -> float:
 
 
 ## Where along the route a mark is: "main_from" and "main_to" (road 12, from the camp's
-## turn to Pristoupim's), "sign_pristoupim", "sign_liblice" (the village signs).
+## turn to Pristoupim's), "sign_liblice" (the village sign).
 static func mark_s(mark: String) -> float:
 	return float(data().get("marks", {}).get(mark, 0.0))
 

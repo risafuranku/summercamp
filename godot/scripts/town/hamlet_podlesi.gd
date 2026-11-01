@@ -1,24 +1,33 @@
 extends "res://scripts/town/town_lesna.gd"
 
-## Pristoupim (the scripts keep the old name): a hamlet of a few houses off the road between the camp and Liblice, south
-## Bohemia's backwater (built by hamlet_trip.gd the first time you get off there, far off
-## in the same world: HAMLET_ORIGIN). The road runs east-west past it with its Czech road
-## posts; at the turn the request stop PODLESI, rozc. on both sides (south for the buses
-## to Lesna, north for the ones to the camp). By the road the ruined Hronek farmhouse,
-## roofless since the seventies, Babetta and all. A dusty track with grass between its
-## ruts leads a hundred metres south through the meadow to the hamlet: old Vondra's
-## rustic baroque farmhouse, a cottage with a boarded gable, an ochre house, a little
-## pond, the woodpile with the chopping block, washing on the line, a Trabant rusting
-## behind the house, and the garage with Vondra's Skoda 120 that has not gone since 1991
-## (the repair: hamlet_trip.gd, car_closeup.gd). Spruce forest all round.
+## Old Vondra's farm at the south end of Liblice, and the request stop PRISTOUPIM, rozc.
+## out in the fields on the way (the scripts keep the old name; built by hamlet_trip.gd
+## when you come near either). There was a hamlet of its own at that stop once; the user,
+## 1. 11.: "there are two villages, a ghost town not on the map; let it be one town,
+## Liblice", so the farm moved into Liblice and the stop is only its two poles.
+##
+## The farm: just past Liblice's stop a dusty track with grass between its ruts leads off
+## the street, on the side the bus from the camp lets you off, a hundred metres through
+## the gardens: old Vondra's rustic baroque farmhouse, a cottage with a boarded gable, an
+## ochre house, a little pond, the woodpile with the chopping block, washing on the line,
+## a Trabant rusting behind the house, and the garage with Vondra's Skoda 120 that has not
+## gone since 1991 (the repair: hamlet_trip.gd, car_closeup.gd). Back down the street, by
+## the road where the village starts, the ruined Hronek farmhouse, roofless since the
+## seventies, Babetta and all.
 ##
 ## It shares Lesna's house kit (town_lesna.gd: fronts from Grok elevations, lettering on
-## the walls); its own frame (x east, z south, the road at z = 0, the hamlet at z ~120).
+## the walls). Two frames, each x along the road (towards Liblice), z to its right: the
+## farm's (HAMLET_ORIGIN: the street at z = 0, the track's mouth there, the farm at
+## z ~120, the ruin back down the road at x ~ -70) and the stop's (STOP_ORIGIN: the poles
+## either side of the road). Off the real map (no GEO_MODE) both are one, as they were.
 
-## Set by town_trip.gd before it is built: Pristoupim's real stop (scripts/geo/) and
-## which way its road runs (its local +x is towards Liblice).
+## Set by town_trip.gd before it is built: where the farm's track leaves Liblice's street
+## and which way the street runs (its local +x is up it, into the village).
 static var HAMLET_ORIGIN := Vector3(1800.0, 0.0, -2600.0)
 static var HAMLET_YAW := 0.0
+## And Pristoupim's real stop (scripts/geo/), its road the same way (+x towards Liblice).
+static var STOP_ORIGIN := Vector3(1800.0, 0.0, -2600.0)
+static var STOP_YAW := 0.0
 ## Where the bus stops for you (the pole) going to Lesna (+x) and to the camp (-x).
 const POLE_TOWN := Vector3(8.0, 0, 4.4)
 const POLE_CAMP := Vector3(-8.0, 0, -4.4)
@@ -31,6 +40,8 @@ var things: Dictionary = {}
 var vondra: Sprite3D
 var car_root: Node3D
 var _smoke_car: Array = []
+## The stop's poles: in the stop's own frame out in the fields (top level), or this one.
+var _stop_root: Node3D
 
 
 func build(p_worldgen: Node) -> void:
@@ -43,6 +54,13 @@ func build(p_worldgen: Node) -> void:
 	if not GEO_MODE:
 		_ground_h()
 		_road_h()
+		_stop_root = self
+	else:
+		_stop_root = Node3D.new()
+		_stop_root.name = "Stop"
+		_stop_root.top_level = true
+		add_child(_stop_root)
+		_stop_root.global_transform = Transform3D(Basis(Vector3.UP, STOP_YAW), STOP_ORIGIN)
 	_stops_h()
 	_track()
 	_ruin_h()
@@ -64,11 +82,22 @@ func _dir(v: Vector3) -> Vector3:
 	return Basis(Vector3.UP, HAMLET_YAW) * v
 
 
-## Where you get off: by the pole the bus came to, facing the turn.
+## A point in the stop's frame (the poles at Pristoupim), in the world.
+func stop_w(local: Vector3) -> Vector3:
+	if not GEO_MODE:
+		return w(local)
+	return STOP_ORIGIN + Basis(Vector3.UP, STOP_YAW) * local
+
+
+func _stop_dir(v: Vector3) -> Vector3:
+	return Basis(Vector3.UP, STOP_YAW if GEO_MODE else HAMLET_YAW) * v
+
+
+## Where you get off: by the pole the bus came to, looking down the road it goes on along.
 func hamlet_arrive_spot(towards_town: bool) -> Transform3D:
 	var pole := POLE_TOWN if towards_town else POLE_CAMP
-	var pos := w(pole + Vector3(-1.4 if towards_town else 1.4, 0.15, 0.9 if towards_town else -0.9))
-	return Transform3D(Basis.looking_at(_dir(Vector3(-0.8, 0, 1.0) if towards_town else Vector3(0.9, 0, 0.9)), Vector3.UP), pos)
+	var pos := stop_w(pole + Vector3(-1.4 if towards_town else 1.4, 0.15, 0.9 if towards_town else -0.9))
+	return Transform3D(Basis.looking_at(_stop_dir(Vector3(1.0, 0, 0.3) if towards_town else Vector3(-1.0, 0, -0.3)), Vector3.UP), pos)
 
 
 ## The bus standing at the pole for `towards_town`, and its way in and out.
@@ -143,31 +172,34 @@ func _walls_h() -> void:
 		body.rotation.y = atan2(b.x - a.x, b.y - a.y)
 
 
-## The request stop both sides: a pole with the bus sign, the name plate "PODLESI, rozc.
-## na znameni" and the timetable case (click: town_trip's timetable, stop "hamlet").
+## The request stop both sides: a pole with the bus sign, the name plate "PRISTOUPIM,
+## rozc. na znameni" and the timetable case (click: town_trip's timetable, stop "hamlet").
+## In the real land nothing else stands there: fields either side of the road.
 func _stops_h() -> void:
+	var root := _stop_root
 	var grey := _mat("", Color(0.42, 0.44, 0.42))
 	var sign_mat := _mat(_first([TEX + "stop_sign.png"]), Color(0.9, 0.9, 0.86))
 	for pole in [[POLE_TOWN, Vector3(0, 0, -1)], [POLE_CAMP, Vector3(0, 0, 1)]]:
 		var at: Vector3 = pole[0]
 		var f: Vector3 = pole[1]
-		_box(self, at + Vector3(0, 1.4, 0), Vector3(0.08, 2.8, 0.08), grey)
-		_box(self, at + Vector3(0, 0.1, 0), Vector3(0.3, 0.2, 0.3), _mat(TEX_CAMP + "concrete.png", Color(0.8, 0.8, 0.78)))
-		_box(self, at + Vector3(0, 2.5, 0), Vector3(0.6, 0.45, 0.03), grey)
+		_box(root, at + Vector3(0, 1.4, 0), Vector3(0.08, 2.8, 0.08), grey)
+		_box(root, at + Vector3(0, 0.1, 0), Vector3(0.3, 0.2, 0.3), _mat(TEX_CAMP + "concrete.png", Color(0.8, 0.8, 0.78)))
+		_box(root, at + Vector3(0, 2.5, 0), Vector3(0.6, 0.45, 0.03), grey)
 		for s in [f, -f]:
-			_face(self, at + Vector3(0, 2.5, 0) + s * 0.02, Vector2(0.6, 0.45), s, sign_mat)
-			_letters(self, "podlesi_stop", at + Vector3(0, 2.05, 0) + s * 0.01, s)
+			_face(root, at + Vector3(0, 2.5, 0) + s * 0.02, Vector2(0.6, 0.45), s, sign_mat)
+			_letters(root, "podlesi_stop", at + Vector3(0, 2.05, 0) + s * 0.01, s)
 		var case_mat := _mat(_first([TEX + "timetable_case.png"]), Color(0.6, 0.62, 0.6))
-		_box(self, at + Vector3(0, 1.45, 0) + f * 0.06, Vector3(0.46, 0.62, 0.05), _mat("", Color(0.55, 0.56, 0.55)))
-		_face(self, at + Vector3(0, 1.45, 0) + f * 0.09, Vector2(0.46, 0.62), f, case_mat)
-		var body := _click_h(at + Vector3(0, 1.45, 0) + f * 0.12, Vector3(0.6, 0.8, 0.3), "ham_timetable")
+		_box(root, at + Vector3(0, 1.45, 0) + f * 0.06, Vector3(0.46, 0.62, 0.05), _mat("", Color(0.55, 0.56, 0.55)))
+		_face(root, at + Vector3(0, 1.45, 0) + f * 0.09, Vector2(0.46, 0.62), f, case_mat)
+		var body := _click_on(root, at + Vector3(0, 1.45, 0) + f * 0.12, Vector3(0.6, 0.8, 0.3), "ham_timetable")
 		body.set_meta("stop", "hamlet")
-	# The hamlet's own sign at the turn, facing the road.
-	_box(self, Vector3(4.6, 0.9, 6.2), Vector3(0.06, 1.8, 0.06), grey)
-	_letters(self, "podlesi", Vector3(4.6, 1.75, 6.2), Vector3(0, 0, -1))
+	# Off the map, the hamlet's own sign at its turn, facing the road.
+	if not GEO_MODE:
+		_box(self, Vector3(4.6, 0.9, 6.2), Vector3(0.06, 1.8, 0.06), grey)
+		_letters(self, "podlesi", Vector3(4.6, 1.75, 6.2), Vector3(0, 0, -1))
 
 
-## The dusty track to the hamlet: two ruts of dry dust and the grass ridge between them,
+## The dusty track to the farm: two ruts of dry dust and the grass ridge between them,
 ## a little bend, a few birches and the posts of a long gone fence along it.
 func _track() -> void:
 	var dust := _mat(TEX_CAMP + "gravel_road.png", Color(1.04, 0.94, 0.76), Vector2(1.0, 8.0))

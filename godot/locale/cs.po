@@ -6876,7 +6876,7 @@ msgstr "Stížnost na hluk"
 msgid "Noise"
 msgstr "Hluk"
 
-#: scripts/day_events.gd:547 scripts/town/town_trip.gd:219
+#: scripts/day_events.gd:547 scripts/town/town_trip.gd:224
 #. uses 2
 msgid "Talk to %s"
 msgstr "Promluvit si: %s"
@@ -9403,7 +9403,7 @@ msgstr "Vejít do bistra"
 msgid "Enter pub"
 msgstr "Vejít do hospody"
 
-#: scripts/interior_manager.gd:92 scripts/town/town_trip.gd:238
+#: scripts/interior_manager.gd:92 scripts/town/town_trip.gd:243
 #. uses 2
 msgid "Go into the Jednota"
 msgstr "Vejít do Jednoty"
@@ -12163,7 +12163,7 @@ msgstr "Houpat se na vahadle"
 msgid "[LMB] Pump"
 msgstr "[LMB] Rozhoupat"
 
-#: scripts/attractions/seats_use.gd:127 scripts/town/town_trip.gd:223
+#: scripts/attractions/seats_use.gd:127 scripts/town/town_trip.gd:228
 #. uses 2
 msgid "Sit down"
 msgstr "Sednout si"
@@ -15088,8 +15088,8 @@ msgid "BUS STATION"
 msgstr "AUT. NÁDRAŽÍ"
 
 #: scripts/closeup/phone_book.gd:85
-msgid "Hlubocany bus station. Line three-eighty, Lstibor, Liblice, Pristoupim, Cerne jezero: from Liblice at five thirty, thirteen oh five and eighteen thirty. The last bus back from the camp leaves at nineteen fifteen."
-msgstr "Autobusové nádraží Hlubočany. Linka tři sta osmdesát, Lstiboř, Liblice, Přistoupim, Černé jezero: z Liblic v pět třicet, ve třináct nula pět a v osmnáct třicet. Poslední spoj zpátky od kempu odjíždí v devatenáct patnáct."
+msgid "Hlubocany bus station. Line three-eighty, Lstibor, Liblice, Pristoupim, Cerne jezero: from Liblice at five thirty, nine thirty-five, thirteen oh five and eighteen thirty. The last bus back from the camp leaves at nineteen ten."
+msgstr "Autobusové nádraží Hlubočany. Linka tři sta osmdesát, Lstiboř, Liblice, Přistoupim, Černé jezero: z Liblic v pět třicet, v devět třicet pět, ve třináct nula pět a v osmnáct třicet. Poslední spoj zpátky od kempu odjíždí v devatenáct deset."
 
 #: scripts/closeup/phone_book.gd:90
 msgid "Jednota u Marku, Liblice."
@@ -26177,126 +26177,126 @@ msgstr "Slyšíš ji? Jak šicí stroj plnej hřebíků!"
 msgid "The can is empty and the tank is full. Of Babetta."
 msgstr "Kanystr je prázdný a nádrž plná. Z Babetty."
 
-#: scripts/town/hamlet_trip.gd:256 scripts/town/town_trip.gd:213
+#: scripts/town/hamlet_trip.gd:257 scripts/town/town_trip.gd:218
 #. uses 2
 msgid "Read the timetable"
 msgstr "Přečíst jízdní řád"
 
-#: scripts/town/hamlet_trip.gd:258
+#: scripts/town/hamlet_trip.gd:259
 msgid "Talk to Mr Vondra"
 msgstr "Promluvit s panem Vondrou"
 
-#: scripts/town/hamlet_trip.gd:260
+#: scripts/town/hamlet_trip.gd:261
 msgid "Look at the Skoda"
 msgstr "Prohlédnout škodovku"
 
-#: scripts/town/hamlet_trip.gd:262
+#: scripts/town/hamlet_trip.gd:263
 msgid "Take the petrol can"
 msgstr "Vzít kanystr"
 
-#: scripts/town/hamlet_trip.gd:264
+#: scripts/town/hamlet_trip.gd:265
 msgid "Siphon the petrol"
 msgstr "Odsát benzín"
 
-#: scripts/town/hamlet_trip.gd:264
+#: scripts/town/hamlet_trip.gd:265
 msgid "Look at the Babetta"
 msgstr "Prohlédnout babettu"
 
-#: scripts/town/hamlet_trip.gd:266
+#: scripts/town/hamlet_trip.gd:267
 msgid "Look at the Trabant"
 msgstr "Prohlédnout trabanta"
 
-#: scripts/town/hamlet_trip.gd:266
+#: scripts/town/hamlet_trip.gd:267
 msgid "Take the battery"
 msgstr "Vzít baterii"
 
-#: scripts/town/hamlet_trip.gd:268
+#: scripts/town/hamlet_trip.gd:269
 msgid "Take the stockings"
 msgstr "Vzít punčochy"
 
-#: scripts/town/hamlet_trip.gd:270
+#: scripts/town/hamlet_trip.gd:271
 msgid "Take the hammer"
 msgstr "Vzít kladivo"
 
-#: scripts/town/hamlet_trip.gd:272
+#: scripts/town/hamlet_trip.gd:273
 msgid "Look into the ruin"
 msgstr "Nahlédnout do rozvaliny"
 
-#: scripts/town/hamlet_trip.gd:287
+#: scripts/town/hamlet_trip.gd:288
 msgid "An empty petrol can. It sloshes with nothing."
 msgstr "Prázdný kanystr. Nic v něm nešplouchá."
 
-#: scripts/town/hamlet_trip.gd:293
+#: scripts/town/hamlet_trip.gd:294
 msgid "A suck on the hose, a mouthful of Babetta, and the can is full. Mostly."
 msgstr "Nasát hadičkou, plná pusa Babetty a kanystr je plný. Skoro."
 
-#: scripts/town/hamlet_trip.gd:295 scripts/town/town_trip.gd:355
+#: scripts/town/hamlet_trip.gd:296 scripts/town/town_trip.gd:360
 #. uses 2
 msgid "The can is full already."
 msgstr "Kanystr už je plný."
 
-#: scripts/town/hamlet_trip.gd:297
+#: scripts/town/hamlet_trip.gd:298
 msgid "The Babetta's tank sloshes. Half full, after all these years. You need something to put it in."
 msgstr "V nádržce babetty to šplouchá. Po těch letech napůl plná. Potřebuješ to do něčeho přelít."
 
-#: scripts/town/hamlet_trip.gd:300
+#: scripts/town/hamlet_trip.gd:301
 msgid "The Trabant, on its blocks. Mice live in it now."
 msgstr "Trabant na špalcích. Teď v něm bydlí myši."
 
-#: scripts/town/hamlet_trip.gd:305
+#: scripts/town/hamlet_trip.gd:306
 msgid "The Trabant's battery, from under a mouse nest. Heavy. Is there anything left in it?"
 msgstr "Baterie z trabantu, zpod myšího hnízda. Těžká. Zbylo v ní ještě něco?"
 
-#: scripts/town/hamlet_trip.gd:308
+#: scripts/town/hamlet_trip.gd:309
 msgid "A pair of stockings off the line. Beige. Nobody is coming for them."
 msgstr "Punčochy ze šňůry. Béžové. Nikdo si pro ně nepřijde."
 
-#: scripts/town/hamlet_trip.gd:311
+#: scripts/town/hamlet_trip.gd:312
 msgid "The hammer from the block. The handle is warm, as if somebody just put it down."
 msgstr "Kladivo ze špalku. Násada je teplá, jako by ho někdo právě odložil."
 
-#: scripts/town/hamlet_trip.gd:347 scripts/town/hamlet_trip.gd:350 scripts/town/hamlet_trip.gd:352 scripts/town/hamlet_trip.gd:354 (+5)
+#: scripts/town/hamlet_trip.gd:348 scripts/town/hamlet_trip.gd:351 scripts/town/hamlet_trip.gd:353 scripts/town/hamlet_trip.gd:355 (+5)
 #. uses 9
 msgid "Vondra"
 msgstr "Vondra"
 
-#: scripts/town/hamlet_trip.gd:347
-msgid "You got off here? Nobody gets off here. That is my Skoda in the garage. She has not gone since my boy went to Germany. Get her going and there is fifty in it for you. Parts? Everything here is parts."
-msgstr "Ty jsi tu {g:vystoupil|vystoupila}? Tady nikdo nevystupuje. V garáži je moje škodovka. Nejela od tý doby, co syn odjel do Němec. Rozjeď ji a máš u mě pětistovku. Díly? Tady je všechno díly."
+#: scripts/town/hamlet_trip.gd:348
+msgid "From the camp at the lake? Nobody comes down from there. That is my Skoda in the garage. She has not gone since my boy went to Germany. Get her going and there is fifty in it for you. Parts? Everything here is parts."
+msgstr "Ty jsi z toho kempu u jezera? Odtamtud sem nikdo nechodí. V garáži je moje škodovka. Nejela od tý doby, co syn odjel do Němec. Rozjeď ji a máš u mě pětistovku. Díly? Tady je všechno díly."
 
-#: scripts/town/hamlet_trip.gd:350
+#: scripts/town/hamlet_trip.gd:351
 msgid "The battery is as dead as Brezhnev. The Trabant behind my house still has one."
 msgstr "Baterka je mrtvá jak Brežněv. V trabantu za barákem ještě jedna je."
 
-#: scripts/town/hamlet_trip.gd:352
-msgid "Petrol? The Babetta by the Hronek ruin, up at the road. Her tank never emptied. The can is by the wall in the garage."
-msgstr "Benzín? Babetta u Hronkovy rozvaliny, nahoře u silnice. Tý se nádržka nikdy nevyprázdnila. Kanystr je v garáži u zdi."
+#: scripts/town/hamlet_trip.gd:353
+msgid "Petrol? The Babetta by the Hronek ruin, down the road past the stop. Her tank never emptied. The can is by the wall in the garage."
+msgstr "Benzín? Babetta u Hronkovy rozvaliny, dole u silnice za zastávkou. Tý se nádržka nikdy nevyprázdnila. Kanystr je v garáži u zdi."
 
-#: scripts/town/hamlet_trip.gd:354
+#: scripts/town/hamlet_trip.gd:355
 msgid "The fan belt went in ninety-one. Marie, God rest her, always said a stocking will do. There are some on the line."
 msgstr "Řemen odešel v jednadevadesátým. Marie, dej jí pánbůh věčnou slávu, vždycky říkala, že punčocha stačí. Na šňůře nějaký visej."
 
-#: scripts/town/hamlet_trip.gd:356
+#: scripts/town/hamlet_trip.gd:357
 msgid "If she only clicks, you hit the starter. The hammer is in the block by the woodpile."
 msgstr "Jestli jenom cvaká, prašti do startéru. Kladivo je ve špalku u dříví."
 
-#: scripts/town/hamlet_trip.gd:358
+#: scripts/town/hamlet_trip.gd:359
 msgid "Well? Go on. The key is in her."
 msgstr "No? Do toho. Klíček je v ní."
 
-#: scripts/town/hamlet_trip.gd:364
+#: scripts/town/hamlet_trip.gd:365
 msgid "Listen to her! Here, fifty, as I said. And when you go back up to that camp: not the last bus. The one before."
 msgstr "Slyšíš ji? Tady, pětistovka, jak jsem řek. A až pojedeš nahoru do toho kempu: ne posledním autobusem. Tím před ním."
 
-#: scripts/town/hamlet_trip.gd:418
+#: scripts/town/hamlet_trip.gd:419
 msgid "Now? After dark? Up to the lake? Not for anything. In the morning."
 msgstr "Teď? Po tmě? Nahoru k jezeru? Ani za nic. Ráno."
 
-#: scripts/town/hamlet_trip.gd:420
+#: scripts/town/hamlet_trip.gd:421
 msgid "Shall I run you up to the camp? Sit in the front."
 msgstr "Mám tě hodit nahoru do kempu? Sedni si dopředu."
 
-#: scripts/town/hamlet_trip.gd:424
+#: scripts/town/hamlet_trip.gd:425
 msgid "Vondra's Skoda goes back down the lane."
 msgstr "Vondrova škodovka odjíždí zpátky dolů po cestě."
 
@@ -27089,7 +27089,7 @@ msgstr "Pivo za deset. Druhý taky za deset. U desátýho se domluvíme."
 msgid "Last orders at eleven. After that I lock the door and I do not open it, whoever knocks. Whoever."
 msgstr "V jedenáct poslední runda. Pak zamykám a neotevřu, ať klepe kdo chce. Kdokoli."
 
-#: scripts/town/town_people.gd:62 scripts/town/town_room.gd:233 scripts/town/town_room.gd:530 scripts/town/town_trip.gd:436 (+4)
+#: scripts/town/town_people.gd:62 scripts/town/town_room.gd:233 scripts/town/town_room.gd:530 scripts/town/town_trip.gd:441 (+4)
 #. uses 8
 msgid "Mr Simek"
 msgstr "Pan Šimek"
@@ -27344,203 +27344,203 @@ msgstr "Stained"
 msgid "Candles"
 msgstr "Candles"
 
-#: scripts/town/town_trip.gd:54
+#: scripts/town/town_trip.gd:59
 msgid "Machine's inside. I don't do change."
 msgstr "Automat je vevnitř. Rozměňovat nebudu."
 
-#: scripts/town/town_trip.gd:55
+#: scripts/town/town_trip.gd:60
 msgid "Twenty years on the 380. I never once saw anybody get off at your camp after dark."
 msgstr "Dvacet let jezdím třistaosmdesátku. Ani jednou jsem neviděl, že by u vašeho kempu někdo po setmění vystoupil."
 
-#: scripts/town/town_trip.gd:56
+#: scripts/town/town_trip.gd:61
 msgid "Five minutes. Then I go, with you or without you."
 msgstr "Pět minut. Pak jedu, s tebou nebo bez tebe."
 
-#: scripts/town/town_trip.gd:57
+#: scripts/town/town_trip.gd:62
 msgid "The works bus? Not mine. Nobody's, if you ask me."
 msgstr "Služebák? Ten není můj. Podle mě ničí."
 
-#: scripts/town/town_trip.gd:65
+#: scripts/town/town_trip.gd:70
 msgid "Work? Grab a nozzle. Green's Natural, yellow's Special, black's diesel. Mix them up and I mix you up."
 msgstr "Práce? Chytni pistoli. Zelená je Natural, žlutá Special, černá nafta. Spleteš je a já si to s tebou vyřídím."
 
-#: scripts/town/town_trip.gd:66
+#: scripts/town/town_trip.gd:71
 msgid "Paid by the car, and they tip if you stop it right on the money."
 msgstr "Platí se od auta, a když to zastavíš přesně na částce, dají dýško."
 
-#: scripts/town/town_trip.gd:67
+#: scripts/town/town_trip.gd:72
 msgid "That Tatra comes through at night sometimes, no plates, never pays. I just fill it. You would too."
 msgstr "Ta Tatra tudy občas v noci jede, bez značek, nikdy nezaplatí. Prostě ji natankuju. Ty bys taky."
 
-#: scripts/town/town_trip.gd:68
+#: scripts/town/town_trip.gd:73
 msgid "Everything off the twelve stops here. The ones going up to your camp fill up like they are not coming back."
 msgstr "Všechno, co jede po dvanáctce, tady staví. Ti, co jedou nahoru k vašemu kempu, tankujou, jako by se už nevraceli."
 
-#: scripts/town/town_trip.gd:70
+#: scripts/town/town_trip.gd:75
 msgid "Closed. Go to bed."
 msgstr "Zavřeno. Jdi spát."
 
-#: scripts/town/town_trip.gd:71
+#: scripts/town/town_trip.gd:76
 msgid "1914 - 1918, nine names. 1939 - 1945, four. Under them a newer brass plate, screwed on crooked: CERNE JEZERO 1994. No names. Somebody keeps it polished."
 msgstr "1914 - 1918, devět jmen. 1939 - 1945, čtyři. Pod nimi novější mosazná deska, přišroubovaná nakřivo: ČERNÉ JEZERO 1994. Žádná jména. Někdo ji udržuje vyleštěnou."
 
-#: scripts/town/town_trip.gd:72
+#: scripts/town/town_trip.gd:77
 msgid "Locked. A card in the window: mass at nine on Sundays, the bell at noon and at six. Under it, in pencil: and at three in the morning, but that is not us."
 msgstr "Zamčeno. Za sklem lístek: mše v neděli v devět, zvoní se v poledne a v šest. Pod tím tužkou: a ve tři ráno, ale to nejsme my."
 
-#: scripts/town/town_trip.gd:137
+#: scripts/town/town_trip.gd:142
 msgid "That's better."
 msgstr "Hned je líp."
 
-#: scripts/town/town_trip.gd:211
+#: scripts/town/town_trip.gd:216
 msgid "Lower the barrier"
 msgstr "Spustit závoru"
 
-#: scripts/town/town_trip.gd:211
+#: scripts/town/town_trip.gd:216
 msgid "Raise the barrier"
 msgstr "Zvednout závoru"
 
-#: scripts/town/town_trip.gd:215
+#: scripts/town/town_trip.gd:220
 msgid "Buy a ticket"
 msgstr "Koupit jízdenku"
 
-#: scripts/town/town_trip.gd:217
+#: scripts/town/town_trip.gd:222
 msgid "Get on the bus"
 msgstr "Nastoupit do autobusu"
 
-#: scripts/town/town_trip.gd:221
+#: scripts/town/town_trip.gd:226
 msgid "Read the memorial"
 msgstr "Přečíst pomník"
 
-#: scripts/town/town_trip.gd:225
+#: scripts/town/town_trip.gd:230
 msgid "Fill the petrol can"
 msgstr "Naplnit kanystr"
 
-#: scripts/town/town_trip.gd:225
+#: scripts/town/town_trip.gd:230
 msgid "Look at the pump"
 msgstr "Prohlédnout stojan"
 
-#: scripts/town/town_trip.gd:229
+#: scripts/town/town_trip.gd:234
 msgid "Fill the car"
 msgstr "Natankovat auto"
 
-#: scripts/town/town_trip.gd:231
+#: scripts/town/town_trip.gd:236
 msgid "Ask Lojza for work"
 msgstr "Požádat Lojzu o práci"
 
-#: scripts/town/town_trip.gd:234
+#: scripts/town/town_trip.gd:239
 msgid "Talk to Lojza"
 msgstr "Promluvit s Lojzou"
 
-#: scripts/town/town_trip.gd:238
+#: scripts/town/town_trip.gd:243
 msgid "Read the note on the door"
 msgstr "Přečíst lístek na dveřích"
 
-#: scripts/town/town_trip.gd:240
+#: scripts/town/town_trip.gd:245
 msgid "Go into the pub"
 msgstr "Jít do hospody"
 
-#: scripts/town/town_trip.gd:240
+#: scripts/town/town_trip.gd:245
 msgid "Knock"
 msgstr "Zaklepat"
 
-#: scripts/town/town_trip.gd:242
+#: scripts/town/town_trip.gd:247
 msgid "Ask for a room"
 msgstr "Zeptat se na pokoj"
 
-#: scripts/town/town_trip.gd:244
+#: scripts/town/town_trip.gd:249
 msgid "Knock on the kiosk window"
 msgstr "Zaklepat na okénko"
 
-#: scripts/town/town_trip.gd:246
+#: scripts/town/town_trip.gd:251
 msgid "Try the chapel door"
 msgstr "Zkusit dveře kaple"
 
-#: scripts/town/town_trip.gd:311
+#: scripts/town/town_trip.gd:316
 msgid "Come back when I have got cars. Mornings are best, the Tatra is gone by then."
 msgstr "Přijď, až budou auta. Nejlíp ráno, to už je Tatra pryč."
 
-#: scripts/town/town_trip.gd:318
+#: scripts/town/town_trip.gd:323
 msgid "Wait for one. They come."
 msgstr "Počkej na nějaký. Jezdí."
 
-#: scripts/town/town_trip.gd:348
+#: scripts/town/town_trip.gd:353
 msgid "The pump is locked for the night. A card on it: 6 - 21."
 msgstr "Stojan je na noc zamčený. Na něm cedulka: 6 - 21."
 
-#: scripts/town/town_trip.gd:350
+#: scripts/town/town_trip.gd:355
 msgid "Ten litres of Natural is $%d at the kiosk window. You have not got it."
 msgstr "Deset litrů Naturalu stojí u okénka $%d. Tolik nemáš."
 
-#: scripts/town/town_trip.gd:353
+#: scripts/town/town_trip.gd:358
 msgid "Ten litres of Natural into the can, $%d through the kiosk window. It smells of the whole of 1985."
 msgstr "Deset litrů Naturalu do kanystru, $%d okénkem. Voní celým rokem 1985."
 
-#: scripts/town/town_trip.gd:357
+#: scripts/town/town_trip.gd:362
 msgid "Self-service: fill up, then pay at the kiosk window. You have nothing to fill."
 msgstr "Samoobsluha: natankuj, pak zaplať u okénka. Nemáš co plnit."
 
-#: scripts/town/town_trip.gd:367
+#: scripts/town/town_trip.gd:372
 msgid "Right. Cars come in, you fill them. Green Natural, yellow Special, black diesel. Two dollars a car and whatever they tip. Mix them up and it is ten off you."
 msgstr "Dobře. Přijede auto, natankuješ ho. Zelená Natural, žlutá Special, černá nafta. Dvacet korun za auto a co dají dýška. Spleteš to a strhnu ti stovku."
 
-#: scripts/town/town_trip.gd:386
+#: scripts/town/town_trip.gd:391
 msgid "A card on the glass: JEDNOTA U MARKŮ, LIBLICE 42. Mon - Fri 7 - 17, Sat 7 - 11. Batteries sold out."
 msgstr "Na skle cedulka: JEDNOTA U MARKŮ, LIBLICE 42. Po - Pá 7 - 17, So 7 - 11. Baterie vyprodány."
 
-#: scripts/town/town_trip.gd:391
+#: scripts/town/town_trip.gd:396
 msgid "Shut. I do not open after eleven, whoever knocks."
 msgstr "Zavřeno. Po jedenácté neotvírám, ať klepe kdo chce."
 
-#: scripts/town/town_trip.gd:398
+#: scripts/town/town_trip.gd:403
 msgid "The kiosk window is dark. Oil cans, maps, a calendar with a car on it."
 msgstr "Okénko je tmavé. Plechovky oleje, mapy, kalendář s autem."
 
-#: scripts/town/town_trip.gd:436 scripts/town/town_trip.gd:487
+#: scripts/town/town_trip.gd:441 scripts/town/town_trip.gd:492
 #. uses 2
 msgid "Rooms from seven in the evening. Sit on the bench if you are tired."
 msgstr "Pokoje od sedmi večer. Jestli jsi {g:unavený|unavená}, sedni si na lavičku."
 
-#: scripts/town/town_trip.gd:439 scripts/town/town_trip.gd:490
+#: scripts/town/town_trip.gd:444 scripts/town/town_trip.gd:495
 #. uses 2
 msgid "Fifteen dollars. The bench by the pond is free."
 msgstr "Sto padesát korun. Lavička u rybníka je zadarmo."
 
-#: scripts/town/town_trip.gd:495
+#: scripts/town/town_trip.gd:500
 msgid "Number four. Lock it twice."
 msgstr "Čtyřka. Zamkni dvakrát."
 
-#: scripts/town/town_trip.gd:745
+#: scripts/town/town_trip.gd:750
 msgid "Morning. The radiator knocked all night. Twice it knocked back."
 msgstr "Ráno. Topení klepalo celou noc. Dvakrát mu něco odpovědělo."
 
-#: scripts/town/town_trip.gd:812 scripts/town/town_trip.gd:822 scripts/town/town_trip.gd:879
+#: scripts/town/town_trip.gd:817 scripts/town/town_trip.gd:827 scripts/town/town_trip.gd:884
 #. uses 3
 msgid "SLUZEBNI"
 msgstr "SLUŽEBNÍ"
 
-#: scripts/town/town_trip.gd:884 scripts/town/town_trip.gd:1263
+#: scripts/town/town_trip.gd:889 scripts/town/town_trip.gd:1268
 #. uses 2
 msgid "LSTIBOR"
 msgstr "LSTIBOŘ"
 
-#: scripts/town/town_trip.gd:1078
+#: scripts/town/town_trip.gd:1083
 msgid "Driver: \"Lstibor. Yours is the other side, to the camp.\""
 msgstr "Řidič: „Lstiboř. Váš jede z druhé strany, do kempu.“"
 
-#: scripts/town/town_trip.gd:1087
+#: scripts/town/town_trip.gd:1092
 msgid "Driver: \"Staff only. Yours is the 380.\""
 msgstr "Řidič: „Služební, jen pro personál. Vy jedete třistaosmdesátkou.“"
 
-#: scripts/town/town_trip.gd:1277
+#: scripts/town/town_trip.gd:1282
 msgid "No room in the bag for a ticket."
 msgstr "V brašně není místo na jízdenku."
 
-#: scripts/town/town_trip.gd:1280
+#: scripts/town/town_trip.gd:1285
 msgid "Two dollars. You have not got two dollars."
 msgstr "Dvacet korun. Dvacet korun nemáš."
 
-#: scripts/town/town_trip.gd:1291
+#: scripts/town/town_trip.gd:1296
 msgid "A ticket for the 380. Punch it on the bus, in the orange box."
 msgstr "Jízdenka na třistaosmdesátku. Označ ji v autobuse v oranžovém štípači."
 
@@ -27799,17 +27799,17 @@ msgstr "Hostit uložený kemp"
 msgid "Join"
 msgstr "Připojit se"
 
-#: scripts/ui/main_menu.gd:443 scripts/ui/pause_menu.gd:219
+#: scripts/ui/main_menu.gd:443 scripts/ui/pause_menu.gd:220
 #. uses 2
 msgid "CONFIGURATION"
 msgstr "NASTAVENÍ"
 
-#: scripts/ui/main_menu.gd:455 scripts/ui/pause_menu.gd:232
+#: scripts/ui/main_menu.gd:455 scripts/ui/pause_menu.gd:233
 #. uses 2
 msgid "CONTROLS"
 msgstr "OVLÁDÁNÍ"
 
-#: scripts/ui/main_menu.gd:465 scripts/ui/pause_menu.gd:242
+#: scripts/ui/main_menu.gd:465 scripts/ui/pause_menu.gd:243
 #. uses 2
 msgid "CREDITS"
 msgstr "AUTOŘI"
@@ -28348,6 +28348,18 @@ msgstr "Zůstat"
 #. uses 3
 msgid "work#%d"
 msgstr "work#%d"
+
+#. gone
+msgid "Hlubocany bus station. Line three-eighty, Lstibor, Liblice, Pristoupim, Cerne jezero: from Liblice at five thirty, thirteen oh five and eighteen thirty. The last bus back from the camp leaves at nineteen fifteen."
+msgstr "Autobusové nádraží Hlubočany. Linka tři sta osmdesát, Lstiboř, Liblice, Přistoupim, Černé jezero: z Liblic v pět třicet, ve třináct nula pět a v osmnáct třicet. Poslední spoj zpátky od kempu odjíždí v devatenáct patnáct."
+
+#. gone
+msgid "You got off here? Nobody gets off here. That is my Skoda in the garage. She has not gone since my boy went to Germany. Get her going and there is fifty in it for you. Parts? Everything here is parts."
+msgstr "Ty jsi tu {g:vystoupil|vystoupila}? Tady nikdo nevystupuje. V garáži je moje škodovka. Nejela od tý doby, co syn odjel do Němec. Rozjeď ji a máš u mě pětistovku. Díly? Tady je všechno díly."
+
+#. gone
+msgid "Petrol? The Babetta by the Hronek ruin, up at the road. Her tank never emptied. The can is by the wall in the garage."
+msgstr "Benzín? Babetta u Hronkovy rozvaliny, nahoře u silnice. Tý se nádržka nikdy nevyprázdnila. Kanystr je v garáži u zdi."
 
 #. uses 2
 #. gone
