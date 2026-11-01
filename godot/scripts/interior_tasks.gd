@@ -178,6 +178,11 @@ func _process(delta: float) -> void:
 	var lmb_now := Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
 	var pressed_now := lmb_now and not _lmb_was
 	_lmb_was = lmb_now
+	# The pause menu over the room (a co-op camp is not paused): its clicks are its own.
+	if HandCursor.menu_over:
+		if _holding.is_empty():
+			_set_hover("")
+		return
 	if is_scrubbing():
 		_prompt.visible = false
 		queue_redraw()

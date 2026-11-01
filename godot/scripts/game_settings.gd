@@ -9,6 +9,8 @@ const MODE_FULLSCREEN := "fullscreen"
 const MODE_BORDERLESS := "borderless"
 const DEFAULT_RESOLUTION := Vector2i(1280, 720)
 const DEFAULT_MASTER_DB := 0.0
+## The volume slider's bottom: silence.
+const MASTER_DB_OFF := -80.0
 const DEFAULT_RETRO_PRESET := "build"
 const RETRO_PRESETS: Array[String] = ["chunky", "build", "crisp", "svga", "native"]
 const DEFAULT_MOUSE_SENSITIVITY := 1.0
@@ -141,7 +143,7 @@ func set_resolution(resolution: Vector2i, apply_now: bool = true, persist: bool 
 
 
 func set_master_volume_db(volume_db: float, apply_now: bool = true, persist: bool = true) -> void:
-	_master_db = clampf(volume_db, -40.0, 6.0)
+	_master_db = clampf(volume_db, MASTER_DB_OFF, 6.0)
 	if apply_now:
 		_apply_audio()
 	if persist:
@@ -185,7 +187,9 @@ func load_settings() -> void:
 	var retro = str(cfg.get_value("video", "retro_preset", DEFAULT_RETRO_PRESET))
 	_retro_preset = retro if RETRO_PRESETS.has(retro) else DEFAULT_RETRO_PRESET
 	_retro_palette_enabled = bool(cfg.get_value("video", "retro_palette", true))
-	_mouse_sensitivity = clampf(float(cfg.get_value("input", "mouse_sensitivity", DEFAULT_MOUSE_SENSITIVITY)), MOUSE_SENSITIVITY_MIN, MOUSE_SENSITIVITY_MAX)
+	# A key of its own since the Options row came back (1. 11.): the old "mouse_sensitivity"
+	# lay unused in players' files (3.0 on the user's) and would have tripled the look.
+	_mouse_sensitivity = clampf(float(cfg.get_value("input", "look_sensitivity", DEFAULT_MOUSE_SENSITIVITY)), MOUSE_SENSITIVITY_MIN, MOUSE_SENSITIVITY_MAX)
 	_invert_mouse_y = bool(cfg.get_value("input", "invert_mouse_y", false))
 	for action in REBINDABLE.keys():
 		_keys[action] = int(cfg.get_value("keys", action, REBINDABLE[action][1]))
@@ -203,7 +207,7 @@ func save_settings() -> void:
 	cfg.set_value("video", "retro_preset", _retro_preset)
 	cfg.set_value("video", "retro_palette", _retro_palette_enabled)
 	cfg.set_value("audio", "master_db", _master_db)
-	cfg.set_value("input", "mouse_sensitivity", _mouse_sensitivity)
+	cfg.set_value("input", "look_sensitivity", _mouse_sensitivity)
 	cfg.set_value("input", "invert_mouse_y", _invert_mouse_y)
 	for action in REBINDABLE.keys():
 		cfg.set_value("keys", action, get_key(action))
@@ -281,6 +285,13 @@ func _apply_audio() -> void:
 	var bus_index := AudioServer.get_bus_index("Master")
 	if bus_index >= 0:
 		AudioServer.set_bus_volume_db(bus_index, _master_db)
+		# The slider's bottom is off, not -40 dB still heard.
+		AudioServer.set_bus_mute(bus_index, _master_db <= MASTER_DB_OFF)
+
+
+## The player's volume on Master again (the camp's audio sets its buses up at each start).
+func apply_audio() -> void:
+	_apply_audio()
 
 
 func _apply_retro() -> void:

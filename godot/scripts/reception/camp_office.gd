@@ -4,14 +4,17 @@ extends Node
 ##   - sleeping: only at night, and only while nothing is out there; the night then
 ##     passes quickly in the dark (the clock stepped in quarter hours, so the night's
 ##     jobs, the dawn and the bills all still happen in order) until 06:30. In co-op
-##     only when both wardens are in bed: you lie awake till the other lies down too, the
-##     host's machine passes the night, and either getting up stops it;
+##     only when every warden is in bed (the user 1. 11.: "like Minecraft"): you lie
+##     awake till the others lie down too, everybody's screen says on top who is in bed
+##     ("Asleep: Matej (1/2)"), the host's machine passes the night, and getting up
+##     stops it (one up before it began: the others lie waiting again, eyes open);
 ##   - the phone: what the camp looks like to whoever you ring (phone_book.gd ctx) and
 ##     what a call sets going: the electrician (scripts/reception/electrician_visit.gd);
 ##   - the shed key from the noticeboard (the generator shed's back room).
 ## Saved with the game (export_state / import_state).
 
 const ELECTRICIAN_VISIT = preload("res://scripts/reception/electrician_visit.gd")
+const LANG = preload("res://scripts/lang.gd")
 const BOOK = preload("res://scripts/closeup/phone_book.gd")
 const WAKE_HOUR := 6.5
 ## Hours of game time passed per real second while you sleep.
@@ -51,6 +54,7 @@ func reset() -> void:
 
 func _process(delta: float) -> void:
 	_coop_bed()
+	_coop_beds_line(delta)
 	if _sleep_left > 0.0:
 		var step := minf(_sleep_left, delta * SLEEP_RATE)
 		_sleep_left -= step
@@ -143,7 +147,16 @@ func is_fast_forwarding() -> bool:
 func is_sleeping_through() -> bool:
 	if not _in_bed:
 		return _sleep_left > 0.0
+	# Not the host: asleep till its clock has passed the night (_coop_bed gets you up
+	# then); woken as soon as it began, you lay with the alarm while it still ran.
+	if Coop.is_client():
+		return true
 	return _sleep_left > 0.0 or not _night_started
+
+
+## The night has begun to pass since you lay down (here, or on the host's clock).
+func night_begun() -> bool:
+	return _night_started or _sleep_left > 0.0
 
 
 ## Every other warden lying down (wherever their bed is).
@@ -172,6 +185,37 @@ func _coop_bed() -> void:
 		_sleep_left = 0.0
 		_in_bed = false
 		_main._sync_runtime_state_from_systems(true)
+
+
+## Co-op: who is in bed, on every warden's screen (the user 1. 11.: "one lies down and
+## waits for the next, on top it shows that he sleeps, and the sleep and the night only
+## start once all of them sleep"), said again every few seconds while it holds.
+var _beds_line := ""
+var _beds_t := 0.0
+
+
+func _coop_beds_line(delta: float) -> void:
+	if not Coop.has_partner():
+		_beds_line = ""
+		return
+	var names: Array = []
+	if _in_bed:
+		names.append(str(Coop.my_look().get("n", "")))
+	for id in Coop.others():
+		if bool(Coop.state_of(id).get("z", false)):
+			names.append(Coop.name_of(id))
+	if names.is_empty():
+		_beds_line = ""
+		return
+	var line := LANG.f("Asleep: %s (%d/%d)", [", ".join(names.filter(func(n): return str(n) != "")), names.size(), 1 + Coop.others().size()])
+	_beds_t -= delta
+	if line == _beds_line and _beds_t > 0.0:
+		return
+	_beds_line = line
+	_beds_t = 3.0
+	var hud = _main.get("_hud_manager") if _main != null else null
+	if hud != null:
+		hud.push_status(line, 1, "beds")
 
 
 ## Lying with the eyes shut (the sleep in the back room is past its blinks, or the

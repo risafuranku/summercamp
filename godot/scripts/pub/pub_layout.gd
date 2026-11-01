@@ -53,11 +53,14 @@ const ASHTRAY_CARDS := Vector3(0.3, 0.74, -0.28)
 ## everywhere"): what prepares first, then what makes and serves, then the side jobs.
 ## You come in at the tap (where an order starts), the first time.
 const ENTRY := "tap"
+## The front door seen from inside (on the front wall, room space; the building's door).
+const FRONT_DOOR := Vector3(-1.88, 0.0, 2.3)
+const FRONT_DOOR_SIZE := Vector2(1.1, 2.02)
 const STATIONS := {
 	"keg": {"room": "cellar", "at": Vector3(-1.0, 0.55, -1.85), "size": Vector3(1.0, 1.1, 0.8), "stand": Vector3(-1.0, 0.05, -1.15), "pose": "fix", "mark": Vector3(-1.0, 1.45, -1.85), "label": "the keg", "tab_label": "KEG", "icon": "res://assets/textury/ui/mark_keg.png"},
-	"tap": {"room": "bar", "at": Vector3(1.3, 1.3, -1.32), "size": Vector3(0.3, 0.42, 0.3), "stand": Vector3(1.3, 0.05, -1.99), "pose": "tap", "mark": Vector3(1.3, 1.78, -1.3), "label": "the tap", "tab_label": "TAP", "icon": "res://assets/textury/ui/mark_tap.png"},
-	"back": {"room": "bar", "at": Vector3(0.63, 1.25, -1.4), "size": Vector3(0.52, 0.32, 0.3), "stand": Vector3(0.63, 0.05, -1.99), "pose": "pour", "mark": Vector3(0.63, 1.7, -1.4), "label": "the bottles", "tab_label": "BOTTLES", "icon": "res://assets/textury/ui/mark_shot.png", "menu": ["rum", "zelena", "slivovice", "kofola"]},
-	"wash": {"room": "bar", "at": Vector3(2.12, 1.15, -1.3), "size": Vector3(0.45, 0.12, 0.62), "stand": Vector3(2.12, 0.05, -1.99), "pose": "wash", "mark": Vector3(2.12, 1.6, -1.4), "label": "the washer", "tab_label": "WASH", "icon": "res://assets/textury/ui/mark_wash.png"},
+	"tap": {"room": "bar", "at": Vector3(1.335, 0.8, -1.25), "size": Vector3(0.75, 1.5, 0.72), "stand": Vector3(1.3, 0.05, -1.99), "pose": "tap", "mark": Vector3(1.3, 1.78, -1.3), "label": "the tap", "tab_label": "TAP", "icon": "res://assets/textury/ui/mark_tap.png"},
+	"back": {"room": "bar", "at": Vector3(0.64, 0.8, -1.25), "size": Vector3(0.66, 1.5, 0.72), "stand": Vector3(0.63, 0.05, -1.99), "pose": "pour", "mark": Vector3(0.63, 1.7, -1.4), "label": "the bottles", "tab_label": "BOTTLES", "icon": "res://assets/textury/ui/mark_shot.png", "menu": ["rum", "zelena", "slivovice", "kofola"]},
+	"wash": {"room": "bar", "at": Vector3(2.07, 0.8, -1.25), "size": Vector3(0.68, 1.5, 0.72), "stand": Vector3(2.12, 0.05, -1.99), "pose": "wash", "mark": Vector3(2.12, 1.6, -1.4), "label": "the washer", "tab_label": "WASH", "icon": "res://assets/textury/ui/mark_wash.png"},
 	# The fun (pub_fun.gd): clicked in the room, not on the frame's bar ("tab": false).
 	"slot": {"room": "bar", "at": Vector3(-2.35, 0.8, -1.9), "size": Vector3(0.7, 1.55, 0.5), "stand": Vector3(-2.35, 0.05, -1.2), "pose": "stand", "mark": Vector3(-2.35, 1.85, -1.85), "label": "the LUCKY 7", "tab_label": "LUCKY 7", "tab": false},
 	"darts": {"room": "bar", "at": Vector3(-2.82, 1.70, -1.0), "size": Vector3(0.15, 0.55, 0.55), "stand": Vector3(-0.6, 0.05, -1.0), "pose": "stand", "mark": Vector3(-2.75, 2.08, -1.0), "label": "the darts", "tab_label": "DARTS", "tab": false},
@@ -163,6 +166,11 @@ static func station_body(parent: Node3D, id: String) -> StaticBody3D:
 	body.name = "Station_" + id
 	body.set_meta("interior_click_type", "bistro_station")
 	body.set_meta("bistro_station", id)
+	# The bar's three take the counter in front of them, top and front (playtest 1. 11.:
+	# only the tap or the bottles themselves took a click); the counter is one model, so
+	# only each one's own things glint (station3d.room_glint), not the whole bar.
+	if str(st["room"]) == "bar" and id in ["tap", "back", "wash"]:
+		body.set_meta("glint_sprites_only", true)
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
 	box.size = st["size"]
@@ -240,29 +248,51 @@ static func bar(parent: Node3D, si) -> void:
 	var side: Dictionary = WINDOWS[2]
 	var side_at: Vector3 = side["at"]
 	var sill_y: float = side_at.y - (side["size"] as Vector2).y * 0.5
-	_cut(parent, "pub_geranium", Vector2(0.26, 0.32), Vector3(-2.78, sill_y + 0.02, side_at.z + 0.18), 90.0, false, "Geranium")
+	# On the sill by the glass, behind where the curtain hangs (at -2.78 it stood in the
+	# drawn curtain and showed through it: playtest 1. 11.).
+	_cut(parent, "pub_geranium", Vector2(0.26, 0.32), Vector3(-2.85, sill_y + 0.005, side_at.z + 0.15), 90.0, false, "Geranium")
 	look(parent, "window", "The car park, the lamp, the forest. The lamp flickers when somebody walks under it. Nobody is.", Vector3(-2.82, side_at.y, side_at.z), Vector3(0.1, 0.8, 0.6))
 	# The right wall: the slate of who owes, the lake poster, the print.
 	_cut(parent, "pub_board", Vector2(0.5, 0.42), Vector3(2.88, 1.55, 1.3), -90.0, false, "DebtSlate")
 	look(parent, "slate", "DLUZNICI, who owes for beer. The top name is rubbed out every morning and is back every night.", Vector3(2.85, 1.55, 1.3), Vector3(0.1, 0.42, 0.5))
-	K.picture(parent, "poster_lake", Vector2(0.6, 0.8), Vector3(2.88, 1.6, 0.55), -90.0, "PubPoster")
-	look(parent, "poster", "Cerne jezero, 1978. More people on the beach than live in the whole district now.", Vector3(2.85, 1.6, 0.55), Vector3(0.1, 0.8, 0.6))
-	# The front wall's pictures beside its windows and between them.
-	_cut(parent, "pub_hockey", Vector2(0.5, 0.36), Vector3(-0.75, 1.65, 2.28), 180.0, false, "TeamPhoto")
+	# Off the cellar door (service_interior: "p_cellar", z -0.2..0.8): it hung over the door
+	# and came along through the doorway on the way down (playtest 1. 11.).
+	K.picture(parent, "poster_lake", Vector2(0.6, 0.8), Vector3(2.88, 1.6, -0.95), -90.0, "PubPoster")
+	look(parent, "poster", "Cerne jezero, 1978. More people on the beach than live in the whole district now.", Vector3(2.85, 1.6, -0.95), Vector3(0.1, 0.8, 0.6))
+	# The front door from inside (playtest 1. 11.: "the door has no texture from inside": a
+	# bare wall stood where the building's door is, the stove in front of it); the front
+	# wall's pictures beside its windows and between them.
+	_front_door(parent)
+	# By the left wall, between the window and the boar (by the door it stood a metre from
+	# where you come in and filled the view).
+	_cut(parent, "pub_coatstand", Vector2(0.55, 1.75), Vector3(-2.6, 0.05, 1.2), 0.0, true, "CoatStand")
+	look(parent, "coat stand", "A green loden coat, wet through. It has not rained today.", Vector3(-2.6, 1.0, 1.2), Vector3(0.5, 1.7, 0.5))
+	_cut(parent, "pub_hockey", Vector2(0.5, 0.36), Vector3(-0.4, 1.65, 2.28), 180.0, false, "TeamPhoto")
 	_cut(parent, "pub_print", Vector2(0.5, 0.4), Vector3(1.008, 1.65, 2.28), 180.0, false, "PondPrint")
-	# The front corner: the stove and its coal, the coat stand, the fly paper.
-	_cut(parent, "pub_stove", Vector2(0.55, 1.3), Vector3(-2.4, 0.05, 1.85), 0.0, true, "Stove")
-	look(parent, "stove", "The kamna. Cold since spring. There is warm ash in it.", Vector3(-2.4, 0.6, 1.85), Vector3(0.55, 1.2, 0.5))
-	_cut(parent, "pub_coal", Vector2(0.32, 0.3), Vector3(-1.95, 0.05, 1.95), 0.0, true, "CoalScuttle")
-	look(parent, "coal", "Coal for the winter. A child's shoe on top of it.", Vector3(-1.95, 0.2, 1.95), Vector3(0.35, 0.3, 0.3))
-	_cut(parent, "pub_coatstand", Vector2(0.55, 1.75), Vector3(2.55, 0.05, 1.85), 0.0, true, "CoatStand")
-	look(parent, "coat stand", "A green loden coat, wet through. It has not rained today.", Vector3(2.55, 1.0, 1.85), Vector3(0.5, 1.7, 0.5))
+	# The other front corner: the stove and its coal; the fly paper.
+	_cut(parent, "pub_stove", Vector2(0.55, 1.3), Vector3(2.45, 0.05, 1.85), 0.0, true, "Stove")
+	look(parent, "stove", "The kamna. Cold since spring. There is warm ash in it.", Vector3(2.45, 0.6, 1.85), Vector3(0.55, 1.2, 0.5))
+	_cut(parent, "pub_coal", Vector2(0.32, 0.3), Vector3(1.95, 0.05, 1.98), 0.0, true, "CoalScuttle")
+	look(parent, "coal", "Coal for the winter. A child's shoe on top of it.", Vector3(1.95, 0.2, 1.98), Vector3(0.35, 0.3, 0.3))
 	_cut(parent, "pub_flypaper", Vector2(0.1, 0.5), Vector3(0.0, 2.3, -0.4), 20.0, true, "FlyPaper")
 	look(parent, "fly paper", "Full. Somebody has hung a new one beside it, and that is filling up too.", Vector3(0.0, 2.55, -0.4), Vector3(0.15, 0.5, 0.15))
 	si._sign(parent, "HOSPODA\nthe pub", Vector3(0.0, 2.36, -2.24), 30, "enamel")
 	for id in STATIONS:
 		if str(STATIONS[id]["room"]) == "bar":
 			station_body(parent, str(id))
+
+
+## The front door as it is from inside, where the building has it (building_models._pub:
+## its front picture's door, 20-63 of 224 px across a 6 m front): the boards of its leaf,
+## a frame round it.
+static func _front_door(parent: Node3D) -> void:
+	var at := Vector3(FRONT_DOOR.x, 0.0, SIZE.z * 0.5)
+	K.picture(parent, "door_wood", FRONT_DOOR_SIZE, at + Vector3(0, FRONT_DOOR_SIZE.y * 0.5, -0.012), 180.0, "FrontDoor")
+	var fm := K.surface("planks_dark", 0.6)
+	for side: float in [-1.0, 1.0]:
+		K.slab(parent, Vector3(0.08, FRONT_DOOR_SIZE.y + 0.08, 0.06), at + Vector3(side * (FRONT_DOOR_SIZE.x * 0.5 + 0.04), (FRONT_DOOR_SIZE.y + 0.08) * 0.5, -0.03), fm, "FrontDoorJamb")
+	K.slab(parent, Vector3(FRONT_DOOR_SIZE.x + 0.16, 0.08, 0.06), at + Vector3(0, FRONT_DOOR_SIZE.y + 0.04, -0.03), fm, "FrontDoorLintel")
+	look(parent, "door", "The way out to the camp. The bell over it rings a moment after the door has shut.", at + Vector3(0, 1.0, -0.06), Vector3(FRONT_DOOR_SIZE.x, 2.0, 0.1))
 
 
 ## A window of WINDOWS: its view (a picture the service interior makes a real one of:
@@ -278,7 +308,8 @@ static func _window(parent: Node3D, wd: Dictionary, rw) -> void:
 		rw.add_window(win)
 	_pic(parent, "window_curtain", size + Vector2(0.06, 0.06), at + into * 0.04, yaw, "NetCurtain")
 	var sill := Vector3(size.x + 0.1, 0.04, 0.18) if front else Vector3(0.18, 0.04, size.x + 0.1)
-	K.slab(parent, sill, at + into * 0.08 - Vector3(0, size.y * 0.5 + 0.02, 0), K.surface("planks_dark", 0.5), "Sill")
+	# The painted window's: a real window brings its own (service_interior._make_windows).
+	K.slab(parent, sill, at + into * 0.08 - Vector3(0, size.y * 0.5 + 0.02, 0), K.surface("planks_dark", 0.5), "Sill").set_meta("window_sill", true)
 
 
 ## The bar built again in its building in the camp (building_models._pub): the same room
@@ -308,8 +339,9 @@ static func cellar(parent: Node3D, si) -> void:
 	look(parent, "oak barrel", "Oak, chalked 1968. Nobody has delivered oak for thirty years. It is full, and cold, and it is not on the books.", Vector3(2.45, 0.4, -1.95), Vector3(0.55, 0.7, 0.5))
 	_cut(parent, "pub_bucket", Vector2(0.3, 0.3), Vector3(-0.2, 0.05, -1.35), 0.0, true, "Slops")
 	look(parent, "slops", "The slops bucket. Always half full, however often it is emptied.", Vector3(-0.2, 0.2, -1.35), Vector3(0.3, 0.3, 0.3))
-	_cut(parent, "pub_broom", Vector2(0.3, 1.2), Vector3(2.75, 0.05, 0.6), 0.0, true, "Broom")
-	look(parent, "broom", "Worn down on one side, as if it swept the same spot for years.", Vector3(2.75, 0.6, 0.6), Vector3(0.3, 1.2, 0.3))
+	# Off the way to the stairs ("pc_main", z 0.4..1.4).
+	_cut(parent, "pub_broom", Vector2(0.3, 1.2), Vector3(2.75, 0.05, -0.6), 0.0, true, "Broom")
+	look(parent, "broom", "Worn down on one side, as if it swept the same spot for years.", Vector3(2.75, 0.6, -0.6), Vector3(0.3, 1.2, 0.3))
 	_cut(parent, "pub_trap", Vector2(0.2, 0.1), Vector3(1.4, 0.05, -1.4), 0.0, true, "MouseTrap")
 	look(parent, "mouse trap", "Sprung, and empty. Something took the bait and the spring with it.", Vector3(1.4, 0.1, -1.4), Vector3(0.25, 0.15, 0.2))
 	_cut(parent, "pub_cobweb", Vector2(0.6, 0.5), Vector3(-2.8, 2.0, -2.2), 45.0, false, "Cobweb")

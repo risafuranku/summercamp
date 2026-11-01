@@ -340,6 +340,8 @@ func place_building_at_visual_only(origin: Vector2i, building_id: String, rotati
 ## `rotation`: quarter turns; an oblong one takes its footprint turned (GridModel.turned).
 func place_building_at(origin: Vector2i, building_type: String, rotation := 0) -> bool:
 	_turn = wrapi(rotation, 0, 4)
+	if building_type == "bench" and _get_path_root_at(origin) != null:
+		return place_bench_on_path_at(origin, _turn)
 	if building_type.begins_with("tent_"):
 		var level = 1
 		var parts = building_type.split("_")
@@ -687,6 +689,43 @@ func place_path_at(origin: Vector2i, permanent := false) -> bool:
 	_set_structure_condition_internal(path_node, _default_condition_for_type("path"))
 	_grid_manager.occupy_footprint(origin, Vector2i(1, 1), path_node, _grid_manager.TILE_BUILDING, permanent)
 	_refresh_path_neighbors(origin)
+	return true
+
+
+## A bench standing on a path tile (playtest 1. 11.: "benches on the path like the lamps,
+## at its edge but still on it, by the turn"): the path stays, the bench at the edge its
+## turn picks (LampSpot.bench_edge, the Builder's map draws it at the same spot), its back
+## to it, facing over the path; a structure of its own on the path's tile ("bench", meta
+## on_path, the path's "bench_node"), so the guests sit on it like any bench.
+func place_bench_on_path_at(origin: Vector2i, turn: int) -> bool:
+	_ensure_structures_root()
+	var path_root := _get_path_root_at(origin)
+	if path_root == null or path_root.has_meta("lamp_node") or path_root.has_meta("bench_node"):
+		return false
+	var bench := StaticBody3D.new()
+	bench.name = "PathBench"
+	bench.add_to_group("attractions")
+	_tag_structure(bench, origin, Vector2i(1, 1), "bench", false)
+	bench.set_meta("on_path", true)
+	bench.set_meta("build_rotation", turn)
+	_structures_root.add_child(bench)
+	var ts = _grid_manager.tile_size
+	var off: Vector2 = LAMP_SPOT.bench_offset(origin, turn, Callable(self, "_is_path_at"))
+	bench.position = _grid_manager.grid_to_world(origin) + Vector3(off.x * ts, -0.05, off.y * ts)
+	bench.rotation.y = LAMP_SPOT.yaw(off)
+	if _models == null:
+		_models = BUILDING_MODELS.new(Callable(self, "_make_psx_material"))
+	var info: Dictionary = _models.build("bench", bench, ts, Vector2i(1, 1))
+	var msize: Vector3 = info["size"]
+	bench.set_meta("interaction_target_local", info.get("target", Vector3(0.0, 1.0, msize.z * 0.5)))
+	var col := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(msize.x, maxf(0.3, msize.y), msize.z)
+	col.shape = shape
+	col.position = Vector3(0.0, shape.size.y * 0.5, 0.0)
+	bench.add_child(col)
+	_set_structure_condition_internal(bench, _default_condition_for_type("attraction"))
+	path_root.set_meta("bench_node", bench)
 	return true
 
 
@@ -1557,11 +1596,12 @@ func _lamp_line_of_sight_multiplier(
 
 
 func remove_structure(node: Node) -> bool:
-	# A path takes its lamp with it.
-	if node != null and node.has_meta("lamp_node"):
-		var lamp_node = node.get_meta("lamp_node")
-		if lamp_node != null and is_instance_valid(lamp_node):
-			(lamp_node as Node).queue_free()
+	# A path takes its lamp or its bench with it.
+	for edge_meta in ["lamp_node", "bench_node"]:
+		if node != null and node.has_meta(edge_meta):
+			var edge_node = node.get_meta(edge_meta)
+			if edge_node != null and is_instance_valid(edge_node):
+				(edge_node as Node).queue_free()
 	if _grid_manager == null or node == null:
 		return false
 

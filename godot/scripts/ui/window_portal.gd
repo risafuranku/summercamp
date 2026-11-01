@@ -99,7 +99,9 @@ func _build(host: Node, room: Node3D, centre: Vector3, out_dir: Vector3, glass: 
 	holder.transform = Transform3D(frame.basis, centre)
 	room.add_child(holder)
 	if wood_frame:
-		K.slab(holder, Vector3(glass.x + 0.12, 0.06, 0.14), Vector3(0, -glass.y * 0.5 - 0.03, 0.05), wood, "Sill")
+		# Shallow enough for the curtain (it hangs 9 cm in): 12 cm deep, its edge came
+		# through the drawn cloth as a dark bar (playtest 1. 11., the pub).
+		K.slab(holder, Vector3(glass.x + 0.12, 0.06, 0.08), Vector3(0, -glass.y * 0.5 - 0.03, 0.02), wood, "Sill")
 		K.slab(holder, Vector3(glass.x + 0.12, 0.06, 0.06), Vector3(0, glass.y * 0.5 + 0.03, 0.01), wood, "Top")
 		for sx: float in [-1.0, 1.0]:
 			K.slab(holder, Vector3(0.06, glass.y + 0.12, 0.06), Vector3(sx * (glass.x * 0.5 + 0.03), 0, 0.01), wood, "Side")

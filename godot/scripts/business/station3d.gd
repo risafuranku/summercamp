@@ -472,6 +472,17 @@ func _find_hover() -> void:
 		if n != null and is_instance_valid(n) and (n as Node3D).is_visible_in_tree() and _screen_rect(n as Node3D).grow(2.0).has_point(_vp_mouse):
 			_set_hover(str(s["id"]), str(s.get("verb", "")), n)
 			return
+	# A place with things standing on it (the clean mugs on their board, the dirty pile):
+	# pointing at one of them is pointing at the place (playtest 1. 11.: "the mugs take no
+	# click, only below them": the place is on the surface, under their feet).
+	for i in range(spots.size() - 1, -1, -1):
+		var s: Dictionary = spots[i]
+		var on: Array = s.get("on", [])
+		for k in range(on.size() - 1, -1, -1):
+			var sp = on[k]
+			if sp != null and is_instance_valid(sp) and (sp as Node3D).is_visible_in_tree() and _screen_rect(sp as Node3D).grow(2.0).has_point(_vp_mouse):
+				_set_hover(str(s["id"]), str(s.get("verb", "")), sp)
+				return
 	if _mouse.x >= 0.0:
 		for i in range(spots.size() - 1, -1, -1):
 			var s: Dictionary = spots[i]
@@ -612,18 +623,47 @@ func _glint_sprite(s: Sprite3D) -> void:
 	_glint_off()
 	if s.texture == null:
 		return
-	var tex_id := s.texture.get_instance_id()
-	var m: ShaderMaterial = _sprite_glint_mats.get(tex_id, null)
+	s.material_overlay = _sprite_glint_mat(s.texture)
+	_glint_on = s
+
+
+## The glint in the shape of a sprite's picture (one material per picture and wash: a
+## station's things pointed at from across the room glow warmer, to be seen at all).
+static func _sprite_glint_mat(tex: Texture2D, wash := 0.2) -> ShaderMaterial:
+	var key := "%d|%.2f" % [tex.get_instance_id(), wash]
+	var m: ShaderMaterial = _sprite_glint_mats.get(key, null)
 	if m == null:
 		m = ShaderMaterial.new()
 		m.shader = SPRITE_GLINT
-		m.set_shader_parameter("mask", s.texture)
+		m.set_shader_parameter("mask", tex)
+		m.set_shader_parameter("wash", wash)
 		if ResourceLoader.exists(GLINT_TEX):
 			m.set_shader_parameter("glint", load(GLINT_TEX))
 			m.set_shader_parameter("has_glint", true)
-		_sprite_glint_mats[tex_id] = m
-	s.material_overlay = m
-	_glint_on = s
+		_sprite_glint_mats[key] = m
+	return m
+
+
+## The station pointed at from across the room (service_interior._hover_things): what it
+## has on show glints, so you see it takes a click (playtest 1. 11.: "clicking the bar,
+## nothing lights up yellow": the tap, the bottles and the washer are sprites, and the
+## room's glint only lit meshes).
+var _room_glint: Array = []
+const ROOM_GLINT_WASH := 0.45
+
+
+func room_glint(on: bool) -> void:
+	for s in _room_glint:
+		if is_instance_valid(s) and (s as Sprite3D).material_overlay != null and _sprite_glint_mats.values().has((s as Sprite3D).material_overlay):
+			(s as Sprite3D).material_overlay = null
+	_room_glint.clear()
+	if not on or _open:
+		return
+	for c in find_children("*", "Sprite3D", true, false):
+		var s := c as Sprite3D
+		if s.is_visible_in_tree() and s.texture != null and s.material_overlay == null:
+			s.material_overlay = _sprite_glint_mat(s.texture, ROOM_GLINT_WASH)
+			_room_glint.append(s)
 
 
 ## A place of the surface itself (a bowl, the sack): a quad over it takes the glint.

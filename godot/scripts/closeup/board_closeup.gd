@@ -10,7 +10,11 @@ extends "res://scripts/closeup/closeup_view.gd"
 ## exercise book (Grok, closeup/maze_sheet.png) with the corn maze drawn on it in pencil,
 ## its ways as they are this year (cornfield.gd), the way in from the camp marked with an
 ## arrow and the far gap with a cross (playtest 25. 10.: "a drawn map of the maze in the
-## corn on the noticeboard"); click it and it is held up to follow.
+## corn on the noticeboard"); click it and it is held up to follow. Over the corner of
+## Vera's bus note the 380's printed timetable from the camp to Liblice (playtest 1. 11.:
+## "the bus timetable to Liblice on the noticeboard too"): the ČSAD sheet off the camp's
+## pole (scripts/town/timetable_closeup.gd, its times scripts/town/bus_timetable.gd), held
+## up to read.
 
 ## Paper rectangles on the picture (px), and the text written on each.
 const NOTES := {
@@ -23,13 +27,20 @@ const NOTES := {
 	"photo": {"rect": Rect2(24, 109, 78, 85), "paper": Color(0.86, 0.84, 0.78), "ink": Color(0.14, 0.12, 0.2),
 		"text": "Hruby, '91\n\n(the lake from the\njetty. Somebody has\npressed a thumbnail\ninto the water, in\nthe middle, hard\nenough to dent it.)"},
 	"bus": {"rect": Rect2(110, 126, 70, 81), "paper": Color(0.62, 0.7, 0.78), "ink": Color(0.08, 0.1, 0.22),
-		"text": "BUS  380\nLiblice - camp\n 5:30   9:35\n 13:05  18:30\nback to Liblice:\n 6:10  10:15\n 13:45, last 19:10.\nthe 23:46 does not\nstop. do not wave.\n\nJednota van:\nTue + Fri, at the gate."},
+		"text": "BUS  380\nin from Liblice:\n 5:37   9:42\n 13:12  18:37\nback to Liblice:\n 6:10  10:15\n 13:45, last 19:10.\nthe 23:46 does not\nstop. do not wave.\n\nJednota van:\nTue + Fri, at the gate."},
 	"hruby": {"rect": Rect2(188, 130, 36, 71), "paper": Color(0.74, 0.7, 0.62), "ink": Color(0.14, 0.12, 0.12),
 		"text": "Hruby - lake\nkeeper - boats,\nthe sluice\n\n0663 21 224\n\n-- no longer --", "struck": [0, 4]},
 	"card": {"rect": Rect2(254, 157, 47, 55), "paper": Color(0.84, 0.78, 0.6), "ink": Color(0.12, 0.1, 0.08), "font": "label",
 		"text": "KEMP\nCERNE JEZERO\n\nreception\n0663 21 404\n\nopen May-Sept"},
 }
 const KEY_RECT := Rect2(232, 102, 21, 94)
+## The printed timetable on the cork (picture px), pinned over the bus note's corner.
+const TIMETABLE_RECT := Rect2(150, 148, 38, 52)
+const TIMETABLE := preload("res://scripts/town/timetable_closeup.gd")
+const TIMES := preload("res://scripts/town/bus_timetable.gd")
+const LANG := preload("res://scripts/lang.gd")
+const SHEET_INK := Color(0.08, 0.08, 0.12)
+const SHEET_PAPER := Color(0.92, 0.91, 0.86)
 ## The maze's sheet on the cork (picture px), and its paper inside the torn edge.
 const MAZE_RECT := Rect2(259, 98, 42, 56)
 const MAZE_TEX := "res://assets/textury/closeup/maze_sheet.png"
@@ -53,6 +64,14 @@ var _maze_tex: Texture2D
 var _maze_small: Texture2D
 ## The maze as drawn: {cols, rows, open: {Vector2i: true}, entrance, exit} (cornfield.gd).
 var _maze: Dictionary = {}
+## The pole's timetable close-up, never shown: it draws its sheet here when held up.
+var _sheet_view
+
+
+func _exit_tree() -> void:
+	if _sheet_view != null and is_instance_valid(_sheet_view):
+		_sheet_view.free()
+	_sheet_view = null
 
 
 func _ready() -> void:
@@ -86,6 +105,8 @@ func _hotspots() -> Array:
 	if _reading != "":
 		return [{"id": "put_back", "rect": Rect2(0, 0, W, PIC_H)}]
 	var out: Array = []
+	# Pinned over the bus note: it takes the click where it lies.
+	out.append({"id": "timetable", "rect": TIMETABLE_RECT})
 	for id in NOTES.keys():
 		out.append({"id": id, "rect": NOTES[id]["rect"]})
 	out.append({"id": "key" if _has_key() else "pin", "rect": KEY_RECT})
@@ -116,7 +137,18 @@ func _clicked(id: String) -> void:
 	_reading = id
 	_read_t = 0.0
 	play(SFX_PAPER, -14.0)
-	say("", "", false)
+	say("", _timetable_line() if id == "timetable" else "", false)
+
+
+## What the sheet says, read out under it as at the pole: the buses to Liblice, the ones in.
+func _timetable_line() -> String:
+	var out: Array = []
+	for t in TIMES.CAMP_LEAVE:
+		out.append(TIMES.hm(float(t)))
+	var back: Array = []
+	for t in TIMES.CAMP_ARRIVE:
+		back.append(TIMES.hm(float(t)))
+	return "Line 380 %s." % ("%s %s; %s" % [tr("to Liblice"), ", ".join(out), LANG.f("in from Liblice %s", ", ".join(back))])
 
 
 func _key(event: InputEventKey) -> bool:
@@ -151,6 +183,9 @@ func _paint(c: Control) -> void:
 				c.draw_rect(Rect2(r.position.x + 5, r.position.y + 8 + i * 5, w, 1), col)
 		if hovered() == id:
 			c.draw_rect(r, Color(1.0, 0.92, 0.6, 0.14))
+	_paint_timetable(c)
+	if hovered() == "timetable":
+		c.draw_rect(TIMETABLE_RECT, Color(1.0, 0.92, 0.6, 0.14))
 	if hovered() == "key" or hovered() == "pin":
 		c.draw_rect(KEY_RECT, Color(1.0, 0.92, 0.6, 0.12))
 	if not _maze.is_empty():
@@ -164,6 +199,8 @@ func _paint(c: Control) -> void:
 		var at := ((Vector2(W, PIC_H) - size) * 0.5).floor()
 		c.draw_rect(Rect2(at + Vector2(3, 4), size), Color(0, 0, 0, 0.5))
 		_paint_sheet(c, Rect2(at, size), 2.0 if grow >= 1.0 else 0.0)
+	elif _reading == "timetable":
+		_paint_timetable_held(c)
 	elif _reading != "":
 		_paint_held(c, NOTES[_reading])
 
@@ -212,6 +249,61 @@ func _paint_sheet(c: Control, r: Rect2, line: float) -> void:
 		var h := maxf(1.0, t * 0.6)
 		c.draw_line(x + Vector2(-h, -h), x + Vector2(h, h), Color(0.55, 0.12, 0.1, 0.9), lw)
 		c.draw_line(x + Vector2(-h, h), x + Vector2(h, -h), Color(0.55, 0.12, 0.1, 0.9), lw)
+
+
+## The timetable as it hangs on the cork: too small to read, but a ČSAD sheet at a glance
+## (the line's black box, the head's rule, the stops, the dark hour column, the last bus
+## ringed in red), on a yellow pin.
+func _paint_timetable(c: Control) -> void:
+	var r := TIMETABLE_RECT
+	var o := r.position
+	c.draw_rect(Rect2(o + Vector2(2, 3), r.size), Color(0, 0, 0, 0.35))
+	c.draw_rect(r, SHEET_PAPER)
+	c.draw_rect(Rect2(o + Vector2(3, 4), Vector2(9, 5)), SHEET_INK)
+	c.draw_rect(Rect2(o + Vector2(14, 4), Vector2(19, 1)), Color(SHEET_INK, 0.7))
+	c.draw_rect(Rect2(o + Vector2(14, 7), Vector2(13, 1)), Color(SHEET_INK, 0.45))
+	c.draw_rect(Rect2(o + Vector2(3, 11), Vector2(r.size.x - 6, 1)), SHEET_INK)
+	for i in 4:
+		c.draw_rect(Rect2(o + Vector2(3, 15 + i * 4), Vector2(9 + (i * 5) % 6, 1)), Color(SHEET_INK, 0.6))
+	for i in 5:
+		c.draw_rect(Rect2(o + Vector2(3, 33 + i * 3), Vector2(13 - (i * 3) % 5, 1)), Color(SHEET_INK, 0.35))
+	var hx := o.x + 21.0
+	c.draw_rect(Rect2(hx, o.y + 14, 3, r.size.y - 18), Color(SHEET_INK, 0.85))
+	for i in 9:
+		if i % 3 != 1:
+			c.draw_rect(Rect2(hx + 5, o.y + 15 + i * 4, 3 + (i % 2) * 4, 1), Color(SHEET_INK, 0.7))
+	var ring := Vector2(hx + 8, o.y + 15 + 7 * 4)
+	var pts := PackedVector2Array()
+	for k in 11:
+		var a := TAU * float(k) / 10.0
+		pts.append((ring + Vector2(cos(a) * 5.0, sin(a) * 3.0)).floor())
+	c.draw_polyline(pts, Color(0.78, 0.1, 0.08, 0.9), 1.0)
+	var pin := o + Vector2(floorf(r.size.x * 0.5) - 1, 1)
+	c.draw_rect(Rect2(pin + Vector2(1, 2), Vector2(3, 2)), Color(0, 0, 0, 0.35))
+	c.draw_rect(Rect2(pin, Vector2(3, 3)), Color(0.86, 0.68, 0.14))
+	c.draw_rect(Rect2(pin, Vector2(1, 1)), Color(1.0, 0.92, 0.6))
+
+
+## The timetable held up: the pole's own sheet (timetable_closeup.gd draws it), big enough
+## to read, the board dimmed behind.
+func _paint_timetable_held(c: Control) -> void:
+	c.draw_rect(Rect2(0, 0, W, PIC_H), Color(0, 0, 0, 0.62))
+	if _sheet_view == null:
+		_sheet_view = TIMETABLE.new()
+		_sheet_view.stop = "camp"
+		# Its own picture (the case on the pole) is not drawn here: only the sheet.
+		_sheet_view.picture = picture
+	var paper: Rect2 = TIMETABLE.PAPER
+	var grow := 0.86 if _read_t < 0.06 else 1.0
+	var size := (paper.size * grow).floor()
+	var at := ((Vector2(W, PIC_H) - size) * 0.5).floor()
+	c.draw_rect(Rect2(at + Vector2(3, 4), size), Color(0, 0, 0, 0.5))
+	c.draw_rect(Rect2(at, size), SHEET_PAPER)
+	if grow < 1.0 or not _sheet_view.has_method("_paint"):
+		return
+	c.draw_set_transform(at - paper.position)
+	_sheet_view._paint(c)
+	c.draw_set_transform(Vector2.ZERO)
 
 
 ## The note held up close: the paper drawn big in the middle, the board dimmed behind.

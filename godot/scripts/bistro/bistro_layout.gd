@@ -284,7 +284,7 @@ static func dining(parent: Node3D, si) -> void:
 		var wat: Vector3 = wd["at"]
 		var wsize: Vector2 = wd["size"]
 		rw.add_window(_pic(parent, "window_view", wsize, wat + Vector3(0, 0, -0.02), 180.0, "Window"))
-		K.slab(parent, Vector3(wsize.x + 0.1, 0.04, 0.18), wat + Vector3(0, -wsize.y * 0.5 - 0.02, -0.08), K.surface("planks_dark", 0.5), "Sill")
+		K.slab(parent, Vector3(wsize.x + 0.1, 0.04, 0.18), wat + Vector3(0, -wsize.y * 0.5 - 0.02, -0.08), K.surface("planks_dark", 0.5), "Sill").set_meta("window_sill", true)
 		K.slab(parent, Vector3(minf(0.9, wsize.x - 0.2), 0.5, 0.08), Vector3(wat.x, 0.45, wat.z - 0.04), K.surface("galvanized", 0.3, Color(0.85, 0.82, 0.76)), "Radiator")
 	K.picture(parent, "door_interior", DOOR_SIZE, DOOR + Vector3(0, DOOR_SIZE.y * 0.5, -0.01), 180.0, "FrontDoor")
 	var first: Vector3 = WINDOWS[0]["at"]

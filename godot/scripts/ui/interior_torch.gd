@@ -132,6 +132,10 @@ func _input(event: InputEvent) -> void:
 
 func _set_on(on: bool) -> void:
 	_on = on
+	# The cell is spent only while this beam is out (player_controller.in_room).
+	var player := _player()
+	if player != null and "indoor_torch_on" in player:
+		player.indoor_torch_on = on
 	if _spot != null:
 		_spot.visible = on
 		_halo.visible = on

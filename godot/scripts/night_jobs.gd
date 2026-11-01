@@ -518,6 +518,8 @@ func _coords_of(types: Array) -> Array[Vector2i]:
 			out.append(coord)
 		elif types.has("lamp_post") and str(cell.get("type", "")) == "path" and bool(cell.get("lamp", false)):
 			out.append(coord)
+		elif types.has("bench") and str(cell.get("type", "")) == "path" and cell.has("bench"):
+			out.append(coord)
 	return out
 
 

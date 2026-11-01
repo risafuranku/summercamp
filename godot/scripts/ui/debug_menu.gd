@@ -18,6 +18,8 @@ const ITEMS := [
 	[KEY_J, "Night log", "_night_log"],
 	[KEY_O, "Night director", "_director"],
 	[KEY_M, "Frame time", "_perf"],
+	# U: "u brány" (playtest 1. 11.: "add a teleport to the camp, in front of the gate").
+	[KEY_U, "To the camp gate", "_to_gate"],
 ]
 
 var main: Node
@@ -180,3 +182,19 @@ func _director() -> void:
 
 func _perf() -> void:
 	_perf_on = not _perf_on
+
+
+## On the road outside the barrier, facing the camp (from Liblice, the hamlet, the woods):
+## where the bus leaves its passengers. A click on the barrier lets you in.
+func _to_gate() -> void:
+	var gate = get_tree().get_first_node_in_group("camp_gate")
+	var player := main.get("_player") as Node3D
+	if gate == null or player == null:
+		return
+	var spot: Vector3 = gate.to_global(Vector3(float(gate.get("gap_center_x")) - 1.2, 0.0, float(gate.get("fence_z")) - 3.5))
+	player.global_position = spot + Vector3(0, 0.3, 0)
+	if player is CharacterBody3D:
+		(player as CharacterBody3D).velocity = Vector3.ZERO
+	player.rotation.y = PI
+	main.set("debug_camera", null)
+	_set_open(false)

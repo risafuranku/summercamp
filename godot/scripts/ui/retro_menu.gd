@@ -378,12 +378,17 @@ class OptionsPage:
 
 	const MODE_IDS := ["windowed", "fullscreen", "borderless"]
 	const MODE_LABELS := ["WINDOWED", "FULLSCREEN", "BORDERLESS"]
-	const VOLUME_STEPS := [-40.0, -30.0, -24.0, -20.0, -16.0, -12.0, -9.0, -6.0, -4.0, -2.0, 0.0, 3.0, 6.0]
+	## The bottom is off (GameSettings.MASTER_DB_OFF mutes Master), not -40 dB still heard.
+	const VOLUME_STEPS := [-80.0, -40.0, -30.0, -24.0, -20.0, -16.0, -12.0, -9.0, -6.0, -4.0, -2.0, 0.0, 3.0, 6.0]
 	const MOUSE_STEPS := [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0]
 	## View and body (the warden's: profiles.gd profile_body): the FOV, how much the head
 	## bobs and leans (0 against sickness).
 	const FOV_STEPS := [60.0, 64.0, 68.0, 72.0, 76.0, 80.0, 84.0, 90.0]
 	const PCT_STEPS := [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+	## A row's height: twelve rows fit the title screen's plate and the pause menu's.
+	const ROW_VP := 14.0
+	## Where "View and body" is on the main rows (back from that page lands on it).
+	const BODY_ROW := 6
 
 	var ui_scale: int = 3
 	var selected: int = 0
@@ -423,6 +428,9 @@ class OptionsPage:
 			{"id": "render", "name": "Render style"},
 			{"id": "palette", "name": "256-colour palette"},
 			{"id": "volume", "name": "Master volume", "bar": VOLUME_STEPS.size() - 1},
+			# The pointer's speed for every look (playtest 1. 11.: "add mouse sensitivity":
+			# it was only the warden's X and Y, two pages down); those stay as fine tuning.
+			{"id": "mouse", "name": "Mouse sensitivity", "bar": MOUSE_STEPS.size() - 1},
 			{"id": "body", "name": "View and body", "action": true},
 			{"id": "hints", "name": "Work hints"},
 			{"id": "controls", "name": "Controls", "action": true},
@@ -446,7 +454,7 @@ class OptionsPage:
 		_name_labels.clear()
 		_bars.clear()
 		var s := float(ui_scale)
-		var row_h := 15.0 * s
+		var row_h := ROW_VP * s
 		_highlight = RETRO_UI.BevelPanel.new()
 		_highlight.ui_scale = ui_scale
 		_highlight.fill = Color(0.22, 0.14, 0.07, 0.9)
@@ -585,7 +593,7 @@ class OptionsPage:
 		if event.is_action_pressed("ui_cancel"):
 			if section == "body":
 				section = "main"
-				selected = 5
+				selected = BODY_ROW
 				build()
 				return true
 			back_requested.emit()
@@ -648,7 +656,7 @@ class OptionsPage:
 			"body", "body_back":
 				if activate:
 					section = "body" if id == "body" else "main"
-					selected = 0 if id == "body" else 5
+					selected = 0 if id == "body" else BODY_ROW
 					_play(0.85)
 					build()
 				return

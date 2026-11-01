@@ -14,6 +14,7 @@ const UTILITY_REPAIR_MINIGAME_SCRIPT = preload("res://scripts/utility_repair_min
 const SEWER_PIPE_MINIGAME_SCRIPT = preload("res://scripts/sewer_pipe_minigame.gd")
 const INTERIOR_MANAGER_SCRIPT = preload("res://scripts/interior_manager.gd")
 const BUS_TIMES = preload("res://scripts/town/bus_timetable.gd")
+const LANG = preload("res://scripts/lang.gd")
 const INTERACTION_CONTROLLER_SCRIPT = preload("res://scripts/interaction_controller.gd")
 const SILENT_MAN_BRAIN_SCRIPT = preload("res://scripts/enemies/silent_man_brain.gd")
 const TOURIST_BRAIN_SCRIPT = preload("res://scripts/enemies/tourist_brain.gd")
@@ -3757,6 +3758,8 @@ func _update_player_control_lock() -> void:
 	if _player == null or not _player.has_method("set_controls_enabled"):
 		return
 	_player.set_controls_enabled(not _is_any_interior_open() and not (_lake_trip != null and _lake_trip.is_active()) and not _coop_menu_up() and not _in_attraction() and not _coop_down)
+	# The camp's torch is not spent while you are in a room (player_controller.in_room).
+	_player.in_room = _is_any_interior_open()
 
 
 ## Sat by the fire, on the swing, at the net... (scripts/attractions/warden_play.gd).
@@ -6193,8 +6196,9 @@ func _collect_structure_snapshot_entries() -> Array[Dictionary]:
 		var building_id := str(structure.get_meta("building_type", "")).strip_edges()
 		if building_id.is_empty():
 			continue
-		if structure.has_meta("on_path"):
-			continue
+		# A lamp or a bench standing on a path is saved too: loaded after its path (the
+		# sort in _apply_save_snapshot), it goes back onto it. Left out, every lamp on a
+		# path was gone after a load (found 1. 11. with the benches on paths).
 		var origin_any = structure.get_meta("grid_origin", Vector2i.ZERO)
 		var footprint_any = structure.get_meta("grid_footprint", Vector2i.ONE)
 		var origin := origin_any as Vector2i if origin_any is Vector2i else Vector2i.ZERO
@@ -6268,10 +6272,10 @@ func _apply_save_snapshot(snapshot: Dictionary, preview_only: bool) -> bool:
 			return true
 		if aid != "main_building" and bid == "main_building":
 			return false
-		# Paths before lamps: a lamp saved on a path needs its path first.
-		if aid == "path" and bid == "lamp_post":
+		# Paths before lamps and benches: one saved on a path needs its path first.
+		if aid == "path" and bid in ["lamp_post", "bench"]:
 			return true
-		if aid == "lamp_post" and bid == "path":
+		if aid in ["lamp_post", "bench"] and bid == "path":
 			return false
 		return aid < bid
 	)
@@ -6605,7 +6609,11 @@ func _rebuild_core_cells_from_visual_structures() -> void:
 		if child is Node3D and child.has_meta("on_path"):
 			var o = child.get_meta("grid_origin", Vector2i.ZERO)
 			if state.grid.cells.has(o):
-				state.grid.cells[o]["lamp"] = true
+				# A bench on a path keeps its turn (the edge it stands at).
+				if str(child.get_meta("building_type", "")) == "bench":
+					state.grid.cells[o]["bench"] = int(child.get_meta("build_rotation", 0))
+				else:
+					state.grid.cells[o]["lamp"] = true
 
 
 ## GuestManager owns the room states (status, preparation, who is in it). This only
@@ -6825,24 +6833,26 @@ func _close_pause_menu(recapture_mouse: bool) -> void:
 		Input.set_mouse_mode(_pause_prev_mouse)
 
 
+## Each piece looked up on its own: put together first, the lookup found the first piece
+## only (playtest 1. 11.: "DEN 2   03:15   WITH GRIMROOT").
 func _pause_info_line() -> String:
-	var line := "DAY %d   %s" % [maxi(1, _day_index), _time_of_day_string()]
+	var line := LANG.f("DAY %d   %s", [maxi(1, _day_index), _time_of_day_string()])
 	var saved := _last_save_unix()
 	if saved > 0:
 		var ago := int(Time.get_unix_time_from_system()) - saved
 		if ago < 90:
-			line += "   SAVED JUST NOW"
+			line += LANG.f("   SAVED JUST NOW")
 		elif ago < 3600:
-			line += "   SAVED %d MIN AGO" % (ago / 60)
+			line += LANG.f("   SAVED %d MIN AGO", [ago / 60])
 		else:
-			line += "   SAVED %d H AGO" % (ago / 3600)
+			line += LANG.f("   SAVED %d H AGO", [ago / 3600])
 	# Co-op: who you are with, or (the host alone) where the other can call in.
 	if Coop.has_partner():
-		line += "   WITH %s" % _coop_names_said().to_upper()
+		line += LANG.f("   WITH %s", [_coop_names_said().to_upper()])
 	elif Coop.is_host():
 		var here: Array[String] = Coop.local_addresses()
 		if not here.is_empty():
-			line += "   OPEN AT %s" % here[0]
+			line += LANG.f("   OPEN AT %s", [here[0]])
 	return line
 
 
@@ -6855,7 +6865,7 @@ func _last_save_unix() -> int:
 func _on_pause_save_requested() -> void:
 	var path := request_manual_save()
 	if path.is_empty():
-		_pause_menu.set_info("SAVE FAILED")
+		_pause_menu.set_info(LANG.t("SAVE FAILED"))
 		return
 	_pause_menu.set_info(_pause_info_line())
 	if _hud_manager != null:

@@ -9,9 +9,11 @@ extends Node
 ##   litter    rubbish dumped by a facility: hold E to bag it
 ##   raccoons  raccoons in the bins behind the bistro / shop / pub: E to shoo them
 ##   delivery  the wholesaler's van at the gate with what you ordered at the businesses'
-##             desks (scripts/business/): its note lies in the folder on the reception
-##             desk, signed there with the mouse (scripts/closeup/delivery_closeup.gd), and
-##             it goes on the shelves; missed, it comes again the next morning
+##             desks (scripts/business/): its driver walks to the reception and waits
+##             across the counter with his folder (scripts/reception/delivery_driver.gd,
+##             the van and the man from `started`), the note signed there with the mouse
+##             (scripts/closeup/delivery_closeup.gd), and it goes on the shelves; missed,
+##             it comes again the next morning
 ##   lost_kid  a family's boy has wandered off (families only): find him, E
 ##   noise     tramps or lads keeping the quiet ones awake: talk to the loud party
 ##   tree      a branch down across a path after the wind: hold E to saw it up
@@ -58,6 +60,9 @@ const LIFE_LOOPS := {
 	"pub": {"file": "pub_chatter.mp3", "from": 11.0, "to": 23.5, "db": -6.0},
 }
 const LIFE_ONESHOTS := ["axe.mp3", "dog_far.mp3", "moped.mp3"]
+## The delivery's driver: up the road and his walk to the office, game minutes on top of
+## its wait (scripts/reception/delivery_driver.gd).
+const DRIVER_WAY_MIN := 45
 
 var _events: Array = []
 ## Lodgings where a guest heard someone in the night: "x:y" -> the day it was said.
@@ -222,6 +227,15 @@ func delivery_waiting() -> int:
 		if str(ev["state"]) == "open" and str(ev["kind"]) == "delivery":
 			return int(ev["id"])
 	return -1
+
+
+## The open delivery (its id, `started`: the game minute the van came), or {}: the van
+## and its driver are drawn from it (scripts/reception/delivery_driver.gd).
+func delivery_event() -> Dictionary:
+	for ev in _events:
+		if str(ev["state"]) == "open" and str(ev["kind"]) == "delivery":
+			return ev.duplicate()
+	return {}
 
 
 ## How many orders the van has brought (due today or before), for the driver's word.
@@ -549,6 +563,10 @@ func _make(kind: String, at: int, guests: Array) -> Dictionary:
 
 func _start(ev: Dictionary, abs_minute: int) -> void:
 	ev["deadline"] = abs_minute + int(RULES[str(ev["kind"])]["wait"])
+	if str(ev["kind"]) == "delivery":
+		# He drives up and walks to the office first: the wait is at the counter.
+		ev["started"] = abs_minute
+		ev["deadline"] = int(ev["deadline"]) + DRIVER_WAY_MIN
 	if str(ev["kind"]) == "noise" and not _guest_exists(int(ev.get("guest_id", -1))):
 		ev["state"] = "cancelled"
 		return
@@ -846,6 +864,11 @@ func _spawn_props(ev: Dictionary) -> void:
 				s.set_meta("hop", float(i) * 1.3)
 			_loop_at(root, "raccoons_bin.mp3", -4.0, 18.0)
 		"delivery":
+			# The van and its driver are the office's (scripts/reception/delivery_driver.gd:
+			# up the road, out, to the counter, back): nothing stands at the gate here.
+			if _driver_drawn():
+				root.queue_free()
+				return
 			# The wholesaler's Avia (Grok faces); the old white box when the art is missing.
 			var white := Color(0.86, 0.86, 0.82)
 			if ResourceLoader.exists(TOWN + "van_side.png"):
@@ -917,6 +940,13 @@ func _spawn_props(ev: Dictionary) -> void:
 				var twig := _cylinder(root, Vector3(rng.randf_range(-1.2, 1.2), 0.05, rng.randf_range(-0.8, 0.8)), 0.03, 0.8, Color(0.36, 0.26, 0.16))
 				twig.rotation = Vector3(0, rng.randf() * TAU, PI * 0.5)
 	_props[int(ev["id"])] = root
+
+
+## The office's delivery_driver.gd is there to draw the van and its man.
+func _driver_drawn() -> bool:
+	var bi = _main.get("_interior_manager") if _main != null else null
+	var office = bi.get("_building_interior") if bi != null else null
+	return office != null and office.get("_van_driver") != null
 
 
 func _free_props(id: int) -> void:
@@ -1404,7 +1434,9 @@ func _hud():
 func _report(text: String, kind: int) -> void:
 	var hud = _hud()
 	if hud != null:
-		hud.push_status(text, kind, "day_events")
+		# Looked up whole (the feed's lines are not: "Pager: %s" and the line in it were
+		# shown in English in a Czech game, the van's page on 1. 11.).
+		hud.push_status(tr(text), kind, "day_events")
 
 
 func _page() -> void:

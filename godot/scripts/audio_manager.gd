@@ -179,7 +179,6 @@ const OUTDOOR_AMBIENCE_BUS_NAME := "OutdoorAmbience"
 const INSECTS_BUS_NAME := "NightInsects"
 const INSECTS_HUSH_FLOOR := 0.03
 const MASTER_BUS_NAME := "Master"
-const MASTER_BUS_DEFAULT_DB: float = 3.0
 const OUTDOOR_AMBIENCE_BUS_DEFAULT_DB: float = 1.0
 const MAX_STREAM_SOURCE_BYTES: int = 8 * 1024 * 1024
 
@@ -1676,9 +1675,11 @@ func _set_outdoor_ambience_bus_volume_db(volume_db: float) -> void:
 
 
 func _apply_default_bus_levels() -> void:
-	var master_bus_index = AudioServer.get_bus_index(MASTER_BUS_NAME)
-	if master_bus_index >= 0 and master_bus_index < AudioServer.get_bus_count():
-		AudioServer.set_bus_volume_db(master_bus_index, MASTER_BUS_DEFAULT_DB)
+	# Master is the player's volume (Options), nobody else's: it was set to +3 dB here at
+	# every start of a camp, whatever the slider said (playtest 1. 11.: "even turned low
+	# it is terribly loud").
+	if GameSettings != null:
+		GameSettings.apply_audio()
 	if _outdoor_ambience_bus_index >= 0 and _outdoor_ambience_bus_index < AudioServer.get_bus_count():
 		AudioServer.set_bus_volume_db(_outdoor_ambience_bus_index, OUTDOOR_AMBIENCE_BUS_DEFAULT_DB)
 		_interior_audio_base_db = OUTDOOR_AMBIENCE_BUS_DEFAULT_DB

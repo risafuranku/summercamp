@@ -350,8 +350,7 @@ func _process(delta: float) -> void:
 		if (_laptop_view != null and _laptop_view.visible) or (_staff_ledger != null and _staff_ledger.visible):
 			return
 		if _staff_room.walking():
-			_hot_glint.clear()
-			_hot_glint_on = null
+			_hover_things(null)
 			_update_torch(delta)
 			return
 	if _zreport != null and _zreport.visible:
@@ -381,10 +380,12 @@ func _process(delta: float) -> void:
 		# The bare bulb that will not stay on.
 		var flick := int(Time.get_ticks_msec() / 90) % 47
 		_sewer_bulb.light_energy = 0.15 if flick in [3, 4, 19] else (0.6 if flick == 31 else 1.0)
-	# Walking through a door: the walk has the camera.
+	# Walking through a door: the walk has the camera (and the line under the room goes:
+	# "Use: the LUCKY 7" stayed up all the way down to the cellar).
 	if _doors.walking():
-		_hot_glint.clear()
-		_hot_glint_on = null
+		_hover_things(null)
+		if _sentence != null:
+			_sentence.clear()
 		return
 	if _current_profile == "generator" and _shed != null:
 		_shed.update_hover(get_viewport().get_mouse_position())
@@ -1088,8 +1089,7 @@ func _build_service_room(profile: String) -> void:
 	_free_windows()
 	_doors.host = self
 	_dirty_shown = -1
-	_hot_glint.clear()
-	_hot_glint_on = null
+	_hover_things(null)
 	_pub_cellar_root = null
 	_pub_room = "main"
 
@@ -1557,13 +1557,27 @@ func _hover_things(collider: Node) -> void:
 		n = n.get_parent()
 	if body == _hot_glint_on:
 		return
+	# A station's things are its own sprites: they glint with its body (station3d.room_glint).
+	var was := _station_of_body(_hot_glint_on)
+	if was != null:
+		was.room_glint(false)
 	_hot_glint_on = body
 	if body == null:
 		_hot_glint.clear()
 		return
 	if not body.has_meta("glint_meshes"):
-		body.set_meta("glint_meshes", _meshes_in_box(body))
+		body.set_meta("glint_meshes", [] if body.has_meta("glint_sprites_only") else _meshes_in_box(body))
 	_hot_glint.show_on(body.get_meta("glint_meshes"))
+	var st := _station_of_body(body)
+	if st != null:
+		st.room_glint(true)
+
+
+func _station_of_body(body: Node) -> Node:
+	if body == null or not is_instance_valid(body) or not body.has_meta("bistro_station"):
+		return null
+	var st = _stations.get(str(body.get_meta("bistro_station")), null)
+	return st if st != null and is_instance_valid(st) and st.has_method("room_glint") else null
 
 
 func _meshes_in_box(body: StaticBody3D) -> Array:
@@ -2826,8 +2840,7 @@ func _open_station(id: String) -> void:
 	hud.set("view_size", Vector2(_viewport.size))
 	hud.call("clear_say")
 	hud.visible = true
-	_hot_glint.clear()
-	_hot_glint_on = null
+	_hover_things(null)
 	if _sentence != null:
 		_sentence.clear()
 		_sentence.visible = false
@@ -3518,6 +3531,11 @@ func _make_windows(profile: String) -> void:
 					c.add_window(w.quad)
 				var cm = (c as MeshInstance3D).material_override as StandardMaterial3D if c is MeshInstance3D else null
 				if cm != null and cm.albedo_texture != null and str(cm.albedo_texture.resource_path).ends_with("window_curtain.png") and (c as Node3D).position.distance_to(pic.position) < 0.3:
+					(c as Node3D).visible = false
+				# The painted window's sill too (the layouts' meta "window_sill"; a second
+				# "Sill" is renamed by Godot): the window has its own frame, and that sill
+				# stood out through the drawn curtain (playtest 1. 11.).
+				if c is MeshInstance3D and c.has_meta("window_sill") and (c as Node3D).position.distance_to(pic.position) < 0.6:
 					(c as Node3D).visible = false
 			var entry := {"w": w, "root": root}
 			# One plan with its building (pub_layout AT): the view out is the building's

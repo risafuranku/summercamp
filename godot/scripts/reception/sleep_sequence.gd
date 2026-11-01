@@ -12,8 +12,10 @@ extends CanvasLayer
 ## The host gives it the camera and the poses, and callables for the room and the clock:
 ##   lamp(on: bool), tv_focus(on: bool), fast_forward() (start), fast_forward_done() -> bool,
 ##   wake_text() -> String ("06:30"), finished(); in co-op may_sleep() -> bool (you lie
-##   watching the set till the other warden is in bed too) and woke_early() (a key
-##   before morning).
+##   watching the set till the other warden is in bed too), night_begun() -> bool (eyes
+##   shut before the night began open again if one of them gets up) and woke_early() (a
+##   key before morning). Up before your eyes shut, you just get up: no alarm (the user
+##   1. 11.: like leaving a bed in Minecraft).
 
 signal finished
 
@@ -26,7 +28,7 @@ const WALK_SPEED := 1.1
 const VFD_LIT := Color(0.56, 1.0, 0.86)
 const VFD_GHOST := Color(0.16, 0.3, 0.26, 0.35)
 
-enum { IDLE, LIE, WATCH, LIDS, DARK, ALARM, WAKE, WALK }
+enum { IDLE, LIE, WATCH, LIDS, DARK, ALARM, WAKE, WALK, RISE }
 
 var camera: Camera3D
 var lie_pos: Vector3
@@ -43,6 +45,7 @@ var fast_forward: Callable
 var fast_forward_done: Callable
 var wake_text: Callable
 var may_sleep: Callable
+var night_begun: Callable
 var woke_early: Callable
 
 var _phase := IDLE
@@ -235,6 +238,15 @@ func _process(delta: float) -> void:
 				_enter(DARK)
 		DARK:
 			_lids = 1.0
+			# Co-op: one of the others got up again before the night began: the eyes
+			# open and you lie waiting for them, as before.
+			if may_sleep.is_valid() and not bool(may_sleep.call()) and night_begun.is_valid() and not bool(night_begun.call()):
+				_tick.stop()
+				_lids = 0.0
+				_ff_started = false
+				_enter(WATCH)
+				_overlay.queue_redraw()
+				return
 			var done: bool = fast_forward_done.call() if fast_forward_done.is_valid() else true
 			if done and _t >= 2.4:
 				_enter(ALARM)
@@ -244,6 +256,14 @@ func _process(delta: float) -> void:
 				_alarm.play()
 			if _t >= 12.0:
 				_enter(WAKE)
+		RISE:
+			# Up from lying awake: no alarm, the eyes were open.
+			var k := clampf(_t / 1.0, 0.0, 1.0)
+			var e := k * k * (3.0 - 2.0 * k)
+			camera.position = _from_pos.lerp(stand_pos, e)
+			camera.rotation = Vector3(lerp_angle(_from_rot.x, stand_rot.x, e), lerp_angle(_from_rot.y, stand_rot.y, e), 0.0)
+			if k >= 1.0:
+				_finish()
 		WAKE:
 			# Eyes open in steps, then up off the bed.
 			_lids = 1.0 - _keyframes([[0.0, 0.0], [0.4, 0.35], [0.6, 0.2], [1.0, 0.75], [1.3, 1.0]], _t)
@@ -286,7 +306,18 @@ func _input(event: InputEvent) -> void:
 	if not press:
 		return
 	match _phase:
-		WALK, LIE, WATCH, LIDS, DARK:
+		WALK, LIE, WATCH:
+			# Still awake: you get up off the bed, no alarm.
+			_steps.stop()
+			if woke_early.is_valid():
+				woke_early.call()
+			if tv_focus.is_valid():
+				tv_focus.call(false)
+			_from_pos = camera.position
+			_from_rot = camera.rotation
+			_lids = 0.0
+			_enter(RISE)
+		LIDS, DARK:
 			_steps.stop()
 			_enter(ALARM)
 			if woke_early.is_valid():

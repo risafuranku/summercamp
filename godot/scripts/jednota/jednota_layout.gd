@@ -254,7 +254,7 @@ static func shop(parent: Node3D, si) -> void:
 		var wat: Vector3 = wd["at"]
 		var wsize: Vector2 = wd["size"]
 		_pic(parent, "window_view", wsize, wat + Vector3(0, 0, -0.02), 180.0, "Window")
-		K.slab(parent, Vector3(wsize.x + 0.1, 0.04, 0.2), wat + Vector3(0, -wsize.y * 0.5 - 0.02, -0.09), K.surface("planks_dark", 0.5), "Sill")
+		K.slab(parent, Vector3(wsize.x + 0.1, 0.04, 0.2), wat + Vector3(0, -wsize.y * 0.5 - 0.02, -0.09), K.surface("planks_dark", 0.5), "Sill").set_meta("window_sill", true)
 	K.picture(parent, "door_interior", DOOR_SIZE, DOOR + Vector3(0, DOOR_SIZE.y * 0.5, -0.01), 180.0, "FrontDoor")
 	# The ice-cream chest by the door, the baskets.
 	_cut(parent, "shop_freezer", Vector2(0.9, 0.69), Vector3(-2.2, 0.05, 2.15), 0.0, true, "Freezer")

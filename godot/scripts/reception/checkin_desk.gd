@@ -166,6 +166,8 @@ var _p: Dictionary = {}           # their progress (see _new_progress)
 var _progress: Dictionary = {}    # guest id -> progress, kept while they wait
 var _history: Array = []          # register rows: {no, name, card, persons, nights, lodging, key, day, red}
 var _keys: Array = []             # the key board, refreshed while open
+var _keys_t := 0.0
+const KEYS_EVERY := 0.5
 var _slots: Dictionary = {}       # key -> hook (0.., 24 a page): where its label and key are
 var _page := 0                    # which board of keys is showing
 var _labels_mode := false         # the label maker is in your hand
@@ -591,6 +593,12 @@ func _process(delta: float) -> void:
 		return
 	_open_t += delta
 	_set_open_fraction(clampf(_open_t / OPEN_SEC, 0.0, 1.0))
+	# The board as the rooms are now, twice a second: a room made up while the desk was
+	# open (by a hand, by the other warden) stayed red at its key (playtest 1. 11.).
+	_keys_t -= delta
+	if _keys_t <= 0.0:
+		_keys_t = KEYS_EVERY
+		_refresh_keys()
 	var m := (get_viewport().get_mouse_position() - _view.position) / float(_k)
 	_mouse = m if Rect2(Vector2.ZERO, Vector2(W, H)).has_point(m) else Vector2(-1, -1)
 	# The guest steps up to the counter, or away from it (in steps, like the sprites).

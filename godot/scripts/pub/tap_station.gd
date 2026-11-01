@@ -275,7 +275,7 @@ func _spots() -> Array:
 		return out
 	var clean := int(taproom.mugs(building_key)["clean"])
 	if not _mug and _slide < 0.0 and clean > 0:
-		out.append({"id": "board", "rect": BOARD, "verb": "A clean mug under the tap (%d)" % clean})
+		out.append({"id": "board", "rect": BOARD, "on": _board_mugs, "verb": "A clean mug under the tap (%d)" % clean})
 	out.append({"id": "handle", "node": _handle, "verb": _handle_verb()})
 	if _mug and _slide < 0.0 and _beer + _foam > 0.02:
 		out.append({"id": "mug", "node": _mug_spr, "verb": _mug_verb()})

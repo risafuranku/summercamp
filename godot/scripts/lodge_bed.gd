@@ -212,6 +212,7 @@ func _try_sleep() -> void:
 	_sleep.fast_forward_done = func(): return not bool(_office_call("is_sleeping_through", [], false))
 	_sleep.wake_text = func(): return str(_office_call("clock_text", [], "06:30"))
 	_sleep.may_sleep = func(): return bool(_office_call("may_sleep", [], true))
+	_sleep.night_begun = func(): return bool(_office_call("night_begun", [], true))
 	_sleep.woke_early = func(): _office_call("get_up", [], null)
 	_office_call("lie_down", [], null)
 	_sleep.start()

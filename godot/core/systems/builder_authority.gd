@@ -86,7 +86,7 @@ func _on_request_build(building_type: String, pos: Vector2i, rot: int) -> void:
 	# A lamp on a path: it stands at the path's edge and the tile stays walkable.
 	if normalized_type == "lamp_post" and str((_state.grid.cells.get(pos, {}) as Dictionary).get("type", "")) == "path":
 		var cell: Dictionary = _state.grid.cells[pos]
-		if bool(cell.get("lamp", false)):
+		if bool(cell.get("lamp", false)) or cell.has("bench"):
 			EventBus.BuildRejected.emit(normalized_type, pos, normalized_rot, "blocked_or_out_of_bounds")
 			return
 		var lamp_cost = _get_build_cost(normalized_type)
@@ -96,6 +96,23 @@ func _on_request_build(building_type: String, pos: Vector2i, rot: int) -> void:
 		cell["lamp"] = true
 		_state.grid.cells[pos] = cell
 		EventBus.building_placed.emit("lamp_post", pos, Vector2i.ONE, normalized_rot)
+		EventBus.BuildConfirmed.emit(normalized_type, pos, normalized_rot)
+		return
+
+	# A bench on a path the same way (playtest 1. 11.): at the edge its turn picks (the
+	# camp's LampSpot.bench_edge), the tile still a path; "bench" keeps the turn.
+	if normalized_type == "bench" and str((_state.grid.cells.get(pos, {}) as Dictionary).get("type", "")) == "path":
+		var pcell: Dictionary = _state.grid.cells[pos]
+		if bool(pcell.get("lamp", false)) or pcell.has("bench"):
+			EventBus.BuildRejected.emit(normalized_type, pos, normalized_rot, "blocked_or_out_of_bounds")
+			return
+		var bench_cost = _get_build_cost(normalized_type)
+		if CoreRoot.get_money() < bench_cost or not _actions.spend_money(bench_cost):
+			EventBus.BuildRejected.emit(normalized_type, pos, normalized_rot, "insufficient_funds")
+			return
+		pcell["bench"] = normalized_rot
+		_state.grid.cells[pos] = pcell
+		EventBus.building_placed.emit("bench", pos, Vector2i.ONE, normalized_rot)
 		EventBus.BuildConfirmed.emit(normalized_type, pos, normalized_rot)
 		return
 

@@ -153,8 +153,11 @@ func _tool_of(t: String) -> Dictionary:
 	return d
 
 
-## The books or the Z report over the station: the hand is down meanwhile.
+## The books or the Z report over the station, or the pause menu: the hand is down
+## meanwhile (it followed the pointer under the menu: "the cursor as if still inside").
 func _covered() -> bool:
+	if HandCursor.menu_over:
+		return true
 	for n in get_tree().get_nodes_in_group("closeup"):
 		if n is CanvasLayer and (n as CanvasLayer).visible:
 			var sc = n.get_script()

@@ -211,6 +211,12 @@ var torch_carried := true
 ## A bottle in the right hand (scripts/town/pockets.gd): the torch is in your pocket.
 var hand_busy := false
 var _flashlight_active: bool = false
+## In a room (main, every frame): the body waits at the door and the camp's torch is not
+## in use; only the room's own torch (scripts/ui/interior_torch.gd: indoor_torch_on) spends
+## the cell (playtest 1. 11.: night came while you were inside and the torch was flat by
+## the time you went out).
+var in_room := false
+var indoor_torch_on := false
 var _flashlight_flicker_time: float = 0.0
 var stamina: float = 1.0
 ## 0..1: how far the torch is lowered while you run (the beam dips, the hand drops).
@@ -381,16 +387,19 @@ func _unhandled_input(event: InputEvent) -> void:
 			gesture_motion += event.relative
 			return
 		var invert := invert_vertical_look
+		# Options' mouse sensitivity (the machine's), then the warden's own X and Y.
+		var sens := 1.0
 		if GameSettings != null:
 			invert = invert != GameSettings.get_invert_mouse_y()
+			sens = GameSettings.get_mouse_sensitivity()
 		# Yaw used to be applied twice by accident; the doubled speed is what the game
 		# was tuned with, so it is kept as an explicit factor. No acceleration, no easing:
 		# the eye goes where the mouse goes, this frame.
-		rotate_y(-event.relative.x * mouse_sensitivity * YAW_SENSITIVITY_FACTOR * float(view.get("mouse_x", 1.0)))
+		rotate_y(-event.relative.x * mouse_sensitivity * sens * YAW_SENSITIVITY_FACTOR * float(view.get("mouse_x", 1.0)))
 		var pitch_input = -event.relative.y
 		if invert:
 			pitch_input = -pitch_input
-		var d: float = pitch_input * mouse_sensitivity * vertical_look_sensitivity_multiplier * float(view.get("mouse_y", 1.0))
+		var d: float = pitch_input * mouse_sensitivity * sens * vertical_look_sensitivity_multiplier * float(view.get("mouse_y", 1.0))
 		var lim := look_limits()
 		_pitch_target = clampf(_pitch_target + d, -lim.x, lim.y)
 		_pitch = clampf(_pitch + d, -lim.x, lim.y)
@@ -1168,7 +1177,7 @@ func get_flashlight_battery() -> float:
 
 
 func _update_flashlight_battery(delta: float) -> void:
-	if _flashlight_active:
+	if (_flashlight_active and not in_room) or (in_room and indoor_torch_on):
 		flashlight_battery = maxf(0.0, flashlight_battery - BATTERY_DRAIN_PER_SEC * (1.0 + flashlight_drain_boost) * delta)
 		if flashlight_battery <= 0.0:
 			_flashlight_user_enabled = false

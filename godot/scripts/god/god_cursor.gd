@@ -220,14 +220,14 @@ func _on_build(t: String, at: Vector2i, rot: int) -> void:
 	if not _staged() or grid_manager == null:
 		return
 	var node := _structure_at(at)
-	if t == "lamp_post" and node != null and str(node.get_meta("building_type", "")) == "path":
-		# A lamp on a path: the path's lamp (building_manager keeps it in its meta).
-		var l = node.get_meta("lamp_node", null)
+	if t in ["lamp_post", "bench"] and node != null and str(node.get_meta("building_type", "")) == "path":
+		# A lamp or a bench on a path: the path's own (building_manager keeps it in its meta).
+		var l = node.get_meta("lamp_node" if t == "lamp_post" else "bench_node", null)
 		node = l as Node3D if l != null and is_instance_valid(l) else null
 	if node == null or _hidden.has(node.get_instance_id()):
 		return
-	var fp: Vector2i = node.get_meta("grid_footprint", Vector2i.ONE) if t != "lamp_post" else Vector2i.ONE
-	var o: Vector2i = node.get_meta("grid_origin", at) if t != "lamp_post" else at
+	var fp: Vector2i = node.get_meta("grid_footprint", Vector2i.ONE) if not t in ["lamp_post", "bench"] else Vector2i.ONE
+	var o: Vector2i = node.get_meta("grid_origin", at) if not t in ["lamp_post", "bench"] else at
 	var center: Vector3 = grid_manager.get_footprint_center(o, fp)
 	_hide(node, center, fp)
 	if t == "path":

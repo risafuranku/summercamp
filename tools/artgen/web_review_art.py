@@ -6,6 +6,8 @@ renders in tools/artgen/out/<id>/raw.png. Runs on whatever has been generated.
 -> godot/assets/textury/os98/icons/goggle.png (+_16), padlock.png (+_16)
    godot/assets/textury/os98/web/star_full|half|empty.png       16 px rating stars
    godot/assets/textury/os98/web/spotless_banner.png           SpotlessName Ltd's banner
+       (python tools/artgen/web_review_art.py banner: the shipped banner made coarse again
+       without its render)
    godot/assets/textury/builder/think_*.png (24 px)             guests' thought bubbles
    godot/assets/textury/builder/coin.png                        the coin that flies
    godot/assets/textury/builder/site_scaffold|site_worker_*|rubble.png   the building site
@@ -41,6 +43,14 @@ def small(art_id, dest, size):
     print("small", os.path.basename(dest))
 
 
+BANNER_W, BANNER_H = 214, 98
+## The banner's pixels are two of the screen's (a 1998 GIF, few colours): straight from
+## the render it came out as fine as a photo beside the PC's 640 x 480 (playtest 1. 11.:
+## "the bad review has a high-res picture").
+BANNER_PX = 2
+BANNER_COLOURS = 40
+
+
 def banner():
     img = os_art.raw("web_spotless_banner")
     if img is None:
@@ -48,8 +58,32 @@ def banner():
     src = img.convert("RGB")
     # The render is 16:9 inside its own frame; the place's column is 214 wide, so the
     # banner is 214 x 98: the frame off, a band through the broom and the cloud kept.
-    W, H = 214, 98
+    W, H = BANNER_W, BANNER_H
     out = src.crop((40, 92, 1240, 642)).resize((W, H), Image.LANCZOS)
+    _banner_finish(out)
+
+
+def banner_coarse():
+    """The shipped banner made coarse in place (its render is not on every PC)."""
+    path = os.path.join(G, "os98", "web", "spotless_banner.png")
+    if os.path.exists(path):
+        _banner_finish(Image.open(path).convert("RGB"))
+
+
+def _banner_finish(out):
+    W, H = BANNER_W, BANNER_H
+    # Each block's first pixel, not their mean: the mean smeared the faces' outlines.
+    small = Image.new("RGB", (W // BANNER_PX, H // BANNER_PX))
+    src_px, dst_px = out.load(), small.load()
+    for y in range(small.height):
+        for x in range(small.width):
+            dst_px[x, y] = src_px[x * BANNER_PX, y * BANNER_PX]
+    small = small.quantize(colors=BANNER_COLOURS, dither=Image.Dither.NONE).convert("RGB")
+    out = small.resize((W // BANNER_PX * BANNER_PX, H // BANNER_PX * BANNER_PX), Image.NEAREST)
+    if out.size != (W, H):
+        full = Image.new("RGB", (W, H))
+        full.paste(out, (0, 0))
+        out = full
     # The pitch goes on the empty right side: calmer stripes there, so the words read.
     calm = Image.new("RGB", (W, H), (255, 252, 226))
     mask = Image.new("L", (W, H), 0)
@@ -187,4 +221,7 @@ def pair_frames(path_a, path_b):
 
 if __name__ == "__main__":
     os.chdir(HERE)
-    main()
+    if sys.argv[1:] == ["banner"]:
+        banner_coarse()
+    else:
+        main()

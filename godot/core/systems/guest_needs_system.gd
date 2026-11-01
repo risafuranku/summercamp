@@ -350,6 +350,9 @@ static func collect_facilities(grid, registry, flags: Dictionary) -> Array:
 		if cell.get("root_coord", coord) != coord:
 			continue
 		var type := str(cell.get("type", ""))
+		# A bench standing on a path tile (the cell stays a path, "bench": its turn).
+		if type == "path" and cell.has("bench"):
+			type = "bench"
 		var def = registry.get_def(StringName(type))
 		if def == null or def.guest_capacity <= 0 or def.guest_services.is_empty():
 			continue

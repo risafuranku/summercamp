@@ -116,7 +116,7 @@ func _spots() -> Array:
 		return out
 	var dirty := int(taproom.mugs(building_key)["dirty"]) - (1 if _in_water else 0)
 	if not _in_water and dirty > 0:
-		out.append({"id": "pile", "rect": PILE, "verb": "A dirty mug into the water (%d)" % dirty})
+		out.append({"id": "pile", "rect": PILE, "on": _pile, "verb": "A dirty mug into the water (%d)" % dirty})
 	if _in_water:
 		out.append({"id": "mug", "node": _mug, "verb": "Scrub it: hold and rub" if _dirt > 0.0 else "Clean: onto the rack"})
 	return out

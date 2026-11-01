@@ -449,6 +449,8 @@ func _count_buildings(types: Array) -> int:
 			n += 1
 		elif types.has("lamp_post") and str(cell.get("type", "")) == "path" and bool(cell.get("lamp", false)):
 			n += 1
+		elif types.has("bench") and str(cell.get("type", "")) == "path" and cell.has("bench"):
+			n += 1
 	return n
 
 

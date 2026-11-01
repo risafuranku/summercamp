@@ -224,7 +224,8 @@ func _process(delta: float) -> void:
 	var moved := (m - _last_mouse).length()
 	_last_mouse = m
 	_speed = lerpf(_speed, moved / maxf(delta, 0.001), clampf(delta * 12.0, 0.0, 1.0))
-	var held := Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
+	# Not under the pause menu (a co-op camp is not paused).
+	var held := Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and not HandCursor.menu_over
 	_hand.aim(m)
 	var scrubbing := held and _done_t < 0.0 and _over_dirt(m)
 	if scrubbing:

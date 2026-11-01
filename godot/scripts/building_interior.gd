@@ -128,6 +128,7 @@ const MON2_PIVOT := Vector3(1.02, 1.335, -1.42)
 const MON2_YAW_DEG := -17.0
 const MON2_SCALE := 0.84
 const POST_DELIVERY = preload("res://scripts/reception/post_delivery.gd")
+const DELIVERY_DRIVER = preload("res://scripts/reception/delivery_driver.gd")
 const DESK_ROOM = preload("res://scripts/reception/desk_room.gd")
 ## The radio stands on the right end of the desk, clear of the monitor (its click box once
 ## lay over the monitor's left side: a click on the monitor switched the radio off).
@@ -248,6 +249,8 @@ var _crt_full_cam_pos: Vector3 = Vector3(0.28, 1.35, -0.34) + PC_OFFSET
 var _crt_look := 0
 var _dual := false
 var _post
+## The wholesaler's van and its driver at the counter (delivery_driver.gd).
+var _van_driver
 var _crt2_root: Node3D
 var _crt2_screen: MeshInstance3D
 var _crt2_full_cam_pos := Vector3.ZERO
@@ -323,6 +326,10 @@ func _ready() -> void:
 	_post.name = "PostDelivery"
 	add_child(_post)
 	_post.setup(self)
+	_van_driver = DELIVERY_DRIVER.new()
+	_van_driver.name = "DeliveryDriver"
+	add_child(_van_driver)
+	_van_driver.setup(self)
 	_setup_radio_character()
 	_setup_radio()
 	call_deferred("_collect_radio_tracks")
@@ -4306,10 +4313,12 @@ func _day_events() -> Node:
 	return de as Node if de is Node and is_instance_valid(de) else null
 
 
-## The van's note to sign; false when none is waiting.
+## The van's note to sign; false when none is waiting (or its driver is still on his way).
 func open_delivery_note() -> bool:
 	var de := _day_events()
 	if de == null or int(de.delivery_waiting()) < 0:
+		return false
+	if _van_driver != null and not _van_driver.at_desk():
 		return false
 	if _delivery_closeup == null or not is_instance_valid(_delivery_closeup):
 		_delivery_closeup = DELIVERY_CLOSEUP.new()
@@ -4330,7 +4339,8 @@ func _tick_delivery_note(delta: float) -> void:
 		return
 	_delivery_poll = 0.5
 	var de := _day_events()
-	var on := de != null and int(de.delivery_waiting()) >= 0
+	# He brings it: on the desk while he waits across the counter (delivery_driver.gd).
+	var on: bool = de != null and int(de.delivery_waiting()) >= 0 and (_van_driver == null or bool(_van_driver.at_desk()))
 	_delivery_note.visible = on
 	# (Physics ignores visibility: no folder, nothing to click.)
 	if _delivery_click != null and is_instance_valid(_delivery_click):
@@ -4915,4 +4925,7 @@ func dressing_click(id: String) -> bool:
 	# The postman across the counter with the second monitor (post_delivery.gd).
 	if id == "postman":
 		return _post != null and _post.click_postman()
+	# The van's driver across the counter: his note (delivery_driver.gd).
+	if id == "van_driver":
+		return open_delivery_note()
 	return _dressing != null and _dressing.click(id)

@@ -95,7 +95,8 @@ func _clicked(id: String) -> void:
 
 func _tick(delta: float) -> void:
 	if _drawing:
-		if not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+		# The pen up under the pause menu too (a co-op camp is not paused).
+		if not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) or HandCursor.menu_over:
 			_drawing = false
 			_pen.stop()
 			if _ink >= INK_ENOUGH:

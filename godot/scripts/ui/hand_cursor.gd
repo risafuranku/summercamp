@@ -26,6 +26,10 @@ static var _wanted := ARROW
 static var _shown := -1
 static var _scale := 0
 static var _cache: Dictionary = {}   # kind -> Image at the current scale
+## A menu over the whole view (the pause menu): the arrow whatever the room under it
+## asks, and nothing under it is aimed at (playtest 1. 11.: in a co-op camp, where Esc
+## pauses nothing, the room under the menu went on taking its clicks).
+static var menu_over := false
 
 
 ## The strongest shape asked for this frame wins (RUB > GRAB > WALK > POINT > LOOK > ARROW).
@@ -42,7 +46,7 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
-	var kind := _wanted
+	var kind := ARROW if menu_over else _wanted
 	_wanted = ARROW
 	if kind != _shown:
 		_apply(kind)

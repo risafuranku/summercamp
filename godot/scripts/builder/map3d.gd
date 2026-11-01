@@ -641,8 +641,9 @@ func take_input(event: InputEvent) -> bool:
 	if event is InputEventMouseMotion:
 		var mm := event as InputEventMouseMotion
 		if _orbit:
-			_yaw_t -= mm.relative.x * 0.0085
-			_pitch_t = clampf(_pitch_t + mm.relative.y * 0.006, PITCH_MIN, PITCH_MAX)
+			var sens := GameSettings.get_mouse_sensitivity() if GameSettings != null else 1.0
+			_yaw_t -= mm.relative.x * 0.0085 * sens
+			_pitch_t = clampf(_pitch_t + mm.relative.y * 0.006 * sens, PITCH_MIN, PITCH_MAX)
 			return true
 		if _mini_drag:
 			_mini_go(mm.position)

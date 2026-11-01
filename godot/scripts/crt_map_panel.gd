@@ -2804,6 +2804,17 @@ func _draw_structure(entry: Dictionary, tile_w: float, tile_h: float) -> void:
 
 	if building_type == "path":
 		_draw_path(center, entry.get("origin", Vector2i.ZERO), tile_w, tile_h)
+		if _path_has_bench(entry.get("origin", Vector2i.ZERO)):
+			var bo: Vector2i = entry.get("origin", Vector2i.ZERO)
+			var bturn := _path_bench_turn(bo)
+			var boff: Vector2 = LampSpot.bench_offset(bo, bturn, Callable(self, "_path_cell"))
+			var bc := center + (_cell_to_iso_f(Vector2(bo) + boff, Vector2.ZERO, tile_w, tile_h) - _cell_to_iso_f(Vector2(bo), Vector2.ZERO, tile_w, tile_h))
+			# Turned as the camp turns it, facing over the path (LampSpot.yaw).
+			var bview := _view_of("bench", wrapi(roundi(LampSpot.yaw(boff) / (PI * 0.5)), 0, 4))
+			if not bview.is_empty():
+				_draw_view(bview, bc, Color.WHITE, tile_w)
+			else:
+				_draw_icon(bc, Vector2(tile_w * 0.6, tile_h * 0.6), _icon_key_for_type("bench"), 0, Color.WHITE)
 		if _path_has_lamp(entry.get("origin", Vector2i.ZERO)):
 			var po: Vector2i = entry.get("origin", Vector2i.ZERO)
 			var lc := _path_lamp_point(po, center, tile_w, tile_h)
@@ -3419,8 +3430,8 @@ func _can_place(coord: Vector2i, footprint: Vector2i, _building_type: String) ->
 		return false
 	if not _is_valid_coord(coord):
 		return false
-	# A lamp may go on a path tile; it stands at the edge.
-	if _building_type == "lamp_post" and _path_cell(coord) and not _path_has_lamp(coord):
+	# A lamp or a bench may go on a path tile; it stands at the edge (one of them a tile).
+	if _building_type in ["lamp_post", "bench"] and _path_cell(coord) and not _path_has_lamp(coord) and not _path_has_bench(coord):
 		return true
 	return grid_manager.can_place_footprint(coord, footprint)
 
@@ -4182,3 +4193,14 @@ func _path_lamp_point(coord: Vector2i, center: Vector2, tile_w: float, tile_h: f
 func _path_has_lamp(coord: Vector2i) -> bool:
 	var state = CoreRoot.get_state() if CoreRoot != null else null
 	return state != null and bool((state.grid.cells.get(coord, {}) as Dictionary).get("lamp", false))
+
+
+## A bench standing on this path tile (the cell's "bench": its turn).
+func _path_has_bench(coord: Vector2i) -> bool:
+	var state = CoreRoot.get_state() if CoreRoot != null else null
+	return state != null and (state.grid.cells.get(coord, {}) as Dictionary).has("bench")
+
+
+func _path_bench_turn(coord: Vector2i) -> int:
+	var state = CoreRoot.get_state() if CoreRoot != null else null
+	return int((state.grid.cells.get(coord, {}) as Dictionary).get("bench", 0)) if state != null else 0

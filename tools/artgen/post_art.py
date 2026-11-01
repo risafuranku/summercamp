@@ -14,6 +14,10 @@ into the game. Rows in tools/artgen/prompts_post.tsv.
   (scripts/closeup/delivery_closeup.gd), 320x240.
 - web_monitor2: PC Servis's photo, a JPEG of 1998 (web_image.py).
 - tex_phonebooks: the phone books under the second monitor.
+- jednota_van_side/front/back, npc_jednota_driver: the co-op wholesaler's Avia and its
+  driver (scripts/reception/delivery_driver.gd): the side keyed off Grok's white ground,
+  the cab's front without the box above it (that strip a face of its own), the back cut
+  above the wheels (the van's own tyres stand there) -> textury/post/jvan_*.png.
 """
 import os
 import subprocess
@@ -92,6 +96,69 @@ def vehicle_face(art_id, width, dest, floor_y=None, wheels=()):
     print(art_id, "->", dest, out.size)
 
 
+def white_ground(img, floor=238):
+    """Grok's plain white ground round the side view made see-through: flooded from the
+    picture's edges through what is (near) pure white; the van is nowhere that light."""
+    img = img.convert("RGBA")
+    w, h = img.size
+    px = img.load()
+    seen = bytearray(w * h)
+    q = deque([(x, y) for x in range(w) for y in (0, h - 1)] + [(x, y) for y in range(h) for x in (0, w - 1)])
+    while q:
+        x, y = q.popleft()
+        i = y * w + x
+        if seen[i]:
+            continue
+        r, g, b, a = px[x, y]
+        if min(r, g, b) < floor:
+            continue
+        seen[i] = 1
+        px[x, y] = (0, 0, 0, 0)
+        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            nx, ny = x + dx, y + dy
+            if 0 <= nx < w and 0 <= ny < h and not seen[ny * w + nx]:
+                q.append((nx, ny))
+    return img
+
+
+## The wholesaler's front render: the box over the cab down to this row, the cab below
+## it; the back render: the bumper's underside (the wheels and the ground under it).
+JVAN_CAB_TOP = 118
+JVAN_BOX_STRIP = 100
+JVAN_BACK_FLOOR = 748
+
+
+def wholesale_van():
+    if os.path.exists(raw("jednota_van_side")):
+        img = white_ground(Image.open(raw("jednota_van_side")))
+        bbox = img.getchannel("A").point(lambda a: 255 if a > 40 else 0).getbbox()
+        img = img.crop(bbox)
+        small = img.resize((224, max(1, round(img.height * 224 / img.width))), Image.Resampling.BOX)
+        out = process.snap(small, True)
+        out.save(os.path.join(TEX, "post", "jvan_side.png"))
+        print("jednota_van_side ->", out.size)
+    if os.path.exists(raw("jednota_van_front")):
+        src = Image.open(raw("jednota_van_front")).convert("RGB")
+        for name, box in (("jvan_front.png", (0, JVAN_CAB_TOP, src.width, src.height)), ("jvan_front_box.png", (0, 0, src.width, JVAN_BOX_STRIP))):
+            part = src.crop(box)
+            small = part.resize((96, max(1, round(part.height * 96 / part.width))), Image.Resampling.BOX)
+            out = process.snap(small, False)
+            out.save(os.path.join(TEX, "post", name))
+            print("jednota_van_front ->", name, out.size)
+    if os.path.exists(raw("jednota_van_back")):
+        src = Image.open(raw("jednota_van_back")).convert("RGB").crop((0, 0, 1152, JVAN_BACK_FLOOR))
+        small = src.resize((96, max(1, round(src.height * 96 / src.width))), Image.Resampling.BOX)
+        out = process.snap(small, False)
+        out.save(os.path.join(TEX, "post", "jvan_back.png"))
+        print("jednota_van_back ->", out.size)
+    if os.path.exists(raw("npc_jednota_driver")):
+        out = process.sprite(raw("npc_jednota_driver"), 128)
+        dest = os.path.join(TEX, "npc", "npc_jednota_driver.png")
+        out.save(dest)
+        subprocess.run([sys.executable, os.path.join(HERE, "defringe.py"), "--figure", dest], check=False)
+        print("npc_jednota_driver ->", dest, out.size)
+
+
 def close(art_id, dest):
     src = Image.open(raw(art_id)).convert("RGB")
     if src.width * 3 > src.height * 4:
@@ -133,6 +200,8 @@ def main():
         out = process.panel(raw("tex_phonebooks"), 64)
         out.save(os.path.join(TEX, "camp", "phonebooks.png"))
         print("tex_phonebooks ->", out.size)
+    if not want or any(i.startswith("jednota_van") or i == "npc_jednota_driver" for i in want):
+        wholesale_van()
 
 
 if __name__ == "__main__":
