@@ -47,6 +47,10 @@ const N := "res://assets/textury/npc/"
 const SETS := ["babka_s0", "babka_s1", "babka_s2"]
 const OLD_BENT := N + "granny_pick.png"
 const OLD_UP := N + "granny_up.png"
+## Her two pictures from the front (Grok, from npc/host_pensioner.png) while the eight
+## views are not drawn; the old ones before them.
+const BENT := N + "babka_bent.png"
+const UP := N + "babka_up.png"
 const FACES := [N + "babka_face_s0.png", N + "babka_face_s1.png", N + "babka_face_s2.png"]
 const OLD_FACE := N + "granny_face.png"
 ## The arm that reaches up to a bulb, drawn along its length (shoulder at the bottom).
@@ -167,6 +171,7 @@ var _fig_dist := 0.0
 var _atlas: Dictionary = {}
 var _tex_bent: Texture2D
 var _tex_up: Texture2D
+var _tall_old := false
 var _tex_face: Array = []
 var _arm: Sprite3D
 var _streams: Dictionary = {}
@@ -192,11 +197,15 @@ func get_enemy_id() -> String:
 func _on_start() -> void:
 	var t := float(_difficulty - 1) / 4.0
 	_hit = int(lerpf(float(HIT.x), float(HIT.y), t))
-	_tex_bent = load(OLD_BENT) as Texture2D
-	_tex_up = load(OLD_UP) as Texture2D
+	_tex_bent = load(BENT if ResourceLoader.exists(BENT) else OLD_BENT) as Texture2D
+	_tex_up = load(UP if ResourceLoader.exists(UP) else OLD_UP) as Texture2D
+	_tall_old = not ResourceLoader.exists(UP)
+	# Each stage's face, else the nearest one drawn before it, else the old one.
+	var last := OLD_FACE
 	for i in FACES.size():
-		var p: String = FACES[i] if ResourceLoader.exists(FACES[i]) else OLD_FACE
-		_tex_face.append(load(p) as Texture2D)
+		if ResourceLoader.exists(FACES[i]):
+			last = FACES[i]
+		_tex_face.append(load(last) as Texture2D)
 	# Everything she can show or sound now, not at the first use (no hitch).
 	for k in SFX:
 		_stream(str(SFX[k]))
@@ -1300,14 +1309,17 @@ func _update_body(out: bool) -> void:
 		_fig_frame = int(_fig_dist / stride) % maxi(1, n)
 		_show_fig(eye, h)
 	else:
-		# The old two pictures: bent, or up and far too tall and thin.
+		# Two pictures from the front: bent, or up and far too tall (the old ones were
+		# drawn at one size: up is them stretched thin).
 		_body.texture = _tex_up if up else _tex_bent
 		if _body.texture != null:
-			_body.pixel_size = (BENT_M * float(STAGE_K[_stage])) / float(_body.texture.get_height())
+			var at_h := h if not _tall_old else BENT_M * float(STAGE_K[_stage])
+			_body.pixel_size = at_h / float(_body.texture.get_height())
 			_body.offset = Vector2(0, _body.texture.get_height() * 0.5)
-		var tall := (UP_M / BENT_M) if up else 1.0
+		var tall := (UP_M / BENT_M) if up and _tall_old else (1.08 if up else 1.0)
 		_body.scale = Vector3(1.0 / sqrt(tall), tall, 1.0)
-		_body.flip_h = (_body.global_position - eye).cross(Vector3.UP).dot(_dir) > 0.0
+		# Drawn facing the right of the picture: going to the left of your view, mirrored.
+		_body.flip_h = (_body.global_position - eye).cross(Vector3.UP).dot(_dir) < 0.0
 	if _eyes != null:
 		_eyes.set("height", h * (0.93 if up else 0.78))
 		_eyes.set("want", 1.0 if up else 0.35)
