@@ -1334,7 +1334,7 @@ func _show_fig(eye: Vector3, height_m: float) -> void:
 		fr = FIGURE._frame_of(anims, "stand", 0, 0)
 	if fr == null:
 		return
-	var key := "%s|%d|%d|%d|%d" % [str(_fig.get("name", "")), fr[0], fr[1], fr[2], fr[3]]
+	var key := str(_fig.get("name", "")) + str(fr)
 	var at: AtlasTexture = _atlas.get(key)
 	if at == null:
 		at = AtlasTexture.new()
