@@ -38,8 +38,8 @@ const FRONT_WIN_X := 1.3
 const FRONT_WIN := Vector2(0.7, 0.6)
 const BACK_WIN := Vector2(0.92, 0.66)
 const SIDE_WIN := Vector2(0.72, 0.6)
-## The bathroom built on at the right (Lv2+): how far out, how long, its middle along z,
-## its door in the cabin's right wall (z of its middle).
+## The bathroom built on at the right (Lv2+): how far out, how long, its middle along z;
+## its door is in the cabin's right wall (bath_door_z).
 const ANNEX := {2: Vector3(1.7, 2.0, -0.62), 3: Vector3(1.7, 2.0, -0.62)}
 const BATH_DOOR_W := 0.8
 const BATH_DOOR_H := 1.92
@@ -96,9 +96,12 @@ static func annex_box(level: int) -> AABB:
 	return AABB(Vector3(s.x * 0.5, 0.0, a.z - a.y * 0.5), Vector3(a.x, wall_h(level) * 0.82, a.y))
 
 
-## The bathroom door's middle along z in the right wall.
+## The bathroom door's middle along z in the right wall: in the front half of the annex,
+## clear of the best cabin's shower in the bathroom's back corner and of the chair at
+## the table in the room (since 1. 11. you walk through it; it stood 0.3 m further back,
+## a third of it behind the shower).
 static func bath_door_z(level: int) -> float:
-	return (ANNEX.get(clampi(level, 2, 3), ANNEX[2]) as Vector3).z + 0.1
+	return (ANNEX.get(clampi(level, 2, 3), ANNEX[2]) as Vector3).z + 0.4
 
 
 ## Model space -> room space and back.

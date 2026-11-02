@@ -1545,6 +1545,32 @@ func _draw_waypoint() -> void:
 		at = Vector2(screen.x - margin if right else margin, world_h * 0.5)
 		dir = Vector2.RIGHT if right else Vector2.LEFT
 	at = (at / s).floor() * s
+	var text := "%dM" % int(round(dist))
+	if not _waypoint_label.is_empty():
+		text = "%s %s" % [tr(_waypoint_label).to_upper(), text]
+	var font := RETRO_UI.FONT_LABEL
+	var fsize := RETRO_UI.SIZE_LABEL * _scale
+	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize).x
+	# The troubles' plates down the right edge: the mark keeps off them (on the edge it sat
+	# on them, "BRANCH" over "CABIN 15M" in the shots of 30. 10.): along the edge to just
+	# below or above them, whichever is nearer and fits.
+	var plates := Rect2()
+	if _trouble_strip != null and is_instance_valid(_trouble_strip):
+		plates = (_trouble_strip.occupied() as Rect2).grow(_vp(3))
+	if plates.has_area() and not on_screen and dir.x > 0.0:
+		var up := _vp(6)
+		var down := _vp(14)
+		var wide := maxf(w, _vp(20)) + s * 2.0
+		if Rect2(screen.x - wide, at.y - up, wide, up + down).intersects(plates):
+			var below := plates.end.y + up
+			var above := plates.position.y - down
+			var fits_below := below + down <= world_h - margin
+			var fits_above := above - up >= margin
+			if fits_below and (not fits_above or absf(below - at.y) <= absf(above - at.y)):
+				at.y = below
+			elif fits_above:
+				at.y = above
+			at = (at / s).floor() * s
 	var bob := floorf(sin(_blink_t * 4.0) * 1.5 + 0.5) * s
 	var c := RETRO_UI.C_AMBER
 	var dark := RETRO_UI.C_OUTLINE
@@ -1552,18 +1578,15 @@ func _draw_waypoint() -> void:
 		_draw_chevron(at + Vector2(0.0, -_vp(8) + bob), Vector2.DOWN, c, dark)
 	else:
 		_draw_chevron(at + dir * (absf(bob) + s), dir, c, dark)
-	var text := "%dM" % int(round(dist))
-	if not _waypoint_label.is_empty():
-		text = "%s %s" % [tr(_waypoint_label).to_upper(), text]
-	var font := RETRO_UI.FONT_LABEL
-	var fsize := RETRO_UI.SIZE_LABEL * _scale
-	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize).x
 	var tx := floorf(clampf(at.x - w * 0.5, s * 2.0, screen.x - w - s * 2.0) / s) * s
 	var ty := at.y + (_vp(4) if on_screen else _vp(12))
 	if not on_screen and dir.y < 0.0:
 		ty = at.y + _vp(14)
 	elif not on_screen and dir.y > 0.0:
 		ty = at.y - _vp(8)
+	# A mark in view by the plates: its line goes to their left.
+	if plates.has_area() and Rect2(tx, ty - fsize, w, fsize + s).intersects(plates):
+		tx = floorf(maxf(s * 2.0, minf(tx, plates.position.x - w - s * 2.0)) / s) * s
 	_waypoint_marker.draw_string(font, Vector2(tx + s, ty + s), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize, RETRO_UI.C_SHADOW)
 	_waypoint_marker.draw_string(font, Vector2(tx, ty), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize, c)
 

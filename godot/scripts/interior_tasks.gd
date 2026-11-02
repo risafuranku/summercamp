@@ -59,6 +59,9 @@ var _scrub_seed := 0
 var _gesture = GESTURE.new()
 var _mouse_last := Vector2.INF
 var _scaled: Dictionary = {}    # MeshInstance3D -> its scale before the work
+## What was done of a thing when the button was let go (task id -> 0..1): taken up again,
+## the work goes on from there; the mess stays as small as it was left.
+var _partial: Dictionary = {}
 
 
 func _init() -> void:
@@ -91,6 +94,8 @@ func setup(camera: Camera3D, viewport: SubViewport) -> void:
 func clear_targets() -> void:
 	_set_hover("")
 	_cancel_hold()
+	_restore_scales("")
+	_partial.clear()
 	_targets.clear()
 
 
@@ -117,6 +122,11 @@ func set_room(room: Dictionary) -> void:
 	var occupied := bool(room.get("occupied", false))
 	for id in _targets.keys():
 		_targets[id]["done"] = done.has(id) or _room_status == "ready" or occupied
+		# Done (here, by the other warden, the room made ready): nothing half done to keep.
+		if _targets[id]["done"] and _partial.has(id):
+			_partial.erase(id)
+			if id != _holding:
+				_restore_scales(id)
 	_refresh_checklist(room)
 
 
@@ -127,6 +137,18 @@ func is_busy() -> bool:
 ## The scrub close-up is open over the room.
 func is_scrubbing() -> bool:
 	return _scrub != null and _scrub.is_open()
+
+
+## Walking through a door (the cabin's bathroom): nothing is hovered or worked on the way.
+func pause(on: bool) -> void:
+	if on:
+		if not _holding.is_empty():
+			_let_go()
+		_set_hover("")
+		if _prompt != null:
+			_prompt.visible = false
+		queue_redraw()
+	set_process(not on)
 
 
 ## Co-op: the jobs the other wardens' hands are on in this room (InteriorManager.coop_partner):
@@ -202,7 +224,10 @@ func _process(delta: float) -> void:
 	if lmb and not _hover.is_empty() and not bool(_targets[_hover].get("scrub", false)) and (_holding.is_empty() or _holding == _hover):
 		if _holding.is_empty():
 			_start_hold(_hover)
-		if hit != _holding:
+		# Begun on the thing, the work goes on wherever the hand wanders while the button is
+		# held (playtest 30. 10.: "a small hitbox, I slip off it and must start again"); it
+		# stops only when the thing was done meanwhile (by the other warden).
+		if bool(_targets[_holding].get("done", false)):
 			_cancel_hold()
 		else:
 			var m := get_viewport().get_mouse_position()
@@ -226,7 +251,7 @@ func _process(delta: float) -> void:
 			if _progress >= 1.0:
 				_finish(_holding)
 	elif not lmb and not _holding.is_empty():
-		_cancel_hold()
+		_let_go()
 	# Gentle pulse on the hovered thing.
 	if _highlight != null:
 		_highlight.albedo_color.a = 0.24 + 0.14 * (0.5 + 0.5 * sin(_t * 5.0))
@@ -234,7 +259,9 @@ func _process(delta: float) -> void:
 	if _prompt.visible:
 		var target: Dictionary = _targets[_hover]
 		var how := "CLICK" if bool(target.get("scrub", false)) or str(target.get("verb", "")) in CLICK_VERBS else "[LMB]"
-		_prompt.text = ("%s..." % str(target["verb"]).to_upper()) if not _holding.is_empty() else ("%s  %s" % [how, str(target["label"]).to_upper()])
+		# Each piece translated before it is upper-cased and put together (in Czech the
+		# whole line was never found: "[LMB]  MAKE THE BED", the playtest of 30. 10.).
+		_prompt.text = ("%s..." % tr(str(target["verb"])).to_upper()) if not _holding.is_empty() else ("%s  %s" % [tr(how), tr(str(target["label"])).to_upper()])
 		var m := get_viewport().get_mouse_position()
 		_prompt.position = (m + Vector2(-_prompt.size.x * 0.5, 16.0 * _scale)).floor()
 	queue_redraw()
@@ -412,10 +439,16 @@ func _unshake() -> void:
 		if is_instance_valid(n):
 			(n as Node3D).position = _shaken[n]
 	_shaken.clear()
-	for n in _scaled.keys():
-		if is_instance_valid(n):
-			(n as Node3D).scale = _scaled[n]
-	_scaled.clear()
+
+
+## The mess of task `id` (every task's: "") back to its size.
+func _restore_scales(id: String) -> void:
+	var meshes: Array = _scaled.keys() if id == "" else (_targets.get(id, {}) as Dictionary).get("meshes", [])
+	for n in meshes:
+		if _scaled.has(n):
+			if is_instance_valid(n):
+				(n as Node3D).scale = _scaled[n]
+			_scaled.erase(n)
 
 
 ## The mess under the hand goes stroke by stroke (it is swapped for its done look at the
@@ -434,7 +467,7 @@ func _shrink(target: Dictionary) -> void:
 
 func _start_hold(id: String) -> void:
 	_holding = id
-	_progress = 0.0
+	_progress = float(_partial.get(id, 0.0))
 	_gesture.reset()
 	_gesture.kind = GESTURE.kind_for(str(_targets[id].get("verb", "")))
 	_mouse_last = get_viewport().get_mouse_position()
@@ -445,13 +478,25 @@ func _start_hold(id: String) -> void:
 
 
 func _cancel_hold() -> void:
+	var id := _holding
 	_holding = ""
 	_progress = 0.0
 	if _hand != null:
 		_hand.stop()
 	_unshake()
+	# (A thing left half done keeps its smaller mess.)
+	if id != "" and not _partial.has(id):
+		_restore_scales(id)
 	if _work_player != null and _work_player.playing:
 		_work_player.stop()
+
+
+## The button let go before the thing is done: what was done of it is kept for the next
+## time it is taken up (playtest 30. 10.: it all went, "I must start again").
+func _let_go() -> void:
+	if not _holding.is_empty() and _progress > 0.0:
+		_partial[_holding] = _progress
+	_cancel_hold()
 
 
 ## One click: the hand takes it with the work's sound, and it is done.
@@ -470,6 +515,7 @@ func _pick_up(id: String) -> void:
 
 func _finish(id: String) -> void:
 	_targets[id]["done"] = true
+	_partial.erase(id)
 	_cancel_hold()
 	_set_hover("")
 	_play(SFX_DONE)
@@ -557,7 +603,9 @@ func _refresh_checklist(room: Dictionary) -> void:
 			group = g
 			_checklist.add_child(RETRO_UI.label(g, RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_TEXT, RETRO_UI.C_AMBER_LIGHT, _scale))
 		var is_done := done.has(str(t["id"]))
-		var text := "%s %s" % ["[X]" if is_done else "[ ]", str(t["label"])]
+		# The task translated before the box goes in front ("[X] Scrub the toilet" was never
+		# found in Czech: the X is a letter, so the line was not taken as wrapped).
+		var text := "%s %s" % ["[X]" if is_done else "[ ]", tr(str(t["label"]))]
 		_checklist.add_child(RETRO_UI.label(text, RETRO_UI.FONT_TEXT, RETRO_UI.SIZE_TEXT, RETRO_UI.C_BONE_DIM if is_done else RETRO_UI.C_BONE, _scale))
 
 

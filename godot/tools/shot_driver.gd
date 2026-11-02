@@ -646,11 +646,39 @@ const SCENARIOS := {
 		["eval", "_interior_manager._cabin_interior.close_cabin()"], ["wait", 0.6],
 		["eval", "_interior_manager._handle_replace_upgrade(Vector2i(17, 4), 'cabin_1', 'cabin_2', 0)"], ["wait", 0.6], ["eval", "_interior_manager._building_interior.close_interior()"], ["prep_all"], ["wait", 0.4],
 		["open_room", 17, 4], ["wait", 1.2], ["shot", "c2_room"], ["eval", "_interior_manager._cabin_interior._look.set('yaw_deg', 70.0)"], ["wait", 0.6], ["shot", "c2_left"],
-		["eval", "_interior_manager._cabin_interior._switch_cabin_room(1)"], ["wait", 0.8], ["shot", "c2_bath"],
+		["eval", "_interior_manager._cabin_interior._switch_cabin_room(1)"], ["wait", 2.8], ["shot", "c2_bath"],
 		["eval", "_interior_manager._cabin_interior.close_cabin()"], ["wait", 0.6],
 		["eval", "_interior_manager._handle_replace_upgrade(Vector2i(17, 4), 'cabin_2', 'cabin_3', 0)"], ["wait", 0.6], ["eval", "_interior_manager._building_interior.close_interior()"], ["prep_all"], ["wait", 0.4],
 		["open_room", 17, 4], ["wait", 1.2], ["shot", "c3_room"], ["eval", "_interior_manager._cabin_interior._look.set('yaw_deg', -70.0)"], ["wait", 0.6], ["shot", "c3_right"],
-		["eval", "_interior_manager._cabin_interior._switch_cabin_room(1)"], ["wait", 0.8], ["shot", "c3_bath"],
+		["eval", "_interior_manager._cabin_interior._switch_cabin_room(1)"], ["wait", 2.8], ["shot", "c3_bath"],
+	],
+	# Into the done-up cabin's bathroom on foot (TODO T20): the door under the pointer, a
+	# click, the walk in frame by frame, the walk back; the same in the best cabin; left
+	# from the bathroom and entered again (in by the front door, not in the wall).
+	"cabinwalk": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["money", 90000], ["clear", 16, 3, 4, 4], ["build", "cabin_1", 17, 4, 0], ["wait", 0.5],
+		["eval", "_interior_manager._handle_replace_upgrade(Vector2i(17, 4), 'cabin_1', 'cabin_2', 0)"], ["wait", 0.6], ["eval", "_interior_manager._building_interior.close_interior()"], ["prep_all"], ["wait", 0.4],
+		["open_room", 17, 4], ["wait", 1.2], ["shot", "w2_room"],
+		["eval", "_interior_manager._cabin_interior.debug_look_at_bath_door()"], ["wait", 0.8],
+		["eval", "_interior_manager._cabin_interior.debug_pointer_on_bath_door()"], ["wait", 0.4], ["shot", "w2_door"],
+		["lmb", true], ["wait", 0.05], ["lmb", false],
+		["wait", 0.3], ["shot", "w2_in1"], ["wait", 0.3], ["shot", "w2_in2"], ["wait", 0.3], ["shot", "w2_in3"], ["wait", 0.3], ["shot", "w2_in4"],
+		["wait", 0.3], ["shot", "w2_in5"], ["wait", 0.3], ["shot", "w2_in6"], ["wait", 1.0], ["shot", "w2_bath"],
+		["key", "S"],
+		["wait", 0.3], ["shot", "w2_out1"], ["wait", 0.4], ["shot", "w2_out2"], ["wait", 0.4], ["shot", "w2_out3"], ["wait", 0.4], ["shot", "w2_out4"],
+		["wait", 0.4], ["shot", "w2_out5"], ["wait", 1.2], ["shot", "w2_back"],
+		["eval", "_interior_manager._cabin_interior._switch_cabin_room(1)"], ["wait", 2.8], ["eval", "_interior_manager._cabin_interior.close_cabin()"], ["wait", 0.6],
+		["open_room", 17, 4], ["wait", 1.2], ["shot", "w2_again"], ["eval", "_interior_manager._cabin_interior.close_cabin()"], ["wait", 0.6],
+		["eval", "_interior_manager._handle_replace_upgrade(Vector2i(17, 4), 'cabin_2', 'cabin_3', 0)"], ["wait", 0.6], ["eval", "_interior_manager._building_interior.close_interior()"], ["prep_all"], ["wait", 0.4],
+		["open_room", 17, 4], ["wait", 1.2], ["shot", "w3_room"],
+		["eval", "_interior_manager._cabin_interior.debug_look_at_bath_door()"], ["wait", 0.8], ["shot", "w3_door"],
+		["eval", "_interior_manager._cabin_interior._walk_to('bathroom')"],
+		["wait", 0.6], ["shot", "w3_in2"], ["wait", 0.6], ["shot", "w3_in4"], ["wait", 1.4], ["shot", "w3_bath"],
+		["eval", "_interior_manager._cabin_interior._look.set('yaw_deg', 70.0)"], ["wait", 0.6], ["shot", "w3_bath_left"],
+		["eval", "_interior_manager._cabin_interior._look.set('yaw_deg', -70.0)"], ["wait", 0.6], ["shot", "w3_bath_right"],
+		["eval", "_interior_manager._cabin_interior._walk_to('main')"], ["wait", 0.8], ["shot", "w3_out2"], ["wait", 2.4], ["shot", "w3_back"],
+		["eval", "_interior_manager._cabin_interior._look.set('yaw_deg', -70.0)"], ["wait", 0.6], ["shot", "w3_right"],
 	],
 	"tentlook": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
@@ -801,9 +829,26 @@ const SCENARIOS := {
 		["gm", "get_room_state", "17:4"], ["open_room", 17, 4], ["wait", 1.2], ["eval", "_interior_manager._cabin_interior._look.set('pitch_deg', -24.0)"], ["eval", "_interior_manager._cabin_interior._look.set('yaw_deg', 0.0)"], ["wait", 0.8], ["shot", "m0_after_lads"],
 		["eval", "_interior_manager._cabin_interior._prep.tasks.debug_probe()"],
 		["clean_room", "_cabin_interior"], ["shot", "m1_main_clean"],
-		["eval", "_interior_manager._cabin_interior._switch_cabin_room(1)"], ["wait", 0.8], ["shot", "m2_bathroom"],
+		["eval", "_interior_manager._cabin_interior._switch_cabin_room(1)"], ["wait", 2.8], ["shot", "m2_bathroom"],
 		["eval", "_interior_manager._cabin_interior._prep.tasks.debug_probe()"],
 		["clean_room", "_cabin_interior"], ["wait", 0.5], ["shot", "m3_ready"], ["gm", "get_room_state", "17:4"],
+	],
+	# The best cabin's bathroom after the lads, from its doorway (1. 11.: the toilet out
+	# from behind the shower curtain): straight in, turned left and right, then cleaned.
+	"bathmess": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["money", 90000], ["clear", 16, 3, 4, 4], ["build", "cabin_1", 17, 4, 0], ["wait", 0.5],
+		["eval", "_interior_manager._handle_replace_upgrade(Vector2i(17, 4), 'cabin_1', 'cabin_2', 0)"], ["wait", 0.5],
+		["eval", "_interior_manager._handle_replace_upgrade(Vector2i(17, 4), 'cabin_2', 'cabin_3', 0)"], ["wait", 0.5],
+		["eval", "_interior_manager._building_interior.close_interior()"], ["prep_all"], ["book", "Lads", "drunk", 3, 2, 0], ["hours", 0.05], ["checkin"], ["hours", 49.0], ["wait", 1.0],
+		["gm", "get_room_state", "17:4"], ["open_room", 17, 4], ["wait", 1.2],
+		["eval", "_interior_manager._cabin_interior._walk_to('bathroom')"], ["wait", 2.8], ["shot", "bm0_bathroom"],
+		["eval", "_interior_manager._cabin_interior._look.set('yaw_deg', 40.0)"], ["wait", 0.6], ["shot", "bm1_left"],
+		["eval", "_interior_manager._cabin_interior._look.set('yaw_deg', -40.0)"], ["wait", 0.6], ["shot", "bm2_right"],
+		["eval", "_interior_manager._cabin_interior._prep.tasks.debug_probe()"],
+		["aim_task", "_cabin_interior", "wc"], ["wait", 0.4], ["shot", "bm3_toilet"],
+		["eval", "_interior_manager._cabin_interior._prep.tasks._target_under_cursor()"],
+		["clean_room", "_cabin_interior"], ["wait", 0.5], ["shot", "bm4_clean"], ["gm", "get_room_state", "17:4"],
 	],
 	"blockclean": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
@@ -879,7 +924,7 @@ const SCENARIOS := {
 		["eval", "_interior_manager._handle_replace_upgrade(Vector2i(17, 4), 'cabin_1', 'cabin_2', 0)"], ["wait", 0.5], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.6],
 		["open_room", 22, 4], ["wait", 1.2], ["shot", "i_tent"], ["eval", "_interior_manager._tent_interior.close_tent()"], ["wait", 0.6],
 		["clear", 21, 8, 3, 3], ["build", "sewer", 22, 9, 0], ["wait", 0.5], ["open_room", 22, 9], ["wait", 1.2], ["shot", "i_sewer"], ["eval", "_interior_manager._service_interior.close_service()"], ["wait", 0.6],
-		["open_room", 17, 4], ["wait", 1.2], ["shot", "i_cabin"], ["eval", "_interior_manager._cabin_interior._switch_cabin_room(1)"], ["wait", 0.8], ["shot", "i_cabin_bath"],
+		["open_room", 17, 4], ["wait", 1.2], ["shot", "i_cabin"], ["eval", "_interior_manager._cabin_interior._switch_cabin_room(1)"], ["wait", 2.8], ["shot", "i_cabin_bath"],
 	],
 	"prepcabin": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
@@ -888,9 +933,37 @@ const SCENARIOS := {
 		["aim_task", "_cabin_interior", "bed"], ["wait", 0.4], ["shot", "q1_hover_bed"],
 		["lmb", true], ["wait", 2.4], ["lmb", false], ["wait", 0.4],
 		["clean_room", "_cabin_interior"], ["wait", 0.4], ["shot", "q3_main_done"],
-		["eval", "_interior_manager._cabin_interior._switch_cabin_room(1)"], ["wait", 0.8], ["shot", "q4_bathroom_dirty"],
+		["eval", "_interior_manager._cabin_interior._switch_cabin_room(1)"], ["wait", 2.8], ["shot", "q4_bathroom_dirty"],
 		["aim_task", "_cabin_interior", "wc"], ["wait", 0.3], ["lmb", true], ["wait", 1.2], ["shot", "q5_scrubbing"], ["wait", 1.1], ["shot", "q5b_poof"], ["wait", 0.2], ["lmb", false], ["wait", 0.5],
 		["clean_room", "_cabin_interior"], ["wait", 0.35], ["shot", "q6_cabin_ready"],
+	],
+	# Room work you slip off (TODO S17): the bed held a moment and let go keeps what was
+	# done; held again, the pointer dragged right off it to the screen's corner, the work
+	# goes on to the end. Read the evals: the kept share, then the bed done.
+	"prepslip": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["money", 9000], ["clear", 16, 3, 4, 4], ["build", "cabin_1", 17, 4, 0], ["wait", 0.5], ["eval", "_interior_manager._handle_replace_upgrade(Vector2i(17, 4), 'cabin_1', 'cabin_2', 0)"], ["wait", 0.5],
+		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.8], ["open_room", 17, 4], ["wait", 1.2],
+		["aim_task", "_cabin_interior", "bed"], ["wait", 0.4], ["shot", "ps0_bed"],
+		["lmb", true], ["wait", 0.7], ["lmb", false], ["wait", 0.3],
+		["eval", "_interior_manager._cabin_interior._prep.tasks._partial"],
+		["aim_task", "_cabin_interior", "bed"], ["wait", 0.4],
+		["lmb", true], ["wait", 0.1], ["mouse", 0.03, 0.04], ["wait", 0.3], ["shot", "ps1_slipped_off"],
+		["eval", "_interior_manager._cabin_interior._prep.tasks._target_under_cursor()"], ["wait", 1.1],
+		["eval", "_interior_manager._cabin_interior._prep.tasks._targets['bed']['done']"], ["lmb", false], ["wait", 0.5], ["shot", "ps2_bed_made"],
+		["gm", "get_room_state", "17:4"],
+	],
+	# The waypoint's mark by the troubles' plates on the right (TODO S32): the day's events
+	# up as plates, the nearest one behind you on the right (the mark on the right edge),
+	# then off to the right in front.
+	"hudmarks": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
+		["eval", "_day_events.debug_start('litter')"], ["eval", "_day_events.debug_start('raccoons')"], ["eval", "_day_events.debug_start('tree')"],
+		["eval", "_day_events.debug_start('lost_kid')"], ["eval", "_day_events.debug_start('delivery')"],
+		["eval", "_day_events.debug_goto(14.0)"], ["wait", 1.5], ["shot", "hm0_ahead"],
+		["eval", "_player.rotate_y(2.4)"], ["wait", 1.0], ["shot", "hm1_behind_right"],
+		["eval", "_player.rotate_y(-1.1)"], ["wait", 1.0], ["shot", "hm2_off_right"],
 	],
 	"saveload": [
 		["wait_menu"], ["wait", 1.0], ["shot", "01_menu"],
@@ -2113,7 +2186,7 @@ func _run_step(step: Array) -> void:
 				var cam: Camera3D = tasks._camera
 				var look = interior.get("_look")
 				var base: Vector3 = interior.get("_cam_base_rot")
-				var to: Vector3 = target["body"].global_position - cam.global_position
+				var to: Vector3 = _aim_point(target) - cam.global_position
 				var yaw := rad_to_deg(atan2(-to.x, -to.z) - base.y)
 				var pitch := rad_to_deg(atan2(to.y, Vector2(to.x, to.z).length()) - base.x)
 				look.yaw_deg = clampf(yaw, -look.yaw_limit_deg, look.yaw_limit_deg)
@@ -2129,9 +2202,16 @@ func _run_step(step: Array) -> void:
 			var interior3 = _main.get("_interior_manager").get(str(step[1]))
 			var tasks3 = _prep_of(interior3).tasks
 			var queue: Array = []
+			# Ahead of where you stand, not of where the last aim left the head (in the cabin's
+			# bathroom the room behind you is still drawn).
+			var cam3: Camera3D = tasks3._camera
+			var base3 = interior3.get("_cam_base_rot")
+			var ahead: Vector3 = -(Basis.from_euler(base3) if base3 is Vector3 else cam3.global_basis).z
 			for id in tasks3._targets.keys():
 				var t3: Dictionary = tasks3._targets[id]
 				if t3["done"] or not is_instance_valid(t3["body"]) or not t3["body"].is_visible_in_tree():
+					continue
+				if ((t3["body"] as Node3D).global_position - cam3.global_position).dot(ahead) <= 0.0:
 					continue
 				if bool(t3.get("scrub", false)):
 					# A toilet: the click opens the scrub close-up; it is finished there.
@@ -2154,7 +2234,7 @@ func _run_step(step: Array) -> void:
 				var cam2: Camera3D = tasks2._camera
 				var vp_size := Vector2(tasks2._viewport.size)
 				var screen := get_viewport().get_visible_rect().size
-				var sp: Vector2 = cam2.unproject_position(target2["body"].global_position) / vp_size * screen
+				var sp: Vector2 = cam2.unproject_position(_aim_point(target2)) / vp_size * screen
 				# warp_mouse takes window pixels; the canvas may be scaled to the window.
 				Input.warp_mouse(sp * Vector2(DisplayServer.window_get_size()) / screen)
 				print("SHOT DRIVER aim_task %s at %s look now %.1f %.1f rot %s" % [step[2], sp, interior2.get("_look").yaw_deg, interior2.get("_look").pitch_deg, cam2.rotation_degrees])
@@ -2165,6 +2245,10 @@ func _run_step(step: Array) -> void:
 			ev.position = get_viewport().get_mouse_position()
 			ev.button_mask = MOUSE_BUTTON_MASK_LEFT if bool(step[1]) else 0
 			Input.parse_input_event(ev)
+		"mouse":
+			# The pointer to a share of the window ([x, y], 0..1), the button left as it is
+			# (eval cannot reach Input).
+			Input.warp_mouse(Vector2(DisplayServer.window_get_size()) * Vector2(float(step[1]), float(step[2])))
 		"look_at_enemy":
 			# Turn the player toward the newest enemy's body.
 			var brains: Array = _main.get("_enemy_brains")
@@ -2224,3 +2308,12 @@ func _save_shot(shot_name: String) -> void:
 func _prep_of(interior):
 	var p = interior.get("_prep")
 	return p if p != null else interior.get("_upkeep_prep")
+
+
+## Where a player points at a room task: its mess as drawn (the toilet's click box sits
+## lower than the grime on its seat, and a ray at the box clipped the basin's), else its body.
+func _aim_point(t: Dictionary) -> Vector3:
+	for mm in t["meshes"]:
+		if mm is MeshInstance3D and is_instance_valid(mm) and (mm as Node3D).is_visible_in_tree():
+			return (mm as Node3D).global_position
+	return (t["body"] as Node3D).global_position

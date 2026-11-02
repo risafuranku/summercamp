@@ -5926,7 +5926,7 @@ msgstr "Geranium"
 msgid "Bulb%d"
 msgstr "Bulb%d"
 
-#: scripts/building_models.gd:1242 scripts/cabin_interior.gd:1601 scripts/service_interior.gd:1874
+#: scripts/building_models.gd:1242 scripts/cabin_interior.gd:1609 scripts/service_interior.gd:1874
 #. uses 3
 msgid "Newspaper"
 msgstr "Newspaper"
@@ -6187,7 +6187,7 @@ msgstr "Rug"
 msgid "Board"
 msgstr "Board"
 
-#: scripts/cabin_interior.gd:1665
+#: scripts/cabin_interior.gd:1724
 msgid "cabin_lv%d_%s"
 msgstr "cabin_lv%d_%s"
 
@@ -9612,7 +9612,7 @@ msgstr "NUTNO UKLIDIT"
 msgid "NOT MADE UP"
 msgstr "NENACHYSTÁNO"
 
-#: scripts/interior_tasks.gd:606
+#: scripts/interior_tasks.gd:608
 msgid "[X]"
 msgstr "[X]"
 

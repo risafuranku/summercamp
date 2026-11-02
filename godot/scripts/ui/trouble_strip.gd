@@ -73,14 +73,15 @@ func _process(delta: float) -> void:
 		queue_redraw()
 
 
-func _draw() -> void:
-	if _rows.is_empty():
-		return
+## Where the plates go now: {u, n, step, x, y0}, or {} when none are shown.
+func _layout() -> Dictionary:
+	if _rows.is_empty() or not is_visible_in_tree():
+		return {}
 	# At a business's station its own frame says what waits (the plates sat over its
 	# ticket and SERVE).
 	for frame in get_tree().get_nodes_in_group("station_frame"):
 		if (frame as CanvasLayer).visible:
-			return
+			return {}
 	var u := float(maxi(1, ui_scale))
 	var n := mini(_rows.size(), MAX_ROWS)
 	var step := (PLATE.y + GAP) * u
@@ -88,6 +89,30 @@ func _draw() -> void:
 	# Under the arrivals' plates (they stand round 42 % of the height), or a little higher.
 	var y0 := floorf(size.y * 0.42 + step * float(arrivals) * 0.5 + 6.0 * u) if arrivals > 0 else floorf(size.y * 0.3)
 	y0 = minf(y0, size.y - step * float(n) - 70.0 * u)
+	return {"u": u, "n": n, "step": step, "x": x, "y0": y0}
+
+
+## The screen the plates take (this control's own space; empty with none), the "+N" under
+## them too: the HUD keeps the waypoint's mark off it (shots of 30. 10.: "BRANCH" over
+## "CABIN 15M").
+func occupied() -> Rect2:
+	var l := _layout()
+	if l.is_empty():
+		return Rect2()
+	var u: float = l["u"]
+	var rows := float(l["n"]) + (1.0 if _rows.size() > int(l["n"]) else 0.0)
+	return Rect2(float(l["x"]), float(l["y0"]), PLATE.x * u, float(l["step"]) * rows)
+
+
+func _draw() -> void:
+	var l := _layout()
+	if l.is_empty():
+		return
+	var u: float = l["u"]
+	var n: int = l["n"]
+	var step: float = l["step"]
+	var x: float = l["x"]
+	var y0: float = l["y0"]
 	var f: Font = font if font != null else get_theme_default_font()
 	var fs := int(8.0 * u)
 	for i in n:

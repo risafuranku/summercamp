@@ -48,9 +48,10 @@ static func kind_for(verb: String) -> String:
 	return str(BY_VERB.get(verb, "sweep"))
 
 
-## How many strokes a job of `seconds` held (the old bar) takes.
+## How many strokes a job of `seconds` held (the old bar) takes (2.2 a second until the
+## playtest of 30. 10.: "cleaning is impossible", the strokes shorter since too).
 static func strokes_for(seconds: float) -> int:
-	return clampi(int(round(seconds * 2.2)), 2, 12)
+	return clampi(int(round(seconds * 1.8)), 2, 10)
 
 
 func reset() -> void:
@@ -84,7 +85,7 @@ func feed(motion: Vector2, delta: float, h: float) -> int:
 		"sweep":
 			if absf(motion.x) > 0.01:
 				var sg := 1 if motion.x > 0.0 else -1
-				if sg != _sign and absf(_travel.x) > u * 6.0:
+				if sg != _sign and absf(_travel.x) > u * 4.0:
 					n += _stroke()
 					_travel = Vector2.ZERO
 				if sg != _sign:
@@ -108,16 +109,16 @@ func feed(motion: Vector2, delta: float, h: float) -> int:
 		"pull":
 			if motion.y > 0.0:
 				_travel.y += motion.y
-				if _travel.y > u * 10.0:
+				if _travel.y > u * 7.0:
 					_travel.y = 0.0
 					n += _stroke()
 			else:
 				_travel.y = maxf(0.0, _travel.y + motion.y * 0.25)
 		"pick":
 			_travel.y += motion.y
-			if not _down and _travel.y > u * 5.0:
+			if not _down and _travel.y > u * 3.5:
 				_down = true
-			elif _down and _travel.y < u * 1.0:
+			elif _down and _travel.y < u * 1.5:
 				_down = false
 				_travel.y = 0.0
 				n += _stroke()

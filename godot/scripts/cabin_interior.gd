@@ -1,7 +1,7 @@
 extends CanvasLayer
 
-## The room swipe is a smooth push (scripts/ui/room_push.gd).
-const ROOM_PUSH = preload("res://scripts/ui/room_push.gd")
+## Into the bathroom and back you walk through its door (scripts/ui/walk_path.gd).
+const WALK_PATH = preload("res://scripts/ui/walk_path.gd")
 const RETRO_RENDER = preload("res://scripts/retro_render.gd")
 ## The cabin's plan, the same for the room and the model outside (scripts/cabin_layout.gd).
 const CABIN_LAYOUT = preload("res://scripts/cabin_layout.gd")
@@ -106,20 +106,22 @@ var _sunlight_color: Color = Color(1.0, 0.95, 0.84)
 var _barrel_overlay: ColorRect
 var _cam_base_rot: Vector3 = Vector3.ZERO
 ## Standing inside the door of the cabin: most of the room, never the door behind you.
-var _look = INTERIOR_LOOK.new(72.0, 28.0, 38.0)
+var _look = INTERIOR_LOOK.new(ROOM_YAW_DEG, 28.0, 38.0)
 ## Lying in this room's bed (scripts/lodge_bed.gd has the camera): no looking round,
 ## no leaving, no clicks till you are up.
 var lodge_sleeping := false
 var _exit_hint: Control
+## In the bathroom S takes you back into the room, as the reception's back room does.
+var _back_hint: Control
 ## The room's surfaces, re-skinned per level: {walls: [...], floor, ceiling}.
 var _shell: Dictionary = {}
-var _bath_shell: Dictionary = {}
 var _texture_style
 var _bathroom_root: Node3D
 var _active_room: String = "main"
-var _swipe_overlay: ColorRect
-var _swipe_tween: Tween
-var _swipe_animating: bool = false
+## The bathroom's walls (the door's wall in pieces round its opening), re-skinned per tier.
+var _bath_walls: Array = []
+## Your torch's beams: under neither room, so they shine in both.
+var _torch_root: Node3D
 
 # Screen-space active zones.
 var _catalog_mesh: MeshInstance3D
@@ -134,14 +136,15 @@ func _ready() -> void:
 	visible = false
 	_build_viewport()
 	_sync_viewport_to_window()
-	_update_swipe_overlay_size()
 	_build_cabin_room()
+	# The steps and the bathroom's door, through the room's echo as the fridge is.
+	_steps_player = _fridge_player("", -13.0, false)
+	_door_player = _fridge_player("", -9.0, false)
 
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_SIZE_CHANGED:
 		_sync_viewport_to_window()
-		_update_swipe_overlay_size()
 
 
 func is_open() -> bool:
@@ -246,10 +249,10 @@ func open_cabin(level: int = 1) -> void:
 	_is_open = true
 	visible = true
 	_sync_viewport_to_window()
-	# A little down: the floor in view to clean it at once, the window still whole (the
-	# user 20. 10.).
-	_interior_camera.rotation_degrees = Vector3(MAIN_PITCH_DEG, 0.0, 0.0)
-	_set_cabin_room("main", false)
+	# In by the front door whichever room you left from (the camera kept the bathroom's
+	# doorway, and the next visit began inside the room's right wall).
+	_stop_walk()
+	_set_cabin_room("main", true)
 	_apply_level_variant()
 	_apply_time_profile()
 	_refresh_guest_visuals()
@@ -257,6 +260,8 @@ func open_cabin(level: int = 1) -> void:
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 
+## A little down: the floor in view to clean it at once, the window still whole (the
+## user 20. 10.).
 const MAIN_PITCH_DEG := -13.0
 
 
@@ -432,25 +437,32 @@ func _update_portals() -> void:
 	var dt := get_process_delta_time()
 	_tick_photo_flash(dt)
 	var to_world := _room_to_world() if live else Transform3D()
+	var clickable := _active_room == "main" and not _walking()
 	for lv in _level_portals.keys():
 		for pt in _level_portals[lv]:
 			var cur = pt.get("curtain")
-			var shown: bool = _active_room == "main" and int(lv) == _cabin_level
+			# (Live on the way to the bathroom and back too; from in there none is in sight.)
+			var shown: bool = (_active_room == "main" or _walking()) and int(lv) == _cabin_level
 			if cur != null:
 				cur.update(dt)
-			(pt["cbody"] as StaticBody3D).collision_layer = 1 if shown else 0
+			(pt["cbody"] as StaticBody3D).collision_layer = 1 if shown and clickable else 0
 			var on: bool = live and shown and (cur == null or cur.open > 0.03)
 			(pt["quad"] as MeshInstance3D).visible = on
 			if on:
 				pt["view"].offer(_interior_camera, _cabin_root, to_world, _anchor.get_world_3d(), _anchor)
 
 
-## The curtain under the cursor glints; the finger over it.
+## The curtain under the cursor glints, the finger over it; the bathroom's door glints
+## under the walking feet.
 func _update_hover() -> void:
 	var meshes: Array = []
-	if not _prep.is_busy() and _active_room == "main":
+	if not _prep.is_busy() and _active_room == "main" and not _walking():
 		var hit := _raycast_world(get_viewport().get_mouse_position())
 		var n = hit.get("collider", null) as Node
+		if n != null and _node_has_click_type(n, "cabin_bath_door"):
+			HandCursor.want(HandCursor.WALK)
+			_glint.show_on(_bath_door_now().get("meshes", []))
+			return
 		while n != null and not n.has_meta("portal_index"):
 			n = n.get_parent()
 		if n != null:
@@ -469,10 +481,10 @@ func close_cabin() -> void:
 	_fridge_set(false, false)
 	_fridge_t = randf_range(1.0, 25.0)
 	_is_open = false
-	if _swipe_tween != null and is_instance_valid(_swipe_tween):
-		_swipe_tween.kill()
-	ROOM_PUSH.cancel(_viewport_container)
-	_swipe_animating = false
+	# Left from the bathroom or on the way to it (the pause menu's Go outside): the door
+	# shut and the room as you find it from the camp's windows.
+	_stop_walk()
+	_set_cabin_room("main", true)
 	_glint.clear()
 	visible = false
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
@@ -488,17 +500,23 @@ func _process(delta: float) -> void:
 		return
 	_apply_idle_mouse_look(delta)
 	_update_portals()
+	_update_bath_doors()
 	_update_hover()
 	_update_torch(delta)
 	_update_fridge(delta)
 	if _exit_hint == null:
 		_exit_hint = INTERIOR_LOOK.make_exit_hint(self)
+		_back_hint = INTERIOR_LOOK.make_exit_hint(self, "Back   [S]")
 		_side_hints = INTERIOR_LOOK.make_side_hints(self)
-	INTERIOR_LOOK.update_exit_hint(_exit_hint, get_viewport(), delta)
-	if _active_room == "bathroom":
+	var walking := _walking()
+	INTERIOR_LOOK.update_exit_hint(_exit_hint, get_viewport(), delta, not walking and _active_room == "main")
+	INTERIOR_LOOK.update_exit_hint(_back_hint, get_viewport(), delta, not walking and _active_room == "bathroom")
+	if walking:
+		INTERIOR_LOOK.set_side_hints(_side_hints, "", "")
+	elif _active_room == "bathroom":
 		INTERIOR_LOOK.set_side_hints(_side_hints, "Room  [A]", "")
 	else:
-		INTERIOR_LOOK.set_side_hints(_side_hints, "", "Bathroom  [D]" if _cabin_level >= 2 else "")
+		INTERIOR_LOOK.set_side_hints(_side_hints, "", "Bathroom  [D]" if CABIN_LAYOUT.has_bath(_cabin_level) else "")
 
 
 # ── the camp looking in ──────────────────────────────────────────────────────
@@ -771,7 +789,8 @@ func _fridge_set(on: bool, knock: bool) -> void:
 
 
 func _apply_idle_mouse_look(delta: float) -> void:
-	if lodge_sleeping:
+	# (The walk through the door has the camera.)
+	if lodge_sleeping or _walking():
 		return
 	var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.turn_axis())
 	_interior_camera.rotation = _cam_base_rot + offset
@@ -786,10 +805,19 @@ func _input(event: InputEvent) -> void:
 		return
 	if _prep != null and _prep.is_scrubbing():
 		return
+	# On the way through the bathroom's door the clicks and S wait till you are there.
+	if _walking():
+		if (event is InputEventMouseButton and event.pressed) or (event is InputEventKey and event.pressed and event.physical_keycode == KEY_S):
+			get_viewport().set_input_as_handled()
+		return
 	# Esc is the pause menu's (main): S or the way out behind you leaves (but not a
-	# click on something to tidy, however low on the screen it is).
+	# click on something to tidy, however low on the screen it is); from the bathroom
+	# it is back into the room.
 	if INTERIOR_LOOK.is_exit_event(event, get_viewport()) and not (_prep.is_busy() and event is InputEventMouseButton):
-		close_cabin()
+		if _active_room == "bathroom":
+			_walk_to("main")
+		else:
+			close_cabin()
 		get_viewport().set_input_as_handled()
 		return
 
@@ -816,9 +844,10 @@ func _input(event: InputEvent) -> void:
 			return
 
 
-## The upgrade catalog on screen (normalised), wherever the head is turned.
+## The upgrade catalog on screen (normalised), wherever the head is turned (in the room:
+## from the bathroom it is behind you, though still drawn).
 func _catalog_screen_rect() -> Rect2:
-	if _catalog_mesh != null and _catalog_mesh.is_visible_in_tree() and _viewport != null:
+	if _active_room == "main" and _catalog_mesh != null and _catalog_mesh.is_visible_in_tree() and _viewport != null:
 		var r := INTERIOR_LOOK.screen_rect_of(_interior_camera, Vector2(_viewport.size), _catalog_mesh)
 		if r.has_area():
 			return r.grow(0.03)
@@ -850,6 +879,9 @@ func _try_click_world(event: InputEventMouseButton) -> bool:
 		return false
 	if _node_has_click_type(collider, "cabin_light_switch"):
 		_toggle_manual_lights()
+		return true
+	if _node_has_click_type(collider, "cabin_bath_door"):
+		_walk_to("bathroom")
 		return true
 	if _node_has_click_type(collider, "cabin_curtain"):
 		var n: Node = collider
@@ -1032,17 +1064,8 @@ func _build_viewport() -> void:
 	barrel_mat.set_shader_parameter("vignette_strength", 0.0)
 	barrel_mat.set_shader_parameter("chroma_shift", 0.0)
 	_barrel_overlay.material = barrel_mat
-	_barrel_overlay.material = barrel_mat
 	_barrel_overlay.visible = false
 	add_child(_barrel_overlay)
-
-	_swipe_overlay = ColorRect.new()
-	_swipe_overlay.name = "CabinSwipe"
-	_swipe_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_swipe_overlay.color = Color(0.04, 0.05, 0.06, 0.92)
-	_swipe_overlay.visible = false
-	add_child(_swipe_overlay)
-	_update_swipe_overlay_size()
 
 
 func _sync_viewport_to_window() -> void:
@@ -1071,6 +1094,9 @@ func _build_cabin_room() -> void:
 	_bathroom_root = Node3D.new()
 	_bathroom_root.name = "BathroomRoom"
 	_viewport.add_child(_bathroom_root)
+	_torch_root = Node3D.new()
+	_torch_root.name = "TorchBeams"
+	_viewport.add_child(_torch_root)
 
 	_interior_camera = Camera3D.new()
 	_interior_camera.name = "CabinCamera"
@@ -1170,9 +1196,15 @@ func _build_level_shell(lv: int) -> void:
 		K.slab(shell, Vector3(iw, 0.06, 0.04), Vector3(0, f + h - 0.03, z), trim, "Cornice")
 	for x: float in [-iw * 0.5 + 0.015, iw * 0.5 - 0.015]:
 		K.slab(shell, Vector3(0.03, 0.1, id), Vector3(x, f + 0.05, 0), trim, "Skirting")
-	# The door you came in by, shut behind you, its handle.
+	# The door you came in by, shut behind you, its handle, in a frame round the opening
+	# (until 1. 11. a dark slab stood over the doorway, the door hidden behind it: seen on
+	# the way back from the bathroom).
 	var fz := id * 0.5
-	K.slab(shell, Vector3(CL.DOOR_W + 0.14, CL.DOOR_H + 0.08, 0.05), Vector3(0, f + (CL.DOOR_H + 0.08) * 0.5, fz + 0.01), trim, "FrontDoorFrame")
+	var fframe := Node3D.new()
+	fframe.name = "FrontDoorFrame"
+	fframe.position = Vector3(0, f, fz + t * 0.5)
+	shell.add_child(fframe)
+	_door_frame(fframe, CL.DOOR_W, CL.DOOR_H, t, trim)
 	var fdoor := MeshInstance3D.new()
 	fdoor.name = "FrontDoor"
 	var fdq := QuadMesh.new()
@@ -1186,20 +1218,9 @@ func _build_level_shell(lv: int) -> void:
 	# The windows: frames, the view out, a curtain each.
 	for win in CL.windows(lv):
 		_room_window(shell, lv, win)
-	# The bathroom's door (closed; through it with D).
+	# The bathroom's door, on its hinge: you walk through it (_walk_to).
 	if CL.has_bath(lv):
-		var bz2: float = CL.bath_door_z(lv)
-		var rx := iw * 0.5
-		K.slab(shell, Vector3(0.05, CL.BATH_DOOR_H + 0.08, CL.BATH_DOOR_W + 0.14), Vector3(rx - 0.01, f + (CL.BATH_DOOR_H + 0.08) * 0.5, bz2), trim, "BathDoorFrame")
-		var bdoor := MeshInstance3D.new()
-		bdoor.name = "BathDoor"
-		var bq := QuadMesh.new()
-		bq.size = Vector2(CL.BATH_DOOR_W, CL.BATH_DOOR_H)
-		bdoor.mesh = bq
-		bdoor.material_override = door_surface()
-		bdoor.position = Vector3(rx + t * 0.5, f + CL.BATH_DOOR_H * 0.5, bz2)
-		bdoor.rotation_degrees.y = -90.0
-		shell.add_child(bdoor)
+		_build_bath_door(shell, lv, iw * 0.5, f, trim)
 	# Lived in at every tier: the warden's jacket on a hook by the door (between it and the
 	# left window, clear of both), the calendar by the back window, the light.
 	K.cutout(shell, "coat_hook", Vector2(0.38, 0.58), Vector3(-0.71, f + 1.0, fz - 0.03), 180.0, false, "Jacket")
@@ -1225,7 +1246,8 @@ func _along_wall(which: String, p: Vector3, _iw: float, _id: float) -> float:
 
 
 ## A wall of the room with its openings: slabs round each hole (beside, under, over).
-func _wall_with_holes(parent: Node3D, which: String, iw: float, id: float, h: float, f: float, t: float, holes: Array, mat: Material) -> void:
+## Returns the slabs.
+func _wall_with_holes(parent: Node3D, which: String, iw: float, id: float, h: float, f: float, t: float, holes: Array, mat: Material) -> Array:
 	var length := iw + 2.0 * t if which in ["front", "back"] else id
 	var pieces: Array = []      # [u0, u1, y0, y1]
 	var sorted := holes.duplicate()
@@ -1246,6 +1268,7 @@ func _wall_with_holes(parent: Node3D, which: String, iw: float, id: float, h: fl
 	if u < length * 0.5 - 0.001:
 		pieces.append([u, length * 0.5, f, f + h])
 	var i := 0
+	var slabs: Array = []
 	for pc in pieces:
 		var u_mid: float = (float(pc[0]) + float(pc[1])) * 0.5
 		var w: float = float(pc[1]) - float(pc[0])
@@ -1266,8 +1289,9 @@ func _wall_with_holes(parent: Node3D, which: String, iw: float, id: float, h: fl
 			_:
 				pos = Vector3(-iw * 0.5 - t * 0.5, y_mid, -u_mid)
 				size = Vector3(t, hh, w)
-		INTERIOR_KIT.slab(parent, size, pos, mat, "Wall%s%d" % [which.capitalize(), i])
+		slabs.append(INTERIOR_KIT.slab(parent, size, pos, mat, "Wall%s%d" % [which.capitalize(), i]))
 		i += 1
+	return slabs
 
 
 ## A window of the room: its pine frame in the opening, the view out (a camera through
@@ -1296,6 +1320,99 @@ func _room_window(shell: Node3D, lv: int, win: Dictionary) -> void:
 	var glass_at := c + out * (CL.WALL_T * 0.5 - 0.005)
 	var curtain_tex := ["curtain_floral", "curtain_floral", "velvet"][lv - 1] as String
 	_add_portal(shell, lv, "View_" + str(win["id"]), glass_at, out, sz, curtain_tex)
+
+
+## The bathroom's door in the room's right wall: a frame lining the opening, proud of
+## both faces; the leaf hung at the front jamb and swinging into the room (into the
+## bathroom it would stand across the basin, and further back the shower and the chair
+## are in the way), the veneer of the office's doors on both faces with a lever on each;
+## a box to click it by. Until 1. 11. it was a dark slab over the opening (the door's own
+## face hidden behind it) that only D got you through.
+const BATH_DOOR_OPEN_DEG := 95.0
+const BATH_LEAF_T := 0.04
+const DOOR_FACE_TEX := "res://assets/textury/camp/door_interior.png"
+## A door frame's jambs and head: how wide, how far they reach over the opening's edges.
+const JAMB_W := 0.07
+const JAMB_IN := 0.015
+
+
+## A frame lining an opening `w` x `h` in a wall `t` thick, proud of both faces: two jambs
+## and a head. `holder`: its +X along the wall, +Z through it, its origin on the floor in
+## the middle of the opening.
+static func _door_frame(holder: Node3D, w: float, h: float, t: float, trim: Material) -> void:
+	var depth := t + 0.04
+	var jamb_h := h - JAMB_IN + JAMB_W
+	for s: float in [-1.0, 1.0]:
+		INTERIOR_KIT.slab(holder, Vector3(JAMB_W, jamb_h, depth), Vector3(s * (w * 0.5 - JAMB_IN + JAMB_W * 0.5), jamb_h * 0.5, 0.0), trim, "Jamb")
+	INTERIOR_KIT.slab(holder, Vector3(w + 2.0 * (JAMB_W - JAMB_IN), JAMB_W, depth), Vector3(0.0, jamb_h - JAMB_W * 0.5, 0.0), trim, "Head")
+
+
+func _build_bath_door(shell: Node3D, lv: int, rx: float, f: float, trim: Material) -> void:
+	var K := INTERIOR_KIT
+	var CL := CABIN_LAYOUT
+	var bz: float = CL.bath_door_z(lv)
+	var half: float = CL.BATH_DOOR_W * 0.5
+	var frame := Node3D.new()
+	frame.name = "BathDoorFrame"
+	frame.position = Vector3(rx + CL.WALL_T * 0.5, f, bz)
+	frame.rotation_degrees.y = -90.0
+	shell.add_child(frame)
+	_door_frame(frame, CL.BATH_DOOR_W, CL.BATH_DOOR_H, CL.WALL_T, trim)
+	# The threshold over the wall's thickness (the floor stopped at the room's wall and
+	# began again at the bathroom's).
+	K.slab(frame, Vector3(CL.BATH_DOOR_W - 2.0 * JAMB_IN, 0.028, CL.WALL_T + 0.04), Vector3(0.0, -0.006, 0.0), trim, "Threshold")
+	# The leaf: hinged at the front of the opening, its room face 2 cm in from the wall's.
+	var w: float = CL.BATH_DOOR_W - 2.0 * JAMB_IN - 0.006
+	var h: float = CL.BATH_DOOR_H - JAMB_IN - 0.018
+	var pivot := Node3D.new()
+	pivot.name = "BathDoorHinge"
+	pivot.position = Vector3(rx + 0.02, f + 0.014, bz + half - JAMB_IN - 0.003)
+	shell.add_child(pivot)
+	var veneer := StandardMaterial3D.new()
+	veneer.albedo_color = Color(0.62, 0.46, 0.26)
+	veneer.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	var meshes: Array = [K.slab(pivot, Vector3(BATH_LEAF_T - 0.004, h, w), Vector3(BATH_LEAF_T * 0.5, h * 0.5, -w * 0.5), veneer, "BathDoorLeaf")]
+	var tex: Texture2D = load(DOOR_FACE_TEX) if ResourceLoader.exists(DOOR_FACE_TEX) else null
+	var lever_mat := K.surface("galvanized", 0.2, Color(0.8, 0.74, 0.6))
+	# The face's lever is on its right as you look at it: from the room the hinge is on
+	# your right, so that face is mirrored.
+	for side: float in [-1.0, 1.0]:
+		var face := MeshInstance3D.new()
+		face.name = "BathDoorFace"
+		var q := QuadMesh.new()
+		q.size = Vector2(w, h)
+		face.mesh = q
+		var m := StandardMaterial3D.new()
+		m.albedo_texture = tex
+		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		m.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+		m.roughness = 1.0
+		if side < 0.0:
+			m.uv1_scale = Vector3(-1, 1, 1)
+		face.material_override = m
+		var out_x: float = 0.0 if side < 0.0 else BATH_LEAF_T
+		face.position = Vector3(out_x, h * 0.5, -w * 0.5)
+		face.rotation_degrees.y = 90.0 * side
+		pivot.add_child(face)
+		meshes.append(face)
+		# The lever over the painted one, pointing to the hinge, on its plate.
+		var at := Vector3(out_x + side * 0.012, h * 0.53, -w * 0.875)
+		var plate := K.slab(pivot, Vector3(0.016, 0.17, 0.042), at + Vector3(0, -0.045, 0), lever_mat, "BathDoorPlate")
+		var lever := K.slab(pivot, Vector3(0.024, 0.024, 0.12), at + Vector3(side * 0.016, 0, 0.05), lever_mat, "BathDoorLever")
+		for part in [plate, lever]:
+			part.set_meta("retro_pull", 0.012)
+			meshes.append(part)
+	var body := StaticBody3D.new()
+	body.name = "BathDoorBody"
+	body.set_meta("interior_click_type", "cabin_bath_door")
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(0.14, CL.BATH_DOOR_H, CL.BATH_DOOR_W - 2.0 * JAMB_IN)
+	shape.shape = box
+	body.add_child(shape)
+	body.position = Vector3(rx, f + CL.BATH_DOOR_H * 0.5, bz)
+	shell.add_child(body)
+	_bath_doors[lv] = {"pivot": pivot, "meshes": meshes, "body": body}
 
 
 ## The furniture that makes each tier's step up seen at once: bare boards and a bucket;
@@ -1328,9 +1445,10 @@ func _level_furniture(shell: Node3D, lv: int, iw: float, id: float, f: float) ->
 		K.prop(shell, "chair_wood", table + Vector3(-0.56, 0, 0.05), 95.0)
 		K.prop(shell, "nightstand", Vector3(left + 0.25, f, back + 0.2), 90.0)
 		K.picture(shell, "picture_deer", Vector2(0.5, 0.66), Vector3(left + 0.005, f + 1.55, BED_POS.z + 0.15), 90.0, "PictureDeer")
-		var chest := K.prop(shell, "dresser", Vector3(right - 0.24, f, 0.55), -90.0)
+		# (Between the bathroom's door and the fridge: the door swings open past its end.)
+		var chest := K.prop(shell, "dresser", Vector3(right - 0.24, f, 0.68), -90.0)
 		chest.name = "TvChest"
-		K.prop(shell, "tv_small", Vector3(right - 0.24, f + 0.77, 0.55), -90.0)
+		K.prop(shell, "tv_small", Vector3(right - 0.24, f + 0.77, 0.68), -90.0)
 		_level_stove(shell, Vector3(left + 0.32, f, CABIN_LAYOUT.size(3).y * 0.5 - CABIN_LAYOUT.STOVE_FROM_FRONT), f + CABIN_LAYOUT.wall_h(3) - 0.12)
 
 
@@ -1441,10 +1559,17 @@ func play_room_ready() -> void:
 
 
 ## The bathroom built on at the right (Lv2+), inside the annex outside (CabinLayout
-## ANNEX): its own room, through the door in the cabin's right wall (D). Its middle is
-## its origin; it is moved to where the annex is for the cabin's width.
-const BATH_WC := Vector3(0.48, 0.05, -0.5)
-const BATH_SINK := Vector3(0.0, 0.05, 0.7)
+## ANNEX): its own room beyond the door in the cabin's right wall, walked into (_walk_to).
+## Its middle is its origin; it is moved to where the annex is for the cabin's width.
+## (+X the outer wall with the frosted window, -X the wall with the door, -Z the back.)
+## The toilet facing the door against the outer wall, its high cistern just past the
+## window; the basin on the front wall near the doorway, low enough in the view from it
+## not to stand in front of the bowl. Until 1. 11. the toilet stood in the back half, and
+## from the doorway the best cabin's shower curtain hid it.
+const BATH_WC := Vector3(0.48, 0.05, 0.46)
+const BATH_SINK := Vector3(-0.38, 0.05, 0.7)
+## The electric water heater on the back wall, in the corner the shower does not take.
+const BATH_BOILER := Vector3(0.4, 1.55, -0.63)
 
 
 func _build_bathroom_room() -> void:
@@ -1459,9 +1584,18 @@ func _build_bathroom_room() -> void:
 	var shell := K.room(_bathroom_root, Vector3(w, h, d), "tiles_green", "oil_wall", "ceiling_board", h, 0.8)
 	for key in shell.keys():
 		(shell[key] as Node3D).position.y += CL.ROOM_FLOOR
-	_bath_shell = shell
-	# The toilet against the outer wall, the basin on the back wall with its mirror, the
-	# shower corner of the best cabin, the frosted window high in the outer wall.
+	# The wall to the room has the door's opening (its frame and leaf are the room's): the
+	# same for both tiers, the annex being the same.
+	var oil: Material = (shell["left"] as MeshInstance3D).material_override
+	(shell["left"] as Node).free()
+	shell.erase("left")
+	var door_z: float = CL.bath_door_z(2) - (CL.ANNEX[2] as Vector3).z
+	_bath_walls = [shell["back"], shell["front"], shell["right"]]
+	_bath_walls.append_array(_wall_with_holes(_bathroom_root, "left", w, d, h, CL.ROOM_FLOOR, 0.1,
+		[[-door_z - CL.BATH_DOOR_W * 0.5, CL.ROOM_FLOOR, CL.BATH_DOOR_W, CL.BATH_DOOR_H]], oil))
+	# The toilet against the outer wall, the basin on the front wall with its mirror, the
+	# shower in the back corner by the door (the best cabin's), the frosted window high in
+	# the outer wall, the water heater over the other back corner.
 	var wc := K.prop(_bathroom_root, "toilet", BATH_WC, -90.0)
 	wc.name = "ToiletLv2"
 	var sink := K.prop(_bathroom_root, "sink_pedestal", BATH_SINK, 180.0)
@@ -1472,7 +1606,58 @@ func _build_bathroom_room() -> void:
 	shower.name = "ShowerCorner"
 	K.picture(_bathroom_root, "glass_blocks", CL.BATH_WIN, Vector3(w * 0.5 - 0.005, CL.ROOM_FLOOR + 1.62, 0.0), -90.0, "BathWindow")
 	# Newspaper squares on a nail by the toilet.
-	K.slab(_bathroom_root, Vector3(0.015, 0.18, 0.14), Vector3(w * 0.5 - 0.01, CL.ROOM_FLOOR + 0.85, -0.05), INTERIOR_PREP.flat(Color(0.82, 0.8, 0.72)), "Newspaper")
+	K.slab(_bathroom_root, Vector3(0.015, 0.18, 0.14), Vector3(w * 0.5 - 0.01, CL.ROOM_FLOOR + 0.85, BATH_WC.z - 0.35), INTERIOR_PREP.flat(Color(0.82, 0.8, 0.72)), "Newspaper")
+	_build_boiler()
+
+
+## The water heater ("bojler") hung on the back wall: a white enamelled drum, its dial,
+## the cold and the hot pipe down from its bottom into the wall.
+func _build_boiler() -> void:
+	var K := INTERIOR_KIT
+	var boiler := Node3D.new()
+	boiler.name = "Boiler"
+	boiler.position = BATH_BOILER
+	_bathroom_root.add_child(boiler)
+	var drum := MeshInstance3D.new()
+	drum.name = "BoilerDrum"
+	var cm := CylinderMesh.new()
+	cm.top_radius = 0.21
+	cm.bottom_radius = 0.21
+	cm.height = 0.82
+	cm.radial_segments = 10
+	cm.rings = 1
+	drum.mesh = cm
+	drum.material_override = K.surface("porcelain", 0.5)
+	boiler.add_child(drum)
+	var steel := K.surface("galvanized", 0.3, Color(0.9, 0.92, 0.95))
+	for end: float in [-1.0, 1.0]:
+		var cap := MeshInstance3D.new()
+		var capm := CylinderMesh.new()
+		capm.top_radius = 0.2 if end > 0.0 else 0.215
+		capm.bottom_radius = 0.215 if end > 0.0 else 0.2
+		capm.height = 0.03
+		capm.radial_segments = 10
+		cap.mesh = capm
+		cap.material_override = steel
+		cap.position.y = end * 0.425
+		boiler.add_child(cap)
+	# The thermostat's dial and its little lamp, turned to the room.
+	K.slab(boiler, Vector3(0.07, 0.07, 0.02), Vector3(0.0, -0.3, 0.222), K.surface("planks_dark", 0.4, Color(0.15, 0.14, 0.13)), "BoilerDial")
+	K.slab(boiler, Vector3(0.025, 0.025, 0.02), Vector3(0.07, -0.3, 0.222), INTERIOR_PREP.flat(Color(0.75, 0.2, 0.12)), "BoilerLamp")
+	# Down from its bottom and back into the wall.
+	for x: float in [-0.08, 0.08]:
+		for leg in [[0.12, Vector3(x, -0.485, -0.12), 0.0], [0.13, Vector3(x, -0.545, -0.185), PI * 0.5]]:
+			var pipe := MeshInstance3D.new()
+			var pm := CylinderMesh.new()
+			pm.top_radius = 0.016
+			pm.bottom_radius = 0.016
+			pm.height = float(leg[0])
+			pm.radial_segments = 6
+			pipe.mesh = pm
+			pipe.material_override = steel
+			pipe.position = leg[1]
+			pipe.rotation.x = float(leg[2])
+			boiler.add_child(pipe)
 
 
 ## The bathroom's middle for this tier (the annex is beside the cabin's right wall).
@@ -1498,10 +1683,9 @@ func _apply_level_variant() -> void:
 	_set_node_visible("SlopBucket", _cabin_level == 1)
 	if _bathroom_root != null:
 		_bathroom_root.position = _bath_origin()
-		if not _bath_shell.is_empty():
-			var bath_wall := INTERIOR_KIT.surface("tiles_bathroom", 0.9) if _cabin_level >= 3 else INTERIOR_KIT.surface("oil_wall", 2.0)
-			for key in ["back", "front", "left", "right"]:
-				(_bath_shell[key] as MeshInstance3D).material_override = bath_wall
+		var bath_wall := INTERIOR_KIT.surface("tiles_bathroom", 0.9) if _cabin_level >= 3 else INTERIOR_KIT.surface("oil_wall", 2.0)
+		for wall in _bath_walls:
+			(wall as MeshInstance3D).material_override = bath_wall
 	_set_bathroom_variant()
 
 
@@ -1556,55 +1740,178 @@ func _set_node_visible_in(parent: Node, node_name: String, visible_flag: bool) -
 		node.visible = visible_flag
 
 
+## A/D held at the end of the turn, or the tab at the screen's edge: through the door.
 func _switch_cabin_room(direction: int) -> void:
-	if _swipe_animating:
-		return
-	var target = "main"
 	if _active_room == "main" and direction > 0:
-		if _cabin_level >= 2:
-			target = "bathroom"
-		else:
-			print("[CabinInterior] Bathroom not available for Level 1 cabin.")
-			return
+		_walk_to("bathroom")
 	elif _active_room == "bathroom" and direction < 0:
-		target = "main"
-	
-	if target == _active_room:
+		_walk_to("main")
+
+
+# ── through the bathroom's door ──────────────────────────────────────────────
+#
+# The user 1. 11.: "in a done-up cabin you cannot get into the bathroom; make it that you
+# just walk there, as at the reception into the little room". Its door takes a click (or
+# D held at the end of the turn, or the tab): you go up to it as it swings open into the
+# room and step into its doorway, the little room whole before you (until then a 2D
+# slide, D or the tab only). Back (S, A, the tab): you turn round, walk out past the open
+# door to where you came in, and it shuts behind you. In the bathroom the room behind you
+# stays drawn (its lamp lights the bathroom through the open door, as on the way in: no
+# jump when you get there); in the room, behind the shut door, the bathroom is not.
+
+const WALK_IN_SEC := 2.2
+const WALK_OUT_SEC := 2.6
+const SFX_STEPS := "res://assets/sfx/rooms/steps_wood.mp3"
+const SFX_DOOR_OPEN := "res://assets/sfx/backroom/room_door_open.mp3"
+const SFX_DOOR_SHUT := "res://assets/sfx/backroom/room_door_close.mp3"
+var _walk: Tween
+## The bathroom's door of each tier: level -> {pivot, meshes, body} (_build_bath_door).
+var _bath_doors: Dictionary = {}
+var _steps_player: AudioStreamPlayer
+var _door_player: AudioStreamPlayer
+
+
+func _walking() -> bool:
+	return _walk != null and _walk.is_valid() and _walk.is_running()
+
+
+func _bath_door_now() -> Dictionary:
+	return _bath_doors.get(_cabin_level, {})
+
+
+## Where you stand in the room: just in by the front door, looking in at the back window.
+func _main_stand() -> Dictionary:
+	var CL := CABIN_LAYOUT
+	return {"pos": Vector3(0.0, CL.ROOM_FLOOR + 1.47, CL.inner(_cabin_level).y * 0.5 - 0.42),
+		"rot": Vector3(deg_to_rad(MAIN_PITCH_DEG), 0.0, 0.0)}
+
+
+## And in the bathroom: in its doorway (the room is a metre and a half across), facing
+## the outer wall (the toilet, the window).
+func _bath_stand() -> Dictionary:
+	var CL := CABIN_LAYOUT
+	return {"pos": Vector3(CL.size(_cabin_level).x * 0.5 - 0.06, CL.ROOM_FLOOR + 1.5, CL.bath_door_z(_cabin_level)),
+		"rot": Vector3(deg_to_rad(-6.0), -PI * 0.5, 0.0)}
+
+
+## The bathroom's door takes a click from the room, shut, not on the way.
+func _update_bath_doors() -> void:
+	var on := _active_room == "main" and not _walking()
+	for lv in _bath_doors.keys():
+		(_bath_doors[lv]["body"] as StaticBody3D).collision_layer = 1 if on and int(lv) == _cabin_level else 0
+
+
+func _walk_to(room: String) -> void:
+	if not _is_open or lodge_sleeping or _walking() or room == _active_room or _interior_camera == null:
 		return
-	_play_room_swipe(target, direction)
-
-
-func _play_room_swipe(target_room: String, direction: int) -> void:
-	if _swipe_overlay == null:
-		_set_cabin_room(target_room, true)
+	var door := _bath_door_now()
+	if door.is_empty():
 		return
-	_update_swipe_overlay_size()
-	var screen_size = get_viewport().get_visible_rect().size
-	if screen_size.x <= 0.0 or screen_size.y <= 0.0:
-		_set_cabin_room(target_room, true)
+	var CL := CABIN_LAYOUT
+	var cam := _interior_camera
+	var pivot: Node3D = door["pivot"]
+	var rx: float = CL.inner(_cabin_level).x * 0.5
+	var bz: float = CL.bath_door_z(_cabin_level)
+	var eye: float = CL.ROOM_FLOOR + 1.47
+	var keys: Array = [{"pos": cam.position, "rot": cam.rotation}]
+	var dur: float
+	_glint.clear()
+	if _prep.tasks != null:
+		_prep.tasks.pause(true)
+	_bathroom_root.visible = true
+	_sfx(_steps_player, SFX_STEPS, -13.0)
+	if room == "bathroom":
+		dur = WALK_IN_SEC
+		var stand := _bath_stand()
+		# Up to the door as it swings open into the room, then into its doorway.
+		keys.append({"pos": Vector3(rx - 1.15, eye, bz + 0.05), "rot": Vector3(-0.1, atan2(-1.15, 0.05), 0.0)})
+		keys.append({"pos": Vector3(rx - 0.42, eye + 0.01, bz), "rot": Vector3(-0.08, -PI * 0.5, 0.0)})
+		keys.append(stand)
+		_walk = WALK_PATH.play(self, cam, keys, dur)
+		_walk.parallel().tween_callback(_sfx.bind(_door_player, SFX_DOOR_OPEN, -9.0)).set_delay(0.3)
+		_walk.parallel().tween_property(pivot, "rotation_degrees:y", BATH_DOOR_OPEN_DEG, 0.65) \
+			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT).set_delay(0.32)
+		_walk.parallel().tween_property(cam, "fov", BATH_FOV, dur * 0.45).set_delay(dur * 0.55)
+	else:
+		dur = WALK_OUT_SEC
+		var stand := _main_stand()
+		# Round to the left in the doorway, out past the open door's edge, and to the front
+		# door; it swings shut behind you.
+		keys.append({"pos": Vector3(rx - 0.18, eye, bz - 0.12), "rot": Vector3(-0.08, 0.9, 0.0)})
+		keys.append({"pos": Vector3(rx - 1.05, eye, bz + 0.3), "rot": Vector3(-0.1, 2.1, 0.0)})
+		keys.append(stand)
+		_walk = WALK_PATH.play(self, cam, keys, dur)
+		_walk.parallel().tween_property(cam, "fov", ROOM_FOV, dur * 0.4)
+		_walk.parallel().tween_property(pivot, "rotation_degrees:y", 0.0, 0.6) \
+			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT).set_delay(dur * 0.62)
+		_walk.parallel().tween_callback(_sfx.bind(_door_player, SFX_DOOR_SHUT, -12.0)).set_delay(dur * 0.62 + 0.55)
+	_walk.tween_callback(_walked_into.bind(room))
+
+
+## There: the head free to look round (the bathroom behind its shut door not drawn).
+func _walked_into(room: String) -> void:
+	_active_room = room
+	_bathroom_root.visible = room == "bathroom"
+	var r := _interior_camera.rotation
+	r.y = wrapf(r.y, -PI, PI)
+	_interior_camera.rotation = r
+	_cam_base_rot = r
+	_look.reset()
+	_look.yaw_limit_deg = _yaw_limit(room)
+	if _prep.tasks != null:
+		_prep.tasks.pause(false)
+
+
+## How far the head turns. In the bathroom's doorway only so far that the screen's edge
+## stays in the bathroom (the room's 72 degrees saw back through the doorway past its
+## jambs, grey while the room was not drawn there); the whole little room is in front.
+const ROOM_YAW_DEG := 72.0
+
+
+func _yaw_limit(room: String) -> float:
+	if room != "bathroom" or _viewport == null:
+		return ROOM_YAW_DEG
+	var aspect := float(_viewport.size.x) / maxf(float(_viewport.size.y), 1.0)
+	var half_w := rad_to_deg(atan(tan(deg_to_rad(BATH_FOV * 0.5)) * aspect))
+	return clampf(86.0 - half_w, 6.0, ROOM_YAW_DEG)
+
+
+## On the spot (a walk cut short, the room opened or closed): the doors shut.
+func _stop_walk() -> void:
+	if _walk != null and _walk.is_valid():
+		_walk.kill()
+	_walk = null
+	for lv in _bath_doors.keys():
+		(_bath_doors[lv]["pivot"] as Node3D).rotation_degrees.y = 0.0
+	if _prep.tasks != null:
+		_prep.tasks.pause(false)
+
+
+## Shot driver (scenario cabinwalk): the head turned to the bathroom's door, then the
+## pointer put on it, as a player would before clicking it.
+func debug_look_at_bath_door() -> void:
+	var door := _bath_door_now()
+	if door.is_empty():
 		return
-	# The room you leave slides away as the next slides in (scripts/ui/room_push.gd).
-	_swipe_animating = true
-	_swipe_overlay.visible = false
-	if _swipe_tween != null and is_instance_valid(_swipe_tween):
-		_swipe_tween.kill()
-	_swipe_tween = ROOM_PUSH.play(self, _viewport_container, _viewport, direction,
-		Callable(self, "_set_cabin_room").bind(target_room, true), Callable(self, "_finish_room_swipe"))
+	var to: Vector3 = (door["body"] as Node3D).global_position - _interior_camera.global_position
+	_look.yaw_deg = clampf(rad_to_deg(atan2(-to.x, -to.z) - _cam_base_rot.y), -_look.yaw_limit_deg, _look.yaw_limit_deg)
 
 
-func _finish_room_swipe() -> void:
-	_swipe_animating = false
-	if _swipe_overlay != null:
-		_swipe_overlay.visible = false
-
-
-func _update_swipe_overlay_size() -> void:
-	if _swipe_overlay == null:
+func debug_pointer_on_bath_door() -> void:
+	var door := _bath_door_now()
+	if door.is_empty():
 		return
-	var screen_size = get_viewport().get_visible_rect().size
-	if screen_size.x <= 0.0 or screen_size.y <= 0.0:
+	var screen := get_viewport().get_visible_rect().size
+	var sp: Vector2 = _interior_camera.unproject_position((door["body"] as Node3D).global_position) / Vector2(_viewport.size) * screen
+	Input.warp_mouse(sp * Vector2(DisplayServer.window_get_size()) / screen)
+
+
+func _sfx(player: AudioStreamPlayer, path: String, db: float) -> void:
+	if player == null or not ResourceLoader.exists(path):
 		return
-	_swipe_overlay.size = Vector2(screen_size.x * 1.18, screen_size.y)
+	player.stream = load(path)
+	player.volume_db = db
+	player.play()
 
 
 func _set_cabin_room(room: String, update_camera: bool = true) -> void:
@@ -1613,23 +1920,18 @@ func _set_cabin_room(room: String, update_camera: bool = true) -> void:
 	if room != _active_room:
 		_look.reset()
 	_active_room = room
-	_cabin_root.visible = (room == "main")
+	_cabin_root.visible = true
 	_bathroom_root.visible = (room == "bathroom")
-	
+	_look.yaw_limit_deg = _yaw_limit(room)
+
 	if update_camera and _interior_camera != null:
+		var stand := _bath_stand() if room == "bathroom" else _main_stand()
+		_interior_camera.position = stand["pos"]
+		_interior_camera.rotation = stand["rot"]
 		if room == "bathroom":
-			# In from the cabin's door, facing the outer wall (the toilet, the window).
-			var bo := _bath_origin()
-			var bw: float = CABIN_LAYOUT.annex_box(2).size.x - CABIN_LAYOUT.WALL_T
-			# (From the doorway itself: the room is a metre and a half across.)
-			_interior_camera.position = Vector3(bo.x - bw * 0.5 - 0.06, CABIN_LAYOUT.ROOM_FLOOR + 1.5, CABIN_LAYOUT.bath_door_z(_cabin_level))
-			_interior_camera.rotation_degrees = Vector3(-6.0, -90.0, 0.0)
 			# Wider: the whole little room from its door, the ceiling and the tiles too.
 			_interior_camera.fov = BATH_FOV
 		else:
-			# Just in by the front door, looking in at the back window.
-			_interior_camera.position = Vector3(0.0, CABIN_LAYOUT.ROOM_FLOOR + 1.47, CABIN_LAYOUT.inner(_cabin_level).y * 0.5 - 0.42)
-			_interior_camera.rotation_degrees = Vector3(MAIN_PITCH_DEG, 0.0, 0.0)
 			_interior_camera.fov = ROOM_FOV
 	_cam_base_rot = _interior_camera.rotation
 	_look.reset()
@@ -1898,7 +2200,8 @@ func _update_torch(delta: float) -> void:
 		_torch = INTERIOR_TORCH.new()
 		_torch.name = "Torch"
 		add_child(_torch)
-		_torch.setup(_interior_camera, _viewport, _interior_camera.get_parent() as Node3D, layer)
+		# (Its beams under neither room: the bathroom hides the room, and they went with it.)
+		_torch.setup(_interior_camera, _viewport, _torch_root, layer)
 	_torch.update(delta, room_is_dark())
 
 
