@@ -429,6 +429,8 @@ func _build_prep_props() -> void:
 	for spot in [["f1", Vector3(0.38, 0.0, -0.85)], ["f2", Vector3(0.3, 0.0, 0.05)], ["f3", Vector3(-0.72, 0.0, -0.2)],
 			["f4", Vector3(0.12, 0.0, -1.08)], ["f5", Vector3(-0.7, 0.0, -0.9)]]:
 		_prep.add_spot(spot[0], _tent_root, spot[1])
+	# The back canvas, where the granny's knife came through (mess_rules CARNAGE_WALL).
+	_prep.add_spot("w1", _tent_root, Vector3(0.05, 0.62, -1.31), 0.0, true)
 	_prep.setup_tasks(self, _interior_camera, _viewport, "tent")
 	_prep.task_completed.connect(func(id: String): room_task_completed.emit(id))
 

@@ -51,6 +51,7 @@ var _poll_t := 0.0
 var _acc := 0.0
 var _step := 0
 var _in: Dictionary = {}             # key -> true: guests in the lodging (awake or abed)
+var _forced: Dictionary = {}         # key -> "on" / "off": lit or dark whatever the hour (set_forced)
 var _tex_lit: Texture2D
 var _tex_tv: Texture2D
 
@@ -261,6 +262,15 @@ static func lit_at(key: String, day: int, hour: float) -> bool:
 
 # ── drawing ──────────────────────────────────────────────────────────────────
 
+## The lodging at `key` lit ("on") or dark ("off") whatever its guests' hour; "" lets it be.
+func set_forced(key: String, state: String) -> void:
+	if state == "":
+		_forced.erase(key)
+	else:
+		_forced[key] = state
+	_update()
+
+
 ## Builder 98's map lights the same windows (crt_map_panel.gd): {} when the lodging at
 ## `key` ("x:y") is dark, else {tv, candle}.
 func lit_state(key: String) -> Dictionary:
@@ -285,7 +295,12 @@ func _update() -> void:
 		if not is_instance_valid(rec["root"]):
 			continue
 		var on := dark and _in.has(key) and lit_at(str(key), day, hour)
-		var tv := str(rec["kind"]) == "cabin" and powered and hour >= 12.0 and _dice(str(key), day, 7) < 0.33
+		# Something at the door in the night (scripts/enemies/basket_brain.gd): they woke
+		# and put the light on, then it went out.
+		var forced := str(_forced.get(key, ""))
+		if forced != "":
+			on = dark and forced == "on"
+		var tv := str(rec["kind"]) == "cabin" and powered and hour >= 12.0 and _dice(str(key), day, 7) < 0.33 and forced == ""
 		_show(rec, on, tv, powered)
 
 

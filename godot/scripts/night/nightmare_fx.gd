@@ -71,6 +71,9 @@ var _gap := {}                     # {cx, w, top, bottom, t}
 ## rises; the picture's edges close in with it.
 var _presence := 0.0
 var _presence_src := {}
+## The granny's spores in the air near her (0..1): a yellow haze, the world muffled.
+var _spores := 0.0
+var _spores_src := {}
 var _sense: AudioStreamPlayer
 var _sense_pb: AudioStreamGeneratorPlayback
 var _sense_ph := [0.0, 0.0, 0.0]
@@ -273,6 +276,12 @@ func set_presence(source: String, level: float) -> void:
 
 func presence() -> float:
 	return _presence
+
+
+## Spores in the air where you are (the granny: scripts/enemies/basket_brain.gd), set
+## every tick: 0 none .. 1 she is breathing on you.
+func set_spores(source: String, level: float) -> void:
+	_spores_src[source] = clampf(level, 0.0, 1.0)
 
 
 ## Its eyes this frame at world point `head` (the middle between them) seen by `cam`:
@@ -581,14 +590,20 @@ func _process(delta: float) -> void:
 		want_p = maxf(want_p, float(_presence_src[k]))
 	_presence_src.clear()
 	_presence = move_toward(_presence, want_p, delta * (0.5 if want_p > _presence else 0.3))
+	var want_s := 0.0
+	for k in _spores_src:
+		want_s = maxf(want_s, float(_spores_src[k]))
+	_spores_src.clear()
+	_spores = move_toward(_spores, want_s, delta * (0.6 if want_s > _spores else 0.25))
 	_strain = move_toward(_strain, _strain_target(), delta * 0.25)
 	_ears = maxf(_presence, _strain * 0.65)
 	_update_sense(delta)
 	_update_ears(delta)
 	_update_muffle()
-	var on := _dread > 0.01 or _amount > 0.01 or _presence > 0.01 or _strain > 0.05
+	var on := _dread > 0.01 or _amount > 0.01 or _presence > 0.01 or _strain > 0.05 or _spores > 0.01
 	_screen.visible = on
 	if on:
+		_mat.set_shader_parameter("spores", _spores)
 		_mat.set_shader_parameter("amount", _amount)
 		_mat.set_shader_parameter("dread", _dread)
 		_mat.set_shader_parameter("time_s", _time)
@@ -816,7 +831,7 @@ func _exit_tree() -> void:
 ## there is the drone, the heart and him.
 func _update_muffle() -> void:
 	var master := AudioServer.get_bus_index("Master")
-	var want := _presence > 0.25
+	var want := _presence > 0.25 or _spores > 0.15
 	if want and _muffle == null:
 		_muffle = AudioEffectLowPassFilter.new()
 		AudioServer.add_bus_effect(master, _muffle)
@@ -830,6 +845,8 @@ func _update_muffle() -> void:
 		_muffle = null
 		return
 	var k := clampf((_presence - 0.25) / 0.75, 0.0, 1.0)
+	# Spores in your ears too: the world goes thick and far.
+	k = maxf(k, clampf((_spores - 0.15) / 0.85, 0.0, 1.0) * 0.85)
 	_muffle.cutoff_hz = lerpf(14000.0, 1600.0, k * k)
 
 

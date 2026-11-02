@@ -321,6 +321,27 @@ static func build_mess(parent: Node3D, pos: Vector3, kind: String, rng: RandomNu
 			decal(root, "cobweb_corner", 1.0, Vector3.ZERO, 0.0, true)
 			size = Vector3(1.0, 0.95, 0.14)
 			body_pos = pos
+		# The night the mushroom granny was in (mess_rules `mess.carnage`): her leavings.
+		"blood":
+			decal(root, _mess_or("carnage_blood", "dirt_puddle"), 0.92, Vector3(0, 0.005, 0), rng.randf() * TAU, false, true)
+			size = Vector3(0.85, 0.12, 0.85)
+			body_pos = pos + Vector3(0, 0.04, 0)
+		"remains":
+			decal(root, _mess_or("carnage_remains", "litter_clothes"), 0.66, Vector3(0, 0.006, 0), rng.randf() * TAU, false, true)
+			size = Vector3(0.65, 0.18, 0.65)
+		"spawn":
+			decal(root, _mess_or("carnage_spawn", "litter_mushrooms"), 0.58, Vector3(0, 0.006, 0), rng.randf() * TAU)
+		"bedding":
+			decal(root, _mess_or("carnage_bedding", "litter_binbag"), 0.82, Vector3(0, 0.006, 0), rng.randf() * TAU, false, true)
+			size = Vector3(0.75, 0.15, 0.75)
+		"slit":
+			decal(root, _mess_or("carnage_slit", "decal_scratches"), 0.66, Vector3.ZERO, 0.0, true)
+			size = Vector3(0.66, 0.8, 0.12)
+			body_pos = pos
+		"handprints":
+			decal(root, "decal_handprint", 0.55, Vector3.ZERO, 0.0, true)
+			size = Vector3(0.6, 0.6, 0.12)
+			body_pos = pos
 		"graffiti":
 			var lbl := Label3D.new()
 			lbl.text = str(DOOR_WRITING[rng.randi_range(0, DOOR_WRITING.size() - 1)])
@@ -378,6 +399,11 @@ static func build_mess(parent: Node3D, pos: Vector3, kind: String, rng: RandomNu
 
 const MESS_TEX := "res://assets/textury/mess/"
 static var _decal_mats: Dictionary = {}
+
+
+## `file` in assets/textury/mess when it is drawn, else `fallback`.
+static func _mess_or(file: String, fallback: String) -> String:
+	return file if ResourceLoader.exists(MESS_TEX + file + ".png") else fallback
 
 
 ## A floor sprite of mess (Build-engine style flat sprite): `file` in assets/textury/mess,

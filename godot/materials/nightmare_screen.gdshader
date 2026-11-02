@@ -17,6 +17,9 @@ uniform float cell = 4.0;
 uniform float squeeze = 0.0;
 uniform float beat = 0.0;
 uniform float aspect = 1.333;
+// Spores (the granny near you, scripts/enemies/basket_brain.gd): a sour yellow haze over
+// the picture and motes drifting through it, in whole game pixels; 0 off, 1 at your face.
+uniform float spores = 0.0;
 
 float hash(vec2 p) {
 	return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
@@ -56,6 +59,18 @@ void fragment() {
 	float drain = d * 0.35 + a * 0.6;
 	float lum = dot(c, vec3(0.3, 0.59, 0.11));
 	c = mix(c, vec3(lum * 1.25, lum * 0.42, lum * 0.36), drain);
+	// Spores: the colour goes sour and thick, motes drift up through it.
+	float sp = clamp(spores, 0.0, 1.0);
+	if (sp > 0.001) {
+		vec3 haze = vec3(0.42, 0.38, 0.17);
+		float l2 = dot(c, vec3(0.3, 0.59, 0.11));
+		c = mix(c, vec3(l2) * vec3(1.04, 1.0, 0.64) + haze * 0.12, sp * 0.62);
+		// Dull motes, few, drifting up: dust in the air, not sparks.
+		float drift = floor(time_s * 12.0) / 12.0;
+		vec2 mg = floor((uv + vec2(drift * 0.004, -drift * 0.012)) / (px * 2.0));
+		float mote = step(1.0 - 0.0025 * sp, hash(mg * 1.31 + 17.0));
+		c = mix(c, haze * 0.75, mote * 0.5 * sp);
+	}
 	// The edges close in, banded (the palette's few shades), pulsing with the heart.
 	float sq = clamp(squeeze, 0.0, 1.0);
 	if (sq > 0.001) {

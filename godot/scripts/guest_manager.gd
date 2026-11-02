@@ -986,6 +986,49 @@ func room_short(key: String) -> String:
 	return "%s%d" % [letter, no] if no > 0 else key
 
 
+## The mushroom granny ate in this room in the night (scripts/enemies/basket_brain.gd):
+## the mess is hers (mess_rules "carnage"). With guests still in it, it is theirs when
+## they have gone.
+func make_room_carnage(key: String) -> void:
+	_sync_accommodation_states_from_guests()
+	var state = CoreRoot.get_state()
+	if state == null or not state.accommodation_states.has(key):
+		return
+	var acc: Dictionary = state.accommodation_states[key]
+	var mess: Dictionary = (acc.get("mess", {}) as Dictionary).duplicate() if acc.get("mess", {}) is Dictionary else {}
+	if int(acc.get("occupied", 0)) > 0:
+		mess["carnage_pending"] = true
+	else:
+		acc["status"] = ROOM_RULES.STATUS_DIRTY
+		acc["prep_done"] = []
+		mess = {"seed": _rng.randi(), "level": 4, "archetypes": mess.get("archetypes", []) if mess.get("archetypes", []) is Array else [], "carnage": true}
+	acc["mess"] = mess
+	state.accommodation_states[key] = acc
+	if EventBus.has_signal("accommodation_state_changed"):
+		EventBus.accommodation_state_changed.emit(key, str(acc.get("status", "")), int(acc.get("occupied", 0)))
+
+
+## They lived through the night she came into their lodging: in the morning they storm
+## off, one star, in their own words (`review_text`, one whole line for the catalogue).
+func shaken_leave(guest_id: int, review_text: String, thought: String) -> void:
+	var state = CoreRoot.get_state()
+	if state == null:
+		return
+	for i in state.guests.size():
+		var g_any = state.guests[i]
+		if not (g_any is Dictionary) or int(g_any.get("id", -1)) != guest_id:
+			continue
+		var guest: Dictionary = g_any
+		guest["mood"] = 0.0
+		guest["review_text"] = review_text
+		guest["unhappy_minutes"] = maxi(int(guest.get("unhappy_minutes", 0)), GUEST_NEEDS.STORM_OFF_MINUTES)
+		if not thought.is_empty():
+			guest["thought"] = thought
+			guest["thought_abs"] = _absolute_minutes(max(1, _last_known_day), _last_known_hour, _last_known_minute)
+		state.guests[i] = guest
+		return
+
+
 ## The camp's old cabin at the start (main._place_ruined_cabin): shut since last summer, every
 ## mess at its worst; the bed has to be made up like any room.
 func make_room_derelict(key: String) -> void:
@@ -2264,7 +2307,11 @@ func _sync_accommodation_states_from_guests(emit_signals: bool = true) -> bool:
 		if int(prev.get("occupied", 0)) > 0 and occupied == 0:
 			status = ROOM_RULES.STATUS_DIRTY
 			done = []
+			var gore := bool(mess.get("carnage_pending", false))
 			mess = {"seed": _rng.randi(), "level": int(hint.get("level", 1)), "archetypes": hint.get("archetypes", [])}
+			if gore:
+				mess["carnage"] = true
+				mess["level"] = 4
 			hint = {}
 		# An upgrade replaces the furniture: an empty room has to be made up again.
 		elif not prev.is_empty() and str(prev.get("building_type", "")) != btype and occupied == 0:
@@ -2343,6 +2390,9 @@ func _build_review_for_guest(guest: Dictionary, day: int) -> Dictionary:
 	var meal := _review_meal(guest, rating)
 	if meal != "":
 		review_text = "%s %s" % [review_text, meal]
+	# Their own words (GuestManager.shaken_leave): nothing to add to them.
+	if str(guest.get("review_text", "")) != "":
+		review_text = str(guest["review_text"])
 
 	return {
 		"guest_id": int(guest.get("id", -1)),

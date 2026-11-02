@@ -61,6 +61,9 @@ var debug_override: float = -1.0
 ## The night director's nudge: added to the target for a while (it heard something).
 var _nudge := 0.0
 var _nudge_left := 0.0
+## The relay (relay()): on, and how loud.
+var _relay_on := false
+var _relay_gain := 0.0
 
 
 func nudge(amount: float, seconds: float) -> void:
@@ -123,7 +126,7 @@ class Layer:
 func _ready() -> void:
 	_rng.randomize()
 	ensure_music_bus()
-	for id in ["static", "carrier", "buzz", "ghost", "voice", "fx"]:
+	for id in ["static", "carrier", "buzz", "ghost", "voice", "fx", "relay"]:
 		var l := Layer.new()
 		l.bus = MUSIC_BUS if id == "ghost" else LAYER_BUS
 		l.looped = id in ["static", "carrier", "buzz"]
@@ -139,6 +142,22 @@ func _ready() -> void:
 	(_layers["voice"] as Layer).rate = 6.0
 	(_layers["fx"] as Layer).rate = 8.0
 	(_layers["ghost"] as Layer).rate = 0.25
+	(_layers["relay"] as Layer).rate = 3.0
+
+
+## Somewhere in the camp, on the frequency as it happens (the granny eating in a lodging:
+## scripts/enemies/basket_brain.gd): `stream` (looping) over a dead carrier, the song gone
+## under it, until relay_off().
+func relay(stream: AudioStream, gain: float) -> void:
+	var l: Layer = _layers["relay"]
+	if stream != null and (l.p2.stream != stream or not l.playing()):
+		_start(l, stream, true, 0.96)
+	_relay_on = stream != null
+	_relay_gain = clampf(gain, 0.0, 1.0)
+
+
+func relay_off() -> void:
+	_relay_on = false
 
 
 ## The song bus: low pass (muffling), lo-fi distortion (bit depth), a ghost echo.
@@ -283,6 +302,15 @@ func update(delta: float, ctx: Dictionary, inside_db: float, outside_db: float, 
 	else:
 		_update_events(dt)
 	_interlude_cooldown = maxf(0.0, _interlude_cooldown - dt)
+	var rl: Layer = _layers["relay"]
+	if _relay_on:
+		_music_target = minf(_music_target, 0.06)
+		(_layers["carrier"] as Layer).target = maxf((_layers["carrier"] as Layer).target, 0.3)
+		rl.target = _relay_gain
+	else:
+		rl.target = 0.0
+		if rl.playing() and rl.gain <= 0.002:
+			_stop(rl)
 
 	music_gain = move_toward(music_gain, _music_target, 2.2 * dt)
 	var pitch_rate := 0.12 if _pitch_target < pitch_offset else 1.2

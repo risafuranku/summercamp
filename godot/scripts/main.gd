@@ -1969,27 +1969,15 @@ func _claim_turned_guests() -> void:
 			_hud_manager.push_status("Morning: %s is gone. The bed was not slept in." % str(guest.get("name", "a guest")), 2)
 
 
-## Dawn: the mushroom granny's rings closed round a lodging (basket_brain.gd): its
-## guests wake sick, and on a heavy night one of them is gone.
+## Dawn: the mushroom granny's night (basket_brain.gd dawn()): those who lived through her
+## leave, their relatives write, and the morning says who is gone.
 func _claim_rings() -> void:
 	for brain in _enemy_brains:
-		if brain == null or not brain.has_method("closed_ring_lodgings"):
+		if brain == null or not brain.has_method("dawn"):
 			continue
-		var keys: Array = brain.closed_ring_lodgings()
-		if keys.is_empty():
-			continue
-		var taken := false
-		for g in GuestManager.get_guest_life_snapshot():
-			var c = g.get("lodging", Vector2i(-1, -1))
-			if not (c is Vector2i) or not keys.has("%d:%d" % [c.x, c.y]):
-				continue
-			var id := int(g.get("id", -1))
-			if int(brain.get("_difficulty")) >= 4 and not taken and GuestManager.vanish_guest(id):
-				taken = true
-				if _hud_manager != null:
-					_hud_manager.push_status("Morning: %s is gone. A ring of mushrooms round the door." % str(g.get("name", "a guest")), 2)
-				continue
-			GuestManager.apply_guest_event(id, -22.0, "I dreamt something was growing out of my mouth. There are mushrooms round the door.")
+		for line in brain.dawn():
+			if _hud_manager != null:
+				_hud_manager.push_status(str(line), 2)
 
 
 ## What has come before comes back harder: every third night something came for the
