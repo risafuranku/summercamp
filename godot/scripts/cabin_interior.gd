@@ -436,6 +436,7 @@ func _update_portals() -> void:
 	var live := _anchor != null and is_instance_valid(_anchor) and _anchor.is_inside_tree()
 	var dt := get_process_delta_time()
 	_tick_photo_flash(dt)
+	_tick_smashed()
 	var to_world := _room_to_world() if live else Transform3D()
 	var clickable := _active_room == "main" and not _walking()
 	for lv in _level_portals.keys():
@@ -450,6 +451,55 @@ func _update_portals() -> void:
 			(pt["quad"] as MeshInstance3D).visible = on
 			if on:
 				pt["view"].offer(_interior_camera, _cabin_root, to_world, _anchor.get_world_3d(), _anchor)
+
+
+# -- the window the mushroom granny smashed (mess_rules CARNAGE_WALL "smashed"; Richard
+# 3. 11.: "vyražené okno, kterým je vidět ven") --
+
+## Which one: the back window (every tier has it; the door is the one she pried).
+const SMASH_WINDOW := "back"
+var _smash_mess: Node3D
+var _smash_seek := 0
+var _smash_heard := false
+
+
+## The smashed window's mess goes on the inside of this tier's back window.
+func _place_smash_spot() -> void:
+	if _prep == null or _cabin_root == null:
+		return
+	for win in CABIN_LAYOUT.windows(_cabin_level):
+		if str(win["id"]) == SMASH_WINDOW:
+			var out: Vector3 = win["out"]
+			var at: Vector3 = CABIN_LAYOUT.to_room(win["centre"]) - out * (CABIN_LAYOUT.WALL_T * 0.5 + 0.03)
+			_prep.add_spot("win", _cabin_root, at, atan2(-out.x, -out.z), true)
+
+
+## While its mess is there: the back window's glass gone but for the shards round its
+## frame (interior_prep.smashed_window), the outside heard through it
+## (audio_manager.set_room_leak).
+func _tick_smashed() -> void:
+	if _smash_mess == null or not is_instance_valid(_smash_mess) or not _smash_mess.is_inside_tree():
+		_smash_mess = null
+		_smash_seek -= 1
+		if _smash_seek <= 0:
+			_smash_seek = 20
+			_smash_mess = _cabin_root.find_child("Mess_smashed", true, false) as Node3D
+	var on := _smash_mess != null and _smash_mess.is_visible_in_tree()
+	for pt in _portals_now():
+		var quad := pt["quad"] as MeshInstance3D
+		if str(quad.name) == "View_%sGlass" % SMASH_WINDOW:
+			INTERIOR_PREP.smashed_window(quad, quad.material_override as ShaderMaterial, pt["size"], on)
+	_set_smash_heard(on and _is_open)
+
+
+func _set_smash_heard(on: bool) -> void:
+	if on == _smash_heard:
+		return
+	_smash_heard = on
+	var im := get_parent()
+	var am = im.get("_audio_manager") if im != null else null
+	if am != null and am.has_method("set_room_leak"):
+		am.set_room_leak(0.35 if on else 0.0)
 
 
 ## The curtain under the cursor glints, the finger over it; the bathroom's door glints
@@ -486,6 +536,7 @@ func close_cabin() -> void:
 	_stop_walk()
 	_set_cabin_room("main", true)
 	_glint.clear()
+	_set_smash_heard(false)
 	visible = false
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	request_close.emit()
@@ -1672,6 +1723,7 @@ func _apply_level_variant() -> void:
 	var CL := CABIN_LAYOUT
 	for lv in _level_shells.keys():
 		(_level_shells[lv] as Node3D).visible = int(lv) == _cabin_level
+	_place_smash_spot()
 	var inner: Vector2 = CL.inner(_cabin_level)
 	var h: float = CL.wall_h(_cabin_level) - 0.12
 	if _main_light != null:

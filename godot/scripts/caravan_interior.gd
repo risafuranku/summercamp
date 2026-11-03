@@ -206,6 +206,7 @@ func close_caravan() -> void:
 	if _life != null:
 		_life.on_leave()
 	_interior_camera.fov = ROOM_FOV
+	_set_smash_heard(false)
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	request_close.emit()
 
@@ -298,9 +299,44 @@ func _tick_windows(delta: float) -> void:
 	# them is in sight and open.
 	for w in _windows:
 		w.update(_root, _interior_camera, WINDOW_PORTAL.room_to_world(a, w, FLOOR_UP) if a != null else Transform3D(), a != null and _in_sight(w), world, delta, a)
+	_tick_smashed()
 	if _door_view != null:
 		# (Drawn from the start of the walk out: it is ready when the door swings open.)
 		_door_view.update(_root, _interior_camera, WINDOW_PORTAL.room_to_world(a, _door_view, FLOOR_UP) if a != null else Transform3D(), a != null and (_door_open() > 0.02 or _leaving), world, delta, a)
+
+
+## The window the mushroom granny smashed (mess_rules CARNAGE_WALL "smashed"; Richard
+## 3. 11.: "vyražené okno, kterým je vidět ven"): the middle one of the side away from the
+## door. While its mess is there its glass is gone but for the shards in the frame
+## (interior_prep.smashed_window) and the outside is heard through it.
+const SMASH_WINDOW := 6
+var _smash_mess: Node3D
+var _smash_seek := 0
+var _smash_heard := false
+
+
+func _tick_smashed() -> void:
+	if _smash_mess == null or not is_instance_valid(_smash_mess) or not _smash_mess.is_inside_tree():
+		_smash_mess = null
+		_smash_seek -= 1
+		if _smash_seek <= 0:
+			_smash_seek = 20
+			_smash_mess = _root.find_child("Mess_smashed", true, false) as Node3D
+	var on := _smash_mess != null and _smash_mess.is_visible_in_tree()
+	if _windows.size() > SMASH_WINDOW:
+		var sw = _windows[SMASH_WINDOW]
+		INTERIOR_PREP.smashed_window(sw.quad, sw.get("_shared") as ShaderMaterial, sw.size, on)
+	_set_smash_heard(on and _is_open)
+
+
+func _set_smash_heard(on: bool) -> void:
+	if on == _smash_heard:
+		return
+	_smash_heard = on
+	var im := get_parent()
+	var am = im.get("_audio_manager") if im != null else null
+	if am != null and am.has_method("set_room_leak"):
+		am.set_room_leak(0.35 if on else 0.0)
 
 
 ## Is the window's glass on the screen of `eye` (the room's camera unless given; any
@@ -995,6 +1031,12 @@ func _build_prep(dx: float) -> void:
 	for spot in [["f1", Vector3(0.45, 0.0, 0.25)], ["f2", Vector3(-0.85, 0.0, -0.15)], ["f3", Vector3(1.05, 0.0, -0.1)],
 			["f4", Vector3(-1.7, 0.0, 0.3)], ["t1", Vector3(0.3, 0.9, -W * 0.5 + 0.32)]]:
 		_prep.add_spot(spot[0], _root, spot[1])
+	# The window she smashed (mess_rules CARNAGE_WALL "smashed"): on the inside of its glass,
+	# its glass on the floor (at 0) under it.
+	if _windows.size() > SMASH_WINDOW:
+		var sw = _windows[SMASH_WINDOW]
+		var sout: Vector3 = sw.outward
+		_prep.add_spot("win", _root, sw.frame.origin - sout * 0.03, atan2(-sout.x, -sout.z), true, 0.0)
 	_prep.setup_tasks(self, _interior_camera, _viewport, "caravan")
 	_prep.task_completed.connect(func(id: String): room_task_completed.emit(id))
 
