@@ -14,7 +14,7 @@ const STORIES := {
 	"jednota": ["THE CAMP HAS ITS OWN JEDNOTA", "A shop at Cerne jezero: bread, salami, ice cream. The Jednota u Marku in Liblice says it is not worried. Its shelves were empty by noon."],
 	"mega_gnome": ["GIANT GNOME BY THE RESERVOIR", "A garden gnome as tall as a cabin has appeared at Cerne jezero. Drivers on the dam road slow down to look. Nobody has seen it put up."],
 	"tier": ["{n} GUESTS AND GROWING AT THE RESERVOIR", "Cerne jezero has had {n} guests at once this summer, and is building again. \"People go where people are,\" said a woman from the district's tourist office, who has not been there."],
-	"caught": ["CAMP CAUGHT TIDYING UP ITS REVIEWS", "Goggle says reviews of Cerne jezero have been taken down by a company that does such things. The camp says it knows nothing about it."],
+	"caught": ["CAMP CAUGHT TIDYING UP ITS REVIEWS", "Atlas says reviews of Cerne jezero have been taken down by a company that does such things. The camp says it knows nothing about it."],
 	"guests": ["RECORD: {n} GUESTS AT THE RESERVOIR", "{n} people stayed at Cerne jezero last night, the most since the camp opened again. The district's accommodation office was surprised."],
 }
 ## Guests worth a story.

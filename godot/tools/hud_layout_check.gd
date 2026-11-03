@@ -35,6 +35,9 @@ const SAMPLE_FORECAST := {
 
 func _ready() -> void:
 	var failures: Array[String] = []
+	# The captions it expects are English: on a Czech Windows the clock's date followed
+	# the system's locale ("21. 9.") and the check failed whatever the HUD did.
+	load("res://scripts/lang.gd").apply("en")
 	# A script that fails to compile still loads as a GDScript resource; without this the
 	# per-size checks error out silently and the harness would report a false PASS.
 	var hud_script: Script = load("res://scripts/hud_manager.gd")

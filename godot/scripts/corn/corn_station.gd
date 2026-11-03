@@ -68,10 +68,11 @@ func cretex(s: Sprite3D, name: String, metres: float) -> void:
 
 
 ## A cob (or a leaf of its husk) lying on its side, turned to you: a standing sprite laid
-## over, its middle at the point it is put; `tilt` fans it a little.
+## over, its middle at the point it is put, leant back to face the eye over the counter
+## (S25: upright, it was seen from above as a thin sliver); `tilt` fans it a little.
 func lying(name: String, metres: float, tilt := 0.0) -> Sprite3D:
 	var s := sprite(CORN_TEX + name + ".png", metres, false)
-	s.rotation.z = PI * 0.5 + tilt
+	s.rotation = Vector3(-atan2(cam_up, cam_back) if cam_back > 0.0 else 0.0, 0.0, PI * 0.5 + tilt)
 	return s
 
 

@@ -956,6 +956,33 @@ const SCENARIOS := {
 	# The waypoint's mark by the troubles' plates on the right (TODO S32): the day's events
 	# up as plates, the nearest one behind you on the right (the mark on the right edge),
 	# then off to the right in front.
+	# 2. 11. (S7, S8, S19): a new sandbox camp: the district's first mail with its points, its
+	# Builder link opening Builder; then thirty beds built at nine and two days of letters
+	# taken as they come (SHOT DRIVER letter ...; the beds taken each evening).
+	"bookings": [
+		["wait_menu"], ["call", "_on_menu_new_camp", ["Bookings", 4242, false, true, {}]], ["wait_gameplay"], ["wait", 1.0],
+		["eval", "_time_of_day_string()"],
+		["call_on", "_interior_manager", "open_startup_crt_view", []], ["wait", 16.0],
+		["eval", "_interior_manager._building_interior._crt_ui._open_email_app()"], ["wait", 1.5],
+		["mail_show", "subject", "Opening of the camp"], ["wait", 0.8], ["crt_screen", "m0_first_mail"],
+		["mail_link", "app:builder"], ["wait", 2.0], ["eval", "debug_close_msgboxes()"], ["wait", 0.5], ["crt_screen", "m1_builder_from_link"],
+		["money", 60000], ["clear", 4, 4, 18, 12],
+		["build", "tent_1", 5, 5, 0], ["build", "tent_1", 7, 5, 0], ["build", "tent_1", 9, 5, 0], ["build", "tent_1", 11, 5, 0], ["build", "tent_1", 13, 5, 0], ["build", "tent_1", 15, 5, 0], ["build", "tent_1", 17, 5, 0],
+		["build", "tent_1", 5, 7, 0], ["build", "tent_1", 7, 7, 0], ["build", "tent_1", 9, 7, 0], ["build", "tent_1", 11, 7, 0], ["build", "tent_1", 13, 7, 0], ["build", "tent_1", 15, 7, 0], ["build", "tent_1", 17, 7, 0],
+		["build", "cabin_1", 5, 9, 0], ["build", "cabin_1", 8, 9, 0], ["build", "cabin_1", 11, 9, 0], ["build", "cabin_1", 14, 9, 0],
+		["build", "cabin_1", 5, 12, 0], ["build", "cabin_1", 8, 12, 0], ["build", "cabin_1", 11, 12, 0], ["build", "cabin_1", 14, 12, 0],
+		["build", "toilet_block", 19, 5, 0], ["build", "toilet_block", 19, 9, 0], ["build", "shower_block", 19, 7, 0],
+		["build", "corn_stand", 17, 10, 0], ["build", "bonfire", 17, 13, 0],
+		["wait", 1.0], ["prep_all"], ["gm", "get_bed_metrics"],
+		["eval", "debug_jump_to(1, 9.0)"], ["wait", 0.5], ["auto_accept", true], ["timescale", 8.0],
+		["until", "_day_index >= 1 and _time_of_day_hours >= 14.0", 200.0], ["prep_all"], ["gm", "get_bed_metrics"],
+		["until", "_day_index >= 1 and _time_of_day_hours >= 20.0", 200.0], ["timescale", 1.0], ["prep_all"],
+		["gm", "get_bed_metrics"], ["eval", "_time_of_day_string()"],
+		["eval", "_interior_manager._building_interior._crt_ui._open_email_app()"], ["wait", 1.0], ["crt_screen", "m2_inbox_day1"],
+		["timescale", 8.0], ["until", "_day_index >= 2 and _time_of_day_hours >= 14.0", 400.0], ["prep_all"],
+		["until", "_day_index >= 2 and _time_of_day_hours >= 20.0", 200.0], ["timescale", 1.0],
+		["gm", "get_bed_metrics"], ["eval", "[_day_index, _time_of_day_string()]"],
+	],
 	"hudmarks": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
 		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
@@ -1891,15 +1918,28 @@ var _until_deadline := 0
 ## barrier get it done for them every second. ["auto_checkin", false] turns it off.
 var _auto_checkin := true
 var _checkin_timer := 0.0
+## ["auto_accept", true]: every booking letter answered as it comes, taken if it fits (a
+## player at the PC all day: the letters' cadence in the real camp).
+var _auto_accept := false
 
 
 func _process(delta: float) -> void:
 	_checkin_timer -= delta
-	if _auto_checkin and _checkin_timer <= 0.0 and _main != null:
+	if _checkin_timer <= 0.0 and _main != null and (_auto_checkin or _auto_accept):
 		_checkin_timer = 1.0
-		for row in GuestManager.get_arrivals():
-			if bool(row.get("at_gate", false)):
-				GuestManager.request_check_in(int(row.get("id", -1)))
+		if _auto_checkin:
+			for row in GuestManager.get_arrivals():
+				if bool(row.get("at_gate", false)):
+					GuestManager.request_check_in(int(row.get("id", -1)))
+		if _auto_accept:
+			for m in EmailManager.inbox.duplicate():
+				if EmailManager._is_customer_mail(m) and not bool(m.get("_actioned", false)):
+					var fits: bool = EmailManager.can_accept_customer_booking(m)
+					print("SHOT DRIVER letter %s %s: party of %d, %s" % [_main._time_of_day_string(), m.get("archetype", ""), int(m.get("party_size", 1)), "taken" if fits else "no beds"])
+					if fits:
+						EmailManager.confirm_customer_booking(m)
+					else:
+						EmailManager.reject_customer_booking(m)
 	if _main == null or not is_instance_valid(_main):
 		_main = get_tree().current_scene
 		if _main != null and _main.get("pause_on_focus_loss") != null:
@@ -1921,6 +1961,11 @@ func _process(delta: float) -> void:
 			return
 		_until_expr = ""
 	if _step_index >= _steps.size():
+		# `-- --lang-audit`: the texts asked for in Czech that had no translation (lang.gd).
+		var lang = load("res://scripts/lang.gd")
+		if lang.audit:
+			lang.dump_missing(_out_dir.path_join("lang_missing.txt"))
+			print("SHOT DRIVER: %d texts without Czech -> lang_missing.txt" % lang.missing.size())
 		print("SHOT DRIVER: done")
 		get_tree().quit(0)
 		set_process(false)
@@ -1985,6 +2030,8 @@ func _run_step(step: Array) -> void:
 			print("SHOT DRIVER gm %s -> %s" % [step[1], GuestManager.callv(str(step[1]), step.slice(2))])
 		"auto_checkin":
 			_auto_checkin = bool(step[1])
+		"auto_accept":
+			_auto_accept = bool(step[1])
 		"checkin":
 			for row in GuestManager.get_arrivals():
 				print("SHOT DRIVER checkin %s -> %s" % [row.get("name", ""), GuestManager.request_check_in(int(row.get("id", -1)))])
@@ -2088,6 +2135,9 @@ func _run_step(step: Array) -> void:
 				for n in ui_l.find_children("*", "Control", true, false):
 					if n.get_script() == load("res://scripts/os98/apps/mail_app.gd"):
 						n.call("_on_link", str(step[1]))
+		"mail_push":
+			# ["mail_push", subject, body(, rich)]: a mail from the district into the inbox.
+			EmailManager.push_system_mail({"from": "District Office Hlubocany <kempy@okres-hlubocany.cz>", "subject": str(step[1]), "body": str(step[2]), "rich": step.size() > 3 and bool(step[3])})
 		"mail_read":
 			var mail: Dictionary = EmailManager.find_mail(str(step[1]), step[2])
 			print("SHOT DRIVER mail_read: ", mail.get("subject", "(none)"))

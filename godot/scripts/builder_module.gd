@@ -130,8 +130,9 @@ const TICKER_H := 17
 ## Builder's own clicks (ElevenLabs, tools/audiogen/prompts_builder.tsv): every button,
 ## card, window and tool has its sound, as in RCT and Theme Hospital.
 const UI_SFX := "res://assets/sfx/builder/ui_%s.mp3"
-## Builder's own title picture (Grok, tools/artgen: bld_splash), shown while it loads.
-const SPLASH_TEX := "res://assets/textury/builder/splash.png"
+## Builder's title window while it loads (scripts/builder/splash.gd: a 1998 program's,
+## drawn; until 2. 11. a painted picture, S9).
+const SPLASH = preload("res://scripts/builder/splash.gd")
 const SPLASH_SEC := 2.2
 const SPLASH_LINES := ["Reading the site plan...", "Counting the trees...", "Measuring the lake...", "Checking the licence..."]
 
@@ -192,7 +193,6 @@ var _sfx: AudioStreamPlayer
 var _tick := 0.0
 var _splash: Control
 var _splash_t := -1.0
-var _splash_bar
 var _cat_open := 0.0          # 0..1, the catalogue sliding open
 var _info: Control            # the card for what is selected
 var _hover_card := ""
@@ -337,9 +337,6 @@ func _layout() -> void:
 		_gcard.position = Vector2(well.position.x + well.size.x - _gcard.size.x - 8, well.position.y + well.size.y - _gcard.size.y - 8)
 	if _splash != null:
 		_splash.size = size
-		if _splash_bar != null:
-			_splash_bar.position = Vector2(floorf(size.x * 0.5 - 120), size.y - 46)
-			_splash_bar.size = Vector2(240, 14)
 
 
 func _build_menu() -> void:
@@ -822,7 +819,7 @@ func _go_to(coord: Vector2i) -> void:
 		_map_panel.inspect_footprint = info.get("footprint", Vector2i.ONE)
 
 
-## The camp's Goggle rating has not opened this blueprint yet: the stars and reviews it
+## The camp's Atlas rating has not opened this blueprint yet: the stars and reviews it
 ## needs ({} when it is open).
 func _locked(type: String) -> Dictionary:
 	if type == "mega_gnome":
@@ -1508,46 +1505,27 @@ func _stat_line(type: String) -> String:
 # ── the splash and the info card ─────────────────────────────────────────────
 
 func _build_splash() -> void:
-	var tex := _texture(SPLASH_TEX)
-	if tex == null:
-		splash_finished.emit.call_deferred()
-		return
-	_splash = Control.new()
-	_splash.mouse_filter = Control.MOUSE_FILTER_STOP
-	_splash.draw.connect(func():
-		# A draw can still be queued when the click skips the splash and frees it.
-		if _splash == null:
-			return
-		var sz := _splash.size
-		_splash.draw_rect(Rect2(Vector2.ZERO, sz), Color.BLACK)
-		var ts := tex.get_size()
-		var k := maxf(sz.x / ts.x, sz.y / ts.y)
-		var d := ts * k
-		_splash.draw_texture_rect(tex, Rect2((sz - d) * 0.5, d), false)
-		# The title, as the box had it: big, bevelled, a drop shadow.
-		var title := "Builder 98"
-		var fs := T.FONT_SIZE * 3
-		var tw := T.FONT_BOLD.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-		var tp := Vector2(floorf((sz.x - tw) * 0.5), 58)
-		_splash.draw_string(T.FONT_BOLD, tp + Vector2(3, 3), title, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0, 0, 0, 0.7))
-		_splash.draw_string(T.FONT_BOLD, tp, title, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color8(255, 214, 90))
-		var sub := tr("Stavitel software  -  site planning for recreational facilities")
-		var sw := T.FONT.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
-		_splash.draw_string(T.FONT, Vector2(floorf((sz.x - sw) * 0.5) + 1, 79), sub, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, Color(0, 0, 0, 0.8))
-		_splash.draw_string(T.FONT, Vector2(floorf((sz.x - sw) * 0.5), 78), sub, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.WHITE)
-		var line: String = tr(SPLASH_LINES[clampi(int(_splash_t / SPLASH_SEC * SPLASH_LINES.size()), 0, SPLASH_LINES.size() - 1)])
-		var lw := T.FONT.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
-		_splash.draw_rect(Rect2(floorf((sz.x - 260) * 0.5), sz.y - 66, 260, 40), Color(0, 0, 0, 0.55))
-		_splash.draw_string(T.FONT, Vector2(floorf((sz.x - lw) * 0.5), sz.y - 52), line, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.WHITE)
-	)
+	_ensure_sw()
+	_splash = SPLASH.new()
+	_splash.total = SPLASH_SEC
+	_splash.lines = SPLASH_LINES
+	_splash.registered = _sw != null and _sw.registered
+	_splash.serial = _sw.key if _sw != null else ""
+	_splash.licensee = _licensee()
+	_splash.days_left = maxi(1, 30 - CoreRoot.get_day())
 	_splash.gui_input.connect(func(e):
 		if e is InputEventMouseButton and e.pressed:
 			_splash_t = SPLASH_SEC
 	)
 	add_child(_splash)
-	_splash_bar = PROGRESS.new("blocks")
-	_splash.add_child(_splash_bar)
 	_splash_t = 0.0
+
+
+## Who the copy is registered to: the camp, by its name in the warden's list.
+func _licensee() -> String:
+	var profiles = load("res://scripts/profiles.gd")
+	var n := str(profiles.camp_info(profiles.camp_id).get("name", "")) if str(profiles.camp_id) != "" else ""
+	return n if n != "" else tr("Camp Cerne Jezero")
 
 
 func _build_info() -> void:
@@ -1669,14 +1647,11 @@ func _process(delta: float) -> void:
 					c.remove_meta("appear")
 	if _splash != null and _splash_t >= 0.0:
 		_splash_t += delta
-		if _splash_bar != null:
-			_splash_bar.value = clampf(_splash_t / (SPLASH_SEC * 0.9), 0.0, 1.0)
-		_splash.queue_redraw()
+		_splash.t = _splash_t
 		if _splash_t >= SPLASH_SEC:
 			_splash_t = -1.0
 			_splash.queue_free()
 			_splash = null
-			_splash_bar = null
 			splash_finished.emit()
 
 
@@ -2044,7 +2019,7 @@ func _ensure_courier() -> void:
 		shell.call("store", "courier", _courier.export_state())
 
 
-## What the camp has now, for the Courier (the map's last picture of it, Goggle, the
+## What the camp has now, for the Courier (the map's last picture of it, Atlas, the
 ## guests, the upkeep).
 func _camp_facts() -> Dictionary:
 	var types := {}
@@ -2123,7 +2098,7 @@ func _show_news(item: Dictionary) -> void:
 	if id.begins_with("tier"):
 		# The paper's picture: the best of what that tier opened.
 		var best := _best_of_tier(int(id.substr(4)))
-		pic = _item_icon(best) if best != "" else _texture("res://assets/textury/os98/icons/goggle.png")
+		pic = _item_icon(best) if best != "" else _texture("res://assets/textury/os98/icons/atlas.png")
 	elif id == "caught":
 		pic = _texture("res://assets/textury/os98/web/spotless_banner.png")
 	else:

@@ -204,7 +204,7 @@ var _pending_director: Dictionary = {}
 ## The lost and found and its classifieds (scripts/bazaar.gd).
 var _bazaar = preload("res://scripts/bazaar.gd").new()
 var _pending_bazaar: Dictionary = {}
-## The camp on Goggle (scripts/reviews/goggle.gd): the reviews in public, the rating, the
+## The camp on Atlas (scripts/reviews/goggle.gd): the reviews in public, the rating, the
 ## blueprints it opens in Builder 98.
 var _goggle = preload("res://scripts/reviews/goggle.gd").new()
 var _pending_goggle: Dictionary = {}
@@ -1056,7 +1056,7 @@ func _poll_guest_quotes(delta: float) -> void:
 		if _hud_manager.has_method("show_quote"):
 			_hud_manager.show_quote(str(entry.get("name", "")), str(entry.get("text", "")), float(entry.get("mood", 60.0)))
 		else:
-			_hud_manager.push_status("%s: \"%s\"" % [entry.get("name", ""), entry.get("text", "")])
+			_hud_manager.push_status("%s: \"%s\"" % [entry.get("name", ""), tr(str(entry.get("text", "")))])
 		break
 
 
@@ -1257,6 +1257,7 @@ func _process(delta: float) -> void:
 	_sync_season()
 	if sim:
 		_tick_blueprint_guests(delta)
+		_tick_atlas_ads(delta)
 	# The storm on its way (the host's, in co-op): the sky, the wind and the far thunder.
 	var build: float = (weather_system.storm_build() if weather_system != null and camp_rule("weather") else 0.0) if sim else _coop_storm_build
 	if _audio_manager != null:
@@ -3346,10 +3347,10 @@ func _settle_bazaar() -> void:
 			_hud_manager.push_status("In the lost and found this morning: %s. Nobody left it." % str(it["name"]), 2)
 
 
-# ── Goggle (scripts/reviews/goggle.gd, the PC's Reviews tab) ──────────────────
+# ── Atlas (scripts/reviews/goggle.gd, the PC's fifth tab; it was Goggle) ───────
 
 ## At the start of play: a new camp's page (last summer's reviews), a loaded one's, or a
-## save from before Goggle (its guests' reviews put up again).
+## save from before the page (its guests' reviews put up again).
 func _setup_goggle() -> void:
 	if not _pending_goggle.is_empty():
 		_goggle.import_state(_pending_goggle)
@@ -3418,10 +3419,55 @@ func _settle_goggle() -> void:
 		for e in r["removed"]:
 			_hud_manager.push_status("SpotlessName Ltd: %s's review is gone." % str(e["name"]), 1)
 		for e in r["caught"]:
-			_hud_manager.push_status("Goggle caught the removal of %s's review. It stays, and so does the fee." % str(e["name"]), 2)
+			_hud_manager.push_status("Atlas caught the removal of %s's review. It stays, and so does the fee." % str(e["name"]), 2)
 		for e in r["edited"]:
-			_hud_manager.push_status("Goggle: %s added a star to their review." % str(e["name"]), 1)
+			_hud_manager.push_status("Atlas: %s added a star to their review." % str(e["name"]), 1)
 	_announce_goggle_tier(int(r["tier"]))
+
+
+## The hour now counted from day 0: Atlas's campaigns run from hour to hour.
+func atlas_hour() -> int:
+	return _day_index * 24 + int(_time_of_day_hours)
+
+
+## Atlas's advertising page: a campaign of `kind` (goggle.ADS) for `days`, paid now and
+## running from this hour. {ok, cost, reason}.
+func atlas_buy_ad(kind: String, days: int) -> Dictionary:
+	var cost: int = _goggle.ad_cost(kind, days)
+	if CoreRoot.get_money() < cost:
+		return {"ok": false, "reason": "money", "cost": cost}
+	var now := atlas_hour()
+	if not _goggle.buy_ad(kind, days, now):
+		return {"ok": false, "reason": "no", "cost": cost}
+	CoreRoot.actions.spend_money(cost)
+	if Coop.is_client():
+		# The host's page runs it (the fee goes with the till).
+		Coop.send_request("atlas_ad", [kind, days, now])
+	return {"ok": true, "cost": cost}
+
+
+## Atlas's campaigns that are over (looked at every two seconds where the camp runs):
+## the status line, and Atlas's mail with what it did, as RollerCoaster Tycoon's news
+## said a campaign had finished.
+var _atlas_ads_t := 0.0
+
+
+func _tick_atlas_ads(delta: float) -> void:
+	_atlas_ads_t -= delta
+	if _atlas_ads_t > 0.0 or not _gameplay_started or _menu_mode:
+		return
+	_atlas_ads_t = 2.0
+	for a in _goggle.end_ads(atlas_hour()):
+		var what: String = str(_goggle.ADS[str(a["kind"])]["name"])
+		if _hud_manager != null:
+			_hud_manager.push_status("Atlas: your campaign (%s) has ended." % what, 1)
+		if EmailManager != null and EmailManager.has_method("schedule_pool_mail"):
+			var at := _day_index * 1440 + int(_time_of_day_hours * 60.0) + 10
+			EmailManager.schedule_pool_mail({"day": at / 1440, "time": "%02d:%02d" % [(at % 1440) / 60, at % 60],
+				"from": "Atlas s.r.o. <reklama@atlas.cz>", "sender": "Atlas s.r.o.", "type": "system",
+				"subject": "Your campaign on Atlas has ended",
+				"body": "Dear customer,\n\nyour campaign %s (%s) has ended.\n\nShown: %d times\nClicked: %d times\nBooking letters while it ran: %d\n\nThank you for advertising on Atlas. Another campaign can be ordered at any time on Atlas, under Advertise.\n\nAtlas s.r.o., advertising\nNa Porici 12, Praha 1" % [
+					what, "%d day%s" % [int(a["days"]), "" if int(a["days"]) == 1 else "s"], int(a["views"]), int(a["clicks"]), int(a["letters"])]})
 
 
 ## Reviews tab: have a review taken down by the morning. {ok, cost, reason}.
@@ -3488,7 +3534,7 @@ func goggle_reply(id: int, kind: String) -> void:
 				break
 
 
-## The guest book mail answered in CampMail: the same review on Goggle has the answer.
+## The guest book mail answered in CampMail: the same review on Atlas has the answer.
 func goggle_mail_replied(guest_id: int, reply_id: String) -> void:
 	if guest_id < 0:
 		return
@@ -3978,7 +4024,7 @@ func _update_interaction_hint() -> void:
 		_hud_manager.set_hint_text("")
 		return
 	if _coop_partner_down_near():
-		_hud_manager.set_hint_text("[E] Get %s up" % Coop.name_of(_coop_down_near_id))
+		_hud_manager.set_hint_text(LANG.f("[E] Get %s up", [Coop.name_of(_coop_down_near_id)]))
 		return
 	# Something in your hands, or a small thing under the crosshair (scripts/ambient/carry.gd:
 	# it takes its own E and click, on either machine).
@@ -4018,9 +4064,9 @@ func _update_interaction_hint() -> void:
 	var guest_in_view := _find_guest_in_view()
 	if not guest_in_view.is_empty():
 		if str(guest_in_view.get("status", "")) == "waiting":
-			_hud_manager.set_hint_text("[E] Check in %s" % str(guest_in_view.get("name", "guest")))
+			_hud_manager.set_hint_text(LANG.f("[E] Check in %s", [str(guest_in_view.get("name", "guest"))]))
 		else:
-			_hud_manager.set_hint_text("[E] Talk to %s" % str(guest_in_view.get("name", "guest")))
+			_hud_manager.set_hint_text(LANG.f("[E] Talk to %s", [str(guest_in_view.get("name", "guest"))]))
 		return
 	var play_hint: String = _warden_play.hint() if _warden_play != null else ""
 	if not play_hint.is_empty():
@@ -5546,6 +5592,11 @@ func coop_request(kind: String, data: Array) -> void:
 			_goggle.request_removal(int(data[0]), _day_index)
 		"goggle_reply":
 			goggle_reply(int(data[0]), str(data[1]))
+		"atlas_ad":
+			# Paid on their machine (the till brings it); one of the kind already running
+			# (both wardens bought it at once): the fee back.
+			if not _goggle.buy_ad(str(data[0]), int(data[1]), int(data[2])):
+				CoreRoot.actions.add_money(_goggle.ad_cost(str(data[0]), int(data[1])))
 		"builder98_mail":
 			# Builder 98 on the other machine: its registration key or the district's
 			# letter comes in the host's mail (the other machine gets it from there).
