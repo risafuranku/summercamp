@@ -317,6 +317,20 @@ func keep_out() -> String:
 	return "BRAINS %s" % str(out)
 
 
+## Her loops as they are: each one's stream, whether it loops and whether it plays.
+func loops() -> String:
+	var g = granny()
+	var out: Array = []
+	for n in ["_hum", "_breath", "_spores"]:
+		var p = g.get(n)
+		if p != null and p.stream != null:
+			out.append("%s %s loop=%s playing=%s" % [n, p.stream.resource_path.get_file(), str(p.stream.get("loop")), str(p.playing)])
+	for k in ["eat_a", "eat_b", "pry"]:
+		var st = g._streams.get(g.SFX[k])
+		out.append("%s %s loop=%s" % [k, st.resource_path.get_file() if st != null else "-", str(st.get("loop")) if st != null else "-"])
+	return "LOOPS " + ", ".join(out)
+
+
 ## Her reach for the lamp you stand under (you stay in its light, looking at her): she at
 ## the edge of its light, her arm going up to the bulb.
 func reach_now() -> String:
@@ -338,6 +352,7 @@ const LOOK_STEPS := [
 	["wait_menu"], ["call", "_on_menu_test_night", ["basket"]], ["wait", 4.0],
 	["call_on", "_interior_manager", "close_main_interior_if_open", []], ["wait", 1.5],
 	["look_at_enemy"], ["enemy_dist"], ["wait", 0.3], ["shot", "l0_hunt"],
+	["eval", "get_tree().root.get_node('BabkaShots').loops()"],
 	["eval", "get_tree().root.get_node('BabkaShots').granny()._set_phase('look', 3.0)"], ["wait", 0.6], ["look_at_enemy"], ["shot", "l1_up"],
 	["eval", "get_tree().root.get_node('BabkaShots').keep_out()"],
 	["eval", "get_tree().root.get_node('BabkaShots').under_lamp()"], ["wait", 1.0],

@@ -61,12 +61,14 @@ const S := "res://assets/sfx/npc/babka/"
 const G := "res://assets/sfx/npc/granny/"
 const STEPS := [S + "step_grass_a.mp3", S + "step_grass_b.mp3", S + "step_grass_c.mp3", S + "step_grass_d.mp3"]
 const SFX := {
-	"breath": S + "breath.mp3", "sniff": S + "sniff.mp3", "crack": S + "crack.mp3", "lunge": S + "lunge.mp3",
+	# (The loops as seamless OGG, tools/audiogen/ambience_loop.py --trim: the MP3s gapped
+	# or clicked at every repeat, the spores half a second of silence.)
+	"breath": S + "breath.ogg", "sniff": S + "sniff.mp3", "crack": S + "crack.mp3", "lunge": S + "lunge.mp3",
 	"tendon": S + "tendon.mp3", "fall": S + "fall.mp3", "reach": S + "reach.mp3", "lamp_die": S + "lamp_die.mp3",
-	"bulb": G + "bulb.mp3", "zip": S + "tent_zip.mp3", "tear": S + "tent_tear.mp3", "pry": S + "door_pry.mp3",
-	"break": S + "door_break.mp3", "cry_m": S + "cry_m.mp3", "cry_f": S + "cry_f.mp3", "eat_a": S + "eat_a.mp3",
-	"eat_b": S + "eat_b.mp3", "bone": S + "bone.mp3", "spores": S + "spores.mp3", "leave": S + "leave.mp3",
-	"hum": G + "hum.mp3", "ring": G + "ring.mp3", "creak": "res://assets/sfx/npc/basket_creak.mp3",
+	"bulb": G + "bulb.mp3", "zip": S + "tent_zip.mp3", "tear": S + "tent_tear.mp3", "pry": S + "door_pry.ogg",
+	"break": S + "door_break.mp3", "cry_m": S + "cry_m.mp3", "cry_f": S + "cry_f.mp3", "eat_a": S + "eat_a.ogg",
+	"eat_b": S + "eat_b.ogg", "bone": S + "bone.mp3", "spores": S + "spores.ogg", "leave": S + "leave.mp3",
+	"hum": S + "hum.ogg", "ring": G + "ring.mp3", "creak": "res://assets/sfx/npc/basket_creak.mp3",
 	"kick": "res://assets/sfx/npc/twig_snap.mp3",
 }
 
@@ -230,6 +232,8 @@ func _on_start() -> void:
 		var s := _stream(SFX[k])
 		if s is AudioStreamMP3:
 			(s as AudioStreamMP3).loop = true
+		elif s is AudioStreamOggVorbis:
+			(s as AudioStreamOggVorbis).loop = true
 	_hum = _loop(SFX["hum"], -6.0)
 	_breath = _loop(SFX["breath"], -4.0)
 	_spores = _loop(SFX["spores"], -10.0)
@@ -1312,7 +1316,9 @@ func _update_body(out: bool) -> void:
 		var stride := 0.7 if _fig_anim == "run" else 0.42
 		var n := _frames(_fig_anim)
 		_fig_frame = int(_fig_dist / stride) % maxi(1, n)
-		_show_fig(eye, h)
+		# One scale for the whole set, her bent height: the "up" pictures are drawn that
+		# much taller themselves (babka_s0_up.png, 3 m to the sprite's 1.75).
+		_show_fig(eye, BENT_M * float(STAGE_K[_stage]))
 	else:
 		# Two pictures from the front: bent, or up and far too tall (the old ones were
 		# drawn at one size: up is them stretched thin).

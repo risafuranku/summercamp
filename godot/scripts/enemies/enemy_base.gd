@@ -523,6 +523,10 @@ func _loop(path: String, volume_db: float) -> AudioStreamPlayer3D:
 	elif stream is AudioStreamWAV:
 		(stream as AudioStreamWAV).loop_mode = AudioStreamWAV.LOOP_FORWARD
 		(stream as AudioStreamWAV).loop_end = int((stream as AudioStreamWAV).get_length() * (stream as AudioStreamWAV).mix_rate)
+	elif stream is AudioStreamOggVorbis:
+		# A loop made a loop (tools/audiogen/ambience_loop.py): looped on its own resource,
+		# so it keeps its path (co-op mirrors a sound by it).
+		(stream as AudioStreamOggVorbis).loop = true
 	var p := AudioStreamPlayer3D.new()
 	p.stream = stream
 	p.volume_db = volume_db
