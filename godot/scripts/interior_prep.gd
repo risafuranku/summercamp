@@ -335,8 +335,15 @@ static func build_mess(parent: Node3D, pos: Vector3, kind: String, rng: RandomNu
 			decal(root, _mess_or("carnage_bedding", "litter_binbag"), 0.82, Vector3(0, 0.006, 0), rng.randf() * TAU, false, true)
 			size = Vector3(0.75, 0.15, 0.75)
 		"slit":
-			decal(root, _mess_or("carnage_slit", "decal_scratches"), 0.66, Vector3.ZERO, 0.0, true)
-			size = Vector3(0.66, 0.8, 0.12)
+			# A real hole in the canvas, the night out there through it (tent_interior
+			# _tick_tear feeds it the camp; Richard 3. 11.: "fakt dirou videt ven").
+			if ResourceLoader.exists(MESS_TEX + "carnage_tear.png"):
+				# Ridge to floor: its tips go on under the floor and up into the slopes.
+				tear(root, 0.78, Vector3(0, 0.02, 0))
+				size = Vector3(0.7, 1.2, 0.12)
+			else:
+				decal(root, _mess_or("carnage_slit", "decal_scratches"), 0.66, Vector3.ZERO, 0.0, true)
+				size = Vector3(0.66, 0.8, 0.12)
 			body_pos = pos
 		"handprints":
 			decal(root, "decal_handprint", 0.55, Vector3.ZERO, 0.0, true)
@@ -443,6 +450,31 @@ static func decal(parent: Node3D, file: String, width: float, pos: Vector3, yaw 
 	# Room floors sit at 0.05 with rugs just above; the spots are given at 0.04.
 	mi.position = pos + (Vector3.ZERO if vertical else Vector3(0, 0.022, 0))
 	mi.rotation.y = yaw
+	parent.add_child(mi)
+	return mi
+
+
+## The canvas torn open (materials/tent_tear.gdshader): `width` metres across on a wall
+## facing +Z. Its two materials (as it is, and its hover look) are the mesh's meta
+## "tear_mats": the room gives them the camp to show through it (tent_interior).
+static func tear(parent: Node3D, width: float, pos: Vector3) -> MeshInstance3D:
+	var tex: Texture2D = load(MESS_TEX + "carnage_tear.png")
+	var mi := MeshInstance3D.new()
+	mi.name = "TentTear"
+	var q := QuadMesh.new()
+	q.size = Vector2(width, width * float(tex.get_height()) / float(tex.get_width()))
+	mi.mesh = q
+	var m := ShaderMaterial.new()
+	m.shader = preload("res://materials/tent_tear.gdshader")
+	m.set_shader_parameter("tear_tex", tex)
+	m.set_shader_parameter("texels", float(tex.get_width()))
+	var hl := m.duplicate() as ShaderMaterial
+	hl.set_shader_parameter("hl", 1.0)
+	mi.material_override = m
+	mi.set_meta("hl_material", hl)
+	mi.set_meta("base_material", m)
+	mi.set_meta("tear_mats", [m, hl])
+	mi.position = pos
 	parent.add_child(mi)
 	return mi
 

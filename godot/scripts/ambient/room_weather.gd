@@ -58,6 +58,10 @@ void fragment() {
 var is_open: Callable
 ## A tent: no glass, the canvas itself lit by the lightning and moved by the wind.
 var canvas := false
+## Torn open (the granny's slit, tent_interior): its flaps snap in any breeze.
+var torn := false
+## The wind now (0..1), for whatever else in the room it moves (the torn canvas).
+var wind_now := 0.0
 ## The storm's gloom over the room and the room's own weather sounds (off for a second
 ## room in the same world: the office's back room).
 var gloom := true
@@ -261,6 +265,7 @@ func _process(delta: float) -> void:
 	var wet: float = float(sl.get("wet")) if sl != null and sl.get("wet") != null else 0.0
 	var flash: float = float(wv.get("_storm_flash_strength")) if wv != null and wv.get("_storm_flash_strength") != null else 0.0
 	var wind: float = float({1: 0.6, 3: 0.3, 4: 0.5, 5: 1.0}.get(w, 0.08))
+	wind_now = wind
 	_day = float(wv.compute_daylight_factor()) if wv != null and wv.has_method("compute_daylight_factor") else 1.0
 	_t += delta
 	_acc += delta
@@ -386,12 +391,13 @@ func _sound(open: bool, delta: float, w: int, wind: float) -> void:
 	# The gusts: the timbers creak and the panes rattle, the canvas snaps.
 	_gust_t -= delta
 	if _gust_t <= 0.0:
-		_gust_t = _rng.randf_range(9.0, 22.0) / maxf(0.3, wind)
-		if wind >= 0.5 and not _gust_snd.playing:
+		var blow := maxf(wind, 0.55) if torn else wind
+		_gust_t = _rng.randf_range(9.0, 22.0) / maxf(0.3, blow + (0.5 if torn else 0.0))
+		if blow >= 0.5 and not _gust_snd.playing:
 			var file := "tent_flap.mp3" if canvas else "wind_cabin_creak.mp3"
 			if ResourceLoader.exists(SFX + file):
 				_gust_snd.stream = load(SFX + file)
-				_gust_snd.volume_db = -14.0 + wind * 6.0
+				_gust_snd.volume_db = -14.0 + blow * 6.0
 				_gust_snd.pitch_scale = _rng.randf_range(0.92, 1.06)
 				_gust_snd.play()
 	# A drip.

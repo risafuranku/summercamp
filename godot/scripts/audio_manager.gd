@@ -1626,7 +1626,7 @@ func _update_interior_audio_ducking(should_duck: bool, underground := false) -> 
 	var current_db = AudioServer.get_bus_volume_db(_outdoor_ambience_bus_index)
 	if was == 0:
 		_interior_audio_base_db = current_db
-	var target_db: float = _interior_audio_base_db + [0.0, INTERIOR_AUDIO_DUCK_DB, UNDERGROUND_AUDIO_DUCK_DB][level]
+	var target_db: float = _interior_audio_base_db + [0.0, INTERIOR_AUDIO_DUCK_DB * (1.0 - _room_leak), UNDERGROUND_AUDIO_DUCK_DB][level]
 
 	_interior_audio_duck_tween = create_tween()
 	_interior_audio_duck_tween.set_trans(Tween.TRANS_SINE)
@@ -1643,9 +1643,33 @@ func _update_interior_audio_ducking(should_duck: bool, underground := false) -> 
 		_interior_audio_duck_tween.parallel().tween_method(
 			Callable(self, "_set_outdoor_lowpass_hz"),
 			lp.cutoff_hz,
-			[OUTDOOR_LOWPASS_OPEN_HZ, OUTDOOR_LOWPASS_INDOORS_HZ, OUTDOOR_LOWPASS_UNDERGROUND_HZ][level],
+			[OUTDOOR_LOWPASS_OPEN_HZ, _indoor_lowpass_hz(), OUTDOOR_LOWPASS_UNDERGROUND_HZ][level],
 			INTERIOR_AUDIO_DUCK_FADE_SECONDS
 		)
+
+
+## A room open to the night (a tent the mushroom granny tore open: tent_interior): the
+## outside comes in through the hole, less muffled and less far. 0 a whole room, 1 the
+## outside as it is. Taken back by the room when it closes or is mended.
+var _room_leak := 0.0
+const ROOM_LEAK_LOWPASS_HZ := 7000.0
+
+
+func set_room_leak(k: float) -> void:
+	k = clampf(k, 0.0, 1.0)
+	if absf(k - _room_leak) < 0.01:
+		return
+	_room_leak = k
+	if _interior_audio_level != 1:
+		return
+	if _interior_audio_duck_tween != null and is_instance_valid(_interior_audio_duck_tween):
+		_interior_audio_duck_tween.kill()
+	_set_outdoor_ambience_bus_volume_db(_interior_audio_base_db + INTERIOR_AUDIO_DUCK_DB * (1.0 - _room_leak))
+	_set_outdoor_lowpass_hz(_indoor_lowpass_hz())
+
+
+func _indoor_lowpass_hz() -> float:
+	return lerpf(OUTDOOR_LOWPASS_INDOORS_HZ, ROOM_LEAK_LOWPASS_HZ, _room_leak)
 
 
 ## The outdoor bus's low-pass (made with the bus, open outdoors).

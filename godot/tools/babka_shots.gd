@@ -3,8 +3,11 @@ extends "res://tools/shot_driver.gd"
 ## The mushroom granny's night (scripts/enemies/basket_brain.gd, DESIGN.md §5a.4): out
 ## there coming for you, stopped and looking, at a lamp's edge; you hidden in the office
 ## while she goes from lodging to lodging; out again; the morning, and the carnage inside
-## a lodging she ate in.
-##   godot --path godot --audio-driver Dummy --resolution 1280x720 res://tools/babka_shots.tscn -- --out=<dir>
+## a lodging she ate in. `--part=tear`: only a tent she tore open, the night and the camp
+## through the hole, the day through it, and the canvas sewn up.
+##   godot --path godot --audio-driver Dummy --resolution 1280x720 res://tools/babka_shots.tscn -- --out=<dir> [--part=tear]
+
+var _torn_key := ""
 
 
 func granny():
@@ -63,8 +66,80 @@ func into_carnage() -> String:
 	return "no structure for %s" % keys[0]
 
 
+## An empty tent of the camp as she leaves one (her carnage, its canvas torn), the warden
+## in it.
+func into_torn_tent() -> String:
+	var st = CoreRoot.get_state()
+	var root = _main.get("building_manager").get_node_or_null("Structures")
+	for child in root.get_children():
+		var o = child.get_meta("grid_origin", null)
+		if not str(child.get_meta("building_type", "")).contains("tent") or not (o is Vector2i):
+			continue
+		var key := "%d:%d" % [o.x, o.y]
+		if not st.accommodation_states.has(key) or int((st.accommodation_states[key] as Dictionary).get("occupied", 0)) > 0:
+			continue
+		GuestManager.make_room_carnage(key)
+		_torn_key = key
+		_torn_node = child
+		return reenter_tent()
+	return "no empty tent"
+
+
+var _torn_node: Node3D
+
+
+func reenter_tent() -> String:
+	_main.set("debug_camera", null)
+	_main.get("_player").global_position = _torn_node.global_position + Vector3(0, 0, 3.0)
+	_main.get("_interior_manager")._on_tent_interact(_torn_node)
+	return _torn_key
+
+
+## A few steps behind it (out of it first: the door puts you at its front), looking at its
+## back (where she came through).
+func behind_tent() -> String:
+	var p: Node3D = _main.get("_player")
+	var back := _torn_node.global_transform.basis.z.normalized()
+	p.global_position = _torn_node.global_position - back * 3.2 + Vector3(0, 0.1, 0)
+	var at := _torn_node.global_position
+	p.look_at(Vector3(at.x, p.global_position.y, at.z))
+	var hole = _torn_node.find_child("TentTear", true, false)
+	return "hole outside: %s" % [hole != null and (hole as Node3D).is_visible_in_tree()]
+
+
+## The torn canvas sewn up (its task done, as a click on it does).
+func sew_tear() -> String:
+	for t in GuestManager.get_room_state(_torn_key).get("tasks", []):
+		if str(t.get("mess", "")) == "slit":
+			var im = _main.get("_interior_manager")
+			im._on_room_task_completed(im._tent_interior, im._active_tent_node, str(t.get("id", "")))
+			return str(t.get("id", ""))
+	return "no slit task"
+
+
+const TEAR_STEPS := [
+	["wait_menu"], ["call", "_on_menu_test_night", ["basket"]], ["wait", 4.0],
+	["call_on", "_interior_manager", "close_main_interior_if_open", []], ["wait", 1.0],
+	["call", "_stop_active_enemy_brain", []],
+	["eval", "get_tree().root.get_node('BabkaShots').into_torn_tent()"], ["wait", 3.0],
+	["eval", "[_interior_manager._tent_interior._torn, _interior_manager._tent_interior._tear.get_meta('tear_mats')[0].get_shader_parameter('live')]"],
+	["shot", "t0_tear_night"],
+	["eval", "_interior_manager._tent_interior.close_tent()"], ["wait", 2.0],
+	["eval", "get_tree().root.get_node('BabkaShots').behind_tent()"], ["wait", 2.0], ["shot", "t1_outside_night"],
+	["eval", "get_tree().root.get_node('BabkaShots').reenter_tent()"], ["wait", 2.5],
+	["eval", "time_system.set_time_hours(11.0)"], ["eval", "_sync_runtime_state_from_systems(true)"], ["wait", 3.0], ["shot", "t2_tear_day"],
+	["eval", "get_tree().root.get_node('BabkaShots').sew_tear()"], ["wait", 2.5],
+	["eval", "_interior_manager._tent_interior._torn"], ["shot", "t3_sewn"],
+	["eval", "_interior_manager._tent_interior.close_tent()"], ["wait", 2.0],
+	["eval", "get_tree().root.get_node('BabkaShots').behind_tent()"], ["wait", 2.0], ["shot", "t4_outside_sewn"],
+]
+
+
 func _ready() -> void:
 	super._ready()
+	if OS.get_cmdline_user_args().has("--part=tear"):
+		_steps = TEAR_STEPS.duplicate(true)
+		return
 	_steps = [
 		["wait_menu"], ["call", "_on_menu_test_night", ["basket"]], ["wait", 4.0],
 		["call_on", "_interior_manager", "close_main_interior_if_open", []], ["wait", 1.0],
