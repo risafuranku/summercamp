@@ -94,6 +94,14 @@ var sleep
 ## A whole turn (playtest 2026-10-17): the doorway back to the office is behind you.
 var look_back = INTERIOR_LOOK.new(180.0, 26.0, 38.0)
 var look_store = INTERIOR_LOOK.new(175.0, 28.0, 40.0)
+## By the bench under the office window, on the guests' side of the counter (the user
+## 30. 10.: "click the bench and you go to it, not sat on it: stand there, look out of the
+## window at the camp or back at your reception"): the window ahead, a whole turn round.
+var look_bench = INTERIOR_LOOK.new(180.0, 26.0, 38.0)
+const BENCH_STAND := Vector3(-1.05, 1.5, -1.45)
+var bench_base_rot := Vector3(deg_to_rad(-4.0), 0.0, 0.0)
+## Round the counter's end (its left end at x -0.48), the guests' side, and back.
+const BENCH_WAY := [Vector3(-0.75, 1.5, 0.85), Vector3(-0.95, 1.5, -0.3)]
 ## Toward the bed and its window at the front end, the room's length beside it.
 var back_base_rot := Vector3(deg_to_rad(-11.0), deg_to_rad(52.0), 0.0)
 
@@ -124,6 +132,14 @@ func build(host_node, root: Node3D, cam: Camera3D) -> void:
 
 	if host.has_method("desk_lamp_meshes") and host.get("_desk_lamp_body") != null:
 		hot["desklamp"] = {"body": host.get("_desk_lamp_body"), "meshes": host.desk_lamp_meshes()}
+	# The waiting bench under the window (building_interior's WaitBench boxes).
+	var bench_meshes: Array = []
+	for n in ["WaitBench", "WaitBenchLegL", "WaitBenchLegR"]:
+		var m := root.get_node_or_null(n)
+		if m != null:
+			bench_meshes.append(m)
+	if not bench_meshes.is_empty():
+		_hot_body("bench", root, Vector3(-1.05, 0.4, -2.18), Vector3(1.4, 0.8, 0.5), bench_meshes)
 	back.build(root, host)
 	for id in back.hot.keys():
 		hot[id] = back.hot[id]
@@ -523,9 +539,10 @@ func process(delta: float, hour: float) -> bool:
 		glint.clear()
 	if where != "office":
 		var vp: Viewport = host.get_viewport()
-		var look = look_back if where == "back" else look_store
+		var look = look_back if where == "back" else (look_bench if where == "bench" else look_store)
 		var offset: Vector3 = look.update(delta, INTERIOR_LOOK.cursor_of(vp), INTERIOR_LOOK.turn_axis())
-		var want: Vector3 = (back_base_rot if where == "back" else STORE_ROOM.STAND_ROT) + offset
+		var base: Vector3 = back_base_rot if where == "back" else (bench_base_rot if where == "bench" else STORE_ROOM.STAND_ROT)
+		var want: Vector3 = base + offset
 		# The yaw wraps round: follow it the short way.
 		want.y = camera.rotation.y + wrapf(want.y - camera.rotation.y, -PI, PI)
 		camera.rotation = camera.rotation.lerp(want, clampf(delta * 30.0, 0.0, 1.0))
@@ -612,6 +629,8 @@ func click() -> bool:
 			_office_call("say", ["Lost property, summer '97. Nobody came back for the bear."], null)
 		"front_door":
 			go_out_front()
+		"bench":
+			go_bench()
 		"bed":
 			_try_sleep()
 		"tv":
@@ -828,6 +847,25 @@ func _leave_by_front() -> void:
 	host.call_deferred("close_interior")
 
 
+## To the bench under the window: round the counter's end, standing in front of it.
+func go_bench() -> void:
+	if _walking() or where != "office":
+		return
+	glint.clear()
+	_play_steps()
+	_note_walk("bench", 1.8)
+	_walk = WALK_PATH.play(host, camera, [
+		{"pos": camera.position, "rot": camera.rotation},
+		{"pos": BENCH_WAY[0], "rot": Vector3(-0.05, PI * 0.22, 0.0)},
+		{"pos": BENCH_WAY[1], "rot": Vector3(-0.05, PI * 0.05, 0.0)},
+		{"pos": BENCH_STAND, "rot": bench_base_rot},
+	], 1.8)
+	_walk.tween_callback(func():
+		where = "bench"
+		look_bench.reset()
+	)
+
+
 func go_office() -> void:
 	if _walking() or where == "office":
 		return
@@ -836,9 +874,13 @@ func go_office() -> void:
 	var to_pos: Vector3 = host._initial_cam_pos
 	var to_rot: Vector3 = host._initial_cam_rot
 	var keys: Array = [{"pos": camera.position, "rot": camera.rotation}]
-	var pivot: Node3D
+	var pivot: Node3D = null
 	var opens_first := false
-	if where == "back":
+	if where == "bench":
+		# Back round the counter the way you came.
+		keys.append({"pos": BENCH_WAY[1], "rot": Vector3(-0.05, PI * 0.95, 0.0)})
+		keys.append({"pos": BENCH_WAY[0], "rot": Vector3(-0.05, PI * 0.8, 0.0)})
+	elif where == "back":
 		var face := Vector3(0.0, -PI * 0.5, 0.0)
 		keys.append({"pos": BACK_THRESHOLD, "rot": face})
 		keys.append({"pos": Vector3(-1.45, 1.44, 1.3), "rot": face})
@@ -859,10 +901,12 @@ func go_office() -> void:
 	_walk = WALK_PATH.play(host, camera, keys, dur)
 	if opens_first:
 		_walk.parallel().tween_property(pivot, "rotation_degrees:y", DOOR_OPEN_DEG, 0.45).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	_walk.parallel().tween_property(pivot, "rotation_degrees:y", 0.0, 0.55).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT).set_delay(dur * 0.62)
+	if pivot != null:
+		_walk.parallel().tween_property(pivot, "rotation_degrees:y", 0.0, 0.55).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT).set_delay(dur * 0.62)
 	_walk.tween_callback(func():
 		where = "office"
-		_play(SFX_LATCH, -14.0)
+		if pivot != null:
+			_play(SFX_LATCH, -14.0)
 		if host.get("_look") != null:
 			host._look.reset()
 	)

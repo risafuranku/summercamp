@@ -919,8 +919,8 @@ func cabin(r: Node3D, level: int, _w := 0.0, _d := 0.0, _wall_h := 0.0, _roof_h 
 			# A porch board with two posts and a little tin roof over the door, the flower box.
 			_porch(r, w * 0.62, 0.95, front, trim, tin, false)
 			_box(r, "FlowerBox", Vector3(CL.FRONT_WIN.x + 0.1, 0.16, 0.2), Vector3(CL.FRONT_WIN_X, CL.MODEL_FLOOR + CL.SILL_MID - CL.FRONT_WIN.y * 0.5 - 0.12, front + 0.13), _wood())
-			for i in 4:
-				_box(r, "Flower", Vector3(0.08, 0.12, 0.08), Vector3(CL.FRONT_WIN_X - 0.24 + i * 0.16, CL.MODEL_FLOOR + CL.SILL_MID - CL.FRONT_WIN.y * 0.5, front + 0.13), _flat([Color(0.9, 0.2, 0.2), Color(0.95, 0.85, 0.2)][i % 2]))
+			for i in 2:
+				_flower(r, "flower_tulips" if i == 0 else "flower_marigolds", Vector2(0.3, 0.3), Vector3(CL.FRONT_WIN_X - 0.14 + i * 0.28, CL.MODEL_FLOOR + CL.SILL_MID - CL.FRONT_WIN.y * 0.5 - 0.04, front + 0.13))
 		3:
 			_porch(r, w * 0.9, 1.25, front, trim, tin, true)
 			# The stove's chimney over the front left corner, where the stove stands inside.
@@ -1102,9 +1102,9 @@ func caravan(r: Node3D, w: float, d: float, level := 1) -> Vector3:
 		_cyl(r, "HeaterFlue", 0.07, 0.22, Vector3(lx * 0.28, y0 + h + 0.16, lz * 0.3), _metal())
 		_cyl(r, "HeaterCowl", 0.11, 0.05, Vector3(lx * 0.28, y0 + h + 0.29, lz * 0.3), _flat(Color(0.9, 0.9, 0.88)))
 		for wx3: float in [lx * 0.14, lx * 0.37]:
-			_box(r, "WindowBox", Vector3(0.7, 0.14, 0.16), Vector3(wx3, y0 + h * 0.66 - 0.36, lz * 0.5 + 0.09), _flat(Color(0.5, 0.32, 0.2)))
-			for i in 5:
-				_box(r, "WindowFlower", Vector3(0.08, 0.08, 0.08), Vector3(wx3 - 0.24 + i * 0.12, y0 + h * 0.66 - 0.26 + float(i % 2) * 0.03, lz * 0.5 + 0.1), _flat(Color(0.86, 0.12, 0.16) if i % 2 == 0 else Color(0.96, 0.94, 0.9)))
+			_box(r, "WindowBox", Vector3(0.7, 0.14, 0.16), Vector3(wx3, y0 + h * 0.66 - 0.36, lz * 0.5 + 0.09), _wood())
+			for i in 2:
+				_flower(r, "flower_daisies" if i == 0 else "flower_tulips", Vector2(0.28, 0.28), Vector3(wx3 - 0.15 + i * 0.3, y0 + h * 0.66 - 0.29, lz * 0.5 + 0.1))
 	# Running gear: one axle (two on Lv3), the drawbar with its jockey wheel, the gas.
 	var axles: Array = [0.0] if lv < 3 else [-0.36, 0.36]
 	for ax in axles:
@@ -1150,10 +1150,8 @@ func caravan(r: Node3D, w: float, d: float, level := 1) -> Vector3:
 		var step_wood := _camp_or("knotty_pine.png", Color(0.86, 0.76, 0.62), "wood", Vector3(1.0, 1.0, 1.0))
 		_box(r, "Step1", Vector3(0.6, 0.16, 0.26), Vector3(door_x, 0.08, lz * 0.5 + 0.28), step_wood)
 		_box(r, "Step2", Vector3(0.6, 0.16, 0.2), Vector3(door_x, 0.24, lz * 0.5 + 0.12), step_wood)
-		_cyl(r, "FlowerPot", 0.16, 0.24, Vector3(door_x + 0.55, 0.12, lz * 0.5 + 0.3), _flat(Color(0.66, 0.32, 0.18)))
-		for i in 5:
-			var a := TAU * float(i) / 5.0
-			_box(r, "Geranium", Vector3(0.1, 0.1, 0.1), Vector3(door_x + 0.55 + cos(a) * 0.08, 0.32 + float(i % 2) * 0.05, lz * 0.5 + 0.3 + sin(a) * 0.08), _flat(Color(0.86, 0.12, 0.16)))
+		# A geranium in its pot by the steps (the pub's picture), turned to you.
+		_flower(r, "pub_geranium", Vector2(0.3, 0.44), Vector3(door_x + 0.55, 0.0, lz * 0.5 + 0.3), true)
 		_box(r, "AerialMast", Vector3(0.04, 0.7, 0.04), Vector3(lx * 0.3, y0 + h + 0.4, -lz * 0.2), _metal())
 		_box(r, "AerialBoom", Vector3(0.7, 0.03, 0.03), Vector3(lx * 0.3, y0 + h + 0.72, -lz * 0.2), _metal())
 		for i in 5:
@@ -1270,9 +1268,16 @@ func _picnic(r: Node3D, _w: float, _d: float) -> Dictionary:
 	return {"size": Vector3(1.8, 0.85, 1.5), "target": Vector3(0, 0.6, 0.8)}
 
 
+## A bed of village flowers (the user 30. 10.: "the flowers are voxel junk: sprites as
+## in a Build engine game; nothing voxel, everything textured"): dark earth in a ring of
+## field stones, two rows of clumps (Grok spr_flowers_bed: tulips, marigolds, cornflowers,
+## daisies, asters), each turned to you as Build's sprites were.
+const FLOWERS := ["flower_tulips", "flower_marigolds", "flower_cornflowers", "flower_daisies", "flower_asters"]
+
+
 func _flowerbed(r: Node3D, _w: float, _d: float) -> Dictionary:
-	var stone := _flat(Color(0.88, 0.86, 0.8))
-	var soil := _flat(Color(0.26, 0.17, 0.1))
+	var soil := _camp_or("gravel_road.png", Color(0.42, 0.3, 0.22), "dirt", Vector3(2.0, 2.0, 1.0))
+	var stone := _camp_or("fire_stone.png", Color(0.9, 0.88, 0.84), "stone")
 	_box(r, "Soil", Vector3(1.6, 0.22, 1.0), Vector3(0, 0.11, 0), soil)
 	var n := 0
 	for i in 7:
@@ -1285,19 +1290,19 @@ func _flowerbed(r: Node3D, _w: float, _d: float) -> Dictionary:
 		for side: float in [-1.0, 1.0]:
 			_box(r, "Stone%d" % n, Vector3(0.12, 0.18, 0.22), Vector3(side * 0.82, 0.09, z2), stone)
 			n += 1
-	var cols := [Color(0.88, 0.14, 0.12), Color(0.96, 0.78, 0.12), Color(0.24, 0.42, 0.9), Color(0.94, 0.94, 0.9)]
-	var leaf := _flat(Color(0.2, 0.42, 0.18))
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 4711
-	for i in 30:
-		var at := Vector3(rng.randf_range(-0.66, 0.66), 0.22, rng.randf_range(-0.38, 0.38))
-		var h := rng.randf_range(0.12, 0.3)
-		_box(r, "Stem", Vector3(0.03, h, 0.03), at + Vector3(0, h * 0.5, 0), leaf)
-		_box(r, "Bloom", Vector3(0.09, 0.07, 0.09), at + Vector3(0, h + 0.03, 0), _flat(cols[i % cols.size()]))
-	_cyl(r, "WateringCan", 0.1, 0.2, Vector3(1.0, 0.1, 0.3), _flat(Color(0.3, 0.52, 0.4)))
-	var spout := _box(r, "Spout", Vector3(0.24, 0.03, 0.03), Vector3(1.12, 0.17, 0.3), _flat(Color(0.3, 0.52, 0.4)))
-	spout.rotation.z = 0.5
+	var k := 0
+	for z3: float in [-0.2, 0.2]:
+		for i2 in 5:
+			var x2 := -0.6 + i2 * 0.3 + (0.08 if z3 > 0.0 else -0.04)
+			_flower(r, str(FLOWERS[(i2 + k) % FLOWERS.size()]), Vector2(0.34, 0.34), Vector3(x2, 0.22, z3), true)
+		k += 2
 	return {"size": Vector3(1.7, 0.5, 1.1), "target": Vector3(0, 0.4, 0.6)}
+
+
+## A clump of flowers (or a pot of them): a picture standing on `pos`, turned to you
+## (`billboard`) or facing the way the box it stands in faces.
+func _flower(r: Node3D, tex: String, size: Vector2, pos: Vector3, billboard := false, yaw := 0.0) -> MeshInstance3D:
+	return load("res://scripts/interior_kit.gd").cutout(r, tex, size, pos, yaw, billboard, "Flowers")
 
 
 func _gnome(r: Node3D, _w: float, _d: float) -> Dictionary:

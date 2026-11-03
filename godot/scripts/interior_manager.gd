@@ -1832,7 +1832,7 @@ func coop_room() -> Dictionary:
 ## Where the other warden stands in the office building (its rooms' own coordinates,
 ## on the floor): leaning on the counter from the front, by the set at the foot of the
 ## bed, at the back of the store; at the PC, on its chair (beside you, at the counter).
-const COOP_OFFICE_SPOTS := {"office": Vector3(-0.6, 0.0, -0.9), "back": Vector3(-4.3, 0.0, 1.85), "store": Vector3(-0.3, 0.0, 3.95)}
+const COOP_OFFICE_SPOTS := {"office": Vector3(-0.6, 0.0, -0.9), "back": Vector3(-4.3, 0.0, 1.85), "store": Vector3(-0.3, 0.0, 3.95), "bench": Vector3(-1.05, 0.0, -1.5)}
 ## At the desk: behind the counter to your right, by the phone (the "write" picture is
 ## the body from the hips up; the counter top hides where it ends).
 const COOP_DESK_SPOT := Vector3(1.15, 0.84, 0.74)
@@ -1847,6 +1847,8 @@ const COOP_BED := Vector3(-5.1, 0.5, -1.55)
 const COOP_OFFICE_WAYS := {
 	"back": [Vector3(-0.6, 0.0, -0.9), Vector3(-0.8, 0.0, 0.6), Vector3(-1.05, 0.0, 1.26), Vector3(-2.15, 0.0, 1.28), Vector3(-3.15, 0.0, 1.32), Vector3(-4.3, 0.0, 1.85)],
 	"store": [Vector3(-0.6, 0.0, -0.9), Vector3(-0.7, 0.0, 0.7), Vector3(0.12, 0.0, 1.85), Vector3(0.0, 0.0, 2.55), Vector3(-0.3, 0.0, 3.95)],
+	# By the bench under the window (reception_extras.go_bench): a step from the counter.
+	"bench": [Vector3(-0.6, 0.0, -0.9), Vector3(-1.05, 0.0, -1.5)],
 }
 
 
