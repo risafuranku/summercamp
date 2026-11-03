@@ -63,6 +63,8 @@ class_name SilentManBrain
 ## have none, so you choose whom. Only one of them at your neck at a time.
 
 const FX_TEX := preload("res://scripts/night/fx_tex.gd")
+const WORLD_SOUNDS := preload("res://scripts/ambient/world_sounds.gd")
+const FIGURE = preload("res://scripts/figures/doom_figure.gd")
 const N := "res://assets/textury/npc/"
 const GUEST := N + "host1.png"
 const T_M1 := N + "sm_m1.png"
@@ -135,11 +137,29 @@ var _last_player_pos := Vector3.INF
 var _speed := 0.0
 var _hits := 0
 var _drive_offs := 0
-var _peek_until := 0.0
 ## Seen: he flinches where the light found him and backs off till then, then is gone.
 var _vanish_at := -1.0
 var _shown_guest := false
+## How long you have had him in sight as the guest himself (from far, the first time).
+var _guest_seen := 0.0
 var _tex := {}
+## His set from eight sides (npc/sets/silent_s1, Richard 3. 11.): standing, the walk and
+## near with the neck drawn out, each seen from where you are. The rest of him (in the
+## light, the neck round a corner, the faces) is drawn from the front only.
+const FIG_OF := {T_M1: "stand", T_M2: "near"}
+## His glasses in a frame of the set, down from the top of his hat by the frame's height
+## (as in sm2_m1 10/128, his walk 11-12/136, near sm2_m2 17/160).
+const FIG_EYE_ROW := {"stand": 0.078, "walk": 0.085, "near": 0.106}
+var _fig: Dictionary = {}
+var _fig_img: Image
+var _fig_anim := ""
+var _fig_frame := 0
+var _fig_yaw := 0.0
+var _fig_sector := 99
+var _fig_back := false
+var _fig_atlas: Dictionary = {}
+var _fig_eyes: Dictionary = {}
+var _walk_odd := false
 ## Where his glasses are in each piece of art (sm2_*, texels from the top, the middle
 ## between them from the left, the head's tilt): his eyes in the dark sit on them.
 const EYES_AT := {GUEST: [12.0, 31.5, 0.0], T_M1: [10.0, 19.5, 0.0], T_M2: [17.0, 21.5, -0.42],
@@ -190,12 +210,19 @@ var _watch_looked := 0.0
 var _watch_side := 0.0
 var _indoors := false
 var _sound2d: AudioStreamPlayer
+## His sounds from out there while you are inside: through the walls, muffled.
+var _wall2d: AudioStreamPlayer
 ## A face in the corner of your eye, two frames, when it gets bad.
 var _sub_next := 5.0
 ## At a cabin's window while you are inside: until when.
 var _glass_until := -1.0
 ## The room's light falling out through the glass onto him.
 var _glass_light: OmniLight3D
+## Late, him on the ceiling of the room you are in, over you (Richard 3. 11.: really there):
+## there till you have looked up at him and away again, or a while unlooked at.
+var _ceil: Sprite3D
+var _ceil_seen := false
+var _ceil_until := -1.0
 ## The stare: while you are under a lamp he stands out in the open dark facing you, his
 ## glasses on you, and every time you look away he is a step nearer the light's edge.
 var _staring := false
@@ -248,6 +275,12 @@ func _on_start() -> void:
 	_step_interval = lerpf(2.6, 1.6, t)
 	_grace = lerpf(1.4, 1.0, t)
 	_damage = int(lerpf(14.0, 24.0, t))
+	_lure_n = 0
+	_fig = FIGURE.set_of("silent_s1")
+	if not _fig.is_empty() and _fig.get("tex") is Texture2D:
+		_fig_img = (_fig["tex"] as Texture2D).get_image()
+		if _fig_img != null and _fig_img.is_compressed():
+			_fig_img.decompress()
 	# Each piece of art by its first name; the body-horror round (sm2_*) wins where it is
 	# there (playtest 18. 10.: the first round was "not disgusting enough").
 	for p in [GUEST, T_M1, T_M2, T_LIT, T_FACE, T_TEAR, T_UPSIDE, T_HANDS, T_OVER, T_CROSS, T_SECOND, T_NECK, T_CEILING, T_EYES] + T_WALK:
@@ -263,13 +296,15 @@ func _on_start() -> void:
 	_hum = _loop(SFX_HUM_LOOP, -60.0)
 	_breath = _loop(SFX_BREATH_LOOP, -60.0)
 	_reset_far(_rng.randf_range(3.0, 6.0))
-	_peek_until = 0.0
 	_first = not _met() and (_first_one == null or _first_one.get_ref() == null)
 	if _first:
 		_first_one = weakref(self)
 	_tilt_sign = -1.0 if _rng.randf() < 0.5 else 1.0
 	_sound2d = AudioStreamPlayer.new()
 	_root.add_child(_sound2d)
+	_wall2d = AudioStreamPlayer.new()
+	_wall2d.bus = WORLD_SOUNDS.wall_bus("Master")
+	_root.add_child(_wall2d)
 
 
 ## The night is over (dawn, death, the menu): nothing of a catch stays on the screen.
@@ -316,6 +351,7 @@ func _on_stop() -> void:
 	_end_seq()
 	_end_hold()
 	_clear_phantoms()
+	_end_ceiling()
 	var fx := _fx()
 	if fx != null:
 		fx.close_up_off()
@@ -329,14 +365,17 @@ func _on_stop() -> void:
 func _on_tick(dt: float) -> void:
 	_track_speed(dt)
 	if _eyes != null:
-		_eyes.set("want", 0.0 if _eyes_out else 1.0)
+		_eyes.set("want", 0.0 if _eyes_out or (_fig_anim != "" and _fig_back) else 1.0)
 	_update_phantoms(dt)
 	if not _seq.is_empty():
 		_update_seq(dt)
 		return
 	_update_walk(dt)
+	if _fig_anim != "" and _body.visible:
+		_show_fig()
 	_update_audio(dt)
 	_update_presence(dt)
+	_watch_guest(dt)
 	if _reveal_t >= 0.0:
 		_update_reveal(dt)
 		return
@@ -352,7 +391,7 @@ func _on_tick(dt: float) -> void:
 		_tick_neck()
 		return
 	if _elapsed < _resume_at:
-		_body.visible = _lurking or _elapsed < _peek_until
+		_body.visible = _lurking
 		return
 	_body.visible = true
 	if _lamp_light_at(_player_pos()) >= DARK_LIGHT:
@@ -399,17 +438,17 @@ func _step() -> void:
 	var at := _walk_to + Vector3(0, 0.3, 0)
 	if walking:
 		# Half a beat after your own steps: lost in them.
-		get_tree_timer(0.25, func(): _sound(SFX_SOFTSTEP, at, lerpf(-16.0, -6.0, 1.0 - _dist / START_DIST), _rng.randf_range(0.9, 1.05), 26.0))
+		get_tree_timer(0.25, func(): _sound(SFX_SOFTSTEP, at, lerpf(-30.5, -20.5, 1.0 - _dist / START_DIST), _rng.randf_range(0.9, 1.05), 26.0))
 	else:
-		_sound(SFX_STEPS, at, lerpf(-10.0, 0.0, 1.0 - _dist / START_DIST), _rng.randf_range(0.94, 1.04), 34.0)
+		_sound(SFX_STEPS, at, lerpf(-15.0, -5.0, 1.0 - _dist / START_DIST), _rng.randf_range(0.94, 1.04), 34.0)
 	if _rng.randf() < 0.3:
-		_sound(SFX_CREAK, at + Vector3(0, 1.2, 0), lerpf(-14.0, -2.0, 1.0 - _dist / START_DIST), _rng.randf_range(0.9, 1.1), 24.0)
+		_sound(SFX_CREAK, at + Vector3(0, 1.2, 0), lerpf(-22.0, -10.0, 1.0 - _dist / START_DIST), _rng.randf_range(0.9, 1.1), 24.0)
 	_announce("Footsteps on the gravel behind you. They stop when you stop.")
 	if _dist <= NECK_DIST + 0.01:
 		# The first time he gives you longer: it is how the rule is learnt.
 		_neck_until = _elapsed + _grace * (1.7 if _first else 1.0)
 		_neck_from = _player_pos()
-		_sound(SFX_WHISPER, _player_pos() + Vector3(0, 1.55, 0) - _forward_flat() * 0.35, 2.0, 1.0, 8.0)
+		_near_you(_sound(SFX_WHISPER, _player_pos() + Vector3(0, 1.55, 0) - _forward_flat() * 0.35, -3.0, 1.0, 8.0))
 		_start_hold()
 
 
@@ -430,7 +469,7 @@ func _update_footfall(dt: float) -> void:
 		if not _is_seen(_body.global_position + Vector3(0, HEIGHT * 0.7, 0), 4.0):
 			_dist = maxf(NECK_DIST + 0.3, _dist - 0.5)
 			_place_behind(_dist)
-			_sound(SFX_STEP, _walk_to + Vector3(0, 0.3, 0), lerpf(-8.0, 2.0, 1.0 - _dist / START_DIST), _rng.randf_range(0.95, 1.03), 30.0)
+			_sound(SFX_STEP, _walk_to + Vector3(0, 0.3, 0), lerpf(-23.0, -13.0, 1.0 - _dist / START_DIST), _rng.randf_range(0.95, 1.03), 30.0)
 	if _dist < 5.0:
 		_rustle_next -= dt
 		if _rustle_next <= 0.0:
@@ -538,7 +577,7 @@ func _update_stare(dt: float) -> void:
 	_set_tex(_look_for(_distance_to_player(p)))
 	_tilt_extra = _tilt_sign * clampf(_tilt_extra * _tilt_sign + 0.12, 0.0, 0.7)
 	_apply_tilt()
-	_sound(SFX_SOFTSTEP, p + Vector3(0, 0.3, 0), -18.0, _rng.randf_range(0.9, 1.0), 22.0)
+	_sound(SFX_SOFTSTEP, p + Vector3(0, 0.3, 0), -32.5, _rng.randf_range(0.9, 1.0), 22.0)
 
 
 ## While you are in the light: he hums round his corner; now and then he leans out past
@@ -565,7 +604,7 @@ func _update_lurk(dt: float) -> void:
 		_body.global_position = _peek_spot
 		if _tex.has(T_NECK) and _rng.randf() < 0.4:
 			_show_neck(_peek_spot, _lurk_spot)
-			_sound(SFX_STRETCH, _peek_spot + Vector3(0, 1.6, 0), -6.0, _rng.randf_range(0.9, 1.05), 22.0)
+			_sound(SFX_STRETCH, _peek_spot + Vector3(0, 1.6, 0), -21.5, _rng.randf_range(0.9, 1.05), 22.0)
 		else:
 			_sound(SFX_RUSTLE, _peek_spot + Vector3(0, 1.2, 0), -14.0, _rng.randf_range(0.9, 1.1), 20.0)
 
@@ -630,6 +669,7 @@ func _place_behind(dist: float) -> void:
 	_walk_from = from
 	_walk_to = p
 	_walk_t = 0.0
+	_walk_odd = not _walk_odd
 	_set_tex(_look_for(dist))
 
 
@@ -642,7 +682,11 @@ func _update_walk(dt: float) -> void:
 	var st := floorf(k * WALK_SECONDS * 12.0) / maxf(1.0, WALK_SECONDS * 12.0)
 	_body.global_position = _walk_from.lerp(_walk_to, st)
 	var frames: Array = T_WALK.filter(func(p): return _tex.has(p))
-	if frames.size() == 2 and k < 1.0:
+	if not _fig.is_empty() and k < 1.0:
+		# Four frames, two strides: this step is one half of the cycle.
+		_fig_frame = mini(1, int(k * 2.0)) + (2 if _walk_odd else 0)
+		_set_tex(T_WALK[0])
+	elif frames.size() == 2 and k < 1.0:
 		_set_tex(frames[int(_walk_t * 6.0) % 2])
 	if k >= 1.0:
 		_walk_t = -1.0
@@ -650,8 +694,18 @@ func _update_walk(dt: float) -> void:
 		_set_tex(_look_for(_dist))
 
 
-## The guest himself the first time he is seen from far; then mouthless; near, the long
-## neck and arms.
+## The guest himself till you have once had a good look at him so, from far (seen, not
+## only shown: round his corner he wasted it); then mouthless; near, the long neck and arms.
+func _watch_guest(dt: float) -> void:
+	if _shown_guest or not _body.visible or _body.texture != _tex.get(GUEST):
+		return
+	if _is_seen(_body.global_position + Vector3(0, HEIGHT * 0.8, 0)):
+		_guest_seen += dt
+		if _guest_seen >= 1.0:
+			_shown_guest = true
+
+
+## See _watch_guest.
 func _look_for(dist: float) -> String:
 	if not _shown_guest and dist > 9.0:
 		return GUEST
@@ -663,18 +717,107 @@ func _look_for(dist: float) -> String:
 
 
 func _set_tex(path: String) -> void:
-	var tex: Texture2D = _tex.get(path)
-	if tex == null or _body.texture == tex:
+	if not _fig.is_empty() and (FIG_OF.has(path) or T_WALK.has(path)):
+		var a: String = "walk" if T_WALK.has(path) else str(FIG_OF[path])
+		if a != "walk":
+			_fig_frame = 0
+		_fig_anim = a
+		_show_fig()
 		return
+	var tex: Texture2D = _tex.get(path)
+	if tex == null or (_body.texture == tex and _fig_anim == ""):
+		return
+	_fig_anim = ""
+	_fig_back = false
 	_body.texture = tex
 	_body.flip_h = false
 	# One pixel scale for all of him (the guest's): a stage drawn taller stands taller.
 	var guest: Texture2D = _tex.get(GUEST)
 	_body.pixel_size = HEIGHT / float(guest.get_height() if guest != null else tex.get_height())
 	_body.offset = Vector2(0.0, float(tex.get_height()) * 0.5)
-	if path == GUEST:
-		_shown_guest = true
 	_pose_eyes(path, tex)
+
+
+## The view of him from your eye, a region of his set as an AtlasTexture (co-op mirrors
+## those), turned the way he steps or, standing, to you. Each frame anew while he shows
+## one: you walk round him.
+func _show_fig() -> void:
+	var cam := _camera()
+	var eye: Vector3 = cam.global_position if cam != null else _player_pos() + Vector3(0, 1.6, 0)
+	var step := _walk_to - _walk_from
+	if _fig_anim == "walk" and _walk_t >= 0.0 and Vector2(step.x, step.z).length() > 0.01:
+		_fig_yaw = atan2(-step.x, -step.z)
+	else:
+		var to := eye - _body.global_position
+		_fig_yaw = atan2(-to.x, -to.z)
+	_fig_sector = FIGURE.sector_for(_body.global_position, _fig_yaw, eye, _fig_sector)
+	var view := absi(_fig_sector)
+	var flip := _fig_sector < 0
+	var anims: Dictionary = _fig.get("anims", {})
+	var fr = FIGURE._frame_of(anims, _fig_anim, view, _fig_frame)
+	if fr == null:
+		fr = FIGURE._frame_of(anims, "stand", view, 0)
+	if fr == null:
+		return
+	var key := str(fr)
+	var at: AtlasTexture = _fig_atlas.get(key)
+	if at == null:
+		at = AtlasTexture.new()
+		at.atlas = _fig.get("tex")
+		at.region = Rect2(float(fr[0]), float(fr[1]), float(fr[2]), float(fr[3]))
+		_fig_atlas[key] = at
+	if _body.texture == at and _body.flip_h == flip:
+		return
+	_body.texture = at
+	_body.flip_h = flip
+	_body.pixel_size = HEIGHT / float(_fig.get("h", 128))
+	var ox := float(fr[2]) * 0.5 - float(fr[4])
+	_body.offset = Vector2(-ox if flip else ox, float(fr[5]) - float(fr[3]) * 0.5)
+	# His glasses: on the frame's head; from the side and behind none (the other side).
+	_fig_back = view >= 2
+	if _eyes == null:
+		return
+	var g: Vector2 = _fig_eyes.get(key, Vector2.INF)
+	if g == Vector2.INF:
+		g = _head_of(fr)
+		_fig_eyes[key] = g
+	var px := _body.pixel_size
+	_eyes.set("height", (float(fr[5]) - g.y) * px)
+	var x := (g.x - float(fr[4])) * px
+	_eyes.set("x_off", -x if flip else x)
+	_pose_tilt = 0.0
+	_apply_tilt()
+
+
+## Where his glasses are in a frame of the set (texels in it): FIG_EYE_ROW of its height
+## below the top of his hat, in the middle of his head there.
+func _head_of(fr: Array) -> Vector2:
+	var x0 := int(fr[0])
+	var y0 := int(fr[1])
+	var w := int(fr[2])
+	var h := int(fr[3])
+	var fallback := Vector2(float(fr[4]), float(h) * 0.08)
+	if _fig_img == null:
+		return fallback
+	var top := -1
+	for yy in h:
+		for xx in w:
+			if _fig_img.get_pixel(x0 + xx, y0 + yy).a > 0.5:
+				top = yy
+				break
+		if top >= 0:
+			break
+	if top < 0:
+		return fallback
+	var row := float(top) + float(h) * float(FIG_EYE_ROW.get(_fig_anim, 0.08))
+	var sx := 0.0
+	var n := 0
+	for yy in range(top + int(h * 0.04), mini(h, top + int(h * 0.11))):
+		for xx in w:
+			if _fig_img.get_pixel(x0 + xx, y0 + yy).a > 0.5:
+				sx += xx
+				n += 1
+	return Vector2(sx / float(n) if n > 0 else float(fr[4]), row)
 
 
 ## His eyes onto the glasses of the art he is in now.
@@ -724,7 +867,7 @@ func _eyes_flare(at: Vector3) -> float:
 	var k := clampf((c - cos(deg_to_rad(float(aim["half_angle"]) * 0.8))) / 0.02, 0.0, 1.0)
 	if k > 0.5 and not _glint_stung and d > 9.0 and _body.visible and _fx() != null:
 		_glint_stung = true
-		_ear(SFX_STING, -16.0, 0.8)
+		_ear(SFX_STING, -3.0, 0.8)
 	return k
 
 
@@ -733,11 +876,11 @@ func _update_audio(dt: float) -> void:
 	if _hum != null:
 		_hum.global_position = _body.global_position + Vector3(0, 1.6, 0)
 		# He hums only while he waits for you in the dark round his corner.
-		var want := lerpf(-30.0, -12.0, clampf(1.0 - d / (LURK_DIST.y + 4.0), 0.0, 1.0)) if _lurking else -60.0
+		var want := lerpf(-23.5, -5.5, clampf(1.0 - d / (LURK_DIST.y + 4.0), 0.0, 1.0)) if _lurking else -60.0
 		_hum.volume_db = move_toward(_hum.volume_db, want, (60.0 if want < _hum.volume_db else 20.0) * dt)
 	if _breath != null:
 		_breath.global_position = _body.global_position + Vector3(0, 1.6, 0)
-		_breath.volume_db = -60.0 if (d > 4.5 or _elapsed < _resume_at) else lerpf(-2.0, -22.0, d / 4.5)
+		_breath.volume_db = -60.0 if (d > 4.5 or _elapsed < _resume_at) else lerpf(-8.5, -28.5, d / 4.5)
 	var fx := _fx()
 	if fx != null and _elapsed >= _resume_at:
 		fx.set_dread(_fx_key, clampf(1.0 - _dist / START_DIST, 0.0, 1.0) * 0.8)
@@ -892,7 +1035,7 @@ func _start_catch(forced := "") -> void:
 	var fx := _fx()
 	if fx != null:
 		fx.freeze(0.08)
-	_sound(SFX_STING, _player_pos() + Vector3(0, 1.5, 0), 3.0)
+	_near_you(_sound(SFX_STING, _player_pos() + Vector3(0, 1.5, 0), 1.5))
 
 
 func _cue(at: float, id: String) -> bool:
@@ -904,7 +1047,16 @@ func _cue(at: float, id: String) -> bool:
 
 
 func _ear(file: String, db: float, pitch: float = 1.0) -> void:
-	_sound(file, _player_pos() + Vector3(0, 1.55, 0) - _forward_flat() * 0.3, db, pitch, 10.0)
+	_near_you(_sound(file, _player_pos() + Vector3(0, 1.55, 0) - _forward_flat() * 0.3, db, pitch, 10.0))
+
+
+## A sound at you (your ear, your neck, the sting in your face) at the gain written: a
+## sound 0.3 m off gets +20 dB from its nearness and every one of them hit the 3D
+## player's ceiling (+3) alike; its unit size the distance it is at takes that out.
+func _near_you(p: AudioStreamPlayer3D) -> void:
+	var cam := _camera()
+	if p != null and cam != null:
+		p.unit_size = maxf(0.05, cam.global_position.distance_to(p.global_position))
 
 
 func _hit_now() -> void:
@@ -941,11 +1093,11 @@ func _update_seq(dt: float) -> void:
 				elif st < 1.15:
 					fx.close_up(_t(T_TEAR, T_FACE), lerpf(1.3, 1.9, (st - 0.7) / 0.45), 1.0, 0.02, -0.25)
 			if _cue(0.25, "breath"):
-				_ear(SFX_BREATH, 4.0)
+				_ear(SFX_BREATH, -2.0)
 			if _cue(0.62, "tear"):
-				_ear(SFX_TEAR, 4.0)
+				_ear(SFX_TEAR, -0.5)
 			if _cue(1.0, "bite"):
-				_ear(SFX_BITE, 6.0)
+				_ear(SFX_BITE, 1.0)
 				_hit_now()
 			_fade_out(fx, t, 1.15, 1.6)
 		"above":
@@ -956,11 +1108,11 @@ func _update_seq(dt: float) -> void:
 				elif st < 1.2:
 					fx.close_up(_t(T_TEAR, T_FACE), lerpf(1.4, 2.0, (st - 0.8) / 0.4), 1.0, 0.022, PI)
 			if _cue(0.1, "breath"):
-				_ear(SFX_BREATH, 4.0, 0.9)
+				_ear(SFX_BREATH, -2.0, 0.9)
 			if _cue(0.7, "tear"):
-				_ear(SFX_TEAR, 5.0)
+				_ear(SFX_TEAR, -0.5)
 			if _cue(1.05, "bite"):
-				_ear(SFX_BITE, 6.0)
+				_ear(SFX_BITE, 1.0)
 				_hit_now()
 			_fade_out(fx, t, 1.2, 1.7)
 		"turn":
@@ -974,11 +1126,11 @@ func _update_seq(dt: float) -> void:
 				elif st < 1.2:
 					fx.close_up(_t(T_TEAR, T_FACE), lerpf(1.4, 2.1, (st - 0.8) / 0.4), 1.0, 0.024)
 			if _cue(0.3, "mmm"):
-				_ear(SFX_MMM, 5.0)
+				_ear(SFX_MMM, 3.0)
 			if _cue(0.75, "tear"):
-				_ear(SFX_TEAR, 5.0)
+				_ear(SFX_TEAR, -0.5)
 			if _cue(1.05, "bite"):
-				_ear(SFX_BITE, 6.0)
+				_ear(SFX_BITE, 1.0)
 				_hit_now()
 			_fade_out(fx, t, 1.2, 1.7)
 		"strangle":
@@ -992,9 +1144,9 @@ func _update_seq(dt: float) -> void:
 					fx.close_up(_t(T_FACE), lerpf(1.3, 2.4, (st - 1.5) / 1.5), 1.0, 0.02 * (1.0 - (st - 1.5) / 1.5))
 					fx.set_black(clampf((st - 1.5) / 1.5, 0.0, 0.85))
 			if _cue(0.1, "choke"):
-				_ear(SFX_CHOKE, 6.0)
+				_ear(SFX_CHOKE, -1.5)
 			if _cue(1.4, "breath"):
-				_ear(SFX_BREATH, 6.0, 0.85)
+				_ear(SFX_BREATH, -2.0, 0.85)
 			if cam != null:
 				_set_pitch(float(_seq["pitch0"]) + 0.12 * clampf(st / 1.5, 0.0, 1.0))
 			if _cue(3.0, "hit"):
@@ -1008,9 +1160,9 @@ func _update_seq(dt: float) -> void:
 			var turn := clampf(floorf((st - 0.6) / 0.1) / 6.0, 0.0, 1.0)
 			_set_yaw(float(_seq["yaw0"]) + PI * turn)
 			if _cue(0.6, "grind"):
-				_ear(SFX_CHOKE, 0.0, 1.3)
+				_ear(SFX_CHOKE, -2.5, 1.3)
 			if _cue(1.2, "snap"):
-				_ear(SFX_SNAP, 8.0)
+				_ear(SFX_SNAP, -0.5)
 				if fx != null:
 					fx.red_flash(0.8)
 					fx.glitch(0.9, 0.6)
@@ -1030,9 +1182,9 @@ func _update_seq(dt: float) -> void:
 				elif st < 1.3:
 					fx.close_up(_t(T_TEAR, T_FACE), lerpf(1.5, 3.2, (st - 0.5) / 0.8), 1.0, 0.02 + 0.02 * (st - 0.5), 0.0, Vector2(0.0, -0.25 * (st - 0.5)))
 			if _cue(0.45, "tear"):
-				_ear(SFX_TEAR, 6.0, 0.9)
+				_ear(SFX_TEAR, -0.5, 0.9)
 			if _cue(1.1, "bite"):
-				_ear(SFX_BITE, 8.0, 0.9)
+				_ear(SFX_BITE, 1.0, 0.9)
 				if fx != null:
 					fx.red_flash(1.0)
 			if cam != null and st >= 1.3:
@@ -1059,11 +1211,11 @@ func _update_seq_worse(kind: String, t: float, st: float, fx, cam: Camera3D) -> 
 				elif st < 1.4:
 					fx.close_up(_t(T_CROSS, T_TEAR), lerpf(1.2, 2.6, (st - 0.6) / 0.8), 1.0, 0.01 + 0.025 * (st - 0.6))
 			if _cue(0.5, "stretch"):
-				_ear(SFX_STRETCH, 4.0)
+				_ear(SFX_STRETCH, -12.5)
 			if _cue(0.7, "throat"):
-				_ear(SFX_THROAT, 6.0)
+				_ear(SFX_THROAT, -8.0)
 			if _cue(1.3, "bite"):
-				_ear(SFX_BITE, 8.0, 0.8)
+				_ear(SFX_BITE, 1.0, 0.8)
 				_hit_now()
 			_fade_out(fx, t, 1.4, 1.9)
 		"inside":
@@ -1079,11 +1231,11 @@ func _update_seq_worse(kind: String, t: float, st: float, fx, cam: Camera3D) -> 
 					fx.close_up(_t(T_CROSS, T_TEAR), lerpf(1.6, 4.0, (st - 1.9) / 0.7), 1.0, 0.03)
 					fx.set_black(clampf((st - 2.2) / 0.4, 0.0, 0.9))
 			if _cue(0.5, "second"):
-				_ear(SFX_SECOND, 6.0)
+				_ear(SFX_SECOND, 2.5)
 			if _cue(1.9, "throat"):
-				_ear(SFX_THROAT, 8.0, 0.85)
+				_ear(SFX_THROAT, -8.0, 0.85)
 			if _cue(2.5, "bite"):
-				_ear(SFX_BITE, 10.0, 0.75)
+				_ear(SFX_BITE, 1.0, 0.75)
 				if fx != null:
 					fx.red_flash(1.0)
 			if _cue(2.6, "hit"):
@@ -1098,11 +1250,11 @@ func _update_seq_worse(kind: String, t: float, st: float, fx, cam: Camera3D) -> 
 				if st > 1.6:
 					fx.red_flash(0.5)
 			if _cue(0.1, "breath"):
-				_ear(SFX_BREATH, 6.0, 0.8)
+				_ear(SFX_BREATH, -2.0, 0.8)
 			if _cue(0.9, "stretch"):
-				_ear(SFX_STRETCH, 6.0, 0.8)
+				_ear(SFX_STRETCH, -12.5, 0.8)
 			if _cue(1.8, "give"):
-				_ear(SFX_BITE, 6.0, 0.6)
+				_ear(SFX_BITE, 1.0, 0.6)
 			if cam != null:
 				_set_pitch(float(_seq["pitch0"]) + 0.25 * clampf(st / 1.0, 0.0, 1.0))
 			if _cue(2.4, "hit"):
@@ -1257,8 +1409,8 @@ func _start_hold() -> void:
 	var fx := _fx()
 	if fx != null:
 		fx.freeze(0.06)
-	_ear(SFX_BREATH, 3.0, 0.95)
-	_sound(SFX_RUSTLE, _player_pos() + Vector3(0, 1.3, 0) - _forward_flat() * 0.4, 0.0, 1.0, 6.0)
+	_ear(SFX_BREATH, -2.0, 0.95)
+	_near_you(_sound(SFX_RUSTLE, _player_pos() + Vector3(0, 1.3, 0) - _forward_flat() * 0.4, 0.0, 1.0, 6.0))
 	if "held_speed_mult" in _player:
 		_player.set("held_speed_mult", 0.5)
 
@@ -1328,7 +1480,7 @@ func _start_reveal() -> bool:
 		_set_tex(frames[0] if not frames.is_empty() else _look_for(9.0))
 		_reveal_t = 0.0
 		_reveal_seen = 0.0
-		_sound(SFX_STEP, p + Vector3(0, 0.3, 0), -2.0, 0.92, 30.0)
+		_sound(SFX_STEP, p + Vector3(0, 0.3, 0), -17.0, 0.92, 30.0)
 		_announce("Footsteps on the gravel behind you. They stop when you stop.")
 		return true
 	return false
@@ -1346,7 +1498,7 @@ func _update_reveal(dt: float) -> void:
 		_reveal_seen += dt
 		if _reveal_seen >= 0.55:
 			_reveal_t = -1.0
-			_sound(SFX_HUM, head, -10.0, 0.8, 20.0)
+			_sound(SFX_HUM, head, -4.0, 0.8, 20.0)
 			_driven_off()
 			_drive_offs -= 1
 			return
@@ -1376,11 +1528,15 @@ func _tick_indoors(delta: float) -> void:
 	if not _night_active or not _indoors_now():
 		_indoors = false
 		_end_watch()
+		_end_ceiling()
 		return
 	if not _indoors:
 		_indoors = true
-		_lure_n = 0
+		# (_lure_n counts on over the night, every stay inside: "late in his night" is the
+		# night's, not this stay's; going in and out does not start him over.)
 		_lure_next = _wall_clock() + _rng.randf_range(12.0, 22.0)
+	if _ceil != null:
+		_tick_ceiling()
 	if _watch_win >= 0:
 		_tick_watch(delta)
 		return
@@ -1423,7 +1579,11 @@ func _room_windows() -> Array:
 		return im.photo_windows() if im != null and im.has_method("photo_windows") else []
 	var out: Array = []
 	for w in Coop.state_of(peer).get("pw", []):
-		out.append({"pos": w[0], "out": w[1], "open": float(w[2]), "facing": float(w[3]), "far": true})
+		var o := {"pos": w[0], "out": w[1], "open": float(w[2]), "facing": float(w[3]), "far": true}
+		# Where that window's camera looks out from (older machines do not send it).
+		if (w as Array).size() > 4 and w[4] != w[0]:
+			o["view"] = w[4]
+		out.append(o)
 	return out
 
 
@@ -1500,7 +1660,7 @@ func _tick_watch(delta: float) -> void:
 		_watch_looked += delta
 		if not _watch_seen and _watch_steps > 0:
 			# Nearer than he was: the sting, once.
-			_room_2d(SFX_STING, -12.0, 0.85)
+			_room_2d(SFX_STING, -2.0, 0.85, false)
 	elif _watch_seen:
 		# You looked away.
 		if _watch_looked >= WATCH_LOOKED and (_watch_steps >= WATCH_STEPS or _rng.randf() < 0.45):
@@ -1513,7 +1673,7 @@ func _tick_watch(delta: float) -> void:
 			if p != Vector3.INF:
 				_place_watch(w, p)
 			if _rng.randf() < 0.5:
-				_room_2d(SFX_SOFTSTEP, -16.0, 0.9)
+				_room_2d(SFX_SOFTSTEP, -30.5, 0.9)
 	_watch_seen = seen
 	_body.visible = true
 
@@ -1536,21 +1696,26 @@ func _indoor_sound() -> void:
 	var late := _lure_n >= 4
 	var r := _rng.randf()
 	if late and r < 0.18 and _tex.has(T_CEILING):
-		_room_2d(SFX_CEILING, -4.0)
+		_room_2d(SFX_CEILING, -8.5)
 		get_tree_timer(2.4, func():
-			var f := _fx()
-			if _indoors and f != null:
-				f.subliminal(_t(T_CEILING), 3, 1.0, Color(0.5, 0.45, 0.45)))
+			if not _indoors:
+				return
+			# Another warden's room is on their machine, not here: his face over theirs for
+			# a moment, as it was.
+			if _quarry_peer() != 0 or not _start_ceiling():
+				var f := _fx()
+				if f != null:
+					f.subliminal(_t(T_CEILING), 3, 1.0, Color(0.5, 0.45, 0.45)))
 		return
 	if late and r < 0.32 and _at_glass(_im()):
 		return
 	match _rng.randi() % 3:
 		0:
-			_room_2d(SFX_SOFTSTEP, -15.0, 0.85)
+			_room_2d(SFX_SOFTSTEP, -29.5, 0.85)
 		1:
-			_room_2d(SFX_HUM, -20.0, 0.8)
+			_room_2d(SFX_HUM, -14.0, 0.8)
 		_:
-			_room_2d(SFX_BREATH, -18.0, 0.9)
+			_room_2d(SFX_BREATH, -20.0, 0.9)
 
 
 ## The cabin you are in: he stands outside one of its windows, close to the glass, and
@@ -1574,16 +1739,17 @@ func _at_glass(im) -> bool:
 	var p := _ground((w["pos"] as Vector3) + (w["out"] as Vector3) * 0.55)
 	if p == Vector3.INF:
 		return false
-	_room_2d("res://assets/sfx/director/window_tap.mp3", -4.0)
+	_room_2d("res://assets/sfx/director/window_tap.mp3", -4.0, 1.0, false)
 	_body.global_position = p
 	_body.visible = true
-	_set_tex(T_M2 if _tex.has(T_M2) else T_M1)
+	# On the ground, as he stands: his glasses at 1.68 m, the middle of a cabin window at
+	# 1.67 (cabin_layout SILL_MID). (The taller one, his neck drawn out, was let down into
+	# the ground 0.4 m to get his face there; seen from outside, he stood in a hole.)
+	_set_tex(T_M1 if _tex.has(T_M1) else T_M2)
 	_glass_until = _wall_clock() + _rng.randf_range(3.5, 5.5)
 	# His glasses in the window, seen from the room (the window's own camera).
 	if _eyes != null:
 		_eyes.set("view_from", (w["pos"] as Vector3) - (w["out"] as Vector3) * 1.5)
-		# Stooped to the glass: his face in the middle of the window, not his shirt.
-		_body.global_position.y = (w["pos"] as Vector3).y - float(_eyes.get("height")) - 0.05
 	if _glass_light == null:
 		_glass_light = OmniLight3D.new()
 		_glass_light.light_color = Color(1.0, 0.78, 0.5)
@@ -1594,19 +1760,105 @@ func _at_glass(im) -> bool:
 	_glass_light.visible = true
 	get_tree_timer(1.0, func():
 		if _indoors and _fx() != null:
-			_room_2d(SFX_HUM, -12.0, 0.85))
+			_room_2d(SFX_HUM, -6.0, 0.85))
 	return true
 
 
-func _room_2d(file: String, db: float, pitch: float = 1.0) -> void:
-	if _play_2d_remote(file, db, pitch):
+## Him on the ceiling over you, a step in front, flat to it and looking down, hung on the
+## room there. The rooms' ceilings have no collision: it is the lowest thin wide slab
+## drawn over you (a tent's canvas is none: false, as where there is no ceiling).
+func _start_ceiling() -> bool:
+	_end_ceiling()
+	var cam := _room_camera()
+	if cam == null:
+		return false
+	var fwd := (-cam.global_transform.basis.z).slide(Vector3.UP)
+	fwd = fwd.normalized() if fwd.length() > 0.01 else Vector3.FORWARD
+	var under := cam.global_position + fwd * 0.6
+	var slab: VisualInstance3D = null
+	var y := INF
+	for id in RenderingServer.instances_cull_ray(under, under + Vector3.UP * 3.5, cam.get_world_3d().scenario):
+		var n = instance_from_id(id)
+		if not (n is VisualInstance3D) or not (n as Node3D).is_visible_in_tree():
+			continue
+		var box: AABB = (n as VisualInstance3D).global_transform * (n as VisualInstance3D).get_aabb()
+		# (The cull takes the ray as endless: only what is over your head in the room.)
+		if box.size.y > 0.3 or box.size.x < 1.0 or box.size.z < 1.0 or box.position.y < under.y + 0.3 or box.position.y > under.y + 3.5:
+			continue
+		if box.position.y < y:
+			y = box.position.y
+			slab = n
+	if slab == null:
+		return false
+	_ceil = Sprite3D.new()
+	_ceil.texture = _t(T_CEILING)
+	_ceil.pixel_size = 0.009
+	_ceil.shaded = false
+	_ceil.modulate = Color(0.55, 0.5, 0.5)
+	_ceil.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	_ceil.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+	slab.add_child(_ceil)
+	# Its face down (+Z to the floor), his head away from you.
+	_ceil.global_transform = Transform3D(Basis.looking_at(Vector3.UP, fwd), Vector3(under.x, y - 0.02, under.z))
+	_ceil_seen = false
+	_ceil_until = _wall_clock() + 12.0
+	return true
+
+
+## The camera of the room you are in (each room draws through its own viewport: the
+## game's is still the one outside, the rooms stand far off in the sky).
+func _room_camera() -> Camera3D:
+	var im = _im()
+	if im == null:
+		return null
+	for n in ["_building_interior", "_cabin_interior", "_caravan_interior", "_tent_interior", "_service_interior"]:
+		var r = im.get(n)
+		if r == null or not is_instance_valid(r):
+			continue
+		var c = r.get("_interior_camera")
+		if c is Camera3D and is_instance_valid(c) and (c as Camera3D).is_inside_tree() and (c as Camera3D).current:
+			return c
+	return null
+
+
+## Look up: he is there (the sting, once). Look away again: he is not. Never looked at, he
+## is gone after a while.
+func _tick_ceiling() -> void:
+	if not is_instance_valid(_ceil) or not _ceil.is_inside_tree():
+		_ceil = null
 		return
-	if _sound2d == null or not ResourceLoader.exists(file):
+	var cam := _ceil.get_viewport().get_camera_3d()
+	var seen := false
+	if cam != null:
+		var to := _ceil.global_position - cam.global_position
+		seen = (-cam.global_transform.basis.z).normalized().dot(to.normalized()) > cos(deg_to_rad(cam.fov * 0.45))
+	if seen and not _ceil_seen:
+		_ceil_seen = true
+		_room_2d(SFX_STING, -2.0, 0.75, false)
+	elif (_ceil_seen and not seen) or (not _ceil_seen and _wall_clock() > _ceil_until):
+		_end_ceiling()
+
+
+func _end_ceiling() -> void:
+	if _ceil != null and is_instance_valid(_ceil):
+		_ceil.queue_free()
+	_ceil = null
+	_ceil_seen = false
+
+
+## A sound of him while you are inside. `wall`: he is out there and it comes through the
+## walls, muffled (his step, his humming, his breath, him over the roof); not for the
+## tap on the glass itself, nor the sting.
+func _room_2d(file: String, db: float, pitch: float = 1.0, wall := true) -> void:
+	if _play_2d_remote(file, db, pitch, wall):
 		return
-	_sound2d.stream = load(file)
-	_sound2d.volume_db = db
-	_sound2d.pitch_scale = pitch
-	_sound2d.play()
+	var p := _wall2d if wall else _sound2d
+	if p == null or not ResourceLoader.exists(file):
+		return
+	p.stream = load(file)
+	p.volume_db = db
+	p.pitch_scale = pitch
+	p.play()
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────

@@ -401,9 +401,10 @@ def check(fig):
 		h = img.height
 		lo = ref_h * {"stand": 0.96, "walk": 0.92, "run": 0.76, "idle": 0.8}.get(anim, 0.6)
 		hi = ref_h * {"stand": 1.04, "walk": 1.0, "run": 1.0, "idle": 1.04}.get(anim, 1.1)
-		if anim == "up" and fig in figure_prompts.BABKA:
-			# The granny straightened is drawn far taller than her (babka_s0_up.png, its view 1).
-			up_h = pose_sprite(fig, "up").height
+		if (anim == "up" and fig in figure_prompts.BABKA) or (anim == "near" and fig in figure_prompts.SILENT):
+			# Drawn far taller than the person, by its own picture: the granny straightened
+			# (babka_s0_up.png), the Silent Man near with his neck drawn out (silent_s1_near.png).
+			up_h = pose_sprite(fig, anim).height
 			lo, hi = up_h * 0.96, up_h * 1.04
 		if not (lo - 1 <= h <= hi + 1):
 			fails.append("%s height %d (want %d..%d)" % (k, h, lo, hi))

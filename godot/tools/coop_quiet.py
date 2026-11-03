@@ -75,6 +75,7 @@ def main():
     # At their neck.
     expect(h, "host", "neck_other", lambda r: r["leak"] == "false" and r["private"] == "true", "the host sees him at the other warden's neck")
     expect(c, "client", "neck_here", lambda r: r["close"] == "true" and r["slow"] == "true", "the joining warden is not held at the neck (hands, half speed)")
+    expect(c, "client", "neck_here", lambda r: float(r.get("fear", 0)) > 0.2, "the joining warden's face does not fear him at their neck (threat senses)")
     # Their torch on him.
     expect(h, "host", "lit_other", lambda r: r["leak"] == "false", "the host sees him come apart in the other warden's light")
     expect(c, "client", "lit_here", lambda r: r["dissolve"] == "true", "the joining warden does not see him come apart (the dither)")

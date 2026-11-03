@@ -266,7 +266,9 @@ The night's jobs (the breaker, the sewer, a lamp) and the pager pull you out reg
 The director budgets the night so that at most one hunter presses on a warden at a time.
 In co-op an enemy hunts one warden; what it does to make itself felt reaches only that
 one; the other warden's light counts as light (watching each other's backs is the
-counter for two).
+counter for two). A joining machine runs no brains: the host sends where each enemy it may
+feel is (`coop_night.get_presence`), and its insects fall silent and its HUD face looks
+round as on the host's.
 
 ### 5a.1 The Silent Man in full (`scripts/enemies/silent_man_brain.gd`)
 
@@ -325,10 +327,14 @@ game, every time, and never scripted to a place.
   still, only his glasses in the black; look away and when you look back he is nearer
   (twice at most), and after you have looked at him a while, or half a minute, he is not
   there; a drawn curtain takes him away. Between, seldom, a sound: one slow step on the
-  gravel, his humming far off, a breath at the wall; late in his night now and then his
-  face over the ceiling, or he stoops to the glass and taps (his face in it, lit by the
-  room's light falling out). The windows' `view` (the window's camera, your eye out in the
-  camp: `photo_windows()`) places him.
+  gravel, his humming far off, a breath at the wall; late in his night (the night's, not
+  the stay's: going in and out does not start him over) now and then his face over the
+  ceiling, or he comes to the glass and taps (standing: a cabin's windows are set high,
+  his glasses come to the middle of one; his face lit by the room's light falling out).
+  The windows' `view` (the window's camera, your eye out in the camp: `photo_windows()`,
+  in co-op sent with the warden's windows) places him. His sounds from out there come
+  through the walls, muffled (`WORLD_SOUNDS.wall_bus`); the tap on the glass and the
+  sting do not.
 
 ### 5a.3 The Whistler (Tramps; `scripts/enemies/whistler_brain.gd`)
 

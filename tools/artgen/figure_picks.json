@@ -593,6 +593,33 @@
    "id": "fig_pepicek_turn_1"
   }
  },
+ "silent_s1": {
+  "poses": {
+   "near": {
+    "id": "fig_silent_s1_pose_near_1"
+   }
+  },
+  "turn": {
+   "id": "fig_silent_s1_turn_1"
+  },
+  "walk": {
+   "1": {
+    "id": "fig_silent_s1_walk1_1"
+   },
+   "2": {
+    "id": "fig_silent_s1_walk2_1"
+   },
+   "3": {
+    "id": "fig_silent_s1_walk3_1"
+   },
+   "4": {
+    "id": "fig_silent_s1_walk4_1"
+   },
+   "5": {
+    "id": "fig_silent_s1_walk5_1"
+   }
+  }
+ },
  "warden_a": {
   "idle": {
    "1": {

@@ -297,13 +297,13 @@ func _move_player(to: Vector3) -> void:
 
 
 ## A sound in the room with them, on their machine; false if it is this one (the
-## brain plays it here itself).
-func _play_2d_remote(file: String, db: float, pitch: float) -> bool:
+## brain plays it here itself). `wall`: from out there, through the walls.
+func _play_2d_remote(file: String, db: float, pitch: float, wall := false) -> bool:
 	if _quarry_peer() == 0:
 		return false
 	var fx := _fx()
 	if fx != null:
-		fx.call("play_2d", file, db, pitch)
+		fx.call("play_2d", file, db, pitch, wall)
 	return true
 
 

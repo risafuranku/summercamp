@@ -1460,7 +1460,8 @@ func _prune_stale_lamp_runtime() -> void:
 			continue
 		var entry: Dictionary = entry_any
 		var root = entry.get("root", null)
-		if not (root is Node) or not is_instance_valid(root):
+		# (A lamp pulled down is freed: asked what it is first, it is an error every frame.)
+		if not is_instance_valid(root) or not (root is Node):
 			stale_ids.append(lamp_id)
 	for lamp_id in stale_ids:
 		_lamp_runtime.erase(lamp_id)
@@ -1639,8 +1640,10 @@ func get_light_level_at(world_pos: Vector3) -> float:
 		if not (entry_any is Dictionary):
 			continue
 		var entry: Dictionary = entry_any
+		if not is_instance_valid(entry.get("root", null)):
+			continue
 		var root = entry.get("root", null) as Node3D
-		if root == null or not is_instance_valid(root):
+		if root == null:
 			continue
 
 		var spot = entry.get("spot", null) as SpotLight3D

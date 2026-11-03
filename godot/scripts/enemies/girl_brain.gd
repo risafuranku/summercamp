@@ -566,7 +566,7 @@ func _room_lure(n: int) -> void:
 				_room_2d("res://assets/sfx/director/window_tap.mp3", -4.0, 0.9)
 		4:
 			for i in 12:
-				_later(0.05 * float(i), func(): _room_2d(SFX_SNAP, -12.0, _rng.randf_range(2.2, 2.8)))
+				_later(0.05 * float(i), func(): _room_2d(SFX_SNAP, -7.0, _rng.randf_range(2.2, 2.8)))
 			_later(1.2, func(): _room_2d(SFX_DROOL, -8.0, 0.8))
 		_:
 			_visit_guest()
@@ -707,7 +707,7 @@ func _tick_chatter(dt: float, d: float) -> void:
 	for i in n:
 		_root.get_tree().create_timer(0.055 * float(i)).timeout.connect(func():
 			if _phase == STALK:
-				_sound(SFX_SNAP, at, lerpf(-6.0, -16.0, d / 8.0), _rng.randf_range(2.1, 2.7), 14.0))
+				_sound(SFX_SNAP, at, lerpf(-2.5, -11.0, d / 8.0), _rng.randf_range(2.1, 2.7), 14.0))
 
 
 ## Under a lamp: the ring of her eyes round the edge of the light.
@@ -1176,8 +1176,8 @@ func _update_strike(dt: float) -> void:
 				fx.overlay(hands, 1.1, 0.012)
 		_cam_set(-0.1, 0.22 * _strike_side)
 		if _cue(1.0, "snap"):
-			_sound(SFX_SNAP, _player_pos() + _forward_flat() * 0.5 + Vector3(0, 1.5, 0), 4.0, 0.8, 8.0)
-			_ear_sfx(SFX_SNAP, 0.0, 1.3)
+			_sound(SFX_SNAP, _player_pos() + _forward_flat() * 0.5 + Vector3(0, 1.5, 0), -0.5, 0.8, 8.0)
+			_ear_sfx(SFX_SNAP, -1.0, 1.3)
 			if fx != null:
 				fx.red_flash(0.25)
 	# Split: the face opens down the middle like a second mouth.
@@ -1194,7 +1194,7 @@ func _update_strike(dt: float) -> void:
 				fx.overlay(hands, 1.12 + 0.1 * k, 0.014)
 		_cam_set(-0.12, 0.05 * _strike_side + 0.04 * sin(st * 45.0))
 		if _cue(1.12, "tear"):
-			_ear_sfx(SFX_TEAR, 6.0, 0.9)
+			_ear_sfx(SFX_TEAR, -0.5, 0.9)
 			_sound(SFX_SCREAM, _player_pos() + Vector3(0, 1.5, 0), 4.0, 0.85)
 			if fx != null:
 				fx.glitch(0.45, 0.6)
@@ -1210,8 +1210,8 @@ func _update_strike(dt: float) -> void:
 		if _cue(1.9, "bite"):
 			_hurt(_hit)
 			claimed = true
-			_ear_sfx(SFX_BITE, 8.0, 0.9)
-			_ear_sfx(SFX_SNAP, 3.0, 0.8)
+			_ear_sfx(SFX_BITE, 1.0, 0.9)
+			_ear_sfx(SFX_SNAP, -0.5, 0.8)
 			if fx != null:
 				fx.red_flash(1.0)
 				fx.blood(1.0)
@@ -1237,7 +1237,7 @@ func _update_strike(dt: float) -> void:
 		if _cue(2.15, "chew"):
 			_ear_sfx(SFX_DROOL, -2.0, 0.7)
 		if _cue(2.5, "chew2"):
-			_ear_sfx(SFX_BITE, -8.0, 0.75)
+			_ear_sfx(SFX_BITE, -1.5, 0.75)
 	# After: on the ground, the picture on its side; she stands out there, head upside
 	# down, and giggles; a blink and she is gone.
 	elif st < STRIKE_SEC:

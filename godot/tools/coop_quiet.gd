@@ -49,8 +49,10 @@ func _ready() -> void:
 			["sm_spawn", "other"], ["wait", 1.0], ["coop_face_partner"], ["sm_peek"], ["coop_signal", "host_peek"], ["wait", 0.6],
 			["sm_report", "peek_other"], ["shot", "h4_peek_other"], ["coop_wait_file", "client_peek_seen"], ["wait", 1.0],
 			# A catch at the host's ear.
-			["sm_spawn", "host"], ["wait", 1.0], ["sm_behind", -1.4], ["sm_catch", "ear"], ["wait", 0.8],
-			["sm_report", "strike_host"], ["shot", "h5_strike_host"], ["coop_signal", "host_strike2"],
+			# (The signal as it starts: sent after the picture, with the machine busy it came
+			# when his 1.6 s were nearly over and the other saw him stand there after it.)
+			["sm_spawn", "host"], ["wait", 1.0], ["sm_behind", -1.4], ["sm_catch", "ear"], ["coop_signal", "host_strike2"], ["wait", 0.8],
+			["sm_report", "strike_host"], ["shot", "h5_strike_host"],
 			["coop_wait_file", "client_strike2_seen"], ["wait", 3.0],
 			["eval", "_stop_active_enemy_brain()"], ["wait", 1.0],
 			["coop_signal", "host_day2_done"], ["coop_wait", "partner_gone"], ["wait", 1.0],
@@ -68,7 +70,9 @@ func _ready() -> void:
 			["coop_wait_file", "host_neck"], ["wait", 0.4], ["sm_report", "neck_here"], ["shot", "c2_neck_here"], ["coop_signal", "client_neck_seen"],
 			["coop_wait_file", "host_lit"], ["wait", 1.4], ["sm_report", "lit_here"], ["shot", "c3_lit_here"], ["coop_signal", "client_lit_seen"],
 			["coop_wait_file", "host_peek"], ["wait", 0.5], ["sm_report", "peek_here"], ["shot", "c4_peek_here"], ["coop_signal", "client_peek_seen"],
-			["coop_wait_file", "host_strike2"], ["sm_clear"], ["coop_face_partner"], ["wait", 0.5],
+			# (Within his catch, 1.6 s from the signal: after it he stands there behind the
+			# host for all to see, and this torch on him takes him apart.)
+			["coop_wait_file", "host_strike2"], ["sm_clear"], ["coop_face_partner"], ["wait", 0.2],
 			["sm_report", "host_struck_seen_from_here"], ["shot", "c5_host_struck"], ["coop_signal", "client_strike2_seen"],
 			["coop_wait", "host_done"], ["coop_leave"], ["wait", 2.0],
 		]
@@ -86,10 +90,16 @@ func _look() -> void:
 	var night = _main.get("_coop_night")
 	if night != null:
 		var shown := 0
-		for v in (night.get("_mirror") as Dictionary).values():
+		var mir: Dictionary = night.get("_mirror")
+		for key in mir:
+			var v = mir[key]
 			if not (v is Sprite3D) or not is_instance_valid(v) or not (v as Sprite3D).visible or (v as Sprite3D).texture == null:
 				continue
 			shown += 1
+			# (Which they were: a leak names its node.)
+			var names: Dictionary = _saw.get("keys", {})
+			names[str(key).get_slice("/", 1).get_file()] = true
+			_saw["keys"] = names
 			var tex: Texture2D = (v as Sprite3D).texture
 			if tex.has_meta("fx_src") and str((tex.get_meta("fx_src") as Dictionary).get("proc", "")) == "dissolve":
 				_saw["dissolve"] = true
@@ -104,6 +114,11 @@ func _look() -> void:
 		var cam: Camera3D = (me as Node).get_node_or_null("Head/Camera3D")
 		if cam != null:
 			_saw["roll"] = maxf(float(_saw.get("roll", 0.0)), absf(cam.rotation.z))
+	# How afraid this warden's face is (threat_senses: on the joining machine, fed by
+	# where the host says the enemies it may feel are).
+	var senses = _main.get("_senses")
+	if senses != null:
+		_saw["fear"] = maxf(float(_saw.get("fear", 0.0)), float(senses.get("fear")))
 	if _sm != null and is_instance_valid(_sm) and night != null:
 		var r = _sm.get("_root")
 		var quarry := str((night.get("_targets") as Dictionary).get(_sm.get_instance_id(), "host"))
@@ -174,13 +189,13 @@ func _run_step(step: Array) -> void:
 			var root = _sm.get("_root") if _sm != null and is_instance_valid(_sm) else null
 			var who := str(night.get("_targets").get(_sm.get_instance_id(), "-")) if _sm != null and is_instance_valid(_sm) and night != null else "-"
 			var seq: Dictionary = _sm.get("_seq") if _sm != null and is_instance_valid(_sm) else {}
-			print("COOP QUIET %s: %s close=%s mirror=%d dissolve=%s neck=%s slow=%s roll=%.2f leak=%s private=%s root_seen=%s quarry=%s seq=%s neck_until=%s vanish=%s hp=%d" % [
+			print("COOP QUIET %s: %s close=%s mirror=%d dissolve=%s neck=%s slow=%s roll=%.2f leak=%s private=%s root_seen=%s quarry=%s seq=%s neck_until=%s vanish=%s hp=%d fear=%.2f shown=%s" % [
 				_role, str(step[1]), _saw.get("close", false), int(_saw.get("mirror", 0)), _saw.get("dissolve", false), _saw.get("neck", false),
 				_saw.get("slow", false), float(_saw.get("roll", 0.0)), _saw.get("leak", false), _saw.get("private", false),
 				root != null and is_instance_valid(root) and (root as Node3D).visible, who, str(seq.get("kind", "-")),
 				"%.1f" % float(_sm.get("_neck_until")) if _sm != null and is_instance_valid(_sm) else "-",
 				"%.1f" % float(_sm.get("_vanish_at")) if _sm != null and is_instance_valid(_sm) else "-",
-				int(_main.get("_player_health"))])
+				int(_main.get("_player_health")), float(_saw.get("fear", 0.0)), ",".join((_saw.get("keys", {}) as Dictionary).keys())])
 			_saw.clear()
 		_:
 			super._run_step(step)

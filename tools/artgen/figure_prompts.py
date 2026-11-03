@@ -293,11 +293,54 @@ def babka_sheets(fig, desc):
 	return out
 
 
+
+## The Silent Man (scripts/enemies/silent_man_brain.gd, DESIGN §5a.1; Richard 3. 11.: from
+## eight sides as the sample qg_turn_1 in prompts_quiet.tsv, the whole set: standing, a walk
+## of four frames, near with the neck and the arms drawn out). His front sprite is the
+## approved npc/sm2_m1.png, copied among the references (fig_refs/silent_s1.png, the near
+## one sm2_m2.png beside it as silent_s1_near.png); the approved sample is his turnaround
+## (copied as fig_silent_s1_turn_1). No run: he never runs.
+SILENT = {
+	"silent_s1": "a turned man: a bucket hat, round glasses, a patterned short-sleeved shirt over a green "
+		"shirt soaked with dark stains down the front, jeans and shoes, no backpack; his mouth gone, a pale "
+		"membrane of skin sewn shut with crude black stitches; his eyes bulging behind the glasses; his skin "
+		"waxy and sallow; his fingers far too long",
+}
+SILENT_TAIL = "Eerie and unsettling, an enemy in a horror game. "
+SILENT_WALK = WALK.replace("A calm walking pace, the body upright. ", "A slow, stiff, careful stalk, the body "
+	"upright and rigid, the arms hanging dead straight at the sides and never swinging, the head bowed a little. ")
+for _fig, _desc in SILENT.items():
+	FIGURES[_fig] = ("../tools/artgen/out/fig_refs/%s.png" % _fig, _desc)
+	POSES_OF[_fig] = ["near"]
+	POSE_TEXT["near_" + _fig] = ("standing perfectly still, his neck stretched far too long with the skin "
+		"sagging off it, his arms far too long hanging straight down past his knees, his head bowed")
+
+
+def silent_sheets(fig, desc):
+	same = SAME % desc
+	out = {
+		"turn": ("16:9", "front", BABKA_STYLE + "A character turnaround model sheet: five full-body views of one "
+			"and the same man standing perfectly still and stiff, arms hanging dead straight, head bowed slightly, "
+			"side by side in a single row, evenly spaced with clear magenta gaps between them, all exactly the "
+			"same height and scale with the feet on one common baseline near the bottom edge: " + VIEWS + ". " +
+			same + SILENT_TAIL + BG),
+	}
+	for v in range(1, 6):
+		out["walk%d" % v] = ("16:9", "turn", BABKA_STYLE + (SILENT_WALK % VIEW[v]) + same + SILENT_TAIL + BG)
+	out["pose_near"] = ("16:9", "pose_near", BABKA_STYLE + "Five full-body views of one and the same man in one "
+		"and the same pose, " + POSE_TEXT["near_" + fig] + ", side by side in a single row, evenly spaced with "
+		"clear magenta gaps, all exactly the same scale with the feet on one common baseline near the bottom "
+		"edge, turned a different way in each: " + VIEWS + ". The first view is exactly the pose in the "
+		"reference image. " + same + SILENT_TAIL + BG)
+	return out
+
 # id suffix -> (aspect, which reference, text). "front": the sprite alone; "turn": the
 # sprite beside its picked turnaround.
 def sheets(fig, desc):
 	if fig in BABKA:
 		return babka_sheets(fig, desc)
+	if fig in SILENT:
+		return silent_sheets(fig, desc)
 	same = SAME % desc
 	out = {
 		"turn": ("16:9", "front", STYLE + "A character turnaround model sheet: five full-body views "

@@ -1602,9 +1602,13 @@ func _update_threat_senses(delta: float) -> void:
 			_still_seconds = 0.0
 		else:
 			_still_seconds += maxf(delta, 0.0)
+	# A joining machine runs no brains: the host's enemies, where the host says they are.
+	var brains: Array = _enemy_brains
+	if brains.is_empty() and _coop_night != null and Coop.is_active() and not Coop.is_host():
+		brains = [_coop_night]
 	_senses.update(
 		delta,
-		_enemy_brains if outside_at_night else [],
+		brains if outside_at_night else [],
 		_player.get_node_or_null("Head/Camera3D") as Camera3D if _player != null and is_instance_valid(_player) else null,
 		_day_index if outside_at_night else -1,
 		_still_seconds
@@ -5809,8 +5813,11 @@ func coop_local_warden() -> Dictionary:
 	if bool(s["in"]) and _is_enemy_night_active() and _interior_manager != null and _interior_manager.has_method("photo_windows"):
 		var pw: Array = []
 		for w in _interior_manager.photo_windows():
+			# (Last, where its camera looks out from: on the line from there through the
+			# glass the Silent Man shows in that window however slant it is looked through.)
 			pw.append([(w["pos"] as Vector3).snapped(Vector3.ONE * 0.01), (w["out"] as Vector3).snapped(Vector3.ONE * 0.01),
-				snappedf(float(w.get("open", 1.0)), 0.05), snappedf(float(w.get("facing", 0.0)), 0.05)])
+				snappedf(float(w.get("open", 1.0)), 0.05), snappedf(float(w.get("facing", 0.0)), 0.05),
+				(w.get("view", w["pos"]) as Vector3).snapped(Vector3.ONE * 0.01)])
 		if not pw.is_empty():
 			s["pw"] = pw
 	# Your health, for the host's enemies to know a hit will be your last (their kills).

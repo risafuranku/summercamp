@@ -170,8 +170,9 @@ func move_to(to: Vector3) -> void:
 
 
 ## A sound in the room with them, no direction.
-func play_2d(file: String, db: float, pitch: float) -> void:
-	_send("play_2d", [file, db, pitch])
+## `wall`: heard from out there through the walls (WORLD_SOUNDS.wall_bus), not in the room.
+func play_2d(file: String, db: float, pitch: float, wall := false) -> void:
+	_send("play_2d", [file, db, pitch, wall])
 	_last.erase("play_2d")
 
 

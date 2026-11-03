@@ -24,6 +24,7 @@ extends Node
 const RETARGET_EVERY := 6.0
 const FX_TEX := preload("res://scripts/night/fx_tex.gd")
 const NIGHTMARE_FX := preload("res://scripts/night/nightmare_fx.gd")
+const WORLD_SOUNDS := preload("res://scripts/ambient/world_sounds.gd")
 ## The other machine: what the host's enemies do to this warden's screen (remote_fx.gd),
 ## held here and given to nightmare_fx each frame: the levels (by source, with when they
 ## came), the close-up / overlay / split as last sent (shaken here each frame), the turn
@@ -44,6 +45,8 @@ var _view_t := 0.0
 ## The other machines: the enemies as the host's shows them, by node key.
 var _mirror_root: Node3D
 var _mirror: Dictionary = {}
+## Where the host's enemies are that this warden may feel (get_presence).
+var _presences: Array = []
 var _mirror_left := 0.0
 ## The hidden sanity, 0..100, by who (the host's machine keeps them all; each other machine
 ## gets its own in the host's clock, coop_clock "sn", as "own").
@@ -482,7 +485,9 @@ static func _quarry_only(n: Node, root: Node) -> bool:
 
 
 ## What the enemies show to `viewer`: every sprite, light and sound under each enemy's
-## root, but not the ones only another warden, hunted by them, sees.
+## root, but not the ones only another warden, hunted by them, sees. And where each of
+## them is, as its brain tells it (get_presence: its body, or where its last sound came
+## from): their insects fall silent and their HUD face looks there (threat_senses.gd).
 func _snapshot(brains: Array, viewer: String) -> Array:
 	var out: Array = []
 	for b in brains:
@@ -491,6 +496,10 @@ func _snapshot(brains: Array, viewer: String) -> Array:
 		var quarry := str(_targets.get(b.get_instance_id(), "host"))
 		if _is_private(b) and quarry != viewer:
 			continue
+		if b.has_method("get_presence"):
+			var pr: Dictionary = b.get_presence()
+			if pr.has("position"):
+				out.append({"k": "p%d" % b.get_instance_id(), "t": "p", "pos": pr["position"]})
 		var root = b.get("_root")
 		if root == null or not is_instance_valid(root):
 			continue
@@ -656,6 +665,7 @@ func show_view(items: Array) -> void:
 		_mirror.clear()
 	_mirror_left = 0.6
 	var seen := {}
+	_presences.clear()
 	for it in items:
 		if not (it is Dictionary):
 			continue
@@ -663,6 +673,8 @@ func show_view(items: Array) -> void:
 		seen[key] = true
 		var n: Node = _mirror.get(key)
 		match str(it.get("t", "")):
+			"p":
+				_presences.append(it["pos"])
 			"s":
 				var sp := n as Sprite3D
 				if sp == null or not is_instance_valid(sp):
@@ -757,6 +769,8 @@ func on_fx(method: String, args: Array) -> void:
 				p.stream = load(path)
 				p.volume_db = float(a[1])
 				p.pitch_scale = float(a[2])
+				if a.size() > 3 and bool(a[3]):
+					p.bus = WORLD_SOUNDS.wall_bus("Master")
 				add_child(p)
 				p.finished.connect(p.queue_free)
 				p.play()
@@ -958,6 +972,21 @@ func clear_mirror() -> void:
 		_mirror_root.queue_free()
 	_mirror_root = null
 	_mirror.clear()
+	_presences.clear()
+
+
+## On a joining machine, for its threat senses (main._update_threat_senses): the nearest
+## of the host's enemies this warden may feel, as the host last sent them.
+func get_presence() -> Dictionary:
+	var player = main.get("_player") if main != null else null
+	if _presences.is_empty() or player == null or not is_instance_valid(player):
+		return {}
+	var me: Vector3 = (player as Node3D).global_position
+	var best: Vector3 = _presences[0]
+	for p in _presences:
+		if (p as Vector3).distance_squared_to(me) < best.distance_squared_to(me):
+			best = p
+	return {"position": best}
 
 
 ## Another machine: what the night did to you on the host's.

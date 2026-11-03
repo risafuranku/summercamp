@@ -1035,7 +1035,7 @@ func _tick_heard_inside(dt: float) -> void:
 	if _phase == "breach":
 		clip = SFX["tear"] if str(_target.get("kind", "")) == "tent" else SFX["pry"]
 	_in_next = 5.4 if _phase == "eat" else 3.6
-	if _play_2d_remote(clip, db, 0.95):
+	if _play_2d_remote(clip, db, 0.95, true):
 		return
 	_in_room.stream = _stream(clip)
 	_in_room.volume_db = db
