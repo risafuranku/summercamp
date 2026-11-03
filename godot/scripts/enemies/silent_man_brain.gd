@@ -222,6 +222,8 @@ const TORCH_DARK_SEC := 3.0
 const TORCH_BACK_SEC := 1.1
 ## The one of them at your neck now (only one at a time).
 static var _striker: Object = null
+## The one of him who does the first meeting, when two or three are out the first night.
+static var _first_one: WeakRef = null
 ## This one's own name for the night's picture and sound (several of him at once).
 var _fx_key := "silent_man"
 const STARE_DIST := Vector2(9.0, 15.0)
@@ -262,7 +264,9 @@ func _on_start() -> void:
 	_breath = _loop(SFX_BREATH_LOOP, -60.0)
 	_reset_far(_rng.randf_range(3.0, 6.0))
 	_peek_until = 0.0
-	_first = not _met()
+	_first = not _met() and (_first_one == null or _first_one.get_ref() == null)
+	if _first:
+		_first_one = weakref(self)
 	_tilt_sign = -1.0 if _rng.randf() < 0.5 else 1.0
 	_sound2d = AudioStreamPlayer.new()
 	_root.add_child(_sound2d)
@@ -276,6 +280,8 @@ func tick(delta: float) -> void:
 		var ready := _is_ready()
 		if not ready:
 			_away = true
+			# (Gone in while he held you: his hands off the screen too, not left there.)
+			_neck_until = -1.0
 			_end_hold()
 			_clear_phantoms()
 			_tick_indoors(delta)
@@ -437,6 +443,7 @@ func _update_footfall(dt: float) -> void:
 ## A dark spot round a corner from you: hidden from where you stand, a step aside from a
 ## place you could see (so he can lean out), behind or beside you rather than ahead.
 func _choose_lurk() -> void:
+	_eyes_out = false
 	var cam := _camera()
 	if cam == null:
 		return
@@ -595,6 +602,10 @@ func _tick_neck() -> void:
 	if _elapsed >= _neck_until:
 		_neck_until = -1.0
 		_end_hold()
+		# Another of him has you already: this one goes back into the dark (the lesson too).
+		if _striker != null and _striker != self and is_instance_valid(_striker):
+			_reset_far(_rng.randf_range(3.0, 6.0))
+			return
 		if _first:
 			# The lesson: he turns you round to him and lets you see. No bite this time.
 			_lesson = true
@@ -602,10 +613,6 @@ func _tick_neck() -> void:
 			_start_catch("turn")
 			return
 		_hits += 1
-		# Another of him has you already: this one goes back into the dark.
-		if _striker != null and _striker != self and is_instance_valid(_striker):
-			_reset_far(_rng.randf_range(3.0, 6.0))
-			return
 		_start_catch()
 
 
@@ -1638,7 +1645,9 @@ func _lit_by_others(point: Vector3) -> bool:
 			continue
 		var to: Vector3 = point - (aim["origin"] as Vector3)
 		var d := to.length()
-		if d <= float(aim["range"]) and (aim["dir"] as Vector3).normalized().dot(to / maxf(d, 0.01)) > cos(deg_to_rad(float(aim["half_angle"]))):
+		var in_cone := d <= float(aim["range"]) and (aim["dir"] as Vector3).normalized().dot(to / maxf(d, 0.01)) > cos(deg_to_rad(float(aim["half_angle"])))
+		# (A wall between their torch and him: their light never reached him.)
+		if in_cone and not _ray_blocked(aim["origin"] as Vector3, point):
 			return true
 	return false
 

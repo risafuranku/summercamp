@@ -67,7 +67,11 @@ def main():
     # His catch at the joining warden's ear.
     expect(h, "host", "strike_other", lambda r: r["leak"] == "false" and r["close"] == "false" and r["private"] == "true", "the host sees his catch on the other warden")
     expect(c, "client", "strike_here", lambda r: r["close"] == "true", "the joining warden has no catch on their screen")
-    expect(c, "client", "strike_after", lambda r: float(r["roll"]) > 0.1, "the joining warden's view is not turned by his catch")
+    # (The catch at the ear is over in 1.6 s: its roll falls in the first window or the
+    # second, as the signal file is picked up; either one turned is the turn.)
+    rolls = [report(c, "client", w) for w in ("strike_here", "strike_after")]
+    if max((float(r["roll"]) for r in rolls if r), default=0.0) <= 0.1:
+        failures.append("the joining warden's view is not turned by his catch: %s" % rolls)
     # At their neck.
     expect(h, "host", "neck_other", lambda r: r["leak"] == "false" and r["private"] == "true", "the host sees him at the other warden's neck")
     expect(c, "client", "neck_here", lambda r: r["close"] == "true" and r["slow"] == "true", "the joining warden is not held at the neck (hands, half speed)")

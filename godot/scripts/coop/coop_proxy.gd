@@ -34,6 +34,11 @@ func set_controls_enabled(on: bool) -> void:
 	Coop.send_night_event("controls", [on], int(get_meta("coop_id", 0)))
 
 
+## The Silent Man's glasses throwing your torch back: it goes dead in their hand there.
+func torch_blackout(seconds: float, back := 1.1) -> void:
+	Coop.send_night_event("blackout", [seconds, back], int(get_meta("coop_id", 0)))
+
+
 ## Their warden state (the stand-in's peer id is its meta "coop_id").
 func _state() -> Dictionary:
 	return Coop.state_of(int(get_meta("coop_id", 0)))

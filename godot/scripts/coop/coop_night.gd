@@ -991,3 +991,7 @@ func on_event(kind: String, data: Array) -> void:
 			var pl = main.get("_player")
 			if pl != null:
 				pl.set("flashlight_drain_boost", float(data[0]))
+		"blackout":
+			var pb = main.get("_player")
+			if pb != null and pb.has_method("torch_blackout"):
+				pb.call("torch_blackout", float(data[0]), float(data[1]) if data.size() > 1 else 1.1)
