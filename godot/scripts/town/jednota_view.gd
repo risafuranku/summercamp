@@ -257,7 +257,8 @@ func wants_out() -> bool:
 	return true
 
 
-## The other wardens at the counter beside you.
+## The other wardens at the counter beside you, at the till end and the crates' end (not
+## between you and Mrs Novotna, not in your face).
 func place_mates(mates: Dictionary, ids: Array) -> void:
 	var k := 0
 	for id in ids:
@@ -265,7 +266,7 @@ func place_mates(mates: Dictionary, ids: Array) -> void:
 		if fig == null:
 			continue
 		fig.visible = true
-		fig.show_at(Vector3(0.9 if k % 2 == 0 else -0.9, 0.0, 0.4 + 0.5 * float(k / 2)), "stand")
+		fig.show_at(Vector3(1.1 if k % 2 == 0 else -1.2, 0.0, -0.25 + 0.6 * float(k / 2)), "stand")
 		k += 1
 
 

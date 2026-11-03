@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Liblice for two: a host and a joining copy (tools/motel_coop.tscn). PASS when the joining
+"""Liblice for two: a host and a joining copy (tools/motel_coop.tscn). PASS when each sees
+the other standing in the Jednota, the pub and the kiosk, the joining
 warden sees the host's two candles burn in the chapel, both get number four's key, each
 sees the other in the room (the host standing, then asleep in the second bed), and the
 night goes by for both: both wake in four in the morning.
@@ -74,6 +75,9 @@ def main():
         if got is None or not test(got):
             failures.append("%s: want %s; got %s" % (tag, what, got))
 
+    for p in ("jednota", "pub", "kiosk"):
+        for side, who in ((h, "the host"), (c, "the other")):
+            want(side, p + "_mate", lambda g, p=p: g["place"] == p and g["figs"] >= 1, "%s seeing the other warden in the %s" % (who, p))
     want(h, "candles_lit", lambda g: g["flames"] >= 2, "two candles on the host's stand")
     want(c, "candles", lambda g: g["place"] == "chapel" and g["flames"] >= 2, "the host's two candles burning for the other")
     want(h, "mate_in_room", lambda g: g["place"] == "motel_room" and g["figs"] >= 1 and g["key"], "the other warden in four with the host")

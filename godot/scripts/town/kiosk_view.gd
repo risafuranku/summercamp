@@ -184,6 +184,11 @@ func wants_out() -> bool:
 	return true
 
 
+## The other wardens: at the counter's end beside you, by the window display, by the calendar
+## (out of the line from where you stand to Mrs Lojzova).
+const MATE_SPOTS := [Vector3(1.3, 0.0, -0.55), Vector3(-0.6, 0.0, 0.75), Vector3(1.9, 0.0, 0.3)]
+
+
 func place_mates(mates: Dictionary, ids: Array) -> void:
 	var k := 0
 	for id in ids:
@@ -191,7 +196,7 @@ func place_mates(mates: Dictionary, ids: Array) -> void:
 		if fig == null:
 			continue
 		fig.visible = true
-		fig.show_at(Vector3(0.5 - 0.8 * float(k), 0.0, 0.5), "stand")
+		fig.show_at(MATE_SPOTS[k % MATE_SPOTS.size()], "stand")
 		k += 1
 
 
