@@ -139,7 +139,7 @@ Six archetypes, with different needs (`core/systems/guest_needs_system.gd`):
 | Cheap Chick | 190 | showers, the lake slide, comfort | **The Girl** |
 | Tramps | 55 | the bonfire, the pub, fun; barely wash, sleep anywhere | **The Whistler** |
 | Family | 150 | everything at once: food, toilets, the field, the slide, safety | **The Boy** (§5a.2) |
-| Mushroom Pickers | 90 | sleep, food, the shop; quiet; up at four | **The Basket Man** |
+| Mushroom Pickers | 90 | sleep, food, the shop; quiet; up at four | **The Granny** (§5a.4) |
 
 - Per-archetype pressure curve: one guest of a kind is safe; tiny at 2, small from 3, medium
   from 7, large from 11, guaranteed at 15 (repeats). Unhappy guests count double. (It
@@ -248,14 +248,14 @@ know where it is:
 | The Girl | Cheap Chick | far off, eyeshine: where your torch points but does not reach, two small pale points where her eyes are, each blinking on its own; a woman humming; heels scurry on the gravel while you are not looking, and a sting when you find her again nearer; close, the torch dies in your hand for a moment by itself (her face is there for a frame, once a loop all of it) | she moves only while you do not see her, and in the dark you see her only in light (the torch on her, a lamp near her, or very close): keep her lit and in view, back to a lamp (she never steps into its light; stay under it ~18 s and she gives the loop up); never walk towards her (the torch dies more often, and in each dark she is a step nearer) | looking away, letting the light leave her; the torch drains five times over while it holds her; look away ~3.5 s and she may be right behind you when you turn (face to face, the jump: back off). Always the guest's own colours, only deformed: the guest -> fixed smile, white eyes -> legs too long, flushed cheeks -> neck and arms stretched -> her back to you, face turned round -> arms to the ground. Strike: you cannot look away; her drooling face, then stretched long, then the jaw dropped too far; the shriek in static; black and a ring. Leaves a red heel |
 | The Whistler | Tramps | his guitar and his whistle out in the dark, a song at a time, nearer; the music stops dead in the middle of a bar | while he plays, move; when the music stops, be still (on grass a walk is not heard, a run is; on gravel, boards, puddles even a walk; near him anything); a lamp's light | making a noise while he listens: he comes at a run to where you were (§5a.3) |
 | The Boy | Family | his father in your way in the dark asking after him; a child gone missing where the night's work is | each place's game, by its rules (§5a.2) | breaking the game's rule (in the corn: looking back at him) |
-| The Granny | Mushroom Pickers | 02:30-06:00: a basket creaking, a knife scraping, humming; lamps going dark one by one; mushrooms coming up round the tents | Grandmother's footsteps: move while she is bent over her work, freeze when her back cracks and she straightens up; take the bulbs back out of her basket from behind; walk through her rings | moving while she looks (§5a.4) |
+| The Granny | Mushroom Pickers | 02:30-06:00: her basket creaking, humming, her boots in the grass, her spores in the air; lamps going dark one by one; a ring of mushrooms coming up round the lodging she means to have; hidden, the eating, from the lodging and on the radio | keep moving (she always comes) and freeze when her back cracks and she straightens up; a lamp holds her a few seconds; kick her rings open; stay out there as the bait | letting her reach you, moving while she looks; hiding: your guests (§5a.4) |
 
 ### 5a. Outdoor hunters, indoor tormentors (the rule for every enemy)
 
 An enemy is one of two kinds, so the night never stacks two deadly things in one place:
 
-- **outdoor hunters** (the Silent Man, the Photographer, the Girl, the Whistler, the Basket
-  Man) can hurt you only outside. Indoors they cannot reach you, and they know where you
+- **outdoor hunters** (the Silent Man, the Photographer, the Girl, the Whistler, the
+  Granny) can hurt you only outside. Indoors they cannot reach you, and they know where you
   are: they work at getting you out (sounds at the walls, the door, the window) and, if
   you hide long enough, they take it out on the camp instead (a guest's night goes wrong:
   mood, the review, the camp's name). Hiding is safe and it costs.
@@ -357,27 +357,55 @@ does not see, and a night with him is musical chairs:
 
 ### 5a.4 The Granny (Mushroom Pickers; `scripts/enemies/basket_brain.gd`)
 
-The old picker turned (the user, 21. 10.: "babičku musíme vymyslet"): her cardigan, the
-flowered dress, the green boots, bent at the waist like a hook, the basket on her arm,
-the little knife (Grok `granny_pick`, `granny_up`, `granny_face`). She comes in the
-small hours (02:30-06:00), as pickers do, and harvests the camp. Grandmother's
-footsteps: she sees only what moves, and only when she straightens up.
+Reworked with the user on 2. 11. (Q&A; brief `C:\grimroot\_sc\prompts\babka_rework.md`):
+"ví kde jsi a furt tě loví venku, a když zalezeš dovnitř jde postupně lovit tvoje hosty a
+žrát je. musíš se teda obětovat jakoby a kitovat jí, aby ráno nebyl kemp prázdnej". The
+old picker of the day turned in the small hours (02:30-06:00): the mushrooms have grown
+through her (caps and gills where her eyes were and in her mouth, skin like bark, white
+mould); bent like a hook while she hunts, far too tall when she straightens. Every guest
+she eats makes her worse (three stages: taller, a fuller basket, more blood, quicker).
+She never says a word.
 
-- **Bent over her work**: the knife scraping, humming an old lullaby: she sees nothing.
-  Move.
-- **Up**: her back cracks, the humming stops, she straightens far too tall and looks.
-  Move in her sight (22 m; 9 m while she walks) and she comes, quick through the grass,
-  the knife low ("Nehýbej se, broučku", "Kdo se hejbe, jde do košíku"). Freeze before she
-  is on you and she stands over you a while, looking, and goes back to her work (heavy:
-  not always). At you: low, the knife at your ankles, "To je ale pěkný kozák...".
-- **The bulbs**: she goes from lamp to lamp; at each, when she is done, the bulb is in
-  her basket and the lamp is dark for the night (the other things have more dark).
-  Creep up behind her while she is bent and take them back (E): every lamp lit again,
-  and she straightens up at once.
-- **The rings**: at a lodging with guests in it mushrooms come up round it, more each
-  time she is there; closed by dawn (three visits) its guests wake sick, heavy one is
-  gone. Walk through a ring and you kick it open.
-- **Indoors**: her knife along the outside wall now and then.
+- **Out there, like Nemesis**: she always knows where the warden she hunts is and comes
+  straight for them round the buildings (the hands' ways, `staff_runtime.way`), a little
+  under your walk at first (3.3 m/s against your 3.9; 4.15 fed): keep moving; a sprint
+  buys a lead.
+- **The stop** (all that is left of Grandmother's footsteps): now and then she stops
+  dead, her back cracks and she straightens up and looks; half a second after the crack
+  she sees. Move in her sight and she comes at a run; freeze and she stands over you a
+  while, looking, then turns away a few steps and comes on again.
+- **The catch**: the knife at your ankles; you go down on your back in the grass, her
+  face over you, and she goes off to eat. You limp for a while (slower, no sprint). Two
+  or three catches kill (game over, as with the others).
+- **Lamps**: she never steps into a lamp's light. The lamp you stand under, or one in her
+  way, she puts out: at the edge of its light she straightens and reaches her far too
+  long arm up to the bulb (~5 s, less fed); the bulb goes into her basket and the lamp is
+  dark for the night. The camp darkens lamp by lamp.
+- **Hidden** (a building, the lake, a minigame) and after a few seconds she goes for the
+  guests, lodging by lodging: first the one her ring of mushrooms is coming up round
+  (kick a ring open and she has to plant it again, round the lodging, bent), else the
+  nearest. A tent she slits in seconds; a caravan's or a cabin's door she prises at much
+  longer (better lodgings protect). They wake, the light comes on inside, she gets in,
+  the light goes out: a cry cut off, the munching, one party after another. Never seen:
+  heard from out there, through the walls of your room, and on the office radio as it
+  happens (`radio_dread.relay`). A whole hide through her hours costs about half the camp.
+  You cannot go into a lodging with guests in it; one she has emptied you can.
+- **Step out** and she leaves the ones she was on (cut, alive) and comes for you.
+- **The morning**: where she ate the lodging is hers to clean (`GuestManager.
+  make_room_carnage`, mess_rules `carnage`: the blood, what is left of them, mushrooms
+  growing out of it, the soaked bedding, a tent's slit canvas, a cabin's handprints);
+  those who lived through it leave with one star, in their own words; a relative writes
+  a day or two later; the morning lines say who is gone.
+- **Spores**: near her the picture goes sour and hazy and the world muffled
+  (`nightmare_fx.set_spores`, mirrored to the hunted warden in co-op).
+- **Co-op**: she hunts a warden who is outside; all inside, she eats. Another hunter out
+  the same night: both at once, she does not wait her turn.
+- **Art** (Grok, from the day's sprite `npc/host_pensioner.png`, never from a later
+  picture): eight views like the guests (`npc/sets/babka_s0..s2`), the face
+  (`npc/babka_face_s*`), the arm (`npc/babka_arm`), the carnage (`mess/carnage_*`); until
+  a set is drawn she is the old `granny_pick` / `granny_up`. Sounds `assets/sfx/npc/babka/`
+  (`tools/audiogen/prompts_babka.tsv`). Her rules: `tools/enemy_check.tscn`; shots
+  `tools/babka_shots.tscn`.
 
 ### 5a.2 The Boy (Family; `scripts/enemies/boy_brain.gd`)
 

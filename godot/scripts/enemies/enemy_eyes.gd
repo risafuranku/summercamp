@@ -32,11 +32,12 @@ const STYLES := {
 	"silent_man": {"near": "eye_ring5", "mid": "eye_ring3", "far": "eye_dot2", "near_m": 9.0, "mid_m": 22.0,
 		"size": 0.045, "gap": 0.052, "color": Color(0.96, 0.76, 0.22), "blink": 0.0, "glint": 4.0,
 		"flare_color": Color(1.0, 0.97, 0.82)},
-	# The Basket Man: two wet red points deep in the hood, close together, swinging slowly
-	# side to side over the ground; it is looking for something that moves.
-	"basket": {"near": "eye_dot2", "mid": "eye_dot2", "far": "eye_dot2", "near_m": 2.5, "mid_m": 99.0,
-		"size": 0.03, "gap": 0.028, "color": Color(0.82, 0.16, 0.1), "blink": 9.0, "both": true, "scan": 0.05,
-		"flare_color": Color(1.0, 0.35, 0.25)},
+	# The mushroom granny (reworked 2. 11.): where her eyes were, the pale stalks under the
+	# caps catch what light there is, two dull points, small, close together; low while she
+	# comes bent, high and still when she straightens up and looks. Rarely a blink.
+	"basket": {"near": "eye_dot", "mid": "eye_dot", "far": "eye_dot", "near_m": 2.5, "mid_m": 99.0,
+		"size": 0.022, "gap": 0.026, "color": Color(0.8, 0.77, 0.6), "blink": 11.0, "both": true, "scan": 0.03,
+		"flare_color": Color(0.96, 0.93, 0.78)},
 	# The Extra Child: nothing while its back is to you. When it turns: two white points,
 	# small, wide open, that do not blink at all.
 	"child": {"near": "eye_dot2", "mid": "eye_dot2", "far": "eye_dot2", "near_m": 2.0, "mid_m": 99.0,

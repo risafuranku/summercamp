@@ -45,6 +45,13 @@ const MESS := {
 	"showerhead": {"label": "Screw the shower head back on", "verb": "Fixing", "seconds": 3.0, "sfx": "task_scrub.mp3"},
 	# The basic cabin has no bathroom: an enamel slop bucket by the door instead.
 	"slop": {"label": "Empty the slop bucket", "verb": "Emptying", "seconds": 2.0, "sfx": "task_scrub.mp3"},
+	# The night the mushroom granny was in (GuestManager.make_room_carnage).
+	"blood": {"label": "Mop up the blood", "verb": "Mopping", "seconds": 3.2, "sfx": "task_scrub.mp3"},
+	"remains": {"label": "Bag what is left of them", "verb": "Bagging", "seconds": 3.6, "sfx": "task_bed.mp3"},
+	"spawn": {"label": "Pull up the mushrooms growing out of it", "verb": "Pulling", "seconds": 2.6, "sfx": "task_scrub.mp3"},
+	"bedding": {"label": "Bag the soaked bedding", "verb": "Bagging", "seconds": 2.4, "sfx": "task_bed.mp3"},
+	"slit": {"label": "Sew up the slit canvas", "verb": "Fixing", "seconds": 4.2, "sfx": "task_scrub.mp3"},
+	"handprints": {"label": "Scrub the handprints off the wall", "verb": "Scrubbing", "seconds": 2.4, "sfx": "task_scrub.mp3"},
 }
 
 ## Room spots, by room kind: floor spots and (cabins) bathroom spots.
@@ -58,6 +65,9 @@ const BATH_SPOTS := ["wc", "sink", "bfloor"]
 ## A room shut since last summer (GuestManager.make_room_derelict) also has its cobweb
 ## corner, high on the wall, where the interior has one.
 const DERELICT_SPOTS := {"cabin": "w1"}
+## After the granny (`mess.carnage`): every floor spot hers (room_tasks), and on the wall
+## the way she came in (a tent's slit canvas) or the hands that tried to hold on (a cabin).
+const CARNAGE_WALL := {"tent": "slit", "cabin": "handprints"}
 const BATH_KINDS := {"wc": ["toilet_grime"], "sink": ["sink_grime", "hair"], "bfloor": ["puddle", "mud", "paper_out", "piss", "wads"]}
 
 ## Ordinary leftovers, then what each archetype adds (and how much worse they leave it).
@@ -130,7 +140,8 @@ static func room_tasks(kind: String, has_bathroom: bool, mess: Dictionary, bed_t
 	var derelict := bool(mess.get("derelict", false))
 	if derelict:
 		pool = ["mushrooms", "mushrooms", "bottles", "butts", "clothes", "mud", "food", "cans", "papers"]
-	if not fresh:
+	var carnage := bool(mess.get("carnage", false))
+	if not fresh and not carnage:
 		for a in mess.get("archetypes", []):
 			var extra: Array = (BY_ARCHETYPE.get(str(a), {}) as Dictionary).get("kinds", [])
 			# Their own kind of mess, three times as likely as the ordinary stuff.
@@ -144,8 +155,17 @@ static func room_tasks(kind: String, has_bathroom: bool, mess: Dictionary, bed_t
 	var count := clampi(1 + level + rng.randi_range(0, 1), 1, spots.size())
 	if fresh:
 		count = 0
+	if carnage:
+		count = spots.size()
+	# Hers, each spot something else of it (the blood always).
+	var order: Array = ["remains", "spawn", "bedding", "mushrooms", "clothes"]
+	_shuffle(order, rng)
+	order.push_front("blood")
 	for i in count:
 		var spot := str(spots[i])
+		if carnage:
+			out.append(task_for(spot, str(order[i % order.size()])))
+			continue
 		var kinds := pool
 		if spot.begins_with("t"):
 			kinds = pool.filter(func(k): return TABLE_KINDS.has(k))
@@ -160,6 +180,8 @@ static func room_tasks(kind: String, has_bathroom: bool, mess: Dictionary, bed_t
 		out.append(task_for(spot, pick))
 	if derelict and DERELICT_SPOTS.has(kind):
 		out.append(task_for(str(DERELICT_SPOTS[kind]), "cobwebs"))
+	if carnage and CARNAGE_WALL.has(kind):
+		out.append(task_for("w1", str(CARNAGE_WALL[kind])))
 	if has_bathroom and not fresh:
 		out.append(task_for("wc", "toilet_grime"))
 		if not fresh and (level >= 1 and rng.randf() < 0.35 + 0.15 * level):

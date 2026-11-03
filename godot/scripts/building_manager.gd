@@ -38,6 +38,11 @@ func _ready() -> void:
 	var removed_cb := Callable(self, "_on_building_removed_event")
 	if EventBus.has_signal("building_removed") and not EventBus.building_removed.is_connected(removed_cb):
 		EventBus.building_removed.connect(removed_cb)
+	var torn_cb := Callable(self, "_on_room_torn_check")
+	if EventBus.has_signal("accommodation_state_changed") and not EventBus.accommodation_state_changed.is_connected(torn_cb):
+		EventBus.accommodation_state_changed.connect(torn_cb)
+	if EventBus.has_signal("room_task_done"):
+		EventBus.room_task_done.connect(func(key: String, _task: String) -> void: _on_room_torn_check(key, "", 0))
 
 
 func _process(delta: float) -> void:
@@ -494,6 +499,7 @@ func place_tent_at(origin: Vector2i, level: int = 1) -> bool:
 		var tent_mesh = _create_tent_prism(tent_w, tent_h, tent_d, tent_color)
 		tent_mesh.position = offsets[i]
 		tent_mesh.rotation.y = randf_range(-0.15, 0.15)
+		tent_mesh.set_meta("tent_size", Vector3(tent_w, tent_h, tent_d))
 		tent_root.add_child(tent_mesh)
 		# The camp's canvas, pegs, guy ropes, the door flap (stan1/2/3 in the Builder).
 		if _models == null:
@@ -510,7 +516,77 @@ func place_tent_at(origin: Vector2i, level: int = 1) -> bool:
 
 	_set_structure_condition_internal(tent_root, _default_condition_for_type("tent", level))
 	_grid_manager.occupy_footprint(origin, Vector2i(1, 1), tent_root)
+	_refresh_tent_tear.call_deferred(tent_root, "%d:%d" % [origin.x, origin.y])
 	return true
+
+
+# ── a tent the mushroom granny tore open (her carnage: mess_rules "slit") ─────
+
+const TENT_TEAR_TEX := "res://assets/textury/mess/carnage_tear.png"
+
+
+## The lodging `key` changed: is its tent torn now?
+func _on_room_torn_check(key: String, _status: String, _guests: int) -> void:
+	if _structures_root == null:
+		return
+	for child in _structures_root.get_children():
+		var o = child.get_meta("grid_origin", null)
+		if o is Vector2i and "%d:%d" % [o.x, o.y] == key and str(child.get_meta("building_type", "")).contains("tent"):
+			_refresh_tent_tear(child, key)
+			return
+
+
+## The hole she slit in the back of the tent, seen from the camp, from her night until it is
+## sewn up (the room's own hole: interior_prep.tear, tent_interior). Torn while the guests
+## she left are still in (carnage_pending), then while its "slit" task is not done.
+func _refresh_tent_tear(tent_root: Node, key: String) -> void:
+	if tent_root == null or not is_instance_valid(tent_root) or not ResourceLoader.exists(TENT_TEAR_TEX):
+		return
+	var st = CoreRoot.get_state() if CoreRoot != null else null
+	var acc: Dictionary = st.accommodation_states.get(key, {}) if st != null else {}
+	var mess: Dictionary = acc.get("mess", {}) if acc.get("mess", {}) is Dictionary else {}
+	var torn := bool(mess.get("carnage_pending", false))
+	if bool(mess.get("carnage", false)):
+		var room: Dictionary = GuestManager.get_room_state(key)
+		for t in room.get("tasks", []):
+			if str(t.get("mess", "")) == "slit" and not (room.get("done", []) as Array).has(t.get("id", "")):
+				torn = true
+	var tent: MeshInstance3D = null
+	for c in tent_root.get_children():
+		if c is MeshInstance3D and c.has_meta("tent_size"):
+			tent = c
+			break
+	if tent == null:
+		return
+	var hole := tent.get_node_or_null("TentTear") as MeshInstance3D
+	if not torn:
+		if hole != null:
+			hole.queue_free()
+		return
+	if hole != null:
+		return
+	var size: Vector3 = tent.get_meta("tent_size")
+	var tex: Texture2D = load(TENT_TEAR_TEX)
+	var aspect := float(tex.get_height()) / float(tex.get_width())
+	var w := minf(size.x * 0.55, size.y * 0.95 / aspect)
+	var q := QuadMesh.new()
+	q.size = Vector2(w, w * aspect)
+	var m := ShaderMaterial.new()
+	m.shader = preload("res://materials/tent_tear.gdshader")
+	m.set_shader_parameter("tear_tex", tex)
+	m.set_shader_parameter("texels", float(tex.get_width()))
+	# The tent's dark inside through it.
+	m.set_shader_parameter("dark", Vector3(0.016, 0.013, 0.011))
+	m.set_shader_parameter("wind", 0.45)
+	hole = MeshInstance3D.new()
+	hole.name = "TentTear"
+	hole.mesh = q
+	hole.material_override = m
+	hole.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# On the back gable (-Z), facing out of it, its bottom tip at the ground.
+	hole.position = Vector3(0.0, w * aspect * 0.5 - 0.04, -size.z * 0.5 - 0.012)
+	hole.rotation.y = PI
+	tent.add_child(hole)
 
 
 func _create_tent_prism(w: float, h: float, d: float, color: Color) -> MeshInstance3D:

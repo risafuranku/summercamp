@@ -829,7 +829,7 @@ func _rfx_apply(method: String, args: Array) -> void:
 	if fx == null:
 		return
 	match method:
-		"set_dread", "set_presence":
+		"set_dread", "set_presence", "set_spores":
 			_rfx_levels[method + "|" + str(args[0])] = [method, str(args[0]), float(args[1]), Time.get_ticks_msec()]
 		"set_eyes":
 			_rfx_levels["set_eyes|" + str(args[0])] = ["set_eyes", args, 0.0, Time.get_ticks_msec()]

@@ -19,7 +19,7 @@ func _init(p := 0) -> void:
 var _last := {}
 var _presence := 0.0
 ## The steady ones (each tick from a brain): at most this often each.
-const STEADY := {"set_dread": 0.1, "set_presence": 0.1, "set_eyes": 0.05}
+const STEADY := {"set_dread": 0.1, "set_presence": 0.1, "set_eyes": 0.05, "set_spores": 0.1}
 var _steady_at := {}
 
 
@@ -43,7 +43,7 @@ func _send(method: String, args: Array) -> void:
 		return
 	var packed: Array = pack(args)
 	var key := method
-	if method in ["set_dread", "set_presence"]:
+	if method in ["set_dread", "set_presence", "set_spores"]:
 		key = method + str(args[0])
 	var now := Time.get_ticks_msec() / 1000.0
 	# The steady ones again now and then even unchanged: the other side lets a level go
@@ -76,6 +76,10 @@ func set_dread(source: String, level: float) -> void:
 func set_presence(source: String, level: float) -> void:
 	_presence = maxf(_presence * 0.9, level)
 	_send("set_presence", [source, snappedf(level, 0.02)])
+
+
+func set_spores(source: String, level: float) -> void:
+	_send("set_spores", [source, snappedf(level, 0.02)])
 
 
 func presence() -> float:

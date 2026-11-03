@@ -166,6 +166,7 @@ func close_tent() -> void:
 		_turn_tween.kill()
 	_facing_door = false
 	_set_door_open(false)
+	_set_torn(false)
 	visible = false
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	request_close.emit()
@@ -176,6 +177,7 @@ func _process(delta: float) -> void:
 		return
 	_apply_idle_mouse_look(delta)
 	_tick_turn(delta)
+	_tick_tear()
 	_tick_door(delta)
 	_update_torch(delta)
 	if _exit_hint == null:
@@ -429,6 +431,8 @@ func _build_prep_props() -> void:
 	for spot in [["f1", Vector3(0.38, 0.0, -0.85)], ["f2", Vector3(0.3, 0.0, 0.05)], ["f3", Vector3(-0.72, 0.0, -0.2)],
 			["f4", Vector3(0.12, 0.0, -1.08)], ["f5", Vector3(-0.7, 0.0, -0.9)]]:
 		_prep.add_spot(spot[0], _tent_root, spot[1])
+	# The back canvas, where the granny's knife came through (mess_rules CARNAGE_WALL).
+	_prep.add_spot("w1", _tent_root, Vector3(0.05, 0.62, -1.31), 0.0, true)
 	_prep.setup_tasks(self, _interior_camera, _viewport, "tent")
 	_prep.task_completed.connect(func(id: String): room_task_completed.emit(id))
 
@@ -672,6 +676,62 @@ func _tick_door(delta: float) -> void:
 	var anchor := a as Node3D if a != null and is_instance_valid(a) and (a as Node3D).is_inside_tree() else null
 	var world: World3D = anchor.get_world_3d() if anchor != null else null
 	_door_portal.update(_tent_root, _interior_camera, WINDOW_PORTAL.room_to_world(anchor, _door_portal) if anchor != null else Transform3D(), _door_open and anchor != null, world, delta, anchor)
+
+
+# -- the canvas torn open (the granny's "slit": interior_prep, mess_rules CARNAGE_WALL;
+# Richard 3. 11.: "lepe udelat protrzeny stan. fakt dirou videt ven") --
+
+const WINDOW_SHARED_VIEW = preload("res://scripts/ui/window_shared_view.gd")
+var _tear: MeshInstance3D
+var _tear_seek := 0
+var _torn := false
+
+
+## The hole in the back canvas while it is there: the camp through it as it is from here
+## (the room's shared view, offered before the doorway's, so while you face the hole the
+## view is placed for its side of the tent outside), the wind in its flaps, the outside
+## heard through it.
+func _tick_tear() -> void:
+	if _tear == null or not is_instance_valid(_tear) or not _tear.is_inside_tree():
+		_tear = null
+		_tear_seek -= 1
+		if _tear_seek <= 0:
+			_tear_seek = 20
+			_tear = _tent_root.find_child("TentTear", true, false) as MeshInstance3D
+	var on := _tear != null and _tear.is_visible_in_tree()
+	_set_torn(on)
+	if not on:
+		return
+	var im := get_parent()
+	var a = im.get("_active_tent_node") if im != null else null
+	var anchor := a as Node3D if a != null and is_instance_valid(a) and (a as Node3D).is_inside_tree() else null
+	var world: World3D = anchor.get_world_3d() if anchor != null else null
+	var to := (_tear.global_position - _interior_camera.global_position).normalized()
+	var live := world != null and (-_interior_camera.global_transform.basis.z).dot(to) > 0.2
+	var view = WINDOW_SHARED_VIEW.for_host(self)
+	if live:
+		var hole := {"outward": Vector3(0, 0, -1), "frame": Transform3D(Basis(), _tent_root.to_local(_tear.global_position))}
+		view.offer(_interior_camera, _tent_root, WINDOW_PORTAL.room_to_world(anchor, hole), world, anchor)
+	var wind := float(_weather.get("wind_now")) if _weather != null and _weather.get("wind_now") != null else 0.3
+	for m in _tear.get_meta("tear_mats", []):
+		var sm := m as ShaderMaterial
+		sm.set_shader_parameter("room_tex", view.texture())
+		sm.set_shader_parameter("live", 1.0 if live else 0.0)
+		sm.set_shader_parameter("wind", maxf(wind, 0.35))
+
+
+## The tent open to the night: its canvas snaps in every breeze (room_weather `torn`) and
+## the outside comes in through the hole, less muffled (audio_manager.set_room_leak).
+func _set_torn(on: bool) -> void:
+	if on == _torn:
+		return
+	_torn = on
+	if _weather != null:
+		_weather.set("torn", on)
+	var im := get_parent()
+	var am = im.get("_audio_manager") if im != null else null
+	if am != null and am.has_method("set_room_leak"):
+		am.set_room_leak(0.6 if on else 0.0)
 
 
 func _set_door_open(open: bool) -> void:

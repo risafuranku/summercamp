@@ -20,6 +20,8 @@ const EYES := preload("res://scripts/enemies/enemy_eyes.gd")
 class FakePlayer:
 	extends CharacterBody3D
 	var torch := false
+	## The granny's cut ankle slows it (basket_brain.gd LIMP_MULT).
+	var held_speed_mult := 1.0
 
 	func is_flashlight_active() -> bool:
 		return torch
@@ -29,11 +31,23 @@ class FakeLamps:
 	extends Node
 	var lit_center := Vector3.INF
 	var radius := 4.0
+	var darkened := 0
 
 	func get_light_level_at(p: Vector3) -> float:
 		if lit_center == Vector3.INF:
 			return 0.0
 		return 1.0 if Vector2(p.x - lit_center.x, p.z - lit_center.z).length() < radius else 0.0
+
+	func lit_lamp_positions() -> Array:
+		return [] if lit_center == Vector3.INF else [lit_center]
+
+	func darken_lamp_near(p: Vector3, r: float, _seconds: float) -> Vector3:
+		if lit_center == Vector3.INF or Vector2(p.x - lit_center.x, p.z - lit_center.z).length() > r:
+			return Vector3.INF
+		var at := lit_center
+		lit_center = Vector3.INF
+		darkened += 1
+		return at
 
 
 var _failures: Array[String] = []
@@ -248,21 +262,71 @@ func _ready() -> void:
 		c.stop_night()
 	(_player as FakePlayer).torch = false
 
-	# ── Basket Man ──
-	# Moving while it is near: it comes for you. Standing still: it passes by.
-	for moving in [true, false]:
+	# ── The mushroom granny (reworked 2. 11.) ──
+	# She always comes: stand still in the dark and she is on you.
+	_damage = 0
+	var bk = _start(BASKET)
+	bk.soon = true
+	var caught_at := -1.0
+	for i in 30 * 30:
+		bk.tick(1.0 / 30.0)
+		if _damage > 0 and caught_at < 0.0:
+			caught_at = float(i) / 30.0
+	print("ENEMY CHECK: granny, standing still: dmg %d at %.1f s, limp %.2f" % [_damage, caught_at, (_player as FakePlayer).held_speed_mult])
+	_expect(_damage > 0, "granny: standing still in the dark she gets you")
+	_expect((_player as FakePlayer).held_speed_mult < 1.0, "granny: her catch leaves you limping")
+	bk.stop_night()
+	(_player as FakePlayer).held_speed_mult = 1.0
+	# Walk away from her, and freeze while she stands up and looks: she never gets you.
+	# Walk on while she looks and she comes at a run.
+	for freeze in [true, false]:
 		_damage = 0
-		_player.velocity = Vector3(1.5, 0, 0) if moving else Vector3.ZERO
-		var bm = _start(BASKET)
-		for i in 30 * 60:
-			bm.tick(1.0 / 30.0)
-		print("ENEMY CHECK: basket man, moving %s: dmg %d" % [moving, _damage])
-		if moving:
-			_expect(_damage > 0, "basket man: moving near it gets you caught")
+		bk = _start(BASKET)
+		bk.soon = true
+		# Out, and near: she sees you move from here.
+		bk.tick(1.0 / 30.0)
+		bk._body.global_position = Vector3(0, 0, -12)
+		var lunged := false
+		var away := Vector3(0, 0, 1)
+		for i in 30 * 40:
+			var looking: bool = str(bk._phase) in ["look", "stare"]
+			lunged = lunged or str(bk._phase) == "lunge"
+			if not (freeze and looking) and str(bk._phase) != "away":
+				var her: Vector3 = bk._body.global_position
+				away = (_player.global_position - her)
+				away.y = 0.0
+				away = away.normalized() if away.length() > 0.1 else Vector3(0, 0, 1)
+				_player.global_position += away * 3.9 / 30.0
+			bk.tick(1.0 / 30.0)
+		print("ENEMY CHECK: granny, walking away, freezing %s: dmg %d, lunged %s" % [freeze, _damage, lunged])
+		if freeze:
+			_expect(_damage == 0, "granny: walking on and freezing when she looks keeps you safe (took %d)" % _damage)
 		else:
-			_expect(_damage == 0, "basket man: standing still keeps you safe (took %d)" % _damage)
-		bm.stop_night()
-	_player.velocity = Vector3.ZERO
+			_expect(lunged, "granny: moving while she looks brings her at a run")
+		bk.stop_night()
+	# In a lamp's light: she never steps in, she reaches up and puts it out, then comes.
+	_damage = 0
+	_lamps.lit_center = Vector3(0, 0, 0)
+	_lamps.darkened = 0
+	bk = _start(BASKET)
+	bk.soon = true
+	var stepped_in := false
+	var dmg_lit := 0
+	for i in 30 * 40:
+		bk.tick(1.0 / 30.0)
+		if _lamps.lit_center != Vector3.INF:
+			dmg_lit = _damage
+			var b: Vector3 = bk._body.global_position
+			if bk._body.visible and Vector2(b.x, b.z).length() < _lamps.radius - 0.3:
+				stepped_in = true
+	print("ENEMY CHECK: granny, under a lamp: in the light %s, lamps out %d, dmg in light %d, after %d" % [stepped_in, _lamps.darkened, dmg_lit, _damage])
+	_expect(not stepped_in, "granny: she never steps into a lamp's light")
+	_expect(dmg_lit == 0, "granny: under a lit lamp she cannot cut you")
+	_expect(_lamps.darkened >= 1, "granny: she puts out the lamp you stand under")
+	_expect(_damage > 0, "granny: once the lamp is out and you stay, she gets you")
+	bk.stop_night()
+	_lamps.lit_center = Vector3.INF
+	(_player as FakePlayer).held_speed_mult = 1.0
 
 	print("")
 	if _failures.is_empty():
@@ -300,7 +364,7 @@ func _build_world() -> void:
 	var ground := StaticBody3D.new()
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
-	box.size = Vector3(200, 1, 200)
+	box.size = Vector3(600, 1, 600)
 	shape.shape = box
 	ground.position = Vector3(0, -0.5, 0)
 	ground.add_child(shape)
