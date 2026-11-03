@@ -92,6 +92,11 @@ const SFX_WHISPER := "res://assets/sfx/npc/silent_whisper.mp3"
 const SFX_TWIG := "res://assets/sfx/npc/twig_snap.mp3"
 const SFX_HUM := "res://assets/sfx/npc/sm_hum.mp3"
 const SFX_BREATH := "res://assets/sfx/npc/sm_breath.mp3"
+## The same as his loops: seamless OGG, looped by their import (tools/audiogen/
+## ambience_loop.py --trim; the MP3s clicked or gapped at every repeat, and a loop set
+## in code does not travel to the other warden). The MP3s stay for his one-shots.
+const SFX_HUM_LOOP := "res://assets/sfx/npc/sm_hum.ogg"
+const SFX_BREATH_LOOP := "res://assets/sfx/npc/sm_breath.ogg"
 const SFX_MMM := "res://assets/sfx/npc/sm_mmm.mp3"
 const SFX_CREAK := "res://assets/sfx/npc/sm_creak.mp3"
 const SFX_TEAR := "res://assets/sfx/npc/sm_tear.mp3"
@@ -253,8 +258,8 @@ func _on_start() -> void:
 	var nth := int(_night_entry.get("nth", 0)) if _night_entry is Dictionary else 0
 	if nth > 0:
 		_fx_key = "silent_man#%d" % nth
-	_hum = _loop(SFX_HUM, -60.0)
-	_breath = _loop(SFX_BREATH, -60.0)
+	_hum = _loop(SFX_HUM_LOOP, -60.0)
+	_breath = _loop(SFX_BREATH_LOOP, -60.0)
 	_reset_far(_rng.randf_range(3.0, 6.0))
 	_peek_until = 0.0
 	_first = not _met()

@@ -12,7 +12,7 @@ dest_files=["res://.godot/imported/spores.ogg-61b6b6e4a8e7111ea1a9b2f0fa63a13f.o
 
 [params]
 
-loop=false
+loop=true
 loop_offset=0
 bpm=0
 beat_count=0

@@ -9,6 +9,10 @@
 half a second of it: a gap in every repeat even when cross-faded). --lufs: brought to
 that integrated loudness (linear gain, as normalize.py; the true peak kept under -2 dBTP),
 else as loud as it came.
+
+Then set loop=true in the OGG's .import: Godot imports it unlooped, and a loop set on the
+stream in code does not travel to a co-op client (it plays a mirrored sound by its path,
+once). A loop file is only a loop: one-shots of the same sound stay their own file.
 """
 import os
 import subprocess

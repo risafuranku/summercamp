@@ -12,7 +12,7 @@ dest_files=["res://.godot/imported/door_pry.ogg-b4a758577869bd05d9f4f621c3927893
 
 [params]
 
-loop=false
+loop=true
 loop_offset=0
 bpm=0
 beat_count=0
