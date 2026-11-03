@@ -180,10 +180,101 @@ func _window_steps() -> Array:
 	return steps
 
 
+## A hitch: a frame far longer than the frames round it (three times the running mean and
+## over 50 ms), while watched, with what she was at then. Her firsts in a row, no pictures
+## taken (a picture saved is a long frame of its own).
+var _watch := false
+var _hitches := 0
+var _mean_dt := 1.0 / 30.0
+## A measured stretch: each frame's length and the scripts' share of it.
+var _win := ""
+var _win_dt: Array = []
+var _win_ms: Array = []
+
+
+func _process(delta: float) -> void:
+	super._process(delta)
+	if _watch and delta > 0.05 and delta > _mean_dt * 3.0:
+		_hitches += 1
+		print("HITCH %d ms (frames round it %d ms) phase=%s" % [int(delta * 1000.0), int(_mean_dt * 1000.0), str(state().get("phase", ""))])
+	_mean_dt = lerpf(_mean_dt, minf(delta, 0.25), 0.1)
+	if _win != "":
+		_win_dt.append(delta)
+		_win_ms.append(Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0)
+
+
+func watch(on: bool) -> String:
+	_watch = on
+	return "HITCHES %d" % _hitches
+
+
+## Ends the stretch being measured (its mean frame, the scripts' mean share, its worst
+## frame) and starts one called `label` ("" none).
+func window(label: String) -> String:
+	var out := ""
+	if _win != "" and not _win_dt.is_empty():
+		var n := float(_win_dt.size())
+		var dt := 0.0
+		var ms := 0.0
+		var worst := 0.0
+		for i in _win_dt.size():
+			dt += float(_win_dt[i])
+			ms += float(_win_ms[i])
+			worst = maxf(worst, float(_win_dt[i]))
+		out = "PERF %s frames=%d fps=%.0f scripts=%.1fms worst=%dms" % [_win, int(n), n / dt, ms / n, int(worst * 1000.0)]
+	_win = label
+	_win_dt.clear()
+	_win_ms.clear()
+	return out
+
+
+## The warden two steps from her, facing her (her spores, her catch).
+func meet_granny() -> String:
+	var g = granny()
+	var p: Node3D = _main.get("_player")
+	var b: Vector3 = g._body.global_position
+	p.global_position = Vector3(b.x + 2.0, p.global_position.y, b.z)
+	p.look_at(Vector3(b.x, p.global_position.y, b.z))
+	return "near her"
+
+
+const HITCH_STEPS := [
+	["wait_menu"], ["call", "_on_menu_test_night", ["basket"]], ["wait", 4.0],
+	["call_on", "_interior_manager", "close_main_interior_if_open", []], ["wait", 2.0],
+	# The same night without her, then with her, far and near, and hidden while she eats.
+	["call", "_stop_active_enemy_brain", []], ["wait", 3.0],
+	["eval", "get_tree().root.get_node('BabkaShots').window('alone')"], ["wait", 5.0],
+	["eval", "get_tree().root.get_node('BabkaShots').window('')"],
+	["eval", "_interior_manager._building_interior.open_interior()"], ["wait", 3.0],
+	["eval", "get_tree().root.get_node('BabkaShots').window('alone in the office')"], ["wait", 5.0],
+	["eval", "get_tree().root.get_node('BabkaShots').window('')"],
+	["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 3.0],
+	["eval", "debug_spawn_enemy('basket', 3)"], ["eval", "_enemy_brains.back().set('soon', true)"], ["wait", 3.0],
+	["eval", "get_tree().root.get_node('BabkaShots').window('granny out')"], ["wait", 5.0],
+	["eval", "get_tree().root.get_node('BabkaShots').window('')"],
+	["eval", "get_tree().root.get_node('BabkaShots').watch(true)"],
+	["eval", "get_tree().root.get_node('BabkaShots').granny()._set_phase('look', 3.0)"], ["wait", 3.0],
+	["eval", "get_tree().root.get_node('BabkaShots').meet_granny()"], ["wait", 1.0],
+	["eval", "get_tree().root.get_node('BabkaShots').window('granny near')"], ["wait", 3.0],
+	["eval", "get_tree().root.get_node('BabkaShots').window('')"],
+	["eval", "get_tree().root.get_node('BabkaShots').granny()._start_strike()"], ["wait", 4.0],
+	["eval", "_interior_manager._building_interior.open_interior()"], ["wait", 8.0],
+	["eval", "get_tree().root.get_node('BabkaShots').window('hidden, she goes for them')"], ["wait", 20.0],
+	["eval", "get_tree().root.get_node('BabkaShots').window('')"],
+	["eval", "get_tree().root.get_node('BabkaShots').state()"],
+	["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 3.0],
+	["eval", "get_tree().root.get_node('BabkaShots').into_torn_tent()"], ["wait", 4.0],
+	["eval", "get_tree().root.get_node('BabkaShots').watch(false)"],
+]
+
+
 func _ready() -> void:
 	super._ready()
 	if OS.get_cmdline_user_args().has("--part=tear"):
 		_steps = TEAR_STEPS.duplicate(true)
+		return
+	if OS.get_cmdline_user_args().has("--part=hitch"):
+		_steps = HITCH_STEPS.duplicate(true)
 		return
 	if OS.get_cmdline_user_args().has("--part=windows"):
 		_steps = _window_steps()

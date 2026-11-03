@@ -268,7 +268,9 @@ func set_forced(key: String, state: String) -> void:
 		_forced.erase(key)
 	else:
 		_forced[key] = state
-	_update()
+	# (Not while the world is being taken down: the night's brains let go of theirs then.)
+	if is_inside_tree():
+		_update()
 
 
 ## Builder 98's map lights the same windows (crt_map_panel.gd): {} when the lodging at
