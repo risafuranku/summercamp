@@ -2061,7 +2061,36 @@ func coop_partner(info: Dictionary, id := 0) -> void:
 ## their job, the bed, the walk through a doorway), in the office's own world: for whoever
 ## is in it with them, and seen from the camp through its windows (_coop_office_from_camp).
 ## `right`: the eye's right, for which way a sleeper is drawn.
-func _place_office_fig(fig: Node3D, info: Dictionary, model: int, root: Node3D, right: Vector3) -> void:
+## A warden at the register or the PC from where you see them (the user 30. 10.: "the
+## wardens from more sides, checking in and at the PC: from the bench or the window you
+## see them from the front, from the back room from behind"): `pose` as drawn from the
+## front, or its _side / _back picture where it is drawn (warden_<x>_write_side.png...);
+## [pose, flip]. `face`: the way they face (global), `eye_fwd`: the way you look.
+## The side pictures look one way: the register's to the left, the PC's to the right.
+const SIDE_LOOKS_RIGHT := {"write": false, "desk": true}
+
+
+func _pose_seen(model: int, pose: String, face: Vector3, eye_fwd: Vector3) -> Array:
+	face.y = 0.0
+	eye_fwd.y = 0.0
+	if face.length_squared() < 0.0001 or eye_fwd.length_squared() < 0.0001:
+		return [pose, false]
+	face = face.normalized()
+	eye_fwd = eye_fwd.normalized()
+	var toward := face.dot(-eye_fwd)
+	# The PC's own picture is from behind (nobody sees a face at a monitor on the wall).
+	var front_drawn := pose != "desk"
+	if toward < -0.45 and COOP_LOOKS.has_pose(model, pose + "_back"):
+		return [pose + "_back", false]
+	if (toward < 0.45 or not front_drawn) and toward > -0.45 and COOP_LOOKS.has_pose(model, pose + "_side"):
+		var looks_right := face.dot(eye_fwd.cross(Vector3.UP)) > 0.0
+		return [pose + "_side", looks_right != bool(SIDE_LOOKS_RIGHT.get(pose, false))]
+	return [pose, false]
+
+
+func _place_office_fig(fig: Node3D, info: Dictionary, model: int, root: Node3D, right: Vector3, eye_fwd := Vector3.ZERO) -> void:
+	if eye_fwd == Vector3.ZERO:
+		eye_fwd = Vector3.UP.cross(right)
 	var it = _building_interior
 	fig.set_walking(false)
 	fig.set_flip(false)
@@ -2083,10 +2112,12 @@ func _place_office_fig(fig: Node3D, info: Dictionary, model: int, root: Node3D, 
 	# Where they are (their part of the building, not yours).
 	var spot: Vector3 = COOP_OFFICE_SPOTS.get(str(info.get("s", "office")), COOP_OFFICE_SPOTS["office"])
 	var pose := "stand"
+	var face := Vector3.ZERO
 	if str(info.get("w", "")) == "desk" and COOP_LOOKS.has_pose(model, "write"):
-		# Behind the counter, bent over the register.
+		# Behind the counter, bent over the register, facing the guests' side.
 		spot = COOP_DESK_SPOT
 		pose = "write"
+		face = root.global_basis * Vector3(0, 0, -1)
 	elif str(info.get("w", "")) == "board":
 		# In front of the board, reading it.
 		spot = COOP_BOARD_SPOT
@@ -2105,7 +2136,15 @@ func _place_office_fig(fig: Node3D, info: Dictionary, model: int, root: Node3D, 
 		var at_desk := seat.lerp(screen, 0.38)
 		spot = Vector3(at_desk.x, 0.0, at_desk.z)
 		pose = "desk"
+		face = root.global_basis * (screen - seat)
+	var flip := false
+	if face != Vector3.ZERO:
+		var seen := _pose_seen(model, pose, face, eye_fwd)
+		pose = str(seen[0])
+		flip = bool(seen[1])
 	fig.show_at(root.global_transform * spot, pose)
+	if flip:
+		fig.set_flip(true)
 
 
 ## The other wardens in the office building seen from the camp through its windows (the
@@ -2150,7 +2189,8 @@ func _coop_office_from_camp(delta: float) -> void:
 			fig.setup(model, int(look.get("c", 0)), true)
 			vp.add_child(fig)
 			_office_figs[id] = fig
-		_place_office_fig(fig, info, model, root, Vector3.RIGHT)
+		# Seen from the camp through the front window: looking in, +z of the room.
+		_place_office_fig(fig, info, model, root, Vector3.RIGHT, root.global_basis * Vector3(0, 0, 1))
 	for id in _office_figs.keys():
 		if not id in seen:
 			var f = _office_figs[id]

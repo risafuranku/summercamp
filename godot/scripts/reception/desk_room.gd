@@ -27,6 +27,27 @@ const DOOR_HINGE := Vector3(2.2, 0.0, -2.55)
 const DOOR_W := 0.95
 const BELL_POS := Vector3(0.98, 1.0, 0.02)
 const POLL_SEC := 0.5
+## The check-in played on the counter itself (the user 30. 10.), checkin_desk.gd's picture
+## laid on it: its counter part (y 104..270 of the 384) over the counter's top left of the
+## phone, the far edge where the guest stands; its key board (x 284..478, y 280..384) on
+## the right wall over the old picture of the board. Your eye over the counter; look up at
+## the guest, turn right to the keys (the edges of the screen, the arrows).
+const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
+const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
+const DESK_EYE := Vector3(0.1, 1.42, 0.46)
+const DESK_LOOK_AT := Vector3(0.12, 0.965, -0.02)
+## Turned right to the keys you lean over to them: the eye goes up to the board.
+const BOARD_EYE := Vector3(1.86, 1.5, 0.95)
+const SHEET_X0 := -0.52
+const SHEET_W := 1.45
+const SHEET_Z0 := -0.17
+const SHEET_D := 0.5015
+const SHEET_Y := 0.965
+const SHEET_PX_Y := Vector2(104.0, 166.0)
+const BOARD_AT := Vector3(2.462, 1.52, 0.95)
+const BOARD_SIZE := Vector2(0.72, 0.386)
+const BOARD_PX := Rect2(284, 280, 194, 104)
+const STEP_SEC := 0.45
 const RING_AGAIN_SEC := 28.0
 const STRANGER_ID := -77
 
@@ -51,6 +72,20 @@ var _stranger_night := -1
 var _stranger_wait := -1.0
 var _pending_state: Dictionary = {}
 var _tex_cache: Dictionary = {}
+var look = INTERIOR_LOOK.new(112.0, 44.0, 12.0)
+var _sheet: MeshInstance3D
+var _board: MeshInstance3D
+var _at_desk := false
+var _cam_from: Array = []
+var _cam_tween: Tween
+var _desk_rot := Vector3.ZERO
+var _say_layer: CanvasLayer
+var _say_label: Label
+var _say_t := 0.0
+var _edge_t := 0.0
+## The band at the screen's edges that turns the head at the counter, and how long first.
+const EDGE := 0.06
+const EDGE_SEC := 0.3
 
 
 func build(host_node, extras_node, root: Node3D) -> void:
@@ -67,6 +102,8 @@ func build(host_node, extras_node, root: Node3D) -> void:
 	_hot("guest", COUNTER_SPOT + Vector3(0, 0.9, 0), Vector3(0.8, 1.8, 0.5), [])
 	_hot("bell", BELL_POS + Vector3(0, 0.06, 0), Vector3(0.26, 0.22, 0.26), [_bell])
 	desk = DESK.new()
+	desk.mode_3d = true
+	desk.on_say = func(text: String): _say(text)
 	desk.key_board_provider = func(): return GuestManager.get_key_board() if GuestManager != null else []
 	desk.check_in_call = func(id: int):
 		# Co-op: checked in for real in the host's camp; here at once, for the desk.
@@ -140,6 +177,8 @@ func open() -> void:
 		return
 	_ring_t = 0.0
 	desk.open_desk(_front_info(), CoreRoot.get_day() if CoreRoot != null else 1)
+	if desk.visible and not _at_desk:
+		_step_up()
 
 
 ## Leaving the office: whoever is not booked is not there when you come back.
@@ -159,6 +198,7 @@ func front_door() -> Node3D:
 # ── every frame (building_interior.gd, while the office is open) ─────────────
 
 func process(delta: float, in_office: bool) -> void:
+	_tick_desk(delta)
 	_poll -= delta
 	if _poll <= 0.0:
 		_poll = POLL_SEC
@@ -183,6 +223,211 @@ func process(delta: float, in_office: bool) -> void:
 		if _ring_t >= RING_AGAIN_SEC:
 			_ring_t = 0.0
 			_ring()
+
+
+# ── at the counter (3D) ──────────────────────────────────────────────────────
+
+func _step_up() -> void:
+	_make_sheets()
+	_sheet.visible = true
+	_board.visible = true
+	var pic := room_root.get_node_or_null("KeyRack") as Node3D
+	if pic != null:
+		pic.visible = false
+	# The office's own notebook lies where the register is laid.
+	var book := room_root.get_node_or_null("ReceptionNotebook") as Node3D
+	if book != null:
+		book.visible = false
+	var cam: Camera3D = host._interior_camera
+	_cam_from = [cam.position, cam.rotation]
+	_desk_rot = Transform3D(Basis(), DESK_EYE).looking_at(DESK_LOOK_AT, Vector3.UP).basis.get_euler()
+	look.reset()
+	_at_desk = true
+	_glide(DESK_EYE, _desk_rot)
+
+
+func _step_down() -> void:
+	_at_desk = false
+	if _sheet != null:
+		_sheet.visible = false
+		_board.visible = false
+	var pic := room_root.get_node_or_null("KeyRack") as Node3D
+	if pic != null:
+		pic.visible = true
+	var book := room_root.get_node_or_null("ReceptionNotebook") as Node3D
+	if book != null:
+		book.visible = true
+	_say("")
+	if not _cam_from.is_empty():
+		_glide(_cam_from[0], _cam_from[1])
+		_cam_from = []
+
+
+func _glide(pos: Vector3, rot: Vector3) -> void:
+	var cam: Camera3D = host._interior_camera
+	if _cam_tween != null and _cam_tween.is_valid():
+		_cam_tween.kill()
+	rot.y = cam.rotation.y + wrapf(rot.y - cam.rotation.y, -PI, PI)
+	_cam_tween = host.create_tween().set_parallel(true).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_cam_tween.tween_property(cam, "position", pos, STEP_SEC)
+	_cam_tween.tween_property(cam, "rotation", rot, STEP_SEC)
+
+
+func _gliding() -> bool:
+	return _cam_tween != null and _cam_tween.is_valid() and _cam_tween.is_running()
+
+
+func _tick_desk(delta: float) -> void:
+	if _say_t > 0.0:
+		_say_t -= delta
+		if _say_t <= 0.0 and _say_label != null:
+			_say_label.visible = false
+	if not _at_desk:
+		return
+	if not desk.visible:
+		_step_down()
+		return
+	if _gliding():
+		desk.pointer = Vector2(-1, -1)
+		return
+	var cam: Camera3D = host._interior_camera
+	var vp: Viewport = host.get_viewport()
+	# Not while a thing is in hand and the pointer is on the work.
+	# The head turns only with the pointer held at the very edge a moment (the work reaches
+	# the edges of the picture: writing at the register's left page turned you away).
+	var cur: Vector2 = INTERIOR_LOOK.cursor_of(vp)
+	var edge := cur.x >= 0.0 and (cur.x < EDGE or cur.x > 1.0 - EDGE or cur.y < EDGE or cur.y > 1.0 - EDGE)
+	_edge_t = _edge_t + delta if edge else 0.0
+	var offset: Vector3 = look.update(delta, cur if _edge_t > EDGE_SEC else Vector2(-1, -1), INTERIOR_LOOK.turn_axis())
+	var k := clampf((-look.yaw_deg - 40.0) / 45.0, 0.0, 1.0)
+	k = k * k * (3.0 - 2.0 * k)
+	cam.position = DESK_EYE.lerp(BOARD_EYE, k)
+	cam.rotation = _desk_rot + offset + Vector3(deg_to_rad(30.0) * k, 0.0, 0.0)
+	_point()
+
+
+## The pointer through the room's eye onto the counter's picture or the wall's board.
+func _point() -> void:
+	var cam: Camera3D = host._interior_camera
+	var vpm: Vector2 = host._to_interior_viewport_pos(host.get_viewport().get_mouse_position())
+	var o: Vector3 = room_root.to_local(cam.project_ray_origin(vpm))
+	var d: Vector3 = room_root.global_basis.inverse() * cam.project_ray_normal(vpm)
+	var best := INF
+	var px := Vector2(-1, -1)
+	var wall := false
+	if absf(d.y) > 0.0001:
+		var t := (SHEET_Y - o.y) / d.y
+		if t > 0.0:
+			var p := o + d * t
+			var u := (p.x - SHEET_X0) / SHEET_W
+			var v := (p.z - SHEET_Z0) / SHEET_D
+			# Past the far edge, over to the guest: where the papers go back.
+			if u >= 0.0 and u <= 1.0 and v >= -0.25 and v <= 1.0:
+				best = t
+				px = Vector2(u * 480.0, SHEET_PX_Y.x + clampf(v, 0.0, 1.0) * SHEET_PX_Y.y)
+	if absf(d.x) > 0.0001:
+		var t2 := (BOARD_AT.x - o.x) / d.x
+		if t2 > 0.0 and t2 < best:
+			var p2 := o + d * t2
+			var u2 := (p2.z - (BOARD_AT.z - BOARD_SIZE.x * 0.5)) / BOARD_SIZE.x
+			var v2 := ((BOARD_AT.y + BOARD_SIZE.y * 0.5) - p2.y) / BOARD_SIZE.y
+			if u2 >= 0.0 and u2 <= 1.0 and v2 >= 0.0 and v2 <= 1.0:
+				px = Vector2(BOARD_PX.position.x + u2 * BOARD_PX.size.x, BOARD_PX.position.y + v2 * BOARD_PX.size.y - desk.RACK_3D.y)
+				wall = true
+	desk.pointer = px
+	desk.pointer_on_wall = wall
+
+
+## The room's input while you are at the counter (building_interior._input).
+func input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_cancel"):
+		return
+	host.get_viewport().set_input_as_handled()
+	if not _at_desk or _gliding():
+		return
+	if event is InputEventKey and event.pressed and not event.echo and (event as InputEventKey).physical_keycode == KEY_S:
+		desk.close_desk()
+		return
+	if not (event is InputEventMouseButton):
+		return
+	var mb := event as InputEventMouseButton
+	if (mb.button_index == MOUSE_BUTTON_WHEEL_UP or mb.button_index == MOUSE_BUTTON_WHEEL_DOWN) and mb.pressed:
+		if desk.pointer_on_wall:
+			desk.wheel(1 if mb.button_index == MOUSE_BUTTON_WHEEL_DOWN else -1)
+		return
+	if mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
+		if not desk.put_down():
+			desk.close_desk()
+		return
+	if mb.button_index != MOUSE_BUTTON_LEFT:
+		return
+	if mb.pressed:
+		# The band at the bottom of the screen, nothing in hand: up from the counter.
+		if desk.holding_nothing() and INTERIOR_LOOK.in_exit_zone(host.get_viewport()):
+			desk.close_desk()
+			return
+		desk.press_at()
+	else:
+		desk.release_at()
+
+
+func _make_sheets() -> void:
+	if _sheet != null and is_instance_valid(_sheet):
+		return
+	var tex: Texture2D = desk.picture()
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(SHEET_W, SHEET_D)
+	_sheet = MeshInstance3D.new()
+	_sheet.name = "DeskSheet"
+	_sheet.mesh = plane
+	_sheet.material_override = _sheet_mat(tex, Vector2(0.0, SHEET_PX_Y.x / float(desk.H_3D)), Vector2(1.0, SHEET_PX_Y.y / float(desk.H_3D)))
+	_sheet.position = Vector3(SHEET_X0 + SHEET_W * 0.5, SHEET_Y, SHEET_Z0 + SHEET_D * 0.5)
+	_sheet.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_sheet.set_meta("retro_text", true)
+	room_root.add_child(_sheet)
+	var q := QuadMesh.new()
+	q.size = BOARD_SIZE
+	_board = MeshInstance3D.new()
+	_board.name = "DeskKeyBoard"
+	_board.mesh = q
+	_board.material_override = _sheet_mat(tex, Vector2(BOARD_PX.position.x / float(desk.W), BOARD_PX.position.y / float(desk.H_3D)), Vector2(BOARD_PX.size.x / float(desk.W), BOARD_PX.size.y / float(desk.H_3D)))
+	_board.position = BOARD_AT
+	_board.rotation_degrees.y = -90.0
+	_board.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_board.set_meta("retro_text", true)
+	room_root.add_child(_board)
+
+
+func _sheet_mat(tex: Texture2D, offset: Vector2, scale: Vector2) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = tex
+	m.uv1_offset = Vector3(offset.x, offset.y, 0.0)
+	m.uv1_scale = Vector3(scale.x, scale.y, 1.0)
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	m.alpha_scissor_threshold = 0.4
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	m.roughness = 1.0
+	return m
+
+
+## What the guest says, under the room for a while (their bubble, played in the room).
+func _say(text: String) -> void:
+	if _say_layer == null:
+		_say_layer = CanvasLayer.new()
+		_say_layer.layer = 130
+		host.add_child(_say_layer)
+		_say_label = RETRO_UI.label("", RETRO_UI.FONT_TEXT, RETRO_UI.SIZE_LABEL, RETRO_UI.C_BONE, maxi(1, RETRO_UI.ui_scale(host.get_viewport().get_visible_rect().size.y)))
+		_say_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_say_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_say_layer.add_child(_say_label)
+	var size: Vector2 = host.get_viewport().get_visible_rect().size
+	_say_label.size = Vector2(size.x * 0.7, 0.0)
+	_say_label.position = Vector2(size.x * 0.15, size.y * 0.80)
+	_say_label.text = text
+	_say_label.visible = text != "" and _at_desk
+	_say_t = 3.0 + float(text.length()) * 0.06
 
 
 func _front_info() -> Dictionary:

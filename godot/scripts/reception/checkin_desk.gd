@@ -201,6 +201,25 @@ var _scare_left := 0.0
 var _flicker := 0.0               # the bulb flickering (seconds left)
 var _scare_cool_until := -INF     # (day * 24 + hour) before another may show
 
+## Played in the office itself (the user 30. 10.: "a 3D minigame like the corn stand and
+## the pub: the things laid on the table readably, the stamp to pick up, the keys hanging
+## on their hooks on the wall, played in that room"): desk_room.gd lays this picture on the
+## real counter and the key board on the wall beside it, casts the pointer onto them and
+## gives it here in this picture's pixels (`pointer`, press_at / release_at). The booth's
+## pictures are not drawn (the room and the guest are real), the background is clear; the
+## key board is drawn RACK_3D lower in the picture (its own part for the wall).
+var mode_3d := false
+var pointer := Vector2(-1, -1)
+## The pointer is on the wall's key board (the key in hand drawn there, not on the counter).
+var pointer_on_wall := false
+## Where the pointer last was on the counter or the board (a thing let go off them goes
+## down there, not back to the guest).
+var _last_ok := Vector2(-1, -1)
+## What the guest says, for the room to show (3D: no bubble in the picture).
+var on_say: Callable
+const RACK_3D := Vector2(0, 162)
+const H_3D := 384
+
 
 func _init() -> void:
 	layer = 140
@@ -214,9 +233,11 @@ func _ready() -> void:
 	_backdrop.color = Color(0, 0, 0, 0)
 	_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
+	_backdrop.visible = not mode_3d
 	add_child(_backdrop)
 	_vp = SubViewport.new()
-	_vp.size = Vector2i(W, H)
+	_vp.size = Vector2i(W, H_3D if mode_3d else H)
+	_vp.transparent_bg = mode_3d
 	_vp.disable_3d = true
 	_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	_vp.canvas_item_default_texture_filter = Viewport.DEFAULT_CANVAS_ITEM_TEXTURE_FILTER_NEAREST
@@ -227,6 +248,7 @@ func _ready() -> void:
 	_canvas.draw.connect(_draw_all)
 	_vp.add_child(_canvas)
 	_view = TextureRect.new()
+	_view.visible = not mode_3d
 	_view.texture = _vp.get_texture()
 	_view.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_view.stretch_mode = TextureRect.STRETCH_SCALE
@@ -247,6 +269,10 @@ func _ready() -> void:
 
 func is_open() -> bool:
 	return visible and _closing_t < 0.0
+
+
+func picture() -> Texture2D:
+	return _vp.get_texture()
 
 
 func current_guest_id() -> int:
@@ -512,6 +538,8 @@ func _roll_scare() -> void:
 func _say_line(text: String) -> void:
 	_say = tr(text)
 	_say_shown = 0.0
+	if mode_3d and on_say.is_valid():
+		on_say.call(_say)
 
 
 func _refresh_keys() -> void:
@@ -599,15 +627,21 @@ func _process(delta: float) -> void:
 			closed.emit()
 		return
 	_open_t += delta
-	_set_open_fraction(clampf(_open_t / OPEN_SEC, 0.0, 1.0))
+	if not mode_3d:
+		_set_open_fraction(clampf(_open_t / OPEN_SEC, 0.0, 1.0))
 	# The board as the rooms are now, twice a second: a room made up while the desk was
 	# open (by a hand, by the other warden) stayed red at its key (playtest 1. 11.).
 	_keys_t -= delta
 	if _keys_t <= 0.0:
 		_keys_t = KEYS_EVERY
 		_refresh_keys()
-	var m := (get_viewport().get_mouse_position() - _view.position) / float(_k)
-	_mouse = m if Rect2(Vector2.ZERO, Vector2(W, H)).has_point(m) else Vector2(-1, -1)
+	if mode_3d:
+		_mouse = pointer
+		if pointer.x >= 0.0:
+			_last_ok = pointer
+	else:
+		var m := (get_viewport().get_mouse_position() - _view.position) / float(_k)
+		_mouse = m if Rect2(Vector2.ZERO, Vector2(W, H)).has_point(m) else Vector2(-1, -1)
 	# The guest steps up to the counter, or away from it (in steps, like the sprites).
 	var gspeed := 3.2
 	if absf(_guest_y - _guest_target) > 0.001:
@@ -661,8 +695,43 @@ func _cursor() -> void:
 
 # ── input ────────────────────────────────────────────────────────────────────
 
+## The room's pointer pressed and let go on the counter or the board (3D).
+func press_at() -> void:
+	if _closing_t < 0.0 and _mouse.x >= 0.0:
+		_press(_mouse)
+
+
+func release_at() -> void:
+	if _closing_t < 0.0:
+		_release(_mouse if _mouse.x >= 0.0 else _last_ok)
+
+
+func holding_nothing() -> bool:
+	return _drag == "" and _holding_stamp == "" and not _labels_mode
+
+
+## The right button in the room: the label maker or the stamp put down, else false.
+func put_down() -> bool:
+	if _labels_mode:
+		_set_labels_mode(false)
+		return true
+	if _holding_stamp != "":
+		_holding_stamp = ""
+		_play("ink", -12.0)
+		return true
+	return false
+
+
+## A board of keys turned by the wheel over it (3D).
+func wheel(dir: int) -> void:
+	_turn_page(_page + dir)
+
+
 func _input(event: InputEvent) -> void:
 	if not visible or get_tree().paused:
+		return
+	# Played in the room: the room brings the pointer (desk_room.gd).
+	if mode_3d:
 		return
 	# Esc goes on to the pause menu (main).
 	if event.is_action_pressed("ui_cancel"):
@@ -1160,10 +1229,19 @@ func _draw_all() -> void:
 	var c := _canvas
 	var sh := Vector2(roundf(sin(_t * 70.0) * _shake), 0) if _shake > 0.05 else Vector2.ZERO
 	c.draw_set_transform(sh)
-	_draw_booth(c)
-	_draw_desk(c)
+	if mode_3d:
+		# The real counter under it: only where the papers go back, while one is in hand.
+		if _drag != "":
+			c.draw_rect(Rect2(0, COUNTER_Y, W, 12), Color(1, 0.9, 0.6, 0.16 + 0.06 * sin(_t * 8.0)))
+	else:
+		_draw_booth(c)
+		_draw_desk(c)
 	_draw_book(c)
+	if mode_3d:
+		c.draw_set_transform(sh + RACK_3D)
 	_draw_rack(c)
+	if mode_3d:
+		c.draw_set_transform(sh)
 	_draw_dymo(c)
 	_draw_stamps(c)
 	# Papers: the one not on top first.
@@ -1171,7 +1249,11 @@ func _draw_all() -> void:
 	var order: Array = ["slip", "card"] if top == "card" else ["card", "slip"]
 	for d in order:
 		_draw_paper(c, d)
+	if mode_3d and pointer_on_wall:
+		c.draw_set_transform(sh + RACK_3D)
 	_draw_dragged_key(c)
+	if mode_3d:
+		c.draw_set_transform(sh)
 	if _holding_stamp != "" and _mouse.x >= 0.0:
 		_draw_stamp_tool(c, _holding_stamp, _mouse - STAMP_SIZE * 0.5 + Vector2(0, -6), true)
 	c.draw_set_transform(Vector2.ZERO)
@@ -1348,9 +1430,12 @@ func _glyph3(c: Control, top: Vector2, ch: String, col: Color) -> float:
 	var bits := str(HAND.get(ch, ""))
 	if bits.is_empty():
 		return 2.0
+	# On the counter in the room the pen's strokes are twice as tall: seen at a slant from
+	# where you stand, a stroke of one pixel was under one of the screen's.
+	var th := 2.0 if mode_3d else 1.0
 	for b in 15:
 		if bits[b] == "1":
-			c.draw_rect(Rect2(top.x + float(b % 3), top.y + floorf(float(b) / 3.0), 1, 1), col)
+			c.draw_rect(Rect2(top.x + float(b % 3), top.y + floorf(float(b) / 3.0), 1, th), col)
 	return 4.0
 
 

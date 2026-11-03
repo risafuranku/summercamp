@@ -1524,10 +1524,12 @@ func _exit_crt_view() -> void:
 func _input(event: InputEvent) -> void:
 	if not visible:
 		return
+	# At the counter (the check-in played on it): the counter's own input.
+	if _desk_room != null and _desk_room.is_open():
+		_desk_room.input(event)
+		return
 	# The close-ups, the sleep and the walk through the door handle their own input.
 	if _extras != null and _extras.is_modal():
-		return
-	if _desk_room != null and _desk_room.is_open():
 		return
 
 	# Esc is the pause menu's (main), here as everywhere.
