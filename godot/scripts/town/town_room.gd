@@ -81,6 +81,13 @@ var hour := 12.0
 ## your room "motel_room"; the chapel's own (chapel_view.gd) the same way. Null elsewhere.
 const MOTEL_VIEW = preload("res://scripts/town/motel_view.gd")
 const CHAPEL_VIEW = preload("res://scripts/town/chapel_view.gd")
+const JEDNOTA_VIEW = preload("res://scripts/town/jednota_view.gd")
+const PUB_VIEW = preload("res://scripts/town/pub_view.gd")
+const KIOSK_VIEW = preload("res://scripts/town/kiosk_view.gd")
+## Set by town_trip: the place's building in the village and the room built in it behind
+## its glass (jednota_view.gd: the windows look out of the one, hide the other).
+var place_anchor: Node3D
+var place_shell: Node3D
 var _view
 ## Set by town_trip: the motel in the village (motel_block.gd: where its windows look out
 ## from), the keys on its board.
@@ -206,14 +213,26 @@ func open(p_place: String, p_hour: float) -> void:
 	var motel_ok := motel_block != null and is_instance_valid(motel_block)
 	match place:
 		"jednota":
-			_build_jednota()
+			if place_anchor != null and is_instance_valid(place_anchor) and place_anchor.get_node_or_null("SalesRoom") != null:
+				_view = JEDNOTA_VIEW.new(self, place_anchor, place_shell)
+				_view.build_inside(hour)
+			else:
+				_build_jednota()
 		"pub":
-			_build_pub()
+			if place_anchor != null and is_instance_valid(place_anchor) and place_anchor.get_node_or_null("Taproom") != null:
+				_view = PUB_VIEW.new(self, place_anchor, place_shell)
+				_view.build_inside(hour)
+			else:
+				_build_pub()
 		"chapel":
 			_view = CHAPEL_VIEW.new(self)
 			_view.build(hour, _candles)
 		"kiosk":
-			_build_kiosk()
+			if place_anchor != null and is_instance_valid(place_anchor) and place_anchor.get_node_or_null("Shop") != null:
+				_view = KIOSK_VIEW.new(self, place_anchor, place_shell)
+				_view.build_inside(hour)
+			else:
+				_build_kiosk()
 		"motel":
 			if motel_ok:
 				_view = MOTEL_VIEW.new(self, 0, motel_block)

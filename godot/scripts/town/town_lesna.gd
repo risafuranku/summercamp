@@ -380,8 +380,24 @@ func _block(at: Vector3, size: Vector3, wall: Material, roof: String = "pitched"
 ## The Jednota: the 1970s co-op shop with a flat roof, its picture the whole front; on
 ## the band over the windows the sheet-metal letters JEDNOTA and SAMOOBSLUHA (one of its
 ## letters fell off years ago), rust down the render under them.
+## Since 3. 11. (the user: "the other town interiors the same"): its shop windows and the
+## glazed door are glass you see through (jednota_view.gd): the building hollow behind its
+## front, the sales room built in it, lit while it is open (`_update_jednota`).
+const JEDNOTA_VIEW = preload("res://scripts/town/jednota_view.gd")
+const KIT = preload("res://scripts/interior_kit.gd")
+var _jednota_lit := -1
+
+
 func _jednota(at: Vector3) -> void:
 	var wall := _mat(TEX_CAMP + "concrete.png", Color(0.86, 0.84, 0.8), Vector2(3.0, 1.0))
+	if ResourceLoader.exists(TEX + "lib_jednota_front_glass.png") and not _front_meta("lib_jednota_front").is_empty():
+		var shop := _jednota_hollow(at, wall)
+		var hh: float = _front_meta("lib_jednota_front")["m"][1]
+		_letters(shop, "jednota", Vector3(-2.3, hh - 0.95, 5.0), Vector3(0, 0, 1))
+		_letters(shop, "u_marku", Vector3(2.9, hh - 0.86, 5.0), Vector3(0, 0, 1))
+		spots["jednota_door"] = w(at + Vector3(0, 0, 5.0 + 1.2))
+		spots["jednota"] = shop
+		return
 	var built := _flat_house("lib_jednota_front", at, 1.0, 10.0, wall)
 	var root: Node3D
 	var front_z := 5.0
@@ -399,10 +415,83 @@ func _jednota(at: Vector3) -> void:
 	spots["jednota"] = root
 
 
+## The Jednota's building, hollow: its walls and roof, the front wall round its glass
+## behind the picture with its holes, the glass, a solid core nobody walks into, and the
+## sales room behind the glass (built again as the hour lights or darkens it).
+func _jednota_hollow(at: Vector3, wall: Material) -> Node3D:
+	var V = JEDNOTA_VIEW
+	var ww: float = V.W
+	var hh: float = V.H
+	var dd: float = V.DEPTH
+	var root := Node3D.new()
+	root.position = at
+	root.name = "Jednota"
+	add_child(root)
+	_box(root, Vector3(0, hh * 0.5, -dd * 0.5 + 0.1), Vector3(ww, hh, 0.2), _tiled(wall, Vector3(ww, hh, 0.2)))
+	for sx in [-1.0, 1.0]:
+		_box(root, Vector3(float(sx) * (ww * 0.5 - 0.1), hh * 0.5, 0), Vector3(0.2, hh, dd), _tiled(wall, Vector3(0.2, hh, dd)))
+	_box(root, Vector3(0, hh + 0.06, 0), Vector3(ww + 0.2, 0.12, dd + 0.2), _mat("", Color(0.36, 0.36, 0.36)))
+	# The front wall behind the picture, cut round the glass (the holes' reveals).
+	var holes: Array = []
+	for r in V.PANES + V.DOOR_GLASS:
+		holes.append([float(r[0]) / V.PX_M - ww * 0.5, float(r[2]) / V.PX_M - ww * 0.5, hh - float(r[3]) / V.PX_M, hh - float(r[1]) / V.PX_M])
+	var plaster := _mat(TEX_CAMP + "concrete.png", Color(0.8, 0.78, 0.74))
+	for p in KIT.wall_pieces(ww * 0.5, hh, holes):
+		_box(root, Vector3((float(p[0]) + float(p[1])) * 0.5, (float(p[2]) + float(p[3])) * 0.5, dd * 0.5 - 0.08), Vector3(float(p[1]) - float(p[0]), float(p[3]) - float(p[2]), 0.16), plaster)
+	_front_quad(root, "lib_jednota_front_glass", Vector3(0, hh * 0.5, dd * 0.5), 1.0, Vector2(ww, hh))
+	var glass := StandardMaterial3D.new()
+	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	glass.albedo_color = Color(0.24, 0.29, 0.32, 0.16)
+	glass.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	glass.cull_mode = BaseMaterial3D.CULL_DISABLED
+	for hl in holes:
+		var g := _face(root, Vector3((float(hl[0]) + float(hl[1])) * 0.5, (float(hl[2]) + float(hl[3])) * 0.5, dd * 0.5 - 0.1), Vector2(float(hl[1]) - float(hl[0]), float(hl[3]) - float(hl[2])), Vector3(0, 0, 1), glass)
+		g.set_meta("retro_skip", true)
+	_solid(root, Vector3(0, hh * 0.5, -0.2), Vector3(ww - 0.4, hh, dd - 0.6))
+	_update_jednota(_hour)
+	return root
+
+
+## The sales room behind the glass: lit with its tubes and Mrs Novotna at the counter
+## while it is open (town_trip.HOURS: 7-17), dark after.
+func _update_jednota(h: float) -> void:
+	var shop = spots.get("jednota") if spots.has("jednota") else null
+	var root: Node3D = shop as Node3D if shop != null else get_node_or_null("Jednota") as Node3D
+	if root == null:
+		return
+	var lit := 1 if (h >= 7.0 and h < 17.0) else 0
+	if lit == _jednota_lit and root.get_node_or_null("SalesRoom") != null:
+		return
+	_jednota_lit = lit
+	var old := root.get_node_or_null("SalesRoom")
+	if old != null:
+		old.name = "SalesRoomOld"
+		old.queue_free()
+	var sales := Node3D.new()
+	sales.name = "SalesRoom"
+	sales.position = JEDNOTA_VIEW.origin()
+	root.add_child(sales)
+	JEDNOTA_VIEW.build(sales, null, lit == 1)
+	spots["jednota_shell"] = sales
+
+
 ## The pub U Jezera: an old inn with its eaves to the street, the name painted on the
 ## plaster over the windows by a signwriter long ago.
+## Since 3. 11. its windows are glass you see through (pub_view.gd): the inn hollow behind
+## its front, the taproom built in it, lit while it is open (`_update_pub`).
+const PUB_VIEW = preload("res://scripts/town/pub_view.gd")
+var _pub_lit := -1
+
+
 func _pub(at: Vector3) -> void:
 	var wall := _mat(_first([TEX + "village_plaster.png", TEX_CAMP + "plaster_stone.png"]), Color(0.78, 0.86, 0.74), Vector2(3.0, 1.0))
+	if ResourceLoader.exists(TEX + "lib_pub_front_glass.png") and not _front_meta("lib_pub_front").is_empty():
+		var inn := _pub_hollow(at, wall)
+		var hh: float = _front_meta("lib_pub_front")["m"][1]
+		_letters(inn, "hostinec", Vector3(0, hh * 0.67, 5.0), Vector3(0, 0, 1))
+		spots["pub"] = inn
+		spots["pub_door"] = w(at + Vector3(0, 0, 5.0 + 1.2))
+		return
 	var built := _eaves_house("lib_pub_front", at, 1.0, 10.0, wall, 0.12)
 	if built.is_empty():
 		var size := Vector3(14.0, 4.6, 10.0)
@@ -420,6 +509,85 @@ func _pub(at: Vector3) -> void:
 			spots["pub_lit"] = front[2]
 		spots["pub"] = root
 	spots["pub_door"] = w(at + Vector3(0, 0, 5.0 + 1.2))
+
+
+## The pub's building, hollow: _eaves_house's walls, roof and gables, the front wall round
+## its windows behind the picture with its holes, the glass, a solid core, the taproom.
+func _pub_hollow(at: Vector3, wall: Material) -> Node3D:
+	var V = PUB_VIEW
+	var ww: float = V.W
+	var hh: float = V.H
+	var dd: float = V.DEPTH
+	var wh := hh * (1.0 - 0.12)
+	var side := _side_mat("lib_pub_front", wall)
+	var root := Node3D.new()
+	root.position = at
+	root.name = "Pub"
+	add_child(root)
+	_box(root, Vector3(0, wh * 0.5, -dd * 0.5 + 0.1), Vector3(ww, wh, 0.2), _tiled(side, Vector3(ww, wh, 0.2)))
+	for sx in [-1.0, 1.0]:
+		_box(root, Vector3(float(sx) * (ww * 0.5 - 0.1), wh * 0.5, 0), Vector3(0.2, wh, dd), _tiled(side, Vector3(0.2, wh, dd)))
+	var rise := dd * 0.38
+	var ang := atan2(rise, dd * 0.5)
+	var half := dd * 0.5 + 0.4
+	var tiles := _roof_mat(false, Vector3(ww, 3.0, half / cos(ang)))
+	for s in [-1.0, 1.0]:
+		var r := _box(root, Vector3(0, wh + rise - half * tan(ang) * 0.5 + 0.08, float(s) * half * 0.5), Vector3(ww + 0.5, 0.14, half / cos(ang)), tiles)
+		r.rotation.x = float(s) * ang
+		var eave_y := wh + 0.08 - 0.4 * rise / (dd * 0.5)
+		_box(root, Vector3(0, eave_y - 0.1, float(s) * (half - 0.05)), Vector3(ww + 0.5, 0.1, 0.12), _house_mats()["tin"])
+	_box(root, Vector3(0, wh + rise + 0.15, 0), Vector3(ww + 0.5, 0.12, 0.26), _house_mats()["ridge"])
+	for e in [-1.0, 1.0]:
+		var g := MeshInstance3D.new()
+		var pm := PrismMesh.new()
+		pm.size = Vector3(dd, rise - 0.06, 0.12)
+		g.mesh = pm
+		g.material_override = side
+		g.position = Vector3(float(e) * (ww * 0.5 - 0.08), wh + (rise - 0.06) * 0.5, 0)
+		g.rotation.y = PI * 0.5
+		root.add_child(g)
+	# A ceiling over the taproom so the roof's inside is never seen through the glass.
+	_box(root, Vector3(ww - 0.4, 0.1, dd - 0.4), Vector3(0, wh - 0.05, 0), _mat("", Color(0.2, 0.18, 0.16)))
+	var holes: Array = []
+	for r2 in V.PANES:
+		holes.append([float(r2[0]) / V.PX_M - ww * 0.5, float(r2[2]) / V.PX_M - ww * 0.5, hh - float(r2[3]) / V.PX_M, hh - float(r2[1]) / V.PX_M])
+	for p in KIT.wall_pieces(ww * 0.5, wh, holes):
+		_box(root, Vector3((float(p[0]) + float(p[1])) * 0.5, (float(p[2]) + float(p[3])) * 0.5, dd * 0.5 - 0.08), Vector3(float(p[1]) - float(p[0]), float(p[3]) - float(p[2]), 0.16), side)
+	_front_quad(root, "lib_pub_front_glass", Vector3(0, hh * 0.5, dd * 0.5), 1.0, Vector2(ww, hh))
+	var glass := StandardMaterial3D.new()
+	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	glass.albedo_color = Color(0.24, 0.29, 0.32, 0.16)
+	glass.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	glass.cull_mode = BaseMaterial3D.CULL_DISABLED
+	for hl in holes:
+		var gl := _face(root, Vector3((float(hl[0]) + float(hl[1])) * 0.5, (float(hl[2]) + float(hl[3])) * 0.5, dd * 0.5 - 0.1), Vector2(float(hl[1]) - float(hl[0]), float(hl[3]) - float(hl[2])), Vector3(0, 0, 1), glass)
+		gl.set_meta("retro_skip", true)
+	_solid(root, Vector3(0, wh * 0.5, -0.2), Vector3(ww - 0.4, wh, dd - 0.6))
+	_update_pub(_hour)
+	return root
+
+
+## The taproom behind the glass: lit with Kubat and his regulars while the pub is open
+## (town_trip.HOURS: 10-23), dark after.
+func _update_pub(h: float) -> void:
+	var inn = spots.get("pub") if spots.get("pub") is Node3D else get_node_or_null("Pub")
+	var root: Node3D = inn as Node3D
+	if root == null or root.name != "Pub":
+		return
+	var lit := 1 if (h >= 10.0 and h < 23.0) else 0
+	if lit == _pub_lit and root.get_node_or_null("Taproom") != null:
+		return
+	_pub_lit = lit
+	var old := root.get_node_or_null("Taproom")
+	if old != null:
+		old.name = "TaproomOld"
+		old.queue_free()
+	var tap := Node3D.new()
+	tap.name = "Taproom"
+	tap.position = PUB_VIEW.origin()
+	root.add_child(tap)
+	PUB_VIEW.build(tap, null, lit == 1)
+	spots["pub_shell"] = tap
 
 
 ## The chapel of the Virgin Mary, set back from the street: its baroque front from the
@@ -522,13 +690,87 @@ func _station(at: Vector3) -> void:
 		body.name = "Pump"
 	spots["pumps"] = pumps
 	var kiosk := Node3D.new()
+	kiosk.name = "Kiosk"
 	kiosk.position = Vector3(0, 0, 9.0)
 	root.add_child(kiosk)
-	_box(kiosk, Vector3(0, 1.6, 0), Vector3(10.0, 3.2, 6.0), _mat(TEX_CAMP + "concrete.png", Color(0.9, 0.9, 0.88), Vector2(3.0, 1.0)), true)
+	var kwall := _mat(TEX_CAMP + "concrete.png", Color(0.9, 0.9, 0.88), Vector2(3.0, 1.0))
+	if ResourceLoader.exists(TEX + "kiosk_front_glass.png"):
+		_kiosk_hollow(kiosk, kwall)
+	else:
+		_box(kiosk, Vector3(0, 1.6, 0), Vector3(10.0, 3.2, 6.0), kwall, true)
+		_face(kiosk, Vector3(0, 1.6, -3.0), Vector2(5.7, 3.2), Vector3(0, 0, -1), _mat(_first([TEX + "kiosk_front.png"]), Color(0.7, 0.72, 0.74)))
 	_box(kiosk, Vector3(0, 3.3, 0), Vector3(10.4, 0.2, 6.4), _mat("", Color(0.3, 0.3, 0.3)))
-	_face(kiosk, Vector3(0, 1.6, -3.0), Vector2(5.7, 3.2), Vector3(0, 0, -1), _mat(_first([TEX + "kiosk_front.png"]), Color(0.7, 0.72, 0.74)))
+	spots["kiosk"] = kiosk
 	spots["kiosk_door"] = w(at + Vector3(0, 0, 9.0 - 4.2))
 	spots["station"] = root
+
+
+## Since 3. 11. the kiosk's window and door are glass you see through (kiosk_view.gd): its
+## box hollow, the front wall cut round the glass behind the picture with its holes, the
+## little shop built in it, lit while it is open (`_update_kiosk`).
+const KIOSK_VIEW = preload("res://scripts/town/kiosk_view.gd")
+var _kiosk_lit := -1
+
+
+func _kiosk_hollow(kiosk: Node3D, kwall: Material) -> void:
+	var V = KIOSK_VIEW
+	var b: Vector3 = V.BOX
+	_box(kiosk, Vector3(0, b.y * 0.5, b.z * 0.5 - 0.1), Vector3(b.x, b.y, 0.2), _tiled(kwall, Vector3(b.x, b.y, 0.2)))
+	for sx in [-1.0, 1.0]:
+		_box(kiosk, Vector3(float(sx) * (b.x * 0.5 - 0.1), b.y * 0.5, 0), Vector3(0.2, b.y, b.z), _tiled(kwall, Vector3(0.2, b.y, b.z)))
+	var holes: Array = []
+	for r in V.PANES + V.DOOR_GLASS:
+		holes.append([V.W * 0.5 - float(r[2]) / V.PX_M, V.W * 0.5 - float(r[0]) / V.PX_M, V.H - float(r[3]) / V.PX_M, V.H - float(r[1]) / V.PX_M])
+	for p in KIT.wall_pieces(b.x * 0.5, b.y, holes):
+		_box(kiosk, Vector3((float(p[0]) + float(p[1])) * 0.5, (float(p[2]) + float(p[3])) * 0.5, -b.z * 0.5 + 0.08), Vector3(float(p[1]) - float(p[0]), float(p[3]) - float(p[2]), 0.16), kwall)
+	_face(kiosk, Vector3(0, 1.6, -b.z * 0.5 - 0.02), Vector2(V.W, V.H), Vector3(0, 0, -1), _cut_mat(TEX + "kiosk_front_glass.png"))
+	var glass := StandardMaterial3D.new()
+	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	glass.albedo_color = Color(0.24, 0.29, 0.32, 0.16)
+	glass.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	glass.cull_mode = BaseMaterial3D.CULL_DISABLED
+	for hl in holes:
+		var g := _face(kiosk, Vector3((float(hl[0]) + float(hl[1])) * 0.5, (float(hl[2]) + float(hl[3])) * 0.5, -b.z * 0.5 + 0.1), Vector2(float(hl[1]) - float(hl[0]), float(hl[3]) - float(hl[2])), Vector3(0, 0, -1), glass)
+		g.set_meta("retro_skip", true)
+	_solid(kiosk, Vector3(0, b.y * 0.5, 0.25), Vector3(b.x - 0.4, b.y, b.z - 0.5))
+	_update_kiosk(_hour, kiosk)
+
+
+## A picture with holes, cut out by its alpha (the kiosk's front).
+func _cut_mat(path: String) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = load(path)
+	m.albedo_color = Color(0.86, 0.87, 0.88)
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	m.alpha_scissor_threshold = 0.5
+	m.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	m.roughness = 1.0
+	return m
+
+
+## The shop behind the kiosk's glass: lit with Mrs Lojzova at the counter 6-21.
+func _update_kiosk(h: float, kiosk: Node3D = null) -> void:
+	if kiosk == null:
+		var k = spots.get("kiosk")
+		kiosk = k as Node3D if k is Node3D else null
+	if kiosk == null or not ResourceLoader.exists(TEX + "kiosk_front_glass.png"):
+		return
+	var lit := 1 if (h >= 6.0 and h < 21.0) else 0
+	if lit == _kiosk_lit and kiosk.get_node_or_null("Shop") != null:
+		return
+	_kiosk_lit = lit
+	var old := kiosk.get_node_or_null("Shop")
+	if old != null:
+		old.name = "ShopOld"
+		old.queue_free()
+	var shop := Node3D.new()
+	shop.name = "Shop"
+	shop.position = KIOSK_VIEW.origin()
+	shop.basis = KIOSK_VIEW.basis()
+	kiosk.add_child(shop)
+	KIOSK_VIEW.build(shop, null, lit == 1)
+	spots["kiosk_shell"] = shop
 
 
 # ── the stops ───────────────────────────────────────────────────────────────
@@ -1465,6 +1707,9 @@ func _process(delta: float) -> void:
 ## The hour, for the windows (town_trip.gd, now and then).
 func set_hour(h: float) -> void:
 	_hour = h
+	_update_jednota(h)
+	_update_pub(h)
+	_update_kiosk(h)
 	if dressing != null:
 		dressing.set_hour(h)
 	for wdict in spots.get("lit_windows", []):

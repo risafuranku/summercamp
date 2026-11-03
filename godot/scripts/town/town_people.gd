@@ -51,7 +51,7 @@ const PEOPLE := {
 			"Lojza at the Benzina down by your turn pays cash if you can hold a nozzle steady. Do not ask him about the Tatra.",
 		],
 		"night": ["Pub's open. Kubat won't let you in the cellar, don't ask.", "Listen. No dogs tonight. When the dogs stop, I go home."]},
-	"kubat": {"name": "Mr Kubat", "sprite": "town_landlord.png", "day": [[10.0, 23.0, "pub"]],
+	"kubat": {"name": "Mr Kubat", "sprite": "town_landlord.png", "day": [],
 		"lines": [
 			"Kitchen's shut. The cellar is not open to guests.",
 			"Karbanatky to our own recipe. What is in them is the recipe.",

@@ -459,6 +459,8 @@ func _open_room(which: String) -> void:
 	_door_fx(true)
 	_set_player_controls(false)
 	_room.motel_block = _town.spots.get("motel_block") if _town != null else null
+	_room.place_anchor = _town.spots.get(which) as Node3D if _town != null and _town.spots.get(which) is Node3D else null
+	_room.place_shell = _town.spots.get(which + "_shell") as Node3D if _town != null and _town.spots.get(which + "_shell") is Node3D else null
 	_room.motel_keys = _keys_on_board(_night_index(hour()))
 	_room.open(which, hour())
 

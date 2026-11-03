@@ -67,7 +67,15 @@ ROWS = [
     ("sheet_stations", "sheet", [("camp/station_%d.png" % i, 40) for i in range(1, 7)], None),
     ("npc_hruba_kneel", "sprite", 84, "npc/town_hruba_kneel.png"),
     ("sheet_votive_flames", "sheet", [("camp/votive_flame_%d.png" % i, 14) for i in range(4)], None),
+    # The Jednota's shop windows.
+    ("spr_jednota_display_a", "sprite", 40, "camp/jednota_display_a.png"),
+    ("spr_jednota_display_b", "sprite", 40, "camp/jednota_display_b.png"),
 ]
+
+# The Jednota's front: its window panes and the door's glass cut out (jednota_view.gd
+# PANES, DOOR_GLASS: the same rectangles, picture px x0, y0, x1, y1).
+JEDNOTA_HOLES = [(38, 58, 93, 120), (98, 58, 150, 120), (232, 58, 288, 120), (293, 58, 346, 120),
+                 (159, 59, 190, 134), (193, 59, 224, 134)]
 
 # The blank plate on face_motel_door_out (fractions of the raw picture): x0, y0, x1, y1.
 PLATE = (0.392, 0.236, 0.608, 0.293)
@@ -149,6 +157,53 @@ def do_retable(art_id, width):
     save(panel_img(img.crop((0, top, w, step)), width), "camp/chapel_altar_front.png")
 
 
+def jednota_glass():
+    src = os.path.join(TEX, "town", "lib_jednota_front.png")
+    if not os.path.exists(src):
+        return
+    img = Image.open(src).convert("RGBA")
+    px = img.load()
+    for x0, y0, x1, y1 in JEDNOTA_HOLES:
+        for y in range(y0, y1):
+            for x in range(x0, x1):
+                px[x, y] = (0, 0, 0, 0)
+    save(img, "town/lib_jednota_front_glass.png")
+
+
+# The pub's front: its four windows cut out (pub_view.gd PANES).
+PUB_HOLES = [(22, 83, 58, 127), (93, 83, 129, 127), (237, 83, 273, 127), (308, 83, 344, 127)]
+
+
+def pub_glass():
+    src = os.path.join(TEX, "town", "lib_pub_front.png")
+    if not os.path.exists(src):
+        return
+    img = Image.open(src).convert("RGBA")
+    px = img.load()
+    for x0, y0, x1, y1 in PUB_HOLES:
+        for y in range(y0, y1):
+            for x in range(x0, x1):
+                px[x, y] = (0, 0, 0, 0)
+    save(img, "town/lib_pub_front_glass.png")
+
+
+# The kiosk's front: its window and the door's glass cut out (kiosk_view.gd).
+KIOSK_HOLES = [(22, 42, 154, 103), (183, 47, 218, 133)]
+
+
+def kiosk_glass():
+    src = os.path.join(TEX, "town", "kiosk_front.png")
+    if not os.path.exists(src):
+        return
+    img = Image.open(src).convert("RGBA")
+    px = img.load()
+    for x0, y0, x1, y1 in KIOSK_HOLES:
+        for y in range(y0, y1):
+            for x in range(x0, x1):
+                px[x, y] = (0, 0, 0, 0)
+    save(img, "town/kiosk_front_glass.png")
+
+
 def doors():
     """town/motel_door_<n>.png: the door with its number on the plate."""
     base = os.path.join(TEX, "town", "motel_door_out.png")
@@ -219,6 +274,9 @@ def main():
             out = process.texture(src, size)
         save(out, dest)
     doors()
+    jednota_glass()
+    pub_glass()
+    kiosk_glass()
     if not only:
         signs()
 
