@@ -523,6 +523,7 @@ func place_tent_at(origin: Vector2i, level: int = 1) -> bool:
 # ── a tent the mushroom granny tore open (her carnage: mess_rules "slit") ─────
 
 const TENT_TEAR_TEX := "res://assets/textury/mess/carnage_tear.png"
+const SMASH_GLASS_TEX := "res://assets/textury/mess/carnage_glass.png"
 
 
 ## The lodging `key` changed: is its tent torn now?
@@ -531,9 +532,69 @@ func _on_room_torn_check(key: String, _status: String, _guests: int) -> void:
 		return
 	for child in _structures_root.get_children():
 		var o = child.get_meta("grid_origin", null)
-		if o is Vector2i and "%d:%d" % [o.x, o.y] == key and str(child.get_meta("building_type", "")).contains("tent"):
-			_refresh_tent_tear(child, key)
+		if o is Vector2i and "%d:%d" % [o.x, o.y] == key:
+			var t := str(child.get_meta("building_type", ""))
+			if t.contains("tent"):
+				_refresh_tent_tear(child, key)
+			elif t.contains("cabin"):
+				_refresh_cabin_smash(child, key)
 			return
+
+
+## Her night left this lodging open to the night (its `kind` of mess in the wall, mess_rules
+## CARNAGE_WALL) and nobody has mended it: while the guests she left are still in
+## (carnage_pending), then while that task is not done.
+func _carnage_open(key: String, kind: String) -> bool:
+	var st = CoreRoot.get_state() if CoreRoot != null else null
+	var acc: Dictionary = st.accommodation_states.get(key, {}) if st != null else {}
+	var mess: Dictionary = acc.get("mess", {}) if acc.get("mess", {}) is Dictionary else {}
+	if bool(mess.get("carnage_pending", false)):
+		return true
+	if not bool(mess.get("carnage", false)):
+		return false
+	var room: Dictionary = GuestManager.get_room_state(key)
+	for t in room.get("tasks", []):
+		if str(t.get("mess", "")) == kind and not (room.get("done", []) as Array).has(t.get("id", "")):
+			return true
+	return false
+
+
+## The cabin's back window she smashed, seen from the camp: the shards left in its frame
+## (the room's own: interior_prep.smashed_window, cabin_interior), until it is glazed.
+func _refresh_cabin_smash(cabin: Node, key: String) -> void:
+	if cabin == null or not is_instance_valid(cabin) or not ResourceLoader.exists(SMASH_GLASS_TEX):
+		return
+	var glass := cabin.get_node_or_null("SmashedGlass") as MeshInstance3D
+	if not _carnage_open(key, "smashed"):
+		if glass != null:
+			glass.queue_free()
+		return
+	if glass != null:
+		return
+	var t := str(cabin.get_meta("building_type", "cabin_1"))
+	var level := clampi(int(t.right(1)) if t.right(1).is_valid_int() else 1, 1, 3)
+	for win in CABIN_LAYOUT.windows(level):
+		if str(win["id"]) != "back":
+			continue
+		var out: Vector3 = win["out"]
+		var q := QuadMesh.new()
+		q.size = win["size"]
+		var m := StandardMaterial3D.new()
+		m.albedo_texture = load(SMASH_GLASS_TEX)
+		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+		m.alpha_scissor_threshold = 0.5
+		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		m.roughness = 0.3
+		glass = MeshInstance3D.new()
+		glass.name = "SmashedGlass"
+		glass.mesh = q
+		glass.material_override = m
+		glass.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		# On the wall's outer face, facing out of it (the model's own space, cabin_layout).
+		glass.transform = Transform3D(Basis(Vector3.UP.cross(out).normalized(), Vector3.UP, out),
+			(win["centre"] as Vector3) + out * (CABIN_LAYOUT.WALL_T * 0.5 + 0.012))
+		cabin.add_child(glass)
 
 
 ## The hole she slit in the back of the tent, seen from the camp, from her night until it is
@@ -542,15 +603,7 @@ func _on_room_torn_check(key: String, _status: String, _guests: int) -> void:
 func _refresh_tent_tear(tent_root: Node, key: String) -> void:
 	if tent_root == null or not is_instance_valid(tent_root) or not ResourceLoader.exists(TENT_TEAR_TEX):
 		return
-	var st = CoreRoot.get_state() if CoreRoot != null else null
-	var acc: Dictionary = st.accommodation_states.get(key, {}) if st != null else {}
-	var mess: Dictionary = acc.get("mess", {}) if acc.get("mess", {}) is Dictionary else {}
-	var torn := bool(mess.get("carnage_pending", false))
-	if bool(mess.get("carnage", false)):
-		var room: Dictionary = GuestManager.get_room_state(key)
-		for t in room.get("tasks", []):
-			if str(t.get("mess", "")) == "slit" and not (room.get("done", []) as Array).has(t.get("id", "")):
-				torn = true
+	var torn := _carnage_open(key, "slit")
 	var tent: MeshInstance3D = null
 	for c in tent_root.get_children():
 		if c is MeshInstance3D and c.has_meta("tent_size"):
@@ -727,6 +780,7 @@ func place_cabin_at(origin: Vector2i, level: int = 1) -> bool:
 
 	_set_structure_condition_internal(cabin, _default_condition_for_type("cabin"))
 	_grid_manager.occupy_footprint(origin, footprint, cabin)
+	_refresh_cabin_smash.call_deferred(cabin, "%d:%d" % [origin.x, origin.y])
 	return true
 
 

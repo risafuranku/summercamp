@@ -521,7 +521,7 @@ msgstr "Boty se vracejí suché a svěží. U pultu se nestříká."
 msgid "Pass"
 msgstr "Výdej"
 
-#: core/systems/business_rules.gd:411 scripts/building_interior.gd:1034 scripts/cabin_interior.gd:1174 scripts/interior_kit.gd:80
+#: core/systems/business_rules.gd:411 scripts/building_interior.gd:1034 scripts/cabin_interior.gd:1225 scripts/interior_kit.gd:80
 #. uses 4
 msgid "Floor"
 msgstr "Plac"
@@ -606,7 +606,7 @@ msgstr "Bufet"
 msgid "Jaromir"
 msgstr "Jaromír"
 
-#: core/systems/business_rules.gd:447 scripts/enemies/basket_brain.gd:1493
+#: core/systems/business_rules.gd:447 scripts/enemies/basket_brain.gd:1496
 #. uses 2
 msgid "Marta"
 msgstr "Marta"
@@ -1255,6 +1255,14 @@ msgstr "Zašít rozpáranou plachtu"
 #: core/systems/mess_rules.gd:54
 msgid "Scrub the handprints off the wall"
 msgstr "Vydrhnout otisky rukou ze stěny"
+
+#: core/systems/mess_rules.gd:55
+msgid "Put new glass in the smashed window"
+msgstr "Zasklít vyražené okno"
+
+#: core/systems/mess_rules.gd:55
+msgid "Glazing"
+msgstr "Zasklívání"
 
 #: core/systems/pub_rules.gd:33
 msgid "Hladinka"
@@ -3889,7 +3897,7 @@ msgstr ""
 "\n"
 "- Teta Věra"
 
-#: scripts/audio_manager.gd:181 scripts/building_interior.gd:3451 scripts/cabin_interior.gd:745 scripts/caravan_life.gd:597 (+25)
+#: scripts/audio_manager.gd:181 scripts/building_interior.gd:3451 scripts/cabin_interior.gd:796 scripts/caravan_life.gd:597 (+25)
 #. uses 29
 msgid "Master"
 msgstr "Master"
@@ -4283,7 +4291,7 @@ msgstr "Skluzavka"
 msgid "Sewage"
 msgstr "Kanalizace"
 
-#: scripts/builder_module.gd:87 scripts/builder_module.gd:1190 scripts/building_manager.gd:743
+#: scripts/builder_module.gd:87 scripts/builder_module.gd:1190 scripts/building_manager.gd:797
 #. uses 3
 msgid "Path"
 msgstr "Cesta"
@@ -4839,7 +4847,7 @@ msgstr "Bez pokoje"
 msgid "Guests"
 msgstr "Hosté"
 
-#: scripts/builder_module.gd:1186 scripts/cabin_interior.gd:745 scripts/cabin_interior.gd:745 scripts/guest_manager.gd:963 (+5)
+#: scripts/builder_module.gd:1186 scripts/cabin_interior.gd:796 scripts/cabin_interior.gd:796 scripts/guest_manager.gd:963 (+5)
 #. uses 9
 msgid "Room"
 msgstr "Pokoj"
@@ -5388,7 +5396,7 @@ msgstr "FloorScatter26_B"
 msgid "FloorScatter27_B"
 msgstr "FloorScatter27_B"
 
-#: scripts/building_interior.gd:1045 scripts/cabin_interior.gd:1175 scripts/interior_kit.gd:81
+#: scripts/building_interior.gd:1045 scripts/cabin_interior.gd:1226 scripts/interior_kit.gd:81
 #. uses 3
 msgid "Ceiling"
 msgstr "Ceiling"
@@ -5447,7 +5455,7 @@ msgstr "PCCableKeyboardToTower"
 msgid "PCCableMouse"
 msgstr "PCCableMouse"
 
-#: scripts/building_interior.gd:1313 scripts/cabin_interior.gd:1227 scripts/caravan_life.gd:191 scripts/bistro/bistro_layout.gd:298 (+6)
+#: scripts/building_interior.gd:1313 scripts/cabin_interior.gd:1278 scripts/caravan_life.gd:191 scripts/bistro/bistro_layout.gd:298 (+6)
 #. uses 10
 msgid "Calendar"
 msgstr "Calendar"
@@ -5507,15 +5515,15 @@ msgstr "%s_%d"
 msgid "tent_%d"
 msgstr "tent_%d"
 
-#: scripts/building_manager.gd:701
+#: scripts/building_manager.gd:754
 msgid "cabin_%d"
 msgstr "cabin_%d"
 
-#: scripts/building_manager.gd:1056
+#: scripts/building_manager.gd:1110
 msgid "caravan_%d"
 msgstr "caravan_%d"
 
-#: scripts/building_manager.gd:1996
+#: scripts/building_manager.gd:2050
 msgid "Structures"
 msgstr "Structures"
 
@@ -5709,7 +5717,7 @@ msgstr "Fin%d"
 msgid "Insulator%d"
 msgstr "Insulator%d"
 
-#: scripts/building_models.gd:443 scripts/cabin_interior.gd:1314 scripts/corn/stand_layout.gd:86 scripts/jednota/jednota_layout.gd:325 (+1)
+#: scripts/building_models.gd:443 scripts/cabin_interior.gd:1365 scripts/corn/stand_layout.gd:86 scripts/jednota/jednota_layout.gd:325 (+1)
 #. uses 5
 msgid "Top"
 msgstr "Top"
@@ -5759,7 +5767,7 @@ msgstr "End"
 msgid "Handle"
 msgstr "Handle"
 
-#: scripts/building_models.gd:574 scripts/cabin_interior.gd:1347
+#: scripts/building_models.gd:574 scripts/cabin_interior.gd:1398
 #. uses 2
 msgid "Head"
 msgstr "Head"
@@ -5809,7 +5817,7 @@ msgstr "Platform"
 msgid "Rail"
 msgstr "Rail"
 
-#: scripts/building_models.gd:762 scripts/caravan_interior.gd:895
+#: scripts/building_models.gd:762 scripts/caravan_interior.gd:931
 #. uses 2
 msgid "Rung"
 msgstr "Rung"
@@ -5952,7 +5960,7 @@ msgstr "Geranium"
 msgid "Bulb%d"
 msgstr "Bulb%d"
 
-#: scripts/building_models.gd:1242 scripts/cabin_interior.gd:1609 scripts/service_interior.gd:1874
+#: scripts/building_models.gd:1242 scripts/cabin_interior.gd:1660 scripts/service_interior.gd:1874
 #. uses 3
 msgid "Newspaper"
 msgstr "Newspaper"
@@ -6036,7 +6044,7 @@ msgstr "Bat%d"
 msgid "Cloth%d"
 msgstr "Cloth%d"
 
-#: scripts/building_models.gd:1505 scripts/cabin_interior.gd:1129 scripts/caravan_interior.gd:982 scripts/tent_interior.gd:363 (+1)
+#: scripts/building_models.gd:1505 scripts/cabin_interior.gd:1180 scripts/caravan_interior.gd:1018 scripts/tent_interior.gd:363 (+1)
 #. uses 5
 msgid "Pillow"
 msgstr "Pillow"
@@ -6132,88 +6140,88 @@ msgstr ""
 msgid "Glass"
 msgstr "Glass"
 
-#: scripts/cabin_interior.gd:509 scripts/bowling/bowling_interior.gd:309
+#: scripts/cabin_interior.gd:560 scripts/bowling/bowling_interior.gd:309
 #. uses 2
 msgid "Back   [S]"
 msgstr "Zpět   [S]"
 
-#: scripts/cabin_interior.gd:517
+#: scripts/cabin_interior.gd:568
 msgid "Room  [A]"
 msgstr "Pokoj  [A]"
 
-#: scripts/cabin_interior.gd:519
+#: scripts/cabin_interior.gd:570
 msgid "Bathroom  [D]"
 msgstr "Koupelna  [D]"
 
-#: scripts/cabin_interior.gd:1136
+#: scripts/cabin_interior.gd:1187
 msgid "UpgradeCatalogInk%d"
 msgstr "UpgradeCatalogInk%d"
 
-#: scripts/cabin_interior.gd:1138
+#: scripts/cabin_interior.gd:1189
 msgid "CATALOGUE"
 msgstr "KATALOG"
 
-#: scripts/cabin_interior.gd:1195 scripts/cabin_interior.gd:1198 scripts/interior_kit.gd:97 scripts/interior_kit.gd:98 (+2)
+#: scripts/cabin_interior.gd:1246 scripts/cabin_interior.gd:1249 scripts/interior_kit.gd:97 scripts/interior_kit.gd:98 (+2)
 #. uses 6
 msgid "Skirting"
 msgstr "Skirting"
 
-#: scripts/cabin_interior.gd:1196
+#: scripts/cabin_interior.gd:1247
 msgid "Cornice"
 msgstr "Cornice"
 
-#: scripts/cabin_interior.gd:1226 scripts/reception/office_dressing.gd:65 scripts/ui/main_menu.gd:1104
+#: scripts/cabin_interior.gd:1277 scripts/reception/office_dressing.gd:65 scripts/ui/main_menu.gd:1104
 #. uses 3
 msgid "Jacket"
 msgstr "Bunda"
 
-#: scripts/cabin_interior.gd:1292 scripts/caravan_interior.gd:1065
+#: scripts/cabin_interior.gd:1343 scripts/caravan_interior.gd:1107
 #. uses 2
 msgid "Wall%s%d"
 msgstr "Wall%s%d"
 
-#: scripts/cabin_interior.gd:1313 scripts/caravan_interior.gd:843 scripts/bistro/bistro_layout.gd:287 scripts/jednota/jednota_layout.gd:257 (+2)
+#: scripts/cabin_interior.gd:1364 scripts/caravan_interior.gd:879 scripts/bistro/bistro_layout.gd:287 scripts/jednota/jednota_layout.gd:257 (+2)
 #. uses 6
 msgid "Sill"
 msgstr "Sill"
 
-#: scripts/cabin_interior.gd:1316 scripts/ui/window_portal.gd:107
+#: scripts/cabin_interior.gd:1367 scripts/ui/window_portal.gd:107
 #. uses 2
 msgid "Side"
 msgstr "Side"
 
-#: scripts/cabin_interior.gd:1317 scripts/ui/window_portal.gd:108
+#: scripts/cabin_interior.gd:1368 scripts/ui/window_portal.gd:108
 #. uses 2
 msgid "Mullion"
 msgstr "Mullion"
 
-#: scripts/cabin_interior.gd:1318
+#: scripts/cabin_interior.gd:1369
 msgid "Transom"
 msgstr "Transom"
 
-#: scripts/cabin_interior.gd:1322
+#: scripts/cabin_interior.gd:1373
 msgid "View_"
 msgstr "View_"
 
-#: scripts/cabin_interior.gd:1346
+#: scripts/cabin_interior.gd:1397
 msgid "Jamb"
 msgstr ""
 
-#: scripts/cabin_interior.gd:1363 scripts/staff/staffroom_plan.gd:213
+#: scripts/cabin_interior.gd:1414 scripts/staff/staffroom_plan.gd:213
 #. uses 2
 msgid "Threshold"
 msgstr "Threshold"
 
-#: scripts/cabin_interior.gd:1443 scripts/caravan_interior.gd:113 scripts/caravan_interior.gd:898 scripts/tent_interior.gd:79 (+2)
+#: scripts/cabin_interior.gd:1494 scripts/caravan_interior.gd:113 scripts/caravan_interior.gd:934 scripts/tent_interior.gd:79 (+2)
 #. uses 6
 msgid "Rug"
 msgstr "Rug"
 
-#: scripts/cabin_interior.gd:1547
+#: scripts/cabin_interior.gd:1598
 msgid "Board"
 msgstr "Board"
 
-#: scripts/cabin_interior.gd:1724
+#: scripts/cabin_interior.gd:1776
 msgid "cabin_lv%d_%s"
 msgstr "cabin_lv%d_%s"
 
@@ -6258,24 +6266,24 @@ msgstr ""
 msgid "ducks %d"
 msgstr "ducks %d"
 
-#: scripts/caravan_interior.gd:858
+#: scripts/caravan_interior.gd:894
 msgid "Worktop"
 msgstr "Worktop"
 
-#: scripts/caravan_interior.gd:861
+#: scripts/caravan_interior.gd:897
 msgid "Cupboard"
 msgstr "Cupboard"
 
-#: scripts/caravan_interior.gd:864
+#: scripts/caravan_interior.gd:900
 msgid "Sideboard"
 msgstr "Sideboard"
 
-#: scripts/caravan_interior.gd:909 scripts/bistro/bistro_layout.gd:502 scripts/reception/store_room.gd:105 scripts/staff/staffroom_plan.gd:510
+#: scripts/caravan_interior.gd:945 scripts/bistro/bistro_layout.gd:502 scripts/reception/store_room.gd:105 scripts/staff/staffroom_plan.gd:510
 #. uses 4
 msgid "Bulb"
 msgstr "Bulb"
 
-#: scripts/caravan_interior.gd:931
+#: scripts/caravan_interior.gd:967
 msgid "Brochure"
 msgstr "Brochure"
 
@@ -7958,7 +7966,7 @@ msgstr "Bizon"
 msgid "Jiri"
 msgstr "Jiří"
 
-#: scripts/email_manager.gd:144 scripts/enemies/basket_brain.gd:1479
+#: scripts/email_manager.gd:144 scripts/enemies/basket_brain.gd:1482
 #. uses 2
 msgid "Pavel"
 msgstr "Pavel"
@@ -7967,12 +7975,12 @@ msgstr "Pavel"
 msgid "Martin"
 msgstr "Martin"
 
-#: scripts/email_manager.gd:144 scripts/main.gd:4534 scripts/coop/warden_looks.gd:21 scripts/enemies/basket_brain.gd:1472 (+1)
+#: scripts/email_manager.gd:144 scripts/main.gd:4534 scripts/coop/warden_looks.gd:21 scripts/enemies/basket_brain.gd:1475 (+1)
 #. uses 5
 msgid "Jana"
 msgstr "Jana"
 
-#: scripts/email_manager.gd:144 scripts/enemies/basket_brain.gd:1482
+#: scripts/email_manager.gd:144 scripts/enemies/basket_brain.gd:1485
 #. uses 2
 msgid "Petra"
 msgstr "Petra"
@@ -9035,7 +9043,7 @@ msgstr "Žádné probíhající pobyty."
 msgid "#%d %s | %s | beds:%d | income/day:$%d | left:%s"
 msgstr "#%d %s | %s | lůžka:%d | příjem/den:$%d | zbývá:%s"
 
-#: scripts/guest_manager.gd:2303 scripts/interior_prep.gd:431 scripts/ambient/ground_cover.gd:116 scripts/bistro/bistro_station.gd:104 (+4)
+#: scripts/guest_manager.gd:2303 scripts/interior_prep.gd:440 scripts/ambient/ground_cover.gd:116 scripts/bistro/bistro_station.gd:104 (+4)
 #. uses 8
 msgid "%s|%s"
 msgstr "%s|%s"
@@ -9563,53 +9571,58 @@ msgstr "Vylepšení %s -> %s (víc pohodlí + kapacita)."
 msgid "%d GUESTS"
 msgstr "%d {HOST|HOSTÉ|HOSTŮ}"
 
-#: scripts/interior_prep.gd:226
+#: scripts/interior_prep.gd:227
 msgid "PEPA WAS HERE 94"
 msgstr "BYL TU PEPA 94"
 
-#: scripts/interior_prep.gd:226
+#: scripts/interior_prep.gd:227
 msgid "SPARTA PRAHA"
 msgstr "SPARTA PRAHA"
 
-#: scripts/interior_prep.gd:226
+#: scripts/interior_prep.gd:227
 msgid "KAREL + JANA"
 msgstr "KAREL + JANA"
 
-#: scripts/interior_prep.gd:226
+#: scripts/interior_prep.gd:227
 msgid "NO PAPER AGAIN"
 msgstr "ZASE NENÍ PAPÍR"
 
-#: scripts/interior_prep.gd:227
+#: scripts/interior_prep.gd:228
 msgid "DONT DRINK THE TAP"
 msgstr "NEPIJ Z KOHOUTKU"
 
-#: scripts/interior_prep.gd:227
+#: scripts/interior_prep.gd:228
 msgid "COUNT THE KIDS"
 msgstr "POČÍTEJ DĚTI"
 
-#: scripts/interior_prep.gd:227
+#: scripts/interior_prep.gd:228
 msgid "HE WHISTLES AT NIGHT"
 msgstr "V NOCI PÍSKÁ"
 
-#: scripts/interior_prep.gd:227
+#: scripts/interior_prep.gd:228
 msgid "VERA KNOWS"
 msgstr "VĚRA TO VÍ"
 
-#: scripts/interior_prep.gd:228
+#: scripts/interior_prep.gd:229
 msgid "WHO LOCKED STALL 3"
 msgstr "KDO ZAMKL TROJKU"
 
-#: scripts/interior_prep.gd:228
+#: scripts/interior_prep.gd:229
 msgid "TRAMP SE NEVZDAVA"
 msgstr "TRAMP SE NEVZDÁVÁ"
 
-#: scripts/interior_prep.gd:228
+#: scripts/interior_prep.gd:229
 msgid "AHOJ"
 msgstr "AHOJ"
 
-#: scripts/interior_prep.gd:228
+#: scripts/interior_prep.gd:229
 msgid "STAND STILL WHEN IT PASSES"
 msgstr "KDYŽ JDE KOLEM, NEHÝBEJ SE"
+
+#: scripts/interior_prep.gd:501 scripts/interior_prep.gd:504
+#. uses 2
+msgid "Shards"
+msgstr ""
 
 #: scripts/interior_tasks.gd:109
 msgid "Working"
@@ -15691,51 +15704,51 @@ msgstr "PITÍ"
 msgid "A basket creaking out of the trees. Somebody picking, at this hour."
 msgstr "Ze stromů vrže košík. Někdo sbírá, v tuhle hodinu."
 
-#: scripts/enemies/basket_brain.gd:637
+#: scripts/enemies/basket_brain.gd:638
 msgid "A knife at your ankles, low in the grass."
 msgstr "Nůž u kotníků, nízko v trávě."
 
-#: scripts/enemies/basket_brain.gd:897
+#: scripts/enemies/basket_brain.gd:898
 msgid "Something came into the tent in the night. It had a knife. I can't stop shaking."
 msgstr "V noci nám něco vlezlo do stanu. Mělo to nůž. Pořád se třesu."
 
-#: scripts/enemies/basket_brain.gd:898
+#: scripts/enemies/basket_brain.gd:899
 msgid "Something came into the cabin in the night. It had a knife. I can't stop shaking."
 msgstr "V noci nám něco vlezlo do chatky. Mělo to nůž. Pořád se třesu."
 
-#: scripts/enemies/basket_brain.gd:899
+#: scripts/enemies/basket_brain.gd:900
 msgid "Something came into the caravan in the night. It had a knife. I can't stop shaking."
 msgstr "V noci nám něco vlezlo do karavanu. Mělo to nůž. Pořád se třesu."
 
-#: scripts/enemies/basket_brain.gd:1453
+#: scripts/enemies/basket_brain.gd:1456
 msgid "Something came into our tent in the night and took the others. Nobody came. Never again."
 msgstr "V noci nám něco vlezlo do stanu a vzalo ty ostatní. Nikdo nepřišel. Už nikdy."
 
-#: scripts/enemies/basket_brain.gd:1454
+#: scripts/enemies/basket_brain.gd:1457
 msgid "Something came into our cabin in the night and took the others. Nobody came. Never again."
 msgstr "V noci nám něco vlezlo do chatky a vzalo ty ostatní. Nikdo nepřišel. Už nikdy."
 
-#: scripts/enemies/basket_brain.gd:1455
+#: scripts/enemies/basket_brain.gd:1458
 msgid "Something came into our caravan in the night and took the others. Nobody came. Never again."
 msgstr "V noci nám něco vlezlo do karavanu a vzalo ty ostatní. Nikdo nepřišel. Už nikdy."
 
-#: scripts/enemies/basket_brain.gd:1456
+#: scripts/enemies/basket_brain.gd:1459
 msgid "We are leaving. Now."
 msgstr "Odjíždíme. Hned."
 
-#: scripts/enemies/basket_brain.gd:1463
+#: scripts/enemies/basket_brain.gd:1466
 msgid "Morning: %s is gone. Their lodging is not fit to be seen."
 msgstr "Ráno: %s je pryč. Na jejich ubytování se nedá ani podívat."
 
-#: scripts/enemies/basket_brain.gd:1473
+#: scripts/enemies/basket_brain.gd:1476
 msgid "Have you seen %s?"
 msgstr "Je u vás ještě %s?"
 
-#: scripts/enemies/basket_brain.gd:1476
+#: scripts/enemies/basket_brain.gd:1479
 msgid "M. Kratochvilova"
 msgstr "M. Kratochvílová"
 
-#: scripts/enemies/basket_brain.gd:1477
+#: scripts/enemies/basket_brain.gd:1480
 msgid ""
 "Good day,\n"
 "\n"
@@ -15753,7 +15766,7 @@ msgstr ""
 "\n"
 "Sousedka"
 
-#: scripts/enemies/basket_brain.gd:1480
+#: scripts/enemies/basket_brain.gd:1483
 msgid ""
 "Hello,\n"
 "\n"
@@ -15767,7 +15780,7 @@ msgstr ""
 "\n"
 "Neříkal, kam jde?"
 
-#: scripts/enemies/basket_brain.gd:1483
+#: scripts/enemies/basket_brain.gd:1486
 msgid ""
 "Hi,\n"
 "\n"
@@ -15781,7 +15794,7 @@ msgstr ""
 "\n"
 "Petra"
 
-#: scripts/enemies/basket_brain.gd:1488
+#: scripts/enemies/basket_brain.gd:1491
 msgid ""
 "Dear Sir or Madam,\n"
 "\n"
@@ -15799,7 +15812,7 @@ msgstr ""
 "\n"
 "Jana"
 
-#: scripts/enemies/basket_brain.gd:1490
+#: scripts/enemies/basket_brain.gd:1493
 msgid ""
 "Dear Sir or Madam,\n"
 "\n"
@@ -15817,7 +15830,7 @@ msgstr ""
 "\n"
 "Jana"
 
-#: scripts/enemies/basket_brain.gd:1494
+#: scripts/enemies/basket_brain.gd:1497
 msgid ""
 "Good day,\n"
 "\n"

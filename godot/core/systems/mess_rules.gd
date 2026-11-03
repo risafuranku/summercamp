@@ -52,6 +52,7 @@ const MESS := {
 	"bedding": {"label": "Bag the soaked bedding", "verb": "Bagging", "seconds": 2.4, "sfx": "task_bed.mp3"},
 	"slit": {"label": "Sew up the slit canvas", "verb": "Fixing", "seconds": 4.2, "sfx": "task_scrub.mp3"},
 	"handprints": {"label": "Scrub the handprints off the wall", "verb": "Scrubbing", "seconds": 2.4, "sfx": "task_scrub.mp3"},
+	"smashed": {"label": "Put new glass in the smashed window", "verb": "Glazing", "seconds": 4.6, "sfx": "task_scrub.mp3"},
 }
 
 ## Room spots, by room kind: floor spots and (cabins) bathroom spots.
@@ -65,9 +66,11 @@ const BATH_SPOTS := ["wc", "sink", "bfloor"]
 ## A room shut since last summer (GuestManager.make_room_derelict) also has its cobweb
 ## corner, high on the wall, where the interior has one.
 const DERELICT_SPOTS := {"cabin": "w1"}
-## After the granny (`mess.carnage`): every floor spot hers (room_tasks), and on the wall
-## the way she came in (a tent's slit canvas) or the hands that tried to hold on (a cabin).
-const CARNAGE_WALL := {"tent": "slit", "cabin": "handprints"}
+## After the granny (`mess.carnage`): every floor spot hers (room_tasks), and in the wall
+## the way the night came in: a tent's canvas slit open, a cabin's or caravan's window
+## smashed (Richard 3. 11.: "vyražené okno, kterým je vidět ven"), each at its spot.
+const CARNAGE_WALL := {"tent": "slit", "cabin": "smashed", "caravan": "smashed"}
+const CARNAGE_WALL_SPOT := {"tent": "w1", "cabin": "win", "caravan": "win"}
 const BATH_KINDS := {"wc": ["toilet_grime"], "sink": ["sink_grime", "hair"], "bfloor": ["puddle", "mud", "paper_out", "piss", "wads"]}
 
 ## Ordinary leftovers, then what each archetype adds (and how much worse they leave it).
@@ -181,7 +184,7 @@ static func room_tasks(kind: String, has_bathroom: bool, mess: Dictionary, bed_t
 	if derelict and DERELICT_SPOTS.has(kind):
 		out.append(task_for(str(DERELICT_SPOTS[kind]), "cobwebs"))
 	if carnage and CARNAGE_WALL.has(kind):
-		out.append(task_for("w1", str(CARNAGE_WALL[kind])))
+		out.append(task_for(str(CARNAGE_WALL_SPOT.get(kind, "w1")), str(CARNAGE_WALL[kind])))
 	if has_bathroom and not fresh:
 		out.append(task_for("wc", "toilet_grime"))
 		if not fresh and (level >= 1 and rng.randf() < 0.35 + 0.15 * level):

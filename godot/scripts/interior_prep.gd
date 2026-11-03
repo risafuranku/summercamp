@@ -108,9 +108,10 @@ func register(task_id: String, body: StaticBody3D, mess: Array, tidy: Array) -> 
 
 
 ## A place the mess can be: on the floor (`vertical` false: props lie at `pos`) or on a
-## wall facing `yaw` (stains, writing).
-func add_spot(spot_id: String, parent: Node3D, pos: Vector3, yaw: float = 0.0, vertical: bool = false) -> void:
-	_spots[spot_id] = {"parent": parent, "pos": pos, "yaw": yaw, "vertical": vertical}
+## wall facing `yaw` (stains, writing); `room_floor` the room's floor (where something on
+## the wall drops its bits: a smashed window's glass).
+func add_spot(spot_id: String, parent: Node3D, pos: Vector3, yaw: float = 0.0, vertical: bool = false, room_floor: float = 0.04) -> void:
+	_spots[spot_id] = {"parent": parent, "pos": pos, "yaw": yaw, "vertical": vertical, "floor": room_floor}
 
 
 ## Creates the overlay on `host` (the interior's CanvasLayer). Targets follow the room.
@@ -184,7 +185,7 @@ func _rebuild_if_changed(list: Array) -> void:
 		var spot: Dictionary = _spots.get(str(t.get("spot", id)), {})
 		if spot.is_empty():
 			continue
-		var built := build_mess(spot["parent"], spot["pos"], str(t.get("mess", "papers")), seed_rng, float(spot["yaw"]), bool(spot["vertical"]))
+		var built := build_mess(spot["parent"], spot["pos"], str(t.get("mess", "papers")), seed_rng, float(spot["yaw"]), bool(spot["vertical"]), float(spot.get("floor", 0.04)))
 		var root: Node3D = built["root"]
 		var b: StaticBody3D = built["body"]
 		_built.append(root)
@@ -231,7 +232,7 @@ const DOOR_WRITING := [
 
 ## Builds the props for one mess `kind` at `pos` under `parent`, plus the body the
 ## cursor finds it by. {root: Node3D, body: StaticBody3D}
-static func build_mess(parent: Node3D, pos: Vector3, kind: String, rng: RandomNumberGenerator, yaw := 0.0, vertical := false) -> Dictionary:
+static func build_mess(parent: Node3D, pos: Vector3, kind: String, rng: RandomNumberGenerator, yaw := 0.0, vertical := false, room_floor := 0.04) -> Dictionary:
 	var root := Node3D.new()
 	root.name = "Mess_%s" % kind
 	root.position = pos
@@ -349,6 +350,13 @@ static func build_mess(parent: Node3D, pos: Vector3, kind: String, rng: RandomNu
 		"handprints":
 			decal(root, "decal_handprint", 0.55, Vector3.ZERO, 0.0, true)
 			size = Vector3(0.6, 0.6, 0.12)
+			body_pos = pos
+		"smashed":
+			# A window she smashed (the spot: on the inside of its glass, facing the room).
+			# The panes themselves the room breaks (cabin_interior _tick_smashed); here the
+			# glass on the floor under it, and the window to click.
+			decal(root, _mess_or("carnage_glass_floor", "carnage_blood"), 0.8, Vector3(0, room_floor + 0.004 - pos.y, 0.42), rng.randf() * TAU, false, true)
+			size = Vector3(1.0, 0.8, 0.16)
 			body_pos = pos
 		"graffiti":
 			var lbl := Label3D.new()
@@ -478,6 +486,37 @@ static func tear(parent: Node3D, width: float, pos: Vector3) -> MeshInstance3D:
 	mi.position = pos
 	parent.add_child(mi)
 	return mi
+
+
+## A window she smashed (the mess "smashed"), or whole again: its pane's material `mat`
+## (materials/window_into.gdshader: the camp through it) without the old glass's tint and
+## sheen, and the shards left in the frame, a picture a finger's breadth into the room
+## from the pane `quad` (made beside it the first time). Cabins and caravans alike.
+static func smashed_window(quad: MeshInstance3D, mat: ShaderMaterial, size: Vector2, on: bool) -> void:
+	if quad == null or not is_instance_valid(quad):
+		return
+	if mat != null:
+		mat.set_shader_parameter("tint", Vector3.ONE if on else Vector3(0.95, 0.97, 0.97))
+		mat.set_shader_parameter("sheen", 0.0 if on else 0.6)
+	var shards := quad.get_parent().get_node_or_null(str(quad.name) + "Shards") as MeshInstance3D
+	if shards == null and on and ResourceLoader.exists(MESS_TEX + "carnage_glass.png"):
+		shards = MeshInstance3D.new()
+		shards.name = str(quad.name) + "Shards"
+		var q := QuadMesh.new()
+		q.size = size
+		shards.mesh = q
+		var m := StandardMaterial3D.new()
+		m.albedo_texture = load(MESS_TEX + "carnage_glass.png")
+		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+		m.alpha_scissor_threshold = 0.5
+		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		m.roughness = 0.3
+		shards.material_override = m
+		shards.transform = quad.transform.translated_local(Vector3(0, 0, 0.012))
+		quad.get_parent().add_child(shards)
+	if shards != null:
+		shards.visible = on
 
 
 static func _j(rng: RandomNumberGenerator, r: float) -> float:

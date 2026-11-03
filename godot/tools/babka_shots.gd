@@ -66,14 +66,14 @@ func into_carnage() -> String:
 	return "no structure for %s" % keys[0]
 
 
-## An empty tent of the camp as she leaves one (her carnage, its canvas torn), the warden
-## in it.
-func into_torn_tent() -> String:
+## An empty lodging of `kind` ("tent", "cabin", "caravan") as she leaves one (her carnage:
+## a tent's canvas torn, a cabin's or caravan's window smashed), the warden in it.
+func into_carnage_of(kind: String) -> String:
 	var st = CoreRoot.get_state()
 	var root = _main.get("building_manager").get_node_or_null("Structures")
 	for child in root.get_children():
 		var o = child.get_meta("grid_origin", null)
-		if not str(child.get_meta("building_type", "")).contains("tent") or not (o is Vector2i):
+		if not str(child.get_meta("building_type", "")).contains(kind) or not (o is Vector2i):
 			continue
 		var key := "%d:%d" % [o.x, o.y]
 		if not st.accommodation_states.has(key) or int((st.accommodation_states[key] as Dictionary).get("occupied", 0)) > 0:
@@ -81,18 +81,55 @@ func into_torn_tent() -> String:
 		GuestManager.make_room_carnage(key)
 		_torn_key = key
 		_torn_node = child
+		_torn_kind = kind
 		return reenter_tent()
-	return "no empty tent"
+	return "no empty %s" % kind
+
+
+func into_torn_tent() -> String:
+	return into_carnage_of("tent")
 
 
 var _torn_node: Node3D
+var _torn_kind := "tent"
 
 
 func reenter_tent() -> String:
 	_main.set("debug_camera", null)
 	_main.get("_player").global_position = _torn_node.global_position + Vector3(0, 0, 3.0)
-	_main.get("_interior_manager")._on_tent_interact(_torn_node)
+	var im = _main.get("_interior_manager")
+	match _torn_kind:
+		"cabin":
+			im._on_cabin_interact(_torn_node)
+		"caravan":
+			im._on_caravan_interact(_torn_node)
+		_:
+			im._on_tent_interact(_torn_node)
 	return _torn_key
+
+
+## Its wall's carnage task done (`mess`: "slit" sewn up, "smashed" glazed), as a click does.
+func finish_wall(mess: String) -> String:
+	var im = _main.get("_interior_manager")
+	var room = {"tent": [im._tent_interior, im._active_tent_node], "cabin": [im._cabin_interior, im._active_cabin_node],
+		"caravan": [im._caravan_interior, im._active_caravan_node]}[_torn_kind]
+	for t in GuestManager.get_room_state(_torn_key).get("tasks", []):
+		if str(t.get("mess", "")) == mess:
+			im._on_room_task_completed(room[0], room[1], str(t.get("id", "")))
+			return str(t.get("id", ""))
+	return "no %s task" % mess
+
+
+func close_room() -> String:
+	var im = _main.get("_interior_manager")
+	match _torn_kind:
+		"cabin":
+			im._cabin_interior.close_cabin()
+		"caravan":
+			im._caravan_interior.close_caravan()
+		_:
+			im._tent_interior.close_tent()
+	return _torn_kind
 
 
 ## A few steps behind it (out of it first: the door puts you at its front), looking at its
@@ -124,13 +161,13 @@ const TEAR_STEPS := [
 	["eval", "get_tree().root.get_node('BabkaShots').into_torn_tent()"], ["wait", 3.0],
 	["eval", "[_interior_manager._tent_interior._torn, _interior_manager._tent_interior._tear.get_meta('tear_mats')[0].get_shader_parameter('live')]"],
 	["shot", "t0_tear_night"],
-	["eval", "_interior_manager._tent_interior.close_tent()"], ["wait", 2.0],
+	["eval", "get_tree().root.get_node('BabkaShots').close_room()"], ["wait", 2.0],
 	["eval", "get_tree().root.get_node('BabkaShots').behind_tent()"], ["wait", 2.0], ["shot", "t1_outside_night"],
 	["eval", "get_tree().root.get_node('BabkaShots').reenter_tent()"], ["wait", 2.5],
 	["eval", "time_system.set_time_hours(11.0)"], ["eval", "_sync_runtime_state_from_systems(true)"], ["wait", 3.0], ["shot", "t2_tear_day"],
 	["eval", "get_tree().root.get_node('BabkaShots').sew_tear()"], ["wait", 2.5],
 	["eval", "_interior_manager._tent_interior._torn"], ["shot", "t3_sewn"],
-	["eval", "_interior_manager._tent_interior.close_tent()"], ["wait", 2.0],
+	["eval", "get_tree().root.get_node('BabkaShots').close_room()"], ["wait", 2.0],
 	["eval", "get_tree().root.get_node('BabkaShots').behind_tent()"], ["wait", 2.0], ["shot", "t4_outside_sewn"],
 ]
 
@@ -315,10 +352,29 @@ const LOOK_STEPS := [
 ]
 
 
+## A cabin and a caravan she smashed a window of: inside, from the camp behind, glazed.
+const SMASH_STEPS := [
+	["wait_menu"], ["call", "_on_menu_test_night", ["basket"]], ["wait", 4.0],
+	["call_on", "_interior_manager", "close_main_interior_if_open", []], ["wait", 1.0],
+	["call", "_stop_active_enemy_brain", []],
+	["eval", "get_tree().root.get_node('BabkaShots').into_carnage_of('cabin')"], ["wait", 3.5], ["shot", "w0_cabin_night"],
+	["eval", "get_tree().root.get_node('BabkaShots').close_room()"], ["wait", 2.0],
+	["eval", "get_tree().root.get_node('BabkaShots').behind_tent()"], ["wait", 1.5], ["shot", "w1_cabin_outside"],
+	["eval", "get_tree().root.get_node('BabkaShots').reenter_tent()"], ["wait", 2.5],
+	["eval", "get_tree().root.get_node('BabkaShots').finish_wall('smashed')"], ["wait", 2.5], ["shot", "w2_cabin_glazed"],
+	["eval", "get_tree().root.get_node('BabkaShots').close_room()"], ["wait", 2.0],
+	["eval", "get_tree().root.get_node('BabkaShots').into_carnage_of('caravan')"], ["wait", 3.5], ["shot", "w3_caravan_night"],
+	["eval", "_interior_manager._caravan_interior._windows.size()"],
+]
+
+
 func _ready() -> void:
 	super._ready()
 	if OS.get_cmdline_user_args().has("--part=tear"):
 		_steps = TEAR_STEPS.duplicate(true)
+		return
+	if OS.get_cmdline_user_args().has("--part=smash"):
+		_steps = SMASH_STEPS.duplicate(true)
 		return
 	if OS.get_cmdline_user_args().has("--part=look"):
 		_steps = LOOK_STEPS.duplicate(true)
