@@ -268,10 +268,60 @@ const HITCH_STEPS := [
 ]
 
 
+## Every granny of the night out whatever the hour (a test night's is; one the night rolls
+## itself keeps to the small hours), and what brains there are.
+func keep_out() -> String:
+	var out: Array = []
+	for b in _main.get("_enemy_brains"):
+		if b != null and b.has_method("get_enemy_id"):
+			if str(b.get_enemy_id()) == "basket":
+				b.set("soon", true)
+			out.append("%s:%s" % [str(b.get_enemy_id()), str(b.get("_phase"))])
+	return "BRAINS %s" % str(out)
+
+
+## Her reach for the lamp you stand under (you stay in its light, looking at her): she at
+## the edge of its light, her arm going up to the bulb.
+func reach_now() -> String:
+	var g = granny()
+	var p: Node3D = _main.get("_player")
+	var foot: Vector3 = g._lamp_for(p.global_position)
+	if foot == Vector3.INF:
+		return "no lamp"
+	var edge: Vector3 = g._edge_of(foot)
+	g._body.global_position = edge
+	g._start_reach(foot)
+	p.look_at(Vector3(edge.x, p.global_position.y, edge.z))
+	return "reach from %s to the lamp at %s" % [str(edge), str(foot)]
+
+
+## How she looks: hunting, straightened, her arm going up to a lamp (a picture every 0.8 s
+## of the reach), and her worst face at the catch.
+const LOOK_STEPS := [
+	["wait_menu"], ["call", "_on_menu_test_night", ["basket"]], ["wait", 4.0],
+	["call_on", "_interior_manager", "close_main_interior_if_open", []], ["wait", 1.5],
+	["look_at_enemy"], ["enemy_dist"], ["wait", 0.3], ["shot", "l0_hunt"],
+	["eval", "get_tree().root.get_node('BabkaShots').granny()._set_phase('look', 3.0)"], ["wait", 0.6], ["look_at_enemy"], ["shot", "l1_up"],
+	["eval", "get_tree().root.get_node('BabkaShots').keep_out()"],
+	["eval", "get_tree().root.get_node('BabkaShots').under_lamp()"], ["wait", 1.0],
+	["eval", "get_tree().root.get_node('BabkaShots').reach_now()"], ["wait", 0.6], ["shot", "l2_reach_a"],
+	["wait", 0.8], ["shot", "l3_reach_b"], ["wait", 0.8], ["shot", "l4_reach_c"], ["wait", 0.8], ["shot", "l5_reach_d"],
+	["eval", "get_tree().root.get_node('BabkaShots').state()"],
+	["eval", "get_tree().root.get_node('BabkaShots').keep_out()"],
+	["eval", "get_tree().root.get_node('BabkaShots').granny()._set_stage(2)"],
+	["eval", "get_tree().root.get_node('BabkaShots').meet_granny()"], ["wait", 0.5],
+	["eval", "get_tree().root.get_node('BabkaShots').granny()._start_strike()"], ["wait", 1.2], ["shot", "l6_strike_s2"],
+	["wait", 0.7], ["shot", "l7_strike_s2b"],
+]
+
+
 func _ready() -> void:
 	super._ready()
 	if OS.get_cmdline_user_args().has("--part=tear"):
 		_steps = TEAR_STEPS.duplicate(true)
+		return
+	if OS.get_cmdline_user_args().has("--part=look"):
+		_steps = LOOK_STEPS.duplicate(true)
 		return
 	if OS.get_cmdline_user_args().has("--part=hitch"):
 		_steps = HITCH_STEPS.duplicate(true)

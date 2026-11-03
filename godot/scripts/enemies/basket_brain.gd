@@ -581,7 +581,8 @@ func _show_arm(k: float) -> void:
 	x = x.normalized()
 	var z := x.cross(y)
 	var tex_h := float(_arm.texture.get_height())
-	_arm.pixel_size = 0.26 / float(_arm.texture.get_width())
+	# As thick as a leg: thinner, at the lamp's edge it was a dark thread against the sky.
+	_arm.pixel_size = 0.4 / float(_arm.texture.get_width())
 	_arm.global_transform = Transform3D(Basis(x, y * (length / (tex_h * _arm.pixel_size)), z), (a + b) * 0.5)
 	_arm.visible = true
 
