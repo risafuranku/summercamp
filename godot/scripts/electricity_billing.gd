@@ -471,6 +471,10 @@ func _send_notice(bill: Dictionary) -> void:
 		"bill_id": bill_id,
 		"amount": amount,
 		"due_day": due_day,
+		# The English as written and what fills it: the mail is put in the reader's
+		# language as it is opened (filled in first, no lookup finds it).
+		"text_tpl": {"subject": str(template.get("subject", "")), "body": str(template.get("body", ""))},
+		"text_fill": placeholders,
 	})
 
 

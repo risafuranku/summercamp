@@ -356,7 +356,7 @@ func refresh() -> void:
 		if str(mail.get("attachment", "")) != "" or str(mail.get("image", "")) != "":
 			it.set_text(0, "  @")
 		it.set_text(1, _short_sender(str(mail.get("from", mail.get("to", "?")))))
-		it.set_text(2, str(mail.get("subject", "(no subject)")))
+		it.set_text(2, _text_of(mail, "subject"))
 		it.set_text(3, _date_label(mail))
 		if unread:
 			for c in 4:
@@ -476,7 +476,7 @@ func _draw_header() -> void:
 		["From:", MY_ADDRESS if sent else tr(str(_current.get("from", "?")))],
 		["To:", str(_current.get("to", "")) if sent else MY_ADDRESS],
 		["Date:", _long_date(_current)],
-		["Subject:", tr(str(_current.get("subject", "")))],
+		["Subject:", _text_of(_current, "subject")],
 	]
 	var y := 12.0
 	for r in rows:
@@ -502,7 +502,7 @@ func _show_message(mail: Dictionary) -> void:
 		refresh_tools()
 		return
 	_body.clear()
-	var text := _esc(_body_in_language(str(mail.get("body", ""))).strip_edges())
+	var text := _esc(_text_of(mail, "body").strip_edges())
 	var rich := bool(mail.get("rich", false))
 	# Quoted lines in the colour CampMail gave them; a rich mail's points in a table.
 	var out := ""
@@ -683,7 +683,7 @@ func _reply() -> void:
 	if _current.is_empty() or _folder == "sent":
 		return
 	var to := str(_current.get("from", ""))
-	var subj := str(_current.get("subject", ""))
+	var subj := _text_of(_current, "subject")
 	if not subj.to_lower().begins_with("re:"):
 		subj = "Re: " + subj
 	_open_compose(to, subj, _quote(_current))
@@ -692,13 +692,13 @@ func _reply() -> void:
 func _forward() -> void:
 	if _current.is_empty():
 		return
-	var subj := str(_current.get("subject", ""))
-	_open_compose("", "Fw: " + subj, "\n\n----- Original Message -----\nFrom: %s\nSent: %s\nSubject: %s\n\n%s" % [str(_current.get("from", MY_ADDRESS)), _long_date(_current), subj, str(_current.get("body", ""))])
+	var subj := _text_of(_current, "subject")
+	_open_compose("", "Fw: " + subj, "\n\n----- Original Message -----\nFrom: %s\nSent: %s\nSubject: %s\n\n%s" % [str(_current.get("from", MY_ADDRESS)), _long_date(_current), subj, _text_of(_current, "body")])
 
 
 func _quote(mail: Dictionary) -> String:
 	var q := "\n\n%s wrote:\n" % _short_sender(str(mail.get("from", "")))
-	for l in str(mail.get("body", "")).strip_edges().split("\n"):
+	for l in _text_of(mail, "body").strip_edges().split("\n"):
 		q += "> " + l + "\n"
 	return q
 
@@ -953,6 +953,21 @@ func _short_sender(s: String) -> String:
 ## The body in the warden's language (append_text translates nothing): the letter filled in
 ## is found by its template, and a P.S. the mail got after it was filled (email_manager:
 ## where they would like to sleep) is looked up apart.
+## A mail's subject or body in the reader's language: a filled-in one (the electricity's
+## notices: `text_tpl` and `text_fill`) looked up before it is filled.
+func _text_of(mail: Dictionary, key: String) -> String:
+	var tpl = mail.get("text_tpl", null)
+	if tpl is Dictionary and str((tpl as Dictionary).get(key, "")) != "":
+		var out := tr(str(tpl[key]))
+		var fill: Dictionary = mail.get("text_fill", {})
+		for k in fill:
+			out = out.replace("{%s}" % str(k), str(fill[k]))
+		return LANG.money(out).strip_edges()
+	if key == "subject":
+		return tr(str(mail.get("subject", "(no subject)")))
+	return _body_in_language(str(mail.get("body", "")))
+
+
 func _body_in_language(body: String) -> String:
 	var ps := body.rfind("
 
