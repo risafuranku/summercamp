@@ -1,4 +1,48 @@
 {
+ "babka_s0": {
+  "poses": {
+   "up": {
+    "id": "fig_babka_s0_pose_up_1"
+   }
+  },
+  "run": {
+   "1": {
+    "id": "fig_babka_s0_run1_1"
+   },
+   "2": {
+    "id": "fig_babka_s0_run2_1"
+   },
+   "3": {
+    "id": "fig_babka_s0_run3_1"
+   },
+   "4": {
+    "id": "fig_babka_s0_run4_1"
+   },
+   "5": {
+    "id": "fig_babka_s0_run5_1"
+   }
+  },
+  "turn": {
+   "id": "fig_babka_s0_turn_1"
+  },
+  "walk": {
+   "1": {
+    "id": "fig_babka_s0_walk1_1"
+   },
+   "2": {
+    "id": "fig_babka_s0_walk2_1"
+   },
+   "3": {
+    "id": "fig_babka_s0_walk3_1"
+   },
+   "4": {
+    "id": "fig_babka_s0_walk4_1"
+   },
+   "5": {
+    "id": "fig_babka_s0_walk5_1"
+   }
+  }
+ },
  "dvorakova": {
   "poses": {
    "work": {

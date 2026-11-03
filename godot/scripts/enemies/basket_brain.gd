@@ -56,6 +56,13 @@ const OLD_FACE := N + "granny_face.png"
 ## The arm that reaches up to a bulb, drawn along its length (shoulder at the bottom).
 const ARM := N + "babka_arm.png"
 const MUSHROOM := "res://assets/textury/world/fly_agaric.png"
+## Where she has walked tonight: little clusters of her mushrooms coming up out of the
+## grass behind her (come out after hiding and you see she was here), every TRAIL_EVERY
+## metres she walks, the oldest taken up past TRAIL_MAX; gone with her brain at the end of
+## the night.
+const TRAIL := "res://assets/textury/npc/babka_trail.png"
+const TRAIL_EVERY := 7.0
+const TRAIL_MAX := 24
 
 const S := "res://assets/sfx/npc/babka/"
 const G := "res://assets/sfx/npc/granny/"
@@ -184,6 +191,9 @@ var _work: AudioStreamPlayer3D
 var _in_room: AudioStreamPlayer
 var _in_next := 0.0
 var _step_dist := 0.0
+var _trail: Array = []
+var _trail_d := 0.0
+var _trail_tex: Texture2D
 var _step_i := 0
 var _creak_t := 0.0
 var _bone_t := 0.0
@@ -221,6 +231,7 @@ func _on_start() -> void:
 	_make_eyes("basket", 1.35).set("x_off", 0.0)
 	_arm = Sprite3D.new()
 	_arm.texture = load(ARM) as Texture2D if ResourceLoader.exists(ARM) else null
+	_trail_tex = load(TRAIL) as Texture2D if ResourceLoader.exists(TRAIL) else null
 	_arm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	_arm.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
 	_arm.shaded = true
@@ -1266,6 +1277,10 @@ func _face_toward(p: Vector3) -> void:
 func _step(metres: float) -> void:
 	if metres <= 0.0 or _body == null:
 		return
+	_trail_d += metres
+	if _trail_d >= TRAIL_EVERY and _trail_tex != null:
+		_trail_d = 0.0
+		_drop_trail()
 	_step_dist += metres
 	var stride := 0.72 if _phase == "lunge" else 0.5
 	if _step_dist < stride:
@@ -1274,6 +1289,30 @@ func _step(metres: float) -> void:
 	_step_i += 1
 	var at := _body.global_position + Vector3(0, 0.15, 0)
 	_sound(str(STEPS[_step_i % STEPS.size()]), at, -1.0 if _phase == "lunge" else -4.0, _rng.randf_range(0.9, 1.05), 26.0)
+
+
+## A cluster of her mushrooms where she is now (the oldest one moved up, past TRAIL_MAX).
+func _drop_trail() -> void:
+	var s: Sprite3D
+	if _trail.size() >= TRAIL_MAX:
+		s = _trail.pop_front()
+	else:
+		s = Sprite3D.new()
+		s.texture = _trail_tex
+		s.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+		s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		s.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+		s.shaded = true
+		s.offset = Vector2(0, _trail_tex.get_height() * 0.5)
+		_root.add_child(s)
+	if not is_instance_valid(s):
+		return
+	s.pixel_size = _rng.randf_range(0.14, 0.24) / float(_trail_tex.get_height())
+	s.flip_h = _rng.randf() < 0.5
+	var p := _ground(_body.global_position + Vector3(_rng.randf_range(-0.3, 0.3), 0.0, _rng.randf_range(-0.3, 0.3)))
+	s.global_position = p if p != Vector3.INF else _body.global_position
+	s.visible = true
+	_trail.append(s)
 
 
 # ── her picture ──────────────────────────────────────────────────────────────

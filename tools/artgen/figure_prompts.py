@@ -243,9 +243,61 @@ JACKETS = {
 	"warden_d": {"hue": [62.0, 165.0], "sat": 0.16, "band": {"stand": [0.1, 0.62], "walk": [0.1, 0.64], "run": [0.08, 0.64], "idle": [0.1, 0.64]}},
 }
 
+## The mushroom granny at night (scripts/enemies/basket_brain.gd, DESIGN §5a.4; Richard
+## 3. 11.: "A a D, z nich celá babka z osmi stran"): no person standing calm and upright,
+## so sheets of her own. Her front sprite is Grok's front view of the approved hunting
+## picture (rows fig_base_babka_s0_* in prompts_babka.tsv), the pose "up" is the approved
+## straightened one (babka_s0_up.png). Her animations: walk (the hunt, bent like a hook),
+## run (the lunge), up (straightened far too tall, from five sides).
+BABKA = {
+	"babka_s0": "a turned old woman: grey hair in a bun, pale brown mushroom caps with grey gills where "
+		"her eyes should be, a long pale mushroom hanging from her mouth like a tongue, grey-green skin "
+		"cracked like bark, a brown knitted cardigan and a blue flowered dress soaked dark red-brown "
+		"from the chest down, green rubber boots, a wicker basket on her left arm with a bundle in a "
+		"stained tablecloth, a small kitchen knife low in her right hand, a few flies round her",
+}
+BABKA_TAIL = "Body horror, morbid and repulsive, cursed nightmare fuel, not sexual. "
+# (No game named: "Blood" beside gore was what Grok's filter refused, summercamp-horror-art.)
+BABKA_STYLE = STYLE.replace(" like Duke Nukem 3D, Blood or Redneck Rampage", "")
+BABKA_WALK = WALK.replace("the person %s", "the creature %s, bent forward at the waist like a hook").replace(
+	"A calm walking pace, the body upright. ", "A fast hunting stride, the body bent forward like a hook the "
+	"whole time, the head pushed forward low and craned up, the far too long arms swinging low. ")
+BABKA_RUN = RUN.replace("the person %s, leaning a little forward, the arms bent at the elbows",
+	"the creature %s, lunging at a sprint bent low like a hook, the far too long arms reaching forward")
+for _fig, _desc in BABKA.items():
+	FIGURES[_fig] = ("assets/textury/npc/%s.png" % _fig, _desc)
+	POSES_OF[_fig] = ["up"]
+	POSE_TEXT["up_" + _fig] = ("straightened up far too tall, much taller than any person, thin and stiff "
+		"as a dead tree, her head tilted far over to one side on a long neck, her arms far too long "
+		"hanging down past the knees, standing perfectly still")
+
+
+def babka_sheets(fig, desc):
+	same = SAME % desc
+	out = {
+		"turn": ("16:9", "front", BABKA_STYLE + "A creature turnaround model sheet: five full-body views of one "
+			"and the same creature, bent forward at the waist like a hook, her head pushed forward low and "
+			"craned up, her arms far too long hanging down, side by side in a single row, evenly spaced "
+			"with clear magenta gaps between them, all exactly the same height and scale with the feet on "
+			"one common baseline near the bottom edge: " + VIEWS + ". " + same + BABKA_TAIL + BG),
+	}
+	for v in range(1, 6):
+		out["walk%d" % v] = ("16:9", "turn", BABKA_STYLE + (BABKA_WALK % VIEW[v]) + same + BABKA_TAIL + BG)
+		out["run%d" % v] = ("16:9", "turn", BABKA_STYLE + (BABKA_RUN % RUN_VIEW[v]) + same + BABKA_TAIL + BG)
+	for pose in POSES_OF.get(fig, []):
+		out["pose_" + pose] = ("16:9", "pose_" + pose, BABKA_STYLE + "Five full-body views of one and the same "
+			"creature in one and the same pose, " + POSE_TEXT["%s_%s" % (pose, fig)] + ", side by side in a "
+			"single row, evenly spaced with clear magenta gaps, all exactly the same scale with the feet on "
+			"one common baseline near the bottom edge, turned a different way in each: " + VIEWS + ". The "
+			"first view is exactly the pose in the reference image. " + same + BABKA_TAIL + BG)
+	return out
+
+
 # id suffix -> (aspect, which reference, text). "front": the sprite alone; "turn": the
 # sprite beside its picked turnaround.
 def sheets(fig, desc):
+	if fig in BABKA:
+		return babka_sheets(fig, desc)
 	same = SAME % desc
 	out = {
 		"turn": ("16:9", "front", STYLE + "A character turnaround model sheet: five full-body views "
