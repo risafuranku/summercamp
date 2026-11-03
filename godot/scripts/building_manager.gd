@@ -568,7 +568,7 @@ func _refresh_tent_tear(tent_root: Node, key: String) -> void:
 	var size: Vector3 = tent.get_meta("tent_size")
 	var tex: Texture2D = load(TENT_TEAR_TEX)
 	var aspect := float(tex.get_height()) / float(tex.get_width())
-	var w := minf(size.x * 0.4, size.y * 0.92 / aspect)
+	var w := minf(size.x * 0.55, size.y * 0.95 / aspect)
 	var q := QuadMesh.new()
 	q.size = Vector2(w, w * aspect)
 	var m := ShaderMaterial.new()

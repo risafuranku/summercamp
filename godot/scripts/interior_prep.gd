@@ -338,9 +338,10 @@ static func build_mess(parent: Node3D, pos: Vector3, kind: String, rng: RandomNu
 			# A real hole in the canvas, the night out there through it (tent_interior
 			# _tick_tear feeds it the camp; Richard 3. 11.: "fakt dirou videt ven").
 			if ResourceLoader.exists(MESS_TEX + "carnage_tear.png"):
-				# Ridge to floor: its tips go on under the floor and up into the slopes.
-				tear(root, 0.78, Vector3(0, 0.02, 0))
-				size = Vector3(0.7, 1.2, 0.12)
+				# Torn wide open, floor to near the ridge (Richard 3. 11.: a bigger hole); its
+				# top corners go on into the slopes.
+				tear(root, 1.1, Vector3(0, -0.07, 0))
+				size = Vector3(1.0, 1.1, 0.12)
 			else:
 				decal(root, _mess_or("carnage_slit", "decal_scratches"), 0.66, Vector3.ZERO, 0.0, true)
 				size = Vector3(0.66, 0.8, 0.12)

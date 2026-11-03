@@ -3,7 +3,7 @@
 of the canvas round a tear whose opening is flat magenta (rows carnage_tear_* in
 prompts_babka.tsv, the reference camp/tarp_canvas.png).
 
-    python tools/artgen/tear.py <id> [width_px] [--dest=assets/textury/mess/carnage_tear.png]
+    python tools/artgen/tear.py <id> [width_px] [--dest=assets/textury/mess/carnage_tear.png] [--keep-border]
 
 The picture the room draws: the opening magenta (opaque; the shader shows the camp there),
 the torn edge of the canvas round it (a band, its outer line ragged so it does not read
@@ -11,7 +11,8 @@ as a patch sewn on), nothing elsewhere (the tent's own wall shows there). The ba
 canvas is shifted to the colour of the back wall as the tent draws it
 (camp/tarp_canvas.png times the wall's tint in tent_interior); blood, mould and
 mushrooms keep most of their own colours. A magenta pocket touching the
-picture's border is not the opening (a corner of background): nothing there.
+picture's border is not the opening (a corner of background): nothing there, unless
+--keep-border (an opening torn down to the floor).
 """
 import os
 import random
@@ -84,7 +85,8 @@ def main():
         for x in range(a.shape[1]):
             r, g, b = a[y, x]
             hole_full[y, x] = is_key(int(r), int(g), int(b))
-    hole_full &= ~border_pockets(hole_full)
+    if "--keep-border" not in sys.argv:
+        hole_full &= ~border_pockets(hole_full)
     # The opening's own pixels take the torn rim's colour before the picture is scaled, so
     # the edge pixels round it darken instead of turning pink.
     a[hole_full] = RIM
