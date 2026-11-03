@@ -30022,3 +30022,39 @@ msgstr "CampNet Ops"
 #. manual
 msgid "register|NO"
 msgstr "Č."
+
+#: scripts/os98/apps/browser_app.gd:1529
+msgid "Nobody has said anything yet today."
+msgstr "Dnes tu ještě nikdo nic nenapsal."
+
+#. manual
+msgid "weather|clear"
+msgstr "jasno"
+
+#. manual
+msgid "weather|windy"
+msgstr "větrno"
+
+#. manual
+msgid "weather|fog"
+msgstr "mlha"
+
+#. manual
+msgid "weather|light rain"
+msgstr "slabý déšť"
+
+#. manual
+msgid "weather|rain"
+msgstr "déšť"
+
+#. manual
+msgid "weather|thunderstorms"
+msgstr "bouřky"
+
+#. manual
+msgid "weather|snow"
+msgstr "sněžení"
+
+#. manual
+msgid "now"
+msgstr "teď"

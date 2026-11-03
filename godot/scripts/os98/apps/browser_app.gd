@@ -808,8 +808,24 @@ func _page_in_language(body: String) -> String:
 	var pieces := body.split(WEB.HR)
 	for i in pieces.size():
 		if pieces[i].strip_edges() != "":
-			pieces[i] = tr(pieces[i])
+			pieces[i] = _piece_in_language(pieces[i])
 	return WEB.HR.join(pieces)
+
+
+## A piece of a page: whole, or around the shared parts written into it (the search's
+## masthead, UNDER CONSTRUCTION), each its own text in cs.po as the source joins them.
+func _piece_in_language(piece: String) -> String:
+	var whole := tr(piece)
+	if whole != piece:
+		return whole
+	for shared: String in [WEB.SEARCH_HEAD, WEB.UNDER]:
+		if piece.contains(shared):
+			var parts := piece.split(shared)
+			for j in parts.size():
+				if parts[j].strip_edges() != "":
+					parts[j] = _piece_in_language(parts[j])
+			return tr(shared).join(parts)
+	return piece
 
 
 ## The page's text at once, the pictures as grey boxes that fill in one by one.
@@ -992,11 +1008,11 @@ func _softsklad() -> String:
 	var t := ""
 	for k in ["pub", "rest", "vecerka", "corn", "staff"]:
 		var info: Dictionary = R.info(k)
-		t += "[b]%s[/b] - %s\n" % [str(info["app_name"]), str(blurbs[k])]
+		t += "[b]%s[/b] - %s\n" % [str(info["app_name"]), tr(str(blurbs[k]))]
 		if CoreRoot != null and CoreRoot.actions != null and CoreRoot.actions.biz_has_licence(k):
-			t += " [color=#006600]Licensed.[/color] {download://%s|%s}\n\n" % [files[k], files[k]]
+			t += LANG.f(" [color=#006600]Licensed.[/color] {download://%s|%s}\n\n", [files[k], files[k]])
 		else:
-			t += " {licence://%s|Buy a licence - $%d}\n\n" % [k, int(info["licence"])]
+			t += LANG.money(LANG.f(" {licence://%s|Buy a licence - $%d}\n\n", [k, int(info["licence"])]))
 	return t
 
 
@@ -1007,10 +1023,10 @@ func _pcservis() -> String:
 		return ""
 	match post.stage():
 		"":
-			return "[center]{order://monitor2|[b]>> ORDER THE SET <<[/b]}[/center]"
+			return tr("[center]{order://monitor2|[b]>> ORDER THE SET <<[/b]}[/center]")
 		"delivered":
-			return "[color=#006600][b]Order no. %d: delivered. Thank you for your custom.[/b][/color]" % post.order_no()
-	return "[color=#006600][b]Order no. %d: sent. The post brings it.[/b][/color]" % post.order_no()
+			return LANG.f("[color=#006600][b]Order no. %d: delivered. Thank you for your custom.[/b][/color]", [post.order_no()])
+	return LANG.f("[color=#006600][b]Order no. %d: sent. The post brings it.[/b][/color]", [post.order_no()])
 
 
 func _on_link(target: String) -> void:
@@ -1203,7 +1219,7 @@ func _tab_input(e: InputEvent) -> void:
 func _expand(body: String, link: String, key: String) -> String:
 	var t := body
 	if t.find("{{") >= 0:
-		t = t.replace("{{search}}", "\n[center][bgcolor=#e0e8ff] [b]Search the Czech web:[/b] type a word in the Address bar and press Go. [/bgcolor][/center]\n")
+		t = t.replace("{{search}}", tr("\n[center][bgcolor=#e0e8ff] [b]Search the Czech web:[/b] type a word in the Address bar and press Go. [/bgcolor][/center]\n"))
 		t = t.replace("{{day}}", str(_day()))
 		t = t.replace("{{date}}", _date(_day()))
 		t = t.replace("{{time}}", _time())
@@ -1216,7 +1232,7 @@ func _expand(body: String, link: String, key: String) -> String:
 		t = t.replace("{{softsklad}}", _softsklad())
 		t = t.replace("{{pcservis}}", _pcservis())
 		t = t.replace("{{chat}}", _chat())
-		t = t.replace("{{chatcount}}", "%d people here" % (9 + _day() % 5 + (1 if not _shell.is_day() else 0)))
+		t = t.replace("{{chatcount}}", LANG.f("%d people here", [9 + _day() % 5 + (1 if not _shell.is_day() else 0)]))
 		t = t.replace("{{horoscope}}", _horoscope())
 		t = t.replace("{{news}}", _news())
 		t = t.replace("{{headline}}", _headline())
@@ -1337,14 +1353,14 @@ func _weather() -> String:
 	if (w == 3 or w == 4 or w == 5) and Season.precip_is_snow(day, 12.0):
 		wx_name = "snow"
 		icon = "cloud"
-	var t := "{{img:wx_%s:40}}  [b]Now, Vysocina:[/b] %s, %d degrees\n" % [icon, wx_name, Season.temp_high(day) - 2]
+	var t := LANG.f("{{img:wx_%s:40}}  [b]Now, Vysocina:[/b] %s, %d degrees\n", [icon, tr(wx_name, "weather"), Season.temp_high(day) - 2])
 	var low := Season.temp_low(day)
 	var night_word := "fog in the valleys" if w == 2 or w == 6 else ("ground frost" if low <= 0 else "mostly clear, cool")
-	t += "[b]Tonight:[/b] %s, %d to %d degrees.\n" % [night_word, low, low + 3]
+	t += LANG.f("[b]Tonight:[/b] %s, %d to %d degrees.\n", [tr(night_word), low, low + 3])
 	if Season.hard_frost(day):
-		t += "[color=#0044aa][b]Frost warning:[/b] drain outdoor water pipes and pumps.[/color]\n"
+		t += tr("[color=#0044aa][b]Frost warning:[/b] drain outdoor water pipes and pumps.[/color]\n")
 	if w == 6:
-		t += "\n[color=#cc0000][blink]The reservoir station reports.[/blink] Reading: 0 0 0 0 0 0[/color]\n"
+		t += tr("\n[color=#cc0000][blink]The reservoir station reports.[/blink] Reading: 0 0 0 0 0 0[/color]\n")
 	return t
 
 
@@ -1357,7 +1373,7 @@ func _forecast() -> String:
 		var d := _day() + i + 1
 		t += "[cell padding=6,2,14,2][center][b]%s[/b] %s\n" % [Season.weekday_short(d), Season.date_short(d)]
 		if i == 3:
-			t += "{{img:wx_fog:40}}\n[color=#888888]no data[/color][/center][/cell]"
+			t += tr("{{img:wx_fog:40}}\n[color=#888888]no data[/color][/center][/cell]")
 		else:
 			var p := Season.progress(d)
 			var pool: Array = ["sun", "suncloud", "suncloud", "cloud", "rain"] if p < 0.4 else ["suncloud", "cloud", "fog", "rain", "rain"]
@@ -1504,13 +1520,13 @@ func _chat() -> String:
 			continue
 		var nick := str(r[1])
 		if nick == "*":
-			t += "[color=#808080][%s] *** %s[/color]\n" % [r[0], r[2]]
+			t += "[color=#808080][%s] *** %s[/color]\n" % [r[0], tr(str(r[2]))]
 		else:
 			var col := "#ff6666" if nick == "kemp_cj" else "#66ff66"
-			t += "[color=#808080][%s][/color] [color=%s]<%s>[/color] %s\n" % [r[0], col, nick, str(r[2])]
+			t += "[color=#808080][%s][/color] [color=%s]<%s>[/color] %s\n" % [r[0], col, nick, tr(str(r[2]))]
 		shown += 1
 	if shown == 0:
-		t = "[color=#808080]Nobody has said anything yet today.[/color]\n"
+		t = "[color=#808080]%s[/color]\n" % tr("Nobody has said anything yet today.")
 	return t
 
 
@@ -1556,7 +1572,7 @@ func _horoscope() -> String:
 	var t := ""
 	for i in SIGNS.size():
 		var text: String = STARS[order[i]] if i != odd else STARS_ODD[rng.randi_range(0, STARS_ODD.size() - 1)]
-		t += "[b][color=#ffff66]%s[/color][/b]  %s\n" % [SIGNS[i].to_upper(), text]
+		t += "[b][color=#ffff66]%s[/color][/b]  %s\n" % [tr(SIGNS[i]).to_upper(), tr(text)]
 	return t
 
 
@@ -1570,7 +1586,7 @@ func _news_items() -> Array:
 	if day <= 3:
 		items.append(["Cerne jezero camp open again", "The camp by the reservoir, shut since last summer, is taking guests for the autumn. The district inspects it on 19 October; Agrostroj Hlubocany has asked for the land."])
 	elif guests > 0:
-		items.append(["Guests at the reservoir camp", "%d people stayed at Cerne jezero last night. \"More than we expected in October,\" said the district's accommodation office." % guests])
+		items.append(["Guests at the reservoir camp", tr("%d people stayed at Cerne jezero last night. \"More than we expected in October,\" said the district's accommodation office.") % guests])
 	else:
 		items.append(["Quiet at the reservoir", "The camp at Cerne jezero had no guests last night. The district's inspection is on 19 October."])
 	var pool := [
@@ -1591,21 +1607,21 @@ func _news_items() -> Array:
 		used[k] = true
 		items.append(pool[k])
 	var wx: String = WX_NAMES[clampi(_weather_state(), 0, 6)]
-	items.append(["Weather", "Today %s, %d degrees; tonight %d. %s" % [wx, Season.temp_high(day), Season.temp_low(day), "Frost in the valleys." if Season.hard_frost(day) else "Fog by the water after dark."]])
+	items.append(["Weather", LANG.f("Today %s, %d degrees; tonight %d. %s", [tr(wx, "weather"), Season.temp_high(day), Season.temp_low(day), tr("Frost in the valleys." if Season.hard_frost(day) else "Fog by the water after dark.")])])
 	return items
 
 
 func _news() -> String:
 	var t := ""
 	for it in _news_items():
-		t += "[b][font_size=14]%s[/font_size][/b]\n%s\n\n" % [it[0], it[1]]
+		t += "[b][font_size=14]%s[/font_size][/b]\n%s\n\n" % [tr(str(it[0])), tr(str(it[1]))]
 	return t
 
 
 ## The portal's ticker: the Courier's first story, the weather.
 func _headline() -> String:
 	var items := _news_items()
-	return "%s +++ %s" % [str(items[0][0]), str(items[items.size() - 1][1]).get_slice(";", 0)]
+	return "%s +++ %s" % [tr(str(items[0][0])), tr(str(items[items.size() - 1][1])).get_slice(";", 0)]
 
 
 ## Tonight's television (four channels). After the late film the transmitters show the
@@ -1630,7 +1646,7 @@ func _tv() -> String:
 	for ch in chans:
 		t += "[cell padding=4,2,16,6][b][color=#ffff66]%s[/color][/b]\n" % ch[0]
 		for row in ch[1]:
-			t += "[color=#aaaaaa]%s[/color]  %s\n" % [row[0], row[1]]
+			t += "[color=#aaaaaa]%s[/color]  %s\n" % [row[0], tr(str(row[1]))]
 		t += "[/cell]"
 	return t + "[/table]"
 
@@ -1639,14 +1655,23 @@ func _tv() -> String:
 func _agro_days() -> String:
 	var left := 31 - _day()
 	if left > 1:
-		return "%d days" % left
+		return LANG.f("%d days", [left])
 	if left == 1:
-		return "tomorrow"
-	return "now"
+		return tr("tomorrow")
+	return tr("now")
+
+
+## A word without its Czech accents, as the index keeps them ("počasí" finds "pocasi").
+static func _plain(text: String) -> String:
+	var from := "áčďéěíňóřšťúůýž"
+	var to := "acdeeinorstuuyz"
+	for i in from.length():
+		text = text.replace(from[i], to[i])
+	return text
 
 
 func _search_page(q: String) -> Dictionary:
-	var words := q.to_lower().replace("+", " ").split(" ", false)
+	var words := _plain(q.to_lower()).replace("+", " ").split(" ", false)
 	var hits: Array = []
 	for key in WEB.INDEX:
 		var idx := str(WEB.INDEX[key])
@@ -1654,15 +1679,15 @@ func _search_page(q: String) -> Dictionary:
 			if idx.find(w) >= 0 or str(key).find(w) >= 0:
 				hits.append(key)
 				break
-	var body := WEB.SEARCH_HEAD + "\n[b]You searched for:[/b] %s\n\n" % q.replace("[", "")
+	var body := tr(WEB.SEARCH_HEAD) + LANG.f("\n[b]You searched for:[/b] %s\n\n", [q.replace("[", "")])
 	if hits.is_empty():
-		body += "No pages were found. Check the spelling, or try fewer words.\n"
+		body += tr("No pages were found. Check the spelling, or try fewer words.\n")
 	else:
-		body += "[color=#666666]Pages 1-%d of %d:[/color]\n\n" % [hits.size(), hits.size()]
+		body += LANG.f("[color=#666666]Pages 1-%d of %d:[/color]\n\n", [hits.size(), hits.size()])
 		var n := 1
 		for k in hits:
 			var p: Dictionary = WEB.PAGES.get(k, {})
-			body += "%d. [b]{%s|%s}[/b]\n   [color=#008000]http://www.%s/[/color]\n\n" % [n, k, str(p.get("title", k)), k]
+			body += "%d. [b]{%s|%s}[/b]\n   [color=#008000]http://www.%s/[/color]\n\n" % [n, k, tr(str(p.get("title", k))), k]
 			n += 1
 	body += "{{banner:cd:bohemica.cz}}\n" + WEB.HR + "\n{%s|Bohemia Online}" % WEB.HOME
 	return {"title": "Bohemia Online - search", "bg": "#ffffff", "fg": "#000000", "link": "#0000ee", "body": body}

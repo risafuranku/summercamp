@@ -334,7 +334,7 @@ Decided with the user (Q&A 21. 10., DESIGN §7b "Papa's frame"): you come back t
 - [x] The second monitor on phone books, the radio on top; two screens, the swap, the keys, dialogs on the screen looked at
 - [x] Co-op: ordered and signed on either machine, the van and man on both, both screens over the shoulder (`tools/post_coop.py` PASS)
 - [ ] The van's front and back faces and PC Servis's photo (Grok queue), then a look at the van turning round to leave
-- [ ] Czech: the PC Servis page's own text (the web pages are not translated yet)
+- [x] Czech: the PC Servis page's own text (3. 11.: and the rest of the web: the pieces around UNDER CONSTRUCTION and the search's masthead, the search results, chat, horoscope, the Courier, TV, weather and forecast, SoftSklad, PC Servis's order through the catalogue; the search takes Czech words, accents or not)
 
 ## CZECH VERSION — 2026-10-21 (the user: "the language is the warden's, flags when a warden is made; the whole game in Czech; from now on everything in English and Czech")
 
