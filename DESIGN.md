@@ -393,19 +393,34 @@ She never says a word.
 - **Step out** and she leaves the ones she was on (cut, alive) and comes for you.
 - **The morning**: where she ate the lodging is hers to clean (`GuestManager.
   make_room_carnage`, mess_rules `carnage`: the blood, what is left of them, mushrooms
-  growing out of it, the soaked bedding, a tent's slit canvas, a cabin's handprints);
-  those who lived through it leave with one star, in their own words; a relative writes
-  a day or two later; the morning lines say who is gone.
+  growing out of it, the soaked bedding); those who lived through it leave with one
+  star, in their own words (the tent, the cabin or the caravan she came into); a
+  relative writes a day or two later (a father or a mother of a picker, the Quiet Guy's
+  mother...); the morning lines say who is gone.
+- **The way she came in stays open** (Richard 3. 11.: "fakt dirou videt ven", "vyražené
+  okno"): a tent's back canvas torn wide open, floor to near the ridge, the camp seen
+  through the hole as it is from there (the room's shared view of the camp,
+  `materials/tent_tear.gdshader`, `tent_interior._tick_tear`), its flaps stirring in
+  the wind; a cabin's back window (a caravan's middle one on the side away from the
+  door) smashed, bloody shards left in the frame, the glass on the floor
+  (`interior_prep.smashed_window`). The outside comes in through either, less muffled
+  (`audio_manager.set_room_leak`), and the camp sees it from outside
+  (`building_manager._refresh_tent_tear`, `_refresh_cabin_smash`) until it is sewn up
+  or glazed (its task).
 - **Spores**: near her the picture goes sour and hazy and the world muffled
   (`nightmare_fx.set_spores`, mirrored to the hunted warden in co-op).
 - **Co-op**: she hunts a warden who is outside; all inside, she eats. Another hunter out
   the same night: both at once, she does not wait her turn.
-- **Art** (Grok, from the day's sprite `npc/host_pensioner.png`, never from a later
-  picture): eight views like the guests (`npc/sets/babka_s0..s2`), the face
-  (`npc/babka_face_s*`), the arm (`npc/babka_arm`), the carnage (`mess/carnage_*`); until
-  a set is drawn she is the old `granny_pick` / `granny_up`. Sounds `assets/sfx/npc/babka/`
-  (`tools/audiogen/prompts_babka.tsv`). Her rules: `tools/enemy_check.tscn`; shots
-  `tools/babka_shots.tscn`.
+- **Art** (Grok; Richard picked from samples on 3. 11.: hunting `bk_hunt_4`, straightened
+  `bk_up_7` drawn from it, the arm `babka_arm_3`, the face B and with the tongue for the
+  last stage): `npc/babka_bent`, `npc/babka_up`, `npc/babka_face_s0`, `_s2`, `npc/babka_arm`;
+  eight views like the guests (`npc/sets/babka_s0`, figure `babka_s0` in
+  `tools/artgen/figure_prompts.py` BABKA: walk = the hunt, run = the lunge, up = straightened;
+  the set's scale is her bent height, `up` is drawn taller itself); the carnage
+  (`mess/carnage_*`). Sounds `assets/sfx/npc/babka/` (`tools/audiogen/prompts_babka.tsv`; the
+  loops as seamless OGG, `tools/audiogen/ambience_loop.py --trim --lufs=-23`). Her rules:
+  `tools/enemy_check.tscn`; shots `tools/babka_shots.tscn` (`--part=tear|smash|look|windows|
+  hitch`, `--sim=careful|careless|hidden` plays her night with a bot and counts).
 
 ### 5a.2 The Boy (Family; `scripts/enemies/boy_brain.gd`)
 

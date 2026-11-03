@@ -231,6 +231,8 @@ var _win_ms: Array = []
 
 func _process(delta: float) -> void:
 	super._process(delta)
+	if _bot != "":
+		_bot_tick(delta)
 	if _watch and delta > 0.05 and delta > _mean_dt * 3.0:
 		_hitches += 1
 		print("HITCH %d ms (frames round it %d ms) phase=%s" % [int(delta * 1000.0), int(_mean_dt * 1000.0), str(state().get("phase", ""))])
@@ -317,6 +319,123 @@ func keep_out() -> String:
 	return "BRAINS %s" % str(out)
 
 
+## Her night played by a bot (how fair she is: DESIGN §5a.4, the loop's B10), on the
+## same camp each time: "careful" walks round the lodgings, freezes the moment her back
+## cracks (a human's 0.3 s late), runs from her when she is close; "careless" walks the
+## same round and never stops; "hidden" sits in the office all night. Counted: her
+## catches (your health given back after each, the night goes on), the guests she ate,
+## the lamps she put out, the guests she was cut off from.
+var _bot := ""
+var _route: Array = []
+var _route_i := 0
+var _catches := 0
+var _was_strike := false
+var _look_for := 0.0
+var _bot_t := 0.0
+
+
+func sim_start(bot: String) -> String:
+	var g = granny()
+	if g == null:
+		return "no granny"
+	g.set("soon", true)
+	_route.clear()
+	for l in g._lodgings():
+		_route.append(l["at"])
+	if _route.is_empty():
+		return "no lodgings"
+	_bot = bot
+	_catches = 0
+	_bot_t = 0.0
+	# A camp worth eating (the test camp lets in three parties): four more of other kinds.
+	for party in [["Horak family", "family", 3], ["Pepa", "drunk", 2], ["Denisa", "cheap_chick", 2], ["Bobr", "tramp", 1]]:
+		GuestManager.debug_check_in_party(str(party[0]), str(party[1]), int(party[2]), 3)
+	_route.clear()
+	for l in g._lodgings():
+		_route.append(l["at"])
+	if bot == "hidden":
+		_main.get("_interior_manager")._building_interior.open_interior()
+	else:
+		_main.set("debug_camera", null)
+		var p: Node3D = _main.get("_player")
+		p.global_position = Vector3(_route[0].x, p.global_position.y, _route[0].z)
+	return "SIM %s start: %d lodgings, %d guests in them, hour %.2f" % [bot, _route.size(), _guests_in(g), float(_main.get("_time_of_day_hours"))]
+
+
+func _guests_in(g) -> int:
+	var n := 0
+	for l in g._lodgings():
+		n += (g._guests_in(str(l["key"])) as Array).size()
+	return n
+
+
+## Half a minute in: the camp as the bot found it (the parties let in have gone to bed).
+func sim_mid() -> String:
+	var g = granny()
+	_route.clear()
+	for l in g._lodgings():
+		_route.append(l["at"])
+	return "SIM %s mid: %d lodgings, %d guests, catches=%d, hour %.2f" % [_bot, _route.size(), _guests_in(g), _catches, float(_main.get("_time_of_day_hours"))]
+
+
+func sim_report() -> String:
+	var g = granny()
+	var s: Dictionary = g.get_debug_snapshot() if g != null else {}
+	var out := "SIM %s after %.0f s: catches=%d eaten=%s lamps_out=%s cut=%s stage=%s guests_left=%d hour %.2f" % [_bot, _bot_t, _catches,
+		str(s.get("eaten", "?")), str(s.get("bulbs", "?")), str(s.get("cut", "?")), str(s.get("stage", "?")), _guests_in(g) if g != null else -1,
+		float(_main.get("_time_of_day_hours"))]
+	_bot = ""
+	return out
+
+
+func _bot_tick(dt: float) -> void:
+	var g = granny()
+	var p: Node3D = _main.get("_player")
+	if g == null or p == null or g.get("_body") == null:
+		return
+	_bot_t += dt
+	var striking: bool = float(g.get("_strike_t")) >= 0.0
+	if striking and not _was_strike:
+		_catches += 1
+	_was_strike = striking
+	if int(_main.get("_player_health")) < 60:
+		_main.call("_set_player_health", 100, false)
+	if _bot == "hidden" or striking:
+		return
+	var phase := str(g.get("_phase"))
+	var her: Vector3 = g._body.global_position
+	var me := p.global_position
+	var away := Vector3(me.x - her.x, 0.0, me.z - her.z)
+	var speed := 3.9
+	if _bot == "careful":
+		_look_for = _look_for + dt if phase in ["look", "stare"] else 0.0
+		if _look_for > 0.3:
+			return
+		if away.length() < 8.0:
+			speed = 5.2
+			p.global_position = me + away.normalized() * speed * dt
+			return
+	var target: Vector3 = _route[_route_i]
+	var to := Vector3(target.x - me.x, 0.0, target.z - me.z)
+	if to.length() < 1.2:
+		_route_i = (_route_i + 1) % _route.size()
+		return
+	p.global_position = me + to.normalized() * speed * dt
+
+
+static func sim_steps(bot: String) -> Array:
+	return [
+		["wait_menu"], ["call", "_on_menu_test_night", ["basket"]], ["wait", 4.0],
+		["call_on", "_interior_manager", "close_main_interior_if_open", []], ["wait", 1.0],
+		["eval", "get_tree().root.get_node('BabkaShots').sim_start('%s')" % bot],
+		# Her whole night, 3.5 game hours at the clock's 1.25 minutes a second (the clock
+		# does not follow Engine.time_scale, she would: no speeding up).
+		["wait", 30.0], ["eval", "get_tree().root.get_node('BabkaShots').sim_mid()"],
+		["wait", 138.0],
+		["eval", "get_tree().root.get_node('BabkaShots').sim_report()"],
+	]
+
+
 ## Her loops as they are: each one's stream, whether it loops and whether it plays.
 func loops() -> String:
 	var g = granny()
@@ -367,19 +486,53 @@ const LOOK_STEPS := [
 ]
 
 
+## A caravan for the smashed window (the test camp has none): one built through the real
+## builder north of the gate, beside the far tents.
+func build_caravan() -> String:
+	var g: Vector2i = _main.get("world_generator").gate_tile()
+	EventBus.RequestBuild.emit("caravan_1", Vector2i(g.x - 2, 10), 0)
+	return "caravan asked for at %s" % str(Vector2i(g.x - 2, 10))
+
+
+## The room's smashed window now: its shards shown, its pane without the glass's tint.
+func smash_probe() -> String:
+	var im = _main.get("_interior_manager")
+	var quad: MeshInstance3D = null
+	if _torn_kind == "caravan":
+		var c = im._caravan_interior
+		quad = c._windows[c.SMASH_WINDOW].quad
+	else:
+		for pt in im._cabin_interior._portals_now():
+			if str((pt["quad"] as Node).name) == "View_backGlass":
+				quad = pt["quad"]
+	if quad == null:
+		return "SMASH no window"
+	var shards = quad.get_meta("smashed_shards") if quad.has_meta("smashed_shards") else null
+	var m := quad.material_override as ShaderMaterial
+	var n := 0
+	for c in quad.get_parent().get_children():
+		if str(c.name).begins_with("SmashedShards"):
+			n += 1
+	return "SMASH %s shards=%s (%d made) tint=%s" % [_torn_kind, str(shards != null and is_instance_valid(shards) and (shards as Node3D).visible), n, str(m.get_shader_parameter("tint")) if m != null else "?"]
+
+
 ## A cabin and a caravan she smashed a window of: inside, from the camp behind, glazed.
 const SMASH_STEPS := [
 	["wait_menu"], ["call", "_on_menu_test_night", ["basket"]], ["wait", 4.0],
 	["call_on", "_interior_manager", "close_main_interior_if_open", []], ["wait", 1.0],
 	["call", "_stop_active_enemy_brain", []],
 	["eval", "get_tree().root.get_node('BabkaShots').into_carnage_of('cabin')"], ["wait", 3.5], ["shot", "w0_cabin_night"],
+	["eval", "get_tree().root.get_node('BabkaShots').smash_probe()"],
 	["eval", "get_tree().root.get_node('BabkaShots').close_room()"], ["wait", 2.0],
 	["eval", "get_tree().root.get_node('BabkaShots').behind_tent()"], ["wait", 1.5], ["shot", "w1_cabin_outside"],
 	["eval", "get_tree().root.get_node('BabkaShots').reenter_tent()"], ["wait", 2.5],
 	["eval", "get_tree().root.get_node('BabkaShots').finish_wall('smashed')"], ["wait", 2.5], ["shot", "w2_cabin_glazed"],
 	["eval", "get_tree().root.get_node('BabkaShots').close_room()"], ["wait", 2.0],
+	["eval", "get_tree().root.get_node('BabkaShots').build_caravan()"], ["wait", 2.0],
 	["eval", "get_tree().root.get_node('BabkaShots').into_carnage_of('caravan')"], ["wait", 3.5], ["shot", "w3_caravan_night"],
-	["eval", "_interior_manager._caravan_interior._windows.size()"],
+	["eval", "get_tree().root.get_node('BabkaShots').smash_probe()"],
+	["eval", "get_tree().root.get_node('BabkaShots').finish_wall('smashed')"], ["wait", 2.5],
+	["eval", "get_tree().root.get_node('BabkaShots').smash_probe()"], ["shot", "w4_caravan_glazed"],
 ]
 
 
@@ -388,6 +541,10 @@ func _ready() -> void:
 	if OS.get_cmdline_user_args().has("--part=tear"):
 		_steps = TEAR_STEPS.duplicate(true)
 		return
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--sim="):
+			_steps = sim_steps(a.get_slice("=", 1))
+			return
 	if OS.get_cmdline_user_args().has("--part=smash"):
 		_steps = SMASH_STEPS.duplicate(true)
 		return

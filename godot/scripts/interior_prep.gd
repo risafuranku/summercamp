@@ -491,17 +491,22 @@ static func tear(parent: Node3D, width: float, pos: Vector3) -> MeshInstance3D:
 ## A window she smashed (the mess "smashed"), or whole again: its pane's material `mat`
 ## (materials/window_into.gdshader: the camp through it) without the old glass's tint and
 ## sheen, and the shards left in the frame, a picture a finger's breadth into the room
-## from the pane `quad` (made beside it the first time). Cabins and caravans alike.
+## from the pane `quad` (made beside it the first time, its meta "smashed_shards").
+## Cabins and caravans alike.
 static func smashed_window(quad: MeshInstance3D, mat: ShaderMaterial, size: Vector2, on: bool) -> void:
 	if quad == null or not is_instance_valid(quad):
 		return
 	if mat != null:
 		mat.set_shader_parameter("tint", Vector3.ONE if on else Vector3(0.95, 0.97, 0.97))
 		mat.set_shader_parameter("sheen", 0.0 if on else 0.6)
-	var shards := quad.get_parent().get_node_or_null(str(quad.name) + "Shards") as MeshInstance3D
+	# Kept on the pane, not looked up by name (a caravan's panes are all "WindowGlass": the
+	# tree renames them, and a name lookup found none and made new shards every frame).
+	var shards = quad.get_meta("smashed_shards") if quad.has_meta("smashed_shards") else null
+	if shards != null and not is_instance_valid(shards):
+		shards = null
 	if shards == null and on and ResourceLoader.exists(MESS_TEX + "carnage_glass.png"):
 		shards = MeshInstance3D.new()
-		shards.name = str(quad.name) + "Shards"
+		shards.name = "SmashedShards"
 		var q := QuadMesh.new()
 		q.size = size
 		shards.mesh = q
@@ -515,8 +520,9 @@ static func smashed_window(quad: MeshInstance3D, mat: ShaderMaterial, size: Vect
 		shards.material_override = m
 		shards.transform = quad.transform.translated_local(Vector3(0, 0, 0.012))
 		quad.get_parent().add_child(shards)
+		quad.set_meta("smashed_shards", shards)
 	if shards != null:
-		shards.visible = on
+		(shards as MeshInstance3D).visible = on
 
 
 static func _j(rng: RandomNumberGenerator, r: float) -> float:
