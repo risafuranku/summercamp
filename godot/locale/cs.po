@@ -606,7 +606,8 @@ msgstr "Bufet"
 msgid "Jaromir"
 msgstr "Jaromír"
 
-#: core/systems/business_rules.gd:447
+#: core/systems/business_rules.gd:447 scripts/enemies/basket_brain.gd:1493
+#. uses 2
 msgid "Marta"
 msgstr "Marta"
 
@@ -4282,7 +4283,7 @@ msgstr "Skluzavka"
 msgid "Sewage"
 msgstr "Kanalizace"
 
-#: scripts/builder_module.gd:87 scripts/builder_module.gd:1190 scripts/building_manager.gd:667
+#: scripts/builder_module.gd:87 scripts/builder_module.gd:1190 scripts/building_manager.gd:743
 #. uses 3
 msgid "Path"
 msgstr "Cesta"
@@ -5502,19 +5503,19 @@ msgstr "CRTFoot"
 msgid "%s_%d"
 msgstr "%s_%d"
 
-#: scripts/building_manager.gd:454
+#: scripts/building_manager.gd:459
 msgid "tent_%d"
 msgstr "tent_%d"
 
-#: scripts/building_manager.gd:625
+#: scripts/building_manager.gd:701
 msgid "cabin_%d"
 msgstr "cabin_%d"
 
-#: scripts/building_manager.gd:980
+#: scripts/building_manager.gd:1056
 msgid "caravan_%d"
 msgstr "caravan_%d"
 
-#: scripts/building_manager.gd:1920
+#: scripts/building_manager.gd:1996
 msgid "Structures"
 msgstr "Structures"
 
@@ -6035,7 +6036,7 @@ msgstr "Bat%d"
 msgid "Cloth%d"
 msgstr "Cloth%d"
 
-#: scripts/building_models.gd:1505 scripts/cabin_interior.gd:1129 scripts/caravan_interior.gd:982 scripts/tent_interior.gd:361 (+1)
+#: scripts/building_models.gd:1505 scripts/cabin_interior.gd:1129 scripts/caravan_interior.gd:982 scripts/tent_interior.gd:363 (+1)
 #. uses 5
 msgid "Pillow"
 msgstr "Pillow"
@@ -7957,7 +7958,7 @@ msgstr "Bizon"
 msgid "Jiri"
 msgstr "Jiří"
 
-#: scripts/email_manager.gd:144 scripts/enemies/basket_brain.gd:1457
+#: scripts/email_manager.gd:144 scripts/enemies/basket_brain.gd:1479
 #. uses 2
 msgid "Pavel"
 msgstr "Pavel"
@@ -7966,12 +7967,12 @@ msgstr "Pavel"
 msgid "Martin"
 msgstr "Martin"
 
-#: scripts/email_manager.gd:144 scripts/main.gd:4534 scripts/coop/warden_looks.gd:21 scripts/enemies/basket_brain.gd:1450 (+1)
+#: scripts/email_manager.gd:144 scripts/main.gd:4534 scripts/coop/warden_looks.gd:21 scripts/enemies/basket_brain.gd:1472 (+1)
 #. uses 5
 msgid "Jana"
 msgstr "Jana"
 
-#: scripts/email_manager.gd:144 scripts/enemies/basket_brain.gd:1460
+#: scripts/email_manager.gd:144 scripts/enemies/basket_brain.gd:1482
 #. uses 2
 msgid "Petra"
 msgstr "Petra"
@@ -9034,7 +9035,7 @@ msgstr "Žádné probíhající pobyty."
 msgid "#%d %s | %s | beds:%d | income/day:$%d | left:%s"
 msgstr "#%d %s | %s | lůžka:%d | příjem/den:$%d | zbývá:%s"
 
-#: scripts/guest_manager.gd:2303 scripts/interior_prep.gd:424 scripts/ambient/ground_cover.gd:116 scripts/bistro/bistro_station.gd:104 (+4)
+#: scripts/guest_manager.gd:2303 scripts/interior_prep.gd:431 scripts/ambient/ground_cover.gd:116 scripts/bistro/bistro_station.gd:104 (+4)
 #. uses 8
 msgid "%s|%s"
 msgstr "%s|%s"
@@ -11849,11 +11850,11 @@ msgstr "Door0"
 msgid "Door1"
 msgstr "Door1"
 
-#: scripts/tent_interior.gd:366
+#: scripts/tent_interior.gd:368
 msgid "Catalog"
 msgstr "Catalog"
 
-#: scripts/tent_interior.gd:688
+#: scripts/tent_interior.gd:746
 msgid "DoorRoll%s"
 msgstr "DoorRoll%s"
 
@@ -15686,39 +15687,55 @@ msgstr "pití"
 msgid "DRINKS"
 msgstr "PITÍ"
 
-#: scripts/enemies/basket_brain.gd:325
+#: scripts/enemies/basket_brain.gd:334
 msgid "A basket creaking out of the trees. Somebody picking, at this hour."
 msgstr "Ze stromů vrže košík. Někdo sbírá, v tuhle hodinu."
 
-#: scripts/enemies/basket_brain.gd:628
+#: scripts/enemies/basket_brain.gd:637
 msgid "A knife at your ankles, low in the grass."
 msgstr "Nůž u kotníků, nízko v trávě."
 
-#: scripts/enemies/basket_brain.gd:887
+#: scripts/enemies/basket_brain.gd:897
 msgid "Something came into the tent in the night. It had a knife. I can't stop shaking."
 msgstr "V noci nám něco vlezlo do stanu. Mělo to nůž. Pořád se třesu."
 
-#: scripts/enemies/basket_brain.gd:1433
+#: scripts/enemies/basket_brain.gd:898
+msgid "Something came into the cabin in the night. It had a knife. I can't stop shaking."
+msgstr "V noci nám něco vlezlo do chatky. Mělo to nůž. Pořád se třesu."
+
+#: scripts/enemies/basket_brain.gd:899
+msgid "Something came into the caravan in the night. It had a knife. I can't stop shaking."
+msgstr "V noci nám něco vlezlo do karavanu. Mělo to nůž. Pořád se třesu."
+
+#: scripts/enemies/basket_brain.gd:1453
 msgid "Something came into our tent in the night and took the others. Nobody came. Never again."
 msgstr "V noci nám něco vlezlo do stanu a vzalo ty ostatní. Nikdo nepřišel. Už nikdy."
 
-#: scripts/enemies/basket_brain.gd:1434
+#: scripts/enemies/basket_brain.gd:1454
+msgid "Something came into our cabin in the night and took the others. Nobody came. Never again."
+msgstr "V noci nám něco vlezlo do chatky a vzalo ty ostatní. Nikdo nepřišel. Už nikdy."
+
+#: scripts/enemies/basket_brain.gd:1455
+msgid "Something came into our caravan in the night and took the others. Nobody came. Never again."
+msgstr "V noci nám něco vlezlo do karavanu a vzalo ty ostatní. Nikdo nepřišel. Už nikdy."
+
+#: scripts/enemies/basket_brain.gd:1456
 msgid "We are leaving. Now."
 msgstr "Odjíždíme. Hned."
 
-#: scripts/enemies/basket_brain.gd:1441
+#: scripts/enemies/basket_brain.gd:1463
 msgid "Morning: %s is gone. Their lodging is not fit to be seen."
 msgstr "Ráno: %s je pryč. Na jejich ubytování se nedá ani podívat."
 
-#: scripts/enemies/basket_brain.gd:1451
+#: scripts/enemies/basket_brain.gd:1473
 msgid "Have you seen %s?"
 msgstr "Je u vás ještě %s?"
 
-#: scripts/enemies/basket_brain.gd:1454
+#: scripts/enemies/basket_brain.gd:1476
 msgid "M. Kratochvilova"
 msgstr "M. Kratochvílová"
 
-#: scripts/enemies/basket_brain.gd:1455
+#: scripts/enemies/basket_brain.gd:1477
 msgid ""
 "Good day,\n"
 "\n"
@@ -15736,7 +15753,7 @@ msgstr ""
 "\n"
 "Sousedka"
 
-#: scripts/enemies/basket_brain.gd:1458
+#: scripts/enemies/basket_brain.gd:1480
 msgid ""
 "Hello,\n"
 "\n"
@@ -15750,7 +15767,7 @@ msgstr ""
 "\n"
 "Neříkal, kam jde?"
 
-#: scripts/enemies/basket_brain.gd:1461
+#: scripts/enemies/basket_brain.gd:1483
 msgid ""
 "Hi,\n"
 "\n"
@@ -15764,7 +15781,7 @@ msgstr ""
 "\n"
 "Petra"
 
-#: scripts/enemies/basket_brain.gd:1463
+#: scripts/enemies/basket_brain.gd:1488
 msgid ""
 "Dear Sir or Madam,\n"
 "\n"
@@ -15781,6 +15798,42 @@ msgstr ""
 "Prosím, jestli něco víte, odepište.\n"
 "\n"
 "Jana"
+
+#: scripts/enemies/basket_brain.gd:1490
+msgid ""
+"Dear Sir or Madam,\n"
+"\n"
+"my father %s went to you for mushrooms and has not rung since. He always rings. He has his pills only for the week.\n"
+"\n"
+"Please, if you know anything, write back.\n"
+"\n"
+"Jana"
+msgstr ""
+"Dobrý den,\n"
+"\n"
+"tatínek %s jel k vám na houby a od té doby se neozval. Vždycky volá. Prášky má jen na týden.\n"
+"\n"
+"Prosím, jestli něco víte, odepište.\n"
+"\n"
+"Jana"
+
+#: scripts/enemies/basket_brain.gd:1494
+msgid ""
+"Good day,\n"
+"\n"
+"my son %s goes to you every year for a quiet week on his own. He always sends a postcard on the second day. This year no postcard came, and his telephone is off.\n"
+"\n"
+"Please write if you know anything.\n"
+"\n"
+"His mother"
+msgstr ""
+"Dobrý den,\n"
+"\n"
+"syn %s k vám jezdí každý rok na týden o samotě. Vždycky druhý den pošle pohlednici. Letos žádná nepřišla a telefon má vypnutý.\n"
+"\n"
+"Prosím, napište, jestli něco víte.\n"
+"\n"
+"Jeho máma"
 
 #: scripts/enemies/child_brain.gd:73
 msgid "A child is humming somewhere between the tents. Not one of ours."

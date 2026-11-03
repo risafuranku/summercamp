@@ -135,10 +135,58 @@ const TEAR_STEPS := [
 ]
 
 
+## What she is at and whether the lodging she is at is lit now (window_lights), a line
+## each half second while you hide: on as she breaks in, out as she eats.
+func window_probe() -> String:
+	var s := state()
+	var key := str(s.get("target", ""))
+	var wl = _main.get_tree().get_first_node_in_group("window_lights")
+	if wl == null:
+		wl = _main.find_child("WindowLights", true, false)
+	var lit = wl.lit_state(key) if wl != null and key != "" else {}
+	var forced = (wl.get("_forced") as Dictionary).get(key, "") if wl != null else ""
+	return "WINDOW %s %s eaten=%s lit=%s forced=%s" % [str(s.get("phase", "")), key, str(s.get("eaten", 0)), str(not (lit as Dictionary).is_empty()), str(forced)]
+
+
+## The relatives' mails: scheduled, and delivered to the inbox.
+func mail_probe() -> String:
+	var sched := 0
+	for e in EmailManager._scheduled_mails:
+		if str((e.get("mail", {}) as Dictionary).get("subject", "")).begins_with("Have you seen"):
+			sched += 1
+	var got: Array = []
+	for m in EmailManager.inbox:
+		if str(m.get("subject", "")).begins_with("Have you seen"):
+			got.append("%s / %s / day %s %s / %s" % [str(m.get("from", "")), str(m.get("subject", "")), str(m.get("day", "")), str(m.get("time", "")), str(m.get("body", "")).get_slice("
+", 2)])
+	return "MAIL scheduled=%d delivered=%d %s" % [sched, got.size(), str(got)]
+
+
+func _window_steps() -> Array:
+	var steps: Array = [
+		["wait_menu"], ["call", "_on_menu_test_night", ["basket"]], ["wait", 4.0],
+		["call_on", "_interior_manager", "close_main_interior_if_open", []], ["wait", 1.0],
+		["eval", "_interior_manager._building_interior.open_interior()"],
+	]
+	for i in 90:
+		steps.append(["wait", 0.5])
+		steps.append(["eval", "get_tree().root.get_node('BabkaShots').window_probe()"])
+	steps += [
+		["eval", "debug_jump_to(3, 6.6)"], ["wait", 3.0],
+		["eval", "get_tree().root.get_node('BabkaShots').mail_probe()"],
+		["eval", "debug_jump_to(5, 13.0)"], ["wait", 3.0],
+		["eval", "get_tree().root.get_node('BabkaShots').mail_probe()"],
+	]
+	return steps
+
+
 func _ready() -> void:
 	super._ready()
 	if OS.get_cmdline_user_args().has("--part=tear"):
 		_steps = TEAR_STEPS.duplicate(true)
+		return
+	if OS.get_cmdline_user_args().has("--part=windows"):
+		_steps = _window_steps()
 		return
 	_steps = [
 		["wait_menu"], ["call", "_on_menu_test_night", ["basket"]], ["wait", 4.0],

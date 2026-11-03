@@ -893,7 +893,11 @@ func _spare_current() -> void:
 		if id >= 0 and not _cut_ids.has(id):
 			_cut_ids.append(id)
 			if GuestManager != null:
-				GuestManager.apply_guest_event(id, -60.0, "Something came into the tent in the night. It had a knife. I can't stop shaking.")
+				GuestManager.apply_guest_event(id, -60.0, {
+					"tent": "Something came into the tent in the night. It had a knife. I can't stop shaking.",
+					"cabin": "Something came into the cabin in the night. It had a knife. I can't stop shaking.",
+					"caravan": "Something came into the caravan in the night. It had a knife. I can't stop shaking.",
+				}[_kind_of(str(_target.get("key", "")))])
 
 
 ## The guests (parties) in the lodging at `key` now: [{id, name, archetype, party}],
@@ -1436,14 +1440,20 @@ func _update_senses(_dt: float, out: bool) -> void:
 func dawn() -> Array:
 	var lines: Array = []
 	var leaving: Array = _cut_ids.duplicate()
+	var lodged := {}
 	for g in GuestManager.get_guest_life_snapshot():
 		var c = g.get("lodging", Vector2i(-1, -1))
+		if c is Vector2i:
+			lodged[int(g.get("id", -1))] = "%d:%d" % [c.x, c.y]
 		if c is Vector2i and _ate_in.has("%d:%d" % [c.x, c.y]) and not leaving.has(int(g.get("id", -1))):
 			leaving.append(int(g.get("id", -1)))
 	for id in leaving:
 		if GuestManager.has_method("shaken_leave"):
-			GuestManager.shaken_leave(int(id), "Something came into our tent in the night and took the others. Nobody came. Never again.",
-				"We are leaving. Now.")
+			GuestManager.shaken_leave(int(id), {
+				"tent": "Something came into our tent in the night and took the others. Nobody came. Never again.",
+				"cabin": "Something came into our cabin in the night and took the others. Nobody came. Never again.",
+				"caravan": "Something came into our caravan in the night and took the others. Nobody came. Never again.",
+			}[_kind_of(str(lodged.get(int(id), "")))], "We are leaving. Now.")
 	var main := _world_root.get_tree().current_scene if _world_root != null and _world_root.is_inside_tree() else null
 	var day := int(main.get("_day_index")) if main != null and main.get("_day_index") != null else 1
 	for g in _eaten_guests:
@@ -1471,10 +1481,27 @@ func _relative_mail(g: Dictionary, day: int) -> Dictionary:
 		"cheap_chick":
 			from = "Petra"
 			body = "Hi,\n\n%s went to you with a friend and doesn't answer the phone. Her mother is going mad. Is she still with you? Please tell her to ring home.\n\nPetra" % name
+		"picker":
+			# A woman by her name (Mrs, or a Czech first name in -a: Jaroslava, Vlasta).
+			var first := name.get_slice(" ", 0)
+			if name.begins_with("Mrs ") or (not name.begins_with("Mr ") and first.ends_with("a")):
+				body = "Dear Sir or Madam,\n\nmy mother %s went to you for mushrooms and has not rung since. She always rings. She has her pills only for the week.\n\nPlease, if you know anything, write back.\n\nJana" % name
+			else:
+				body = "Dear Sir or Madam,\n\nmy father %s went to you for mushrooms and has not rung since. He always rings. He has his pills only for the week.\n\nPlease, if you know anything, write back.\n\nJana" % name
 		_:
-			body = "Dear Sir or Madam,\n\nmy mother %s went to you for mushrooms and has not rung since. She always rings. She has her pills only for the week.\n\nPlease, if you know anything, write back.\n\nJana" % name
+			# The Quiet Guy: alone, every year the same week.
+			from = "Marta"
+			body = "Good day,\n\nmy son %s goes to you every year for a quiet week on his own. He always sends a postcard on the second day. This year no postcard came, and his telephone is off.\n\nPlease write if you know anything.\n\nHis mother" % name
 	return {"day": day, "time": "%02d:%02d" % [_rng.randi_range(7, 11), _rng.randi_range(0, 59)], "from": from, "sender": from,
 		"subject": subject, "body": body, "type": "guest"}
+
+
+## "tent", "cabin" or "caravan": the lodging at `key` ("x:y").
+func _kind_of(key: String) -> String:
+	var st = CoreRoot.get_state() if CoreRoot != null else null
+	var acc: Dictionary = st.accommodation_states.get(key, {}) if st != null else {}
+	var t := str(acc.get("building_type", ""))
+	return "cabin" if t.contains("cabin") else ("caravan" if t.contains("caravan") else "tent")
 
 
 func _on_stop() -> void:
