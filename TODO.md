@@ -283,8 +283,8 @@ How it works: DESIGN.md "People as in Doom", AGENTS.md §7 "People from eight si
 - [x] The post's plate at the right edge (van on the way, parcel at the desk)
 - [x] Co-op checked in two windows (`tools/staff_coop.py` PASS 26. 10.: the figures outside and in, the crew and the laptop on the joining machine)
 - [x] The boiler room's mattress is the warden's bed (lodge_bed "staff"); the hands sit in the lounge (armchairs bought) and all go home at night (the user, the same evening)
-- [ ] Sounds of their own: the boiler's roar, the fridge's hum, the coffee machine's gurgle, the locker's clang (ElevenLabs)
-- [ ] A hand asleep in a guest's bed seen in that lodging's room
+- [x] Sounds of their own: the boiler's roar, the fridge's hum, the coffee machine's gurgle, the locker's clang (ElevenLabs; assets/sfx/staff, loops in service_interior._tick_ambience)
+- [x] A hand asleep in a guest's bed seen in that lodging's room (9168bec6: the cabin's bed, in the room and through its window)
 
 ## CABINS — 2026-10-21 (the user: "the curtains do not glint, the windows by the door clip the coat and have no view, rebuild the inside to match the outside and remake that a bit; every tier a visible upgrade inside and out; old curtains left under the new ones")
 
@@ -292,7 +292,7 @@ How it works: DESIGN.md "People as in Doom", AGENTS.md §7 "People from eight si
 - [x] The tiers inside and out (boards, porch, annex, shutters, chimney/stove, aerial/TV, furniture)
 - [x] The jacket clear of the windows, no painted curtains under the drapes
 - [x] Builder's pictures of the new cabins (renders repainted by Grok, Lv1 kept bare)
-- [ ] The bathroom is cramped from its doorway: a better view or a bigger annex
+- [x] The bathroom is cramped from its doorway: a better view or a bigger annex (5035aff8: 80 degrees from the door)
 
 ## PODNIKY PAPA'S — 2026-10-21 (the user: "at first sight terribly complicated, I don't know where to click; choppy; how do I serve? I want it like Papa's games; the same in every place")
 
@@ -313,7 +313,7 @@ Decided with the user (Q&A 21. 10., DESIGN §7b "Papa's frame"): you come back t
 - [x] Bigger, readable food and goods: at the stations at their pictures' own pixel (`station3d.fine`), the pass's plate food a quarter bigger, the floor's plates, bigger icons with a word on the tickets
 - [x] The food and drink pictures re-drawn by Grok with stronger silhouettes and colours: the fried cheese, chips, goulash, dumpling, tartar, onion and their ticket icons, the mug and the kofola, the cobs raw, boiled, mushy and buttered (`podniky_art.py` pk2_*)
 - [x] Each place's own sound: the bistro's kitchen at work, the Jednota's tubes and now and then a till (`service_interior._tick_ambience`, recordings already there)
-- [ ] New sounds for each action and the guests' sighs: the ElevenLabs key can only speak (TTS), a key with sound effects is wanted
+- [x] New sounds for each action and the guests' sighs: every station's action already had its own (prompts_bistro/pubcorn/jednota/podniky); the waiting guests sigh in their own voice (man, woman, kid, grandmother by their picture, `guest_mood.SIGHS`, prompts_guests.tsv), the grumble a man's only
 - [x] The guests' impatient pictures for those who wait on their feet (the stand's queue, the Jednota's): a hand on the hip, a look at the watch, the toes tapping, the kid's arms crossed (`<sprite>_wait.png` by Grok, `guest_mood.show_wait`); the seated ones in the pub and the bistro keep the bubbles
 - [x] A note on the door at last orders: the white plastic OTEVŘENO / ZAVŘENO card on the pub's, the bistro's and the Jednota's door, turned at last orders (`building_models._door_sign`, `room_lights.gd`; Grok's blank card lettered by `tools/artgen/door_sign.py`)
 - [x] DESIGN §7b "Papa's frame", PRODUCT, AGENTS, the Czech of every new text (tools/i18n/batches/06_podniky_papas.json)
@@ -391,7 +391,7 @@ How it works: AGENTS.md §8. Left: `python tools/i18n/extract.py --stats` / `--t
 - [x] The Grok pictures of the stations (rows pk_* in tools/artgen/prompts_podniky.tsv, `python tools/artgen/podniky_art.py`): the Build tops of the drinks table, grill, bufet and deli; the corn drinks, sausages, bufet bowls and bottles, deli goods, the new Jednota goods, LUCKY 7 and its reels, darts and the clean board, the cards, the wallet, the pot's bubbles; every tool hand; the new ticket icons
 - [ ] The second variant of every hand frame to pick from (the brief: two each, picked by hand); only grab and press got their _b so far (both A kept), the rest went through as A to get them past the shared queue
 - [x] The pub's slot machine, darts and cards looked at with their pictures (the cards were under the table top, the darts scored round the board's bottom edge: both fixed)
-- [ ] A guest figure at the slot machine and the dartboard while they play (now only the reels, the darts and the sounds)
+- [x] A guest figure at the slot machine and the dartboard while they play (ee4fc73a: grown-ups on their feet facing the machine and the board, out of the way while the station is worked)
 
 ## WORLD POLISH (agent B) — 2026-10-20 (the brief: the camp world, weather, light, sound, body)
 

@@ -23,8 +23,9 @@ const STAFF_DIR := "res://assets/textury/npc/staff/"
 const PERSON_M := 1.74
 const SFX := {
 	"tv_on": "res://assets/sfx/backroom/tv_on.mp3", "tv_off": "res://assets/sfx/backroom/tv_off.mp3",
-	"tv_hiss": "res://assets/sfx/backroom/tv_hiss.mp3", "fridge": "res://assets/sfx/jednota/clunk.mp3",
-	"coffee": "res://assets/sfx/bistro/pour.mp3", "locker": "res://assets/sfx/jednota/drawer.mp3",
+	"tv_hiss": "res://assets/sfx/backroom/tv_hiss.mp3", "fridge": "res://assets/sfx/staff/fridge_open.mp3",
+	"fridge_shut": "res://assets/sfx/staff/fridge_shut.mp3", "coffee": "res://assets/sfx/staff/coffee.mp3",
+	"locker": "res://assets/sfx/staff/locker_open.mp3", "locker_shut": "res://assets/sfx/staff/locker_shut.mp3",
 	"steps": "res://assets/sfx/rooms/steps_wood.mp3", "book": "res://assets/sfx/desk/book.mp3",
 }
 ## The TV's programmes, round on each click (the last: off).
@@ -245,6 +246,8 @@ func click() -> bool:
 			_say(["You pour a cup. It has been on the plate since the morning.", "Black, thick, lukewarm. It does the job.", "The jug is nearly empty. Somebody had the rest."][randi() % 3])
 		"fridge":
 			_play("fridge", -6.0)
+			# A look inside, and the door swung shut again.
+			host.get_tree().create_timer(1.6).timeout.connect(func(): _play("fridge_shut", -8.0))
 			_say(_fridge_line())
 		"tv":
 			_tv_click()
@@ -262,9 +265,9 @@ func _fridge_line() -> String:
 
 
 func _locker_click(i: int) -> void:
-	_play("locker", -6.0)
 	var parts: Array = refs["lockers_open"][i]
 	var open: bool = not (parts[1] as Node3D).visible
+	_play("locker" if open else "locker_shut", -6.0)
 	if _open_locker >= 0 and _open_locker != i:
 		var prev: Array = refs["lockers_open"][_open_locker]
 		(prev[0] as Node3D).visible = true

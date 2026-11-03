@@ -152,7 +152,7 @@ func pose_member(guest_id: int, i: int, _n: int, member: Node3D, sprite: Sprite3
 	_moved_t[key] = _t
 	_at_of[key] = at
 	member.global_position = r.global_transform * at
-	_members[key] = {"node": member, "seen": _t}
+	_members[key] = {"node": member, "seen": _t, "base": str(sprite.get_meta("own_path", info.get("sprite_path", "")))}
 	if _mood != null and is_instance_valid(_mood):
 		member.global_position.y += float(_mood.call("stomp", str(key)))
 	member.set_meta("marker_drop", 0.0)
@@ -197,7 +197,7 @@ func _moods() -> void:
 		if n == null or not is_instance_valid(n) or _t - float(m.get("seen", -9.0)) > 2.0:
 			_members.erase(k)
 			continue
-		_mood.call("show_for", str(k), (n as Node3D).global_position + Vector3(0, 1.62, 0), float(left.get(k, -1.0)), str(names.get(k, "")))
+		_mood.call("show_for", str(k), (n as Node3D).global_position + Vector3(0, 1.62, 0), float(left.get(k, -1.0)), str(names.get(k, "")), str(m.get("base", "")))
 	_mood.call("sweep")
 
 

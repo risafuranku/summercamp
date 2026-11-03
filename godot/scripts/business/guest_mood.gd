@@ -22,6 +22,16 @@ const LINES := {
 	3: ["What's it going to be?", "Forget it soon.", "This is a joke.", "Unbelievable.", "I'm off in a minute."],
 }
 const SFX_GRUMBLE := "res://assets/sfx/bistro/guest_grumble.mp3"
+## A sigh as their patience goes (the user 21. 10.: "the guests' sighs"), in their own
+## voice: who they are by their picture (host_*.png), else a man or a woman by the key.
+const SIGHS := {
+	"man": ["res://assets/sfx/guests/sigh_man1.mp3", "res://assets/sfx/guests/sigh_man2.mp3"],
+	"woman": ["res://assets/sfx/guests/sigh_woman1.mp3", "res://assets/sfx/guests/sigh_woman2.mp3"],
+	"kid": ["res://assets/sfx/guests/sigh_kid.mp3"],
+	"old": ["res://assets/sfx/guests/sigh_old.mp3"],
+}
+const VOICES := {"host1": "man", "host2": "man", "host3": "woman", "host_father": "man",
+	"host_mother": "woman", "host_kid": "kid", "host_pensioner": "old", "host_tramp": "man"}
 
 var _b: Dictionary = {}
 var _seen: Dictionary = {}
@@ -44,8 +54,8 @@ func _process(delta: float) -> void:
 
 
 ## Guest `key` (any id the place keeps) with their head at `head` (global) and `left` of
-## their patience (0..1; < 0: not waiting).
-func show_for(key: String, head: Vector3, left: float, name := "") -> void:
+## their patience (0..1; < 0: not waiting); `base` their standing picture (their voice).
+func show_for(key: String, head: Vector3, left: float, name := "", base := "") -> void:
 	_seen[key] = true
 	var mood := FACES.mood_of(left) if left >= 0.0 else -1
 	var b: Dictionary = _b.get(key, {})
@@ -73,7 +83,7 @@ func show_for(key: String, head: Vector3, left: float, name := "") -> void:
 		l.render_priority = 5
 		l.visible = false
 		add_child(l)
-		b = {"sprite": s, "label": l, "mood": -1, "said_t": -99.0, "name": name}
+		b = {"sprite": s, "label": l, "mood": -1, "said_t": -99.0, "name": name, "voice": _voice(key, base)}
 		_b[key] = b
 	var s2: Sprite3D = b["sprite"]
 	var l2: Label3D = b["label"]
@@ -85,18 +95,39 @@ func show_for(key: String, head: Vector3, left: float, name := "") -> void:
 	var was := int(b["mood"])
 	b["mood"] = mood
 	var line_due := mood >= 2 and (mood > was or (mood == 3 and _t - float(b["said_t"]) > 7.0))
+	# Tired of it: a sigh, now and then again while they wait on.
+	if mood >= 1 and was >= 0 and (mood > was or _t - float(b.get("sighed_t", -99.0)) > 9.0 + float(absi(hash(key)) % 7)):
+		b["sighed_t"] = _t
+		# (The grumble is a man's: the others sigh it.)
+		if not line_due or mood == 2 or str(b["voice"]) != "man":
+			var sighs: Array = SIGHS[str(b["voice"])]
+			_say_sound(str(sighs[absi(hash(key + str(int(_t)))) % sighs.size()]), key, head, -14.0 if mood == 1 else -11.0)
 	if line_due:
 		var lines: Array = LINES[mood]
 		l2.text = str(lines[absi(hash(key + str(mood) + str(int(_t / 7.0)))) % lines.size()])
 		b["said_t"] = _t
-		if _audio != null and ResourceLoader.exists(SFX_GRUMBLE) and not _audio.playing:
-			_audio.stream = load(SFX_GRUMBLE)
-			_audio.pitch_scale = 0.9 + float(absi(hash(key)) % 30) / 100.0
-			_audio.global_position = head
-			_audio.play()
+		if mood == 3 and str(b["voice"]) == "man":
+			_say_sound(SFX_GRUMBLE, key, head, -12.0)
 	l2.visible = _t - float(b["said_t"]) < 2.6
 	if l2.visible:
 		l2.global_position = head + Vector3(0, 0.38, 0)
+
+
+func _say_sound(path: String, key: String, head: Vector3, db: float) -> void:
+	if _audio == null or _audio.playing or not ResourceLoader.exists(path):
+		return
+	_audio.stream = load(path)
+	_audio.volume_db = db
+	_audio.pitch_scale = 0.94 + float(absi(hash(key)) % 13) / 100.0
+	_audio.global_position = head
+	_audio.play()
+
+
+static func _voice(key: String, base: String) -> String:
+	var who := base.get_file().get_basename()
+	if VOICES.has(who):
+		return str(VOICES[who])
+	return "man" if absi(hash(key)) % 2 == 0 else "woman"
 
 
 ## How far guest `key`'s feet are off the ground now: the cross ones stamp (two steps a

@@ -347,6 +347,7 @@ func _process(delta: float) -> void:
 		return
 	if _current_profile == "staff" and _staff_room != null:
 		_staff_room.tick(delta)
+		_tick_ambience(delta)
 		if (_laptop_view != null and _laptop_view.visible) or (_staff_ledger != null and _staff_ledger.visible):
 			return
 		if _staff_room.walking():
@@ -3099,7 +3100,7 @@ func _tick_moods(delta: float) -> void:
 			var head: Vector3 = s3.global_transform * Vector3(box.get_center().x, box.end.y, box.get_center().z)
 			var parts := str(k).split(":")
 			var key := "%s:%s" % [parts[0], parts[1] if parts.size() > 1 else "0"]
-			_mood.call("show_for", str(k), head, float(left.get(key, left.get(parts[0] + ":*", -1.0))))
+			_mood.call("show_for", str(k), head, float(left.get(key, left.get(parts[0] + ":*", -1.0))), "", str(p.get("base", "")))
 			# In a queue on their feet (the Jednota's till): the impatient ones in their
 			# impatient picture, fidgeting; back to standing when they calm down or move on.
 			if int(p.get("queue", -1)) >= 0 and str(p.get("state", "")) == "seat":
@@ -3123,6 +3124,10 @@ func _jednota_room_of_life() -> String:
 ## murmur from their guests (service_life).
 const AMB_KITCHEN := "res://assets/sfx/bistro/kitchen_room.mp3"
 const AMB_TUBES := "res://assets/sfx/power/board_hum.mp3"
+## The staffroom's own (the user 21. 10.): the boiler roaring through in its room, the
+## fridge humming in the lounge.
+const AMB_BOILER := "res://assets/sfx/staff/boiler_loop.ogg"
+const AMB_FRIDGE := "res://assets/sfx/staff/fridge_loop.ogg"
 const AMB_TILL := "res://assets/sfx/jednota/beep.mp3"
 var _amb: AudioStreamPlayer
 var _amb_till := 6.0
@@ -3141,6 +3146,10 @@ func _tick_ambience(delta: float) -> void:
 	elif _current_profile == "vecerka" and _active_subroom == "shop":
 		want = AMB_TUBES
 		db = -30.0
+	elif _current_profile == "staff" and _staff_room != null:
+		var boiler := str(_staff_room.get("room")) == "boiler"
+		want = AMB_BOILER if boiler else AMB_FRIDGE
+		db = -12.0 if boiler else -22.0
 	if want == "" or not ResourceLoader.exists(want):
 		if _amb.playing:
 			_amb.stop()
@@ -3148,6 +3157,8 @@ func _tick_ambience(delta: float) -> void:
 		var st: AudioStream = load(want)
 		if st is AudioStreamMP3:
 			(st as AudioStreamMP3).loop = true
+		elif st is AudioStreamOggVorbis:
+			(st as AudioStreamOggVorbis).loop = true
 		_amb.stream = st
 		_amb.volume_db = db
 		_amb.play()
