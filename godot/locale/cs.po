@@ -30058,3 +30058,43 @@ msgstr "sněžení"
 #. manual
 msgid "now"
 msgstr "teď"
+
+#: scripts/town/motel_view.gd
+msgid "Breakfast is a promise, not a guarantee."
+msgstr "Snídaně je slib, ne záruka."
+
+#: scripts/town/town_trip.gd
+msgid "You have got four. Lock it twice."
+msgstr "Čtyřku už máš. Zamkni dvakrát."
+
+#: scripts/town/town_trip.gd
+msgid "And where will you put the key? Empty your pockets first."
+msgstr "A kam si ten klíč dáš? Nejdřív si vyprázdni kapsy."
+
+#: scripts/town/town_trip.gd
+msgid "Your friend has got four. Two beds. The spare."
+msgstr "Ve čtyřce už je někdo od vás. Dvě postele. Tady je druhý klíč."
+
+#: scripts/town/town_trip.gd
+msgid "Unlock number %d"
+msgstr "Odemknout číslo %d"
+
+#: scripts/town/town_trip.gd
+msgid "Try the door"
+msgstr "Zkusit dveře"
+
+#: scripts/town/chapel_view.gd
+msgid "Sit down if you want. He does not mind who."
+msgstr "Sedni si, jestli chceš. Jemu je jedno, kdo tu sedí."
+
+#: scripts/town/chapel_view.gd
+msgid "I light one for Karel. And one for Vera, though she would not thank me for it."
+msgstr "Zapaluju jednu za Karla. A jednu za Věru, i když by mi za to nepoděkovala."
+
+#: scripts/town/chapel_view.gd
+msgid "They used to ring it for the dead. Now they ring it at noon and at six, and nobody is dead."
+msgstr "Dřív se zvonilo umíráčkem. Teď se zvoní v poledne a v šest a nikdo neumřel."
+
+#: scripts/town/chapel_view.gd
+msgid "Your camp had a priest come up once. In seventy-one. He did not stay the night either."
+msgstr "K vám do kempu jednou přijel farář. V jednasedmdesátým. Taky tam nepřespal."

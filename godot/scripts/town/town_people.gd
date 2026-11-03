@@ -33,7 +33,7 @@ const LOOPS := {
 }
 ## Who: their name, sprite, day ([from, to, place or loop]) and what they say.
 const PEOPLE := {
-	"hruba": {"name": "Mrs Hruba", "sprite": "town_babicka.png", "day": [[6.5, 9.5, "jednota_side"], [9.5, 16.0, "bench"], [16.0, 18.5, "chapel"]],
+	"hruba": {"name": "Mrs Hruba", "sprite": "town_babicka.png", "day": [[6.5, 9.5, "jednota_side"], [9.5, 16.0, "bench"], [18.0, 18.5, "chapel"]],
 		"lines": [
 			"You are from the camp. I can tell by the boots. That black mud is the lake.",
 			"My Karel kept the boats up there thirty years. One night he rowed out to fetch something. The boat came back by itself.",
@@ -59,7 +59,7 @@ const PEOPLE := {
 			"A beer is a dollar. The second one is a dollar too. The tenth one, we talk.",
 		],
 		"night": ["Last orders at eleven. After that I lock the door and I do not open it, whoever knocks. Whoever."]},
-	"simek": {"name": "Mr Simek", "sprite": "town_motel.png", "day": [[0.0, 24.0, "motel"]],
+	"simek": {"name": "Mr Simek", "sprite": "town_motel.png", "day": [],
 		"lines": [
 			"A room is fifteen. Breakfast is a promise, not a guarantee.",
 			"Your camp people stay here when they miss the bus. Some of them. Some just stand in the car park all night looking up the road.",

@@ -64,6 +64,10 @@ const DRIVER_LINES := [
 ## His voice for each (tools/audiogen/bus_talk.tsv d_out*), from the bus's door.
 const DRIVER_VOICE := ["d_out1", "d_out2", "d_out3", "d_out4"]
 const MOTEL_PRICE := 15
+## The motel's plan (motel_plan.gd): its rooms, which are taken tonight, six, the bell at
+## three, the guest in the car park.
+const MOTEL_PLAN = preload("res://scripts/town/motel_plan.gd")
+const TOWN_PLACES = preload("res://scripts/town/town_places.gd")
 ## Ten litres for Vondra's can at Liblice's pumps.
 const CAN_PRICE := 4
 const LOJZA_LINES := [
@@ -118,6 +122,16 @@ var _sleep_layer: CanvasLayer
 var _sleep_rect: ColorRect
 var _sleeping := false
 var _sleep_fade := 0.0
+## A night slept in number four: the key stays in its door when you go out in the morning.
+var _motel_slept := false
+## The guest from the camp standing in the motel's car park some nights (gone for the
+## night once you came near and looked away: that night's index).
+var _watcher: Node3D
+var _watcher_fig
+var _watcher_gone := -999
+const DOOM_FIGURE = preload("res://scripts/figures/doom_figure.gd")
+## The night the bell rang at three (its index).
+var _bell3_night := -999
 var _night := false
 var _night_poll := 0.0
 ## Each stop's runs for the day (paths and poses), made once per road / town.
@@ -126,6 +140,11 @@ var _runs: Dictionary = {}
 
 func setup(interior_manager: Node) -> void:
 	_im = interior_manager
+	if get_node_or_null("TownPlaces") == null:
+		var places = TOWN_PLACES.new()
+		places.name = "TownPlaces"
+		places.trip = self
+		add_child(places)
 	if _hamlet == null:
 		_hamlet = HAMLET.new()
 		_hamlet.trip = self
@@ -238,7 +257,10 @@ func hint_for(structure: Node3D) -> String:
 		"trip_lojza":
 			return "Talk to Lojza"
 		"town_door":
-			match str(structure.get_meta("door", "")):
+			var door_id := str(structure.get_meta("door", ""))
+			if door_id.begins_with("motel_"):
+				return _motel_hint(int(door_id.substr(6)))
+			match door_id:
 				"jednota":
 					return "Go into the Jednota" if _open("jednota") else "Read the note on the door"
 				"pub":
@@ -404,11 +426,15 @@ func _door(which: String) -> void:
 				return
 			_open_room("kiosk")
 		"chapel":
-			# Open by day; locked, with its card, in the evening and the night.
+			# Open by day; locked in the evening and the night (the handle goes down, the
+			# door does not give).
 			if hour() >= 8.0 and hour() < 18.0:
 				_open_room("chapel")
 			else:
-				_say(CHAPEL)
+				_one_shot("res://assets/sfx/director/knock_wrong.mp3", -10.0)
+		_:
+			if which.begins_with("motel_"):
+				_motel_door(int(which.substr(6)))
 
 
 ## In through the door: the room in 3D (scripts/town/town_room.gd), the frame of the
@@ -425,15 +451,29 @@ func _open_room(which: String) -> void:
 		)
 		_room.drank.connect(func(): pockets.drunk += 1.0)
 		_room.wants_closeup.connect(_room_closeup)
+		_room.candle_lit.connect(func(count: int): Coop.send_place("town", "chapel", "candles", [count]))
 		_room.closed.connect(func():
 			_door_fx(false)
+			_after_room(str(_room.place))
 			_on_closeup_closed())
 	_door_fx(true)
 	_set_player_controls(false)
+	_room.motel_block = _town.spots.get("motel_block") if _town != null else null
+	_room.motel_keys = _keys_on_board(_night_index(hour()))
 	_room.open(which, hour())
 
 
 func _room_closeup(kind: String) -> void:
+	if kind == "motel_room" and _town != null and _town.spots.has("motel_block"):
+		# Mr Simek's rooms: from seven, fifteen dollars, number four's key off the board.
+		_rent_room()
+		return
+	if kind == "sleep":
+		_sleep_in_room()
+		return
+	if kind == "bell":
+		_ring_bell_now()
+		return
 	if kind == "motel_room":
 		# Mr Simek's rooms: the lobby gives way to the night (the motel's own rules).
 		var h := hour()
@@ -482,6 +522,229 @@ func _door_fx(going_in: bool) -> void:
 	var im := get_parent()
 	if im != null and im.has_method("_door_transition"):
 		im._door_transition(going_in)
+
+
+# ── the motel (motel_plan.gd, motel_block.gd, motel_view.gd) ─────────────────
+
+## The night a game hour belongs to (it begins at noon), as main counts days.
+func _night_index(h: float) -> int:
+	var main := _main()
+	var day := int(main.get("_day_index")) if main != null and main.get("_day_index") != null else 1
+	return day if h >= 12.0 else day - 1
+
+
+func _motel_block() -> Node3D:
+	if _town == null:
+		return null
+	var b = _town.spots.get("motel_block")
+	return b as Node3D if b != null and is_instance_valid(b) else null
+
+
+func _has_motel_key() -> bool:
+	return inventory != null and inventory.has("key_motel")
+
+
+## Number four is let tonight: your key, or another warden in it.
+func _four_let() -> bool:
+	if _has_motel_key():
+		return true
+	for id in Coop.others():
+		if str(Coop.state_of(id).get("tr", "")) == "motel_room":
+			return true
+	return false
+
+
+## The keys on Simek's board: every room's but tonight's taken ones, yours once it is
+## let, and never six's (he keeps that one).
+func _keys_on_board(night: int) -> Array:
+	var taken: Array = MOTEL_PLAN.taken(night)
+	var out: Array = []
+	for n in range(1, 13):
+		if taken.has(n) or n == MOTEL_PLAN.NEVER:
+			continue
+		if n == MOTEL_PLAN.YOURS and _four_let():
+			continue
+		out.append(n)
+	return out
+
+
+func _motel_hint(n: int) -> String:
+	if n == MOTEL_PLAN.YOURS and _has_motel_key():
+		return "Unlock number %d" % n
+	return "Try the door"
+
+
+## A room's door from the car park or the gallery: four opens with its key, the others
+## are somebody's or nobody's and stay shut. Six's light, if it is on, goes out.
+func _motel_door(n: int) -> void:
+	var block := _motel_block()
+	if n == MOTEL_PLAN.YOURS and _has_motel_key():
+		if block != null:
+			block.swing(n, true)
+		_one_shot("res://assets/sfx/motel/lock_turn.mp3", -4.0)
+		get_tree().create_timer(0.35).timeout.connect(func():
+			_open_room("motel_room")
+			if block != null:
+				block.swing(n, false))
+		return
+	_one_shot("res://assets/sfx/director/knock_wrong.mp3", -10.0)
+	if n == MOTEL_PLAN.NEVER and block != null:
+		block.six_dark_night = _night_index(hour())
+		_update_motel(hour())
+
+
+func _one_shot(path: String, db: float) -> void:
+	if not ResourceLoader.exists(path):
+		return
+	var a := AudioStreamPlayer.new()
+	a.stream = load(path)
+	a.volume_db = db
+	add_child(a)
+	a.play()
+	a.finished.connect(a.queue_free)
+
+
+## At the counter: from seven, fifteen dollars, and four's key goes into your bag. With
+## another warden in four already: the spare.
+func _rent_room() -> void:
+	var h := hour()
+	if h >= 6.0 and h < MOTEL_FROM:
+		_room.say("Mr Simek", "Rooms from seven in the evening. Sit on the bench if you are tired.")
+		return
+	if _has_motel_key():
+		_room.say("Mr Simek", "You have got four. Lock it twice.")
+		return
+	if inventory != null and not inventory.room_for("key_motel"):
+		_room.say("Mr Simek", "And where will you put the key? Empty your pockets first.")
+		return
+	if CoreRoot.get_money() < MOTEL_PRICE or not CoreRoot.actions.spend_money(MOTEL_PRICE):
+		_room.say("Mr Simek", "Fifteen dollars. The bench by the pond is free.")
+		return
+	var spare := _four_let()
+	if inventory != null:
+		inventory.add_item("key_motel")
+	_one_shot(SFX_TOWN + "motel_key.mp3", -4.0)
+	if _room != null and _room.has_method("take_key"):
+		_room.take_key(MOTEL_PLAN.YOURS)
+	_room.say("Mr Simek", "Your friend has got four. Two beds. The spare." if spare else "Number four. Lock it twice.")
+	_update_motel(h)
+
+
+## Lying in four at night: the night passes (camp_office, both wardens in bed in co-op).
+func _sleep_in_room() -> void:
+	var office = _main().get("camp_office") if _main() != null else null
+	if office == null or not office.has_method("start_sleep"):
+		return
+	_ensure_sleep_layer()
+	_sleeping = true
+	_sleep_fade = 0.0
+	office.start_sleep()
+
+
+## Out of a room: out of four after a night in it, the key is left in its door.
+func _after_room(place: String) -> void:
+	if place != "motel_room":
+		return
+	var office = _main().get("camp_office") if _main() != null else null
+	if office != null and office.has_method("in_bed") and office.in_bed() and office.has_method("cancel_sleep"):
+		office.cancel_sleep()
+	if _motel_slept:
+		_motel_slept = false
+		if inventory != null:
+			inventory.remove_item("key_motel")
+	_update_motel(hour())
+
+
+## Every second: the motel's rooms as they are (yours lit while a warden is in it awake
+## with a light on), the keys on the board, the guest in the car park.
+func _update_motel(h: float) -> void:
+	var block := _motel_block()
+	if block == null:
+		return
+	var night := _night_index(h)
+	var awake := {}
+	if _room != null and _room.is_open() and str(_room.place) == "motel_room" and not _sleeping:
+		var v = _room.get("_view")
+		if v != null and v.lit():
+			awake[MOTEL_PLAN.YOURS] = true
+	for id in Coop.others():
+		var st: Dictionary = Coop.state_of(id)
+		if str(st.get("tr", "")) == "motel_room" and not bool(st.get("z", false)):
+			awake[MOTEL_PLAN.YOURS] = true
+	block.awake_in = awake
+	block.keys_on_board = _keys_on_board(night)
+	block.set_state(h, night)
+	_update_watcher(block, h, night)
+
+
+## The guest who left the camp, in the car park looking up the road to it, some nights
+## (motel_plan.carpark_watch): the last one to leave, as they looked. Once you have come
+## near and looked away, gone for the night. Never explained.
+func _update_watcher(block: Node3D, h: float, night: int) -> void:
+	var win: Array = MOTEL_PLAN.carpark_watch(night)
+	var hrs := h if h >= 12.0 else h + 24.0
+	var want := not win.is_empty() and hrs >= float(win[0]) and hrs < float(win[1]) and night != _watcher_gone
+	var path := _last_departed_sprite() if want else ""
+	if path == "":
+		want = false
+	if not want:
+		if _watcher != null and is_instance_valid(_watcher):
+			_watcher.queue_free()
+		_watcher = null
+		_watcher_fig = null
+		return
+	if _watcher == null or not is_instance_valid(_watcher):
+		var t: Texture2D = load(path)
+		var sp := Sprite3D.new()
+		sp.name = "CarParkGuest"
+		sp.texture = t
+		sp.pixel_size = 1.72 / float(t.get_height())
+		sp.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+		sp.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		sp.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+		sp.shaded = true
+		sp.offset = Vector2(0, t.get_height() * 0.5)
+		sp.modulate = Color(0.72, 0.72, 0.76)
+		block.add_child(sp)
+		# By the car park's edge, its back to the motel, looking towards the camp (the
+		# world's middle): seen from eight sides as the guests are (doom_figure.gd).
+		sp.position = Vector3(3.5, 0.0, MOTEL_PLAN.FRONT_Z - 5.2)
+		_watcher = sp
+		_watcher_fig = null
+		var data: Dictionary = DOOM_FIGURE.set_for(path)
+		if not data.is_empty():
+			_watcher_fig = DOOM_FIGURE.new(sp, data, 1.74)
+			_watcher_fig.face(-sp.global_position)
+	var p := _player()
+	if p == null:
+		return
+	var d := p.global_position.distance_to(_watcher.global_position)
+	if d < 10.0:
+		# Looked away from: gone.
+		var cam := p.get_viewport().get_camera_3d() if p.get_viewport() != null else null
+		var seen := cam != null and cam.is_position_in_frustum(_watcher.global_position + Vector3(0, 1.0, 0))
+		if not seen:
+			_watcher_gone = night
+			_watcher.queue_free()
+			_watcher = null
+			_watcher_fig = null
+
+
+## The picture of the last guest to leave the camp (its reviews keep who they were).
+func _last_departed_sprite() -> String:
+	var gm = get_node_or_null("/root/GuestManager")
+	var st = CoreRoot.get("state")
+	if gm == null or st == null:
+		return ""
+	var reviews = st.get("guest_reviews")
+	if not (reviews is Array) or (reviews as Array).is_empty():
+		return ""
+	var last = (reviews as Array)[-1]
+	var arch := str((last as Dictionary).get("archetype", "")) if last is Dictionary else ""
+	if arch == "" or not gm.has_method("_sprite_path_for_archetype"):
+		return ""
+	var path := str(gm._sprite_path_for_archetype(arch))
+	return path if ResourceLoader.exists(path) else ""
 
 
 ## A room for the night at the motel: from seven in the evening, fifteen dollars; you sleep
@@ -639,6 +902,7 @@ func _process(delta: float) -> void:
 			_town.set_hour(h)
 			if _town_bus != null:
 				_town_bus.set_night(_night)
+			_update_motel(h)
 	_coop_hold("camp", _camp_bus)
 	_coop_hold_hamlet()
 	_run_stop("camp", _camp_bus, delta, h)
@@ -653,6 +917,10 @@ func _process(delta: float) -> void:
 	_watch_job(h)
 	_update_village_sound(h)
 	_update_sleep(delta)
+	if _watcher_fig != null and _watcher != null and is_instance_valid(_watcher) and me != null and me.get_viewport() != null:
+		var eye_cam := me.get_viewport().get_camera_3d()
+		if eye_cam != null:
+			_watcher_fig.show(eye_cam.global_position)
 
 
 ## The transmitter's masts over the fields by Lesna (liblice_masts.gd): in the world from
@@ -710,7 +978,10 @@ func _update_village_sound(h: float) -> void:
 	if not here or _town == null:
 		return
 	var hh := int(floorf(h))
-	if (hh == 12 or hh == 18) and h - float(hh) < 0.1 and _bell_rung != hh:
+	var three := hh == 3 and h - float(hh) < 0.1 and _bell3_night != _night_index(h) and MOTEL_PLAN.bell_at_three(_night_index(h))
+	if three:
+		_bell3_night = _night_index(h)
+	if ((hh == 12 or hh == 18) and h - float(hh) < 0.1 and _bell_rung != hh) or three:
 		_bell_rung = hh
 		if _bell == null:
 			_bell = AudioStreamPlayer3D.new()
@@ -720,6 +991,35 @@ func _update_village_sound(h: float) -> void:
 			_town.add_child(_bell)
 			_bell.position = Vector3(-28.0, 9.0, -24.5)
 		_bell.play()
+
+
+## Somebody pulled the chapel's rope: the bell over the village, a few strokes.
+func _ring_bell_now() -> void:
+	if _town == null:
+		return
+	if _bell == null:
+		_bell = AudioStreamPlayer3D.new()
+		_bell.stream = load(SFX_TOWN + "chapel_bell.mp3")
+		_bell.unit_size = 30.0
+		_bell.max_distance = 300.0
+		_town.add_child(_bell)
+		_bell.position = Vector3(-28.0, 9.0, -24.5)
+	_bell.play()
+
+
+## The other wardens' doings in Liblice's places (Coop.send_place "town", through
+## town_places.gd): the chapel's candles burning.
+func coop_town_place(key: String, op: String, data: Array) -> void:
+	if key == "chapel" and op == "candles" and not data.is_empty():
+		var n := int(data[0])
+		if _room == null:
+			return
+		var had := int(_room.get("_candles"))
+		_room.set("_candles", maxi(had, n))
+		var v = _room.get("_view")
+		if _room.is_open() and str(_room.place) == "chapel" and v != null and v.has_method("add_flame"):
+			for i in maxi(0, n - v.flames.size()):
+				v.add_flame()
 
 
 func _ensure_sleep_layer() -> void:
@@ -741,13 +1041,25 @@ func _update_sleep(delta: float) -> void:
 		return
 	var office = _main().get("camp_office") if _main() != null else null
 	if _sleeping:
-		_sleep_fade = minf(1.0, _sleep_fade + delta * 1.5)
+		# In co-op whoever lies down first lies there with the room (the TV, the lamp)
+		# till the other is in bed too; the black comes when the night does.
+		var dark: bool = not Coop.has_partner() or office == null or office.night_begun()
+		if dark:
+			_sleep_fade = minf(1.0, _sleep_fade + delta * 1.5)
+			# Eyes shut: the room's windows need not draw the village.
+			if _sleep_fade >= 1.0 and _room != null and _room.is_open():
+				_room.set_asleep(true)
 		if office != null and not office.is_sleeping_through() and _sleep_fade >= 1.0:
 			_sleeping = false
+			if _room != null and _room.is_open() and str(_room.place) == "motel_room":
+				# The morning in number four, in the bed you went to sleep in.
+				_motel_slept = true
+				_room.set_asleep(false)
+				_room.morning_now(hour())
+				return
 			if _town != null:
 				_put_player(Transform3D(Basis.looking_at(Vector3(0, 0, -1), Vector3.UP), _town.w(Vector3(-27.0, 0.15, 8.0))))
 			_set_player_controls(true)
-			_say("Morning. The radiator knocked all night. Twice it knocked back.")
 	else:
 		_sleep_fade = maxf(0.0, _sleep_fade - delta * 0.8)
 	_sleep_rect.color.a = floorf(_sleep_fade * 6.0) / 6.0

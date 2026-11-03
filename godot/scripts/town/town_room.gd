@@ -12,11 +12,10 @@ extends CanvasLayer
 ##   - the pub U Jezera: the tap ($1, the mug lands on the bar, three pulls and it is
 ##     yours: `drank`), the fruit machine in the corner (pub_closeup.gd's reels), Mr Kubat,
 ##     two regulars; lamps over the tables, smoke in the air, the room's murmur.
-##   - the chapel (open by day): the pews, the altar, the saint, a candle to light (its
-##     flame stays while you are in Lesna), the stained glass bright with the day;
+##   - the chapel (open by day): chapel_view.gd, built to its baroque front;
 ##   - the kiosk at the Benzina: Start at three dollars, Mrs Lojzova;
-##   - the motel's lobby: Mr Simek, a room from seven (`wants_closeup("motel_room")`),
-##     the drinks machine, the television in the corner.
+##   - the motel: motel_view.gd (its reception, Mr Simek and the key board; number four),
+##     built from motel_plan.gd with the block in the village.
 ## S, the bottom edge or the door behind you leaves.
 ##
 ## The rooms are Build boxes with Grok faces (assets/textury/camp, tools/artgen/town_rooms.py).
@@ -27,6 +26,8 @@ signal bought(item: String)
 signal drank
 ## Handed to town_trip.gd: "slot" (the pub's fruit machine, pub_closeup), "motel_room".
 signal wants_closeup(kind: String)
+## The chapel's candles burning now (chapel_view.gd), for the other wardens.
+signal candle_lit(count: int)
 
 const K = preload("res://scripts/interior_kit.gd")
 const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
@@ -59,18 +60,6 @@ const PUB_LINES := [
 	"Your Vera sat where you are standing. Every Friday. Then one Friday she didn't, and she had not missed one in eleven years.",
 	"The machine pays. Not often. Like everything here.",
 ]
-const SAINT_LINES := [
-	"Saint Prokop, in brown, a book under his arm. The paint has gone from his hands where they have been touched.",
-	"Somebody has tucked a folded note behind his foot. You leave it there.",
-]
-const ALTAR_LINES := [
-	"The painting is too dark to make out. A figure in a boat, maybe. Water, certainly.",
-	"Paper flowers, the colour gone out of them. A fresh one among them, red.",
-]
-const PEW_LINES := [
-	"A hymn book left open. Somebody has underlined a line in pencil and rubbed it out again.",
-	"Scratched into the pew in front, small: V. + K. 1971.",
-]
 const KIOSK_LINES := [
 	"Pump first, then pay. Or pay, then pump. Just pay.",
 	"Lojza says you are good at the pumps. Lojza says a lot.",
@@ -88,6 +77,15 @@ const REGULAR_LINES := {
 
 var place := ""
 var hour := 12.0
+## The motel's rooms (motel_view.gd, built from motel_plan.gd): its reception "motel" and
+## your room "motel_room"; the chapel's own (chapel_view.gd) the same way. Null elsewhere.
+const MOTEL_VIEW = preload("res://scripts/town/motel_view.gd")
+const CHAPEL_VIEW = preload("res://scripts/town/chapel_view.gd")
+var _view
+## Set by town_trip: the motel in the village (motel_block.gd: where its windows look out
+## from), the keys on its board.
+var motel_block: Node3D
+var motel_keys: Array = []
 var _open := false
 var _vpc: SubViewportContainer
 var _vp: SubViewport
@@ -124,10 +122,6 @@ var _shown := -1
 var _type := 0.0
 var _modal: Callable = func(): return false
 var _candles := 0
-var _candle_root: Node3D
-var _saint_line := 0
-var _altar_line := 0
-var _pew_line := 0
 
 
 func _init() -> void:
@@ -199,17 +193,36 @@ func open(p_place: String, p_hour: float) -> void:
 	_npc = null
 	_mug = 0
 	_mug_node = null
+	# What was said in the last room is not said in this one.
+	_text = ""
+	_who = ""
+	_shown = -1
+	_look.yaw_limit_deg = 70.0
+	_look.pitch_up_deg = 24.0
+	_look.pitch_down_deg = 30.0
+	if _view != null:
+		_view.close()
+	_view = null
+	var motel_ok := motel_block != null and is_instance_valid(motel_block)
 	match place:
 		"jednota":
 			_build_jednota()
 		"pub":
 			_build_pub()
 		"chapel":
-			_build_chapel()
+			_view = CHAPEL_VIEW.new(self)
+			_view.build(hour, _candles)
 		"kiosk":
 			_build_kiosk()
 		"motel":
-			_build_motel()
+			if motel_ok:
+				_view = MOTEL_VIEW.new(self, 0, motel_block)
+				_view.build(hour, motel_keys)
+			else:
+				_build_motel()
+		"motel_room":
+			_view = MOTEL_VIEW.new(self, MOTEL_VIEW.PLAN.YOURS, motel_block)
+			_view.build(hour, [])
 	_look.reset()
 	_cam.rotation = _base_rot
 	_open = true
@@ -225,12 +238,14 @@ func open(p_place: String, p_hour: float) -> void:
 			say("Mr Kubat", "Sit where you like. Beer's a dollar.")
 			_loop(SFX_PUB + "pub_room.mp3", -16.0)
 		"chapel":
-			say("", "Cold, and the smell of wax.")
+			_play("res://assets/sfx/chapel/door.mp3", -8.0)
 		"kiosk":
 			_play(SFX_TOWN + "shop_bell.mp3", -10.0)
 			say("Mrs Lojzova", "Yes?")
 		"motel":
 			say("Mr Simek", "Evening. Or is it.")
+		"motel_room":
+			_play("res://assets/sfx/backroom/room_door_close.mp3", -8.0)
 
 
 # ── co-op: the other wardens in here too ───────────────────────────────────────
@@ -253,6 +268,17 @@ func coop_mates(ids: Array) -> void:
 			_mates.erase(id)
 	if not _open or _root == null:
 		return
+	if _view != null:
+		for id in ids:
+			var f2 = _mates.get(int(id))
+			if f2 == null or not is_instance_valid(f2) or f2.get_parent() != _root:
+				var lk: Dictionary = Coop.look_of(int(id))
+				f2 = REMOTE_PLAYER.new()
+				f2.setup(int(lk.get("m", 1)), int(lk.get("c", 0)), true)
+				_root.add_child(f2)
+				_mates[int(id)] = f2
+		_view.place_mates(_mates, ids)
+		return
 	var b := Basis.from_euler(Vector3(0.0, _base_rot.y, 0.0))
 	for i in ids.size():
 		var id := int(ids[i])
@@ -273,6 +299,9 @@ func coop_mates(ids: Array) -> void:
 func close() -> void:
 	if not _open:
 		return
+	if _view != null:
+		_view.close()
+		_view = null
 	_open = false
 	visible = false
 	_glint.clear()
@@ -281,6 +310,29 @@ func close() -> void:
 	if _exit_hint != null:
 		_exit_hint.modulate.a = 0.0
 	closed.emit()
+
+
+## The night passed in the motel's room (town_trip): the morning's light in it.
+func morning_now(h: float) -> void:
+	hour = h
+	if _view != null and _view.has_method("morning"):
+		_view.morning(h)
+
+
+## Simek takes room `n`'s key off the board (the reception).
+func take_key(n: int) -> void:
+	if _view == null:
+		return
+	var keys: Dictionary = _view.parts.get("keys", {})
+	var k = keys.get(n)
+	if k != null and is_instance_valid(k):
+		(k as Node3D).visible = false
+
+
+## You sleep: the room stops drawing its windows (town_trip's black over it all).
+func set_asleep(on: bool) -> void:
+	if _view != null:
+		_view.asleep = on
 
 
 func say(who: String, text: String) -> void:
@@ -319,6 +371,8 @@ func _process(delta: float) -> void:
 	_animate_npc(delta)
 	_animate_tubes()
 	_animate_regulars()
+	if _view != null:
+		_view.tick(delta)
 	if _shown >= 0 and _shown < _text.length():
 		_type += delta * 48.0
 		while _type >= 1.0 and _shown < _text.length():
@@ -373,8 +427,11 @@ func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
 		return
 	if INTERIOR_LOOK.is_exit_event(event, get_viewport()):
-		close()
 		get_viewport().set_input_as_handled()
+		# The motel's room: off the bed first, the key turned back before you go.
+		if _view != null and not _view.wants_out():
+			return
+		close()
 		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		get_viewport().set_input_as_handled()
@@ -405,6 +462,13 @@ func _hover_at(mouse: Vector2) -> String:
 
 
 func _clicked(id: String) -> void:
+	if _view != null:
+		if id == "door":
+			if _view.wants_out():
+				close()
+			return
+		if _view.click(id, hour):
+			return
 	if id == "door":
 		_play("res://assets/sfx/dvereotevrit.mp3", -8.0)
 		close()
@@ -414,8 +478,6 @@ func _clicked(id: String) -> void:
 			_shop_click(id)
 		"pub":
 			_pub_click(id)
-		"chapel":
-			_chapel_click(id)
 		"kiosk":
 			_kiosk_click(id)
 		"motel":
@@ -482,27 +544,6 @@ func _pub_click(id: String) -> void:
 			_reg_line[id] += 1
 
 
-func _chapel_click(id: String) -> void:
-	match id:
-		"candles":
-			if _candles >= 6:
-				say("", "There is no room left on the stand.")
-				return
-			_play(SFX_TOWN + "light.mp3", -6.0)
-			_candles += 1
-			_add_candle()
-			say("", "You light a candle. The others lean towards it, then stand straight again." if _candles == 1 else "Another one.")
-		"saint":
-			say("", SAINT_LINES[_saint_line % SAINT_LINES.size()])
-			_saint_line += 1
-		"altar":
-			say("", ALTAR_LINES[_altar_line % ALTAR_LINES.size()])
-			_altar_line += 1
-		"pews":
-			say("", PEW_LINES[_pew_line % PEW_LINES.size()])
-			_pew_line += 1
-
-
 func _kiosk_click(id: String) -> void:
 	match id:
 		"her":
@@ -537,27 +578,6 @@ func _motel_click(id: String) -> void:
 				return
 			_play(SFX_TOWN + "bottle_down.mp3", -4.0)
 			say("", "A can of lemonade drops, warm. The light in the machine flickers off and on again.")
-
-
-## A small flame on the candle stand for each one lit.
-func _add_candle() -> void:
-	if _candle_root == null:
-		return
-	var m := K._base(Color(1.0, 0.85, 0.5))
-	m.emission_enabled = true
-	m.emission = Color(1.0, 0.7, 0.3)
-	m.emission_energy_multiplier = 2.0
-	var x := -0.28 + (_candles - 1) * 0.11
-	var stick := K.slab(_candle_root, Vector3(0.025, 0.1, 0.025), Vector3(x, 0.05, 0.0), K._base(Color(0.92, 0.9, 0.82)), "Candle")
-	stick.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	var f := K.slab(_candle_root, Vector3(0.02, 0.035, 0.02), Vector3(x, 0.12, 0.0), m, "Flame")
-	f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	var l := OmniLight3D.new()
-	l.light_color = Color(1.0, 0.7, 0.35)
-	l.light_energy = 0.25
-	l.omni_range = 1.8
-	l.position = Vector3(x, 0.2, 0.1)
-	_candle_root.add_child(l)
 
 
 func _show_mug(full: bool) -> void:
@@ -888,63 +908,6 @@ func _build_pub() -> void:
 	_hot_box("door", Vector3(1.0, 1.03, 2.95), Vector3(1.0, 2.05, 0.12), [door])
 	_cam.position = Vector3(0.2, 1.6, 0.5)
 	_base_rot = Vector3(deg_to_rad(-7.0), deg_to_rad(8.0), 0.0)
-
-
-# ── the chapel ───────────────────────────────────────────────────────────────
-
-## 5 x 8 m, the altar at the far end, the pews between, you in the doorway.
-func _build_chapel() -> void:
-	var size := Vector3(5.0, 4.6, 8.0)
-	_room(size, "chapel_floor", "chapel_wall", "ceiling_pine", 4.5, 1.4)
-	var day := hour >= 7.0 and hour < 18.5
-	_env.ambient_light_color = Color(0.86, 0.86, 0.92)
-	_env.ambient_light_energy = 0.38 if day else 0.12
-	# The altar on its step, the painting over it, the saint to the side.
-	_box(Vector3(size.x, 0.18, 1.6), Vector3(0, 0.09, -3.2), K.surface("chapel_floor", 1.0, Color(0.85, 0.82, 0.78)), "AltarStep")
-	var altar := _face("chapel_altar", Vector2(3.2, 2.4), Vector3(0, 1.38, -3.98), 0.0, "Altar")
-	_hot_box("altar", Vector3(0, 1.3, -3.8), Vector3(3.0, 2.4, 0.4), [altar])
-	var saint := _sprite("saint_statue", Vector2(0.7, 1.7), Vector3(-1.9, 0.18, -3.2), 0.0, true, "Saint")
-	_hot_box("saint", Vector3(-1.9, 1.0, -3.2), Vector3(0.6, 1.8, 0.5), [saint])
-	_sprite("crucifix", Vector2(0.4, 0.8), Vector3(1.9, 1.6, -3.98), 0.0, false, "Crucifix")
-	# The pews in two rows.
-	var wood := K.surface("veneer_dark", 0.6, Color(0.7, 0.6, 0.5))
-	for z in [-1.6, -0.5, 0.6, 1.7]:
-		for x in [-1.25, 1.25]:
-			_box(Vector3(1.9, 0.08, 0.4), Vector3(x, 0.45, z), wood, "PewSeat")
-			_box(Vector3(1.9, 0.5, 0.06), Vector3(x, 0.75, z + 0.22), wood, "PewBack")
-			_box(Vector3(0.06, 0.9, 0.5), Vector3(x - 0.95, 0.45, z + 0.02), wood, "PewEnd")
-			_box(Vector3(0.06, 0.9, 0.5), Vector3(x + 0.95, 0.45, z + 0.02), wood, "PewEnd")
-	var book := _box(Vector3(0.16, 0.03, 0.22), Vector3(-0.9, 0.5, 0.6), K.surface("cardboard", 0.2, Color(0.4, 0.2, 0.15)), "HymnBook")
-	_hot_box("pews", Vector3(-1.25, 0.6, 0.6), Vector3(1.9, 0.6, 0.5), [book])
-	# The stained glass, two each side, bright with the day.
-	for side in [-1.0, 1.0]:
-		for z in [-1.8, 1.0]:
-			var w := _face("stained_window", Vector2(0.7, 1.8), Vector3(side * (size.x * 0.5 - 0.01), 2.6, z), -90.0 * side, "Stained")
-			var wm := w.material_override as StandardMaterial3D
-			wm.emission_enabled = true
-			wm.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
-			wm.emission_texture = wm.albedo_texture
-			wm.emission = Color(1, 0.95, 0.85)
-			wm.emission_energy_multiplier = 1.5 if day else 0.2
-			if day:
-				var l := _omni(Vector3(side * 1.4, 2.4, z), Color(1.0, 0.86, 0.6), 0.55, 4.0)
-				l.shadow_enabled = false
-	# The candle stand by the door, the candles you light on it.
-	var rack := _sprite("candles_rack", Vector2(0.8, 1.0), Vector3(1.6, 0.0, 2.6), 0.0, true, "Candles")
-	_hot_box("candles", Vector3(1.6, 0.6, 2.6), Vector3(0.9, 1.0, 0.5), [rack])
-	_omni(Vector3(1.6, 1.0, 2.3), Color(1.0, 0.66, 0.32), 0.7, 3.2)
-	_candle_root = Node3D.new()
-	_candle_root.position = Vector3(1.6, 1.02, 2.35)
-	_root.add_child(_candle_root)
-	var n := _candles
-	_candles = 0
-	for i in n:
-		_candles += 1
-		_add_candle()
-	var door := _face("door_interior", Vector2(1.2, 2.2), Vector3(0, 1.1, 3.995), 180.0, "Door")
-	_hot_box("door", Vector3(0, 1.1, 3.95), Vector3(1.2, 2.2, 0.12), [door])
-	_cam.position = Vector3(0.0, 1.6, 3.0)
-	_base_rot = Vector3(deg_to_rad(-4.0), 0.0, 0.0)
 
 
 # ── the kiosk ────────────────────────────────────────────────────────────────

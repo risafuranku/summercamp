@@ -43,6 +43,8 @@ const KINDS := {
 	"ticket_used": {"w": 1, "h": 1, "tex": "ticket_used.png"},
 	# The camp's megaphone, from the room behind the office (scripts/coop/voice.gd).
 	"megaphone": {"w": 1, "h": 1, "tex": "megaphone.png"},
+	# Number four's key from the Liblice motel (town_trip._rent_room), left in its door in the morning.
+	"key_motel": {"w": 1, "h": 1, "tex": "key_motel.png"},
 }
 
 signal changed

@@ -1,0 +1,227 @@
+#!/usr/bin/env python3
+"""Liblice's motel and chapel (prompts_mesto.tsv, the user's 3. 11. answers): Grok's
+renders into the game. Missing renders are skipped, so it can run while the queue works.
+
+    python tools/artgen/mesto_art.py            # everything there is
+    python tools/artgen/mesto_art.py doors      # only the room doors' numbers
+
+Rows: (artgen id, mode, size, file under godot/assets/textury/). Modes are process.py's
+(texture, panel, sprite) and:
+  sheet    items in a row on magenta, cut left to right: size is a list of
+           (file, height px) in that order;
+  retable  the altar picture cut in two: the retable over the table (the wall) and the
+           table's front (its own box), at `size` px wide.
+The room doors get their numbers painted on the blank plate of face_motel_door_out
+(town/motel_door_<n>.png), black on the aluminium, in game pixels.
+"""
+import os
+import sys
+
+from PIL import Image, ImageDraw
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+import process  # noqa: E402
+import split_sheet  # noqa: E402
+
+TEX = os.path.join(HERE, "..", "..", "godot", "assets", "textury")
+OUT = os.path.join(HERE, "out")
+
+ROWS = [
+    # The motel, outside.
+    ("tex_motel_plaster", "texture", 128, "town/motel_plaster.png"),
+    ("face_motel_door_out", "panel", 64, "town/motel_door_out.png"),
+    ("spr_motel_window", "sprite", 88, "town/motel_window.png"),
+    ("face_motel_rail", "panelcrop", (192, 0.255, 0.635), "town/motel_rail.png"),
+    ("face_motel_lobby_door", "panel", 64, "town/motel_lobby_door.png"),
+    # The rooms.
+    ("face_motel4_wall", "panel", 192, "camp/motel4_wall.png"),
+    ("tex_motel_bedspread", "texture", 128, "camp/motel_bedspread.png"),
+    ("face_motel_wardrobe", "panel", 80, "camp/motel_wardrobe.png"),
+    ("face_motel_door_in", "panel", 64, "camp/motel_door_in.png"),
+    ("spr_motel_basin2", "sprite", 100, "camp/motel_basin.png"),
+    ("spr_motel_radiator", "sprite", 40, "camp/motel_radiator.png"),
+    ("spr_motel_table", "sprite", 72, "camp/motel_table.png"),
+    ("tex_motel_curtain", "texture", 128, "camp/motel_curtain.png"),
+    ("spr_motel_key", "sprite", 28, "camp/motel_key.png"),
+    ("spr_motel_key", "sprite", 16, "items/key_motel.png"),
+    # The reception.
+    ("face_motel_counter", "panel", 192, "camp/motel_counter.png"),
+    ("face_motel_keyboard", "panel", 128, "camp/motel_keyboard.png"),
+    ("sheet_motel_desk", "sheet", [("camp/motel_bell.png", 16), ("camp/motel_ashtray.png", 12), ("camp/motel_guestbook.png", 26)], None),
+    # The chapel.
+    ("face_chapel_retable", "retable", 160, None),
+    ("tex_chapel_vault", "texture", 128, "camp/chapel_vault.png"),
+    ("tex_chapel_lime", "texture", 128, "camp/chapel_lime.png"),
+    ("face_chapel_plinth", "panel", 192, "camp/chapel_plinth.png"),
+    ("spr_pew_end", "sprite", 64, "camp/pew_end.png"),
+    ("face_pew_back", "panel", 160, "camp/pew_back.png"),
+    ("tex_pew_wood", "texture", 128, "camp/pew_wood.png"),
+    ("spr_chapel_door_in", "sprite", 168, "camp/chapel_door_in.png"),
+    ("spr_chapel_oval_window", "sprite", 72, "camp/chapel_oval.png"),
+    ("spr_communion_rail", "sprite", 52, "camp/communion_rail.png"),
+    ("spr_harmonium", "sprite", 76, "camp/harmonium.png"),
+    ("sheet_chapel_small", "sheet", [("camp/holy_water.png", 30), ("camp/collection_box.png", 64), ("camp/wall_console.png", 24)], None),
+    ("spr_votive_stand", "sprite", 72, "camp/votive_stand.png"),
+    ("spr_bell_rope", "sprite", 200, "camp/bell_rope.png"),
+    ("sheet_stations", "sheet", [("camp/station_%d.png" % i, 40) for i in range(1, 7)], None),
+    ("npc_hruba_kneel", "sprite", 84, "npc/town_hruba_kneel.png"),
+    ("sheet_votive_flames", "sheet", [("camp/votive_flame_%d.png" % i, 14) for i in range(4)], None),
+]
+
+# The blank plate on face_motel_door_out (fractions of the raw picture): x0, y0, x1, y1.
+PLATE = (0.392, 0.236, 0.608, 0.293)
+# The numbers' 3 x 5 pixel glyphs, painted at two game pixels a stroke.
+DIGITS = {
+    "0": ["111", "101", "101", "101", "111"], "1": ["010", "110", "010", "010", "111"],
+    "2": ["111", "001", "111", "100", "111"], "3": ["111", "001", "111", "001", "111"],
+    "4": ["101", "101", "111", "001", "001"], "5": ["111", "100", "111", "001", "111"],
+    "6": ["111", "100", "111", "101", "111"], "7": ["111", "001", "010", "010", "010"],
+    "8": ["111", "101", "111", "101", "111"], "9": ["111", "101", "111", "001", "111"],
+}
+
+
+def raw(art_id):
+    p = os.path.join(OUT, art_id, "raw.png")
+    return p if os.path.exists(p) else None
+
+
+def save(img, dest):
+    path = os.path.join(TEX, dest)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    img.save(path)
+    print("%s %s" % (dest, img.size))
+
+
+def keyed_item(crop, height):
+    """A cut item (RGBA, keyed) to `height` px, premultiplied box filter, palette."""
+    bbox = crop.getchannel("A").point(lambda a: 255 if a > 40 else 0).getbbox()
+    if bbox:
+        crop = crop.crop(bbox)
+    w = max(1, round(crop.width * height / crop.height))
+    r, g, b, a = crop.split()
+    pre = Image.merge("RGBA", [Image.composite(ch, Image.new("L", crop.size, 0), a) for ch in (r, g, b)] + [a])
+    small = pre.resize((w, height), Image.Resampling.BOX)
+    px = small.load()
+    for y in range(small.height):
+        for x in range(small.width):
+            pr, pg, pb, pa = px[x, y]
+            if pa > 0:
+                k = 255.0 / pa
+                px[x, y] = (min(255, int(pr * k)), min(255, int(pg * k)), min(255, int(pb * k)), pa)
+    return process.snap(small, True)
+
+
+def do_sheet(art_id, parts, gap=14):
+    src = raw(art_id)
+    if src is None:
+        return
+    img = process.key_out(Image.open(src))
+    boxes, labels, sw = split_sheet.items(img, gap)
+    boxes.sort(key=lambda b: b[0])
+    if len(boxes) < len(parts):
+        print("%s: %d items found, %d wanted; skipped" % (art_id, len(boxes), len(parts)))
+        return
+    # The biggest ones if Grok drew crumbs.
+    if len(boxes) > len(parts):
+        boxes = sorted(boxes, key=lambda b: -(b[2] - b[0]) * (b[3] - b[1]))[:len(parts)]
+        boxes.sort(key=lambda b: b[0])
+    for (dest, h), box in zip(parts, boxes):
+        save(keyed_item(split_sheet.own(img, box, labels[box], sw), h), dest)
+
+
+def panel_img(img, width):
+    height = max(1, round(img.height * width / img.width))
+    return process.snap(img.resize((width, height), Image.Resampling.BOX), False)
+
+
+def do_retable(art_id, width):
+    """The altar render: the retable down to the table's top, the table's front below it."""
+    src = raw(art_id)
+    if src is None:
+        return
+    img = Image.open(src).convert("RGB")
+    w, h = img.size
+    # The cloth's top edge and the step's top (measured on the render, 864 x 1152).
+    top = round(h * 0.632)
+    step = round(h * 0.885)
+    save(panel_img(img.crop((0, 0, w, top)), width), "camp/chapel_retable.png")
+    save(panel_img(img.crop((0, top, w, step)), width), "camp/chapel_altar_front.png")
+
+
+def doors():
+    """town/motel_door_<n>.png: the door with its number on the plate."""
+    base = os.path.join(TEX, "town", "motel_door_out.png")
+    if not os.path.exists(base):
+        return
+    door = Image.open(base).convert("RGB")
+    w, h = door.size
+    x0, y0, x1, y1 = round(PLATE[0] * w), round(PLATE[1] * h), round(PLATE[2] * w), round(PLATE[3] * h)
+    ink = (24, 22, 20)
+    for n in range(1, 13):
+        img = door.copy()
+        d = ImageDraw.Draw(img)
+        text = str(n)
+        gw = len(text) * 4 - 1
+        ox = x0 + (x1 - x0 - gw) // 2
+        oy = y0 + (y1 - y0 - 5) // 2
+        for i, ch in enumerate(text):
+            for gy, row in enumerate(DIGITS[ch]):
+                for gx, bit in enumerate(row):
+                    if bit == "1":
+                        d.point((ox + i * 4 + gx, oy + gy), fill=ink)
+        save(img, "town/motel_door_%d.png" % n)
+
+
+def signs():
+    """The motel's own lettering through lettering.py's kit: RECEPCE painted over its door,
+    the stairs' sign up to the rooms."""
+    import lettering
+    lettering.SIGNS["recepce"] = dict(text="RECEPCE", font=(lettering.BAHN[0], b"SemiBold Condensed"), cap=0.2,
+                                      style="raised", face=(226, 222, 210), side=(120, 118, 110), track=0.08, rust=0.4, seed=21)
+    lettering.make("recepce")
+
+
+def main():
+    only = sys.argv[1:]
+    if only == ["signs"]:
+        signs()
+        return
+    if only == ["doors"]:
+        doors()
+        return
+    for art_id, mode, size, dest in ROWS:
+        if only and art_id not in only:
+            continue
+        if mode == "sheet":
+            # The Stations stand close together: a narrower gap tells them apart.
+            do_sheet(art_id, size, 4 if art_id == "sheet_stations" else 14)
+            continue
+        if mode == "retable":
+            do_retable(art_id, size)
+            continue
+        if mode == "panelcrop":
+            # A band of the picture (the rail without the wall over and under it).
+            src = raw(art_id)
+            if src is not None:
+                img = Image.open(src).convert("RGB")
+                band = img.crop((0, round(img.height * size[1]), img.width, round(img.height * size[2])))
+                save(panel_img(band, size[0]), dest)
+            continue
+        src = raw(art_id)
+        if src is None:
+            continue
+        if mode == "sprite":
+            out = process.sprite(src, size)
+        elif mode == "panel":
+            out = process.panel(src, size)
+        else:
+            out = process.texture(src, size)
+        save(out, dest)
+    doors()
+    if not only:
+        signs()
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,8 @@
+mt_lock_turn	0.8	assets/sfx/motel/lock_turn.mp3	One turn of an old key in the mortise lock of a cheap plywood hotel room door: a dry metallic clack of the bolt sliding home, close, a small quiet room
+mt_radiator	1.6	assets/sfx/motel/radiator_knock.mp3	Two dull metallic knocks deep inside an old cast iron radiator and its water pipe, the heating ticking in an old building at night, heard from inside a small room
+mt_can	1.0	assets/sfx/motel/can_drop.mp3	A drink can drops down the chute of an old vending machine with a hollow thunk and rolls against the flap, indoors, close
+kp_harmonium	4.0	assets/sfx/chapel/harmonium.mp3	An old village church harmonium reed organ: one held minor chord swelling and fading away, slightly out of tune, wheezing bellows, in a small stone chapel with echo
+kp_pew	1.2	assets/sfx/chapel/pew_creak.mp3	An old wooden church pew creaks under shifting weight, in a small empty stone chapel with a soft echo
+kp_match	1.4	assets/sfx/chapel/match.mp3	A match struck on a box and touched to a small candle wick, a short hiss and a crackle, a quiet stone chapel
+kp_coin_box	0.8	assets/sfx/chapel/coin_box.mp3	A coin dropped through the slot of a wooden church offering box, landing on other coins inside, small stone chapel echo
+kp_door	1.6	assets/sfx/chapel/door.mp3	A heavy old wooden church door opens with an iron latch clank and a long creak of its hinges, stone chapel echo

@@ -423,10 +423,29 @@ func _pub(at: Vector3) -> void:
 
 
 ## The chapel of the Virgin Mary, set back from the street: its baroque front from the
-## picture when there is one.
+## picture when there is one. Its sides bare of the house kit (no chimney, aerial, porch or
+## house windows: "bare"), two oval windows in each, where they are inside
+## (chapel_view.gd: the nave and its windows share the building's middle).
+const CHAPEL_VIEW = preload("res://scripts/town/chapel_view.gd")
+
+
 func _chapel(at: Vector3) -> void:
 	var wall := _mat(_first([TEX + "village_plaster.png", TEX_CAMP + "plaster_stone.png"]), Color(0.95, 0.92, 0.84), Vector2(2.0, 1.0))
-	var house := _gable_house("lib_chapel", at.x, at.z + 3.5, 1.0, 7.0, wall, {"max_rise": 3.2})
+	var house := _gable_house("lib_chapel", at.x, at.z + 3.5, 1.0, 7.0, wall, {"max_rise": 3.2, "bare": true})
+	if not house.is_empty() and ResourceLoader.exists(TEX_CAMP + "chapel_oval.png"):
+		var oval := StandardMaterial3D.new()
+		oval.albedo_texture = load(TEX_CAMP + "chapel_oval.png")
+		oval.albedo_color = Color(0.62, 0.6, 0.58)
+		oval.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		oval.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+		oval.alpha_scissor_threshold = 0.5
+		oval.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+		var t: Texture2D = oval.albedo_texture
+		var size := Vector2(1.1 * float(t.get_width()) / float(t.get_height()), 1.1)
+		var half: float = (house["size"] as Vector3).x * 0.5
+		for side in [-1.0, 1.0]:
+			for wz in CHAPEL_VIEW.WINDOWS_Z:
+				_face(house["root"], Vector3(float(side) * half, CHAPEL_VIEW.WINDOW_Y, float(wz)), size, Vector3(float(side), 0, 0), oval)
 	if house.is_empty():
 		var root := _block(at, Vector3(5.0, 5.0, 7.0), wall)
 		_box(root, Vector3(0, 7.0, -2.5), Vector3(1.6, 3.6, 1.6), wall, false)
@@ -437,8 +456,24 @@ func _chapel(at: Vector3) -> void:
 
 
 ## The motel: tube letters MOTEL standing on its roof on their brackets over the
-## entrance, LESNA in white metal beside them; the tubes light up after dark.
+## entrance, LESNA in white metal beside them; the tubes light up after dark. Since 3. 11.
+## the whole block from its plan (motel_block.gd: the gallery, the stairs, the rooms
+## behind real windows); the old painted box only while its pictures are missing.
+const MOTEL_BLOCK = preload("res://scripts/town/motel_block.gd")
+
+
 func _motel(at: Vector3) -> void:
+	if ResourceLoader.exists(TEX + "motel_plaster.png") and ResourceLoader.exists(TEX + "motel_window.png"):
+		var block = MOTEL_BLOCK.new()
+		block.position = at
+		add_child(block)
+		block.build(self)
+		spots["motel"] = block
+		spots["motel_block"] = block
+		if block.neon != null:
+			spots["motel_neon"] = block.neon
+		spots["motel_door"] = w(block.door_spot(0))
+		return
 	var wall := _mat(TEX_CAMP + "concrete.png", Color(0.9, 0.84, 0.72), Vector2(4.0, 2.0))
 	var size := Vector3(22.0, 6.4, 9.0)
 	var root := _block(at, size, wall, "flat")
@@ -857,9 +892,10 @@ func _letters(parent: Node3D, sname: String, pos: Vector3, facing: Vector3) -> M
 ## The house's other walls: a tile of plain wall cut from its own front (town_facades.py
 ## <id>_side.png), so the sides are the colour and the dirt of the gable.
 ## Fronts whose plain wall is too patchy to tile (the ochre one is brick showing through
-## all over: mirrored into a tile it made a kaleidoscope on the back walls), and the
-## plaster their other walls get instead.
-const SIDE_FROM := {"lib_gable_ochre": "village_plaster.png"}
+## all over: mirrored into a tile it made a kaleidoscope on the back walls; the chapel's
+## tiled into false ovals beside its real windows), and the plaster their other walls
+## get instead.
+const SIDE_FROM := {"lib_gable_ochre": "village_plaster.png", "lib_chapel": "village_plaster.png"}
 
 
 func _side_mat(fid: String, fallback: Material) -> Material:
@@ -915,19 +951,21 @@ func _gable_house(fid: String, cx: float, front_z: float, facing: float, depth: 
 			var r := _box(root, Vector3(off + side * half * 0.5, wh + rise - half * tan(ang) * 0.5 + 0.08, 0), Vector3(half / cos(ang), 0.14, depth + 0.5), tiles)
 			r.rotation.z = -side * ang
 		# The chimney through the right slope, towards the back.
+		var bare := bool(opts.get("bare", false))
 		var chx := off + ww * 0.22
 		var roof_y := wh + rise - (ww * 0.22) * tan(ang)
 		var chim := Vector3(chx, roof_y + 0.5, -fz * 0.3)
-		_box(root, chim, Vector3(0.55, 1.6, 0.55), _mat(TEX_CAMP + "brick_red.png", Color(0.9, 0.85, 0.8)))
-		_box(root, chim + Vector3(0, 0.84, 0), Vector3(0.72, 0.08, 0.72), _house_mats()["sill"])
-		if _rng.randf() < 0.7:
+		if not bare:
+			_box(root, chim, Vector3(0.55, 1.6, 0.55), _mat(TEX_CAMP + "brick_red.png", Color(0.9, 0.85, 0.8)))
+			_box(root, chim + Vector3(0, 0.84, 0), Vector3(0.72, 0.08, 0.72), _house_mats()["sill"])
+		if not bare and _rng.randf() < 0.7:
 			_chimneys.append(root.position + chim + Vector3(0, 0.9, 0))
 		# The ridge tiles, the gutters along both eaves with the downpipe at the back of
 		# the yard side, and (on most) the TV aerial on its pole, turned to Liblice.
 		_box(root, Vector3(off, wh + rise + 0.15, 0), Vector3(0.26, 0.12, depth + 0.5), _house_mats()["ridge"])
 		var eave_y := wh + 0.08 - 0.35 * rise / (ww * 0.5)
 		_gutters(root, off, ww, half, eave_y, depth, -fz * 0.94)
-		if _rng.randf() < 0.65:
+		if not bare and _rng.randf() < 0.65:
 			_aerial(root, Vector3(off - ww * 0.12, wh + rise + 0.1, -fz * 0.6))
 	# The street gable: the picture.
 	var front := _front_quad(root, fid, Vector3(0, H * 0.5, fz), facing, Vector2(W, H))
@@ -940,10 +978,12 @@ func _gable_house(fid: String, cx: float, front_z: float, facing: float, depth: 
 	var kind: Array = kinds[int(opts.get("kind", 0)) % kinds.size()] if not kinds.is_empty() else []
 	var door_z := fz - facing * 2.2
 	var door_mats: Array = spots.get("door_mats", [_mat(TEX_CAMP + "door_wood.png", Color(0.42, 0.3, 0.2))])
-	_face(root, yard + Vector3(0, 1.05, door_z), Vector2(1.0, 2.1), Vector3(1, 0, 0), door_mats[int(opts.get("kind", 0)) % door_mats.size()])
-	if not bool(opts.get("ruin", false)):
+	var no_house := bool(opts.get("bare", false))
+	if not no_house:
+		_face(root, yard + Vector3(0, 1.05, door_z), Vector2(1.0, 2.1), Vector3(1, 0, 0), door_mats[int(opts.get("kind", 0)) % door_mats.size()])
+	if not bool(opts.get("ruin", false)) and not no_house:
 		_porch(root, yard, door_z)
-	if not kind.is_empty():
+	if not kind.is_empty() and not no_house:
 		var k := 1
 		while depth * 0.5 - (2.2 + 3.0 * k) > -depth * 0.5 + 1.2:
 			var wz := fz - facing * (2.2 + 3.0 * k)
@@ -1359,7 +1399,8 @@ func _village_signs() -> void:
 func _hotspots() -> void:
 	_click(Vector3(-6.0, 1.1, -9.9), Vector3(1.8, 2.2, 0.4), "town_door", "jednota")
 	_click(Vector3(16.0, 1.2, -10.4), Vector3(1.8, 2.4, 0.4), "town_door", "pub")
-	_click(Vector3(-30.0, 1.1, 10.4), Vector3(1.6, 2.2, 0.4), "town_door", "motel")
+	if not spots.has("motel_block"):
+		_click(Vector3(-30.0, 1.1, 10.4), Vector3(1.6, 2.2, 0.4), "town_door", "motel")
 	_click(Vector3(50.0, 1.1, 18.9), Vector3(1.6, 2.2, 0.4), "town_door", "kiosk")
 	_click(Vector3(-28.0, 1.3, -18.4), Vector3(1.6, 2.6, 0.4), "town_door", "chapel")
 	_click(Vector3(26.0, 1.4, 12.6), Vector3(1.2, 2.2, 0.8), "town_read", "memorial")
