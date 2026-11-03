@@ -1053,11 +1053,17 @@ func _relay(on: bool) -> void:
 	if on == _relaying:
 		return
 	_relaying = on
+	var stream := _stream(SFX["eat_a"] if _rng.randf() < 0.5 else SFX["eat_b"])
+	# Every other warden's office radio too (co-op: whoever hides in there hears her meal;
+	# coop_night._on_ext "relay").
+	if Coop != null and Coop.is_active() and Coop.is_host():
+		for peer in Coop.others():
+			Coop.send_night_fx("ext", ["relay", [stream.resource_path if stream != null else "", 0.8]] if on else ["relay_off", []], int(peer))
 	var dread = _dread()
 	if dread == null:
 		return
 	if on and dread.has_method("relay"):
-		dread.call("relay", _stream(SFX["eat_a"] if _rng.randf() < 0.5 else SFX["eat_b"]), 0.8)
+		dread.call("relay", stream, 0.8)
 	elif not on and dread.has_method("relay_off"):
 		dread.call("relay_off")
 

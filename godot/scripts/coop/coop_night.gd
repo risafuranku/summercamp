@@ -768,7 +768,8 @@ func on_fx(method: String, args: Array) -> void:
 
 ## An enemy's own thing on this screen: the Photographer's (tourist_brain.gd) picture of
 ## you, taken here of your own warden ([his lens, him in it or null, the last one, the
-## window's place or null]); his flash through one of your windows ([its place]).
+## window's place or null]); his flash through one of your windows ([its place]); the
+## granny's meal on the office radio ([the sound's path, gain]; "relay_off" stops it).
 func _on_ext(what: String, args: Array) -> void:
 	match what:
 		"polaroid":
@@ -789,6 +790,17 @@ func _on_ext(what: String, args: Array) -> void:
 			var flash: Callable = _window_at(args[0]).get("flash", Callable())
 			if flash.is_valid():
 				flash.call()
+		"relay", "relay_off":
+			# The mushroom granny's meal on this office radio too (basket_brain._relay).
+			var im = main.get("_interior_manager")
+			var bi = im.get("_building_interior") if im != null else null
+			var dread = bi.get("_dread") if bi != null else null
+			if dread == null:
+				return
+			if what == "relay" and args.size() >= 2 and ResourceLoader.exists(str(args[0])):
+				dread.call("relay", load(str(args[0])), float(args[1]))
+			elif what == "relay_off":
+				dread.call("relay_off")
 
 
 const POLAROID := preload("res://scripts/enemies/polaroid.gd")
