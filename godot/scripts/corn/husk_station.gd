@@ -16,7 +16,10 @@ const TABLE_AT := Vector2(320, 196)
 const BOWL := Rect2(488, 30, 115, 110)
 const BOWL_SPOTS := [Vector2(520, 70), Vector2(548, 64), Vector2(576, 72), Vector2(530, 96), Vector2(560, 100), Vector2(544, 84)]
 const BUCKET := Rect2(482, 155, 155, 160)
-const COB_M := 0.21
+## The cob on the table (a quarter bigger than the crate's from 2. 11., S25: "it is tiny,
+## mostly you look at the corn"); the husked ones in the bowl stay as they were.
+const COB_M := 0.26
+const BOWL_COB_M := 0.16
 ## A pull this long (design px) takes a leaf off.
 const PULL := 34.0
 
@@ -54,7 +57,7 @@ func _build() -> void:
 		s.visible = false
 		_silk_spr.append(s)
 	for i in BOWL_SPOTS.size():
-		var b := lying("cob_raw", COB_M * 0.75, 0.25 if i % 2 == 0 else -0.2)
+		var b := lying("cob_raw", BOWL_COB_M, 0.25 if i % 2 == 0 else -0.2)
 		b.visible = false
 		_bowl_spr.append(b)
 
@@ -83,11 +86,12 @@ func _show() -> void:
 			put(l, TABLE_AT + Vector2(-4 + (i % 2) * 8, 0), 0.03 + (0.006 if i % 2 == 0 else -0.004))
 			l.position.z += 0.003 + 0.002 * float(i)
 		var silk := int(_cob["silk"])
+		var tip := COB_M * 0.5 / surf_size.x * DESIGN.x - 6.0
 		for i in _silk_spr.size():
 			var s: Sprite3D = _silk_spr[i]
 			s.visible = leaves == 0 and i < silk
 			# At the cob's tip (it lies across: its tip at the right).
-			put(s, TABLE_AT + Vector2(46 + i * 5, 0), 0.04 + i * 0.004)
+			put(s, TABLE_AT + Vector2(tip + i * 5, 0), 0.04 + i * 0.004)
 			s.position.z += 0.004
 	else:
 		for l in _leaf_spr:

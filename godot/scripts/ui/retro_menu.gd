@@ -568,8 +568,10 @@ class OptionsPage:
 					text = "TOGGLE" if bool(_body().get("crouch_toggle", false)) else "HOLD"
 				"controls", "reset", "back", "body", "body_back":
 					text = ""
+			# The value looked up before its arrows: "< NATIVE (PALETTE ONLY) >" whole found
+			# nothing (S6).
 			if str(text) != "" and not _rows[i].has("bar") and not _rows[i].has("action"):
-				text = "< %s >" % text
+				text = "< %s >" % tr(str(text))
 			_value_labels[i].text = text
 			if _bars[i] != null and bar_value >= 0.0:
 				_bars[i].set_value(bar_value)

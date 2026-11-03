@@ -78,6 +78,8 @@ const LOOK_BAND := 0.11
 const LOOK_VBAND := 0.06
 const LOOK_DWELL := 0.08
 const LOOK_YAW := 170.0
+## How quickly the peek (peek_up) comes up and goes back down (an eased glide, 1/s).
+const PEEK_FOLLOW := 7.0
 ## How much of the screen's height the frame's bar takes (station_hud BAR_H of its H).
 const BAR_SHARE := 24.0 / 360.0
 
@@ -106,6 +108,11 @@ var cam_aim := 0.0
 ## How far to the side (the surface's own x) the camera stands and looks: something
 ## beside the counter in the picture too (the Jednota's trolley by its packing table).
 var cam_side := 0.0
+## Degrees the eyes come up off the work while the pointer is held at the top of the
+## picture (or the up arrow), back down to the work as soon as it is lower (the corn
+## stand, S25: "the mouse up and you look at them, down and you are back"); no tip down.
+## 0: the rooms' look, up and down as far as the pointer pushes it.
+var peek_up := 0.0
 ## The business's live state (kitchen.gd, taproom.gd...), set by the room.
 var state: Node
 ## The room's camera (set while you are at it: the pointer is cast through it).
@@ -126,6 +133,8 @@ var _look = LOOK.new(LOOK_YAW, 20.0, 30.0)
 var _open_t := 0.0
 var _band_t := 0.0
 var _vband_t := 0.0
+## The peek now (degrees, eased to peek_up or 0).
+var _peek := 0.0
 ## The pointer's ray in this node's space (for things held up off the surface).
 var _ray_o := Vector3.ZERO
 var _ray_d := Vector3.ZERO
@@ -733,6 +742,7 @@ func open_station(cam: Camera3D) -> void:
 	_open_t = 0.0
 	_band_t = 0.0
 	_vband_t = 0.0
+	_peek = 0.0
 	if building_key != "":
 		last_station[building_key] = station
 	_closing_now = false
@@ -753,6 +763,7 @@ func _tick_look(delta: float) -> void:
 		return
 	var vs := camera.get_viewport().get_visible_rect().size
 	var cur := Vector2(-1, -1)
+	var peek_on := false
 	if _vp_mouse.x >= 0.0 and vs.x > 0.0 and vs.y > 0.0:
 		var c := _vp_mouse / vs
 		# The frame's bar lies over the room's bottom (the pointer there is the bar's): the
@@ -764,19 +775,25 @@ func _tick_look(delta: float) -> void:
 		var x := c.x if _band_t >= LOOK_DWELL else clampf(c.x, LOOK_BAND, 1.0 - LOOK_BAND)
 		# Up and down too (playtest 25. 10.: "let me look up and down at the corn stand"):
 		# the top and bottom bands, a narrower one, over the work and not over the rail or
-		# the bar (the room passes no pointer while it is on them).
-		var in_vband := c.y < LOOK_VBAND or c.y > 1.0 - LOOK_VBAND
+		# the bar (the room passes no pointer while it is on them). A peek has the top one
+		# only.
+		var in_vband := c.y < LOOK_VBAND or (c.y > 1.0 - LOOK_VBAND and peek_up <= 0.0)
 		_vband_t = _vband_t + delta if in_vband and holding() == "" else 0.0
 		var y := c.y if _vband_t >= LOOK_DWELL else clampf(c.y, LOOK_VBAND, 1.0 - LOOK_VBAND)
 		# The narrow bands stretched onto the look's own (its outer fifth turns the head).
 		cur = Vector2(_to_look_band(x, LOOK_BAND), _to_look_band(y, LOOK_VBAND))
-	# The arrows up and down tip the head as left and right turn it.
+		if peek_up > 0.0:
+			peek_on = _vband_t >= LOOK_DWELL
+			cur.y = 0.5
+	# The arrows up and down tip the head as left and right turn it (up peeks).
 	var tip := 0.0
 	if Input.is_physical_key_pressed(KEY_UP):
 		tip -= 1.0
 	if Input.is_physical_key_pressed(KEY_DOWN):
 		tip += 1.0
-	if tip != 0.0:
+	if peek_up > 0.0:
+		peek_on = peek_on or tip < 0.0
+	elif tip != 0.0:
 		cur = Vector2(cur.x if cur.x >= 0.0 else 0.5, 0.5 + tip * 0.5)
 	_look.update(delta, cur, LOOK.key_axis())
 	var base := cam_pose()
@@ -785,6 +802,9 @@ func _tick_look(delta: float) -> void:
 	var down := asin(clampf(-base.basis.z.normalized().y, -1.0, 1.0))
 	var away := smoothstep(15.0, 70.0, absf(_look.yaw_deg))
 	var pitch := deg_to_rad(_look.pitch_deg) - (down + deg_to_rad(6.0)) * away
+	if peek_up > 0.0:
+		_peek = lerpf(_peek, peek_up if peek_on else 0.0, 1.0 - exp(-PEEK_FOLLOW * delta))
+		pitch = maxf(pitch, deg_to_rad(_peek))
 	var b := base.basis.rotated(base.basis.x.normalized(), pitch).rotated(Vector3.UP, deg_to_rad(_look.yaw_deg))
 	camera.global_transform = Transform3D(b, base.origin)
 
@@ -1282,6 +1302,12 @@ func debug_mouse_to(px: Vector2, lift := 0.0) -> void:
 	var vsize := camera.get_viewport().get_visible_rect().size
 	var win := get_tree().root.get_visible_rect().size
 	debug_mouse = sp / vsize * win
+	get_tree().root.warp_mouse(debug_mouse)
+
+
+## The pointer at a share of the window (0..1 across and down): the look's bands, the peek.
+func debug_mouse_at(share: Vector2) -> void:
+	debug_mouse = share * get_tree().root.get_visible_rect().size
 	get_tree().root.warp_mouse(debug_mouse)
 
 

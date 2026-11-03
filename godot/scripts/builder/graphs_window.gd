@@ -1,7 +1,7 @@
 extends Control
 
 ## Builder 98's Graphs window (DESIGN §5j), Transport Tycoon's in a 1998 dress: one page
-## at a time (Cash, Guests, Mood, Goggle, Takings), the last two weeks, a line per thing,
+## at a time (Cash, Guests, Mood, Atlas, Takings), the last two weeks, a line per thing,
 ## the grid and the numbers along the sides; on Takings a line per kind of business,
 ## each one's name in the legend turning it off and on. The days come from main's
 ## _day_graph (scripts/builder/day_graph.gd), today's point live.
@@ -9,7 +9,7 @@ extends Control
 const T = preload("res://scripts/os98/os_theme.gd")
 const LANG = preload("res://scripts/lang.gd")
 const SIZE := Vector2(440, 268)
-const PAGES := [["money", "Cash"], ["guests", "Guests"], ["mood", "Mood"], ["rating", "Goggle"], ["takings", "Takings"]]
+const PAGES := [["money", "Cash"], ["guests", "Guests"], ["mood", "Mood"], ["rating", "Atlas"], ["takings", "Takings"]]
 const KINDS := [["pub", "Pub", Color8(150, 80, 30)], ["rest", "Bistro", Color8(190, 30, 30)], ["vecerka", "Jednota", Color8(30, 70, 190)], ["corn", "Corn stand", Color8(200, 160, 0)]]
 const LINE := {"money": Color8(0, 140, 40), "guests": Color8(30, 70, 190), "mood": Color8(220, 120, 0), "rating": Color8(200, 150, 0)}
 
@@ -73,7 +73,7 @@ func _lines() -> Array:
 			return [["Mood", LINE["mood"], g.series("mood", today, mood)]]
 		"rating":
 			var gg = m.get("_goggle")
-			return [["Goggle", LINE["rating"], g.series("rating", today, gg.rating(today) if gg != null else null)]]
+			return [["Atlas", LINE["rating"], g.series("rating", today, gg.rating(today) if gg != null else null)]]
 		"takings":
 			var out: Array = []
 			var st = CoreRoot.get_state()

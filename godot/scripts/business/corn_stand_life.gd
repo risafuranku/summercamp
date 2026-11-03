@@ -235,6 +235,7 @@ func make_stations(key: String) -> Dictionary:
 		v.set("cam_back", float(surf.get("cam_back", 0.0)))
 		v.set("cam_up", float(surf.get("cam_up", 0.0)))
 		v.set("cam_aim", float(surf.get("cam_aim", 0.0)))
+		v.set("peek_up", float(surf.get("peek", 0.0)))
 		v.set("state", stand)
 		r.add_child(v)
 		stations[id] = v

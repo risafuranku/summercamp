@@ -148,8 +148,13 @@ Six archetypes, with different needs (`core/systems/guest_needs_system.gd`):
   taking the first booking that arrives fills the camp with whoever wrote first. Lazy
   booking makes a hard night; deliberate booking (mix + the right facilities, so nobody
   is unhappy) makes a quiet one.
-- The inbox is slow at first: bookings arrive 07:00-20:00, about three on day 1 rising
-  to ten on day 7, never more than a few waiting; spam now and then. At night at most
+- The inbox follows the camp: every free bed is a chance that someone finds it. Bookings
+  arrive 07:00-20:00; a tent or two hear from two or three parties on day 1, thirty empty
+  beds from about ten and are mostly full by the second evening; more as the week goes on,
+  the stars pulling it up or down; a few letters wait unanswered at most (more with more
+  free beds), and a full camp gets one now and then to turn down. (Until 2. 11. it was
+  about three on day 1 whatever stood: "I build lots of tents and cabins, the camp is
+  empty and nobody comes.") Spam now and then. At night at most
   one false alarm (a relay test, a wrong number), and the belt pager beeps for every
   new mail while you are out: you go to the office not knowing which kind it is.
 - Guests mostly keep to themselves: a third are out in the open by day; the rest rest
@@ -636,14 +641,49 @@ or sparks flying. The mess itself jitters under the brush. All of it moves in st
 8-12 frames a second, never smooth: the guests' walk, the bonfire's flames and sparks,
 the desk fan, the wicket gate, the ripples where a fish jumps. That stutter is the look.
 
-## 5i. The camp on Goggle
+## 5i. The camp on Atlas
 
-The PC's fifth tab, Reviews (key 5, after Mail), is the camp's page on Goggle, a 1998 search
-engine's places page (`scripts/reviews/goggle.gd` the logic, `os98/apps/goggle_app.gd`
-the page). Every guest's review goes up in public; the stars are the plain average of
-what is up, to one decimal. The page was there before you: seven reviews from last
-summer, mostly bad, and one nobody should have written ("Do not let the boy in the red
-shoes in. He knocks.", answered by someone who is not you).
+The PC's fifth tab, Atlas (key 5, after Mail), is the camp's entry in Atlas, a Czech web
+directory of 1998 (`scripts/reviews/goggle.gd` the logic, `os98/apps/atlas_app.gd` the
+page; the code keeps the name from when it was Goggle, a search engine's places page,
+till the user's 30. 10.: "a Czech directory of the 90s, call it Atlas, red and black").
+Atlas is black and red: a black masthead with the red globe and ATLAS (the tab's icon,
+`tools/artgen/atlas_art.py`), "the Czech web directory" and the search; a red bar of
+where you are (Catalogue > Travel > Camps > Camp Cerne Jezero, each step a link) with
+Advertise on black at its end; white pages with red underlined links, as such a
+directory had them. Four pages:
+
+- **The camp's page** (it opens there). Every guest's review goes up in public; the stars
+  are the plain average of what is up, to one decimal, the bars of five to one in red.
+  The page was there before you: seven reviews from last summer, mostly bad, and one
+  nobody should have written ("Do not let the boy in the red shoes in. He knocks.",
+  answered by someone who is not you). Newest, lowest or highest first, three to a page
+  (<< Previous 1 2 3 Next >>), or the photos.
+- **The catalogue**, Atlas's front page: a full banner (468 x 60) over twelve sections
+  with three of their own and how many pages each has (Cars and motorbikes, Travel,
+  Business and money...). Travel leads on to Camps; the others are being rebuilt (the
+  page says so). Under them Add a page, Advertise on Atlas, About Atlas, the copyright and
+  the day's visits.
+- **Camps** (Hlubocany district): the camp among five others of the district by their
+  stars (Chatova osada Raj 4.3, Autokemp Lesna 3.8...), each with what it has and its
+  address; a new camp at 2.3 is last.
+- **Advertise on Atlas** (the user 30. 10.: "on Atlas buy ads, banners: some percent
+  more mails for a while, as in RollerCoaster Tycoon"; other advertising later, he has
+  bigger plans for it). Three kinds, for 1, 3 or 7 days from the hour they are paid
+  (`goggle.ADS`): a priority listing ($30 a day, +15 % booking letters: the camp first
+  under Camps, in red with a TIP), a banner in Travel ($80, +30 %: over the camps), the
+  front page's banner ($180, +50 %: over the catalogue). While one runs the booking
+  letters come that much more often (`EmailManager._roll_customer_mail_count`; thirty
+  free beds on day 2: 16 a day, 24 with the front page's, 30 with all three); one of a
+  kind at a time, the kinds add up. The page sketches where each shows, the price for
+  the days chosen, Order... (asked first, paid in advance) or how long it still runs;
+  the camp's banner beside them (a GIF of two frames: the lake's photo, the name in
+  yellow or FREE BEDS!, CLICK HERE! blinking; on the pages a click on it opens the
+  camp's). Where nobody has bought the front page, Atlas sells it: YOUR CAMP HERE?. When
+  a campaign is over, as RollerCoaster Tycoon's news said one had finished: the status
+  line, and Atlas's mail with how many saw it, how many clicked (1-3 %, as a banner of
+  1998) and the booking letters that came while it ran. In co-op the other warden's
+  order runs on the host's page (a second of the same kind at once is paid back).
 
 - **The guests are the progression, not the rating** (Richard, 2026-10-20: the start
   must play; the rating stays on the page and may matter again later, for now it opens
@@ -658,19 +698,19 @@ shoes in. He knocks.", answered by someone who is not you).
 - People look before they book: each star above or below three moves the booking
   chance by 0.07.
 - SpotlessName Ltd take a review down by the next morning, for $45 and $30 more for each
-  one after. Now and then Goggle notices (10 %, 5 % more per removal): the review stays,
+  one after. Now and then Atlas notices (10 %, 5 % more per removal): the review stays,
   the money is gone, and the page carries "Unusual review activity" and loses 0.3 stars
   for three days.
 - The owner can answer: an apology to a one- or two-star review has a 40 % chance of an
   edit by the morning (a star more), blaming the weather never does. Answering the same
-  review in CampMail's guest book answers it on Goggle too.
+  review in CampMail's guest book answers it on Atlas too.
 - The tab's badge counts new reviews, red when one of them is bad.
-- Photos (the tab after the sorts): last summer's guests' snaps of the camp, a cheap
-  compact's prints with the orange date in the corner (`tools/artgen/goggle_photos.py`,
-  made from the game's own frames), big on a click. In one of them somebody stands at the
-  edge of the trees behind the tents; nothing on the page says so. Under them "People also
-  searched for": Agrostroj Hlubocany's feed mill (planned; its site opens in the browser),
-  U Jezera, Jednota Lesna.
+- Photos (after the sorts): last summer's guests' snaps of the camp, a cheap compact's
+  prints with the orange date in the corner (`tools/artgen/goggle_photos.py`, made from
+  the game's own frames), big on a click. In one of them somebody stands at the edge of
+  the trees behind the tents; nothing on the page says so. Under them "People also
+  searched for": Agrostroj Hlubocany's feed mill (planned; its site opens in the
+  browser), U Jezera, Jednota Lesna.
 
 ## 5j. Builder 98, a game in the game
 
@@ -678,7 +718,7 @@ The user: "the Builder should feel like a game of its own: an imitation of the 9
 tycoon games, and fun." Builder 98 is Stavitel software's shareware site planner, and it
 plays like RollerCoaster Tycoon or Transport Tycoon on a cheap 1998 PC
 (`builder_module.gd` the program, `crt_map_panel.gd` the map). A star rating of its own
-was left out: the camp's rating is Goggle (§5i); the blueprints open by guests (§5i).
+was left out: the camp's rating is on Atlas (§5i); the blueprints open by guests (§5i).
 
 - **A build is a building site.** For a moment the plot is a scaffold with a worker
   kneeling at a plank, hammering (two frames, a blow every 0.36 s), and on bigger plots a
@@ -762,7 +802,7 @@ was left out: the camp's rating is Goggle (§5i); the blueprints open by guests 
   that something is buried there. The site report now and then counts one guest more
   than there are, after six.
 - **Graphs** (the toolbar's chart, or G): Transport Tycoon's window in the 98 look, one
-  page at a time: Cash, Guests (people staying), Mood, Goggle, Takings (a line per kind
+  page at a time: Cash, Guests (people staying), Mood, Atlas, Takings (a line per kind
   of business, each name in the legend turning it off and on), the last two weeks with
   today's point live. Main records each day that ended at dawn
   (`scripts/builder/day_graph.gd`, saved as "graph").
@@ -1114,6 +1154,13 @@ the stations in 3D, like the bistro's and the pub's.*
   stand, the paths, the weather), through the Build palette like every view. Your warden
   stands behind the counter meanwhile (the others see you there). The frame under it as
   at the bistro: BACK (S, the right button), the two stations (Tab, 1-2), BOOKS.
+  From 2. 11. (S25, the playtest of 30. 10.: "the husking is tiny, right at the bottom
+  and not turned to the camera; mostly you look at the corn and see a little of the
+  guests at the top, the mouse up to look at them, down and back") the work is most of
+  the picture: the eye over the cook's edge looks down at the surface, from just over the
+  frame's bar up to the guests at the top, the cob being husked a quarter bigger in the
+  middle and turned to you; the pointer held at the top of the picture lifts the eyes to
+  the guests, anywhere lower they come back down to the work (a peek, no tip down).
 - **Two stations on the counter**, worked where they are (the stand's own Build
   pictures laid on its counter top; everybody going by sees the cobs in the pot):
   - *The husking* (the left): the crate of cobs in their husks; a click puts one on the

@@ -1573,7 +1573,9 @@ func _hover_things(collider: Node) -> void:
 		st.room_glint(true)
 
 
-func _station_of_body(body: Node) -> Node:
+## Untyped: the last glinting body may be gone with the room it was in (a typed argument
+## failed on it every frame and the next room glinted nothing).
+func _station_of_body(body) -> Node:
 	if body == null or not is_instance_valid(body) or not body.has_meta("bistro_station"):
 		return null
 	var st = _stations.get(str(body.get_meta("bistro_station")), null)

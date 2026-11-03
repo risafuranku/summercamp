@@ -115,7 +115,7 @@ func build_hint_text(interact_distance: float, utility_repairs_enabled: bool) ->
 			var label = failed_type
 			if _economy_manager != null and _economy_manager.has_method("get_label"):
 				label = str(_economy_manager.get_label(failed_type))
-			return "[E] Repair: %s" % label
+			return tr("[E] Repair: %s") % tr(label)
 
 	var collider = resolve_interactable_target(interact_distance)
 	if collider == null:
@@ -131,7 +131,9 @@ func build_hint_text(interact_distance: float, utility_repairs_enabled: bool) ->
 		hint = str(_interior_manager.get_hint_for_building_type(building_type))
 	if hint == "":
 		return ""
-	return "[E] %s" % hint
+	# The hint looked up alone: the HUD gets it upper-cased with its key, which no
+	# catalogue has ("[E] ENTER CABIN" stayed English, S6).
+	return "[E] %s" % tr(hint)
 
 
 func _get_player() -> Node:

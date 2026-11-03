@@ -257,6 +257,10 @@ def main():
         elif cgo.get("removing") != hgo.get("removing") or cgo.get("replies") != hgo.get("replies"):
             failures.append("Goggle differs: the other machine booked %s, answered %s; the host's page %s, %s" % (
                 cgo.get("removing"), cgo.get("replies"), hgo.get("removing"), hgo.get("replies")))
+        # Atlas's banner bought on the other machine runs on the host's page (and back).
+        if "travel" not in hgo.get("ads", []) or hgo.get("ads") != cgo.get("ads"):
+            failures.append("the banner the other warden bought on Atlas does not run on the host's page (host %s, other %s)" % (
+                hgo.get("ads"), cgo.get("ads")))
     # The delivery at the host's gate: the other sees it, signs for it, and it is done in the host's camp.
     cde, cdd, hdd = load("client_day_event"), load("client_day_done"), load("host_day_done")
     if cde is None or cdd is None or hdd is None:

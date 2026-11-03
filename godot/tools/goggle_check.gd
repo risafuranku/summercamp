@@ -1,11 +1,13 @@
 extends SceneTree
 
-## Headless check of the camp on Goggle (scripts/reviews/goggle.gd): a new camp's page
-## has last summer's reviews and a low rating, only the first blueprints open; good
-## guests' reviews raise the rating and open the next tier (and it stays open); a review
-## booked for removal is gone the next morning (or, caught, stays and flags the page with
-## the rating down), each removal dearer than the one before; an apology may bring a
-## star by the morning; the state survives a save (JSON turns its numbers into floats).
+## Headless check of the camp on Atlas (scripts/reviews/goggle.gd, from when it was
+## Goggle): a new camp's page has last summer's reviews and a low rating, only the first
+## blueprints open; good guests' reviews raise the rating and open the next tier (and it
+## stays open); a review booked for removal is gone the next morning (or, caught, stays
+## and flags the page with the rating down), each removal dearer than the one before; an
+## apology may bring a star by the morning; Atlas's advertising runs its days from the
+## hour it was paid, one of a kind at a time, the kinds adding up, and ends with its
+## report; the state survives a save (JSON turns its numbers into floats).
 ##
 ##   godot --headless --path godot --script res://tools/goggle_check.gd
 
@@ -93,7 +95,7 @@ func _run() -> void:
 			_expect(g2.flagged(d), "a caught removal flags the page")
 			_expect(g2.rating(d) <= snappedf(g2.average(), 0.1), "a flagged page rates lower")
 			break
-	_expect(caught == 1, "Goggle catches a removal sooner or later")
+	_expect(caught == 1, "Atlas catches a removal sooner or later")
 	# An apology may bring a star.
 	var g3 = GOGGLE.new(11)
 	g3.reset(11)
@@ -104,8 +106,31 @@ func _run() -> void:
 	edited = (g3.settle(3)["edited"] as Array).size()
 	print("apologies: %d of 30 edited" % edited)
 	_expect(edited > 3 and edited < 25, "some apologies bring a star, not all (%d of 30)" % edited)
+	# Atlas's advertising: from the hour it is paid for its days, one of a kind at a time.
+	var now := 3 * 24 + 15
+	_expect(GOGGLE.ad_cost("front", 3) == 3 * int(GOGGLE.ADS["front"]["per_day"]), "a campaign costs its days")
+	_expect(not g.buy_ad("billboard", 3, now) and not g.buy_ad("listing", 2, now), "only the kinds and days on offer")
+	_expect(is_zero_approx(g.ad_boost(now)), "no campaign, no more letters")
+	_expect(g.buy_ad("listing", 3, now), "a priority listing can be bought")
+	_expect(not g.buy_ad("listing", 7, now + 5), "not a second of the same kind while it runs")
+	_expect(g.buy_ad("front", 1, now + 2), "another kind can run beside it")
+	_expect(is_equal_approx(g.ad_boost(now + 3), float(GOGGLE.ADS["listing"]["boost"]) + float(GOGGLE.ADS["front"]["boost"])), "the kinds add up (%.2f)" % g.ad_boost(now + 3))
+	_expect(is_equal_approx(g.ad_boost(now + 1), float(GOGGLE.ADS["listing"]["boost"])), "a campaign does not run before it was paid")
+	g.note_letters(now + 3, 4)
+	g.note_letters(now + 30, 2)
+	_expect(g.end_ads(now + 2 + 23).is_empty(), "nothing ends before its hours are up")
+	var ended: Array = g.end_ads(now + 2 + 24)
+	_expect(ended.size() == 1 and str(ended[0]["kind"]) == "front" and int(ended[0]["letters"]) == 4, "the front page's day ends with the letters of its day (%s)" % str(ended))
+	if ended.size() == 1:
+		var views := int(ended[0]["views"])
+		_expect(views > 30000 and views < 50000 and int(ended[0]["clicks"]) > views / 100 and int(ended[0]["clicks"]) < views / 25, "the report: about 40,000 saw it, 1-3 %% clicked (%d, %d)" % [views, int(ended[0]["clicks"])])
+	_expect(g.ad_running("front", now + 2 + 24).is_empty() and not g.ad_running("listing", now + 2 + 24).is_empty(), "the listing runs on when the front page's is over")
+	_expect(is_equal_approx(g.ad_boost(now + 30), float(GOGGLE.ADS["listing"]["boost"])), "and only it brings letters then")
 	# The save.
 	var saved = JSON.parse_string(JSON.stringify(g.export_state()))
 	var g4 = GOGGLE.new(1)
 	g4.import_state(saved)
 	_expect(g4.count() == g.count() and is_equal_approx(g4.rating(10), g.rating(10)) and g4.tier == g.tier and g4.peak_guests == g.peak_guests and g4.removal_cost() == g.removal_cost(), "the page survives a save")
+	var run: Dictionary = g4.ad_running("listing", now + 30)
+	_expect(not run.is_empty() and int(run["letters"]) == 6 and int(run["to_h"]) == now + 72 and is_equal_approx(g4.ad_boost(now + 30), g.ad_boost(now + 30)), "a campaign survives a save (%s)" % str(run))
+	_expect(g4.end_ads(now + 72).size() == 1 and g4.ads.is_empty(), "and ends when its days are up")

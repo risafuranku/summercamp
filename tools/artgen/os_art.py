@@ -7,7 +7,6 @@ are skipped.
 -> godot/assets/textury/os98/icons/<name>.png (32 px) and <name>_16.png  (ico2_*)
    godot/assets/textury/os98/oem_splash.png   the maker's boot screen, 640x480, text set
    godot/assets/textury/os98/wall_autumn.png, wall_okna.png   wallpapers, 640x480
-   godot/assets/textury/builder/splash.png    Builder 98's title picture
    godot/assets/textury/builder/tb2_*.png     Builder's toolbar, 32 px
    godot/assets/textury/builder/dust.png      the puff a building lands with
    godot/assets/textury/mail/spam_*.png       the pictures spam carries
@@ -125,11 +124,7 @@ def walls():
 
 
 def builder():
-    img = raw("bld_splash")
-    if img is not None:
-        img = img.convert("RGB").resize((512, 288), Image.LANCZOS)
-        img.quantize(colors=128, dither=Image.Dither.NONE).convert("RGB").save(os.path.join(GODOT, "builder", "splash.png"))
-        print("builder splash")
+    # (Builder 98's title picture, bld_splash, went 2. 11.: the title window is drawn, scripts/builder/splash.gd.)
     for n in ["bulldoze", "path", "lamp", "housing", "services", "fun", "utilities", "rotate", "zoom"]:
         k = keyed("tb2_" + n)
         if k is None:

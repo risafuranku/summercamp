@@ -15,11 +15,31 @@ extends Control
 
 const T = preload("res://scripts/os98/os_theme.gd")
 const ICONS = preload("res://scripts/os98/apps/browser_icons.gd")
+const LANG = preload("res://scripts/lang.gd")
 const IMG_DIR := "res://assets/textury/mail/"
+## A "rich" mail's points: a line that starts with ":name: " is a row of pictures and text.
+const MAIL_ICONS := {
+	"housing": "res://assets/textury/builder/tb2_housing.png",
+	"bulldoze": "res://assets/textury/builder/tb2_bulldoze.png",
+	"toilet": "res://assets/textury/builder/tb2_services.png",
+	"food": "res://assets/textury/builder/cat_food.png",
+	"mail": "res://assets/textury/os98/icons/mail.png",
+	"register": "res://assets/textury/os98/icons/guestrack.png",
+	"money": "res://assets/textury/os98/icons/money.png",
+	"help": "res://assets/textury/os98/icons/help.png",
+}
+## The booking card's last line by how likely trouble is tonight (GuestManager's tiers).
+const RISK_CHANCE := {
+	"tiny": "A tiny chance of trouble tonight (~%d%%).",
+	"small": "A small chance of trouble tonight (~%d%%).",
+	"medium": "A fair chance of trouble tonight (~%d%%).",
+	"large": "A big chance of trouble tonight (~%d%%).",
+}
 const MY_ADDRESS := "kemp.cj@bohemia-online.cz"
 const FOLDERS := [["inbox", "Inbox"], ["sent", "Sent Items"], ["deleted", "Deleted Items"]]
 const TOOL_H := 42
-const FOLDER_W := 132
+## Wide enough for "Doručená pošta (12)" in bold (it was cut after the name).
+const FOLDER_W := 160
 
 var _shell
 var _win
@@ -44,6 +64,10 @@ var _c_to: LineEdit
 var _c_subject: LineEdit
 var _c_body: TextEdit
 var _icon_cache: Dictionary = {}
+## The programs' names made links ([RegEx, app id]), from their titles (`_program_links`),
+## and the language they were made for.
+var _program_res: Array = []
+var _program_res_locale := ""
 
 
 func setup(shell, win, _args: Dictionary) -> void:
@@ -134,8 +158,15 @@ func _build() -> void:
 	add_child(_header)
 	_body = RichTextLabel.new()
 	_body.bbcode_enabled = true
-	# Links in a mail (Vera's to the programs): a click downloads the file.
+	# Links in a mail: Vera's download the file, a program's name opens it.
 	_body.meta_clicked.connect(_on_link)
+	_body.meta_hover_started.connect(func(m):
+		_shell.pointer_hand = true
+		_status.text = _link_status(str(m)))
+	_body.meta_hover_ended.connect(func(_m):
+		_shell.pointer_hand = false
+		_update_status())
+	_body.mouse_exited.connect(func(): _shell.pointer_hand = false)
 	_body.selection_enabled = false
 	_body.add_theme_stylebox_override("normal", T.box("field", T.WHITE, Vector4(8, 6, 8, 6)))
 	add_child(_body)
@@ -311,7 +342,7 @@ func refresh() -> void:
 		return ka > kb if _sort_desc else ka < kb
 	)
 	for c in 4:
-		var title: String = ["", "From" if _folder != "sent" else "To", "Subject", "Received" if _folder != "sent" else "Sent"][c]
+		var title: String = tr(["", "From" if _folder != "sent" else "To", "Subject", "Received" if _folder != "sent" else "Sent"][c])
 		if c == _sort_col and c > 0:
 			title += "  v" if _sort_desc else "  ^"
 		_list.set_column_title(c, title)
@@ -350,7 +381,8 @@ func _refresh_folders() -> void:
 		for m in _folder_rows(str(f[0])):
 			if str(f[0]) != "sent" and not bool(m.get("_read", false)):
 				n += 1
-		it.set_text(0, str(f[1]) + ("  (%d)" % n if n > 0 else ""))
+		# The name looked up alone: "Inbox  (2)" whole is no catalogue's (S6).
+		it.set_text(0, tr(str(f[1])) + (" (%d)" % n if n > 0 else ""))
 		if n > 0:
 			it.set_custom_font(0, T.FONT_BOLD)
 		it.set_icon(0, _shell.icon("folder" if str(f[0]) != "deleted" else "bin", true))
@@ -441,7 +473,7 @@ func _draw_header() -> void:
 	c.draw_style_box(T.box("thin_raised", T.FACE), Rect2(Vector2.ZERO, c.size))
 	var sent := _current.has("to") and not _current.has("from")
 	var rows := [
-		["From:", MY_ADDRESS if sent else str(_current.get("from", "?"))],
+		["From:", MY_ADDRESS if sent else tr(str(_current.get("from", "?")))],
 		["To:", str(_current.get("to", "")) if sent else MY_ADDRESS],
 		["Date:", _long_date(_current)],
 		["Subject:", tr(str(_current.get("subject", "")))],
@@ -471,16 +503,24 @@ func _show_message(mail: Dictionary) -> void:
 		return
 	_body.clear()
 	var text := _esc(_body_in_language(str(mail.get("body", ""))).strip_edges())
-	# Quoted lines in the colour CampMail gave them.
-	var lines := text.split("\n")
+	var rich := bool(mail.get("rich", false))
+	# Quoted lines in the colour CampMail gave them; a rich mail's points in a table.
 	var out := ""
-	for l in lines:
+	var points: Array = []
+	for l in text.split("\n"):
+		var icon := _point_icon(l) if rich else ""
+		if icon != "":
+			points.append([icon, l.substr(l.find(": ", 1) + 2)])
+			continue
+		if not points.is_empty():
+			_body.append_text(_linked(out, mail))
+			_append_points(points, mail)
+			out = ""
+			points.clear()
 		out += ("[color=#000080]%s[/color]" % l if l.begins_with(">") else l) + "\n"
-	for link in mail.get("links", []):
-		if link is Dictionary:
-			var lt := _esc(str(link.get("text", "")))
-			out = out.replace(lt, "[url=dl:%s|%s][color=#0000c0][u]%s[/u][/color][/url]" % [str(link.get("file", "")), str(link.get("text", "")), lt])
-	_body.append_text(out)
+	_body.append_text(_linked(out, mail))
+	if not points.is_empty():
+		_append_points(points, mail)
 	var img := str(mail.get("image", ""))
 	if img != "" and ResourceLoader.exists(IMG_DIR + img + ".png"):
 		var tex: Texture2D = load(IMG_DIR + img + ".png")
@@ -507,12 +547,100 @@ func refresh_tools() -> void:
 
 func _on_link(meta) -> void:
 	var m := str(meta)
+	if m.begins_with("app:") and _shell != null:
+		_shell.play("click", -10.0)
+		_shell.pointer_hand = false
+		_shell.open_app(m.substr(4))
+		return
 	if not m.begins_with("dl:"):
 		return
 	var parts := m.substr(3).split("|")
 	if parts.size() >= 1 and _shell != null and _shell.has_method("start_download"):
 		_shell.play("click", -10.0)
 		_shell.start_download(parts[0], parts[1] if parts.size() > 1 else parts[0])
+
+
+## The status bar while the pointer is on a link, as Outlook Express said where it went.
+func _link_status(meta: String) -> String:
+	if meta.begins_with("app:"):
+		var id := meta.substr(4)
+		var title := str((_shell.PROGRAMS.get(id, {}) as Dictionary).get("title", _shell.TAB_TITLES.get(id, id)))
+		return LANG.f("Opens %s", [tr(title)])
+	if meta.begins_with("dl:"):
+		return LANG.f("Download %s", [meta.substr(3).split("|")[0]])
+	return ""
+
+
+## The picture of a rich mail's point (a line that starts with ":name: ", MAIL_ICONS);
+## "" for any other line.
+func _point_icon(line: String) -> String:
+	var end := line.find(": ", 1)
+	if not line.begins_with(":") or end < 0:
+		return ""
+	return str(MAIL_ICONS.get(line.substr(1, end - 1), ""))
+
+
+## A rich mail's points: a table of the pictures and the text beside them.
+func _append_points(points: Array, mail: Dictionary) -> void:
+	_body.push_table(2, INLINE_ALIGNMENT_TOP)
+	_body.set_table_column_expand(0, false)
+	_body.set_table_column_expand(1, true)
+	for p in points:
+		_body.push_cell()
+		_body.set_cell_padding(Rect2(0, 2, 8, 6))
+		_body.add_image(load(str(p[0])), 32, 32)
+		_body.pop()
+		_body.push_cell()
+		_body.set_cell_padding(Rect2(0, 2, 0, 6))
+		_body.append_text(_linked(str(p[1]), mail))
+		_body.pop()
+	_body.pop()
+
+
+## A piece of the mail's text with its marks: *bold* in a rich mail, the downloads' links
+## (Vera's), and the programs' names made links outside the tags and links already there.
+func _linked(bb: String, mail: Dictionary) -> String:
+	if bool(mail.get("rich", false)):
+		bb = RegEx.create_from_string("\\*([^*\\n]+)\\*").sub(bb, "[b]$1[/b]", true)
+	for link in mail.get("links", []):
+		if link is Dictionary:
+			var lt := _esc(str(link.get("text", "")))
+			bb = bb.replace(lt, "[url=dl:%s|%s][color=#0000c0][u]%s[/u][/color][/url]" % [str(link.get("file", "")), str(link.get("text", "")), lt])
+	var out := ""
+	var at := 0
+	for t in RegEx.create_from_string("\\[url=[^\\]]*\\].*?\\[/url\\]|\\[[^\\]]*\\]").search_all(bb):
+		out += _link_names(bb.substr(at, t.get_start() - at)) + t.get_string()
+		at = t.get_end()
+	return out + _link_names(bb.substr(at))
+
+
+func _link_names(text: String) -> String:
+	for pl in _program_links():
+		text = (pl[0] as RegEx).sub(text, "[url=app:%s][color=#0000c0][u]$0[/u][/color][/url]" % pl[1], true)
+	return text
+
+
+## A program named in a mail is a link to it, in Czech too ("v Builderu 98"): the user
+## 30. 10.: "in Builder do this and that, and I click the word and Builder opens". The
+## names are the programs' titles as written and as translated (os_shell.PROGRAMS: Kuchař
+## 98; and Atlas); a name that could be any word (Pult, Personal) only with its
+## "98", Builder ("v Builderu") and the ones in CamelCase without it.
+func _program_links() -> Array:
+	var locale := TranslationServer.get_locale()
+	if _shell == null or (not _program_res.is_empty() and _program_res_locale == locale):
+		return _program_res
+	_program_res.clear()
+	_program_res_locale = locale
+	# Atlas by its name alone (the tab's title: "Atlas - ...").
+	var stems := {str(_shell.TAB_TITLES["reviews"]).get_slice(" ", 0): ["reviews", false]}
+	for id in _shell.PROGRAMS:
+		for title in [str(_shell.PROGRAMS[id]["title"]), tr(str(_shell.PROGRAMS[id]["title"]))]:
+			if title.ends_with(" 98"):
+				var stem: String = title.trim_suffix(" 98")
+				stems[stem] = [id, id != "builder" and stem.substr(1) == stem.substr(1).to_lower()]
+	for stem in stems:
+		_program_res.append([RegEx.create_from_string("\\b%s[A-Za-z0-9áčďéěíňóřšťúůýžÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ]*%s" % [stem, " 98" if stems[stem][1] else "(?: 98)?"]), stems[stem][0]])
+	return _program_res
 
 
 func _attachment_name(mail: Dictionary) -> String:
@@ -578,13 +706,13 @@ func _quote(mail: Dictionary) -> String:
 func _review_card(mail: Dictionary) -> String:
 	var r: Dictionary = mail.get("review", {})
 	var stars := int(r.get("rating", 3))
-	var s := "[b]Guest book[/b]\n%s\n%s\n\n" % [str(r.get("name", "")), "[color=#c08000]" + "*".repeat(stars) + "[/color][color=#a0a0a0]" + "*".repeat(5 - stars) + "[/color]"]
+	var s := "[b]%s[/b]\n%s\n%s\n\n" % [tr("Guest book"), str(r.get("name", "")), "[color=#c08000]" + "*".repeat(stars) + "[/color][color=#a0a0a0]" + "*".repeat(5 - stars) + "[/color]"]
 	if bool(mail.get("_actioned", false)):
 		for opt in EmailManager.REVIEW_REPLIES:
 			if str(opt["id"]) == str(mail.get("reply", "")):
-				s += "[color=#606060]You answered:[/color]\n[i]%s[/i]" % str(opt["text"])
+				s += "[color=#606060]%s[/color]\n[i]%s[/i]" % [tr("You answered:"), tr(str(opt["text"]))]
 	else:
-		s += "[color=#606060]People read the answers before they book.[/color]"
+		s += "[color=#606060]%s[/color]" % tr("People read the answers before they book.")
 	return s
 
 
@@ -723,14 +851,15 @@ func _booking_card(mail: Dictionary) -> String:
 	var nights: int = maxi(1, int(p.get("stay_nights", mail.get("nights", 1))))
 	var pay: int = maxi(0, int(p.get("daily_total", mail.get("daily_total", 0))))
 	var beds: Dictionary = GuestManager.get_bed_metrics()
-	var t := "[b]BOOKING REQUEST[/b]\n"
-	t += "%s, party of %d\n" % [_esc(str(p.get("guest_name", "Guest"))), party]
-	t += "%s\n" % _esc(str(p.get("archetype_label", p.get("archetype", ""))))
-	t += "%d night(s), $%d a day ([b]$%d[/b])\n" % [nights, pay, pay * nights]
-	t += "Arrives about 1-2 hours after you accept.\n"
-	t += "Free beds: %d of %d (needs %d)\n" % [int(beds.get("free", 0)), int(beds.get("capacity", 0)), party]
+	# Line by line through the catalogue (S6: the card was English in Czech).
+	var t := "[b]%s[/b]\n" % tr("BOOKING REQUEST")
+	t += LANG.f("%s, party of %d", [_esc(str(p.get("guest_name", "Guest"))), party]) + "\n"
+	t += "%s\n" % _esc(tr(str(p.get("archetype_label", p.get("archetype", "")))))
+	t += LANG.f("%d night(s), $%d a day ([b]$%d[/b])", [nights, pay, pay * nights]) + "\n"
+	t += tr("Arrives about 1-2 hours after you accept.") + "\n"
+	t += LANG.f("Free beds: %d of %d (needs %d)", [int(beds.get("free", 0)), int(beds.get("capacity", 0)), party]) + "\n"
 	if bool(mail.get("_actioned", false)):
-		t += "\n[b]Already answered.[/b]\n"
+		t += "\n[b]%s[/b]\n" % tr("Already answered.")
 	t += "\n" + _risk_lines(str(p.get("archetype", mail.get("archetype", ""))), party)
 	return t
 
@@ -740,16 +869,16 @@ func _risk_lines(archetype: String, party: int) -> String:
 	if archetype.is_empty():
 		return ""
 	var impact: Dictionary = GuestManager.get_liminal_booking_impact(archetype, party)
-	var label := str(impact.get("label", archetype))
-	var t := "[b]NIGHT RISK[/b]\n%s in camp: %d -> %d (safe up to %d)\n" % [label, int(impact.get("current_count", 0)), int(impact.get("after_count", 0)), int(impact.get("safe_count", 3))]
+	var label := tr(str(impact.get("label", archetype)))
+	var t := "[b]%s[/b]\n" % tr("NIGHT RISK") + LANG.f("%s in camp: %d -> %d (safe up to %d)", [label, int(impact.get("current_count", 0)), int(impact.get("after_count", 0)), int(impact.get("safe_count", 3))]) + "\n"
 	var after: Dictionary = impact.get("after", {}) if impact.get("after", {}) is Dictionary else {}
 	if int(after.get("guaranteed_spawns", 0)) > 0:
-		return t + "[color=#a00000][b]Something comes tonight. Certainly.[/b][/color]"
+		return t + "[color=#a00000][b]%s[/b][/color]" % tr("Something comes tonight. Certainly.")
 	var tier := str(after.get("chance_tier", "none"))
 	if tier == "none" or tier.is_empty():
-		return t + "[color=#006000]Still a quiet night.[/color]"
+		return t + "[color=#006000]%s[/color]" % tr("Still a quiet night.")
 	var pct := int(round(float(after.get("chance_probability", 0.0)) * 100.0))
-	return t + "[color=#a00000]%s chance of trouble tonight (~%d%%).[/color]" % [tier.capitalize(), pct]
+	return t + "[color=#a00000]%s[/color]" % LANG.f(str(RISK_CHANCE.get(tier, RISK_CHANCE["small"])), [pct])
 
 
 ## A 16 px envelope (shut, unread; open, read), a booking card, a reply.

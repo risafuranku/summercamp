@@ -801,6 +801,17 @@ func _process(delta: float) -> void:
 	_tick_banners(delta)
 
 
+## A page in the warden's language piece by piece between its rules: web_pages joins its
+## texts with HR and the catalogue has each piece, never the whole (S6: forty pages stayed
+## English in Czech).
+func _page_in_language(body: String) -> String:
+	var pieces := body.split(WEB.HR)
+	for i in pieces.size():
+		if pieces[i].strip_edges() != "":
+			pieces[i] = tr(pieces[i])
+	return WEB.HR.join(pieces)
+
+
 ## The page's text at once, the pictures as grey boxes that fill in one by one.
 func _set_page(bbcode: String) -> void:
 	_page.clear()
@@ -941,7 +952,7 @@ func _show(key: String) -> void:
 	_page.add_theme_color_override("default_color", Color.html(str(page.get("fg", "#000000"))))
 	# The page in the warden's language before its links are made ({site|Label} kept by
 	# the lookup: lang._forms).
-	_set_page(_expand(tr(str(page.get("body", ""))), str(page.get("link", "#0000ee")), key))
+	_set_page(_expand(_page_in_language(str(page.get("body", ""))), str(page.get("link", "#0000ee")), key))
 	_page.scroll_to_line(0)
 	_page.visible_ratio = 0.0
 	_reveal = 0.0
@@ -1382,19 +1393,22 @@ func _bazaar() -> String:
 	var box: Array = b.in_box()
 	var up: Array = b.listed()
 	var gone: Array = b.sold()
+	# Each piece through the catalogue (S6: the camp's ads were English on a Czech page).
 	if box.is_empty() and up.is_empty() and gone.is_empty():
-		return "[color=#888888]Nothing in the lost and found.[/color]\n"
+		return "[color=#888888]%s[/color]\n" % tr("Nothing in the lost and found.")
 	var t := ""
 	for it in box:
-		var src := "nobody left it, found %s" % _date(int(it["found_day"]))
-		if str(it["from"]) != "":
-			src = "left by %s%s, %s" % [str(it["from"]), (" in " + str(it["where"])) if str(it["where"]) != "" else "", _date(int(it["found_day"]))]
-		t += "[b]%s[/b] - %s [color=#666666](%s)[/color]   {bazaar://list/%d|put it up for $%d}\n" % [str(it["short"]), str(it["name"]), src, int(it["id"]), int(it["value"])]
+		var src := LANG.f("nobody left it, found %s", [_date(int(it["found_day"]))])
+		if str(it["from"]) != "" and str(it["where"]) != "":
+			src = LANG.f("left by %s in %s, %s", [str(it["from"]), tr(str(it["where"])), _date(int(it["found_day"]))])
+		elif str(it["from"]) != "":
+			src = LANG.f("left by %s, %s", [str(it["from"]), _date(int(it["found_day"]))])
+		t += "[b]%s[/b] - %s [color=#666666](%s)[/color]   {bazaar://list/%d|%s}\n" % [tr(str(it["short"])), tr(str(it["name"])), src, int(it["id"]), LANG.f("put it up for $%d", [int(it["value"])])]
 	for it in up:
 		var looked := 2 + (int(it["id"]) * 7 + _day() * 5) % 19
-		t += "[b]%s[/b]  $%d   [color=#666666]up since %s, %d looked[/color]\n" % [str(it["short"]), int(it["value"]), _date(int(it["listed_day"])), looked]
+		t += "[b]%s[/b]  %s   [color=#666666]%s[/color]\n" % [tr(str(it["short"])), LANG.money("$%d" % int(it["value"])), LANG.f("up since %s, %d looked", [_date(int(it["listed_day"])), looked])]
 	for it in gone:
-		t += "[color=#888888]%s[/color]   [color=#008800][b]SOLD $%d[/b][/color]\n" % [str(it["short"]), int(it["price"])]
+		t += "[color=#888888]%s[/color]   [color=#008800][b]%s[/b][/color]\n" % [tr(str(it["short"])), LANG.f("SOLD $%d", [int(it["price"])])]
 	return t
 
 
@@ -1419,13 +1433,14 @@ func _guestbook() -> String:
 	if day >= 16:
 		rows.append(["Vera", _date(day - 1) + "  21:15", "I am at my sister's. Please do not write here any more. The district reads it."])
 	if night and guests > 0:
-		rows.append(["(no name)", _date(day) + "  " + _time(), "you have %d in the camp tonight. we counted %d" % [guests, guests + 1]])
+		rows.append(["(no name)", _date(day) + "  " + _time(), LANG.f("you have %d in the camp tonight. we counted %d", [guests, guests + 1])])
+	# The entries and their names through the catalogue (S6: English on a Czech page).
 	var t := ""
 	for i in range(rows.size() - 1, -1, -1):
 		var r: Array = rows[i]
 		t += "[color=#808080]________________________________________[/color]\n"
-		t += "[b][color=#66ff66]%s[/color][/b]  [color=#aaaaaa]%s[/color]\n%s\n" % [r[0], r[1], r[2]]
-	return t + "[color=#808080]________________________________________[/color]\n[color=#aaaaaa]The guest book is full. New entries cannot be added.[/color]\n"
+		t += "[b][color=#66ff66]%s[/color][/b]  [color=#aaaaaa]%s[/color]\n%s\n" % [tr(str(r[0])), r[1], tr(str(r[2]))]
+	return t + "[color=#808080]________________________________________[/color]\n[color=#aaaaaa]%s[/color]\n" % tr("The guest book is full. New entries cannot be added.")
 
 
 ## The chat room #jih, as far as it has got today: who said what, by the clock. After

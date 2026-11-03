@@ -95,6 +95,13 @@ const STAMP_GREEN := Color(0.12, 0.46, 0.20, 0.86)
 const STAMP_RED := Color(0.70, 0.08, 0.08, 0.86)
 const PAPER_TEXT := Color(0.12, 0.11, 0.10)
 const OPEN_SEC := 0.22
+## Czech letters in that hand: [the plain letter, where its mark goes over it] (a háček
+## in the middle, an acute and a ring as they fall in three pixels).
+const HAND_MARKS := {
+	"Á": ["A", 2], "Č": ["C", 1], "Ď": ["D", 1], "É": ["E", 2], "Ě": ["E", 1], "Í": ["I", 2],
+	"Ň": ["N", 1], "Ó": ["O", 2], "Ř": ["R", 1], "Š": ["S", 1], "Ť": ["T", 1], "Ú": ["U", 2],
+	"Ů": ["U", 1], "Ý": ["Y", 2], "Ž": ["Z", 1],
+}
 ## The register's handwriting: a 3x5 pixel hand, so a name fits its column.
 const HAND := {
 	"A": "010101111101101",
@@ -1262,8 +1269,9 @@ func _draw_book(c: Control) -> void:
 	var right := BOOK.position.x + BOOK.size.x * 0.5 + 6.0
 	var hy := BOOK.position.y + 17.0
 	var head := Color(0.42, 0.18, 0.14)
+	# The heads in the warden's language ("register|NO" is the row's number, not "no").
 	for h in [[left, "NO"], [left + 10, "NAME"], [right, "CARD NO"], [right + 38, "PERS"], [right + 56, "NTS"], [right + 70, "ROOM"], [right + 89, "KEY"]]:
-		_print3(c, Vector2(float(h[0]), hy), str(h[1]), head)
+		_print3(c, Vector2(float(h[0]), hy), tr(str(h[1]), "register"), head)
 	_print3(c, Vector2(BOOK.position.x + BOOK.size.x - 44, BOOK.position.y + 10), Season.date_str(_day), head)
 	# The rows: the last ones written, then the one being written now.
 	var rows: Array = []
@@ -1332,6 +1340,11 @@ func _print3(c: Control, at: Vector2, text: String, col: Color) -> void:
 func _glyph3(c: Control, top: Vector2, ch: String, col: Color) -> float:
 	if ch == " ":
 		return 3.0
+	# A Czech letter: the plain one and its mark a pixel above it (S6: JMÉNO, Dvořák).
+	var mark = HAND_MARKS.get(ch)
+	if mark != null:
+		c.draw_rect(Rect2(top.x + float(mark[1]), top.y - 2.0, 1, 1), col)
+		ch = str(mark[0])
 	var bits := str(HAND.get(ch, ""))
 	if bits.is_empty():
 		return 2.0

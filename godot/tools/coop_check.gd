@@ -580,8 +580,9 @@ func _run_step(step: Array) -> void:
 			if not box.is_empty():
 				_main.bazaar_list(int(box[0]["id"]))
 		"coop_goggle":
-			# Goggle from the other machine: a bad review booked with SpotlessName, an
-			# apology under another; both done on the host's page (main.coop_request).
+			# Atlas from the other machine: a bad review booked with SpotlessName, an
+			# apology under another, a banner over the camps bought; all done on the host's
+			# page (main.coop_request).
 			var g = _main.get("_goggle")
 			if g != null:
 				var bad: Array = g.shown().filter(func(e): return int(e["stars"]) <= 2 and str(e.get("ghost_reply", "")) == "")
@@ -589,6 +590,7 @@ func _run_step(step: Array) -> void:
 					print("COOP CHECK goggle: remove %d, apologise to %d" % [int(bad[0]["id"]), int(bad[1]["id"])])
 					_main.goggle_remove(int(bad[0]["id"]))
 					_main.goggle_reply(int(bad[1]["id"]), "sorry")
+				print("COOP CHECK atlas: banner over the camps for 3 days %s" % str(_main.atlas_buy_ad("travel", 3)))
 		_:
 			super._run_step(step)
 
@@ -918,7 +920,8 @@ func _books() -> Dictionary:
 		"bills": (_main.get("_billing").bills as Array).size()}
 
 
-## The camp's Goggle page: what is up, what is booked to go, what is answered.
+## The camp's page on Atlas: what is up, what is booked to go, what is answered, which
+## campaigns run.
 func _goggle_row() -> Dictionary:
 	var g = _main.get("_goggle")
 	if g == null:
@@ -930,7 +933,7 @@ func _goggle_row() -> Dictionary:
 			removing.append(int(e["id"]))
 		if str(e["reply"]) != "":
 			replies.append("%d:%s" % [int(e["id"]), str(e["reply"])])
-	return {"count": int(g.count()), "removing": removing, "replies": replies}
+	return {"count": int(g.count()), "removing": removing, "replies": replies, "ads": g.ads.map(func(a): return str(a["kind"]))}
 
 
 func _write_fingerprint(tag: String) -> void:

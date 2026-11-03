@@ -2161,6 +2161,15 @@ func reception(r: Node3D) -> Dictionary:
 	var awn := _box(r, "PorchRoof", Vector3(pw + 0.3, 0.07, 1.6), Vector3(pcx, 2.66, z1 + t + 0.7), tin)
 	awn.rotation.x = 0.2
 	_box(r, "PorchRail", Vector3(0.08, 0.08, 1.2), Vector3(porch_x0 + 0.08, 0.95, z1 + t + 0.62), _wood())
+	# The bare bulb on its cord under the porch roof, over the door (S27): lit with the
+	# camp's lamps, swung by the wind (scripts/reception/porch_bulb.gd). Its hook on the
+	# roof's underside, which falls to the front; a little left of the door's middle, seen
+	# coming up to the door it hangs before the sign's bare end, not across its letters.
+	var hook_dz := 0.15
+	var bulb: Node3D = load("res://scripts/reception/porch_bulb.gd").new()
+	bulb.name = "PorchBulb"
+	bulb.position = Vector3(dcx - 0.3, 2.66 - 0.035 / cos(awn.rotation.x) - hook_dz * tan(awn.rotation.x), z1 + t + 0.7 + hook_dz)
+	r.add_child(bulb)
 	# The sign over the door: RECEPCE, white on a dark board.
 	_box(r, "SignBoard", Vector3(1.9, 0.38, 0.05), Vector3(dcx + 0.25, L.DOOR_H + 0.42, z1 + t + 0.04), _flat(Color(0.12, 0.2, 0.14)))
 	_label(r, "RECEPCE", Vector3(dcx + 0.25, L.DOOR_H + 0.42, z1 + t + 0.075), 0.24, Color(0.95, 0.93, 0.84))

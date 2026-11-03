@@ -423,6 +423,10 @@ func _sanitize_mail_dict(value: Variant) -> Dictionary:
 	mail["_actioned"] = bool(mail.get("_actioned", false))
 	mail["day"] = max(1, int(mail.get("day", 1)))
 	mail["time"] = str(mail.get("time", "00:00"))
+	# A camp saved before the district's mail had its points (2. 11.) shows it as it is now.
+	if str(mail.get("subject", "")) == SANDBOX_START_MAIL["subject"] and str(mail.get("from", "")) == SANDBOX_START_MAIL["from"]:
+		mail["body"] = SANDBOX_START_MAIL["body"]
+		mail["rich"] = true
 	return mail
 
 
@@ -454,21 +458,47 @@ func _on_time_tick(hour: int, minute: int) -> void:
 	if _first_booking_due:
 		_try_first_booking(day, safe_hour, now_abs)
 
-	if safe_minute == 0:
-		var roll_signature = "%d:%02d" % [day, safe_hour]
-		if roll_signature != _last_hourly_roll_signature:
-			_last_hourly_roll_signature = roll_signature
-			_run_hourly_roll(day, safe_hour, now_abs)
+	# Each hour's roll, also the one a fast clock stepped over: at a high time scale a frame
+	# passes more than a minute and :00 went by unseen (2. 11.: the shot driver's camp at 20x
+	# lost half its hours). Not more than three hours back (a jump of the clock is no day).
+	var hour_abs: int = now_abs - safe_minute
+	var last := _rolled_hour_abs()
+	if last < 0 or last > hour_abs or hour_abs - last > 180:
+		last = hour_abs - (60 if safe_minute == 0 else 0)
+		_last_hourly_roll_signature = _hour_signature(last)
+	while last < hour_abs:
+		last += 60
+		var at := _from_absolute_minutes(last)
+		_last_hourly_roll_signature = _hour_signature(last)
+		_run_hourly_roll(int(at["day"]), int(at["hour"]), last)
+
+
+## The hour last rolled (`_last_hourly_roll_signature`, "day:HH" as saves have it) in
+## absolute minutes; -1 before the first.
+func _rolled_hour_abs() -> int:
+	var parts := _last_hourly_roll_signature.split(":")
+	if parts.size() != 2 or not parts[0].is_valid_int() or not parts[1].is_valid_int():
+		return -1
+	return _absolute_minutes(int(parts[0]), int(parts[1]), 0)
+
+
+func _hour_signature(abs_minute: int) -> String:
+	var at := _from_absolute_minutes(abs_minute)
+	return "%d:%02d" % [int(at["day"]), int(at["hour"])]
 
 
 ## A sandbox camp (co-op camps too) has no checklist and no story: one mail from the
 ## district says how a camp starts, and the first booking does not wait on the dice.
 var _first_booking_due := false
 
+## Five points with a picture each (CampMail draws a "rich" mail's ":name:" lines as
+## them, *words* bold); it was four paragraphs (the user 30. 10.: "far too much text, all
+## the same, not a fun way to tell the player anything").
 const SANDBOX_START_MAIL := {
 	"from": "District Office Hlubocany <kempy@okres-hlubocany.cz>",
 	"subject": "Opening of the camp",
-	"body": "Dear operator,\n\nThe camp is entered in the district register and may take guests. Booking letters will come to this mailbox; accept or refuse them here.\n\nA booking can only be accepted when there is a free bed for the whole party. Put up a tent or a cabin in Builder 98 (bulldoze the trees first), or patch up the old cabin by the office: walk up to it and hold R, then clean it out and make up the bed. The camp goes on the booking lists as soon as a bed stands.\n\nGuests also need a toilet, food and a made-up room. When a party reaches the barrier, check them in at the reception desk.\n\nHold TAB outdoors for the site plan and the jobs waiting.\n\nDistrict Office Hlubocany\nTourism department",
+	"rich": true,
+	"body": "Dear operator,\n\nYour camp is in the district register. Guests may come!\n\n:housing: *Beds first.* Tents and cabins in Builder 98 (trees in the way? bulldoze them), or patch up the old cabin by the office: walk up to it and hold R.\n:mail: *Bookings come here.* The more free beds, the more letters. Accept the parties you want.\n:register: *Check-in.* An hour or two later the party stops at the barrier: let them in at the reception desk.\n:toilet: *Keep them happy:* a toilet, food and a made-up bed.\n:help: *Hold TAB* outdoors for the site plan and the jobs waiting.\n\nGood luck with the season!\nDistrict Office Hlubocany, Tourism department",
 }
 
 
@@ -495,10 +525,9 @@ func _try_first_booking(day: int, hour: int, now_abs: int) -> void:
 	_schedule_mail_abs(now_abs + _rng.randi_range(8, 25), _build_customer_mail(ARCHETYPE_QUIET_GUY, day, hour))
 
 
-## The hourly mail roll. The inbox used to take up to nine bookings and four spam mails
-## an hour; now the camp is slow to be found: bookings come in office hours, more
-## likely as the week goes on and the more beds stand empty, never more than a few
-## waiting at once. Spam is occasional. At night at most one false alarm.
+## The hourly mail roll. Bookings come in office hours, as many as the free beds draw
+## (`_roll_customer_mail_count`), more as the week goes on, never more than a few waiting
+## at once. Spam is occasional. At night at most one false alarm.
 func _run_hourly_roll(day: int, hour: int, base_abs: int) -> void:
 	var bed_metrics = _collect_bed_metrics()
 	var hrotfaktor = _refresh_hrotfaktor(bed_metrics)
@@ -512,6 +541,10 @@ func _run_hourly_roll(day: int, hour: int, base_abs: int) -> void:
 			var archetype_id = archetypes[i] if i < archetypes.size() else ARCHETYPE_QUIET_GUY
 			var mail = _build_customer_mail(archetype_id, day, hour)
 			_schedule_mail_abs(base_abs + offsets[i], mail)
+		# Atlas's report at a campaign's end counts them.
+		var g = _atlas()
+		if g != null:
+			g.note_letters(day * 24 + hour, customer_count)
 
 	if _roll_spam(day, hour):
 		_schedule_mail_abs(base_abs + _rng.randi_range(1, 58), _build_spam_mail(day, hour))
@@ -662,26 +695,64 @@ const NIGHT_ALARM_LAST_HOUR := 4
 var _false_alarm_night: int = -1
 
 
-func _roll_customer_mail_count(bed_metrics: Dictionary, day: int, hour: int, intensity: float) -> int:
+## Every free bed is a chance that someone finds the camp: a tent or two hear from two or
+## three parties on the first day, thirty empty beds from about nine, mostly full by the
+## second evening. It was one letter an hour at most however much stood (30. 10.: "I build
+## lots of tents and cabins, the camp is empty and nobody comes"). More as the week goes
+## on; the stars and the guest book pull it up or down, a campaign on Atlas up while it
+## runs; a full camp gets a letter now and then (to turn down).
+const BOOKINGS_AN_HOUR := 0.12
+const BOOKINGS_A_FREE_BED := 0.03
+const BOOKINGS_FREE_BEDS_COUNTED := 30
+const BOOKINGS_FULL_CAMP := 0.05
+
+
+func _roll_customer_mail_count(bed_metrics: Dictionary, day: int, hour: int, _intensity: float = 0.0) -> int:
 	var capacity = max(0, int(bed_metrics.get("capacity", 0)))
 	if capacity <= 0 or hour < BOOKING_FIRST_HOUR or hour > BOOKING_LAST_HOUR:
 		return 0
-	var waiting := _count_unactioned_customer_mails() + _count_scheduled_customer_mails()
-	if waiting >= clampi(1 + day, 2, 6):
+	var free := clampi(int(bed_metrics.get("free", 0)), 0, BOOKINGS_FREE_BEDS_COUNTED)
+	# Letters nobody has answered yet hold the rest back; the more beds free, the more wait.
+	var room := bookings_waiting_cap(free, day) - (_count_unactioned_customer_mails() + _count_scheduled_customer_mails())
+	if room <= 0:
 		return 0
-	var free_ratio := float(bed_metrics.get("free", 0)) / float(capacity)
-	var chance := clampf(0.14 + 0.07 * float(day - 1) + 0.18 * free_ratio + 0.4 * reputation + _goggle_pull(day), 0.06, 0.72)
-	var count := 1 if _rng.randf() < chance else 0
-	if count > 0 and day >= 3 and _rng.randf() < 0.25 * intensity:
-		count += 1
-	return count
+	var per_hour := BOOKINGS_FULL_CAMP
+	if free > 0:
+		var pull := clampf(0.4 * reputation + _goggle_pull(day), -0.3, 0.3)
+		per_hour = (BOOKINGS_AN_HOUR + BOOKINGS_A_FREE_BED * float(free)) * minf(1.6, 1.0 + 0.1 * float(day - 1)) * (1.0 + 1.5 * pull)
+	# A campaign on Atlas: that much more often while it runs.
+	var g = _atlas()
+	if g != null:
+		per_hour *= 1.0 + float(g.ad_boost(day * 24 + hour))
+	return mini(_poisson(per_hour), room)
 
 
-## The camp's stars on Goggle (scripts/reviews/goggle.gd): people look before they book.
-## Three stars nothing either way, each star above or below +-0.07.
-func _goggle_pull(day: int) -> float:
+## How many booking letters may wait unanswered: two on a small camp's first day, more
+## with the days and the free beds (seven for thirty free on day one), never past eight.
+static func bookings_waiting_cap(free_beds: int, day: int) -> int:
+	return clampi(1 + day + floori(free_beds / 6.0), 2, 8)
+
+
+func _poisson(mean: float) -> int:
+	var limit := exp(-maxf(0.0, mean))
+	var p := _rng.randf()
+	var n := 0
+	while p > limit and n < 12:
+		p *= _rng.randf()
+		n += 1
+	return n
+
+
+## The camp on Atlas (scripts/reviews/goggle.gd: the reviews, the advertising), or null.
+func _atlas():
 	var main := get_tree().current_scene if get_tree() != null else null
-	var g = main.get("_goggle") if main != null else null
+	return main.get("_goggle") if main != null else null
+
+
+## The camp's stars on Atlas: people look before they book. Three stars nothing either
+## way, each star above or below +-0.07.
+func _goggle_pull(day: int) -> float:
+	var g = _atlas()
 	if g == null or int(g.count()) == 0:
 		return 0.0
 	return clampf((float(g.rating(day)) - 3.0) * 0.07, -0.14, 0.14)
@@ -1180,7 +1251,7 @@ func reply_to_review(mail: Dictionary, reply_id: String) -> float:
 			reputation = clampf(reputation + change, -0.25, 0.25)
 			mail["_actioned"] = true
 			mail["reply"] = reply_id
-			# The same review on Goggle has the answer too.
+			# The same review on Atlas has the answer too.
 			var main := get_tree().current_scene if get_tree() != null else null
 			if main != null and main.has_method("goggle_mail_replied"):
 				main.goggle_mail_replied(int(r.get("guest_id", -1)), reply_id)

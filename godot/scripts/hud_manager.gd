@@ -25,6 +25,7 @@ extends Node
 ## lamps for the level, the archetype closest to tipping and its odds underneath.
 
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
+const LANG = preload("res://scripts/lang.gd")
 
 const HUD_LAYER_INDEX := 65
 const HINT_LAYER_INDEX := 70
@@ -359,7 +360,8 @@ func push_status(text: String, kind: int = STATUS_INFO, group: String = "") -> v
 ## A guest line in the Duke3D quote feed.
 func show_quote(guest_name: String, text: String, mood: float) -> void:
 	var prefix := ">:( " if mood < 35.0 else ""
-	push_status("%s%s: \"%s\"" % [prefix, guest_name, text], STATUS_QUOTE)
+	# What they said looked up alone: behind their name it was no catalogue's (S6).
+	push_status("%s%s: \"%s\"" % [prefix, guest_name, tr(text)], STATUS_QUOTE)
 
 
 ## Talk interaction: a card with the guest's mood, needs and what they just said.
@@ -944,7 +946,8 @@ func _refresh_arrivals() -> void:
 		var at_gate := bool(row.get("at_gate", false))
 		var minutes := int(row.get("minutes", 0))
 		var head := "%s x%d" % [str(row.get("name", "Guest")), int(row.get("party_size", 1))]
-		var when := ("DESK %d:%02d" % [minutes / 60, minutes % 60]) if at_gate else ("IN %d:%02d" % [minutes / 60, minutes % 60])
+		# The format looked up before it is filled: "IN 0:40" whole found nothing (S6).
+		var when := (tr("DESK %d:%02d") % [minutes / 60, minutes % 60]) if at_gate else (tr("IN %d:%02d") % [minutes / 60, minutes % 60])
 		var line := HBoxContainer.new()
 		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var name_l := _body(head, RETRO_UI.C_BONE)
@@ -1136,7 +1139,7 @@ func _refresh_all() -> void:
 	if _light_bar != null:
 		_light_bar.set_value(_light)
 	if _cash_value != null and _money_known:
-		_cash_value.text = "$%s" % _format_money(_money)
+		_cash_value.text = _cash_text(_money)
 	_refresh_clock()
 	_refresh_guests()
 	_refresh_mail()
@@ -1275,7 +1278,7 @@ func _refresh_risk() -> void:
 	_risk_level.text = _risk_footer(level)
 	_risk_level.add_theme_color_override("font_color", _risk_color(level))
 	if _open_late != "" and _late_phase:
-		_risk_level.text = "%s LATE" % _open_late
+		_risk_level.text = tr("%s LATE") % tr(_open_late)
 		_risk_level.add_theme_color_override("font_color", RETRO_UI.C_AMBER)
 
 
@@ -1286,9 +1289,10 @@ func _risk_footer(level: int) -> String:
 	if level <= 0 or worst.is_empty():
 		return tr(str(RISK_LEVEL_LABELS[level]), "risk")
 	var name_id := str(worst.get("archetype", ""))
-	var short := str(RISK_SHORT_NAMES.get(name_id, str(worst.get("label", "?")).to_upper().left(5)))
+	# The kind's short name looked up alone ("FAMILY 12%" whole is no catalogue's, S6).
+	var short := tr(str(RISK_SHORT_NAMES.get(name_id, str(worst.get("label", "?")).to_upper().left(5))))
 	if int(worst.get("guaranteed_spawns", 0)) > 0:
-		return "%s SURE" % short
+		return tr("%s SURE") % short
 	var pct := int(round(float(worst.get("chance_probability", 0.0)) * 100.0))
 	if pct <= 0:
 		return tr(str(RISK_LEVEL_LABELS[level]), "risk")
@@ -1457,12 +1461,24 @@ func _apply_money(amount: int) -> void:
 	_money = amount
 	_money_known = true
 	if _cash_value != null:
-		_cash_value.text = "$%s" % _format_money(amount)
+		_cash_value.text = _cash_text(amount)
 		_cash_value.add_theme_color_override("font_color", RETRO_UI.C_RED_LIGHT if amount < 0 else RETRO_UI.C_AMBER)
 	if delta != 0 and _cash_delta != null:
 		_cash_delta.text = "%s$%s" % ["+" if delta > 0 else "-", _format_money(absi(delta))]
 		_cash_delta.add_theme_color_override("font_color", RETRO_UI.C_GREEN if delta > 0 else RETRO_UI.C_RED_LIGHT)
 		_money_flash = 2.0
+
+
+## The cash as its cell can hold it: in crowns "100 000 Kč" is wider than the cell (it was
+## cut at "593 320 K"), so a sum too long for it drops its unit; the caption says what it is.
+func _cash_text(amount: int) -> String:
+	var text := LANG.money("$%s" % _format_money(amount))
+	if _cash_value == null or _cash_value.size.x <= 0.0:
+		return text
+	var font := _cash_value.get_theme_font("font")
+	if font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, _cash_value.get_theme_font_size("font_size")).x <= _cash_value.size.x:
+		return text
+	return text.replace(" Kč", "").replace("$", "")
 
 
 func _update_money_flash(delta: float) -> void:

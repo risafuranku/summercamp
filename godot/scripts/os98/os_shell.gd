@@ -51,7 +51,7 @@ const TABS := [
 	["mail", "Mail", "mail", true],
 	["guestrack", "GuestRack", "guestrack", true],
 	["camp_status", "CampStat", "campstat", true],
-	["reviews", "Reviews", "goggle", true],
+	["reviews", "Atlas", "atlas", true],
 	["browser", "Web", "browser", false],
 	["shops", "Shops", "shop_app", false],
 	["jobs", "Jobs", "money", false],
@@ -60,11 +60,11 @@ const TABS := [
 ]
 const TAB_SCRIPTS := {
 	"builder": "builder_app", "camp_status": "campstat_app", "guestrack": "guestrack_app", "mail": "mail_app",
-	"reviews": "goggle_app", "browser": "browser_app", "shops": "shops_app", "jobs": "jobs_app", "games": "games_app", "files": "files_app",
+	"reviews": "atlas_app", "browser": "browser_app", "shops": "shops_app", "jobs": "jobs_app", "games": "games_app", "files": "files_app",
 }
 const TAB_TITLES := {
 	"builder": "Builder 98", "camp_status": "CampStat 98", "guestrack": "GuestRack 98", "mail": "CampMail",
-	"reviews": "Goggle Reviews - Beeternet Explorer", "browser": "Beeternet Explorer", "shops": "SoftSklad programs", "jobs": "Jobs from home", "games": "Games", "files": "Files",
+	"reviews": "Atlas - Beeternet Explorer", "browser": "Beeternet Explorer", "shops": "SoftSklad programs", "jobs": "Jobs from home", "games": "Games", "files": "Files",
 }
 
 ## Everything that can be installed: its title, icon, the file it comes as, its size, the
@@ -138,7 +138,7 @@ const APP_ALIASES := {
 enum Boot { OFF, WARMUP, BIOS, SPLASH, OKNA, DESKTOP, SHUTTING, SAFE_OFF }
 
 var _state := Boot.OFF
-## The newest Goggle review the Reviews tab has shown (its badge counts the ones after).
+## The newest review the Atlas tab has shown (its badge counts the ones after).
 var _reviews_seen := -1
 var _open := false
 var _is_day := true
@@ -2126,7 +2126,7 @@ func _refresh_badges() -> void:
 	for id in INSTALL_TABS:
 		if not _is_program_unlocked(id) and not b.has(id):
 			b[id] = ["+", Color8(0, 120, 0)]
-	# Goggle: reviews posted since the Reviews tab was last looked at.
+	# Atlas: reviews posted since its tab was last looked at.
 	var g = m.get("_goggle") if m != null else null
 	if g != null:
 		var newest := 0
