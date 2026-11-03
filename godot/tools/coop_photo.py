@@ -64,6 +64,7 @@ def main():
     need(lambda r: r["hit"] == "true", "his shot did not catch the joining warden (setup)", report(h, "host", "shot_other"))
     need(lambda r: r["white"] == "true" and r["photo"] == "true" and int(r["hp"]) < 100,
          "the joining warden has no white / polaroid / hit on their screen", report(c, "client", "shot_here"))
+    need(lambda r: r.get("hum") == "true", "the joining warden does not hear him hum", report(c, "client", "shot_here"))
     need(lambda r: r["private"] == "true" and r["root_seen"] == "false" and r["leak"] == "false",
          "the host sees him run at the other's back", report(h, "host", "rush_other"))
     need(lambda r: int(r["mirror"]) > 0, "the joining warden does not see him run at them", report(c, "client", "rush_here"))

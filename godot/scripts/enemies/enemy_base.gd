@@ -414,7 +414,92 @@ func _point_from_player(dist: float, angle_deg: float) -> Vector3:
 		var s: Vector2 = _grid_manager.get_map_size_world()
 		p.x = clampf(p.x, c.x - s.x * 0.5 + 1.0, c.x + s.x * 0.5 - 1.0)
 		p.z = clampf(p.z, c.z - s.y * 0.5 + 1.0, c.z + s.y * 0.5 - 1.0)
-	return _ground(p)
+	return _stand(p)
+
+
+## The ground under `p` where one can stand: not on a roof nor up a tree (INF there; the
+## callers try another spot).
+func _stand(p: Vector3) -> Vector3:
+	var g := _ground(p)
+	return Vector3.INF if g == Vector3.INF or _covered(g) else g
+
+
+func _im():
+	var scene := _world_root.get_tree().current_scene if _world_root != null and _world_root.is_inside_tree() else null
+	return scene.get("_interior_manager") if scene != null else null
+
+
+## The windows of the room the warden it hunts is in (InteriorManager.photo_windows: the
+## office, a cabin, a caravan, a service block); in co-op another warden's, as their
+## machine sends them (warden state "pw").
+func _room_windows() -> Array:
+	var peer := _quarry_peer()
+	if peer == 0:
+		var im = _im()
+		return im.photo_windows() if im != null and im.has_method("photo_windows") else []
+	var out: Array = []
+	for w in Coop.state_of(peer).get("pw", []):
+		var o := {"pos": w[0], "out": w[1], "open": float(w[2]), "facing": float(w[3]), "far": true}
+		# Where that window's camera looks out from (older machines do not send it).
+		if (w as Array).size() > 4 and w[4] != w[0]:
+			o["view"] = w[4]
+		out.append(o)
+	return out
+
+
+## The other wardens (co-op): the host's own warden when he hunts a stand-in, and every
+## stand-in but the one he hunts. Their torches by where they really point.
+func _lit_by_others(point: Vector3) -> bool:
+	var scene := _world_root.get_tree().current_scene if _world_root != null and _world_root.is_inside_tree() else null
+	if scene == null:
+		return false
+	var others: Array = []
+	var mp = scene.get("_player")
+	if mp != null and mp != _player and is_instance_valid(mp):
+		others.append(mp)
+	var cn = scene.get("_coop_night")
+	if cn != null and cn.get("_proxies") is Dictionary:
+		for rec in (cn.get("_proxies") as Dictionary).values():
+			# A proxy's record: {body, cam} (coop_night.gd).
+			var p = (rec as Dictionary).get("body", null) if rec is Dictionary else rec
+			if p is Node3D and is_instance_valid(p) and p != _player:
+				others.append(p)
+	for o in others:
+		if not o.has_method("get_flashlight_aim"):
+			continue
+		var aim: Dictionary = o.call("get_flashlight_aim")
+		if aim.is_empty():
+			continue
+		var to: Vector3 = point - (aim["origin"] as Vector3)
+		var d := to.length()
+		var in_cone := d <= float(aim["range"]) and (aim["dir"] as Vector3).normalized().dot(to / maxf(d, 0.01)) > cos(deg_to_rad(float(aim["half_angle"])))
+		# (A wall between their torch and him: their light never reached him.)
+		if in_cone and not _ray_blocked(aim["origin"] as Vector3, point):
+			return true
+	return false
+
+
+## Something stands over the ground there higher than a fence (a roof, a tree's trunk):
+## the ray from 20 m up stopped on it (the camp's ground is flat; against the hunted
+## warden's feet). No place to stand, nor to walk through.
+func _covered(hit: Vector3) -> bool:
+	if hit == Vector3.INF:
+		return false
+	var feet := _player.global_position.y if _player != null and is_instance_valid(_player) else 0.0
+	return hit.y > feet + 0.9
+
+
+## The ground under `p` from just over the hunted warden's feet: what stands higher over
+## it (a roof's eaves by a window, a tree's crown) is not ground. INF where there is none.
+func _floor_at(p: Vector3) -> Vector3:
+	var space := _world_root.get_world_3d().direct_space_state if _world_root.get_world_3d() != null else null
+	if space == null:
+		return Vector3(p.x, 0.0, p.z)
+	var top := (_player.global_position.y if _player != null and is_instance_valid(_player) else p.y) + 1.6
+	var q := PhysicsRayQueryParameters3D.create(Vector3(p.x, top, p.z), Vector3(p.x, top - 6.0, p.z))
+	q.exclude = [_player.get_rid()]
+	var hit := space.intersect_ray(q)
+	return hit["position"] if not hit.is_empty() else Vector3.INF
 
 
 # ── body ──────────────────────────────────────────────────────────────────────

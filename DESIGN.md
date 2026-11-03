@@ -245,7 +245,7 @@ know where it is:
 | --- | --- | --- | --- | --- |
 | Silent Man | Quiet Guy | footsteps on the gravel behind you, closer each time, stopping when you stop; a whisper at your ear | turn round and put light on him; under a lamp he will not come nearer; at the whisper, turn round at once | standing still in the dark |
 | The Photographer | Drunk | always there: he hums wherever he is, a weak lamp on his chest strap and the camera's red standby blink; he walks from spot to spot in plain view (steps, the film wound on as he stops), raises the camera, the focus beeps speed up, the flash whines (~2-3 s); a shot every 7-10 s | turn your back or get behind something before the flash; indoors draw the curtains (every building's windows look out for real, scripts/ui/window_portal.gd) | looking at him when it fires, or an open window you can see when he fires through it: a lot of health (16-26), a white blast, ringing ears, his face burnt in (lenses grown into the sockets, or peeling like a wet print); the picture is real: it slides in at the corner and develops, you from his lens (every third, him right behind you in it); two hits and his neck is snapped, the head hanging off it sideways, the mouth stuffed with photographs, and he still aims; four and it has let go (the collar an empty stump, the head upside down at his belly, screaming); never still (frames cut from each pose: he breathes, his camera hands tremble, the broken neck sways and jerks with a snap, the head at his belly swings); broken, his tune gargles or comes muffled through paper, his breath rattles, the photographs rustle in his mouth, blood drips at his feet, he drags a foot, his flash sputters before it fires, he chuckles wet and spits a photo out; whole or not, out of your sight a shutter goes far off in the dark; three and he runs at you from behind, laughing, and fires at your ear; the last picture stops the frame, his lens-face comes at you in steps and your own face develops in the middle of the screen |
-| The Girl | Cheap Chick | far off, eyeshine: where your torch points but does not reach, two small pale points where her eyes are, each blinking on its own; a woman humming; heels scurry on the gravel while you are not looking, and a sting when you find her again nearer; close, the torch dies in your hand for a moment by itself (her face is there for a frame, once a loop all of it) | she moves only while you do not see her, and in the dark you see her only in light (the torch on her, a lamp near her, or very close): keep her lit and in view, back to a lamp (she never steps into its light; stay under it ~18 s and she gives the loop up); never walk towards her (the torch dies more often, and in each dark she is a step nearer) | looking away, letting the light leave her; the torch drains five times over while it holds her; look away ~3.5 s and she may be right behind you when you turn (face to face, the jump: back off). Always the guest's own colours, only deformed: the guest -> fixed smile, white eyes -> legs too long, flushed cheeks -> neck and arms stretched -> her back to you, face turned round -> arms to the ground. Strike: you cannot look away; her drooling face, then stretched long, then the jaw dropped too far; the shriek in static; black and a ring. Leaves a red heel |
+| The Girl | Cheap Chick | far off, eyeshine: where your torch points but does not reach, two small pale points where her eyes are, each blinking on its own; a woman humming; heels scurry on the gravel while you are not looking, and a sting when you find her again nearer; close, the torch dies in your hand for a moment by itself (her face is there for a frame, once a loop all of it) | she moves only while you do not see her, and in the dark you see her only in light (the torch on her, a lamp near her, or very close): keep her lit and in view, back to a lamp (she never steps into its light; stay under it ~18 s and she gives the loop up); never walk towards her (the torch dies more often, and in each dark she is a step nearer) | looking away, letting the light leave her; the torch drains five times over while it holds her; look away ~3.5 s and she may be right behind you when you turn (face to face, the jump: back off). Always the guest's own colours, only deformed (no flush on her cheeks): the guest -> a fixed smile, white points for eyes -> a scowl over a grin of small teeth, drool -> everything a third too long -> her back to you, face turned round -> her arms hanging to the ground; near, an arm reaching too far. Strike: you cannot look away; her drooling face, then stretched long, then the jaw dropped too far; the shriek in static; black and a ring. Leaves a red heel |
 | The Whistler | Tramps | his guitar and his whistle out in the dark, a song at a time, nearer; the music stops dead in the middle of a bar | while he plays, move; when the music stops, be still (on grass a walk is not heard, a run is; on gravel, boards, puddles even a walk; near him anything); a lamp's light | making a noise while he listens: he comes at a run to where you were (§5a.3) |
 | The Boy | Family | his father in your way in the dark asking after him; a child gone missing where the night's work is | each place's game, by its rules (§5a.2) | breaking the game's rule (in the corn: looking back at him) |
 | The Granny | Mushroom Pickers | 02:30-06:00: her basket creaking, humming, her boots in the grass, her spores in the air; lamps going dark one by one; a ring of mushrooms coming up round the lodging she means to have; hidden, the eating, from the lodging and on the radio | keep moving (she always comes) and freeze when her back cracks and she straightens up; a lamp holds her a few seconds; kick her rings open; stay out there as the bait | letting her reach you, moving while she looks; hiding: your guests (§5a.4) |
@@ -427,6 +427,72 @@ She never says a word.
   loops as seamless OGG, `tools/audiogen/ambience_loop.py --trim --lufs=-23`). Her rules:
   `tools/enemy_check.tscn`; shots `tools/babka_shots.tscn` (`--part=tear|smash|look|windows|
   hitch`, `--sim=careful|careless|hidden` plays her night with a bot and counts).
+
+### 5a.5 The Photographer (Drunks; `scripts/enemies/tourist_brain.gd`, `polaroid.gd`)
+
+An annoying bastard you always know about (the user 20. 10.), and "like the Girl, almost
+over the line" (21. 10.). Rule: never look at him when the flash goes; indoors, draw the
+curtains.
+
+- **Always there**: he hums wherever he is (a seamless loop for each of what he is: whole,
+  gargled through the broken neck, muffled at his belly; one player each, so the other
+  wardens hear it too), a weak lamp on his chest strap, the camera's red standby blink.
+  He walks from spot to spot round you in plain view, a step of his boots every metre (one
+  foot dragged once broken); round you on an arc, and where a building or a tree stands on
+  it, along the camp's ways (`staff_runtime.way`). He never stands on a roof or up a tree
+  (spots: `enemy_base._point_from_player` refuses covered ones; steps: `_floor_at`).
+- **The shot**: he stands, raises the camera, the focus beeps speed up, the flash whines,
+  the flash. In your view with a clear line: the white, your ears ring, his burnt-in face,
+  a lot of health, and the picture of you develops at the corner of your eye (every third,
+  him in it, right behind you). Out of view: the place lights up and he walks on, closer.
+- **As it goes**: two pictures and his neck has broken (the head hangs off it); four and
+  it has let go (the head at his belly, screaming photographs). Three and he runs at your
+  back. The last picture: the frame stops, his lens-face comes at you, your own face
+  develops.
+- **Indoors**: he comes to a window of your room (curtain open), taps, breathes on the
+  glass, frames and fires through it; a drawn curtain lights up from behind and he goes to
+  another window, after a while (2-4 s). No windows (a tent): the flash lights the canvas.
+  His sounds out there come through the walls, muffled (`WORLD_SOUNDS.wall_bus`); the tap on
+  the glass, the flash in the room and what is in your head do not. Out of the building
+  again, he starts over round you: no picture half taken through the glass goes off as you
+  step out, and stepping out of a door by his window is not walking into him.
+- **Away** (the boat, the town) and at dawn: nothing of him is left, no lamp, no hum; a
+  last picture still coming at dawn does not hurt.
+- **Co-op**: what he does to the warden he hunts is theirs alone (the white, the ringing,
+  his face, their pictures, his windows: theirs); walking round and framing, all see him.
+- Art `npc/tourist_*.png`, `npc/ph_*.png`, frames `npc/ph_anim/`; sounds `sfx/npc/ph_*`
+  at -23 LUFS (the loops OGG from `ambience_loop.py`, the steps cut from `ph_steps.mp3` and
+  `ph_step_drag.mp3`). Tests: `tools/enemy_check.tscn`, `tools/photographer_shots.tscn`,
+  `tools/photographer_worse_shots.tscn`, `tools/foto_shots.tscn` (`--part=walk`: how high
+  he ever stood, how many walks went along the ways), `tools/coop_photo.py`.
+
+### 5a.6 The Girl (Cheap Chicks; `scripts/enemies/girl_brain.gd`)
+
+Total terror (the user 20. 10.). Rule: she moves only while you do not see her; the torch
+is the price, and she never steps into a lamp's light. The table row above has her loop.
+
+- **The guest first**: far off, the first round, the Cheap Chick herself in her own
+  clothes, much too still; she keeps that look till you have once had a good look at her
+  (1 s seen), not only till her first unseen step. Nearer, stage after stage, never back
+  within a round (`M`: the smile, the scowl over the teeth, everything too long, her back
+  to you with her face turned round, her arms to the ground; near, an arm reaching).
+- **Sound**: her humming carries (the omen, to 45 m) and the static rises as she nears
+  (seamless OGG loops, so the other warden hears them too); nothing of either is left
+  where she last stood once she is gone. The cues that teach her (her heels, the scurry,
+  the giggles, the far laugh) are heard; the stings and the shriek at your ear never louder
+  than the granny's loudest. Inside, hers from out there come through the walls muffled.
+- **Inside**: lures every 14-24 s, counted over the whole night; at the window you look
+  at (any room with windows, yours or the other warden's), its curtain open, she is
+  pressed to the glass, and she goes only when you look away.
+- **Co-op**: the other warden's torch on her holds her too (she does not step while it is
+  on her); what is the hunted warden's (the stings, the ring's end, the shriek) is theirs
+  alone; her cold on their torch lasts while she holds it, on their machine too.
+- She stands where one can stand (never on a roof or up a tree: `enemy_base._stand`); a
+  red heel is left where she went, the last three of them stay.
+- Art `npc/girl*` (`tools/artgen/prompts.tsv` rows `girl*`; decision samples in
+  `prompts_holka.tsv`); sounds `sfx/npc/girl_*` at -23 LUFS (loops `girl_hum.ogg`,
+  `girl_static.ogg`), and the Silent Man's tear, bite, snap and rustle. Tests:
+  `tools/enemy_check.tscn`, the shot driver's `testgirl`, `tools/coop_scare.py`.
 
 ### 5a.2 The Boy (Family; `scripts/enemies/boy_brain.gd`)
 

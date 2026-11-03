@@ -84,29 +84,38 @@ const SFX_CRACK := "res://assets/sfx/npc/ph_crack.mp3"
 const RUSH_SPEED := 9.5
 const SFX_WHINE := "res://assets/sfx/npc/flash_whine.mp3"
 const SFX_SHUTTER := "res://assets/sfx/npc/shutter.mp3"
-const SFX_ADVANCE := "res://assets/sfx/npc/photo_advance.mp3"
 const SFX_BEEP := "res://assets/sfx/npc/af_beep.mp3"
-const SFX_HUM := "res://assets/sfx/npc/ph_hum.mp3"
+## His loops as seamless OGG looped by their import (tools/audiogen/ambience_loop.py --trim
+## --lufs=-23): the MP3s looped in code clicked every 8 s and, their copies having no
+## path, never reached the other wardens (coop_night mirrors a sound by its path).
+const SFX_HUM := "res://assets/sfx/npc/ph_hum.ogg"
 const SFX_GIGGLE := "res://assets/sfx/npc/ph_giggle.mp3"
 const SFX_WIND := "res://assets/sfx/npc/ph_wind.mp3"
 const SFX_POLAROID := "res://assets/sfx/npc/ph_polaroid.mp3"
-const SFX_STEPS := "res://assets/sfx/npc/ph_steps.mp3"
+## His boots, one step each (cut from ph_steps.mp3 and ph_step_drag.mp3, -23 LUFS): one
+## a metre he walks; broken, the one foot dragged.
+const SFX_STEP := ["res://assets/sfx/npc/ph_step_a.mp3", "res://assets/sfx/npc/ph_step_b.mp3", "res://assets/sfx/npc/ph_step_c.mp3"]
+const SFX_DRAG := ["res://assets/sfx/npc/ph_drag_a.mp3", "res://assets/sfx/npc/ph_drag_b.mp3", "res://assets/sfx/npc/ph_drag_c.mp3"]
 const SFX_ZOOM := "res://assets/sfx/npc/ph_zoom.mp3"
 const SFX_TAP := "res://assets/sfx/npc/ph_glass_tap.mp3"
 const SFX_BREATH := "res://assets/sfx/npc/ph_glass_breath.mp3"
 const SFX_FLASH_ROOM := "res://assets/sfx/npc/ph_flash_room.mp3"
-const SFX_HUM_GARGLE := "res://assets/sfx/npc/ph_hum_gargle.mp3"
-const SFX_HUM_MUFFLED := "res://assets/sfx/npc/ph_hum_muffled.mp3"
+const SFX_HUM_GARGLE := "res://assets/sfx/npc/ph_hum_gargle.ogg"
+const SFX_HUM_MUFFLED := "res://assets/sfx/npc/ph_hum_muffled.ogg"
 const SFX_NECK_CREAK := "res://assets/sfx/npc/ph_neck_creak.mp3"
 const SFX_TWITCH := "res://assets/sfx/npc/ph_neck_twitch.mp3"
 const SFX_HEAD_SWING := "res://assets/sfx/npc/ph_head_swing.mp3"
 const SFX_SCREAM := "res://assets/sfx/npc/ph_scream_paper.mp3"
 const SFX_RUSTLE := "res://assets/sfx/npc/ph_photos_rustle.mp3"
 const SFX_DRIP := "res://assets/sfx/npc/ph_drip.mp3"
-const SFX_STEP_DRAG := "res://assets/sfx/npc/ph_step_drag.mp3"
 const SFX_SHUTTER_FAR := "res://assets/sfx/npc/ph_shutter_far.mp3"
 const SFX_CHUCKLE_WET := "res://assets/sfx/npc/ph_chuckle_wet.mp3"
-const SFX_BREATH_BROKEN := "res://assets/sfx/npc/ph_breath_broken.mp3"
+const SFX_BREATH_BROKEN := "res://assets/sfx/npc/ph_breath_broken.ogg"
+const WORLD_SOUNDS := preload("res://scripts/ambient/world_sounds.gd")
+## His hum by what he is: whole, gargled through the broken neck, muffled at his belly.
+const HUM_OF := {"": SFX_HUM, "neck": SFX_HUM_GARGLE, "neck2": SFX_HUM_MUFFLED}
+## A player each (a stream swapped on one is not taken up by the other machines).
+var _hums: Dictionary = {}
 const SFX_RATTLE := "res://assets/sfx/npc/ph_camera_rattle.mp3"
 const SFX_SPIT := "res://assets/sfx/npc/ph_spit_photo.mp3"
 const SFX_JAW := "res://assets/sfx/npc/ph_jaw_click.mp3"
@@ -166,6 +175,19 @@ var _room_audio: AudioStreamPlayer
 var _glass_light: OmniLight3D
 var _self_light: OmniLight3D
 var _polaroid: CanvasLayer
+## Was in a building (or away): the first tick out again starts him over (_back_out).
+var _was_in := false
+## Metres walked since his last step, and which of his steps that was.
+var _stride_d := 0.0
+var _step_i := 0
+## His way to the next spot when a building or a tree stands on his arc: along the
+## camp's ways (staff_runtime.way), as the granny walks. Empty: the arc.
+var _walk_route := PackedVector3Array()
+var _staff_rt: Node
+## Not before this does walking into him grab you (out of a door by his window).
+var _grab_ok_at := 0.0
+## Every sound of his, loaded at the start of his night: never off the disk mid-scare.
+var _sfx_cache: Array = []
 var _killing := false
 var _rush_from := Vector3.ZERO
 var _frames := {}
@@ -176,7 +198,6 @@ var _spasm_wait := 3.0
 ## The hum as he is now ("" whole, "neck", "neck2"), louder for the new ones (their files
 ## are quieter), and the broken breathing once he is broken.
 var _hum_stage := ""
-var _hum_gain := 0.0
 var _breath3d: AudioStreamPlayer3D
 var _grim := {"rustle": 4.0, "drip": 3.0, "scream": 8.0, "far": 14.0}
 var _flicker_at := -1.0
@@ -192,7 +213,26 @@ func is_private_now() -> bool:
 	return _phase == Phase.RUSH or _killing or not _win.is_empty()
 
 
+## The night is over (dawn, death, the menu): his picture layer goes, a last picture
+## still coming does not hurt you after it, your controls are yours, his lamps go out.
+func _on_stop() -> void:
+	_killing = false
+	if _polaroid != null and is_instance_valid(_polaroid):
+		_polaroid.queue_free()
+	_polaroid = null
+	if _player != null and is_instance_valid(_player) and _player.has_method("set_controls_enabled"):
+		_player.call("set_controls_enabled", true)
+	_away_quiet()
+	_sfx_cache.clear()
+
+
 func _on_start() -> void:
+	# Every sound of his now, not off the disk mid-scare (the first flash, the first hit).
+	var consts: Dictionary = get_script().get_script_constant_map()
+	for k in consts:
+		var v = consts[k]
+		if v is String and (v as String).begins_with("res://assets/sfx/") and ResourceLoader.exists(v):
+			_sfx_cache.append(load(v))
 	var t := float(_difficulty - 1) / 4.0
 	_photo_damage = int(lerpf(16.0, 26.0, t))
 	_grab_damage = int(lerpf(30.0, 42.0, t))
@@ -236,9 +276,15 @@ func _on_start() -> void:
 	_self_light.light_energy = 0.9
 	_root.add_child(_self_light)
 	# He hums wherever he is: you always know.
-	_hum = _loop(SFX_HUM, -6.0)
-	if _hum != null:
-		_hum.max_distance = 45.0
+	for stage in HUM_OF:
+		var h := _loop(str(HUM_OF[stage]), -80.0)
+		if h != null:
+			h.max_distance = 45.0
+			if stage != "":
+				h.stop()
+			_hums[stage] = h
+	_hum = _hums.get("")
+	_hum_stage = ""
 	_room_audio = AudioStreamPlayer.new()
 	_root.add_child(_room_audio)
 	var start := _point_from_player(_dist + 6.0, _rng.randf_range(100.0, 260.0))
@@ -252,6 +298,7 @@ func tick(delta: float) -> void:
 	if _eyes != null:
 		_eyes.set("view_from", (_win["pos"] as Vector3) - (_win["out"] as Vector3) * 1.5 if not _win.is_empty() else Vector3.INF)
 	if _night_active and _player != null and is_instance_valid(_player) and not _is_ready() and _indoor_ok():
+		_was_in = true
 		_elapsed += delta
 		_tick_flash(delta)
 		_tick_indoors(delta)
@@ -259,12 +306,50 @@ func tick(delta: float) -> void:
 		_follow_hum()
 		_tick_eyes(delta)
 		return
+	if _night_active and _player != null and is_instance_valid(_player) and not _is_ready():
+		# Away (the boat, the town) or not his night: nothing of him floats there, his lamp
+		# and his hum neither.
+		_was_in = true
+		_away_quiet()
+	elif _was_in and _night_active and _player != null and is_instance_valid(_player):
+		_was_in = false
+		_back_out()
 	if not _win.is_empty():
 		_win = {}
 		_body.visible = false
 	if _glass_light != null:
 		_glass_light.visible = false
 	super(delta)
+
+
+## Out of the building (or back from away): he is round it, not at your window any more,
+## and starts over; no picture half taken through the glass goes off as you step out, and
+## coming out of a door by his window is not walking into him.
+func _back_out() -> void:
+	_win = {}
+	_in_step = 0
+	_whine_started = false
+	_set_af(false)
+	if _distance_to_player(_body.global_position) < 8.0:
+		var p := _point_from_player(_dist, _rng.randf_range(120.0, 240.0))
+		if p != Vector3.INF:
+			_body.global_position = p
+	_grab_ok_at = _elapsed + 2.5
+	_enter_walk()
+
+
+func _away_quiet() -> void:
+	if _body != null:
+		_body.visible = false
+	if _self_light != null:
+		_self_light.visible = false
+	if _af_lamp != null:
+		_af_lamp.light_energy = 0.0
+	for h in _hums.values():
+		if h != null and is_instance_valid(h):
+			h.volume_db = -80.0
+	if _breath3d != null and is_instance_valid(_breath3d):
+		_breath3d.volume_db = -80.0
 
 
 func _on_tick(dt: float) -> void:
@@ -277,7 +362,7 @@ func _on_tick(dt: float) -> void:
 	if _killing:
 		return
 	_standby(dt)
-	if _distance_to_player(_body.global_position) < GRAB_DISTANCE:
+	if _distance_to_player(_body.global_position) < GRAB_DISTANCE and _elapsed >= _grab_ok_at:
 		_grab()
 		return
 	match _phase:
@@ -308,12 +393,13 @@ func _enter_walk() -> void:
 	_walk_to = _next_spot()
 	_walk_c = _player_pos()
 	_walk_t = 0.0
-	_walk_dur = maxf(0.8, minf(_arc_length(), 24.0) / WALK_SPEED)
-	# Broken, one foot drags.
-	if _broken() != "":
-		_sound(SFX_STEP_DRAG, _head(), 0.0, _rng.randf_range(0.92, 1.05), 30.0)
-	else:
-		_sound(SFX_STEPS, _head(), -2.0, _rng.randf_range(0.95, 1.05), 30.0)
+	_walk_route = PackedVector3Array()
+	if _arc_blocked():
+		var rt = _staff()
+		if rt != null and rt.has_method("way"):
+			_walk_route = rt.call("way", _walk_from, _walk_to)
+	var length := _route_length(_walk_route) if _walk_route.size() > 1 else _arc_length()
+	_walk_dur = maxf(0.8, minf(length, 30.0) / WALK_SPEED)
 
 
 func _tick_walk(dt: float) -> void:
@@ -322,12 +408,17 @@ func _tick_walk(dt: float) -> void:
 	var k := clampf(_walk_t / _walk_dur, 0.0, 1.0)
 	# Twelve steps a second, the game's machinery rate; the feet swap four times a second.
 	if _step_acc >= STEP or k >= 1.0:
-		_step_acc = 0.0
-		var p := _arc(k)
+		_step_acc = fmod(_step_acc, STEP)
+		var p := _route_at(k) if _walk_route.size() > 1 else _arc(k)
 		var was := _body.global_position
-		var g := _ground(p)
+		# (From over your feet down: from 20 m up he stood on roofs and up in the trees.)
+		var g := _floor_at(p)
 		_body.global_position = g if g != Vector3.INF else p
 		var step := _body.global_position - was
+		_stride_d += Vector2(step.x, step.z).length()
+		if _stride_d >= 1.0:
+			_stride_d = fmod(_stride_d, 1.0)
+			_footstep()
 		var toward_you := (_player_pos() - was).normalized().dot(step.normalized()) > -0.4 if step.length() > 0.001 else true
 		_set_pose(("walk_a" if int(_walk_t * 4.0) % 2 == 0 else "walk_b") if toward_you else "back")
 	if k >= 1.0:
@@ -336,10 +427,10 @@ func _tick_walk(dt: float) -> void:
 		# Two pictures of you and his neck has gone: the head hangs, it cracks as he stops.
 		if _broken() != "":
 			_set_pose(_broken())
-			_sound(SFX_CRACK, _head(), 4.0, _rng.randf_range(0.9, 1.05), 25.0)
+			_sound(SFX_CRACK, _head(), 3.0, _rng.randf_range(0.9, 1.05), 25.0)
 		else:
 			_set_pose("idle")
-		_sound(SFX_WIND, _head(), 2.0, _rng.randf_range(0.95, 1.05), 40.0)
+		_sound(SFX_WIND, _head(), 6.5, _rng.randf_range(0.95, 1.05), 40.0)
 
 
 func _enter_frame() -> void:
@@ -348,9 +439,9 @@ func _enter_frame() -> void:
 	_next_beep = _elapsed
 	_whine_started = false
 	_set_pose(_broken() if _broken() != "" else "aim")
-	_sound(SFX_ZOOM, _head(), 0.0, 1.0, 30.0)
+	_sound(SFX_ZOOM, _head(), -1.5, 1.0, 30.0)
 	if _rng.randf() < 0.45:
-		_sound(SFX_RATTLE, _lens(), 0.0, _rng.randf_range(0.9, 1.1), 22.0)
+		_sound(SFX_RATTLE, _lens(), -2.0, _rng.randf_range(0.9, 1.1), 22.0)
 	# Broken, his flash is too: it stutters once before it fires (not a shot).
 	_flicker_at = _phase_end - _rng.randf_range(1.3, 1.8) if _broken() != "" and _rng.randf() < 0.5 else -1.0
 	_announce("Humming between the trees. A red light. Beep... beep... Do not look at the flash.")
@@ -406,21 +497,21 @@ func _fire() -> void:
 		if _phase == Phase.AFTER:
 			_set_pose("wave" if _hit_last else "idle")
 			if _hit_last:
-				_sound(SFX_POLAROID, _head(), 0.0, 1.0, 30.0)
+				_sound(SFX_POLAROID, _head(), 3.0, 1.0, 30.0)
 				if _broken() != "":
 					# Through the photographs in his mouth; now and then he coughs one out.
 					_sound(SFX_CHUCKLE_WET, _mouth(), 4.0, _rng.randf_range(0.9, 1.05), 35.0)
 					if _rng.randf() < 0.45:
 						get_tree_timer(1.1, func(): _sound(SFX_SPIT, _mouth(), 2.0, _rng.randf_range(0.9, 1.1), 25.0))
 				else:
-					_sound(SFX_GIGGLE, _head(), 4.0, _rng.randf_range(0.95, 1.1), 35.0))
+					_sound(SFX_GIGGLE, _head(), 3.0, _rng.randf_range(0.95, 1.1), 35.0))
 
 
 func _grab() -> void:
 	_hurt(_grab_damage)
 	_blast_you()
 	_sound(SFX_SHUTTER, _player_pos() + Vector3(0, 1.6, 0), 10.0, 0.7)
-	_sound(SFX_GIGGLE, _head(), 6.0, 0.9, 20.0)
+	_sound(SFX_GIGGLE, _head(), 5.0, 0.9, 20.0)
 	_dist = 20.0
 	var away := _point_from_player(_dist, _rng.randf_range(120.0, 240.0))
 	if away != Vector3.INF:
@@ -442,6 +533,49 @@ func _arc(k: float) -> Vector3:
 
 func _arc_length() -> float:
 	return _arc_between(_walk_from, _walk_to, _walk_c)
+
+
+## A step of his boots where he is (never the same one twice in a row); broken, one foot
+## dragged.
+func _footstep() -> void:
+	var set_: Array = SFX_DRAG if _broken() != "" else SFX_STEP
+	_step_i = (_step_i + 1 + _rng.randi() % (set_.size() - 1)) % set_.size()
+	_sound(set_[_step_i], _body.global_position + Vector3(0, 0.1, 0), -4.0 if _broken() != "" else -6.0, _rng.randf_range(0.94, 1.06), 30.0)
+
+
+## A building or a tree on his arc (a tenth of it at a time).
+func _arc_blocked() -> bool:
+	for i in range(1, 10):
+		var g := _ground(_arc(float(i) / 10.0))
+		if g == Vector3.INF or _covered(g):
+			return true
+	return false
+
+
+func _staff():
+	if _staff_rt == null or not is_instance_valid(_staff_rt):
+		_staff_rt = _world_root.get_tree().get_first_node_in_group("staff_runtime") if _world_root != null and _world_root.is_inside_tree() else null
+	return _staff_rt
+
+
+static func _route_length(r: PackedVector3Array) -> float:
+	var d := 0.0
+	for i in range(1, r.size()):
+		d += Vector2(r[i].x - r[i - 1].x, r[i].z - r[i - 1].z).length()
+	return d
+
+
+## Where along his way he is at `k` (0..1 of its length).
+func _route_at(k: float) -> Vector3:
+	var want := _route_length(_walk_route) * clampf(k, 0.0, 1.0)
+	for i in range(1, _walk_route.size()):
+		var a: Vector3 = _walk_route[i - 1]
+		var b: Vector3 = _walk_route[i]
+		var seg := Vector2(b.x - a.x, b.z - a.z).length()
+		if want <= seg or i == _walk_route.size() - 1:
+			return a.lerp(b, clampf(want / maxf(seg, 0.001), 0.0, 1.0))
+		want -= seg
+	return _walk_to
 
 
 static func _arc_between(from: Vector3, to: Vector3, c: Vector3) -> float:
@@ -509,9 +643,15 @@ func _tick_indoors(_dt: float) -> void:
 		_body.visible = false
 		if _elapsed >= _in_next:
 			_in_next = _elapsed + _rng.randf_range(9.0, 14.0)
-			_room(SFX_SHUTTER, -10.0, 0.9)
+			_room(SFX_SHUTTER, -10.0, 0.9, true)
 		return
-	if _win.is_empty() or _elapsed >= _in_next and _in_step == 0:
+	if _win.is_empty():
+		# (After a shot the while before the next window: gone from the glass.)
+		_body.visible = false
+		if _elapsed >= _in_next:
+			_pick_window(wins)
+		return
+	if _elapsed >= _in_next and _in_step == 0:
 		_pick_window(wins)
 		return
 	# The window he is at, as it is now (the curtain, where you look).
@@ -527,13 +667,13 @@ func _tick_indoors(_dt: float) -> void:
 		var progress := 1.0 - clampf(left / _frame_seconds, 0.0, 1.0)
 		if _elapsed >= _in_beep:
 			_in_beep = _elapsed + lerpf(0.5, 0.1, progress)
-			_room(SFX_BEEP, -6.0, 1.0 + progress * 0.15)
+			_room(SFX_BEEP, -6.0, 1.0 + progress * 0.15, true)
 			_set_af_at(lamp, true)
 		elif _elapsed > _in_beep - lerpf(0.4, 0.05, progress):
 			_set_af_at(lamp, false)
 		if left <= 1.1 and not _whine_started:
 			_whine_started = true
-			_room(SFX_WHINE, -2.0)
+			_room(SFX_WHINE, -2.0, 1.0, true)
 		if left <= 0.0:
 			_fire_through(w)
 		return
@@ -543,17 +683,17 @@ func _tick_indoors(_dt: float) -> void:
 	match _in_step:
 		1:
 			# Taps on the glass with the camera.
-			_room(SFX_TAP, -2.0)
+			_room(SFX_TAP, -2.5)
 			_in_step = 2
 			_in_next = _elapsed + _rng.randf_range(1.2, 2.0)
 		2:
 			if _broken() != "" and _rng.randf() < 0.5:
 				# Wet paper and a jaw that clicks, against the glass.
-				_room(SFX_RUSTLE if _rng.randf() < 0.6 else SFX_JAW, -4.0)
+				_room(SFX_RUSTLE if _rng.randf() < 0.6 else SFX_JAW, -8.5, 1.0, true)
 			elif _rng.randf() < 0.5:
-				_room(SFX_BREATH, -6.0)
+				_room(SFX_BREATH, 0.0, 1.0, true)
 			else:
-				_room(SFX_ZOOM, -8.0)
+				_room(SFX_ZOOM, -9.5, 1.0, true)
 			_set_pose("aim")
 			_in_step = 3
 			_in_next = _elapsed + _frame_seconds
@@ -576,7 +716,7 @@ func _pick_window(wins: Array) -> void:
 			score = s
 			best = w
 	_win = best
-	var p := _ground((best["pos"] as Vector3) + (best["out"] as Vector3) * 0.5)
+	var p := _floor_at((best["pos"] as Vector3) + (best["out"] as Vector3) * 0.5)
 	if p == Vector3.INF:
 		p = (best["pos"] as Vector3) + (best["out"] as Vector3) * 0.5 - Vector3(0, 1.6, 0)
 	_body.global_position = p
@@ -606,8 +746,8 @@ func _fire_through(w: Dictionary) -> void:
 	_set_af_at(Vector3.ZERO, false)
 	_shots += 1
 	_set_pose("flash")
-	_room(SFX_FLASH_ROOM, 2.0)
-	_room(SFX_SHUTTER, -4.0)
+	_room(SFX_FLASH_ROOM, -1.0)
+	_room(SFX_SHUTTER, -4.0, 1.0, true)
 	if bool(w.get("far", false)):
 		var fx := _fx()
 		if fx != null:
@@ -630,18 +770,19 @@ func _fire_through(w: Dictionary) -> void:
 		_blast_you()
 		_picture_of_you(_head(), w)
 		_feed("FLASH through the window. Draw the curtains.")
-		get_tree_timer(0.5, func(): _room(SFX_GIGGLE, -4.0))
+		get_tree_timer(0.5, func(): _room(SFX_GIGGLE, -5.0, 1.0, true))
 	elif open <= 0.25:
 		# The curtain: a shape behind it, lit; he taps, annoyed.
-		get_tree_timer(0.6, func(): _room(SFX_TAP, -2.0, 0.9))
+		get_tree_timer(0.6, func(): _room(SFX_TAP, -2.5, 0.9))
 	_in_step = 4
 	_in_next = _elapsed + _rng.randf_range(1.2, 2.0)
 
 
-## A sound in the room you are in (through the wall: no direction, a little dull); in
-## co-op, on the hunted warden's machine.
-func _room(path: String, db: float, pitch: float = 1.0) -> void:
-	if _play_2d_remote(path, db, pitch):
+## A sound in the room you are in; in co-op, on the hunted warden's machine. `wall`: his,
+## from out there through the walls (muffled); not the tap on the glass, the flash
+## popping in the room or what is in your head.
+func _room(path: String, db: float, pitch: float = 1.0, wall := false) -> void:
+	if _play_2d_remote(path, db, pitch, wall):
 		return
 	if _room_audio == null or not ResourceLoader.exists(path):
 		return
@@ -649,6 +790,8 @@ func _room(path: String, db: float, pitch: float = 1.0) -> void:
 	a.stream = load(path)
 	a.volume_db = db
 	a.pitch_scale = pitch
+	if wall:
+		a.bus = WORLD_SOUNDS.wall_bus("Master")
 	_root.add_child(a)
 	a.finished.connect(a.queue_free)
 	a.play()
@@ -658,6 +801,10 @@ func _room(path: String, db: float, pitch: float = 1.0) -> void:
 
 func _follow_hum() -> void:
 	if _self_light != null:
+		_self_light.visible = _body != null and _body.visible
+	if _breath3d != null and is_instance_valid(_breath3d) and _breath3d.volume_db < -60.0:
+		_breath3d.volume_db = -6.0
+	if _self_light != null:
 		var cam := _camera()
 		var toward := (cam.global_position - _head()).normalized() if cam != null else Vector3.ZERO
 		_self_light.global_position = _head() + Vector3(0, -0.5, 0) + toward * 0.6
@@ -666,8 +813,15 @@ func _follow_hum() -> void:
 		_hum.global_position = _mouth()
 		if _breath3d != null and is_instance_valid(_breath3d):
 			_breath3d.global_position = _mouth()
-		# Quieter through a wall, still there.
-		var db := (-14.0 if not _win.is_empty() or not _is_ready() else -6.0) + _hum_gain
+		# Quieter through a wall, still there: and dull with it.
+		var inside := not _win.is_empty() or not _is_ready()
+		# (All three at -23 LUFS: as loud as before, the whole one and the broken ones.)
+		var db := -8.0 if inside else 0.0
+		var bus := WORLD_SOUNDS.wall_bus("Master") if inside else "Master"
+		if _hum.bus != bus:
+			_hum.bus = bus
+			if _breath3d != null and is_instance_valid(_breath3d):
+				_breath3d.bus = bus
 		# Muted on this machine for co-op privacy (coop_night._hide_private): kept for later.
 		if _hum.has_meta("coop_db"):
 			_hum.set_meta("coop_db", db)
@@ -738,7 +892,7 @@ func _blast_you() -> void:
 			if f != null:
 				f.subliminal(burnt, 4, 1.0, Color(0.75, 0.78, 0.9)))
 	if _hits % 2 == 0:
-		get_tree_timer(0.4, func(): _room(SFX_PEEL, -6.0))
+		get_tree_timer(0.4, func(): _room(SFX_PEEL, -5.0))
 
 
 func get_tree_timer(sec: float, fn: Callable) -> void:
@@ -796,7 +950,7 @@ func _kill(lens: Vector3) -> void:
 		if f != null:
 			f.close_up_off()
 		_room(SFX_SHUTTER, 8.0, 0.8)
-		_room(SFX_LAUGH_WET, 2.0)
+		_room(SFX_LAUGH_WET, -1.0)
 		_blast_you()
 		# Your face, from right in front of it, looking at him.
 		_photo(lens, null, {}, true)
@@ -806,7 +960,8 @@ func _kill(lens: Vector3) -> void:
 		get_tree_timer(3.8, func():
 			if _player != null and is_instance_valid(_player) and _player.has_method("set_controls_enabled"):
 				_player.call("set_controls_enabled", true)
-			_hurt(_photo_damage * 3)
+			if _night_active:
+				_hurt(_photo_damage * 3)
 			_killing = false))
 
 
@@ -820,8 +975,8 @@ func _enter_rush() -> void:
 		_body.global_position = behind
 	_rush_from = _body.global_position
 	_set_pose("run" if _tex.has("run") else "walk_a")
-	_sound(SFX_RUSH, _head(), 8.0, 1.0, 40.0)
-	get_tree_timer(0.3, func(): _sound(SFX_LAUGH_WET, _head(), 4.0, 1.1, 30.0))
+	_sound(SFX_RUSH, _head(), 12.0, 1.0, 40.0)
+	get_tree_timer(0.3, func(): _sound(SFX_LAUGH_WET, _head(), 8.0, 1.1, 30.0))
 
 
 func _tick_rush(dt: float) -> void:
@@ -840,7 +995,7 @@ func _tick_rush(dt: float) -> void:
 		return
 	var p := _body.global_position + to.normalized() * minf(to.length() - 2.8, RUSH_SPEED * _step_acc)
 	_step_acc = 0.0
-	var g := _ground(p)
+	var g := _floor_at(p)
 	_body.global_position = g if g != Vector3.INF else p
 
 
@@ -908,10 +1063,10 @@ func _tick_grim(dt: float) -> void:
 			_spasm_left = 0.17
 			_sound(SFX_TWITCH, _mouth(), 2.0, _rng.randf_range(0.9, 1.1), 22.0)
 			if _rng.randf() < 0.4:
-				_sound(SFX_JAW, _mouth(), 0.0, _rng.randf_range(0.9, 1.1), 16.0)
+				_sound(SFX_JAW, _mouth(), -5.5, _rng.randf_range(0.9, 1.1), 16.0)
 		if float(_grim["rustle"]) <= 0.0:
 			_grim["rustle"] = _rng.randf_range(4.0, 8.0)
-			_sound(SFX_RUSTLE, _mouth(), -2.0, _rng.randf_range(0.9, 1.1), 14.0)
+			_sound(SFX_RUSTLE, _mouth(), -5.5, _rng.randf_range(0.9, 1.1), 14.0)
 		if float(_grim["drip"]) <= 0.0:
 			_grim["drip"] = _rng.randf_range(2.5, 5.0)
 			_sound(SFX_DRIP, _body.global_position + Vector3(0, 0.2, 0), -6.0, _rng.randf_range(0.9, 1.1), 10.0)
@@ -947,26 +1102,16 @@ func _hum_for(stage: String) -> void:
 	if stage == _hum_stage:
 		return
 	_hum_stage = stage
-	var path := SFX_HUM if stage == "" else (SFX_HUM_GARGLE if stage == "neck" else SFX_HUM_MUFFLED)
-	var st := _looped(path)
-	if st != null:
-		_hum.stream = st
+	var next: AudioStreamPlayer3D = _hums.get(stage)
+	if next != null and next != _hum:
+		if _hum != null and is_instance_valid(_hum):
+			_hum.stop()
+		_hum = next
 		_hum.play()
-	_hum_gain = 0.0 if stage == "" else 6.0
 	if stage != "" and _breath3d == null:
 		_breath3d = _loop(SFX_BREATH_BROKEN, -6.0)
 		if _breath3d != null:
 			_breath3d.max_distance = 14.0
-
-
-static func _looped(path: String) -> AudioStream:
-	if not ResourceLoader.exists(path):
-		return null
-	var st := load(path) as AudioStream
-	if st is AudioStreamMP3:
-		st = (st as AudioStreamMP3).duplicate()
-		(st as AudioStreamMP3).loop = true
-	return st
 
 
 ## What the pictures of you have done to him: two and his neck has broken (the head hangs

@@ -32,7 +32,8 @@ extends "res://scripts/enemies/enemy_base.gd"
 ##             her own clothes, standing much too still
 ##   approach  look away (or let the light leave her) and she is closer and changed: the
 ##             smile wider, then legs too long, then her back to you with her face turned
-##             round, then on all fours, then an arm reaching too far; heels scurry on
+##             round, then her arms hanging to the ground, then an arm reaching too far
+##             (no crawling on all fours: "weird, not scary", 18. 10.); heels scurry on
 ##             the gravel while you are not looking; when you find her again, closer,
 ##             the sound of it
 ##   test      close, the torch dies in your hand now and then by itself: in that dark
@@ -59,8 +60,15 @@ const FACES := [[N + "girl4_face.png", N + "girl_face_b.png"], [N + "girl4_face_
 const SHINE_DEG := 16.0
 const SHINE_RANGE := 45.0
 const HEEL := "res://assets/textury/pipes/red_shoe.png"
-const SFX_STATIC := "res://assets/sfx/npc/girl_static.mp3"
-const SFX_HUM := "res://assets/sfx/npc/girl_hum.mp3"
+## Her loops as seamless OGG looped by their import (ambience_loop.py --trim --lufs=-23):
+## the MP3s looped in code clicked at every repeat and, their copies having no path,
+## never reached the other wardens (coop_night mirrors a sound by its path).
+const SFX_STATIC := "res://assets/sfx/npc/girl_static.ogg"
+const SFX_HUM := "res://assets/sfx/npc/girl_hum.ogg"
+## The one-shots of the same two (the burst at the curse, the humming in your room).
+const SFX_STATIC_ONE := "res://assets/sfx/npc/girl_static.mp3"
+const SFX_HUM_ONE := "res://assets/sfx/npc/girl_hum.mp3"
+const WORLD_SOUNDS := preload("res://scripts/ambient/world_sounds.gd")
 const SFX_HEEL := "res://assets/sfx/npc/girl_heel.mp3"
 const SFX_RUSH := "res://assets/sfx/npc/girl_rush.mp3"
 const SFX_STING := "res://assets/sfx/npc/girl_sting.mp3"
@@ -144,6 +152,20 @@ var _lure_next := -1.0
 var _glass_until := -1.0
 var _glass_light: OmniLight3D
 var _sound2d: AudioStreamPlayer
+## Hers from out there while you are inside: through the walls, muffled.
+var _wall2d: AudioStreamPlayer
+## The guest herself, far off, till you have once had a good look at her so (1 s seen): her
+## first unseen step no longer wasted it.
+var _guest_seen := 0.0
+var _guest_done := false
+## The stage she has come to this round: never back (a jitter showed her younger nearer).
+var _stage_floor := 0
+## The heels she left: the last three stay, not one every round all night.
+var _heels: Array = []
+## The window she is at (where it is in the camp): she goes from it unseen, not on a timer.
+var _glass_at := Vector3.INF
+## Every sound of hers, loaded at the start of her night: never off the disk mid-scare.
+var _sfx_cache: Array = []
 const RING_AFTER := 6.0
 const RING_PAIRS := 9
 ## Far off, found again, she is not standing as a person stands: upside down, hanging
@@ -188,10 +210,21 @@ func _on_start() -> void:
 	_make_eyes("girl", HEIGHT * 0.9).set("tilt", _eye_tilt0)
 	for art in _tex.values():
 		_eye_spot[art] = _find_eyes(art)
+	var consts: Dictionary = get_script().get_script_constant_map()
+	for k in consts:
+		var v = consts[k]
+		if v is String and (v as String).begins_with("res://assets/sfx/") and ResourceLoader.exists(v):
+			_sfx_cache.append(load(v))
 	_static = _loop(SFX_STATIC, -60.0)
 	_hum = _loop(SFX_HUM, -60.0)
+	if _hum != null:
+		# Her humming carries: the omen far off (it was heard within ~10 m only).
+		_hum.max_distance = 45.0
 	_sound2d = AudioStreamPlayer.new()
 	_root.add_child(_sound2d)
+	_wall2d = AudioStreamPlayer.new()
+	_wall2d.bus = WORLD_SOUNDS.wall_bus("Master")
+	_root.add_child(_wall2d)
 	_begin_loop()
 
 
@@ -219,6 +252,7 @@ func _on_stop() -> void:
 
 ## Omen: out in the dark, far, humming; the guest still, in her own clothes.
 func _begin_loop() -> void:
+	_stage_floor = 0
 	_phase = OMEN
 	_unseen_for = 0.0
 	_in_lamp_for = 0.0
@@ -237,7 +271,7 @@ func _begin_loop() -> void:
 			continue
 		_place_body(p)
 		_set_look(_round == 0, dist)
-		_sound(SFX_HEEL, p, -10.0, _rng.randf_range(0.9, 1.05))
+		_sound(SFX_HEEL, p, -4.0, _rng.randf_range(0.9, 1.05), 40.0)
 		_last_d = dist
 		_phase = STALK
 		return
@@ -252,7 +286,7 @@ func _on_tick(dt: float) -> void:
 		return
 	if _phase == GONE:
 		_body.visible = false
-		_set_audio(0.0)
+		_set_audio(0.0, false)
 		_drop_decoy()
 		_drop_ring()
 		_tick_residue(dt)
@@ -281,6 +315,10 @@ func _on_tick(dt: float) -> void:
 		_jumpscare()
 	_tick_curse(dt, sees and d < 16.0)
 	_tick_far_laugh(dt, d)
+	if sees and _body.texture == _tex.get(GUEST):
+		_guest_seen += dt
+		if _guest_seen >= 1.0:
+			_guest_done = true
 	if sees:
 		_announce("Two white pinpricks out in the dark. Someone is standing there, and she hasn't moved.")
 		_unseen_for = 0.0
@@ -290,20 +328,24 @@ func _on_tick(dt: float) -> void:
 			_moved_unseen = false
 			if d < 16.0:
 				# Found again, nearer than she was: the sound of it.
-				_sound(SFX_STING, _player_pos() + Vector3(0, 1.5, 0), lerpf(-2.0, -12.0, d / 16.0))
+				_near_you(_sound_quarry(SFX_STING, _player_pos() + Vector3(0, 1.5, 0), lerpf(0.5, -5.0, d / 16.0)))
 				# And for two frames, the face she pretends with.
 				if d < 11.0 and _tex.has(T_SMILE) and _fx() != null and _rng.randf() < 0.5:
 					_fx().subliminal(_tex[T_SMILE], 2, 0.95, Color(1, 1, 1, 0.85))
-	else:
+	elif not _lit_by_others(head):
 		_unseen_for += dt * (2.5 if stuttering else 1.0)
 		_tick_chatter(dt, d)
+	# Another warden's machine holds the cold till told: off the moment your torch is off her.
+	if _quarry_peer() != 0 and not (sees and torch_on_her):
+		_player.set("flashlight_drain_boost", 0.0)
 	_tick_ring(dt)
 	# Under a lamp you are out of her reach; long enough and she lets this loop go.
 	if _lamp_light_at(_player_pos()) > LAMP_SAFE:
 		_in_lamp_for += dt
 		if _in_lamp_for >= RING_AFTER and not _ring_done and _ring_t < 0.0:
 			_start_ring()
-		if _in_lamp_for >= GIVE_UP_IN_LAMP:
+		# (Not before your eyes: she lets it go when you look away.)
+		if _in_lamp_for >= GIVE_UP_IN_LAMP and not sees:
 			_sound(SFX_GIGGLE, head, -6.0)
 			_leave(_rng.randf_range(10.0, 16.0))
 			return
@@ -320,10 +362,10 @@ func _on_tick(dt: float) -> void:
 	_update_decoy(dt, sees and torch_on_her, d)
 	var near := clampf(1.0 - d / 22.0, 0.0, 1.0)
 	_hush = d < HUSH_DIST and not looking
-	_set_audio(0.0 if _hush else near)
+	_set_audio(near, not _hush)
 	if _hush and not _breath_done and d < 3.0:
 		_breath_done = true
-		_sound(SFX_DROOL, _player_pos() + Vector3(0, 1.55, 0) - _forward_flat() * 0.3, 2.0, 0.8, 5.0)
+		_near_you(_sound(SFX_DROOL, _player_pos() + Vector3(0, 1.55, 0) - _forward_flat() * 0.3, -1.0, 0.8, 5.0))
 	var fxp := _fx()
 	if fxp != null:
 		var in_lamp := _lamp_light_at(_player_pos()) > LAMP_SAFE
@@ -424,14 +466,14 @@ func _go_behind() -> void:
 	_set_pose(false)
 	_jump_ready = true
 	_moved_unseen = false
-	_sound(SFX_GIGGLE, p + Vector3(0, 1.5, 0), -16.0)
+	_sound(SFX_GIGGLE, p + Vector3(0, 1.5, 0), -7.0)
 
 
 ## Face to face after the turn: the sting, her face over everything for three frames,
 ## the picture tearing.
 func _jumpscare() -> void:
-	_sound(SFX_STING, _player_pos() + Vector3(0, 1.5, 0), 6.0)
-	_sound(SFX_SCREAM, _player_pos() + Vector3(0, 1.5, 0), -4.0, 1.25)
+	_near_you(_sound(SFX_STING, _player_pos() + Vector3(0, 1.5, 0), 0.5))
+	_near_you(_sound(SFX_SCREAM, _player_pos() + Vector3(0, 1.5, 0), 3.0, 1.25))
 	var fx := _fx()
 	if fx != null:
 		# Her lunge at you, claws first (or her eye, an inch off), then the faces.
@@ -450,13 +492,13 @@ func _advance(small: bool) -> void:
 	to_player.y = 0.0
 	var dist := to_player.length()
 	if not small and _rng.randf() < 0.15 and dist > 6.0:
-		_set_look(false, dist)
+		_set_look(_round == 0 and not _guest_done, dist)
 		_moved_unseen = true
 		return
 	var want := _rng.randf_range(0.8, 1.3) if small else _rng.randf_range(_step.x, _step.y) * (1.0 + 0.15 * float(mini(_round, 4)))
 	var step := minf(want, maxf(0.0, dist - 0.4))
 	var sideways := to_player.normalized().cross(Vector3.UP) * (_rng.randf_range(-0.3, 0.3) if small else _rng.randf_range(-1.4, 1.4))
-	var target := _ground(from + to_player.normalized() * step + sideways)
+	var target := _stand(from + to_player.normalized() * step + sideways)
 	if target == Vector3.INF:
 		return
 	# Lamp light is a wall to her: she goes round its edge instead, towards your back.
@@ -466,7 +508,7 @@ func _advance(small: bool) -> void:
 			return
 	_body.global_position = target
 	var nd := _distance_to_player(target)
-	_set_look(false, nd)
+	_set_look(_round == 0 and not _guest_done, nd)
 	_set_pose(not small and nd > 12.0 and _rng.randf() < 0.3)
 	_moved_unseen = true
 	_sound(SFX_HEEL if small else SFX_RUSH, target, lerpf(-3.0, -16.0, clampf(nd / 22.0, 0.0, 1.0)), _rng.randf_range(0.92, 1.08))
@@ -489,7 +531,7 @@ func _round_the_light(from: Vector3, dist: float) -> Vector3:
 	var best_k := 2.0
 	for ang in [30.0, -30.0, 55.0, -55.0]:
 		var dir := out.normalized().rotated(Vector3.UP, deg_to_rad(ang))
-		var p := _ground(me + dir * maxf(dist - 0.3, 2.0))
+		var p := _stand(me + dir * maxf(dist - 0.3, 2.0))
 		if p == Vector3.INF or _lamp_light_at(p) > LAMP_SAFE:
 			continue
 		var k := fwd.dot(dir)
@@ -534,9 +576,9 @@ func _tick_room() -> void:
 		return
 	if not _in_room:
 		_in_room = true
-		_lure_n = 0
+		# (_lure_n counts on over the night: going in and out does not start her over.)
 		_lure_next = _wall_clock() + _rng.randf_range(9.0, 15.0)
-	if _glass_until > 0.0 and _wall_clock() >= _glass_until:
+	if _glass_until > 0.0 and _wall_clock() >= _glass_until and not _glass_looked_at():
 		_hide_glass()
 	if _wall_clock() < _lure_next:
 		return
@@ -553,12 +595,12 @@ func _room_lure(n: int) -> void:
 	var im = scene.get("_interior_manager") if scene != null else null
 	match n % 6:
 		0:
-			_room_2d(SFX_HUM, -14.0, 0.95)
+			_room_2d(SFX_HUM_ONE, -2.5, 0.95, true)
 		1:
 			for i in 5:
-				_later(0.55 * float(i), func(): _room_2d(SFX_HEEL, -10.0 - 2.0 * float(i), _rng.randf_range(0.9, 1.0)))
+				_later(0.55 * float(i), func(): _room_2d(SFX_HEEL, -10.0 - 2.0 * float(i), _rng.randf_range(0.9, 1.0), true))
 		2:
-			_room_2d(SFX_GIGGLE, -8.0, 0.9)
+			_room_2d(SFX_GIGGLE, -8.0, 0.9, true)
 			for i in 3:
 				_later(1.3 + 0.9 * float(i), func(): _room_2d("res://assets/sfx/director/knock.mp3", -6.0, 0.85))
 		3:
@@ -566,8 +608,8 @@ func _room_lure(n: int) -> void:
 				_room_2d("res://assets/sfx/director/window_tap.mp3", -4.0, 0.9)
 		4:
 			for i in 12:
-				_later(0.05 * float(i), func(): _room_2d(SFX_SNAP, -7.0, _rng.randf_range(2.2, 2.8)))
-			_later(1.2, func(): _room_2d(SFX_DROOL, -8.0, 0.8))
+				_later(0.05 * float(i), func(): _room_2d(SFX_SNAP, -7.0, _rng.randf_range(2.2, 2.8), true))
+			_later(1.2, func(): _room_2d(SFX_DROOL, -9.5, 0.8, true))
 		_:
 			_visit_guest()
 
@@ -579,15 +621,19 @@ func _later(seconds: float, f: Callable) -> void:
 				f.call())
 
 
-func _room_2d(file: String, db: float, pitch: float = 1.0) -> void:
-	if _play_2d_remote(file, db, pitch):
+## A sound of her while you are inside. `wall`: she is out there and it comes through the
+## walls, muffled; not the knock, the tap on the glass or the sting.
+func _room_2d(file: String, db: float, pitch: float = 1.0, wall := false) -> void:
+	if _play_2d_remote(file, db, pitch, wall):
 		return
-	if _sound2d == null or not ResourceLoader.exists(file):
+	var base := _wall2d if wall else _sound2d
+	if base == null or not ResourceLoader.exists(file):
 		return
 	# One sound over another: each its own player when the one is busy.
-	var p := _sound2d
+	var p := base
 	if p.playing:
 		p = AudioStreamPlayer.new()
+		p.bus = base.bus
 		_root.add_child(p)
 		p.finished.connect(p.queue_free)
 	p.stream = load(file)
@@ -596,23 +642,20 @@ func _room_2d(file: String, db: float, pitch: float = 1.0) -> void:
 	p.play()
 
 
-## The cabin you are in: she stands at the window you look at, pressed to the glass,
-## her face in it and her eyes; for two frames, the face she pretends with.
-func _at_glass(im) -> bool:
-	# Their cabin is on their machine, not in this one's rooms.
-	if _quarry_peer() != 0:
-		return false
-	var cab = im.get("_cabin_interior") if im != null else null
-	if cab == null or not is_instance_valid(cab) or not cab.has_method("outside_windows") or not bool(cab.call("is_open")):
-		return false
-	var wins: Array = cab.call("outside_windows")
+## The room you are in (any with windows: the office, a cabin, a caravan, a service block;
+## in co-op the other warden's): she stands at the window you look at, its curtain open,
+## pressed to the glass, her face in it and her eyes; for two frames, the face she
+## pretends with.
+func _at_glass(_im) -> bool:
+	var wins: Array = _room_windows().filter(func(c): return float(c.get("open", 1.0)) >= 0.35)
 	if wins.is_empty():
 		return false
 	var w: Dictionary = wins[0]
 	for c in wins:
 		if float(c.get("facing", 0.0)) > float(w.get("facing", 0.0)):
 			w = c
-	var p := _ground((w["pos"] as Vector3) + (w["out"] as Vector3) * 0.3)
+	var p := _floor_at((w["pos"] as Vector3) + (w["out"] as Vector3) * 0.3)
+	_glass_at = w["pos"]
 	if p == Vector3.INF:
 		return false
 	_room_2d("res://assets/sfx/director/window_tap.mp3", -6.0, 1.1)
@@ -625,11 +668,13 @@ func _at_glass(im) -> bool:
 		var spot: Vector2 = _eye_spot.get(_body.texture, Vector2(0.0, float(_body.texture.get_height()) * 0.86))
 		_eyes.set("height", spot.y * _body.pixel_size)
 		_eyes.set("x_off", spot.x * _body.pixel_size)
-		_eyes.set("view_from", (w["pos"] as Vector3) - (w["out"] as Vector3) * 1.5)
+		_eyes.set("view_from", w.get("view", (w["pos"] as Vector3) - (w["out"] as Vector3) * 1.5))
 		_eyes.set("want", 1.0)
 		_eyes.set("size_k", 1.6)
-		# Her face in the middle of the glass.
-		_body.global_position.y = (w["pos"] as Vector3).y - float(_eyes.get("height")) - 0.04
+		# Her face in the middle of the glass, a step off the ground at most (a window set
+		# higher shows her from the chest up: she does not float, nor stand in a hole).
+		var y := (w["pos"] as Vector3).y - float(_eyes.get("height")) - 0.04
+		_body.global_position.y = clampf(y, p.y - 0.15, p.y + 0.15)
 	if _glass_light == null:
 		_glass_light = OmniLight3D.new()
 		_glass_light.light_color = Color(1.0, 0.8, 0.55)
@@ -643,9 +688,17 @@ func _at_glass(im) -> bool:
 			var fx := _fx()
 			if fx != null:
 				fx.subliminal(_tex[T_SMILE], 2, 1.0, Color(1, 1, 1, 0.8))
-				_room_2d(SFX_STING, -6.0, 0.9))
-	_later(1.6, func(): _room_2d(SFX_GIGGLE, -10.0, 0.7))
+				_room_2d(SFX_STING, -2.0, 0.9))
+	_later(1.6, func(): _room_2d(SFX_GIGGLE, -10.0, 0.7, true))
 	return true
+
+
+## You look at the window she is at: she does not go while you watch her there.
+func _glass_looked_at() -> bool:
+	for w in _room_windows():
+		if (w["pos"] as Vector3).distance_to(_glass_at) < 0.5:
+			return float(w.get("facing", 0.0)) > 0.82
+	return false
 
 
 func _hide_glass() -> void:
@@ -674,9 +727,9 @@ func _visit_guest() -> void:
 			if str(g.get("archetype", "")) == "cheap_chick":
 				break
 	if pick.is_empty():
-		_room_2d(SFX_GIGGLE, -10.0, 0.6)
+		_room_2d(SFX_GIGGLE, -10.0, 0.6, true)
 		return
-	_room_2d(SFX_GIGGLE, -16.0, 0.75)
+	_room_2d(SFX_GIGGLE, -16.0, 0.75, true)
 	GuestManager.apply_guest_event(int(pick.get("id", -1)), -18.0, "A woman stood outside all night, laughing at nothing. She knew my name.")
 
 
@@ -726,7 +779,7 @@ func _start_ring() -> void:
 		# Out to where the light ends.
 		var p := Vector3.INF
 		for r in [6.0, 8.0, 10.0, 12.0, 14.0]:
-			var q := _ground(me + dir * float(r))
+			var q := _stand(me + dir * float(r))
 			if q != Vector3.INF and _lamp_light_at(q) <= LAMP_SAFE:
 				p = q
 				break
@@ -771,7 +824,7 @@ func _tick_ring(dt: float) -> void:
 			_set_look(false, _distance_to_player(p))
 			_moved_unseen = true
 			_ring_stay_until = _elapsed + 5.0
-		_sound(SFX_STING, _player_pos() + Vector3(0, 1.5, 0), -4.0, 0.8)
+		_near_you(_sound_quarry(SFX_STING, _player_pos() + Vector3(0, 1.5, 0), 0.5, 0.8))
 
 
 func _drop_ring() -> void:
@@ -830,7 +883,7 @@ func _tick_curse(dt: float, seen_near: bool) -> void:
 	var fx := _fx()
 	if fx != null:
 		fx.glitch(0.35, 0.15)
-	_sound(SFX_STATIC, _body.global_position + Vector3(0, 1.4, 0), -6.0, 0.7, 30.0)
+	_sound(SFX_STATIC_ONE, _body.global_position + Vector3(0, 1.4, 0), 3.0, 0.7, 30.0)
 
 
 ## Out of the dark, far off, her laugh slowed down into something low and long.
@@ -864,7 +917,8 @@ func _upside() -> Texture2D:
 
 
 ## Her look by how near she is: the guest herself only the first time, far off; then
-## the smile, the long legs, the face turned round over her back, on all fours, reaching.
+## the smile, the long legs, the face turned round over her back, her arms to the ground,
+## reaching.
 func _set_look(guest_ok: bool, dist: float) -> void:
 	var have: Array = []
 	for i in M.size():
@@ -876,6 +930,8 @@ func _set_look(guest_ok: bool, dist: float) -> void:
 		if not have.is_empty():
 			var near := clampf(1.0 - (dist - 3.0) / 22.0, 0.0, 1.0)
 			var i := clampi(int(near * float(have.size()) + _rng.randf_range(-0.4, 0.6)), 0, have.size() - 1)
+			i = maxi(i, mini(_stage_floor, have.size() - 1))
+			_stage_floor = i
 			path = have[i]
 			if dist < 6.0 and _tex.has(REACH_TEX) and _rng.randf() < 0.35:
 				path = REACH_TEX
@@ -1011,7 +1067,7 @@ func _update_stutter(dt: float, d: float, coming: bool) -> void:
 			_fake_done = true
 			fx.subliminal(_face(_rng.randi_range(0, 2)), 3, 1.1)
 			fx.glitch(0.6, 0.5)
-			_sound(SFX_SCREAM, _player_pos() + Vector3(0, 1.5, 0), -2.0, 1.4)
+			_near_you(_sound_quarry(SFX_SCREAM, _player_pos() + Vector3(0, 1.5, 0), 3.0, 1.4))
 		elif _rng.randf() < 0.5:
 			fx.subliminal(_face(_rng.randi_range(0, 2)), 2, 0.8, Color(1, 1, 1, 0.5))
 
@@ -1098,12 +1154,12 @@ func _start_strike() -> void:
 	_set_yaw(atan2(-to.x, -to.z))
 	var cam := _camera()
 	_strike_cam = {"pitch0": cam.rotation.x if cam != null else 0.0, "roll0": cam.rotation.z if cam != null else 0.0}
-	_set_audio(0.0)
+	_set_audio(0.0, false)
 	var fx := _fx()
 	if fx != null:
 		fx.freeze(0.08)
-	_sound(SFX_RUSH, _player_pos() + _forward_flat() * 1.2, 4.0, 1.15, 12.0)
-	_sound(SFX_SCREAM, _player_pos() + Vector3(0, 1.5, 0), -6.0)
+	_near_you(_sound(SFX_RUSH, _player_pos() + _forward_flat() * 1.2, -2.0, 1.15, 12.0))
+	_near_you(_sound(SFX_SCREAM, _player_pos() + Vector3(0, 1.5, 0), 3.0))
 
 
 ## Her face twitches on the beat: a small tilt, one way then back, every third step.
@@ -1120,7 +1176,16 @@ func _cue(at: float, id: String) -> bool:
 
 
 func _ear_sfx(file: String, db: float, pitch: float = 1.0) -> void:
-	_sound(file, _player_pos() + Vector3(0, 1.55, 0) + _forward_flat() * 0.15, db, pitch, 6.0)
+	_near_you(_sound(file, _player_pos() + Vector3(0, 1.55, 0) + _forward_flat() * 0.15, db, pitch, 6.0))
+
+
+## A sound at you (your ear, your face) at the gain written: 0.3 m off it got +20 dB from
+## its nearness and every one hit the 3D player's ceiling (+3) alike; its unit size the
+## distance it is at takes that out.
+func _near_you(p: AudioStreamPlayer3D) -> void:
+	var cam := _camera()
+	if p != null and cam != null:
+		p.unit_size = maxf(0.05, cam.global_position.distance_to(p.global_position))
 
 
 func _cam_set(pitch: float, roll: float) -> void:
@@ -1161,12 +1226,12 @@ func _update_strike(dt: float) -> void:
 		_cam_set(-0.08 * k, 0.05 * sin(st * 37.0))
 		if _cue(0.3, "grab"):
 			_ear_sfx(SFX_RUSTLE, 2.0, 0.9)
-			_ear_sfx(SFX_DROOL, 4.0, 0.9)
+			_ear_sfx(SFX_DROOL, -1.0, 0.9)
 			if fx != null:
 				fx.freeze(0.05)
 				fx.glitch(0.4, 0.4)
 		if _cue(0.62, "giggle"):
-			_ear_sfx(SFX_GIGGLE, 0.0, 0.85)
+			_ear_sfx(SFX_GIGGLE, -3.0, 0.85)
 	# Snap: her head jerks over on its neck.
 	elif st < 1.12:
 		if fx != null:
@@ -1195,7 +1260,7 @@ func _update_strike(dt: float) -> void:
 		_cam_set(-0.12, 0.05 * _strike_side + 0.04 * sin(st * 45.0))
 		if _cue(1.12, "tear"):
 			_ear_sfx(SFX_TEAR, -0.5, 0.9)
-			_sound(SFX_SCREAM, _player_pos() + Vector3(0, 1.5, 0), 4.0, 0.85)
+			_near_you(_sound(SFX_SCREAM, _player_pos() + Vector3(0, 1.5, 0), 3.0, 0.85))
 			if fx != null:
 				fx.glitch(0.45, 0.6)
 				fx.blood(0.35, Vector2(0.5, 0.45))
@@ -1246,7 +1311,7 @@ func _update_strike(dt: float) -> void:
 		if fx != null:
 			fx.set_black(clampf(1.0 - (st - 2.9) / 0.5, 0.0, 1.0) if st < 3.75 else (1.0 if st < 3.84 else 0.0))
 		if _cue(2.9, "after"):
-			var p := _ground(_player_pos() + _forward_flat() * 6.5)
+			var p := _stand(_player_pos() + _forward_flat() * 6.5)
 			if p != Vector3.INF:
 				_body.global_position = p
 				var up := _upside()
@@ -1266,7 +1331,8 @@ func _update_strike(dt: float) -> void:
 					_eyes.set("want", 1.0)
 				if _after_light == null:
 					_after_light = OmniLight3D.new()
-					_after_light.light_color = Color(0.62, 0.66, 0.82)
+					# (Not blue: no blue night lady, 18. 10.)
+					_after_light.light_color = Color(0.82, 0.78, 0.72)
 					_after_light.omni_range = 4.5
 					_after_light.light_energy = 2.2
 					_root.add_child(_after_light)
@@ -1284,7 +1350,7 @@ func _update_strike(dt: float) -> void:
 		if fx != null and st >= 3.86 and st < 4.08:
 			fx.close_up(_face(0), 1.3, 1.0, 0.03, PI + _twitch(st))
 			if _cue(3.86, "last"):
-				_ear_sfx(SFX_SCREAM, 4.0, 0.6)
+				_ear_sfx(SFX_SCREAM, 3.0, 0.6)
 				fx.glitch(0.9, 0.5)
 				fx.red_flash(0.4)
 				fx.blood(0.4)
@@ -1331,6 +1397,11 @@ func _leave(seconds: float) -> void:
 		heel.offset = Vector2(0.0, float(heel.texture.get_height()) * 0.5)
 		_root.add_child(heel)
 		heel.global_position = _body.global_position
+		_heels.append(heel)
+		while _heels.size() > 3:
+			var old = _heels.pop_front()
+			if old != null and is_instance_valid(old):
+				(old as Node).queue_free()
 	_body.visible = false
 	_phase = GONE
 	_round += 1
@@ -1346,11 +1417,13 @@ func _release_player() -> void:
 	_step_in_dark = false
 
 
-func _set_audio(near: float) -> void:
+## Her humming and the static by how near she is; `there` false (gone, the hush, the
+## strike): nothing of them left where she last stood.
+func _set_audio(near: float, there := true) -> void:
 	for a in [_static, _hum]:
 		if a != null and is_instance_valid(a):
 			a.global_position = _body.global_position + Vector3(0, 1.3, 0)
 	if _static != null:
-		_static.volume_db = lerpf(-46.0, -3.0, near * near)
+		_static.volume_db = lerpf(-36.0, 3.0, near * near) if there else -80.0
 	if _hum != null:
-		_hum.volume_db = lerpf(-28.0, -6.0, near)
+		_hum.volume_db = lerpf(-12.0, 3.0, near) if there else -80.0

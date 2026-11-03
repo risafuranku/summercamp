@@ -1564,29 +1564,6 @@ func _indoors_now() -> bool:
 	return _quarry_indoors()
 
 
-func _im():
-	var scene := _world_root.get_tree().current_scene if _world_root != null and _world_root.is_inside_tree() else null
-	return scene.get("_interior_manager") if scene != null else null
-
-
-## The windows of the room the warden he hunts is in (InteriorManager.photo_windows: the
-## office, a cabin, a caravan, a service block); in co-op another warden's, as their
-## machine sends them (warden state "pw").
-func _room_windows() -> Array:
-	var peer := _quarry_peer()
-	if peer == 0:
-		var im = _im()
-		return im.photo_windows() if im != null and im.has_method("photo_windows") else []
-	var out: Array = []
-	for w in Coop.state_of(peer).get("pw", []):
-		var o := {"pos": w[0], "out": w[1], "open": float(w[2]), "facing": float(w[3]), "far": true}
-		# Where that window's camera looks out from (older machines do not send it).
-		if (w as Array).size() > 4 and w[4] != w[0]:
-			o["view"] = w[4]
-		out.append(o)
-	return out
-
-
 ## Out in the dark beyond one of the room's windows (one with its curtain open), far off,
 ## still, facing the glass. Mostly a window you are not looking at, so you find him.
 func _start_watch() -> bool:
@@ -1870,38 +1847,6 @@ func _is_lit_and_seen(head: Vector3) -> bool:
 	if not _is_seen(head, 0.0):
 		return false
 	return _in_flashlight(head) or _lamp_light_at(_body.global_position) >= DARK_LIGHT
-
-
-## The other wardens (co-op): the host's own warden when he hunts a stand-in, and every
-## stand-in but the one he hunts. Their torches by where they really point.
-func _lit_by_others(point: Vector3) -> bool:
-	var scene := _world_root.get_tree().current_scene if _world_root != null and _world_root.is_inside_tree() else null
-	if scene == null:
-		return false
-	var others: Array = []
-	var mp = scene.get("_player")
-	if mp != null and mp != _player and is_instance_valid(mp):
-		others.append(mp)
-	var cn = scene.get("_coop_night")
-	if cn != null and cn.get("_proxies") is Dictionary:
-		for rec in (cn.get("_proxies") as Dictionary).values():
-			# A proxy's record: {body, cam} (coop_night.gd).
-			var p = (rec as Dictionary).get("body", null) if rec is Dictionary else rec
-			if p is Node3D and is_instance_valid(p) and p != _player:
-				others.append(p)
-	for o in others:
-		if not o.has_method("get_flashlight_aim"):
-			continue
-		var aim: Dictionary = o.call("get_flashlight_aim")
-		if aim.is_empty():
-			continue
-		var to: Vector3 = point - (aim["origin"] as Vector3)
-		var d := to.length()
-		var in_cone := d <= float(aim["range"]) and (aim["dir"] as Vector3).normalized().dot(to / maxf(d, 0.01)) > cos(deg_to_rad(float(aim["half_angle"])))
-		# (A wall between their torch and him: their light never reached him.)
-		if in_cone and not _ray_blocked(aim["origin"] as Vector3, point):
-			return true
-	return false
 
 
 func _track_speed(dt: float) -> void:

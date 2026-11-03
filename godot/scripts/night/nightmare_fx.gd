@@ -111,13 +111,24 @@ const SFX_POP := "res://assets/sfx/night/ears_pop.mp3"
 
 
 ## The one layer under the tree's root (made the first time).
+## The one made but not in the tree yet (it is added deferred): asked for again in that
+## frame it is the same one, not a second layer (two scares' first calls in one frame made
+## two, the second under another name, and the second's effects were in neither's place).
+static var _pending: WeakRef = null
+
+
 static func get_for(node: Node) -> Node:
 	if node == null or not node.is_inside_tree():
 		return null
 	var root := node.get_tree().root
 	var fx := root.get_node_or_null(NODE_NAME)
+	if fx == null and _pending != null:
+		var made = _pending.get_ref()
+		if made != null and is_instance_valid(made):
+			fx = made
 	if fx == null:
 		fx = (load("res://scripts/night/nightmare_fx.gd") as GDScript).new()
+		_pending = weakref(fx)
 		root.add_child.call_deferred(fx)
 	return fx
 

@@ -47,6 +47,8 @@ var _mirror_root: Node3D
 var _mirror: Dictionary = {}
 ## Where the host's enemies are that this warden may feel (get_presence).
 var _presences: Array = []
+## The Girl's cold on this warden's torch as the host last said ("drain"), every frame.
+var _drain_hold := 0.0
 var _mirror_left := 0.0
 ## The hidden sanity, 0..100, by who (the host's machine keeps them all; each other machine
 ## gets its own in the host's clock, coop_clock "sn", as "own").
@@ -86,6 +88,8 @@ func _process(delta: float) -> void:
 		_host_tick(delta)
 	else:
 		_rfx_tick()
+		if _drain_hold > 0.0 and main != null and main.get("_player") != null:
+			main.get("_player").set("flashlight_drain_boost", _drain_hold)
 	if Coop.is_host():
 		pass
 	elif _mirror_left > 0.0:
@@ -973,6 +977,7 @@ func clear_mirror() -> void:
 	_mirror_root = null
 	_mirror.clear()
 	_presences.clear()
+	_drain_hold = 0.0
 
 
 ## On a joining machine, for its threat senses (main._update_threat_senses): the nearest
@@ -1017,9 +1022,12 @@ func on_event(kind: String, data: Array) -> void:
 			if pc != null and pc.has_method("set_controls_enabled"):
 				pc.call("set_controls_enabled", bool(data[0]))
 		"drain":
+			# Held here till the host says 0 (the controller zeroes it every frame: once,
+			# the Girl's cold lasted a frame on this machine).
+			_drain_hold = float(data[0])
 			var pl = main.get("_player")
 			if pl != null:
-				pl.set("flashlight_drain_boost", float(data[0]))
+				pl.set("flashlight_drain_boost", _drain_hold)
 		"blackout":
 			var pb = main.get("_player")
 			if pb != null and pb.has_method("torch_blackout"):

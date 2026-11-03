@@ -104,8 +104,14 @@ func _look() -> void:
 	if night != null:
 		var shown := 0
 		for v in (night.get("_mirror") as Dictionary).values():
-			if v is Sprite3D and is_instance_valid(v) and (v as Sprite3D).visible:
+			if not is_instance_valid(v):
+				continue
+			if v is Sprite3D and (v as Sprite3D).visible:
 				shown += 1
+			# His hum, as this machine plays it (a loop copied in code had no path: never sent).
+			var a := v as AudioStreamPlayer3D
+			if a != null and a.playing and a.stream != null and a.stream.resource_path.contains("ph_hum"):
+				_saw["hum"] = true
 		_saw["mirror"] = maxi(int(_saw.get("mirror", 0)), shown)
 	if _ph != null:
 		var r = _ph.get("_root")
@@ -152,12 +158,12 @@ func _run_step(step: Array) -> void:
 			var root = _ph.get("_root") if _ph != null else null
 			var snap: Dictionary = _ph.call("get_debug_snapshot") if _ph != null else {}
 			var who := str(night.get("_targets").get(_ph.get_instance_id(), "-")) if _ph != null and night != null else "-"
-			print("COOP PHOTO %s: %s white=%s close=%s photo=%s big=%s mirror=%d leak=%s root_seen=%s private=%s hit=%s hits=%s phase=%s window=%s quarry=%s hp=%d down=%s" % [
+			print("COOP PHOTO %s: %s white=%s close=%s photo=%s big=%s mirror=%d leak=%s root_seen=%s private=%s hit=%s hits=%s phase=%s window=%s quarry=%s hp=%d down=%s hum=%s" % [
 				_role, str(step[1]), _saw.get("white", false), _saw.get("close", false), _saw.get("photo", false), _saw.get("big", false),
 				int(_saw.get("mirror", 0)), _saw.get("leak", false),
 				root != null and is_instance_valid(root) and (root as Node3D).visible, _ph != null and bool(_ph.call("is_private_now")),
 				_ph.get("_hit_last") if _ph != null else "-", snap.get("hits", "-"), snap.get("phase", "-"), snap.get("window", "-"), who,
-				int(_main.get("_player_health")), bool(_main.get("_coop_down"))])
+				int(_main.get("_player_health")), bool(_main.get("_coop_down")), _saw.get("hum", false)])
 			# The host's screen is never the hunted one here: what it saw is kept to the end.
 			if _role != "host":
 				_saw.clear()

@@ -64,7 +64,8 @@ func _ready() -> void:
 	_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_shown.add_child(_rect)
 	_audio = AudioStreamPlayer.new()
-	_audio.volume_db = -6.0
+	# (ph_develop at -23 LUFS: it was the loudest thing of his, -12.7 in your head.)
+	_audio.volume_db = 0.0
 	add_child(_audio)
 
 
