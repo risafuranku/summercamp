@@ -472,6 +472,7 @@ const LOOK_STEPS := [
 	["call_on", "_interior_manager", "close_main_interior_if_open", []], ["wait", 1.5],
 	["look_at_enemy"], ["enemy_dist"], ["wait", 0.3], ["shot", "l0_hunt"],
 	["eval", "get_tree().root.get_node('BabkaShots').loops()"],
+	["wait", 6.0], ["eval", "get_tree().root.get_node('BabkaShots').granny()._trail.size()"], ["look_at_enemy"], ["shot", "l0b_trail"],
 	["eval", "get_tree().root.get_node('BabkaShots').granny()._set_phase('look', 3.0)"], ["wait", 0.6], ["look_at_enemy"], ["shot", "l1_up"],
 	["eval", "get_tree().root.get_node('BabkaShots').keep_out()"],
 	["eval", "get_tree().root.get_node('BabkaShots').under_lamp()"], ["wait", 1.0],
