@@ -53,4 +53,7 @@ func _ready() -> void:
 	steps.append_array([["eval", "_interior_manager._building_interior._extras.go_bench()"], ["wait", 4.0]])
 	for id in IDS:
 		steps.append_array([["eval", C + ".point_at('%s')" % id], ["wait", 0.3], ["eval", C + ".report('%s', 'bench')" % id], ["shot", "bench_%s" % id]])
+	# The curtain drawn from the bench (the user 4. 11.: "standing at the window I cannot").
+	steps.append_array([["eval", C + ".point_at('curtain')"], ["wait", 0.4], ["eval", "_interior_manager._building_interior._extras.hovered()"],
+		["eval", "_interior_manager._building_interior._extras.click()"], ["wait", 1.2], ["eval", "_interior_manager._building_interior._extras.office_curtain.target"], ["shot", "bench_drawn"]])
 	_steps = steps

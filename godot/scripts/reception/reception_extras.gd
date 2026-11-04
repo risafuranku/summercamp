@@ -113,7 +113,15 @@ const BENCH_WAY := [
 ]
 const BENCH_WALK_SEC := 3.2
 ## Toward the bed and its window at the front end, the room's length beside it.
-var back_base_rot := Vector3(deg_to_rad(-11.0), deg_to_rad(52.0), 0.0)
+const BACK_ROT := Vector3(deg_to_rad(-11.0), deg_to_rad(52.0), 0.0)
+var back_base_rot := BACK_ROT
+## The spot in the back room by the wardrobe, looking out of its window over the bed (the user
+## 4. 11.: "let the player stand at the window in the little room too"), and whether you are
+## there. Floor spots glint under the pointer like any thing (_floor_spot).
+const BACK_WINDOW_STAND := Vector3(-3.9, 1.48, -1.4)
+const BACK_WINDOW_ROT := Vector3(deg_to_rad(-3.0), PI * 0.5, 0.0)
+const BACK_SPOT_SEC := 1.9
+var at_back_window := false
 
 var _door_pivot: Node3D
 var _store_pivot: Node3D
@@ -150,9 +158,13 @@ func build(host_node, root: Node3D, cam: Camera3D) -> void:
 			bench_meshes.append(m)
 	if not bench_meshes.is_empty():
 		_hot_body("bench", root, Vector3(-1.05, 0.4, -2.18), Vector3(1.4, 0.8, 0.5), bench_meshes)
+	# Where you stand at the window: the floor before the bench, it takes the click too.
+	_floor_spot("bench_floor", root, Vector3(-1.05, 0.07, -1.5), Vector2(1.3, 0.8))
 	back.build(root, host)
 	for id in back.hot.keys():
 		hot[id] = back.hot[id]
+	_floor_spot("back_window_spot", root, Vector3(BACK_WINDOW_STAND.x, 0.07, BACK_WINDOW_STAND.z), Vector2(0.9, 0.9))
+	_floor_spot("back_stand_spot", root, Vector3(BACK_ROOM.STAND.x - 0.1, 0.07, BACK_ROOM.STAND.z), Vector2(0.9, 0.9))
 	store.build(root, host)
 	for id in store.hot.keys():
 		hot[id] = store.hot[id]
@@ -216,6 +228,25 @@ func _hot_body(id: String, parent: Node3D, pos: Vector3, size: Vector3, meshes: 
 	hot[id] = {"body": body, "meshes": meshes}
 
 
+## A place on the floor to walk to: nothing to see till the pointer is on it, then it glints.
+func _floor_spot(id: String, parent: Node3D, at: Vector3, size: Vector2) -> void:
+	var q := QuadMesh.new()
+	q.size = size
+	q.orientation = PlaneMesh.FACE_Y
+	var mi := MeshInstance3D.new()
+	mi.name = "Spot_" + id
+	mi.mesh = q
+	var m := StandardMaterial3D.new()
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.albedo_color = Color(1, 1, 1, 0)
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mi.material_override = m
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.position = at
+	parent.add_child(mi)
+	_hot_body(id, parent, at, Vector3(size.x, 0.08, size.y), [mi])
+
+
 func _build_phone() -> void:
 	for n in ["CounterPhone", "CounterPhoneHandle"]:
 		var old := room_root.get_node_or_null(n)
@@ -243,7 +274,6 @@ func _phone_model(parent: Node3D, at: Vector3, yaw: float) -> Array:
 	parent.add_child(r)
 	var beige := K.surface("plastic", 0.3, Color(0.86, 0.82, 0.7))
 	var deck_mat := K.surface("plastic", 0.3, Color(0.8, 0.76, 0.64))
-	var key_mat := K.surface("plastic", 0.2, Color(0.56, 0.57, 0.6))
 	var cord := K.surface("plastic", 0.2, Color(0.66, 0.62, 0.52))
 	var out: Array = []
 	out.append(K.slab(r, Vector3(0.25, 0.05, 0.21), Vector3(0, 0.025, 0), beige, "PhoneBase"))
@@ -252,11 +282,12 @@ func _phone_model(parent: Node3D, at: Vector3, yaw: float) -> Array:
 	deck.rotation.x = -0.2
 	r.add_child(deck)
 	out.append(K.slab(deck, Vector3(0.15, 0.03, 0.19), Vector3(0, 0.0, 0), deck_mat, "PhoneDeck"))
-	for row in 4:
-		for col in 3:
-			out.append(K.slab(deck, Vector3(0.026, 0.012, 0.02), Vector3(0.034 - col * 0.034, 0.019, 0.034 - row * 0.03), key_mat, "PhoneKey"))
-	out.append(K.slab(deck, Vector3(0.085, 0.006, 0.026), Vector3(0.012, 0.017, 0.072), K.surface("plastic", 0.2, Color(0.38, 0.46, 0.3)), "PhoneLcd"))
-	out.append(K.slab(deck, Vector3(0.02, 0.012, 0.018), Vector3(-0.05, 0.02, 0.072), K.surface("plastic", 0.2, Color(0.72, 0.16, 0.12)), "PhoneRed"))
+	# Its keys, the display and the red button: a picture of them on the deck (Grok,
+	# prompts_w.tsv; they were bare little boxes, the user 4. 11.). Read from the counter's
+	# side: the top of the picture away from you.
+	var keys := K.picture(deck, "phone_deck", Vector2(0.146, 0.186), Vector3(0, 0.016, 0), 0.0, "PhoneKeys")
+	keys.rotation_degrees = Vector3(-90.0, 180.0, 0.0)
+	out.append(keys)
 	# The cradle and the handset in it.
 	out.append(K.slab(r, Vector3(0.07, 0.03, 0.2), Vector3(0.085, 0.064, 0.0), beige, "PhoneCradle"))
 	var hs := Node3D.new()
@@ -547,7 +578,7 @@ func process(delta: float, hour: float) -> bool:
 		return true
 	_hover = _hover_under_mouse()
 	if _hover != "":
-		var walks := _hover in ["door", "doorway", "front_door", "store_door", "store_doorway", "bench"] and not (_hover == "door" and where == "back")
+		var walks := _hover in ["door", "doorway", "front_door", "store_door", "store_doorway", "bench", "bench_floor", "back_window_spot", "back_stand_spot"] and not (_hover == "door" and where == "back")
 		# A diploma is looked at: the eye.
 		HandCursor.want(HandCursor.WALK if walks else (HandCursor.LOOK if _hover.begins_with("diploma") else HandCursor.POINT))
 		glint.show_on(hot[_hover]["meshes"])
@@ -605,6 +636,12 @@ func _hover_under_mouse() -> String:
 				return id if _door_pivot.rotation_degrees.y > DOOR_OPEN_DEG * 0.5 else "door"
 			if id == "store_doorway":
 				return id if where == "store" else ""
+			if id == "bench_floor":
+				return id if where == "office" else ""
+			if id == "back_window_spot":
+				return id if where == "back" and not at_back_window else ""
+			if id == "back_stand_spot":
+				return id if where == "back" and at_back_window else ""
 			# (From the bench too: the door is beside you, and the store and the back room
 			# are round the counter, the user 4. 11.)
 			if id in ["front_door", "store_door"]:
@@ -653,8 +690,12 @@ func click() -> bool:
 			_office_call("say", ["Lost property, summer '97. Nobody came back for the bear."], null)
 		"front_door":
 			go_out_front()
-		"bench":
+		"bench", "bench_floor":
 			go_bench()
+		"back_window_spot":
+			go_back_window(true)
+		"back_stand_spot":
+			go_back_window(false)
 		"bed":
 			_try_sleep()
 		"tv":
@@ -907,6 +948,23 @@ func _leave_by_front() -> void:
 	host.call_deferred("close_interior")
 
 
+## In the back room to the spot by the wardrobe, at its window, or back to where you came in.
+func go_back_window(to_window: bool) -> void:
+	if _walking() or where != "back" or at_back_window == to_window:
+		return
+	glint.clear()
+	_play_steps()
+	_note_walk("back", BACK_SPOT_SEC)
+	var to_pos: Vector3 = BACK_WINDOW_STAND if to_window else BACK_ROOM.STAND
+	var to_rot: Vector3 = BACK_WINDOW_ROT if to_window else BACK_ROT
+	_walk = WALK_PATH.play(host, camera, [{"pos": camera.position, "rot": camera.rotation}, {"pos": to_pos, "rot": to_rot}], BACK_SPOT_SEC)
+	_walk.tween_callback(func():
+		at_back_window = to_window
+		back_base_rot = to_rot
+		look_back.reset()
+	)
+
+
 ## To the bench under the window: round the counter's end, standing in front of it.
 func go_bench() -> void:
 	if _walking() or where != "office":
@@ -939,6 +997,8 @@ func go_office() -> void:
 		# Back round the counter the way you came.
 		keys.append_array(_from_bench())
 	elif where == "back":
+		at_back_window = false
+		back_base_rot = BACK_ROT
 		var face := Vector3(0.0, -PI * 0.5, 0.0)
 		keys.append({"pos": BACK_THRESHOLD, "rot": face})
 		keys.append({"pos": Vector3(-1.45, 1.44, 1.3), "rot": face})

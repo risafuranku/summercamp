@@ -6,7 +6,8 @@ const INTERIOR_KIT = preload("res://scripts/interior_kit.gd")
 ## Reception surfaces by node name (exact names first, then prefixes): [camp texture,
 ## metres per repeat]. "" = not built (replaced by a prop or a picture, see _build_room).
 const RECEPTION_EXACT := {
-	"Floor": ["parquet", 0.9], "Ceiling": ["ceiling_pine", 0.9],
+	# (A board ceiling: in the walls' pine the room was one box of wood, the user 4. 11.)
+	"Floor": ["parquet", 0.9], "Ceiling": ["ceiling_board", 2.4],
 	"Desk": ["veneer_dark", 0.7], "DeskTop": ["veneer_dark", 0.7], "DeskDrawerA": ["veneer_dark", 0.5], "DeskDrawerB": ["veneer_dark", 0.5],
 	"Counter": ["pub_panel", 1.0], "CounterTop": ["veneer_dark", 0.8],
 	"ShelfA": ["knotty_pine", 0.5], "ShelfB": ["knotty_pine", 0.5],
@@ -22,6 +23,11 @@ const RECEPTION_PREFIX := {
 	"BackWallHanger": "", "BackWallHook": "",
 	"PosterFrame": "", "PosterPaper": "", "PosterTear": "", "PosterHang": "",
 	"Wall": ["knotty_pine", 1.2], "WindowFrame": ["knotty_pine", 0.5], "WindowMullion": ["knotty_pine", 0.5],
+	# Nothing of bare colour (the user 4. 11.): the wooden bench, the door frame's dark
+	# planks, the counter's kick, the metal bits. The binders and the book: a picture on
+	# the shelf (K.picture "book_spines").
+	"WaitBench": ["planks_dark", 0.5], "FrontDoorFrame": ["planks_dark", 0.6], "CounterKick": ["veneer_dark", 0.7],
+	"DrawerHandle": ["galvanized", 0.2], "BackDoorHandle": ["galvanized", 0.2], "Binder": "", "ShelfBook": "",
 }
 const TEXTURE_STYLE_SCRIPT = preload("res://scripts/texture_style.gd")
 const RETRO_RENDER = preload("res://scripts/retro_render.gd")
@@ -1365,6 +1371,7 @@ func _build_room() -> void:
 	# ── PROPS AND PICTURES (tools/blender, assets/textury/camp) ───────────────
 	K.prop(_room_root, "filing_cabinet", Vector3(2.2, 0.05, -1.1), -90.0)
 	# The key board on the wall to your right, behind the counter.
+	K.picture(_room_root, "book_spines", Vector2(0.72, 0.34), Vector3(2.12, 2.03, -1.02), -90.0, "ShelfBooks")
 	# (Moved toward the counter for the side window, the user 4. 11.: desk_room BOARD_AT.)
 	K.picture(_room_root, "key_rack", Vector2(0.72, 0.405), Vector3(2.47, 1.52, 0.435), -90.0, "KeyRack")
 	K.picture(_room_root, "poster_mushrooms", Vector2(0.44, 0.58), Vector3(-2.47, 1.56, -0.9), 90.0, "PosterA")

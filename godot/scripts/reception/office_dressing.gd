@@ -38,16 +38,16 @@ var _flick := 1.0
 var _flick_t := 0.0
 var _shown_minute := -1
 ## The district's diplomas for the camp (Builder 98's Courier, DESIGN §5j: the PC's store
-## "courier"), framed in a row under the key board as they come; each one held up to read
-## with a click (reception/diploma_view.gd; the eye over it, reception_extras.gd).
+## "courier"), framed on the back wall beside the deer, one over the other as they come; each
+## one held up to read with a click (reception/diploma_view.gd; the eye over it,
+## reception_extras.gd).
 const DIPLOMA_VIEW = preload("res://scripts/reception/diploma_view.gd")
 const COURIER = preload("res://scripts/builder/courier_news.gd")
 ## New things to click came up (a diploma hung): building_interior hands them on.
 var hot_changed := false
 var _diploma_view: CanvasLayer
-## (With the key board toward the counter for the side window, the user 4. 11.: a little
-## lower, clear of the cork board over the first.)
-const DIPLOMA_AT := [Vector3(2.488, 0.92, -0.215), Vector3(2.488, 0.92, 0.185), Vector3(2.488, 0.92, 0.585)]
+## (Off the right wall: they went under the cork board, the user 4. 11.)
+const DIPLOMA_AT := [Vector3(-1.95, 1.52, 2.488), Vector3(-1.95, 2.02, 2.488), Vector3(-1.95, 1.02, 2.488)]
 var _diplomas_hung := 0
 var _diploma_t := 0.0
 
@@ -263,15 +263,15 @@ func _hang_diplomas() -> void:
 	var n := mini(DIPLOMA_AT.size(), ((c as Dictionary).get("diplomas", []) as Array).size() if c is Dictionary else 0)
 	while _diplomas_hung < n:
 		var at: Vector3 = DIPLOMA_AT[_diplomas_hung]
-		var frame := K.slab(root, Vector3(0.02, 0.44, 0.34), at + Vector3(0.012, 0, 0), K.surface("galvanized", 0.2, Color(0.22, 0.15, 0.09)), "DiplomaFrame%d" % _diplomas_hung)
-		var pic := K.picture(root, "diploma_frame", Vector2(0.3, 0.4), at - Vector3(0.002, 0, 0), -90.0, "Diploma%d" % _diplomas_hung)
+		var frame := K.slab(root, Vector3(0.34, 0.44, 0.02), at + Vector3(0, 0, 0.012), K.surface("galvanized", 0.2, Color(0.22, 0.15, 0.09)), "DiplomaFrame%d" % _diplomas_hung)
+		var pic := K.picture(root, "diploma_frame", Vector2(0.3, 0.4), at - Vector3(0, 0, 0.002), 180.0, "Diploma%d" % _diplomas_hung)
 		var id := "diploma%d" % _diplomas_hung
 		var body := StaticBody3D.new()
 		body.name = "Hot_" + id
 		body.set_meta("extra_hot", id)
 		var cs := CollisionShape3D.new()
 		var bx := BoxShape3D.new()
-		bx.size = Vector3(0.08, 0.46, 0.36)
+		bx.size = Vector3(0.36, 0.46, 0.08)
 		cs.shape = bx
 		body.add_child(cs)
 		body.position = at

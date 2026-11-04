@@ -6,47 +6,48 @@ extends "res://scripts/closeup/closeup_view.gd"
 ## the shop. An old tag for the lake keeper is crossed out. A key hangs on a string:
 ## the generator shed's back room (where the fuses are) is locked, and this opens it.
 ## Taken, it is in your bag (scripts/ui/inventory.gd); click the bare pin with it in the
-## bag and it hangs there again. Between the key and the pink note a sheet torn out of an
+## bag and it hangs there again. Over the camp's card a sheet torn out of an
 ## exercise book (Grok, closeup/maze_sheet.png) with the corn maze drawn on it in pencil,
 ## its ways as they are this year (cornfield.gd), the way in from the camp marked with an
 ## arrow and the far gap with a cross (playtest 25. 10.: "a drawn map of the maze in the
-## corn on the noticeboard"); click it and it is held up to follow. Over the corner of
-## Vera's bus note the 380's printed timetable from the camp to Liblice (playtest 1. 11.:
-## "the bus timetable to Liblice on the noticeboard too"): the ČSAD sheet off the camp's
+## corn on the noticeboard"); click it and it is held up to follow. Beside Vera's bus note
+## the 380's printed timetable from the camp to Liblice (playtest 1. 11.: "the bus timetable
+## to Liblice on the noticeboard too"; the board laid out again 4. 11. so nothing lies on
+## anything else: tools/artgen/board_layout.py): the ČSAD sheet off the camp's
 ## pole (scripts/town/timetable_closeup.gd, its times scripts/town/bus_timetable.gd), held
 ## up to read.
 
 ## Paper rectangles on the picture (px), and the text written on each.
 const NOTES := {
-	"phones": {"rect": Rect2(26, 17, 89, 83), "paper": Color(0.86, 0.84, 0.78), "ink": Color(0.1, 0.1, 0.12), "font": "label",
+	"phones": {"rect": Rect2(18, 16, 80, 75), "paper": Color(0.86, 0.84, 0.78), "ink": Color(0.1, 0.1, 0.12), "font": "label",
 		"text": "TELEPHONE   (4/96)\n\nElectrician Novotny\n      0663 22 418\nVet, Liblice    0663 21 007\nDistrict office\n      0663 30 112\nWater board   0663 30 150\nBus station   0663 21 333\nJednota       0663 21 090\nU Jezera (pub)\n      0663 21 515\nPower, faults 0663 30 199\nPolice 158   Ambulance 155"},
-	"novotny": {"rect": Rect2(132, 23, 68, 74), "paper": Color(0.86, 0.74, 0.42), "ink": Color(0.1, 0.12, 0.3),
+	"novotny": {"rect": Rect2(110, 18, 61, 67), "paper": Color(0.86, 0.74, 0.42), "ink": Color(0.1, 0.12, 0.3),
 		"text": "NOVOTNY !!\n0663 22 418\n\nthe main, the lamps,\nthe pump. He comes\nout in the van.\n\nNOT after 9 - he will\ncome but he will moan\nand it is double.\n\nCash.  V."},
-	"private": {"rect": Rect2(224, 21, 70, 74), "paper": Color(0.86, 0.66, 0.64), "ink": Color(0.3, 0.06, 0.1),
+	"private": {"rect": Rect2(185, 17, 63, 67), "paper": Color(0.86, 0.66, 0.64), "ink": Color(0.3, 0.06, 0.1),
 		"text": "Time  14 112\n\nNela (mobile)\n  0602 618 247\n\nme, the flat\n  02 / 6731 4420\nonly if it is\nREALLY bad.\n\nV."},
-	"photo": {"rect": Rect2(24, 109, 78, 85), "paper": Color(0.86, 0.84, 0.78), "ink": Color(0.14, 0.12, 0.2),
+	"photo": {"rect": Rect2(17, 113, 66, 72), "paper": Color(0.86, 0.84, 0.78), "ink": Color(0.14, 0.12, 0.2),
 		"text": "Hruby, '91\n\n(the lake from the\njetty. Somebody has\npressed a thumbnail\ninto the water, in\nthe middle, hard\nenough to dent it.)"},
-	"bus": {"rect": Rect2(110, 126, 70, 81), "paper": Color(0.62, 0.7, 0.78), "ink": Color(0.08, 0.1, 0.22),
+	"bus": {"rect": Rect2(99, 116, 59, 68), "paper": Color(0.62, 0.7, 0.78), "ink": Color(0.08, 0.1, 0.22),
 		"text": "BUS  380\nin from Liblice:\n 5:37   9:42\n 13:12  18:37\nback to Liblice:\n 6:10  10:15\n 13:45, last 19:10.\nthe 23:46 does not\nstop. do not wave.\n\nJednota van:\nTue + Fri, at the gate."},
-	"hruby": {"rect": Rect2(188, 130, 36, 71), "paper": Color(0.74, 0.7, 0.62), "ink": Color(0.14, 0.12, 0.12),
+	"hruby": {"rect": Rect2(264, 46, 30, 58), "paper": Color(0.74, 0.7, 0.62), "ink": Color(0.14, 0.12, 0.12),
 		"text": "Hruby - lake\nkeeper - boats,\nthe sluice\n\n0663 21 224\n\n-- no longer --", "struck": [0, 4]},
-	"card": {"rect": Rect2(254, 157, 47, 55), "paper": Color(0.84, 0.78, 0.6), "ink": Color(0.12, 0.1, 0.08), "font": "label",
+	"card": {"rect": Rect2(232, 168, 39, 46), "paper": Color(0.84, 0.78, 0.6), "ink": Color(0.12, 0.1, 0.08), "font": "label",
 		"text": "KEMP\nCERNE JEZERO\n\nreception\n0663 21 404\n\nopen May-Sept"},
 }
-const KEY_RECT := Rect2(232, 102, 21, 94)
+const KEY_RECT := Rect2(283, 118, 18, 81)
 ## The printed timetable on the cork (picture px), pinned over the bus note's corner.
-const TIMETABLE_RECT := Rect2(150, 148, 38, 52)
+const TIMETABLE_RECT := Rect2(172, 106, 46, 66)
 const TIMETABLE := preload("res://scripts/town/timetable_closeup.gd")
 const TIMES := preload("res://scripts/town/bus_timetable.gd")
 const LANG := preload("res://scripts/lang.gd")
 const SHEET_INK := Color(0.08, 0.08, 0.12)
 const SHEET_PAPER := Color(0.92, 0.91, 0.86)
 ## The maze's sheet on the cork (picture px), and its paper inside the torn edge.
-const MAZE_RECT := Rect2(259, 98, 42, 56)
+const MAZE_RECT := Rect2(229, 96, 42, 62)
 const MAZE_TEX := "res://assets/textury/closeup/maze_sheet.png"
 const MAZE_TEX_SMALL := "res://assets/textury/closeup/maze_sheet_small.png"
 const PENCIL := Color(0.22, 0.22, 0.26, 0.9)
-const KEY_PATCH_FROM := Rect2(258, 102, 21, 50)
+const KEY_PATCH_FROM := Rect2(150, 196, 21, 28)
 const PIC := "res://assets/textury/closeup/board.png"
 const SFX_PAPER := "res://assets/sfx/rooms/task_litter.mp3"
 const SFX_KEY := "res://assets/sfx/rednecksfx/rrtick.wav"
@@ -167,7 +168,8 @@ func _paint(c: Control) -> void:
 		return
 	if not _has_key():
 		# Where the key hung: bare cork and the pin.
-		c.draw_texture_rect_region(picture, Rect2(KEY_RECT.position + Vector2(0, 40), Vector2(KEY_RECT.size.x, 54)), Rect2(KEY_PATCH_FROM.position, Vector2(KEY_RECT.size.x, 54)))
+		for k in 2:
+			c.draw_texture_rect_region(picture, Rect2(KEY_RECT.position + Vector2(0, 26 + k * 28), Vector2(KEY_RECT.size.x, 28)), KEY_PATCH_FROM)
 	# Writing too small to read from here: a few grey scribbles per note.
 	for id in NOTES.keys():
 		var n: Dictionary = NOTES[id]
