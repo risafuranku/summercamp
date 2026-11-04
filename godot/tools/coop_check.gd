@@ -640,8 +640,9 @@ func _boat_from_home() -> float:
 ## What comes and goes by itself on each machine (a fish's rings on the lake and their
 ## plop): not the camp.
 static func _passing_fx(n: Node3D) -> bool:
-	# Cameras go where whoever looks is (the lake's mirror camera too).
-	if n is AudioStreamPlayer3D or n is Camera3D:
+	# Cameras go where whoever looks is (the lake's mirror camera too); lettering is put a
+	# share of its distance nearer the eye each frame (retro_materials._pull_labels).
+	if n is AudioStreamPlayer3D or n is Camera3D or n is Label3D:
 		return true
 	# The boat's hull rocks on each machine's own swell, its oars and lantern with it
 	# (scripts/lake/boat_rig.gd): the boat is compared by where it lies (RowBoat itself).

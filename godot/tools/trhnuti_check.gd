@@ -87,6 +87,13 @@ func thing_done(id: String) -> void:
 	log_frames(false, id + " first seconds")
 
 
+func brains() -> void:
+	var ids := []
+	for b in _main.get("_enemy_brains"):
+		ids.append(str(b.get_enemy_id()))
+	print("TRHNUTI out tonight: %s" % str(ids))
+
+
 ## A party of every kind of guest in (each brings its thing).
 func guests() -> void:
 	var gm = get_node_or_null("/root/GuestManager")
@@ -200,7 +207,7 @@ func _ready() -> void:
 			["eval", C + ".log_frames(true)"],
 			["until", "_enemy_brains.size() > 0", 30.0], ["wait", 3.0],
 			["eval", C + ".log_frames(false, 'night 2 begins, every kind in')"],
-			["eval", "_enemy_brains.map(func(b): return b.get_enemy_id())"],
+			["eval", C + ".brains()"],
 			["eval", "get_tree().quit()"],
 		]
 		_steps = steps

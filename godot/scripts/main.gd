@@ -1463,7 +1463,11 @@ func _sync_runtime_state_from_systems(force: bool = false) -> void:
 			_on_day_phase_started()
 		if previous_time_state != TIME_NIGHT and _time_state == TIME_NIGHT and _day_events != null and Coop.sim_here() and camp_rule("events"):
 			_day_events.on_night()
-		# On every warden's machine (the joining one has no enemy of its own to start it).
+		# On every warden's machine (the joining one has no enemy of its own to start it). At
+		# dusk if you are out (the world is drawn then): the frame the night begins has its
+		# things to make and its card to open.
+		if previous_time_state == TIME_DAY and _time_state == TIME_EVENING and _gameplay_started and not _is_any_interior_open():
+			_prewarm_hurt()
 		if previous_time_state != TIME_NIGHT and _time_state == TIME_NIGHT and _gameplay_started:
 			_prewarm_hurt()
 
