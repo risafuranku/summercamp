@@ -710,6 +710,29 @@ func holding_nothing() -> bool:
 	return _drag == "" and _holding_stamp == "" and not _labels_mode
 
 
+## A paper or a key in hand: what can go over the counter to the guest.
+func carrying() -> bool:
+	return _drag == "card" or _drag == "slip" or _drag.begins_with("key:")
+
+
+## Carried up off the counter (desk_room shows it there in the air): drawn in the rows of the
+## picture the counter does not show, whole, under the pointer's x.
+var in_air := false
+const AIR_TOP := 4.0
+
+
+## Where the thing in hand is in this picture, for desk_room's picture of it in the air.
+func held_rect() -> Rect2:
+	if _drag.begins_with("key:"):
+		var i := _key_index(_drag.trim_prefix("key:"))
+		var t: Texture2D = _key_tex.get(str(_keys[i].get("kind", "")), null) if i >= 0 else null
+		var size := t.get_size() if t != null else Vector2(24, 48)
+		return Rect2(_key_pos(_drag.trim_prefix("key:")) - Vector2(floorf(size.x * 0.5), 1.0), size)
+	if _drag == "card" or _drag == "slip":
+		return Rect2(_paper_pos(_drag), CARD_SIZE if _drag == "card" else SLIP_SIZE)
+	return Rect2()
+
+
 ## The right button in the room: the label maker or the stamp put down, else false.
 func put_down() -> bool:
 	if _labels_mode:
@@ -877,6 +900,8 @@ func _thing_pos(id: String) -> Vector2:
 
 
 func _paper_pos(d: String) -> Vector2:
+	if _drag == d and in_air:
+		return Vector2(_mouse.x - (CARD_SIZE if d == "card" else SLIP_SIZE).x * 0.5, AIR_TOP).floor()
 	if _drag == d and _mouse.x >= 0.0:
 		return _mouse - _drag_off
 	var at: Vector2 = _p.get(d + "_pos", Vector2.ZERO)
@@ -952,6 +977,8 @@ func _cell_pos(i: int) -> Vector2:
 
 ## Where a key hangs (its ring on the hook), or where it is being carried.
 func _key_pos(key: String) -> Vector2:
+	if _drag == "key:" + key and in_air:
+		return Vector2(_mouse.x, AIR_TOP).floor()
 	if (_drag == "key:" + key or _drag == "label:" + key) and _mouse.x >= 0.0:
 		return (_mouse - _drag_off).floor()
 	return _hook_pos(int(_slots.get(key, 0)))

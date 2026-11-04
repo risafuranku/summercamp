@@ -589,7 +589,7 @@ func _process(delta: float) -> void:
 		_desk_room.process(delta, _extras == null or not _extras.away())
 	if _is_camera_tween_running():
 		return
-	if _desk_room != null and _desk_room.is_open():
+	if _desk_room != null and (_desk_room.is_open() or _desk_room.gliding()):
 		return
 	if _extras != null and _extras.process(delta, _hour_now()):
 		_update_exit_hint_only(delta)

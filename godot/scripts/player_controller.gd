@@ -62,10 +62,12 @@ var _hurt_t := 0.0
 ## The bob goes by the ground you cover, not by the clock: a step every STRIDE metres (a
 ## longer one running), the head lowest as the foot comes down, with the step's sound.
 ## All of it smooth: the sprites and the hands step at twelve a second, the eye never.
-@export var stride_walk: float = 0.74
-## A sprint's step is long and its cadence a runner's, about 3.6 a second (it was 1.02 m:
-## five a second, the head going up and down "linear and mad fast", playtest 25. 10.).
-@export var stride_run: float = 1.45
+## (It was 0.74 m: at the walk's 3.9 m/s more than five steps a second, more than a sprint;
+## the user 4. 11.: "tak moc cupitá, chtělo by to delší thump thump kroky". 2.2 a second now.)
+@export var stride_walk: float = 1.75
+## A sprint's step is long and its cadence a runner's, 2.7 a second (it was 1.02 m: five a
+## second, the head going up and down "linear and mad fast", playtest 25. 10.).
+@export var stride_run: float = 1.9
 @export var bob_vertical: float = 0.034
 @export var bob_vertical_run: float = 0.04
 @export var bob_horizontal: float = 0.022

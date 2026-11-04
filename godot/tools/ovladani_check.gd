@@ -75,8 +75,72 @@ const TENT_STEPS := [
 ]
 
 
+## The card in hand at the counter, the pointer on the guest (above the counter's far edge).
+func card_over_guest() -> String:
+	var bi = _main.get("_interior_manager").get("_building_interior")
+	var dr = bi.get("_desk_room")
+	var d = dr.get("desk")
+	d.set("_drag", "card")
+	d.set("_drag_off", Vector2(40, 30))
+	var cam: Camera3D = bi.get("_interior_camera")
+	# Up off the work to the guest first, as the stick would.
+	dr.get("look").set("pitch_deg", 26.0)
+	var vp: SubViewport = bi.get("_viewport")
+	var size: Vector2 = Vector2(vp.size) if vp != null else cam.get_viewport().get_visible_rect().size
+	dr.set("debug_pointer", size * Vector2(0.55, 0.42))
+	return "pointer on guest, viewport %s" % size
+
+
+func desk_state(label: String) -> String:
+	var dr = _main.get("_interior_manager").get("_building_interior").get("_desk_room")
+	var air = dr.get("_air")
+	var line := "OVLADANI %s: in_air=%s air_visible=%s drag=%s rect=%s pos=%s size=%s" % [label, dr.get("desk").get("in_air"), air != null and air.visible, dr.get("desk").get("_drag"), dr.get("desk").held_rect(), air.position if air != null else "-", (air.mesh as QuadMesh).size if air != null else "-"]
+	if _out_dir != "":
+		dr.get("desk").picture().get_image().save_png(_out_dir + "/picture_" + label + ".png")
+	print(line)
+	return line
+
+
+## The reception's walks: to the bench, then out of the front door from it.
+func walk_log(label: String) -> String:
+	var bi = _main.get("_interior_manager").get("_building_interior")
+	var ex = bi.get("_extras")
+	var line := "OVLADANI %s: where=%s walking=%s room_open=%s eye=%s" % [label, ex.get("where"), ex._walking(), _main.call("_is_any_interior_open"), bi.get("_interior_camera").position]
+	print(line)
+	return line
+
+
+const DESK_STEPS := [
+	["auto_checkin", false],
+	["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 2.0],
+	["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 1.4],
+	["money", 9000], ["clear", 8, 5, 6, 5], ["build", "tent_1", 9, 6, 0], ["build", "cabin_1", 11, 6, 0], ["prep_all"],
+	["book", "Pepa", "drunk", 1, 2, 0], ["hours", 0.05], ["eval", "debug_arrivals()"], ["hours", 1.6], ["eval", "debug_arrivals()"], ["wait", 20.0],
+	["eval", "_interior_manager._building_interior.open_checkin_desk()"], ["wait", 2.2], ["shot", "d0_desk"],
+	["eval", C + ".card_over_guest()"], ["wait", 0.4], ["eval", C + ".desk_state('card_over_guest')"], ["shot", "d1_card_in_air"],
+	["lmb", false], ["wait", 0.08], ["shot", "d2_handing"], ["wait", 0.5], ["eval", C + ".desk_state('let_go')"], ["shot", "d3_given"],
+	["key", "Escape"], ["wait", 0.25], ["shot", "d4_step_down_mid"], ["wait", 1.2], ["eval", C + ".walk_log('at_counter')"], ["shot", "d5_back"],
+]
+
+const WALK_STEPS := [
+	["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 2.0],
+	["key", "Escape"], ["wait", 1.6],
+	["eval", "_interior_manager._building_interior._extras.go_bench()"], ["wait", 0.8], ["eval", C + ".walk_log('w1')"], ["shot", "w1"], ["wait", 0.8], ["eval", C + ".walk_log('w2')"], ["shot", "w2"], ["wait", 0.8], ["eval", C + ".walk_log('w3')"], ["shot", "w3"], ["wait", 1.2], ["eval", C + ".walk_log('bench')"], ["shot", "w4_bench"],
+	["eval", "_interior_manager._building_interior._extras.go_store()"], ["wait", 5.6], ["eval", C + ".walk_log('store')"], ["shot", "w5_store"],
+	["key", "Escape"], ["wait", 2.4], ["eval", C + ".walk_log('office')"],
+	["eval", "_interior_manager._building_interior._extras.go_bench()"], ["wait", 3.6], ["eval", C + ".walk_log('bench2')"],
+	["key", "Escape"], ["wait", 0.9], ["eval", C + ".walk_log('leaving')"], ["shot", "w6_leaving"], ["wait", 3.0], ["eval", C + ".walk_log('out')"], ["shot", "w7_out"],
+]
+
+
 func _ready() -> void:
 	super._ready()
+	if OS.get_cmdline_user_args().has("--part=desk"):
+		_steps = DESK_STEPS.duplicate(true)
+		return
+	if OS.get_cmdline_user_args().has("--part=walk"):
+		_steps = WALK_STEPS.duplicate(true)
+		return
 	if OS.get_cmdline_user_args().has("--part=tent"):
 		_steps = TENT_STEPS.duplicate(true)
 		return

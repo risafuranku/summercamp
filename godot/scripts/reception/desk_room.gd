@@ -47,7 +47,16 @@ const SHEET_PX_Y := Vector2(104.0, 166.0)
 const BOARD_AT := Vector3(2.462, 1.52, 0.95)
 const BOARD_SIZE := Vector2(0.72, 0.386)
 const BOARD_PX := Rect2(284, 280, 194, 104)
-const STEP_SEC := 0.45
+const STEP_SEC := 0.6
+## Carried over the counter: where the guest's side begins on the counter's picture (a share
+## of its depth from the far edge), the plane it goes along on the way to them, the row of
+## the desk's picture that means "over there" (above its GIVE), its picture's size in the
+## room, and the last of the way as you let go.
+const AIR_V := 0.08
+const AIR_Z := -0.36
+const AIR_PX_Y := 40.0
+const AIR_M_PER_PX := 0.0022
+const GIVE_SEC := 0.22
 const RING_AGAIN_SEC := 28.0
 const STRANGER_ID := -77
 
@@ -79,6 +88,9 @@ var _at_desk := false
 var _cam_from: Array = []
 var _cam_tween: Tween
 var _desk_rot := Vector3.ZERO
+var _air: MeshInstance3D
+## A harness's pointer in the room's picture (the machine's own mouse is everybody's).
+var debug_pointer := Vector2(-1, -1)
 var _say_layer: CanvasLayer
 var _say_label: Label
 var _say_t := 0.0
@@ -247,6 +259,9 @@ func _step_up() -> void:
 
 func _step_down() -> void:
 	_at_desk = false
+	desk.in_air = false
+	if _air != null:
+		_air.visible = false
 	if _sheet != null:
 		_sheet.visible = false
 		_board.visible = false
@@ -276,6 +291,13 @@ func _gliding() -> bool:
 	return _cam_tween != null and _cam_tween.is_valid() and _cam_tween.is_running()
 
 
+## The eye on its way to or from the counter: the room leaves it alone till it is there
+## (the room's own look set the turn back at once, the position still gliding: the user
+## 4. 11., "tranzice není dostatečně plynulá").
+func gliding() -> bool:
+	return _gliding()
+
+
 func _tick_desk(delta: float) -> void:
 	if _say_t > 0.0:
 		_say_t -= delta
@@ -294,7 +316,7 @@ func _tick_desk(delta: float) -> void:
 	# The pointer is the look's stick, with a wide dead middle (the work fills the picture;
 	# a held button, writing or carrying, widens it further); W A S D turn the head as well.
 	look.dead = DESK_DEAD
-	var offset: Vector3 = look.update(delta, INTERIOR_LOOK.cursor_of(vp), INTERIOR_LOOK.turn_axis())
+	var offset: Vector3 = look.update(delta, INTERIOR_LOOK.cursor_of(vp) if debug_pointer.x < 0.0 else Vector2(-1, -1), INTERIOR_LOOK.turn_axis())
 	var k := clampf((-look.yaw_deg - 40.0) / 45.0, 0.0, 1.0)
 	k = k * k * (3.0 - 2.0 * k)
 	cam.position = DESK_EYE.lerp(BOARD_EYE, k)
@@ -306,6 +328,8 @@ func _tick_desk(delta: float) -> void:
 func _point() -> void:
 	var cam: Camera3D = host._interior_camera
 	var vpm: Vector2 = host._to_interior_viewport_pos(host.get_viewport().get_mouse_position())
+	if debug_pointer.x >= 0.0:
+		vpm = debug_pointer
 	var o: Vector3 = room_root.to_local(cam.project_ray_origin(vpm))
 	var d: Vector3 = room_root.global_basis.inverse() * cam.project_ray_normal(vpm)
 	var best := INF
@@ -330,8 +354,97 @@ func _point() -> void:
 			if u2 >= 0.0 and u2 <= 1.0 and v2 >= 0.0 and v2 <= 1.0:
 				px = Vector2(BOARD_PX.position.x + u2 * BOARD_PX.size.x, BOARD_PX.position.y + v2 * BOARD_PX.size.y - desk.RACK_3D.y)
 				wall = true
+	px = _carry_over(o, d, px, wall)
 	desk.pointer = px
 	desk.pointer_on_wall = wall
+
+
+## A paper or a key in hand, the pointer past the counter's far edge: it comes up off the
+## counter and goes over to whoever stands there, in the air under the pointer (the user
+## 4. 11.: they stayed stuck to the table, and whether you were giving them anything was
+## anybody's guess). The picture draws it in rows the counter does not show; a quad in
+## the room shows those rows. Let go there, it is theirs (the picture's own giving: it is
+## above GIVE).
+func _carry_over(o: Vector3, d: Vector3, px: Vector2, wall: bool) -> Vector2:
+	var over := false
+	var at := Vector3.ZERO
+	if desk.carrying() and not wall and absf(d.z) > 0.0001:
+		var past := d.y >= -0.001
+		if not past:
+			var p := o + d * ((SHEET_Y - o.y) / d.y)
+			past = (p.z - SHEET_Z0) / SHEET_D < AIR_V
+		var t := (AIR_Z - o.z) / d.z
+		if past and t > 0.0:
+			at = o + d * t
+			at.y = clampf(at.y, 1.02, 1.8)
+			over = true
+			px = Vector2(clampf((at.x - SHEET_X0) / SHEET_W, 0.04, 0.96) * 480.0, AIR_PX_Y)
+	desk.in_air = over
+	if over:
+		_show_air(at)
+	elif _air != null:
+		_air.visible = false
+	return px
+
+
+func _show_air(at: Vector3) -> void:
+	if _air == null:
+		_air = MeshInstance3D.new()
+		_air.name = "DeskInHand"
+		_air.mesh = QuadMesh.new()
+		var m := _sheet_mat(desk.picture(), Vector2.ZERO, Vector2.ONE)
+		m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+		m.no_depth_test = true
+		_air.material_override = m
+		_air.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_air.set_meta("retro_text", true)
+		room_root.add_child(_air)
+	var r: Rect2 = desk.held_rect()
+	if r.size.x <= 0.0:
+		_air.visible = false
+		return
+	var size := Vector2(float(desk.W), float(desk.H_3D))
+	var mat := _air.material_override as StandardMaterial3D
+	mat.uv1_offset = Vector3(r.position.x / size.x, r.position.y / size.y, 0.0)
+	mat.uv1_scale = Vector3(r.size.x / size.x, r.size.y / size.y, 1.0)
+	(_air.mesh as QuadMesh).size = r.size * AIR_M_PER_PX
+	_air.position = at
+	_air.visible = true
+
+
+## Let go over there: the thing crosses the last of the way to the guest as you let go of it,
+## and they take it (a picture of it: the desk has done with it by now).
+func _hand_over() -> void:
+	if _air == null or not _air.visible:
+		return
+	var r: Rect2 = desk.held_rect()
+	var img: Image = desk.picture().get_image()
+	if img == null or r.size.x <= 0.0:
+		return
+	var rect := Rect2i(r).intersection(Rect2i(Vector2i.ZERO, img.get_size()))
+	if rect.size.x <= 0 or rect.size.y <= 0:
+		return
+	var s := Sprite3D.new()
+	s.texture = ImageTexture.create_from_image(img.get_region(rect))
+	s.pixel_size = AIR_M_PER_PX
+	s.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	s.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+	s.shaded = false
+	s.no_depth_test = true
+	s.position = _air.position
+	room_root.add_child(s)
+	var hand := COUNTER_SPOT + Vector3(0.0, 1.12, 0.1)
+	var tw: Tween = host.create_tween().set_parallel(true).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	tw.tween_property(s, "position", hand, GIVE_SEC)
+	tw.tween_property(s, "scale", Vector3.ONE * 0.55, GIVE_SEC)
+	tw.chain().tween_callback(s.queue_free)
+	if _front != null and _front.visible:
+		var off0 := _front.offset
+		var nod: Tween = host.create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		nod.tween_interval(GIVE_SEC * 0.7)
+		nod.tween_property(_front, "offset", off0 + Vector2(0.0, -3.0), 0.09)
+		nod.tween_property(_front, "offset", off0, 0.14)
 
 
 ## The room's input while you are at the counter (building_interior._input).
@@ -362,7 +475,11 @@ func input(event: InputEvent) -> void:
 			return
 		desk.press_at()
 	else:
+		_hand_over()
 		desk.release_at()
+		desk.in_air = false
+		if _air != null:
+			_air.visible = false
 
 
 func _make_sheets() -> void:

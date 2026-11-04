@@ -100,8 +100,16 @@ var look_store = INTERIOR_LOOK.new(175.0, 28.0, 40.0)
 var look_bench = INTERIOR_LOOK.new(180.0, 26.0, 38.0)
 const BENCH_STAND := Vector3(-1.05, 1.5, -1.45)
 var bench_base_rot := Vector3(deg_to_rad(-4.0), 0.0, 0.0)
-## Round the counter's end (its left end at x -0.48), the guests' side, and back.
-const BENCH_WAY := [Vector3(-0.75, 1.5, 0.85), Vector3(-0.95, 1.5, -0.3)]
+## Round the counter's right end: the left one butts onto the low desk with the PC, one wall
+## from x -2.3 to 1.66, and the way there went through it (the user 4. 11.). Then along
+## the guests' side to the bench, and back the same way.
+const BENCH_WAY := [
+	{"pos": Vector3(1.0, 1.5, 0.98), "to": -PI * 0.45, "back": PI * 0.6},
+	{"pos": Vector3(1.95, 1.49, 0.62), "to": -PI * 0.2, "back": PI * 0.92},
+	{"pos": Vector3(1.86, 1.48, -0.75), "to": PI * 0.15, "back": -PI * 0.8},
+	{"pos": Vector3(0.4, 1.5, -1.15), "to": PI * 0.42, "back": -PI * 0.5},
+]
+const BENCH_WALK_SEC := 3.2
 ## Toward the bed and its window at the front end, the room's length beside it.
 var back_base_rot := Vector3(deg_to_rad(-11.0), deg_to_rad(52.0), 0.0)
 
@@ -531,7 +539,7 @@ func process(delta: float, hour: float) -> bool:
 		return true
 	_hover = _hover_under_mouse()
 	if _hover != "":
-		var walks := _hover in ["door", "doorway", "front_door", "store_door", "store_doorway"] and not (_hover == "door" and where == "back")
+		var walks := _hover in ["door", "doorway", "front_door", "store_door", "store_doorway", "bench"] and not (_hover == "door" and where == "back")
 		# A diploma is looked at: the eye.
 		HandCursor.want(HandCursor.WALK if walks else (HandCursor.LOOK if _hover.begins_with("diploma") else HandCursor.POINT))
 		glint.show_on(hot[_hover]["meshes"])
@@ -587,8 +595,10 @@ func _hover_under_mouse() -> String:
 				return id if _door_pivot.rotation_degrees.y > DOOR_OPEN_DEG * 0.5 else "door"
 			if id == "store_doorway":
 				return id if where == "store" else ""
+			# (From the bench too: the door is beside you, and the store and the back room
+			# are round the counter, the user 4. 11.)
 			if id in ["front_door", "store_door"]:
-				return id if where == "office" else ""
+				return id if where in ["office", "bench"] else ""
 			if id == "door":
 				return id if where != "store" else ""
 			var room := "back" if back.hot.has(id) else ("store" if store.hot.has(id) else "office")
@@ -694,14 +704,16 @@ func coop_refuse(what: String) -> void:
 	_office_call("say", [line], null)
 
 
-## S or the bottom edge in the back room or the store takes you back to the office,
-## not outside.
+## Esc or the bottom edge: out of the back room or the store back to the office, and from
+## the office (or the bench, beside the door) out of the front door, on foot.
 func handle_exit() -> bool:
 	if _walking():
 		return true
-	if where == "office":
-		return false
-	if not is_modal():
+	if is_modal():
+		return true
+	if where == "office" or where == "bench":
+		go_out_front()
+	else:
 		go_office()
 	return true
 
@@ -726,22 +738,38 @@ func _refresh_megaphone() -> void:
 	back.show_megaphone(not taken)
 
 
+## The way back round the counter from the bench (no keys from the office).
+func _from_bench() -> Array:
+	var keys: Array = []
+	if where == "bench":
+		for i in range(BENCH_WAY.size() - 1, -1, -1):
+			keys.append({"pos": BENCH_WAY[i]["pos"], "rot": Vector3(-0.05, float(BENCH_WAY[i]["back"]), 0.0)})
+	return keys
+
+
 func go_back_room() -> void:
-	if _walking() or where != "office":
+	if _walking() or where not in ["office", "bench"]:
 		return
 	_refresh_megaphone()
 	glint.clear()
-	_play(SFX_DOOR, -9.0)
+	var lead := BENCH_WALK_SEC if where == "bench" else 0.0
+	if lead <= 0.0:
+		_play(SFX_DOOR, -9.0)
 	_play_steps()
-	_note_walk("back", 2.1)
+	var dur := 2.1 + lead
+	_note_walk("back", dur)
 	var side := Vector3(0.0, PI * 0.5, 0.0)
-	_walk = WALK_PATH.play(host, camera, [
-		{"pos": camera.position, "rot": camera.rotation},
+	var keys: Array = [{"pos": camera.position, "rot": camera.rotation}]
+	keys.append_array(_from_bench())
+	keys.append_array([
 		{"pos": Vector3(-1.05, 1.47, 1.26), "rot": side},
 		{"pos": THRESHOLD, "rot": side},
 		{"pos": BACK_ROOM.STAND, "rot": back_base_rot},
-	], 2.1)
-	_walk.parallel().tween_property(_door_pivot, "rotation_degrees:y", DOOR_OPEN_DEG, 0.75).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	])
+	_walk = WALK_PATH.play(host, camera, keys, dur)
+	if lead > 0.0:
+		_walk.parallel().tween_callback(_play.bind(SFX_DOOR, -9.0)).set_delay(lead)
+	_walk.parallel().tween_property(_door_pivot, "rotation_degrees:y", DOOR_OPEN_DEG, 0.75).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT).set_delay(lead)
 	_walk.tween_callback(func():
 		where = "back"
 		look_back.reset()
@@ -749,20 +777,27 @@ func go_back_room() -> void:
 
 
 func go_store() -> void:
-	if _walking() or where != "office":
+	if _walking() or where not in ["office", "bench"]:
 		return
 	glint.clear()
-	_play(SFX_STORE_DOOR, -9.0)
+	var lead := BENCH_WALK_SEC if where == "bench" else 0.0
+	if lead <= 0.0:
+		_play(SFX_STORE_DOOR, -9.0)
 	_play_steps()
-	_note_walk("store", 1.9)
+	var dur := 1.9 + lead
+	_note_walk("store", dur)
 	var ahead := Vector3(-0.05, PI, 0.0)
-	_walk = WALK_PATH.play(host, camera, [
-		{"pos": camera.position, "rot": camera.rotation},
+	var keys: Array = [{"pos": camera.position, "rot": camera.rotation}]
+	keys.append_array(_from_bench())
+	keys.append_array([
 		{"pos": Vector3(0.12, 1.48, 1.85), "rot": ahead},
 		{"pos": Vector3(0.0, 1.49, 2.55), "rot": ahead},
 		{"pos": STORE_ROOM.STAND, "rot": STORE_ROOM.STAND_ROT},
-	], 1.9)
-	_walk.parallel().tween_property(_store_pivot, "rotation_degrees:y", STORE_DOOR_OPEN_DEG, 0.7).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	])
+	_walk = WALK_PATH.play(host, camera, keys, dur)
+	if lead > 0.0:
+		_walk.parallel().tween_callback(_play.bind(SFX_STORE_DOOR, -9.0)).set_delay(lead)
+	_walk.parallel().tween_property(_store_pivot, "rotation_degrees:y", STORE_DOOR_OPEN_DEG, 0.7).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT).set_delay(lead)
 	_walk.tween_callback(func():
 		where = "store"
 		look_store.reset()
@@ -775,7 +810,7 @@ func go_store() -> void:
 ## dither takes you outside as you step into the doorway, still walking (playtest
 ## 18. 10.: a click closed the room on the spot, "standing there").
 func go_out_front() -> void:
-	if _walking() or where != "office":
+	if _walking() or where not in ["office", "bench"]:
 		return
 	glint.clear()
 	_play_steps()
@@ -785,14 +820,23 @@ func go_out_front() -> void:
 	# Down to the camp's eye height on the way (it is lower than the office's): the
 	# camp goes on from the same height.
 	var eye: float = host.walk_out_eye_y(FRONT_STEP_OUT, FRONT_STEP_OUT.y) if host.has_method("walk_out_eye_y") else FRONT_STEP_OUT.y
-	_walk = WALK_PATH.play(host, camera, [
-		{"pos": camera.position, "rot": camera.rotation},
-		{"pos": Vector3(1.0, 1.5, 0.98), "rot": Vector3(-0.06, -PI * 0.45, 0.0)},
-		{"pos": Vector3(1.95, 1.49, 0.62), "rot": Vector3(-0.05, -PI * 0.2, 0.0)},
-		{"pos": Vector3(1.86, 1.47, -0.85), "rot": Vector3(-0.02, 0.04, 0.0)},
+	var keys: Array = [{"pos": camera.position, "rot": camera.rotation}]
+	if where == "bench":
+		# The door is on this side of the counter: along the wall to it.
+		dur *= 0.7
+		keys.append({"pos": Vector3(0.3, 1.49, -1.5), "rot": Vector3(-0.03, -PI * 0.42, 0.0)})
+		keys.append({"pos": Vector3(1.25, 1.48, -1.6), "rot": Vector3(-0.02, -PI * 0.2, 0.0)})
+	else:
+		keys.append_array([
+			{"pos": Vector3(1.0, 1.5, 0.98), "rot": Vector3(-0.06, -PI * 0.45, 0.0)},
+			{"pos": Vector3(1.95, 1.49, 0.62), "rot": Vector3(-0.05, -PI * 0.2, 0.0)},
+			{"pos": Vector3(1.86, 1.47, -0.85), "rot": Vector3(-0.02, 0.04, 0.0)},
+		])
+	keys.append_array([
 		{"pos": Vector3(1.72, lerpf(1.47, eye, 0.6), -1.9), "rot": Vector3.ZERO},
 		{"pos": Vector3(FRONT_STEP_OUT.x, eye, FRONT_STEP_OUT.z), "rot": Vector3.ZERO},
-	], dur)
+	])
+	_walk = WALK_PATH.play(host, camera, keys, dur)
 	if door != null:
 		_walk.parallel().tween_callback(_play.bind(SFX_FRONT_DOOR, -8.0)).set_delay(dur * 0.38)
 		_walk.parallel().tween_property(door, "rotation_degrees:y", FRONT_DOOR_OPEN_DEG, 0.7) \
@@ -853,13 +897,12 @@ func go_bench() -> void:
 		return
 	glint.clear()
 	_play_steps()
-	_note_walk("bench", 1.8)
-	_walk = WALK_PATH.play(host, camera, [
-		{"pos": camera.position, "rot": camera.rotation},
-		{"pos": BENCH_WAY[0], "rot": Vector3(-0.05, PI * 0.22, 0.0)},
-		{"pos": BENCH_WAY[1], "rot": Vector3(-0.05, PI * 0.05, 0.0)},
-		{"pos": BENCH_STAND, "rot": bench_base_rot},
-	], 1.8)
+	_note_walk("bench", BENCH_WALK_SEC)
+	var keys: Array = [{"pos": camera.position, "rot": camera.rotation}]
+	for w in BENCH_WAY:
+		keys.append({"pos": w["pos"], "rot": Vector3(-0.05, float(w["to"]), 0.0)})
+	keys.append({"pos": BENCH_STAND, "rot": bench_base_rot})
+	_walk = WALK_PATH.play(host, camera, keys, BENCH_WALK_SEC)
 	_walk.tween_callback(func():
 		where = "bench"
 		look_bench.reset()
@@ -878,8 +921,7 @@ func go_office() -> void:
 	var opens_first := false
 	if where == "bench":
 		# Back round the counter the way you came.
-		keys.append({"pos": BENCH_WAY[1], "rot": Vector3(-0.05, PI * 0.95, 0.0)})
-		keys.append({"pos": BENCH_WAY[0], "rot": Vector3(-0.05, PI * 0.8, 0.0)})
+		keys.append_array(_from_bench())
 	elif where == "back":
 		var face := Vector3(0.0, -PI * 0.5, 0.0)
 		keys.append({"pos": BACK_THRESHOLD, "rot": face})
@@ -896,7 +938,7 @@ func go_office() -> void:
 		pivot = _store_pivot
 		store.set_bulb(false)
 	keys.append({"pos": to_pos, "rot": to_rot})
-	var dur := 1.9
+	var dur := BENCH_WALK_SEC if where == "bench" else 1.9
 	_note_walk("office", dur)
 	_walk = WALK_PATH.play(host, camera, keys, dur)
 	if opens_first:
