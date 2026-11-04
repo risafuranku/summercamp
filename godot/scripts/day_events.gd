@@ -388,7 +388,7 @@ func import_state(data: Dictionary) -> void:
 		if not was_open.has(id) or not _props.has(id):
 			_spawn_props(ev)
 		if tell and not was_open.has(id) and not _log_seen.has(id):
-			_report("Pager: %s" % _start_line(ev), 2)
+			_report("Pager: %s" % tr(_start_line(ev)), 2)
 			_page()
 	for entry in data.get("log", []):
 		var lid := int((entry as Dictionary).get("id", -1))
@@ -580,7 +580,7 @@ func _start(ev: Dictionary, abs_minute: int) -> void:
 	_spawn_props(ev)
 	if str(ev["kind"]) == "someone":
 		haunted["%d:%d" % [_coord(ev).x, _coord(ev).y]] = int(CoreRoot.get_state().day) if CoreRoot.get_state() != null else 1
-	_report("Pager: %s" % _start_line(ev), 2)
+	_report("Pager: %s" % tr(_start_line(ev)), 2)
 	_page()
 	changed.emit()
 
@@ -1435,7 +1435,9 @@ func _report(text: String, kind: int) -> void:
 	var hud = _hud()
 	if hud != null:
 		# Looked up whole (the feed's lines are not: "Pager: %s" and the line in it were
-		# shown in English in a Czech game, the van's page on 1. 11.).
+		# shown in English in a Czech game, the van's page on 1. 11.). A line with values of
+		# its own inside "Pager: %s" is looked up before it goes in (a lookup does not go two
+		# deep: "A branch has come down across the path at 9:12" stayed English, 4. 11.).
 		hud.push_status(tr(text), kind, "day_events")
 
 

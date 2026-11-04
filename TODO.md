@@ -23,7 +23,7 @@
 
 - [x] V15 (d2409c2f: the room's views out on the door's wall were made visible to the camp's look into the room while the door was open: kept off it) „při animaci vcházení do interiéru přestanou fungovat venkovní okna, a je to vidět. venkovní okna musí fungovat ještě počas animace“ (the walk in through a door: the building's windows seen from outside by the door)
 - [ ] V16 „udělej lepší pocit chůze, ať jsou víc cítit kroky. pohyb je teď pořád takovej floaty. podívej se klidně do projektu greed, tam je pocit z kroků dobrej.“ (player_controller's step feel, after GREED's)
-- [ ] V17 „pager, a branch has come down není přeložené do čestiny.. zkontrolovat hlášky“ (every message: cs.po)
+- [x] V17 (the pager's line went into "Pager: %s" with its own values and a lookup does not go two deep: looked up before it goes in, the night jobs' too; the knock on a taken room, things left behind, the other warden at the barrier and "sorted" had English pieces in them; tools/hlasky_check.tscn, the lang audit of guests/day/night finds only Czech looked up again) „pager, a branch has come down není přeložené do čestiny.. zkontrolovat hlášky“ (every message: cs.po)
 - [ ] V18 „otočit recepci o 90 stupnu tak, aby hlavni dveře byly hned k přichodove ceste/zavore. udělat nové okno tam, kde je uvnitř zhruba umístěna nástěnka s klíči. tu nějak šikovně lehce posunout.“
 - [ ] V19 „hrozně clippujou hovery během dělání kukuřice. na recepci chybí hovery na laviččce, záclonách a tak. prosím všude to zkontroluj“ (the hover glints)
 

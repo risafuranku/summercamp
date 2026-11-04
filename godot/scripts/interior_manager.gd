@@ -1247,7 +1247,10 @@ func _refuse_if_occupied(structure: Node3D, kind: String) -> bool:
 	knock.finished.connect(knock.queue_free)
 	knock.play()
 	var replies := ["\"Occupied!\"", "\"We're asleep!\"", "\"Come back later.\"", "\"Who is it?\""]
-	notice.emit("The %s is taken. %s" % [kind, replies[randi() % replies.size()]], 1)
+	# Each whole, looked up (the kind put into "The %s is taken. %s" stayed English, and
+	# a Czech room is of its own gender: the playtest of 4. 11., "check the messages").
+	var taken: String = {"cabin": "The cabin is taken.", "tent": "The tent is taken.", "caravan": "The caravan is taken."}.get(kind, "The room is taken.")
+	notice.emit("%s %s" % [tr(taken), tr(replies[randi() % replies.size()])], 1)
 	return true
 
 

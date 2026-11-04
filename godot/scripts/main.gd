@@ -3352,13 +3352,19 @@ func _on_guest_state_for_bazaar(guest_id: int, _old: String, new_state: String) 
 	for g in CoreRoot.get_state().guests:
 		if g is Dictionary and int((g as Dictionary).get("id", -1)) == guest_id:
 			var where := ""
+			var where_shown := ""
 			if _day_events != null:
 				var c: Vector2i = _day_events._lodging_of(g)
 				if c.x >= 0:
 					where = "%s %d:%d" % [_day_events._label_at(c).capitalize(), c.x, c.y]
+					where_shown = "%s %d:%d" % [tr(_day_events._label_at(c).capitalize()), c.x, c.y]
 			var it: Dictionary = _bazaar.on_checkout(str(g.get("name", "")), where, _day_index, str(g.get("archetype", "")))
 			if not it.is_empty() and _hud_manager != null:
-				_hud_manager.push_status("Left behind%s by %s: %s." % [(" in " + where) if where != "" else "", str(it["from"]), str(it["name"])])
+				# (" in " + the place went into the line English, 4. 11.)
+				if where_shown != "":
+					_hud_manager.push_status(LANG.f("Left behind in %s by %s: %s.", [where_shown, str(it["from"]), tr(str(it["name"]))]))
+				else:
+					_hud_manager.push_status(LANG.f("Left behind by %s: %s.", [str(it["from"]), tr(str(it["name"]))]))
 			return
 
 
@@ -4901,7 +4907,8 @@ func _on_coop_world_arrived(snapshot: Dictionary) -> void:
 	# Who is about: once they have all said who they are (their hellos come a moment after).
 	await get_tree().create_timer(2.0).timeout
 	if _hud_manager != null and Coop.has_partner():
-		_hud_manager.push_status("You came in by the barrier. %s %s about." % [_coop_names_said(), "is" if Coop.wardens.size() == 1 else "are"], 1)
+		# (The English "is" / "are" went into the Czech line, 4. 11.: a line each.)
+		_hud_manager.push_status(("You came in by the barrier. %s is about." if Coop.wardens.size() == 1 else "You came in by the barrier. %s are about.") % _coop_names_said(), 1)
 
 
 func _on_coop_session_ended(reason: String) -> void:

@@ -30705,3 +30705,35 @@ msgstr "Kaple po dešti. Když se to fotilo, dveře byly zavřené."
 
 msgid "In the field by Pristoupim, last Thursday. Nobody remembers the occasion."
 msgstr "Na poli u Přistoupimi, minulý čtvrtek. Nikdo si nepamatuje, při jaké příležitosti."
+
+#. manual
+msgid "The cabin is taken."
+msgstr "Chatka je obsazená."
+
+#. manual
+msgid "The tent is taken."
+msgstr "Stan je obsazený."
+
+#. manual
+msgid "The caravan is taken."
+msgstr "Maringotka je obsazená."
+
+#. manual
+msgid "The room is taken."
+msgstr "Pokoj je obsazený."
+
+#. manual
+msgid "Left behind in %s by %s: %s."
+msgstr "Zapomenuté (%s, %s): %s."
+
+#. manual
+msgid "Left behind by %s: %s."
+msgstr "Zapomenuté (%s): %s."
+
+#. manual
+msgid "You came in by the barrier. %s is about."
+msgstr "{g:Přišel|Přišla} jsi od závory. %s je někde poblíž."
+
+#. manual
+msgid "You came in by the barrier. %s are about."
+msgstr "{g:Přišel|Přišla} jsi od závory. %s jsou někde poblíž."

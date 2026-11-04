@@ -88,7 +88,7 @@ func tick(abs_minute: int, is_night: bool, night_index: int) -> void:
 			"open":
 				if _is_resolved(job):
 					job["state"] = "done"
-					_report("%s: sorted." % str(job["title"]), 1)
+					_report("%s: sorted." % tr(str(job["title"])), 1)
 					changed.emit()
 
 
@@ -240,7 +240,7 @@ func coop_take(jobs: Array) -> void:
 		var id := _job_id(j)
 		var st := str(j["state"])
 		if st == "open" and was.get(id, "") != "open":
-			_report("Pager: %s. %s." % [str(j["title"]), str(j["where"])], 2)
+			_report("Pager: %s. %s." % [tr(str(j["title"])), tr(str(j["where"]))], 2)
 			_page()
 			any = true
 		elif st == "done" and was.get(id, "") == "open":
@@ -489,7 +489,7 @@ func _start(job: Dictionary) -> void:
 			# Not wear: maintenance_controller._clear_old_wear must leave it broken.
 			state.failures[key]["night"] = true
 	job["state"] = "open"
-	_report("Pager: %s. %s." % [str(job["title"]), str(job["where"])], 2)
+	_report("Pager: %s. %s." % [tr(str(job["title"])), tr(str(job["where"]))], 2)
 	_page()
 	changed.emit()
 
@@ -541,10 +541,12 @@ func _world_pos(job: Dictionary) -> Vector3:
 	return gm.grid_to_world(Vector2i(int(c[0]), int(c[1])))
 
 
+## (The title and the place are looked up as they go in: "Lamp 9:12, hold R" inside "Pager:
+## %s. %s." was not found by a lookup of the whole, 4. 11.)
 func _report(text: String, kind: int) -> void:
 	var hud = _main.get("_hud_manager") if _main != null else null
 	if hud != null:
-		hud.push_status(text, kind, "night_jobs")
+		hud.push_status(tr(text), kind, "night_jobs")
 
 
 func _page() -> void:
