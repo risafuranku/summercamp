@@ -493,10 +493,10 @@ is the price, and she never steps into a lamp's light. The table row above has h
 - She stands where one can stand (never on a roof or up a tree: `enemy_base._stand`); a
   red heel is left where she went, the last three of them stay.
 - Art `npc/girl*` (`tools/artgen/prompts.tsv` rows `girl*`; decision samples in
-  `prompts_holka.tsv`). Her back and her reach (`girl4_back`, `girl4_reach`, 4. 11.)
-  are drawn after the guest herself (`host3`), as the first stages were: drawn after a
-  drawing of her they came out smooth (the user: "moc dokonalý ai slop"), after her the
-  face keeps the first stages' grit. No red cheeks. Sounds `sfx/npc/girl_*` at -23 LUFS
+  `prompts_holka.tsv`). All her `girl4_*` stages and the reach (4. 11.) are drawn after
+  the guest herself (`host3`), as the first stage was: drawn after a drawing of her they
+  came out smooth (the user: "moc dokonalý ai slop"), after her the face keeps the first
+  stage's grit. No red cheeks. The tall stage's render is narrowed to three quarters. Sounds `sfx/npc/girl_*` at -23 LUFS
   (loops `girl_hum.ogg`, `girl_static.ogg`), and the Silent Man's tear, bite, snap and
   rustle. Tests: `tools/enemy_check.tscn`, `tools/holka_shots.tscn` (`--part=stages`
   every stage on pictures, the reach, her eyes far off, the strike in steps;

@@ -50,8 +50,9 @@ const GUEST := "res://assets/textury/npc/host3.png"
 const N := "res://assets/textury/npc/"
 ## No crawling (playtest 18. 10.: "weird, not scary"): long arms, wrong proportions; no
 ## red cheeks, the brows furious over the drooling grin. Each stage the newest art first.
-## (4. 11.: girl4_back and girl4_reach drawn after the guest herself, host3, for the grit of
-## the first phases; the ones drawn after a drawing of her came out too clean.)
+## (4. 11.: all the girl4 stages and the reach drawn after the guest herself, host3, for
+## the grit of the first phase; drawn after a drawing of her they came out too clean.
+## girl4_tall's render is narrowed to three quarters: a third too long, as she was asked.)
 const M := [[N + "girl_m1.png"], [N + "girl4_m2.png", N + "girl_m2.png"], [N + "girl4_tall.png", N + "girl2_tall.png"], [N + "girl4_back.png", N + "girl_m3.png"], [N + "girl4_arms.png"]]
 const REACH_TEX := N + "girl4_reach.png"
 ## The strike, in order (playtest 18. 10.: girl_face_b is the one): drooling, then the
