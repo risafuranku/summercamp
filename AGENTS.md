@@ -808,6 +808,19 @@ every night's sewer, toilets and frozen pipes the moment they broke).
 - **D3D12 resource descriptors** (`rendering_device/d3d12/max_resource_descriptors`, raised
   to 524288 on 25. 10.): the default 65536 ran out after a long session; every draw past it
   failed (black screen in the busy directions) and the log took hundreds of errors a frame.
+- **Label3D is unlit by default**: paint on a board or a wall needs `shaded = true`, or its
+  letters shine on the air at night with the board gone dark (4. 11.: the sluice's board,
+  the buildings' signs). Lit signs (the bus's boards) stay unshaded.
+- **Springs in `_process`**: a long frame's delta thrown at an explicit spring multiplies its
+  speed; step it in hundredths and cap the time (`player_controller._update_head_motion`).
+  A fast clock (`Engine.time_scale`) finds these: the head's speeds ran off to infinity and
+  the whole view went NaN (`tools/soak_check`).
+- **Frame times on the dev PC**: it has 16 GB and Unity, Grok Bot and other sessions' Godots
+  run beside you. Look at the free RAM and the other processes first: at 3 GB free one run
+  had an 81 s frame (paging). A frame-time failure only counts when it repeats on a quiet PC.
+- **First-time loads**: what is built the first time costs its pictures and sounds from
+  disk, not the building (the land 265-947 ms cold, 25 ms warm). Read them on the loader's
+  threads while something else is on screen (`builder/warmup.gd`, `town/land_warmup.gd`).
 
 ---
 
