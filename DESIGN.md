@@ -502,10 +502,10 @@ is the price, and she never steps into a lamp's light. The table row above has h
   every stage on pictures, the reach, her eyes far off, the strike in steps;
   `--part=hitch` her firsts timed, with the pipelines compiled in a long frame),
   the shot driver's `testgirl`, co-op `tools/coop_scare.py` and `tools/coop_girl.py`.
-- **No hitch at her firsts**: the night's layer (`nightmare_fx`: the close-ups, the split
-  face, the blood, the flashes, the eyes, the screen's own effect), the hurt on the screen
-  (`hurt_fx`, its sounds) and the blood (`blood_fx`) are made and drawn once, unseen,
-  when the night begins (`main._prewarm_hurt`), not at the first scare or hit. Cold
+- **No hitch at her firsts**: the night's layer (`nightmare_fx`: the close-ups' material
+  and the screen's own effect), the hurt on the screen (`hurt_fx`, its sounds) and the
+  blood (`blood_fx`) are made and drawn once, unseen, when the night begins
+  (`main._prewarm_hurt`), not at the first scare or hit. Cold
   (the first play on a machine), her strike, bite and the blood landing each cost a
   76-132 ms frame compiling them; now none.
 

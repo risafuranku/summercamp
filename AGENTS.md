@@ -645,8 +645,8 @@ every night's sewer, toilets and frozen pipes the moment they broke).
   other warden's torch ever held the Girl or the Silent Man; `tools/coop_girl.py`).
 - **First-use hitches at night**: `main._prewarm_hurt` (when the night begins, and at an
   enemy's start) makes the night's layer, the hurt and the blood and draws them once
-  unseen. A new picture or effect on those layers gets drawn in `nightmare_fx._warm_step`
-  too. Find one with `tools/holka_shots.tscn --part=hitch` and a cold cache (a fresh
+  unseen. A new material on the night's layer gets its see-through pixel in
+  `nightmare_fx._ready` too (not the layer's own parts: a test reads them as a flash). Find one with `tools/holka_shots.tscn --part=hitch` and a cold cache (a fresh
   `APPDATA`): each long frame prints the pipelines compiled in it.
 - **GDScript names**: a method called `_set` overrides `Object._set` (parse error about the
   signature); a subclass may not re-declare its base's constants (`SFX_OPEN` in closeup_view).
