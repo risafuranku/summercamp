@@ -735,7 +735,8 @@ func _tick_tear() -> void:
 		_tear = null
 		_tear_seek -= 1
 		if _tear_seek <= 0:
-			_tear_seek = 20
+			# (Every few frames: once in twenty it was a beat late, the user 4. 11.)
+			_tear_seek = 3
 			_tear = _tent_root.find_child("TentTear", true, false) as MeshInstance3D
 	var on := _tear != null and _tear.is_visible_in_tree()
 	_set_torn(on)
@@ -746,7 +747,8 @@ func _tick_tear() -> void:
 	var anchor := a as Node3D if a != null and is_instance_valid(a) and (a as Node3D).is_inside_tree() else null
 	var world: World3D = anchor.get_world_3d() if anchor != null else null
 	var to := (_tear.global_position - _interior_camera.global_position).normalized()
-	var live := world != null and (-_interior_camera.global_transform.basis.z).dot(to) > 0.2
+	# Already drawn as it comes into view at the edge (it came alive late as you turned).
+	var live := world != null and (-_interior_camera.global_transform.basis.z).dot(to) > -0.25
 	var view = WINDOW_SHARED_VIEW.for_host(self)
 	if live:
 		var hole := {"outward": Vector3(0, 0, -1), "frame": Transform3D(Basis(), _tent_root.to_local(_tear.global_position))}
@@ -878,6 +880,8 @@ var _inview_vp: SubViewport
 var _inview_cam: Camera3D
 var _inview_mat: ShaderMaterial
 var _inview_way: MeshInstance3D
+## What you see in through: the doorway's pane, or the slit hole (TentTear).
+var _inview_opening: MeshInstance3D
 var _inview_tent: Node3D
 var _inview_ways: Array = []
 var _inview_scan_t := 0.0
@@ -893,22 +897,35 @@ func _camp_camera() -> Camera3D:
 	return null
 
 
-## The camp's unzipped tents' doorways: [[structure, pane]].
+## The camp's tents that can be seen into: [[structure, pane of its doorway, what you see
+## through]]: the doorway unzipped, or the hole the granny slit in its back (the user 4. 11.:
+## "from outside you cannot see in through it"). The doorway's pane lays the rooms one on
+## the other either way.
 func _find_open_ways() -> Array:
 	var out: Array = []
 	var im := get_parent()
 	var doors = im.get("tent_doors") if im != null else null
-	if not (doors is Dictionary):
-		return out
-	for key in (doors as Dictionary).keys():
-		var p := str(key).split(":")
-		if p.size() != 2:
-			continue
-		var s: Node3D = DOOR_ANIM.structure_at(Vector2i(int(p[0]), int(p[1])))
-		if s == null:
-			continue
-		for w in s.find_children("TentDoorWay", "MeshInstance3D", true, false):
-			out.append([s, w])
+	if doors is Dictionary:
+		for key in (doors as Dictionary).keys():
+			var p := str(key).split(":")
+			if p.size() != 2:
+				continue
+			var s: Node3D = DOOR_ANIM.structure_at(Vector2i(int(p[0]), int(p[1])))
+			if s == null:
+				continue
+			for w in s.find_children("TentDoorWay", "MeshInstance3D", true, false):
+				out.append([s, w, w])
+	var scene := get_tree().current_scene if is_inside_tree() else null
+	var bm = scene.get("building_manager") if scene != null else null
+	var structures: Node = bm.get_node_or_null("Structures") if bm != null else null
+	if structures != null:
+		for s in structures.get_children():
+			if not str((s as Node).get_meta("building_type", "")).begins_with("tent"):
+				continue
+			var tear := (s as Node).find_child("TentTear", true, false) as MeshInstance3D
+			var way := (s as Node).find_child("TentDoorWay", true, false) as MeshInstance3D
+			if tear != null and way != null:
+				out.append([s, way, tear])
 	return out
 
 
@@ -916,6 +933,7 @@ func _update_inview(delta: float) -> void:
 	var cam := _camp_camera()
 	var way: MeshInstance3D = null
 	var tent: Node3D = null
+	var opening: MeshInstance3D = null
 	if cam != null and _tent_root != null:
 		_inview_scan_t -= delta
 		if _inview_scan_t <= 0.0:
@@ -923,19 +941,20 @@ func _update_inview(delta: float) -> void:
 			_inview_ways = _find_open_ways()
 		var best := INVIEW_RANGE
 		for e in _inview_ways:
-			var w = e[1]
-			if not is_instance_valid(w) or not (w as MeshInstance3D).is_visible_in_tree():
+			var o = e[2]
+			if not is_instance_valid(o) or not is_instance_valid(e[1]) or not (o as MeshInstance3D).is_visible_in_tree():
 				continue
-			var to: Vector3 = cam.global_position - (w as Node3D).global_position
-			if to.length() >= best or (w as Node3D).global_basis.z.dot(to) <= 0.05:
+			var to: Vector3 = cam.global_position - (o as Node3D).global_position
+			if to.length() >= best or (o as Node3D).global_basis.z.dot(to) <= 0.05:
 				continue
 			best = to.length()
-			way = w
+			way = e[1]
 			tent = e[0]
-	if way != _inview_way:
+			opening = o
+	if way != _inview_way or opening != _inview_opening:
 		_release_inview()
 		if way != null:
-			_take_inview(tent, way)
+			_take_inview(tent, way, opening)
 	if _inview_way == null:
 		return
 	# The camp's eye in the room, the doors laid one on the other: the doorway's foot on
@@ -963,19 +982,32 @@ func _update_inview(delta: float) -> void:
 		_inview_wardens()
 
 
-func _take_inview(tent: Node3D, way: MeshInstance3D) -> void:
+func _take_inview(tent: Node3D, way: MeshInstance3D, opening: MeshInstance3D = null) -> void:
 	_ensure_inview()
 	_inview_tent = tent
 	_inview_way = way
+	_inview_opening = opening if opening != null else way
 	_make_up_as(tent)
-	if not way.has_meta("dark_mat"):
-		way.set_meta("dark_mat", way.material_override)
-	way.material_override = _inview_mat
+	if _inview_opening != way:
+		# The hole: its own torn edge, the room in it.
+		var tm := _inview_opening.material_override as ShaderMaterial
+		if tm != null:
+			tm.set_shader_parameter("room_tex", _inview_vp.get_texture())
+			tm.set_shader_parameter("live", 1.0)
+	else:
+		if not way.has_meta("dark_mat"):
+			way.set_meta("dark_mat", way.material_override)
+		way.material_override = _inview_mat
 	_inview_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_inview_light_t = 0.0
 
 
 func _release_inview() -> void:
+	if _inview_opening != null and is_instance_valid(_inview_opening) and _inview_opening != _inview_way:
+		var tm := _inview_opening.material_override as ShaderMaterial
+		if tm != null:
+			tm.set_shader_parameter("live", 0.0)
+	_inview_opening = null
 	if _inview_way != null and is_instance_valid(_inview_way) and _inview_way.material_override == _inview_mat and _inview_way.has_meta("dark_mat"):
 		_inview_way.material_override = _inview_way.get_meta("dark_mat")
 	_inview_way = null
