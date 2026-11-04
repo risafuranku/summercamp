@@ -4,6 +4,7 @@ extends CharacterBody3D
 signal foot_fell(left: bool)
 
 const PROFILES = preload("res://scripts/profiles.gd")
+const WORLD_GEN = preload("res://scripts/world_generator.gd")
 const YAW_SENSITIVITY_FACTOR := 2.0
 ## Stamina: a full bar is ~7.5 s of sprinting (6 was too short: the user 20. 10., +25 %);
 ## it refills in ~9 s and, once empty, sprinting stays locked until it is back to
@@ -516,8 +517,62 @@ func _physics_process(delta: float) -> void:
 		velocity.y = 0.0
 
 	move_and_slide()
+	_hold_off_branches(delta)
 	_update_flashlight_battery(delta)
 	_after_physics(delta)
+
+
+## A spruce's lower branches hold you off (world_generator.SPRUCE_TIERS): only its trunk
+## is solid, so a walk into one put your eyes in its needles (4. 11.). Its skirt's reach at
+## your eyes (and a hand lower) and a little more: you stop at the tips as at a wall; stood
+## up under one you are eased out. Crouched you still get in under it.
+const BRANCH_MARGIN := 0.14
+const BRANCH_EASE := 3.5
+var _branch_q: PhysicsShapeQueryParameters3D
+
+
+func _hold_off_branches(delta: float) -> void:
+	if _camera == null or not is_inside_tree():
+		return
+	if _branch_q == null:
+		var ball := SphereShape3D.new()
+		ball.radius = 2.8
+		_branch_q = PhysicsShapeQueryParameters3D.new()
+		_branch_q.shape = ball
+		_branch_q.exclude = [get_rid()]
+	var eye_y := global_position.y + _base_head_pos.y - _stance_drop
+	_branch_q.collision_mask = collision_mask
+	_branch_q.transform = Transform3D(Basis.IDENTITY, Vector3(global_position.x, eye_y - 0.6, global_position.z))
+	for hit in get_world_3d().direct_space_state.intersect_shape(_branch_q, 12):
+		var tree = hit.get("collider")
+		if not (tree is StaticBody3D) or int((tree as Node).get_meta("tree_kind", -1)) != WORLD_GEN.TREE_KIND_SPRUCE:
+			continue
+		var b: Basis = (tree as Node3D).global_transform.basis
+		var base: Vector3 = (tree as Node3D).global_position
+		var reach := 0.0
+		for dy in [0.0, -0.18]:
+			var ly: float = (eye_y + dy - base.y) / maxf(b.y.length(), 0.01)
+			for tier in WORLD_GEN.SPRUCE_TIERS:
+				var y0 := float(tier[2])
+				var h := float(tier[1])
+				if ly >= y0 and ly <= y0 + h:
+					reach = maxf(reach, lerpf(float(tier[0]), 0.04, (ly - y0) / h))
+		if reach <= 0.0:
+			continue
+		reach = reach * b.x.length() + BRANCH_MARGIN
+		var flat := Vector2(global_position.x - base.x, global_position.z - base.z)
+		var d := flat.length()
+		if d >= reach:
+			continue
+		var out := flat / d if d > 0.001 else Vector2(1.0, 0.0)
+		var hv := Vector2(velocity.x, velocity.z)
+		var push := minf(reach - d, maxf(BRANCH_EASE * delta, hv.length() * delta + 0.002))
+		move_and_collide(Vector3(out.x, 0.0, out.y) * push)
+		var inward := hv.dot(-out)
+		if inward > 0.0:
+			hv += out * inward
+			velocity.x = hv.x
+			velocity.z = hv.y
 
 
 ## After every physics step: where the body is now (the head is drawn between this and
