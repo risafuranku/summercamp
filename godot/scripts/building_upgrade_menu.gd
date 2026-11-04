@@ -10,7 +10,7 @@ extends CanvasLayer
 ## The room that asked for it gets no input while it is up (its clicks and its way out
 ## are read in `_input`, before any button, so Close never got the click and S left the
 ## room with this still on screen and the mouse captured), and it shuts itself the
-## moment that room is gone. Esc stays the pause menu's.
+## moment that room is gone.
 
 signal upgrade_confirmed
 signal menu_closed
@@ -89,7 +89,7 @@ func _input(event: InputEvent) -> void:
 	var leave := false
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 		leave = true
-	elif event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_S:
+	elif event.is_action_pressed("ui_cancel"):
 		leave = true
 	if leave:
 		close_menu()

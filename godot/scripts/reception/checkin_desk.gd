@@ -733,13 +733,10 @@ func _input(event: InputEvent) -> void:
 	# Played in the room: the room brings the pointer (desk_room.gd).
 	if mode_3d:
 		return
-	# Esc goes on to the pause menu (main).
-	if event.is_action_pressed("ui_cancel"):
-		return
 	get_viewport().set_input_as_handled()
 	if _closing_t >= 0.0:
 		return
-	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_S:
+	if event.is_action_pressed("ui_cancel"):
 		close_desk()
 		return
 	if event is InputEventMouseButton:

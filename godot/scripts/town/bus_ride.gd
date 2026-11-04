@@ -679,7 +679,7 @@ func _process(delta: float) -> void:
 	_cam.rotation = _cam_base + offset
 	_update_hover()
 	if _exit_hint == null:
-		_exit_hint = INTERIOR_LOOK.make_exit_hint(self, "Get off   [S]")
+		_exit_hint = INTERIOR_LOOK.make_exit_hint(self, "Get off   [Esc]")
 	INTERIOR_LOOK.update_exit_hint(_exit_hint, get_viewport(), delta, _state == BOARDING)
 
 

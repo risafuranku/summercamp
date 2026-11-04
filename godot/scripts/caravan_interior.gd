@@ -242,7 +242,7 @@ func _input(event: InputEvent) -> void:
 		return
 	if _prep != null and _prep.is_scrubbing():
 		return
-	# Esc is the pause menu's (main): S or the way out behind you leaves (but not a
+	# Esc or the way out behind you leaves (but not a
 	# click on something to tidy, however low on the screen it is).
 	if _walking:
 		get_viewport().set_input_as_handled()

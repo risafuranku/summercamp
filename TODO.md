@@ -4,6 +4,23 @@
 
 ---
 
+## PLAYTEST 2026-11-04 — the user's notes (verbatim, then the note in brackets; tick with the commit)
+
+- [ ] V1  „ve stanu se myší špatně otáčím za sebe, hitbox otevírání plachty stanu jde velmi špatně kliknout“
+- [ ] V2  „interiéry chatek a budov přes okno musí jít vidět i z dálky. teď tam není, a je vidět pop in jak se začne renderovat když přijdu zblízka“
+- [ ] V3  „dveře od chatky mají za sebou při otevření černo, chci plynulý průchod do interiéru stejně jak na recepci. U KAŽDÉ BUDOVY“
+- [ ] V4  „z pause menu odstranit možnost 'jít ven'“
+- [ ] V5  „zvenčí nejde vidět hráč co rozepne zevnitř stan. měl by být rozeplý i zvenčí a mělo by jít vidět dovnitř. měl by jít vidět hráč. když ho zpět nezapne, zůstane tak pro všechny. když přijde host a ubytuje se v něm, samozřejmě že si ho zapne.“
+- [ ] V6  „chůze k oknu v interiéru recepce musí být kolem pultu, ne skrz něj. od okna chybí animace odchodu ven ze dveří, nejde mi na ně ani kliknout. mělo by jít i přemístit se do kumbálu.“
+- [ ] V7  „tranzice z book in minihry zpátky za pult není dostatečně plynulá“
+- [ ] V8  „v check in minihře a celkově ve všech minihrách musíme vylepšit pohled. musim dávat myš až hrozně daleko ke krajím, pohled je takovej buď do strany nebo nahoru jak tank, chtělo by o spíš jako bych hejbal joystickem na konzoli, akorát ten joystick je můj kurzor... méně strnulý a pomalý a idk. A a D mi řeší pohled do stran že nemusím používat myš, ale nahoru je jen W protože Skem je odchod, tím pádem musím používat myš a je to naprosto v píči a nepříjemný a skoro nemůžu bookovat...“
+- [ ] V9  „při checkinu mi nejdou dávat věci přímo na lidi, jsou vizuálně přilepené na stole, takže je takové nejasné jestli jim to fak dávám nebo ne“
+- [ ] V10 „změníme ovládání. odcházet z miniher budeš přes ESC, pauzu v minihrác prostě dávát nebudeš. WASD pohled v minihrách, ESC odcházíš. WASD pohled i v interiérech, stanech, chatkách, recepci, ESC odcházíš. WASD pohled v builderu defaultně, odebereš kameru na nohách, ESC se vyklikáš od počítače pryč, a dalšim esc se vyklikáš do animace východu ven. až venku ESC spouští pause menu. Dej pause menu ještě na nějakou klávesu kromě ESC ať je fallback možnost dát pauzu v interiérech/minihrách.“
+- [ ] V11 „postava tak moc cupitá, chtělo by to trochu víc smooth delší thump thump kroky“
+- [ ] V12 „v autobuse jsou divně šedivé okna boční, thumpnutí lístku je divně ai slopovské (hlavně zvuky), když jsem kliknul na zadní sedačku jen jsem tam dolítl místo chůze uprostřed a pak posazení. při přesazování to přitom funguje. autobusu nesvítí světla, nejde vidět večer ani že jede po silnici“
+- [ ] V13 „lana vysílačů v jejich těsné blízkosti tak divně clippují, jsou napůl transparent, nejsou uplně vidět. při jízdě busem“
+- [ ] V14 „při jizde autobusem je videt nejaka fake mapa nebo to nedokazu popsat. zastavil a vystupuje v naproste pustine, a kdyz jsem venku z busu tak mam pocit ze jsem spawnut najednou uplne u jineho busu, jsem najednou na zastavce u mesta. tohle potrebujeme opravit! vsechno musi bejt real, nesmi to bejt ze behem jizdi je hrac portnut mimo mapu do nejakyho imaginarniho autobusu. do mesta musi jit dojit pesky, a kdyz pujdu po trase autobusu, normalne ho tam uvidim projizdet, a uvidim v nem i pripadne jedouci hrace jak tam sedi, presazuji se atd. vse se proste deje v tom svete realtime. realtime vidim jak hrac do autobusu nastoupi, i z nej vystoupi. proste at to funguje presne tak jak by clovek ocekaval.“
+
 ## PLAYTEST 2026-11-01 — the user's notes (verbatim, then the note in brackets; tick with the commit)
 
 - [x] T1  (7b6b22bd: audio_manager set Master to +3 dB at every start of a camp over the player's volume (theirs was at the bottom, -40); now Master is GameSettings', the bottom step is off (muted)) „opravit hlasitost, i na nízko to mám strašně hodně hlasité“ (the volume sliders' low end)

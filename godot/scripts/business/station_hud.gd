@@ -292,24 +292,24 @@ func to_ui(screen: Vector2) -> Vector2:
 
 
 ## A key pressed at a station, as the frame reads it: "serve" (Space, Enter), "books" (B),
-## "back" (S), "next" (Tab), "tab:<id>" (1-9, 0), "" anything else (the station's own).
+## "back" (Esc), "next" (Tab), "tab:<id>" (1-9, 0), "" anything else (the station's own).
 func key_action(e: InputEventKey) -> String:
 	_idle = 0.0
+	if e.is_action_pressed("ui_cancel"):
+		return "back"
 	match e.physical_keycode:
 		KEY_SPACE, KEY_ENTER, KEY_KP_ENTER:
 			return "serve"
 		KEY_B:
 			return "books"
-		KEY_S:
-			return "back"
 		KEY_TAB:
 			return "next"
-		# The station on the left, the station on the right, as A and D go between a
-		# place's rooms (playtest 25. 10.: "let me move between the corn's stations by A and
-		# D"): the one beside it in the room, a quick step; nothing past the last (not round
-		# from the fourth to the first, nor down to the cellar).
-		KEY_A, KEY_D:
-			var to := _side(-1 if e.physical_keycode == KEY_A else 1)
+		# The station on the left, the station on the right (W A S D look now, the user
+		# 4. 11.; they were A and D, playtest 25. 10.): the one beside it in the room, a
+		# quick step; nothing past the last (not round from the fourth to the first, nor
+		# down to the cellar).
+		KEY_Q, KEY_E:
+			var to := _side(-1 if e.physical_keycode == KEY_Q else 1)
 			return "tab:" + to if to != "" else "none"
 	var n := -1
 	if e.physical_keycode >= KEY_1 and e.physical_keycode <= KEY_9:
@@ -479,7 +479,7 @@ func _draw() -> void:
 	_c.draw_rect(Rect2(x0, H - BAR_H, full_w, BAR_H), RETRO_UI.C_PLATE)
 	_c.draw_rect(Rect2(x0, H - BAR_H, full_w, 1), RETRO_UI.C_PLATE_LIGHT)
 	_c.draw_rect(Rect2(x0, H - 1, full_w, 1), RETRO_UI.C_PLATE_DARK)
-	_button(_back_rect(), tr("< BACK"), _hover == "#back", false, false, "S")
+	_button(_back_rect(), tr("< BACK"), _hover == "#back", false, false, "Esc")
 	var cur := str(station.get("station")) if station != null else ""
 	for i in tabs.size():
 		_draw_tab(i, cur)

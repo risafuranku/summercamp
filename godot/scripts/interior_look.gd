@@ -3,21 +3,30 @@ extends RefCounted
 ## Restricted look-around for interiors (DESIGN §10): you stay where you entered and only
 ## turn your head, within limits, like the office in Five Nights at Freddy's.
 ##
-## The cursor stays visible for clicking things in the room. Pushing it into the outer
-## band of the screen turns the head that way (faster the closer to the edge); the arrow
-## keys do the same. Inside the band the view only sways a little with the cursor, so
-## the room stays still under the mouse while you aim at something. Limits are soft: the
-## turn slows down before it stops.
+## The cursor stays visible for clicking things in the room, and it is a stick (the user,
+## 4. 11.: "jako bych hejbal joystickem na konzoli, akorát ten joystick je můj kurzor"): out
+## of a dead middle, its way from the middle of the screen turns the head that way, any
+## way round at once, gently at first and hard at the edge. W A S D and the arrows turn it
+## too. In the dead middle the view only sways a little with the cursor, so the room stays
+## still under the mouse while you aim at something. Limits are soft: the turn slows down
+## before it stops.
 
-## Outer share of the screen width/height that turns the head.
+## Outer share of the screen width that holds a turn at its end (the tent's old dwell).
 const EDGE_BAND := 0.20
-const MAX_YAW_SPEED_DEG := 150.0
-const MAX_PITCH_SPEED_DEG := 90.0
-const KEY_YAW_SPEED_DEG := 120.0
+## The stick: the dead middle (a share of the way from the middle to the edge) and how the
+## turn rises past it (a power: gentle near the middle, all of it at the edge). A held
+## button is work under the pointer: the dead middle grows most of the way to the edge.
+const STICK_DEAD := 0.26
+const STICK_POWER := 1.6
+const STICK_HELD := 0.6
+const MAX_YAW_SPEED_DEG := 190.0
+const MAX_PITCH_SPEED_DEG := 125.0
+const KEY_YAW_SPEED_DEG := 130.0
+const KEY_PITCH_SPEED_DEG := 90.0
 ## How quickly the turn picks up, and how quickly it stops once the cursor leaves the
 ## band (faster: a head stops when you stop turning it, it does not coast; the coasting
 ## was the "on ice" feel of the 2026-10-16 playtest).
-const ACCEL := 14.0
+const ACCEL := 18.0
 const BRAKE := 26.0
 ## A small parallax with the cursor anywhere on screen, so the room has depth under the
 ## mouse; followed by a critically damped spring, never by the turn itself.
@@ -31,6 +40,10 @@ const BREATH_HZ := 0.22
 const SOFT_ZONE_DEG := 14.0
 
 var yaw_limit_deg: float = 60.0
+## This look's dead middle (a desk's work fills the picture: a wider one there), and
+## whether W and S tilt the head (not where they row a boat).
+var dead: float = STICK_DEAD
+var keys_tilt := true
 var pitch_up_deg: float = 18.0
 var pitch_down_deg: float = 24.0
 
@@ -67,7 +80,7 @@ func reset() -> void:
 
 ## `cursor`: the mouse position normalised to 0..1 over the screen (or a negative value
 ## when the cursor should not steer, e.g. it is outside the window).
-## `key_axis`: -1 turn left, 1 turn right (arrow keys).
+## `key_axis`: -1 turn left, 1 turn right (A/D, the arrows: turn_axis). W and S tilt it here.
 ## Returns the rotation offset (pitch, yaw, 0) in radians to add to the base view. It is
 ## already smooth: set the camera to base + offset directly, no further easing.
 func update(delta: float, cursor: Vector2, key_axis: float = 0.0) -> Vector3:
@@ -77,9 +90,15 @@ func update(delta: float, cursor: Vector2, key_axis: float = 0.0) -> Vector3:
 	var want_yaw := 0.0
 	var want_pitch := 0.0
 	if steer:
-		want_yaw = -_edge_push(cursor.x) * MAX_YAW_SPEED_DEG
-		want_pitch = -_edge_push(cursor.y) * MAX_PITCH_SPEED_DEG
+		var d := dead
+		if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+			d = lerpf(d, 1.0, STICK_HELD)
+		var stick := _stick((cursor - Vector2(0.5, 0.5)) * 2.0, d)
+		want_yaw = -stick.x * MAX_YAW_SPEED_DEG
+		want_pitch = -stick.y * MAX_PITCH_SPEED_DEG
 	want_yaw -= clampf(key_axis, -1.0, 1.0) * KEY_YAW_SPEED_DEG
+	if keys_tilt:
+		want_pitch += tilt_axis() * KEY_PITCH_SPEED_DEG
 	_yaw_speed = _follow(_yaw_speed, want_yaw, dt)
 	_pitch_speed = _follow(_pitch_speed, want_pitch, dt)
 
@@ -154,15 +173,13 @@ static func _follow(speed: float, want: float, dt: float) -> float:
 	return lerpf(speed, want, k)
 
 
-## 0 inside the screen, rising to 1 at the very edge (-1 on the low side).
-static func _edge_push(v: float) -> float:
-	if v < EDGE_BAND:
-		var t := 1.0 - clampf(v / EDGE_BAND, 0.0, 1.0)
-		return -t * t
-	if v > 1.0 - EDGE_BAND:
-		var t := clampf((v - (1.0 - EDGE_BAND)) / EDGE_BAND, 0.0, 1.0)
-		return t * t
-	return 0.0
+## The stick's push for a way `v` from the middle (-1..1 to the edges, corners further):
+## nothing inside `dead`, then along it, up to 1.
+static func _stick(v: Vector2, dead_zone: float) -> Vector2:
+	var r := v.length()
+	if r <= dead_zone:
+		return Vector2.ZERO
+	return v / r * pow(clampf((r - dead_zone) / (1.0 - dead_zone), 0.0, 1.0), STICK_POWER)
 
 
 ## Moves `value` by `step`, slowing down inside the last SOFT_ZONE_DEG before a limit.
@@ -197,6 +214,16 @@ static func turn_axis() -> float:
 	if Input.is_physical_key_pressed(KEY_D):
 		axis += 1.0
 	return clampf(axis, -1.0, 1.0)
+
+
+## W S and the arrows as an axis (1 up, -1 down): tilting the head in a room.
+static func tilt_axis() -> float:
+	var axis := 0.0
+	if Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP):
+		axis += 1.0
+	if Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN):
+		axis -= 1.0
+	return axis
 
 
 ## Which side tab a click hit (-1 left, 1 right, 0 none): the tabs are a few percent of
@@ -243,7 +270,7 @@ static func screen_rect_of(camera: Camera3D, render_size: Vector2, mesh: MeshIns
 	return Rect2(lo, hi - lo)
 
 
-# ── leaving: S, or the door behind you (the bottom edge of the screen) ─────────
+# ── leaving: Esc, or the door behind you (the bottom edge of the screen) ───────
 
 ## Bottom share of the screen where the door behind you is "under" the cursor.
 const EXIT_BAND := 0.07
@@ -255,7 +282,7 @@ static func in_exit_zone(viewport: Viewport) -> bool:
 
 
 static func is_exit_event(event: InputEvent, viewport: Viewport) -> bool:
-	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_S:
+	if event.is_action_pressed("ui_cancel"):
 		return true
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		return in_exit_zone(viewport)
@@ -263,7 +290,7 @@ static func is_exit_event(event: InputEvent, viewport: Viewport) -> bool:
 
 
 ## A dark band along the bottom with "Leave", shown when the cursor reaches it.
-static func make_exit_hint(layer: CanvasLayer, text := "Turn round and leave   [S]") -> Control:
+static func make_exit_hint(layer: CanvasLayer, text := "Turn round and leave   [Esc]") -> Control:
 	var hint := Control.new()
 	hint.name = "ExitHint"
 	hint.mouse_filter = Control.MOUSE_FILTER_IGNORE

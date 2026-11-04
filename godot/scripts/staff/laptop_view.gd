@@ -9,7 +9,7 @@ extends CanvasLayer
 ## the shops. Drawn at the window's full resolution like the office monitor, mapped onto
 ## the screen's four corners as they were measured on the render
 ## (laptop_screen.json), and the mouse and the keys go to it the same way back.
-## S (not typing) or a click below the machine stands you up; Esc is the pause menu's.
+## Esc or a click below the machine stands you up.
 ## Co-op: one warden at the PC at a time (here or at the office); the others in the room
 ## see their screen on the laptop (partner_frame) and them on its chair.
 
@@ -294,9 +294,6 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventKey:
 		var ke := event as InputEventKey
 		if ke.is_action_pressed("ui_cancel"):
-			return
-		var typing: bool = bool(_bi.call("_crt_typing"))
-		if not typing and ke.physical_keycode == KEY_S and ke.pressed and not ke.echo and not bool(_bi.call("_crt_keys_taken")):
 			close_view()
 			get_viewport().set_input_as_handled()
 			return

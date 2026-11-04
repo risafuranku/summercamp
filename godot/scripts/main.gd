@@ -48,6 +48,7 @@ const BLOOD_FX_SCRIPT = preload("res://scripts/blood_fx.gd")
 ## Being hurt on the screen and in the ears (the red flash, blood on the lens, your cry,
 ## the heart and the breath, the limp and the blackouts when low).
 const HURT_FX_SCRIPT = preload("res://scripts/ui/hurt_fx.gd")
+const PAUSE_KEYS_SCRIPT = preload("res://scripts/ui/pause_keys.gd")
 var _hurt_fx: CanvasLayer
 const MENU_FLYTHROUGH_SCRIPT = preload("res://scripts/menu_flythrough.gd")
 const SAVE_CODEC = preload("res://scripts/save_codec.gd")
@@ -1336,8 +1337,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if _game_over_active:
 		return
-	# Esc is always the pause menu (playtest 2026-10-17), indoors, at the PC, in a
-	# close-up or a job: nothing else uses it. Leaving is S or the way out.
+	# Esc gets here when nothing else took it: rooms, the PC, jobs and close-ups leave by
+	# it (the user, 4. 11.), so this is the pause menu out in the camp. P and F10 open it
+	# anywhere (PauseKeys).
 	if event.is_action_pressed("ui_cancel"):
 		_open_pause_menu()
 		get_viewport().set_input_as_handled()
@@ -1555,7 +1557,6 @@ func _ensure_input_actions() -> void:
 	# error per event, so they always exist (R only acts where something is broken).
 	_add_key_action("service_repair", KEY_R)
 	_add_key_action("service_kitchen_variant", KEY_P)
-	_add_key_action("service_secret_room", KEY_S)
 	_add_key_action("maintain", KEY_R)
 
 
@@ -6848,26 +6849,31 @@ func _open_pause_menu() -> void:
 	# Resume gives back the pointer as it was (free in a room, hidden at the PC,
 	# captured outdoors).
 	_pause_prev_mouse = Input.mouse_mode
-	_pause_menu.open(_pause_info_line(), _leave_label())
+	_pause_menu.open(_pause_info_line())
 	# In co-op the camp goes on for the other warden: the menu is only over your view.
 	get_tree().paused = not Coop.is_active()
 
 
-## What the pause menu's way out says, or "" when you are already outdoors.
-func _leave_label() -> String:
-	if _lake_trip != null and is_instance_valid(_lake_trip) and _lake_trip.has_method("is_active") and _lake_trip.is_active():
-		return "Row back to camp"
-	if _is_any_interior_open() or (_breaker_panel != null and is_instance_valid(_breaker_panel) and _breaker_panel.visible):
-		return "Go outside"
-	return ""
+## P or F10 (PauseKeys, first to hear any key): the menu in a room or a job too, where Esc
+## leaves. P is a letter while you sit at a computer; F10 is not.
+func pause_key(key: int) -> bool:
+	if key == KEY_P and _keyboard_taken():
+		return false
+	if _pause_menu != null and _pause_menu.is_open():
+		_close_pause_menu(true)
+		return true
+	if not _can_pause_now():
+		return false
+	_open_pause_menu()
+	return true
 
 
-## The pause menu's way out: whatever room, close-up or job you are in ends the way its
-## own exit would, and you stand in the camp again. There is always a way back.
-func _on_pause_leave_requested() -> void:
-	_close_pause_menu(false)
-	_leave_everything(false)
-	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+func _keyboard_taken() -> bool:
+	var bi = _interior_manager.get("_building_interior") if _interior_manager != null else null
+	if bi != null and bool(bi.get("_crt_active")):
+		return true
+	var f := get_viewport().gui_get_focus_owner()
+	return f is LineEdit or f is TextEdit
 
 
 ## `silent`: back to the main menu, nothing to walk out of and no door to hear.
@@ -6895,7 +6901,9 @@ func _ensure_pause_menu() -> void:
 	_pause_menu.resume_requested.connect(func() -> void: _close_pause_menu(true))
 	_pause_menu.save_requested.connect(_on_pause_save_requested)
 	_pause_menu.quit_to_title_requested.connect(_on_pause_quit_requested)
-	_pause_menu.leave_requested.connect(_on_pause_leave_requested)
+	var keys := PAUSE_KEYS_SCRIPT.new()
+	keys.set("main", self)
+	get_tree().root.add_child.call_deferred(keys)
 
 
 func _close_pause_menu(recapture_mouse: bool) -> void:

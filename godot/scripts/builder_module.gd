@@ -142,12 +142,8 @@ var _map_panel: Control
 var _map3d                    # the hidden 3D view (scripts/builder/map3d.gd)
 var _grip: Control            # its button: the status bar's corner grip
 var _grip_hover := false
-## The camera with legs (WASD moves the map, S stays a letter); its button, its two frames
+## (The camera with legs is gone, 4. 11.: W A S D move the map whenever Builder is the screen.)
 ## (standing, a step: it walks while the map moves).
-var walk_on := false
-var _walk_btn: Button
-var _walk_icons: Array = []
-var _walk_t := 0.0
 var _restore_3d := true
 var _toolbar: Control
 var _catalogue: Control
@@ -391,7 +387,7 @@ func _menu(item: String) -> void:
 		"Overlay: light at night":
 			_set_overlay("light")
 		"Keys":
-			message_requested.emit("Builder 98 - Keys", "B  bulldozer        P  path        L  lamp\nF1 housing   F2 services   F3 fun   F4 decor   F5 utilities\nR  turn the building     T  turn the view     X  put the tool away\nO  overlay (wear, power, rooms, light)\nArrows  move the map     +/-  zoom     Ctrl+Z  undo today's build\nThe camera with legs: WASD moves the map (Shift faster)\n\nNo tool in hand: click a building for its card.", "info")
+			message_requested.emit("Builder 98 - Keys", "B  bulldozer        P  path        L  lamp\nF1 housing   F2 services   F3 fun   F4 decor   F5 utilities\nR  turn the building     T  turn the view     X  put the tool away\nO  overlay (wear, power, rooms, light)\nW A S D, arrows  move the map (Shift faster)     +/-  zoom     Ctrl+Z  undo today's build\n\nNo tool in hand: click a building for its card.", "info")
 		"Help topics":
 			message_requested.emit("Builder 98 Help", "Cannot open BUILDER.HLP.\n\nThe file is missing or damaged.\n\n(Help > Keys still works.)", "error")
 		"Register...":
@@ -478,22 +474,6 @@ func _build_toolbar() -> void:
 		var step: int = z[1]
 		zb.pressed.connect(func(): _map_panel.apply_zoom_step(step))
 		row.add_child(zb)
-	# The camera with legs: WASD moves the map (for a long sitting, the left hand on the
-	# keys); S no longer stands you up while it is in. Click it again to get up.
-	_walk_btn = Button.new()
-	_walk_btn.toggle_mode = true
-	_walk_btn.focus_mode = Control.FOCUS_NONE
-	_walk_btn.custom_minimum_size = Vector2(34, 34)
-	_walk_btn.expand_icon = true
-	_walk_btn.add_theme_constant_override("icon_max_width", 28)
-	_walk_btn.tooltip_text = "Camera on WASD"
-	_walk_icons = _walk_frames()
-	_walk_btn.icon = _walk_icons[0] if not _walk_icons.is_empty() else null
-	if _walk_btn.icon == null:
-		_walk_btn.text = "WASD"
-	_flat_style(_walk_btn)
-	_walk_btn.toggled.connect(func(on: bool): _set_walk(on))
-	row.add_child(_walk_btn)
 	row.add_child(_gap())
 	# What the map shows over the camp: off, wear, power, rooms, light (O).
 	_overlay_btn = Button.new()
@@ -663,63 +643,20 @@ func _draw_grip() -> void:
 			_grip.draw_rect(Rect2(q, Vector2.ONE), hi)
 
 
-## The camera on WASD or not. The desk (building_interior) asks `walk_keys` before S
-## stands you up; the map pans by WASD while it is true.
-func _set_walk(on: bool) -> void:
-	if on == walk_on:
-		return
-	walk_on = on
-	_walk_btn.set_pressed_no_signal(on)
-	_ui("tool" if on else "button")
-	_status_msg.text = tr("Camera on WASD.") if on else tr("Camera off WASD.")
-	var s := _shell_node()
-	if s != null:
-		s.set_meta("builder_walk", self)
-	if on:
-		_map_panel.call_deferred("grab_focus")
-
-
-## Up from the desk: the legs go back in.
-func end_walk() -> void:
-	_set_walk(false)
-	if _walk_btn != null and not _walk_icons.is_empty():
-		_walk_btn.icon = _walk_icons[0]
-
-
-## WASD is the map's now: the camera is on WASD and Builder is the screen you look at (on
-## the other monitor or out of the office window the keys are the desk's again: S there
-## stands you up; back on Builder they are the map's).
+## W A S D are the map's while Builder is the screen you look at (not on the other monitor
+## or out of the office window, nor with a field to type in).
 func walk_keys() -> bool:
-	if not walk_on or not is_visible_in_tree() or not OS_KEYS.here(self):
+	if not is_visible_in_tree() or not OS_KEYS.here(self):
+		return false
+	var focus := get_viewport().gui_get_focus_owner()
+	if focus is LineEdit or focus is TextEdit:
 		return false
 	var s := _shell_node()
 	return s == null or not bool(s.get_meta("look_away", false))
 
 
-## The button's two pictures: the camera, and the camera a pixel up mid-step.
-func _walk_frames() -> Array:
-	var t := _texture("res://assets/textury/builder/tb2_walkcam.png")
-	if t == null:
-		return []
-	var img := t.get_image()
-	if img.is_compressed():
-		img.decompress()
-	var up := Image.create(img.get_width(), img.get_height(), false, img.get_format())
-	up.blit_rect(img, Rect2i(0, 1, img.get_width(), img.get_height() - 1), Vector2i.ZERO)
-	return [t, ImageTexture.create_from_image(up)]
-
-
-func _tick_walk(delta: float) -> void:
-	if _walk_btn == null:
-		return
-	var keys := walk_keys()
-	_map_panel.set("wasd", keys)
-	if _walk_icons.size() < 2:
-		return
-	var moving := keys and (Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_A) \
-		or Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_D))
-	_walk_t = _walk_t + delta if moving else 0.0
-	_walk_btn.icon = _walk_icons[int(_walk_t * 6.0) % 2]
+func _tick_walk(_delta: float) -> void:
+	_map_panel.set("wasd", walk_keys())
 
 
 ## The map between the 2D sprites and the camp's own 3D world; the PC remembers which.

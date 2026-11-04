@@ -16,8 +16,6 @@ extends CanvasLayer
 signal resume_requested
 signal save_requested
 signal quit_to_title_requested
-## The way out of a room, a close-up or a job (main: _on_pause_leave_requested).
-signal leave_requested
 
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 const RETRO_MENU = preload("res://scripts/ui/retro_menu.gd")
@@ -38,8 +36,6 @@ var _credits_plate: Control
 var _credits
 var _controls
 var _info_text: String = ""
-## "Go outside" and the like when there is somewhere to leave; "" outdoors.
-var _leave_text: String = ""
 
 
 func _init() -> void:
@@ -62,15 +58,14 @@ func _ready() -> void:
 var _built_coop := false
 
 
-func open(info: String, leave_text := "") -> void:
+func open(info: String) -> void:
 	_info_text = info
 	if _info != null:
 		_info.text = info
 	var coop: bool = Coop.has_partner() or Coop.is_host()
 	# Built at bootstrap, before a warden (and so the language) was chosen: Czech rows
 	# are taller.
-	if leave_text != _leave_text or coop != _built_coop or LANG.current != _built_lang:
-		_leave_text = leave_text
+	if coop != _built_coop or LANG.current != _built_lang:
 		_built_coop = coop
 		_rebuild()
 	visible = true
@@ -171,8 +166,6 @@ func _rebuild() -> void:
 	_list.ui_scale = _scale
 	_list.row_height_vp = 24
 	var items: Array[Dictionary] = [{"id": "resume", "text": "Resume"}]
-	if _leave_text != "":
-		items.append({"id": "leave", "text": _leave_text})
 	items.append_array([
 		{"id": "save", "text": "Save game"},
 		{"id": "options", "text": "Configuration"},
@@ -298,8 +291,6 @@ func _on_activated(id: String) -> void:
 	match id:
 		"resume":
 			resume_requested.emit()
-		"leave":
-			leave_requested.emit()
 		"save":
 			save_requested.emit()
 		"options":

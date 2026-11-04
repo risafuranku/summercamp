@@ -453,11 +453,11 @@ func _input(event: InputEvent) -> void:
 			if not event.is_action_pressed("ui_cancel"):
 				get_viewport().set_input_as_handled()
 			return
-	# Esc is the pause menu's (main): S or the way out behind you leaves (but not a
-	# click on something to clean, however low on the screen it is).
+	# Esc or the way out behind you leaves (but not a click on something to clean, however
+	# low on the screen it is).
 	var on_task: bool = _upkeep_prep != null and _upkeep_prep.is_busy()
 	if INTERIOR_LOOK.is_exit_event(event, get_viewport()) and not (on_task and event is InputEventMouseButton):
-		# In the staffroom's boiler room S takes you back through to the lounge, not out of
+		# In the staffroom's boiler room Esc takes you back through to the lounge, not out of
 		# the building (playtest 25. 10.); out is from the lounge.
 		if _staff_room != null and _current_profile == "staff" and str(_staff_room.get("room")) == "boiler":
 			_staff_room.walk_to("lounge")
@@ -484,10 +484,6 @@ func _input(event: InputEvent) -> void:
 		_try_request_service_repair()
 		get_viewport().set_input_as_handled()
 		return
-	if event.is_action_pressed("service_secret_room"):
-		_toggle_secret_room()
-		get_viewport().set_input_as_handled()
-		return
 	if event.is_action_pressed("service_kitchen_variant"):
 		_toggle_kitchen_texture_variant()
 		get_viewport().set_input_as_handled()
@@ -500,10 +496,6 @@ func _input(event: InputEvent) -> void:
 			return
 		if key_event.physical_keycode == KEY_R or key_event.keycode == KEY_R:
 			_try_request_service_repair()
-			get_viewport().set_input_as_handled()
-			return
-		if key_event.physical_keycode == KEY_S:
-			_toggle_secret_room()
 			get_viewport().set_input_as_handled()
 			return
 		if key_event.physical_keycode == KEY_P:
@@ -2929,10 +2921,8 @@ func _room_px(screen: Vector2) -> Vector2:
 	return Vector2(clampf(screen.x / size.x, 0.0, 1.0) * float(_viewport.size.x), clampf(screen.y / size.y, 0.0, 1.0) * float(_viewport.size.y))
 
 
-## The keys and the mouse while you are at a station. Esc goes on to the pause menu.
+## The keys and the mouse while you are at a station. Esc is the way back from it.
 func _station_input(event: InputEvent, open: String) -> void:
-	if event.is_action_pressed("ui_cancel"):
-		return
 	get_viewport().set_input_as_handled()
 	var st: Node = _stations[open]
 	var hud := _hud()

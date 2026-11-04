@@ -59,7 +59,7 @@ var _grid_power_available: bool = true
 var _barrel_overlay: ColorRect
 var _cam_base_rot: Vector3 = Vector3.ZERO
 ## Kneeling in a two-man tent: you can turn to the walls, not past them.
-var _look = INTERIOR_LOOK.new(48.0, 24.0, 36.0)
+var _look = INTERIOR_LOOK.new(180.0, 24.0, 36.0)
 ## Lying in this room's bed (scripts/lodge_bed.gd has the camera): no looking round,
 ## no leaving, no clicks till you are up.
 var lodge_sleeping := false
@@ -197,7 +197,7 @@ func _input(event: InputEvent) -> void:
 		return
 	if _prep != null and _prep.is_scrubbing():
 		return
-	# Esc is the pause menu's (main): S or the way out behind you leaves (but not a
+	# Esc or the way out behind you leaves (but not a
 	# click on something to tidy, however low on the screen it is).
 	if INTERIOR_LOOK.is_exit_event(event, get_viewport()) and not (_prep.is_busy() and event is InputEventMouseButton):
 		close_tent()
@@ -216,7 +216,7 @@ func _input(event: InputEvent) -> void:
 		if _facing_door:
 			_set_door_open(not _door_open)
 		else:
-			_look.push(1)
+			_turn_to_door()
 		get_viewport().set_input_as_handled()
 
 
@@ -241,13 +241,12 @@ func _try_click() -> void:
 
 	# Exit is handled only by ESC.
 
-	# Turned to the door: a click on it unzips it (or zips it up).
-	if _facing_door:
-		# Anywhere on the door's gable (a little round it too: its seam is thin).
-		var door := _door_screen_rect().grow(0.04)
-		if door.has_point(norm):
-			_set_door_open(not _door_open)
-			get_viewport().set_input_as_handled()
+	# A click on the door unzips it (or zips it up): anywhere on its gable, and a good way
+	# round it. (Its picture on the screen was no use: that near, part of the gable is behind
+	# the eye and it came out empty; the user 4. 11.: "jde velmi špatně kliknout".)
+	if _door_under(mouse_pos / screen_size):
+		_set_door_open(not _door_open)
+		get_viewport().set_input_as_handled()
 		return
 	if _catalog_screen_rect().has_point(norm):
 		request_upgrade.emit()
@@ -627,44 +626,31 @@ func _add_gable(node_name: String, pos: Vector3, color: Color) -> MeshInstance3D
 
 const WINDOW_PORTAL = preload("res://scripts/ui/window_portal.gd")
 const STEP12 = preload("res://scripts/ui/step12.gd")
+## The front gable's plane in the tent (z).
+const DOOR_PLANE_Z := 1.16
 const SFX_ZIP := "res://assets/sfx/rooms/tent_zip.mp3"
-## Held at the end of the turn (A/D, or the cursor in the edge band) this long: round.
-## (Shorter, and the door answers E and a click anywhere on it, from 21. 10.: the tent's
-## door was hard to open.)
-const TURN_DWELL_SEC := 0.3
 const TURN_SEC := 0.6
 var _facing_door := false
 var _door_open := false
 var _door_portal
 var _turn_tween: Tween
-var _dwell := 0.0
 var _zip: AudioStreamPlayer
 
 
-## The head held on at the end of its turn: round to the door, or back to the bed.
-func _tick_turn(delta: float) -> void:
+## You turn all the way round in the tent as in any room (the user 4. 11.: turning round by
+## holding the head at the end of its turn was bad with the mouse): the door behind you is
+## simply there.
+func _tick_turn(_delta: float) -> void:
+	_look.take_push()
+	_facing_door = absf(float(_look.yaw_deg)) > 105.0
+
+
+## E, turned away from the door: round to it, the short way.
+func _turn_to_door() -> void:
 	if _turn_tween != null and _turn_tween.is_valid() and _turn_tween.is_running():
-		_look.take_push()
 		return
-	var push: int = _look.take_push()
-	var cur := INTERIOR_LOOK.cursor_of(get_viewport())
-	var at_end := absf(float(_look.yaw_deg)) >= float(_look.yaw_limit_deg) - 1.5
-	var in_band := cur.x >= 0.0 and (cur.x < INTERIOR_LOOK.EDGE_BAND * 0.6 or cur.x > 1.0 - INTERIOR_LOOK.EDGE_BAND * 0.6)
-	_dwell = _dwell + delta if at_end and in_band else 0.0
-	if push == 0 and _dwell < TURN_DWELL_SEC:
-		return
-	_dwell = 0.0
-	_facing_door = not _facing_door
-	var yaw := float(_look.yaw_deg)
-	var side := signf(yaw) if absf(yaw) > 1.0 else 1.0
-	# Round the way the head was already turned: the base takes the head's turn, swings
-	# on to the half turn, and the head starts again from the middle.
-	_cam_base_rot.y += deg_to_rad(yaw)
-	var to := Vector3(_cam_base_rot.x, _cam_base_rot.y + side * (PI - deg_to_rad(absf(yaw))), 0.0)
-	_look.reset()
-	_turn_tween = STEP12.move(self, self, {"_cam_base_rot": to}, TURN_SEC)
-	_turn_tween.tween_callback(func() -> void:
-		_cam_base_rot.y = wrapf(_cam_base_rot.y, -PI, PI))
+	var side := -1.0 if float(_look.yaw_deg) < 0.0 else 1.0
+	_turn_tween = STEP12.move(self, _look, {"yaw_deg": side * 179.0}, TURN_SEC)
 
 
 ## The doorway's view out (a portal in the front gable), live while it is open.
@@ -767,16 +753,18 @@ func _set_door_open(open: bool) -> void:
 			_zip.play()
 
 
-## The door on screen (normalised): the front gable, or the doorway when open.
-func _door_screen_rect() -> Rect2:
-	if _viewport == null:
-		return Rect2()
-	var m := _tent_root.get_node_or_null("FrontWall") as MeshInstance3D
-	if _door_open and _door_portal != null:
-		m = _door_portal.quad
-	elif m != null and not m.visible:
-		return Rect2()
-	return INTERIOR_LOOK.screen_rect_of(_interior_camera, Vector2(_viewport.size), m)
+## Whether the pointer (normalised) is on the door: the ray through it onto the front
+## gable's plane, the gable and a margin round it.
+func _door_under(norm: Vector2) -> bool:
+	if _viewport == null or _interior_camera == null or _tent_root == null:
+		return false
+	var at := norm * Vector2(_viewport.size)
+	var o: Vector3 = _tent_root.to_local(_interior_camera.project_ray_origin(at))
+	var d: Vector3 = _tent_root.global_basis.inverse() * _interior_camera.project_ray_normal(at)
+	if d.z <= 0.05:
+		return false
+	var p: Vector3 = o + d * ((DOOR_PLANE_Z - o.z) / d.z)
+	return absf(p.x) <= TENT_HALF_WIDTH + 0.3 and p.y >= -0.2 and p.y <= TENT_RIDGE_HEIGHT + 0.3
 
 
 ## A picture lying flat on top of something (a quad: a box would show a third of it).

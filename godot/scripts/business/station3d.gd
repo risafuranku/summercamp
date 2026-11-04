@@ -69,15 +69,15 @@ const CAM_SEC := 0.34
 const FACES := preload("res://scripts/business/guest_face.gd")
 const LOOK := preload("res://scripts/interior_look.gd")
 ## Looking about from the station (the user, 21. 10.: "look round with the mouse as in the
-## rooms, not a locked camera: from the corn stand round the camp, say"): the pointer held
-## in a side band of the screen (narrower than a room's, and only after a moment: the work
-## reaches the edges) or the arrow keys turn the head, up to LOOK_YAW either way; not while
-## something is held. No sway and no breath here: the work stays still under the pointer.
-## (Wider and sooner from 25. 10.: "let me look about as in the rooms" at the corn stand.)
-const LOOK_BAND := 0.11
+## rooms, not a locked camera: from the corn stand round the camp, say"): the pointer past a
+## wide dead middle (it is a stick, interior_look; the work is under it) or W A S D and the
+## arrows turn the head, up to LOOK_YAW either way; not while something is held. No sway
+## and no breath here: the work stays still under the pointer.
 const LOOK_VBAND := 0.06
 const LOOK_DWELL := 0.08
 const LOOK_YAW := 170.0
+## The stick's dead middle at a station: the work fills the picture.
+const LOOK_DEAD := 0.5
 ## How quickly the peek (peek_up) comes up and goes back down (an eased glide, 1/s).
 const PEEK_FOLLOW := 7.0
 ## How much of the screen's height the frame's bar takes (station_hud BAR_H of its H).
@@ -131,7 +131,6 @@ var _mouse_free := Vector2(-1, -1)
 var _vp_mouse := Vector2(-1, -1)
 var _look = LOOK.new(LOOK_YAW, 20.0, 30.0)
 var _open_t := 0.0
-var _band_t := 0.0
 var _vband_t := 0.0
 ## The peek now (degrees, eased to peek_up or 0).
 var _peek := 0.0
@@ -740,7 +739,6 @@ func open_station(cam: Camera3D) -> void:
 	_open = true
 	_look.reset()
 	_open_t = 0.0
-	_band_t = 0.0
 	_vband_t = 0.0
 	_peek = 0.0
 	if building_key != "":
@@ -770,32 +768,22 @@ func _tick_look(delta: float) -> void:
 		# room's own bottom is the bar's top (playtest 25. 10.: "I can look up but not down").
 		if hud != null:
 			c.y = minf(1.0, c.y / (1.0 - BAR_SHARE))
-		var in_band := c.x < LOOK_BAND or c.x > 1.0 - LOOK_BAND
-		_band_t = _band_t + delta if in_band and holding() == "" else 0.0
-		var x := c.x if _band_t >= LOOK_DWELL else clampf(c.x, LOOK_BAND, 1.0 - LOOK_BAND)
-		# Up and down too (playtest 25. 10.: "let me look up and down at the corn stand"):
-		# the top and bottom bands, a narrower one, over the work and not over the rail or
-		# the bar (the room passes no pointer while it is on them). A peek has the top one
-		# only.
-		var in_vband := c.y < LOOK_VBAND or (c.y > 1.0 - LOOK_VBAND and peek_up <= 0.0)
+		# The pointer is the look's stick, with a wide dead middle: the work is under it.
+		# Not with a thing in hand. A peek looks up by the top band only.
+		var in_vband := c.y < LOOK_VBAND
 		_vband_t = _vband_t + delta if in_vband and holding() == "" else 0.0
-		var y := c.y if _vband_t >= LOOK_DWELL else clampf(c.y, LOOK_VBAND, 1.0 - LOOK_VBAND)
-		# The narrow bands stretched onto the look's own (its outer fifth turns the head).
-		cur = Vector2(_to_look_band(x, LOOK_BAND), _to_look_band(y, LOOK_VBAND))
+		if holding() == "":
+			cur = c
 		if peek_up > 0.0:
 			peek_on = _vband_t >= LOOK_DWELL
-			cur.y = 0.5
-	# The arrows up and down tip the head as left and right turn it (up peeks).
-	var tip := 0.0
-	if Input.is_physical_key_pressed(KEY_UP):
-		tip -= 1.0
-	if Input.is_physical_key_pressed(KEY_DOWN):
-		tip += 1.0
+			if cur.x >= 0.0:
+				cur.y = 0.5
+	# W A S D and the arrows turn and tip the head (up peeks).
+	_look.dead = LOOK_DEAD
+	_look.keys_tilt = peek_up <= 0.0
 	if peek_up > 0.0:
-		peek_on = peek_on or tip < 0.0
-	elif tip != 0.0:
-		cur = Vector2(cur.x if cur.x >= 0.0 else 0.5, 0.5 + tip * 0.5)
-	_look.update(delta, cur, LOOK.key_axis())
+		peek_on = peek_on or LOOK.tilt_axis() > 0.0
+	_look.update(delta, cur, LOOK.turn_axis())
 	var base := cam_pose()
 	# Turned away from the work the eyes come up off the counter to the horizon (a little
 	# under it), so the camp is what you see, not the grass at your feet.
@@ -807,15 +795,6 @@ func _tick_look(delta: float) -> void:
 		pitch = maxf(pitch, deg_to_rad(_peek))
 	var b := base.basis.rotated(base.basis.x.normalized(), pitch).rotated(Vector3.UP, deg_to_rad(_look.yaw_deg))
 	camera.global_transform = Transform3D(b, base.origin)
-
-
-## A share of the screen in a `band` wide band at either end, put onto the look's own band.
-static func _to_look_band(v: float, band: float) -> float:
-	if v < band:
-		return v / band * LOOK.EDGE_BAND
-	if v > 1.0 - band:
-		return 1.0 - LOOK.EDGE_BAND + (v - (1.0 - band)) / band * LOOK.EDGE_BAND
-	return LOOK.EDGE_BAND + (v - band) / (1.0 - 2.0 * band) * (1.0 - 2.0 * LOOK.EDGE_BAND)
 
 
 ## You stepped away (or the room closed under you).

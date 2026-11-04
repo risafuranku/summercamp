@@ -4546,8 +4546,7 @@ msgid ""
 "F1 housing   F2 services   F3 fun   F4 decor   F5 utilities\n"
 "R  turn the building     T  turn the view     X  put the tool away\n"
 "O  overlay (wear, power, rooms, light)\n"
-"Arrows  move the map     +/-  zoom     Ctrl+Z  undo today's build\n"
-"The camera with legs: WASD moves the map (Shift faster)\n"
+"W A S D, arrows  move the map (Shift faster)     +/-  zoom     Ctrl+Z  undo today's build\n"
 "\n"
 "No tool in hand: click a building for its card."
 msgstr ""
@@ -4555,8 +4554,7 @@ msgstr ""
 "F1 ubytování   F2 služby   F3 zábava   F4 dekorace   F5 technika\n"
 "R  otočit stavbu     T  otočit pohled     X  odložit nástroj\n"
 "O  vrstva (opotřebení, proud, pokoje, světlo)\n"
-"Šipky  posun mapy     +/-  přiblížení     Ctrl+Z  vrátit dnešní stavbu\n"
-"Kamera s nohami: WASD posouvá mapu (Shift rychleji)\n"
+"W A S D, šipky  posun mapy (Shift rychleji)     +/-  přiblížení     Ctrl+Z  vrátit dnešní stavbu\n"
 "\n"
 "Bez nástroje v ruce: klikni na stavbu a ukáže se její karta."
 
@@ -6138,8 +6136,8 @@ msgstr "Glass"
 
 #: scripts/cabin_interior.gd:560 scripts/bowling/bowling_interior.gd:309
 #. uses 2
-msgid "Back   [S]"
-msgstr "Zpět   [S]"
+msgid "Back   [Esc]"
+msgstr "Zpět   [Esc]"
 
 #: scripts/cabin_interior.gd:568
 msgid "Room  [A]"
@@ -9405,8 +9403,8 @@ msgid "Node"
 msgstr ""
 
 #: scripts/interior_look.gd:266
-msgid "Turn round and leave   [S]"
-msgstr "Otočit se a odejít   [S]"
+msgid "Turn round and leave   [Esc]"
+msgstr "Otočit se a odejít   [Esc]"
 
 #: scripts/interior_manager.gd:68
 msgid "Enter reception"
@@ -13434,8 +13432,8 @@ msgid "Stood at the lane. Nobody set up the pins."
 msgstr "Na dráze se čekalo. Kuželky nikdo nepostavil."
 
 #: scripts/bowling/bowling_interior.gd:309
-msgid "Leave   [S]"
-msgstr "Odejít   [S]"
+msgid "Leave   [Esc]"
+msgstr "Odejít   [Esc]"
 
 #: scripts/bowling/bowling_layout.gd:78
 msgid "the shoe counter"
@@ -26586,8 +26584,8 @@ msgstr ""
 "}\n"
 
 #: scripts/town/bus_ride.gd:682
-msgid "Get off   [S]"
-msgstr "Vystoupit   [S]"
+msgid "Get off   [Esc]"
+msgstr "Vystoupit   [Esc]"
 
 #: scripts/town/bus_ride.gd:821
 msgid "Punched already. The holes say so."
@@ -30098,3 +30096,57 @@ msgstr "Dřív se zvonilo umíráčkem. Teď se zvoní v poledne a v šest a nik
 #: scripts/town/chapel_view.gd
 msgid "Your camp had a priest come up once. In seventy-one. He did not stay the night either."
 msgstr "K vám do kempu jednou přijel farář. V jednasedmdesátým. Taky tam nepřespal."
+
+msgid "Esc (outdoors), P or F10 (anywhere)"
+msgstr "Esc (venku), P nebo F10 (kdekoli)"
+
+msgid "Leave a room, a job or the PC"
+msgstr "Odejít z místnosti, od práce nebo od počítače"
+
+msgid "Look in rooms and jobs"
+msgstr "Rozhlížení v místnostech a při práci"
+
+msgid "W A S D  or  the pointer"
+msgstr "W A S D  nebo  kurzor"
+
+msgid "Two. The hunters' room. The stove works. Twelve dollars."
+msgstr "Dvojka. Myslivecký pokoj. Kamna fungují. Dvanáct dolarů."
+
+msgid "Four. Best mattress we have. Fifteen dollars."
+msgstr "Čtyřka. Nejlepší matrace, co máme. Patnáct dolarů."
+
+msgid "Nine. The apartment. Twenty-five dollars. There is a fridge."
+msgstr "Devítka. Apartmá. Dvacet pět dolarů. Je tam lednička."
+
+msgid "Eleven. Ten dollars. Mr Hora has not been back for his things."
+msgstr "Jedenáctka. Deset dolarů. Pan Hora se pro své věci nevrátil."
+
+msgid "Number two. Lock it twice."
+msgstr "Dvojka. Zamkněte dvakrát."
+
+msgid "Number nine. Lock it twice."
+msgstr "Devítka. Zamkněte dvakrát."
+
+msgid "Number eleven. Lock it twice."
+msgstr "Jedenáctka. Zamkněte dvakrát."
+
+msgid "Your friend has got two. There is a spare."
+msgstr "Dvojku má váš kolega. Je tu náhradní."
+
+msgid "Your friend has got nine. The spare."
+msgstr "Devítku má váš kolega. Tady je náhradní."
+
+msgid "Your friend has got eleven. The spare."
+msgstr "Jedenáctku má váš kolega. Tady je náhradní."
+
+msgid "That money is not on the counter. The bench by the pond is free."
+msgstr "Ty peníze na pultě neleží. Lavička u rybníka je zadarmo."
+
+msgid "Keys are on the board. Take your pick."
+msgstr "Klíče jsou na tabuli. Vyberte si."
+
+msgid "Rooms from seven in the evening. Keys are on the board."
+msgstr "Pokoje od sedmi večer. Klíče jsou na tabuli."
+
+msgid "Eleven is ten dollars. Mr Hora paid to the end of the year."
+msgstr "Jedenáctka je za deset. Pan Hora má zaplaceno do konce roku."

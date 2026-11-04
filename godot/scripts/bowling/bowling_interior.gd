@@ -306,7 +306,7 @@ func _process(delta: float) -> void:
 		var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.turn_axis())
 		_interior_camera.rotation = _cam_base_rot + offset
 	if _exit_hint == null:
-		_exit_hint = INTERIOR_LOOK.make_exit_hint(self, "Leave   [S]" if _spot == "hall" else "Back   [S]")
+		_exit_hint = INTERIOR_LOOK.make_exit_hint(self, "Leave   [Esc]" if _spot == "hall" else "Back   [Esc]")
 	INTERIOR_LOOK.update_exit_hint(_exit_hint, get_viewport(), delta)
 	if not moving and _clicked() != "":
 		HandCursor.want(HandCursor.POINT)
@@ -842,10 +842,8 @@ func _room_px(screen: Vector2) -> Vector2:
 	return Vector2(clampf(screen.x / size.x, 0.0, 1.0) * float(_viewport.size.x), clampf(screen.y / size.y, 0.0, 1.0) * float(_viewport.size.y))
 
 
-## The keys and the mouse while you are at a station. Esc goes on to the pause menu.
+## The keys and the mouse while you are at a station. Esc is the way back from it.
 func _station_input(event: InputEvent, open: String) -> void:
-	if event.is_action_pressed("ui_cancel"):
-		return
 	get_viewport().set_input_as_handled()
 	var st: Node = _stations[open]
 	var hud := _hud()

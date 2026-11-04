@@ -1527,6 +1527,8 @@ func _input(event: InputEvent) -> void:
 	if not _active:
 		return
 	if event.is_action_pressed("ui_cancel"):
+		get_viewport().set_input_as_handled()
+		abort()
 		return
 	if _caught_t >= 0.0:
 		if event is InputEventKey or event is InputEventMouseButton:

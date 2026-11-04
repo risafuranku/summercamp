@@ -298,9 +298,7 @@ static func _keyframes(keys: Array, t: float) -> float:
 func _input(event: InputEvent) -> void:
 	if _phase == IDLE or get_tree().paused:
 		return
-	# Esc goes on to the pause menu (main); any other key wakes you.
-	if event.is_action_pressed("ui_cancel"):
-		return
+	# Any key wakes you, Esc too.
 	var press: bool = (event is InputEventKey and event.pressed and not event.echo) or (event is InputEventMouseButton and event.pressed)
 	get_viewport().set_input_as_handled()
 	if not press:

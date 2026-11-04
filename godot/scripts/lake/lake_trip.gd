@@ -711,6 +711,8 @@ func _update_far_shore(delta: float) -> void:
 		return
 	if _moving or _cam == null:
 		return
+	# W and S row here.
+	_look.keys_tilt = false
 	var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.key_axis())
 	_cam.rotation = _base_rot + offset
 	_update_fishing(delta)
@@ -777,8 +779,8 @@ func _input(event: InputEvent) -> void:
 		if event is InputEventMouseMotion and not _moving and Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
 			_look_round((event as InputEventMouseMotion).relative)
 		if _state == PASSENGER:
-			# By the camp jetty a passenger may step out (S or the right button too).
-			var out: bool = (event is InputEventKey and event.pressed and not event.echo and (event as InputEventKey).physical_keycode == KEY_S) \
+			# By the camp jetty a passenger may step out (Esc or the right button too).
+			var out: bool = event.is_action_pressed("ui_cancel") \
 				or (event is InputEventMouseButton and event.pressed and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_RIGHT)
 			if out and _by_camp_jetty() and not _moving:
 				_get_out()

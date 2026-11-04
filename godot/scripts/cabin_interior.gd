@@ -557,7 +557,7 @@ func _process(delta: float) -> void:
 	_update_fridge(delta)
 	if _exit_hint == null:
 		_exit_hint = INTERIOR_LOOK.make_exit_hint(self)
-		_back_hint = INTERIOR_LOOK.make_exit_hint(self, "Back   [S]")
+		_back_hint = INTERIOR_LOOK.make_exit_hint(self, "Back   [Esc]")
 		_side_hints = INTERIOR_LOOK.make_side_hints(self)
 	var walking := _walking()
 	INTERIOR_LOOK.update_exit_hint(_exit_hint, get_viewport(), delta, not walking and _active_room == "main")
@@ -856,14 +856,13 @@ func _input(event: InputEvent) -> void:
 		return
 	if _prep != null and _prep.is_scrubbing():
 		return
-	# On the way through the bathroom's door the clicks and S wait till you are there.
+	# On the way through the bathroom's door the clicks and Esc wait till you are there.
 	if _walking():
-		if (event is InputEventMouseButton and event.pressed) or (event is InputEventKey and event.pressed and event.physical_keycode == KEY_S):
+		if (event is InputEventMouseButton and event.pressed) or event.is_action_pressed("ui_cancel"):
 			get_viewport().set_input_as_handled()
 		return
-	# Esc is the pause menu's (main): S or the way out behind you leaves (but not a
-	# click on something to tidy, however low on the screen it is); from the bathroom
-	# it is back into the room.
+	# Esc or the way out behind you leaves (but not a click on something to tidy, however
+	# low on the screen it is); from the bathroom it is back into the room.
 	if INTERIOR_LOOK.is_exit_event(event, get_viewport()) and not (_prep.is_busy() and event is InputEventMouseButton):
 		if _active_room == "bathroom":
 			_walk_to("main")

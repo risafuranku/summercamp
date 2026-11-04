@@ -322,12 +322,11 @@ func _input(event: InputEvent) -> void:
 		return
 	if _ledger != null and _ledger.visible:
 		return
-	# Esc is the pause menu's.
-	if event.is_action_pressed("ui_cancel"):
-		return
 	get_viewport().set_input_as_handled()
 	var open := _station_open()
 	if open == "":
+		if event.is_action_pressed("ui_cancel"):
+			close_view()
 		return
 	var st: Node = _stations[open]
 	if event is InputEventKey and event.pressed and not event.echo:

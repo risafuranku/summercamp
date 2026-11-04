@@ -1504,11 +1504,6 @@ func _exit_crt_view() -> void:
 		_crt_ui.set_screen(0)
 	if _crt_ui != null:
 		_crt_ui.set_meta("look_away", false)
-		# Up from the desk, the camera's legs go back in (the next sitting starts with S).
-		# (get_meta with a null default still errors when it is not there.)
-		var b = _crt_ui.get_meta("builder_walk") if _crt_ui.has_meta("builder_walk") else null
-		if b != null and is_instance_valid(b):
-			b.call("end_walk")
 	_crt_active = false
 	_crt_orbit_enabled = false
 	_reset_crt_look_back_state()
@@ -1532,11 +1527,12 @@ func _input(event: InputEvent) -> void:
 	if _extras != null and _extras.is_modal():
 		return
 
-	# Esc is the pause menu's (main), here as everywhere.
-	if event.is_action_pressed("ui_cancel"):
-		return
-
 	if _crt_active:
+		# Esc stands you up from the PC (a second one walks you out of the room).
+		if event.is_action_pressed("ui_cancel"):
+			_exit_crt_view()
+			get_viewport().set_input_as_handled()
+			return
 		# The pointer pushed down past the monitor: the band to stand up by.
 		if event is InputEventMouseButton and (event as InputEventMouseButton).pressed and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT \
 				and _crt_stand_zone():
@@ -1564,16 +1560,11 @@ func _input(event: InputEvent) -> void:
 				return
 			# Not typing into the machine: E turns your head (to the second monitor, or out
 			# of the office window) and back again (the user, 21. 10.: "E right, E left";
-			# A and D were it). S stands you up, unless Builder has the camera on WASD and
-			# it is the screen you look at (builder_module.walk_keys).
+			# A and D were it).
 			if not _crt_typing():
 				if key_event.physical_keycode == KEY_E:
 					if key_event.pressed and not key_event.echo:
 						_crt_turn(1 - _crt_look)
-					get_viewport().set_input_as_handled()
-					return
-				if key_event.physical_keycode == KEY_S and key_event.pressed and not key_event.echo and not _crt_keys_taken():
-					_exit_crt_view()
 					get_viewport().set_input_as_handled()
 					return
 			# The keyboard under your fingers: a clack per key (the shell's own sound).
@@ -1631,11 +1622,6 @@ func _crt_rest_rot(pos: Vector3) -> Vector3:
 
 ## Builder's camera on WASD (its legged camera button), on the screen you look at: the
 ## left hand is on the map, S does not stand you up.
-func _crt_keys_taken() -> bool:
-	var b = _crt_ui.get_meta("builder_walk") if _crt_ui != null and _crt_ui.has_meta("builder_walk") else null
-	return b != null and is_instance_valid(b) and bool(b.call("walk_keys"))
-
-
 ## E at the PC: one press turns you, the next back (it was D held to lean out, then A/D,
 ## playtest 21. 10.). Right is the second monitor once it is on the desk, the office
 ## window before that.

@@ -203,10 +203,8 @@ func _layout() -> void:
 func _input(event: InputEvent) -> void:
 	if not visible or get_tree().paused:
 		return
-	if event.is_action_pressed("ui_cancel"):
-		return
 	if (event is InputEventMouseButton and event.pressed and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_RIGHT) \
-			or (event is InputEventKey and event.pressed and not event.echo and (event as InputEventKey).physical_keycode == KEY_S):
+			or event.is_action_pressed("ui_cancel"):
 		get_viewport().set_input_as_handled()
 		close()
 		return

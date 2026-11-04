@@ -82,10 +82,9 @@ var _desk_rot := Vector3.ZERO
 var _say_layer: CanvasLayer
 var _say_label: Label
 var _say_t := 0.0
-var _edge_t := 0.0
 ## The band at the screen's edges that turns the head at the counter, and how long first.
-const EDGE := 0.06
-const EDGE_SEC := 0.3
+## The look's dead middle at the counter (the work fills the picture).
+const DESK_DEAD := 0.5
 
 
 func build(host_node, extras_node, root: Node3D) -> void:
@@ -292,13 +291,10 @@ func _tick_desk(delta: float) -> void:
 		return
 	var cam: Camera3D = host._interior_camera
 	var vp: Viewport = host.get_viewport()
-	# Not while a thing is in hand and the pointer is on the work.
-	# The head turns only with the pointer held at the very edge a moment (the work reaches
-	# the edges of the picture: writing at the register's left page turned you away).
-	var cur: Vector2 = INTERIOR_LOOK.cursor_of(vp)
-	var edge := cur.x >= 0.0 and (cur.x < EDGE or cur.x > 1.0 - EDGE or cur.y < EDGE or cur.y > 1.0 - EDGE)
-	_edge_t = _edge_t + delta if edge else 0.0
-	var offset: Vector3 = look.update(delta, cur if _edge_t > EDGE_SEC else Vector2(-1, -1), INTERIOR_LOOK.turn_axis())
+	# The pointer is the look's stick, with a wide dead middle (the work fills the picture;
+	# a held button, writing or carrying, widens it further); W A S D turn the head as well.
+	look.dead = DESK_DEAD
+	var offset: Vector3 = look.update(delta, INTERIOR_LOOK.cursor_of(vp), INTERIOR_LOOK.turn_axis())
 	var k := clampf((-look.yaw_deg - 40.0) / 45.0, 0.0, 1.0)
 	k = k * k * (3.0 - 2.0 * k)
 	cam.position = DESK_EYE.lerp(BOARD_EYE, k)
@@ -340,12 +336,10 @@ func _point() -> void:
 
 ## The room's input while you are at the counter (building_interior._input).
 func input(event: InputEvent) -> void:
-	if event.is_action_pressed("ui_cancel"):
-		return
 	host.get_viewport().set_input_as_handled()
 	if not _at_desk or _gliding():
 		return
-	if event is InputEventKey and event.pressed and not event.echo and (event as InputEventKey).physical_keycode == KEY_S:
+	if event.is_action_pressed("ui_cancel"):
 		desk.close_desk()
 		return
 	if not (event is InputEventMouseButton):

@@ -224,8 +224,6 @@ func _cap(l: Label, text: String, at: Vector2) -> void:
 func _input(event: InputEvent) -> void:
 	if kind == "" or not visible:
 		return
-	if event.is_action_pressed("ui_cancel"):
-		return
 	var press := false
 	var side := 0
 	var back := false
@@ -243,7 +241,7 @@ func _input(event: InputEvent) -> void:
 				side = -1 if k.pressed else 0
 			KEY_D, KEY_RIGHT:
 				side = 1 if k.pressed else 0
-			KEY_S, KEY_DOWN:
+			KEY_S, KEY_DOWN, KEY_ESCAPE:
 				back = k.pressed
 			_:
 				return

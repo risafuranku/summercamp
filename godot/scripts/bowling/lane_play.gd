@@ -185,8 +185,6 @@ func handle(event: InputEvent) -> bool:
 	if lane < 0:
 		return false
 	var vp := get_viewport()
-	if event.is_action_pressed("ui_cancel"):
-		return false
 	if INTERIOR_LOOK.is_exit_event(event, vp) or (event is InputEventMouseButton and event.pressed and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_RIGHT):
 		if phase == "aim":
 			phase = "stand"
