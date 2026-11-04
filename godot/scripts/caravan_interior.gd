@@ -449,7 +449,8 @@ func take_curtains(state: Array) -> void:
 # curtains drawn half over a lit one with guests in. Farther than INVIEW_RANGE, or with
 # no pane turned to you, the panes are window_lights' again.
 
-const INVIEW_RANGE := 30.0
+## (40 since 4. 11.: past it the van's cube shows it, the live view fades in over that.)
+const INVIEW_RANGE := 40.0
 ## Nearer than this the windows across the van show the camp beyond it (farther they are a
 ## few pixels: dark glass).
 const INVIEW_THROUGH_M := 10.0
@@ -499,6 +500,9 @@ static func _pane_turned_to(p: MeshInstance3D, eye: Vector3) -> bool:
 
 
 func _update_inview(delta: float) -> void:
+	# (Its cubes being drawn: the van is each tier in turn.)
+	if _cube_baking:
+		return
 	var cam := _camp_camera()
 	var van: Node3D = null
 	if cam != null:
@@ -560,6 +564,67 @@ func _update_inview(delta: float) -> void:
 		_inview_room_light()
 
 
+# -- the van drawn once into a cube for its windows from far off (scripts/ui/room_cube.gd;
+# as cabin_interior's: each tier once, the lamp on, by day; window_lights lights it and the
+# near van's live view fades in over it). --
+
+const ROOM_CUBE = preload("res://scripts/ui/room_cube.gd")
+var cubes: Dictionary = {}
+var _cube_baking := false
+
+
+func bake_cubes() -> void:
+	if _cube_baking or not cubes.is_empty() or _root == null or _viewport == null or _is_open:
+		return
+	_cube_baking = true
+	_release_inview()
+	var was_level := _level
+	var was_state := _time_state
+	var was_lights := _lights_on
+	for lv in [1, 2, 3]:
+		if _is_open:
+			break
+		_level = lv
+		_apply_level()
+		_lights_on = true
+		set_time_state(TIME_DAY)
+		_apply_light()
+		cubes[lv] = ROOM_CUBE.bake(self, _viewport.find_world_3d(), _root.global_transform * cube_eye(lv), 0xFFFFF & ~INVIEW_HIDE_LAYER & ~(1 << 19))
+		await RenderingServer.frame_post_draw
+		await get_tree().process_frame
+	_level = was_level
+	_apply_level()
+	_lights_on = was_lights
+	set_time_state(was_state)
+	_apply_light()
+	_cube_baking = false
+
+
+func cube_eye(_lv: int) -> Vector3:
+	return Vector3(0.0, 1.05, 0.0)
+
+
+func cube_box(_lv: int) -> AABB:
+	return AABB(Vector3(-L * 0.5, 0.0, -W * 0.5), Vector3(L, H, W))
+
+
+func cube_spec(structure: Node3D) -> Dictionary:
+	var t := str(structure.get_meta("building_type", "caravan_1"))
+	var lv := clampi(int(t.right(1)) if t.right(1).is_valid_int() else 1, 1, 3)
+	var panes := _panes_of(structure)
+	if not cubes.has(lv) or _cube_baking or panes.is_empty():
+		return {}
+	var model := (panes[0] as Node3D).get_parent() as Node3D
+	return {"tex": cubes[lv], "box": cube_box(lv), "eye": cube_eye(lv),
+		"world_to_room": (model.global_transform * Transform3D(Basis(), Vector3(0.0, VAN_FLOOR, 0.0))).affine_inverse()}
+
+
+func _fade_live(mat: ShaderMaterial, to: float) -> void:
+	var from := float(mat.get_shader_parameter("live")) if mat.get_shader_parameter("live") != null else 0.0
+	var tw := create_tween()
+	tw.tween_method(func(v: float) -> void: mat.set_shader_parameter("live", v), from, to, 0.4)
+
+
 ## The room made up as `van` is, and its panes given the room's picture.
 func _take_inview(van: Node3D) -> void:
 	_ensure_inview()
@@ -579,6 +644,14 @@ func _take_inview(van: Node3D) -> void:
 		var mi := p as MeshInstance3D
 		mi.set_meta("inview_was", mi.material_override)
 		mi.set_meta("inview_live", true)
+		# Its cube's pane (window_lights): the live room fades in over it.
+		var cube := mi.get_meta("wl_cube", null) as ShaderMaterial
+		if cube != null:
+			mi.remove_meta("inview_was")
+			mi.material_override = cube
+			cube.set_shader_parameter("room_tex", _inview_vp.get_texture())
+			_fade_live(cube, 1.0)
+			continue
 		mi.material_override = _inview_mat
 	_inview_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_inview_light_t = 0.0
@@ -592,6 +665,9 @@ func _release_inview() -> void:
 		var mi := p as MeshInstance3D
 		if mi == null:
 			continue
+		var cube := mi.get_meta("wl_cube", null) as ShaderMaterial
+		if cube != null:
+			cube.set_shader_parameter("live", 0.0)
 		if mi.has_meta("inview_was"):
 			mi.material_override = mi.get_meta("inview_was")
 			mi.remove_meta("inview_was")
@@ -619,8 +695,13 @@ func _inview_room_light() -> void:
 		lit = maxf(lit, float((p as Node).get_meta("wl_lit", 0.0)))
 	_inview_lit = lit > 0.05
 	set_time_state(state)
-	_inview_mat.set_shader_parameter("bright", 1.0 if state == TIME_NIGHT else (0.8 if state == TIME_EVENING else 0.62))
+	var bright := 1.0 if state == TIME_NIGHT else (0.8 if state == TIME_EVENING else 0.62)
+	_inview_mat.set_shader_parameter("bright", bright)
 	_inview_mat.set_shader_parameter("glow", 0.0)
+	for p in _inview_panes:
+		var cube := (p as Node).get_meta("wl_cube", null) as ShaderMaterial if is_instance_valid(p) else null
+		if cube != null:
+			cube.set_shader_parameter("bright", bright)
 
 
 func _ensure_inview() -> void:

@@ -7,7 +7,7 @@
 ## PLAYTEST 2026-11-04 — the user's notes (verbatim, then the note in brackets; tick with the commit)
 
 - [x] V1  (f6c890c4: the tent turns all the way round like any room, the door's click a ray onto its gable) „ve stanu se myší špatně otáčím za sebe, hitbox otevírání plachty stanu jde velmi špatně kliknout“
-- [ ] V2  „interiéry chatek a budov přes okno musí jít vidět i z dálky. teď tam není, a je vidět pop in jak se začne renderovat když přijdu zblízka“
+- [x] V2  (each tier of the cabin and the caravan drawn once into a cube at the start (scripts/ui/room_cube.gd), their panes always show the room through it in depth, curtains at the glass, lit by the hour and the lamp (materials/window_cube.gdshader); the live room fades in over it from 40 m; tools/okna_check.tscn) „interiéry chatek a budov přes okno musí jít vidět i z dálky. teď tam není, a je vidět pop in jak se začne renderovat když přijdu zblízka“
 - [x] V3  (d7a23fe4: scripts/ui/door_through.gd: every building's open door shows its real room from your eye and the room takes the walk on in the doorway, out the same way; the painted doors of the pub, bistro, Jednota and bowling are real leaves; tools/dvere_check.tscn) „dveře od chatky mají za sebou při otevření černo, chci plynulý průchod do interiéru stejně jak na recepci. U KAŽDÉ BUDOVY“
 - [x] V4  (f6c890c4: Go outside gone from the pause menu) „z pause menu odstranit možnost 'jít ven'“
 - [x] V5  (d7a23fe4: interior_manager.tent_doors, unzipped for everybody (co-op Coop.send_tent_door) till zipped, a guest checking in zips it; the inside seen through the open flap, the other warden kneeling in it; in on your knees) „zvenčí nejde vidět hráč co rozepne zevnitř stan. měl by být rozeplý i zvenčí a mělo by jít vidět dovnitř. měl by jít vidět hráč. když ho zpět nezapne, zůstane tak pro všechny. když přijde host a ubytuje se v něm, samozřejmě že si ho zapne.“
@@ -20,6 +20,12 @@
 - [ ] V12 „v autobuse jsou divně šedivé okna boční, thumpnutí lístku je divně ai slopovské (hlavně zvuky), když jsem kliknul na zadní sedačku jen jsem tam dolítl místo chůze uprostřed a pak posazení. při přesazování to přitom funguje. autobusu nesvítí světla, nejde vidět večer ani že jede po silnici“
 - [ ] V13 „lana vysílačů v jejich těsné blízkosti tak divně clippují, jsou napůl transparent, nejsou uplně vidět. při jízdě busem“
 - [ ] V14 „při jizde autobusem je videt nejaka fake mapa nebo to nedokazu popsat. zastavil a vystupuje v naproste pustine, a kdyz jsem venku z busu tak mam pocit ze jsem spawnut najednou uplne u jineho busu, jsem najednou na zastavce u mesta. tohle potrebujeme opravit! vsechno musi bejt real, nesmi to bejt ze behem jizdi je hrac portnut mimo mapu do nejakyho imaginarniho autobusu. do mesta musi jit dojit pesky, a kdyz pujdu po trase autobusu, normalne ho tam uvidim projizdet, a uvidim v nem i pripadne jedouci hrace jak tam sedi, presazuji se atd. vse se proste deje v tom svete realtime. realtime vidim jak hrac do autobusu nastoupi, i z nej vystoupi. proste at to funguje presne tak jak by clovek ocekaval.“
+
+- [x] V15 (d2409c2f: the room's views out on the door's wall were made visible to the camp's look into the room while the door was open: kept off it) „při animaci vcházení do interiéru přestanou fungovat venkovní okna, a je to vidět. venkovní okna musí fungovat ještě počas animace“ (the walk in through a door: the building's windows seen from outside by the door)
+- [ ] V16 „udělej lepší pocit chůze, ať jsou víc cítit kroky. pohyb je teď pořád takovej floaty. podívej se klidně do projektu greed, tam je pocit z kroků dobrej.“ (player_controller's step feel, after GREED's)
+- [ ] V17 „pager, a branch has come down není přeložené do čestiny.. zkontrolovat hlášky“ (every message: cs.po)
+- [ ] V18 „otočit recepci o 90 stupnu tak, aby hlavni dveře byly hned k přichodove ceste/zavore. udělat nové okno tam, kde je uvnitř zhruba umístěna nástěnka s klíči. tu nějak šikovně lehce posunout.“
+- [ ] V19 „hrozně clippujou hovery během dělání kukuřice. na recepci chybí hovery na laviččce, záclonách a tak. prosím všude to zkontroluj“ (the hover glints)
 
 ## PLAYTEST 2026-11-01 — the user's notes (verbatim, then the note in brackets; tick with the commit)
 

@@ -31,6 +31,13 @@ const TV := Color(0.55, 0.7, 1.0)
 ## How dark it must be (the day's light, weather_visuals.compute_daylight_factor()).
 const DARK_BELOW := 0.38
 const ROOM_SHADER = preload("res://materials/window_room.gdshader")
+## A cabin's or a van's panes from its room drawn into a cube (scripts/ui/room_cube.gd, the
+## user 4. 11.: the interiors seen through the windows from far off, day and night, no pop
+## as you come near): once its room is drawn, the panes are that, lit as the hour has it.
+const ROOM_CUBE = preload("res://scripts/ui/room_cube.gd")
+## By day the room is darker than the day outside (as the live view's, window_into).
+const DAY_ROOM := 0.62
+const MOON := Color(0.42, 0.5, 0.66)
 const CAMP := "res://assets/textury/camp/"
 ## The room seen through a lit window, by kind: textures, depth, width, height, and how
 ## high its floor is over the ground outside.
@@ -303,10 +310,43 @@ func _update() -> void:
 		if forced != "":
 			on = dark and forced == "on"
 		var tv := str(rec["kind"]) == "cabin" and powered and hour >= 12.0 and _dice(str(key), day, 7) < 0.33 and forced == ""
-		_show(rec, on, tv, powered)
+		_show(rec, on, tv, powered, dark, hour)
 
 
-func _show(rec: Dictionary, on: bool, tv: bool, powered: bool) -> void:
+## The cube's material for this lodging's panes, made once its room is drawn (null till
+## then: the panes as they were).
+func _cube_of(rec: Dictionary) -> ShaderMaterial:
+	if rec.has("cube"):
+		return rec["cube"]
+	var kind := str(rec["kind"])
+	if kind != "cabin" and kind != "caravan":
+		return null
+	var main := get_tree().current_scene
+	var im = main.get("_interior_manager") if main != null else null
+	var it = im.get("_cabin_interior" if kind == "cabin" else "_caravan_interior") if im != null else null
+	if it == null or not is_instance_valid(it) or not it.has_method("cube_spec") or not is_instance_valid(rec["root"]):
+		return null
+	var spec: Dictionary = it.call("cube_spec", rec["root"])
+	if spec.is_empty():
+		return null
+	var m := ROOM_CUBE.material(spec["tex"], spec["box"], spec["eye"], spec["world_to_room"])
+	# Between a cabin's window frame and its bar, as the retro look pulls them (its live
+	# view's own pull, cabin_interior._ensure_inview).
+	m.set_shader_parameter("depth_pull", 0.009 if kind == "cabin" else 0.0)
+	# Its curtains open at the sides of the glass, as they hang inside.
+	var spec_room: Dictionary = ROOMS[kind]
+	var cpath: String = CAMP + str(spec_room["curtain"]) + ".png"
+	if ResourceLoader.exists(cpath):
+		m.set_shader_parameter("curtain_tex", load(cpath))
+		m.set_shader_parameter("curtain", 0.72 if kind == "cabin" else 0.3)
+	rec["cube"] = m
+	for w in rec["windows"]:
+		if is_instance_valid(w):
+			(w as Node).set_meta("wl_cube", m)
+	return m
+
+
+func _show(rec: Dictionary, on: bool, tv: bool, powered: bool, dark := false, hour := 12.0) -> void:
 	var kind := str(rec["kind"])
 	var candle := not powered and kind != "tent"
 	var salt := absi(hash(rec["root"].get_instance_id()))
@@ -330,9 +370,33 @@ func _show(rec: Dictionary, on: bool, tv: bool, powered: bool) -> void:
 		col = TV.lerp(Color(0.9, 0.92, 1.0), float((_step / 3 + salt) % 4) / 3.0)
 		energy = 1.0 + 0.6 * float((_step / 2 + salt) % 3) / 2.0
 	var amount := energy if on else 0.0
+	# The room from its cube: lit by its lamp (the candle, the telly) after dark, by the day
+	# through its windows by day, by the moon when its light is out.
+	var cube := _cube_of(rec)
+	if cube != null:
+		if dark and on:
+			cube.set_shader_parameter("light", Vector3(col.r, col.g, col.b) if col != LIT_TINT else Vector3(LAMP.r, LAMP.g, LAMP.b))
+			cube.set_shader_parameter("energy", clampf(amount * (0.5 if kind == "cabin" else 0.4), 0.2, 1.1))
+		elif dark:
+			cube.set_shader_parameter("light", Vector3(MOON.r, MOON.g, MOON.b))
+			cube.set_shader_parameter("energy", 0.07)
+		else:
+			# As bright as the near room's live view is by the hour (the interiors' own day and
+			# evening: cabin_interior._inview_room_light's `bright` over its room lit by day or
+			# by the evening), so the one fades into the other unseen.
+			cube.set_shader_parameter("light", Vector3(1.0, 0.97, 0.92))
+			cube.set_shader_parameter("energy", DAY_ROOM if hour >= 6.5 and hour < 19.5 else 0.42)
 	for w in rec["windows"]:
 		var mi := w as MeshInstance3D
 		if mi == null or not is_instance_valid(mi):
+			continue
+		if cube != null:
+			if mi.has_meta("inview_live"):
+				mi.set_meta("wl_lit", amount)
+				mi.set_meta("wl_candle", candle)
+				mi.set_meta("wl_tv", tv)
+			elif mi.material_override != cube:
+				mi.material_override = cube
 			continue
 		# Looked into from the camp (caravan_interior._update_inview: the real room in the
 		# glass): its pane is the room's now; it only hears whether it is lit, and how.

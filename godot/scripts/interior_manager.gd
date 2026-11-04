@@ -160,6 +160,28 @@ func town_trip() -> Node:
 
 func _process(delta: float) -> void:
 	_tick_tent_doors(delta)
+	_tick_cubes(delta)
+
+
+## The cabins' and the vans' rooms drawn into their cubes for their windows from far off
+## (scripts/ui/room_cube.gd), a few seconds into the game; later if one was open then.
+var _cubes_t := 3.0
+
+
+func _tick_cubes(delta: float) -> void:
+	if _cubes_t < 0.0:
+		return
+	_cubes_t -= delta
+	if _cubes_t > 0.0:
+		return
+	_cubes_t = -1.0
+	for it in [_cabin_interior, _caravan_interior]:
+		if it == null or not is_instance_valid(it) or not it.has_method("bake_cubes") or not (it.get("cubes") as Dictionary).is_empty():
+			continue
+		if it.is_open():
+			_cubes_t = 2.0
+		else:
+			it.bake_cubes()
 
 
 ## The camp is about to give way to a room, or a room has just closed: the frame on

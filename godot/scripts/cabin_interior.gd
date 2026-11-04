@@ -582,7 +582,8 @@ func _process(delta: float) -> void:
 # with no pane turned to you, the panes are window_lights' again (its "inview_live"
 # panes only hear whether they are lit).
 
-const INVIEW_RANGE := 30.0
+## (40 since 4. 11.: past it the room's cube shows it, the live view fades in over that.)
+const INVIEW_RANGE := 40.0
 ## What lies over the room's windows inside (the camp in the glass, the rain on it): the
 ## camera looking in from the camp skips it.
 const INVIEW_HIDE_LAYER := 1 << 17
@@ -632,6 +633,9 @@ static func _pane_turned_to(p: MeshInstance3D, eye: Vector3) -> bool:
 
 
 func _update_inview(delta: float) -> void:
+	# (Its cubes being drawn: the room is each tier in turn.)
+	if _cube_baking:
+		return
 	var cam := _camp_camera()
 	var cabin: Node3D = null
 	if cam != null and _cabin_root != null:
@@ -681,6 +685,82 @@ func _update_inview(delta: float) -> void:
 		_inview_room_light()
 
 
+# -- the room drawn once into a cube for its windows from far off (scripts/ui/room_cube.gd;
+# the user 4. 11.: "the interiors must show through the windows from far off too, now they
+# pop in when you come near"). Each tier once, the lamp on, by day; window_lights lights
+# it as the hour has it and the near cabin's live view fades in over it (_take_inview). --
+
+const ROOM_CUBE = preload("res://scripts/ui/room_cube.gd")
+## Tier -> its six pictures (room_cube.SLOTS' order); empty till drawn.
+var cubes: Dictionary = {}
+var _cube_baking := false
+
+
+## Draws each tier's room into its cube, a tier a frame (the room made up as that tier while
+## it is drawn, then as it was). Not while you are in it.
+func bake_cubes() -> void:
+	if _cube_baking or not cubes.is_empty() or _cabin_root == null or _viewport == null or _is_open:
+		return
+	_cube_baking = true
+	_release_inview()
+	var was_level := _cabin_level
+	var was_state := _time_state
+	var was_day := _daylight_factor
+	var was_lights := _manual_lights_on
+	var was_guests := _guest_occupants.duplicate(true)
+	set_guest_occupants([])
+	for lv in [1, 2, 3]:
+		if _is_open:
+			break
+		_cabin_level = lv
+		_apply_level_variant()
+		_cabin_root.visible = true
+		_set_cabin_room("main", false)
+		_manual_lights_on = true
+		_daylight_factor = 0.8
+		set_time_state(TIME_DAY)
+		var mask := 0xFFFFF & ~INVIEW_HIDE_LAYER & ~GLASS_LAYER
+		cubes[lv] = ROOM_CUBE.bake(self, _viewport.find_world_3d(), _cabin_root.global_transform * cube_eye(lv), mask)
+		await RenderingServer.frame_post_draw
+		await get_tree().process_frame
+	_cabin_level = was_level
+	_apply_level_variant()
+	_manual_lights_on = was_lights
+	_daylight_factor = was_day
+	set_time_state(was_state)
+	set_guest_occupants(was_guests)
+	_cube_baking = false
+
+
+## Where the tier's cube was drawn from, and the room's inside (room space).
+func cube_eye(lv: int) -> Vector3:
+	return Vector3(0.0, CABIN_LAYOUT.ROOM_FLOOR + 1.35, 0.0)
+
+
+func cube_box(lv: int) -> AABB:
+	var inner: Vector2 = CABIN_LAYOUT.inner(lv)
+	var h: float = CABIN_LAYOUT.wall_h(lv)
+	return AABB(Vector3(-inner.x * 0.5, CABIN_LAYOUT.ROOM_FLOOR, -inner.y * 0.5), Vector3(inner.x, h, inner.y))
+
+
+## What a cabin's windows need from far off ({} till drawn): its pictures, its box, its eye,
+## the camp -> its room.
+func cube_spec(structure: Node3D) -> Dictionary:
+	var t := str(structure.get_meta("building_type", "cabin_1"))
+	var lv := clampi(int(t.right(1)) if t.right(1).is_valid_int() else 1, 1, 3)
+	if not cubes.has(lv) or _cube_baking:
+		return {}
+	return {"tex": cubes[lv], "box": cube_box(lv), "eye": cube_eye(lv),
+		"world_to_room": (structure.global_transform * Transform3D(Basis(), CABIN_LAYOUT.ROOM_TO_MODEL)).affine_inverse()}
+
+
+## The near cabin's live room over its cube, faded in.
+func _fade_live(mat: ShaderMaterial, to: float) -> void:
+	var from := float(mat.get_shader_parameter("live")) if mat.get_shader_parameter("live") != null else 0.0
+	var tw := create_tween()
+	tw.tween_method(func(v: float) -> void: mat.set_shader_parameter("live", v), from, to, 0.4)
+
+
 ## The room made up as `cabin` is, and its panes given the room's picture.
 func _take_inview(cabin: Node3D) -> void:
 	_ensure_inview()
@@ -703,8 +783,15 @@ func _take_inview(cabin: Node3D) -> void:
 		take_curtains((by_room as Dictionary)[key])
 	for p in _inview_panes:
 		var mi := p as MeshInstance3D
-		mi.set_meta("inview_was", mi.material_override)
 		mi.set_meta("inview_live", true)
+		# Its cube's pane (window_lights): the live room fades in over it.
+		var cube := mi.get_meta("wl_cube", null) as ShaderMaterial
+		if cube != null:
+			cube.set_shader_parameter("room_tex", _inview_vp.get_texture())
+			cube.set_shader_parameter("depth_pull", 0.009)
+			_fade_live(cube, 1.0)
+			continue
+		mi.set_meta("inview_was", mi.material_override)
 		mi.material_override = _inview_mat
 	_inview_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_inview_light_t = 0.0
@@ -718,6 +805,9 @@ func _release_inview() -> void:
 		var mi := p as MeshInstance3D
 		if mi == null:
 			continue
+		var cube := mi.get_meta("wl_cube", null) as ShaderMaterial
+		if cube != null:
+			cube.set_shader_parameter("live", 0.0)
 		if mi.has_meta("inview_was"):
 			mi.material_override = mi.get_meta("inview_was")
 			mi.remove_meta("inview_was")
@@ -750,8 +840,13 @@ func _inview_room_light() -> void:
 	if guests.size() != _guest_occupants.size():
 		set_guest_occupants(guests)
 	set_time_state(state)
-	_inview_mat.set_shader_parameter("bright", 1.0 if state == TIME_NIGHT else (0.8 if state == TIME_EVENING else 0.62))
+	var bright := 1.0 if state == TIME_NIGHT else (0.8 if state == TIME_EVENING else 0.62)
+	_inview_mat.set_shader_parameter("bright", bright)
 	_inview_mat.set_shader_parameter("glow", 0.0)
+	for p in _inview_panes:
+		var cube := (p as Node).get_meta("wl_cube", null) as ShaderMaterial if is_instance_valid(p) else null
+		if cube != null:
+			cube.set_shader_parameter("bright", bright)
 
 
 func _ensure_inview() -> void:
