@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Liblice for two: a host and a joining copy (tools/motel_coop.tscn). PASS when each sees
 the other standing in the Jednota, the pub and the kiosk, the joining
-warden sees the host's two candles burn in the chapel; the other sees the host at the
+warden sees the host's two candles burn in the chapel, at night both see as many flames
+on the stand (somebody lit more in the evening); the other sees the host at the
 reception's counter, the key go off the board, the host gone and then in the corridor,
 goes in at four after them, sees the set the host put on; each sees the other in the room
 (the host standing, then asleep in the second bed), a knock wakes both in the night, and
@@ -83,6 +84,10 @@ def main():
             want(side, p + "_mate", lambda g, p=p: g["place"] == p and g["figs"] >= 1, "%s seeing the other warden in the %s" % (who, p))
     want(h, "candles_lit", lambda g: g["flames"] >= 2, "two candles on the host's stand")
     want(c, "candles", lambda g: g["place"] == "chapel" and g["flames"] >= 2, "the host's two candles burning for the other")
+    want(h, "night_chapel", lambda g: g["place"] == "chapel" and g["flames"] >= 3 and (g["h"] >= 19.0 or g["h"] < 6.0),
+         "the stand lit at night for the host")
+    want(c, "night_chapel", lambda g: g["place"] == "chapel" and g["flames"] == h.get("night_chapel", {}).get("flames", -1),
+         "as many flames at night for the other as for the host")
     for side, who in ((h, "the host"), (c, "the other")):
         want(side, "lobby_mate", lambda g: g["place"] == "motel" and g["figs"] >= 1, "%s seeing the other at the reception" % who)
     want(h, "booked", lambda g: g["key"], "the host's key off the board")

@@ -3,7 +3,8 @@ extends "res://tools/coop_check.gd"
 ## Liblice for two (motel_view.gd, chapel_view.gd, town_trip.gd): a host and a joining copy.
 ## First both go into the Jednota, the pub and the kiosk in turn (jednota_view.gd,
 ## pub_view.gd, kiosk_view.gd) and each sees the other standing there.
-## In the chapel the host lights two candles and the other sees them burn; in the evening
+## In the chapel the host lights two candles and the other sees them burn; at night both
+## go in again and see as many flames on the stand (chapel_view._night_lit); in the evening
 ## the host is at the reception's counter when the other comes in, takes number four's key
 ## off the board (the other sees it go), goes off into the corridor; the other follows,
 ## sees the host there, the host goes in at four and the other after them (the door opens
@@ -55,6 +56,11 @@ func _ready() -> void:
 			["motel_see", "candles_lit"], ["coop_signal", "host_lit"], ["coop_wait_file", "client_saw_candles"],
 			["eval", TT + "._room.close()"], ["wait", 1.0],
 			["eval", "debug_jump_to(1, 19.6)"], ["wait", 2.0],
+			# At night: the stand as lit for both.
+			["eval", TT + "._open_room('chapel')"], ["wait", 2.0], ["coop_signal", "host_night_chapel"],
+			["coop_wait_file", "client_night_chapel"], ["wait", 1.0], ["motel_see", "night_chapel"], ["shot", "host_night_chapel"],
+			["coop_signal", "host_saw_night"], ["coop_wait_file", "client_saw_night"],
+			["eval", TT + "._room.close()"], ["wait", 1.0],
 		])
 		_steps.append_array([
 			["eval", TT + "._open_room('motel')"], ["wait", 2.0], ["coop_signal", "host_lobby"], ["coop_wait_file", "client_lobby"],
@@ -90,6 +96,10 @@ func _ready() -> void:
 			["coop_wait_file", "host_lit"], ["wait", 2.5],
 			["eval", TT + "._room.set('_base_rot', Vector3(-0.17, -1.66, 0))"], ["wait", 0.8],
 			["motel_see", "candles"], ["shot", "client_candles"], ["coop_signal", "client_saw_candles"],
+			["eval", TT + "._room.close()"], ["wait", 1.0],
+			["coop_wait_file", "host_night_chapel"], ["eval", TT + "._open_room('chapel')"], ["wait", 2.0],
+			["coop_signal", "client_night_chapel"], ["coop_wait_file", "host_saw_night"],
+			["motel_see", "night_chapel"], ["shot", "client_night_chapel"], ["coop_signal", "client_saw_night"],
 			["eval", TT + "._room.close()"], ["wait", 1.0],
 			["coop_wait_file", "host_lobby"], ["eval", TT + "._open_room('motel')"], ["wait", 2.0], ["coop_signal", "client_lobby"],
 			["wait", 1.5], ["motel_see", "lobby_mate"], ["shot", "client_lobby"],
