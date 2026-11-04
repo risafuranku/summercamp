@@ -92,6 +92,14 @@ under the cursor (pixel glints, `materials/hover_glint.gdshader`) and the cursor
 gloved hand (`scripts/ui/hand_cursor.gd`): a carved arrow, the pointing finger over things,
 the flat palm at doors, the fist while you hold a job.
 
+The building stands with its door and the office window to the gate lane (the user,
+4. 11.): in from the barrier you come straight up to its door, and the arrivals queue
+along the lane beside it. The office has a second, smaller window in its right wall by
+the stove, where the key board hung (the keys, the certificate over them and the
+diplomas under them moved a step toward the counter): it looks out of the building's end
+into the camp, has its own floral curtain, and from the camp it shows the lit office like
+the front one.
+
 - **The phone** on the counter opens a DOS-style close-up (`scripts/closeup/`): lift the
   handset, dial, hear it ring. Who answers is `phone_book.gd`: the numbers are the ones on
   the noticeboard (Vera's notes, held up to read in their own close-up). The electrician
@@ -162,8 +170,8 @@ Six archetypes, with different needs (`core/systems/guest_needs_system.gd`):
   forest edges or the lake path for hours. Twenty guests, and where is everybody?
 - **Arrival.** Accepting a booking does not put anyone in the camp. The party is on the
   road for an hour or two (ARRIVALS in the HUD counts down), then stands outside the
-  barrier at the gatehouse; it lifts and they walk up the starter path to the reception
-  and queue. The player checks them in at the desk, by hand, the way Papers Please did
+  barrier at the gatehouse; it lifts and they walk up the gate lane to the reception's
+  door beside it and queue along the lane. The player checks them in at the desk, by hand, the way Papers Please did
   it: their card and booking into the register, the right key off the board (only for a
   room that is made up), the stamp, the papers back. Until then they wait, grumble after
   ~45 minutes and drive off after ~2.5 hours with a one-star review; stamped REFUSED they

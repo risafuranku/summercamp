@@ -117,6 +117,13 @@ python godot/tools/coop_photo.py [OUT_DIR]   # co-op Photographer on the joining
 godot --headless --path godot res://tools/post_check.tscn      # the second monitor: the order paid, the van on the clock, the postman at the counter, the slip, two screens and the swap, the keys, the save, the postman who gives up
 python godot/tools/post_coop.py [OUT_DIR]   # the second monitor for two: ordered on the joining machine (paid once), the host's van and postman on both, signed for there, the monitor on both
 python godot/tools/window_coop.py [OUT_DIR] # the reception's windows for two: from outside the joining warden sees the host at the PC, in the back room, the curtain drawn, the lights out
+# Playtest 4. 11. checks (windowed, --audio-driver Dummy, -- --out=DIR):
+#   res://tools/dvere_check.tscn     every building's door in and out on foot (pictures of the doorway, frame times)
+#   res://tools/okna_check.tscn      the cabins'/caravans' windows from afar (the baked room cubes) against the live view; --part=dump|debug
+#   res://tools/hlasky_check.tscn    the pager's and feed's lines as the player reads them, "EN" for any still English (-- --lang=cs --lang-audit)
+#   res://tools/hover_check.tscn     the reception's glints from behind the counter and from the bench (run alone: it moves the real pointer)
+#   res://tools/kukurice_hover.tscn  the corn stand's glints under the pointer
+#   res://tools/kroky_check.tscn     the walk's steps: per second, the head's dip, nod and roll
 ```
 
 - On some PCs the headless run segfaults once the title screen is up (1. 11., at HEAD too:
@@ -218,7 +225,8 @@ a small animated `<movie>.webp`. The business shot drivers (`jednota_shots`, `pr
 | The cursor and the hover glint | `scripts/ui/hand_cursor.gd` (`HandCursor.want(kind)` per frame), `scripts/ui/hover_glint.gd` |
 | The thing in the pipes, its staging | `scripts/pipes/pipe_director.gd` (the minigame keeps the network, movement, map, clamp) |
 | The night's director (tension, events, log) | `scripts/night/night_director.gd` (pure logic, `tools/director_check.gd`), effects `scripts/night/director_effects.gd`, context `main._director_context()`; sounds `assets/sfx/director/`; F10 panel (debug builds) |
-| The reception's plan (office, back room, building, windows) | `scripts/reception/reception_layout.gd`; the building `building_models.reception()`; curtains `scripts/reception/curtain.gd` |
+| The reception's plan (office, back room, building, windows) | `scripts/reception/reception_layout.gd`; the building `building_models.reception()`, turned a quarter in the camp (`building_manager.place_main_building`: its door and office window face the gate lane, arrivals queue by the door, `camp_gate.waiting_spot`/`way_in`); the office's side window by the stove `SIDE_WINDOW_*` (room `building_interior._build_side_window`, curtain `reception_extras.side_curtain`, co-op "sc", pane `side_glass`); curtains `scripts/reception/curtain.gd` |
+| Wires (the masts' guys, the power lines) | `scripts/ambient/wire_ribbons.gd` (`mesh(pairs)`, `hang(a, b, sag)`, `material(colour, radius, own_haze)`): ribbons turned to the eye, at least 1.3 px wide, solid; long ones in 10 m pieces |
 | Builder construction effects | `scripts/builder_fx.gd` (wave, local grid, outlines, ripples); lamp spot on paths `scripts/lamp_spot.gd`; building sites and rubble in `crt_map_panel.gd` (`_start_site`, `_tick_sites`, `_draw_site`, `_leave_rubble`; `_known` = what the static layer last drew), rows by dragging (`ROW_TYPES`, `_update_row`, `_end_row`); coins, the odometer, the music and the tool on the pointer in `builder_module.gd` (`_launch_coins`, `_draw_odo`, `_tick_music`, `cursor_texture` -> `os_shell.tool_cursor`); the sprites from `tools/artgen/web_review_art.py`; `scripts/builder/`: `day_graph.gd` (main's `_day_graph`, recorded at dawn) and `graphs_window.gd`, `shareware.gd` (the nag, the key, the cheats; the PC's store "builder98"), `courier_news.gd` + `news_paper.gd` (extra editions, diplomas; the PC's store "courier"), `about_dozer.gd`; the Mega gnome `data/buildings/mega_gnome.tres` + `building_models._mega_gnome` |
 | Builder's pictures of the buildings (four views each) | drawn from the 3D models: `godot/tools/iso_render.tscn -- --out=<repo>/tools/artgen/out/iso3d [--only=pub]` (each built alone on its own render layer, an orthographic camera from the map's four corners at 30 degrees, 128 px across a tile, light from the camera's upper left; also each lodging's lit windows alone, `_win`), then `python tools/artgen/iso_views.py sheet <type>` (2x2 sheet for Grok, rows `iso4_<type>_a/_b` from `tools/artgen/builder_prompts.py` in `prompts_builder.tsv`; small things four to a sheet: `sheet4`/`cut4`) and `iso_views.py cut iso4_<type>_b <type>` (or `raw <type>`: the render itself) -> `assets/textury/builder/iso3d/<type>_<s>.png` + `views.json` (the anchor: the footprint's middle); the map draws `<type>_<(view + turn) % 4>` (`crt_map_panel._view_of`, `_draw_view`); look at it with `godot/tools/builder_shots.tscn` (the map in four views beside the camp from the same corners) |
 | The map's turning, its people, its message line, its sound | `crt_map_panel.gd`: `view_rot`/`rotate_view` (builder_module `turn_view`, T, the PC's store "builder_view"), the guests (`_update_guests` from `guest_agents.get_visible_guest_positions`: each member, its pose picture, its way; `_peep_frame`, `PEEP_KIND`, faces `REACTS`, `_draw_sleepers`), `sound_under_pointer`; lit windows `_draw_lit_windows` (`window_lights.lit_state`); `scripts/builder/ticker.gd` (the message line and its corner window, EventBus + GuestManager); Builder's clicks `builder_module._ui(id)` (`assets/sfx/builder/ui_*.mp3`, rows in `tools/audiogen/prompts_builder.tsv`); the guests behind buildings `_occ`/`_draw_occluders`; the small life `scripts/builder/map_life.gd` (frames `builder/life/<thing>_<n>.png`); the site's stages, the bulldozer and its dust `builder/site/stage_<0-2>.png`, `dozer_<0-7>.png`, `dust_<0-3>.png` (`_draw_site`, `_draw_dozers`); the trees in the wind `tree_sway_*` (`_swaying`); the moving tool cursors `builder_module.CURSOR_FRAMES` (`builder/cursors/`) |
@@ -290,6 +298,12 @@ every night's sewer, toilets and frozen pipes the moment they broke).
 
 ## 5. Gotchas
 
+- **`PROJECTION_MATRIX[1][1]` is negative in this renderer** (its clip space has y down).
+  A shader that sizes something in pixels from it (`2 * depth / (P[1][1] * VIEWPORT_SIZE.y)`
+  metres a pixel) must take `abs()`: without it the least width never held and wires drew
+  as dashes (4. 11., `wire_ribbons.gd`, the bus's lamp dots).
+- **`get_meta(key, null)` still prints an error when the key is missing** (a null default
+  is no default): `x.get_meta(k) if x.has_meta(k) else null`.
 - **A Label3D leaves out the pixel fonts' one-stroke glyphs** (the I, the dash, the bar: in
   Jersey and Silkscreen alike they are solid rectangles in the font's page and come out
   blank in 3D; 2D text draws them). Words on a 3D surface go through
