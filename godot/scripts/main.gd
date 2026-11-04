@@ -3426,6 +3426,62 @@ func _announce_goggle_tier(opened: int) -> void:
 	if opened < 1 or _hud_manager == null:
 		return
 	_hud_manager.push_status("%d guests in the camp. Builder 98 has new blueprints." % int(_goggle.TIERS[opened]["guests"]), 1)
+	_pop_blueprints(opened)
+
+
+## Builder 98's window of the new blueprints over whatever you are doing, wherever you are
+## (the user 4. 11.: it waited in the Builder till you next sat at the PC): the best three
+## of the tier, OK or a while and it goes; the Builder then has them NEW on their cards and
+## does not show the window again.
+const BLUEPRINT_NEWS = preload("res://scripts/builder/blueprint_news.gd")
+const BUILDER_MODULE_S = preload("res://scripts/builder_module.gd")
+const BLUEPRINT_POP_SEC := 9.0
+
+
+func _pop_blueprints(tier: int) -> void:
+	var opened: Array = []
+	for it in _goggle.TIERS[tier]["items"]:
+		if not str(it).begins_with("upgrade:"):
+			opened.append(str(it))
+	if opened.is_empty():
+		return
+	var price := func(t: String) -> int:
+		var def = CoreRoot.registry.get_def(StringName(t)) if CoreRoot != null and CoreRoot.registry != null else null
+		return int(def.cost) if def != null and "cost" in def else 0
+	opened.sort_custom(func(a, b): return price.call(a) > price.call(b))
+	var rows: Array = []
+	for t in opened.slice(0, 3):
+		var icon_path := str(BUILDER_MODULE_S.ITEM_ICONS.get(t, ""))
+		rows.append({"type": t, "name": str(BUILDER_MODULE_S.SHORT_NAMES.get(t, t)), "price": price.call(t),
+			"icon": load(icon_path) if icon_path != "" and ResourceLoader.exists(icon_path) else null})
+	# The Builder's own record: seen, and NEW on their cards.
+	var pc = _interior_manager._building_interior.get("_crt_ui") if _interior_manager != null and _interior_manager.get("_building_interior") != null else null
+	if pc != null and pc.has_method("stored") and pc.has_method("store"):
+		var st: Dictionary = (pc.stored("blueprints", {}) as Dictionary).duplicate(true)
+		st["seen"] = maxi(int(st.get("seen", 0)), tier)
+		var fresh: Array = st.get("fresh", [])
+		for it in opened:
+			if not fresh.has(it):
+				fresh.append(it)
+		st["fresh"] = fresh
+		pc.store("blueprints", st)
+	var layer := CanvasLayer.new()
+	layer.name = "BlueprintNews"
+	layer.layer = 126
+	add_child(layer)
+	var w = BLUEPRINT_NEWS.new()
+	w.setup(rows, int(_goggle.TIERS[tier]["guests"]), maxi(0, opened.size() - rows.size()))
+	var vs := get_viewport().get_visible_rect().size
+	var k := maxf(1.0, floorf(vs.y / 320.0))
+	w.scale = Vector2(k, k)
+	w.position = ((vs - w.size * k) * 0.5).floor()
+	layer.add_child(w)
+	w.done.connect(func():
+		if is_instance_valid(layer):
+			layer.queue_free())
+	get_tree().create_timer(BLUEPRINT_POP_SEC).timeout.connect(func():
+		if is_instance_valid(layer):
+			layer.queue_free())
 
 
 ## Builder 98's blueprints open by the guests in the camp at once (goggle.check_guests;

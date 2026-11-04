@@ -1495,7 +1495,7 @@ func _poll_guest_state() -> void:
 		return
 	if GuestManager.has_method("get_bed_metrics"):
 		var beds: Dictionary = GuestManager.get_bed_metrics()
-		_beds = Vector2i(int(beds.get("occupied", 0)), int(beds.get("capacity", 0)))
+		_beds = Vector2i(int(beds.get("in_camp", beds.get("occupied", 0))), int(beds.get("capacity", 0)))
 	if GuestManager.has_method("get_camp_mood_summary"):
 		_mood = GuestManager.get_camp_mood_summary()
 	_refresh_guests()

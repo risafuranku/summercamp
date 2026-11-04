@@ -1478,6 +1478,12 @@ func get_bed_metrics() -> Dictionary:
 		occupied_beds += max(1, int(guest.get("beds_used", guest.get("party_size", 1))))
 
 	occupied_beds = clampi(occupied_beds, 0, capacity_total)
+	# The ones really here: checked in at the desk (the HUD's count, the user 4. 11.: "a guest
+	# is a guest only after the check-in"). The rest of the beds are only held for them.
+	var in_camp := 0
+	for guest_any in state.guests:
+		if guest_any is Dictionary and _is_checked_in(str((guest_any as Dictionary).get("status", STATUS_ACTIVE)).to_lower().strip_edges()):
+			in_camp += max(1, int((guest_any as Dictionary).get("beds_used", (guest_any as Dictionary).get("party_size", 1))))
 	var ratio = 0.0 if capacity_total <= 0 else clampf(float(occupied_beds) / float(capacity_total), 0.0, 1.0)
 	# Free means the beds in lodgings nobody has: a cabin with one party in it is theirs.
 	var held := {}
@@ -1494,6 +1500,7 @@ func get_bed_metrics() -> Dictionary:
 	return {
 		"capacity": capacity_total,
 		"occupied": occupied_beds,
+		"in_camp": mini(in_camp, capacity_total),
 		"free": max(0, mini(free_units, capacity_total - occupied_beds)),
 		"occupied_ratio": ratio,
 	}
