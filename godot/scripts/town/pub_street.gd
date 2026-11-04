@@ -6,12 +6,20 @@ extends Node3D
 ## along the windows to the bar and back, and the windows spill warm on the pavement. In
 ## room space, a child of the Taproom (town_lesna._update_pub): it goes with the room, and
 ## a look out of the pub's own windows does not see it (window_portal hides the shell).
+## At closing the guests get up one by one (street_life.gd has them in the street), nobody
+## goes along the windows any more, the smoke thins and the lamps go, window by window.
 
 const PUB_VIEW = preload("res://scripts/town/pub_view.gd")
 const NPC := "res://assets/textury/npc/"
 const HABITS := "res://assets/textury/habits/"
 ## Black against the lamps.
 const DARK := Color(0.06, 0.045, 0.04)
+## Closing: between these hours; who has got up by when, and when each window goes dark
+## (shares of it), in the order Kubat goes round.
+const CLOSE_FROM := 22.9
+const CLOSE_TO := 23.3
+const UP_AT := [0.12, 0.3, 0.5]
+const DARK_AT := [0.55, 0.7, 1.0, 0.85]
 ## Past this far from the eye nothing here moves.
 const NEAR := 70.0
 const STEP := 1.0 / 12.0
@@ -28,6 +36,10 @@ var _drink_t := 4.0
 var _drinking := false
 var _acc := 0.0
 var _rng := RandomNumberGenerator.new()
+var _seated: Array = []
+var _spill: Array = []
+var _dark: Array = []
+var _closing := 0.0
 
 
 func build() -> void:
@@ -35,12 +47,13 @@ func build() -> void:
 	_rng.randomize()
 	var t: Array = PUB_VIEW.TABLES
 	# With their backs to the windows, at the tables under them.
-	_figure("host1_sit.png", 1.42, Vector3((t[0] as Vector3).x - 0.1, 0.1, 2.42))
+	_seated.append(_figure("host1_sit.png", 1.42, Vector3((t[0] as Vector3).x - 0.1, 0.1, 2.42)))
 	_drinker = _figure("host2_sit.png", 1.42, Vector3((t[2] as Vector3).x - 0.15, 0.1, 2.4))
+	_seated.append(_drinker)
 	_sit_tex = _drinker.texture
 	if ResourceLoader.exists(NPC + "host2_drink.png"):
 		_drink_tex = load(NPC + "host2_drink.png")
-	_figure("host3_sit.png", 1.36, Vector3((t[3] as Vector3).x + 0.2, 0.1, 2.36))
+	_seated.append(_figure("host3_sit.png", 1.36, Vector3((t[3] as Vector3).x + 0.2, 0.1, 2.36)))
 	_walker = _figure("host1.png", 1.74, Vector3(-5.3, 0.0, 2.75))
 	_walker.visible = false
 	# The smoke under the ceiling and down round the lamps.
@@ -68,6 +81,24 @@ func build() -> void:
 		l.omni_range = 7.5
 		l.position = Vector3(float(x), 1.6, 3.0)
 		add_child(l)
+		_spill.append(l)
+	# A window with its lamp out: the room behind it gone dark.
+	var black := StandardMaterial3D.new()
+	black.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	black.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	black.albedo_color = Color(0.02, 0.02, 0.03, 0.84)
+	for r in PUB_VIEW.PANES:
+		var p: Dictionary = PUB_VIEW.pane(r)
+		var q := QuadMesh.new()
+		q.size = (p["size"] as Vector2) + Vector2(0.1, 0.1)
+		var d := MeshInstance3D.new()
+		d.name = "WindowDark"
+		d.mesh = q
+		d.material_override = black
+		d.position = (p["at"] as Vector3) - Vector3(0, 0, 0.08)
+		d.visible = false
+		add_child(d)
+		_dark.append(d)
 	for g in find_children("*", "GeometryInstance3D", true, false):
 		(g as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
@@ -96,6 +127,20 @@ func set_on(on: bool) -> void:
 	set_process(on)
 
 
+## How far closing has got (town_lesna, about once a second).
+func set_hour(h: float) -> void:
+	_closing = clampf((h - CLOSE_FROM) / (CLOSE_TO - CLOSE_FROM), 0.0, 1.0) if h >= 12.0 else 0.0
+	for i in _seated.size():
+		(_seated[i] as Sprite3D).visible = _closing < float(UP_AT[i])
+	for i in _dark.size():
+		(_dark[i] as MeshInstance3D).visible = _closing >= float(DARK_AT[i])
+	(_spill[0] as OmniLight3D).visible = _closing < 0.7
+	(_spill[1] as OmniLight3D).visible = _closing < 1.0
+	if _closing > 0.0 and _walker != null:
+		_walk_wait = 99.0
+		_walker.visible = false
+
+
 func _process(delta: float) -> void:
 	_acc += delta
 	if _acc < STEP:
@@ -118,6 +163,7 @@ func _tick_smoke(dt: float) -> void:
 			s.position.x = -signf(s.position.x) * 5.5
 		p["phase"] = float(p["phase"]) + dt * 0.3
 		s.position.y = float(p["y"]) + sin(float(p["phase"])) * 0.12
+		s.visible = _closing < 0.9
 
 
 ## Somebody along the windows to the bar and back, in steps; a while till the next.

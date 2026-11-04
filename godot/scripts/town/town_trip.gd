@@ -999,6 +999,7 @@ func _process(delta: float) -> void:
 	_run_works(h, delta)
 	if _town != null:
 		_town.spots["people"].update(h, delta)
+		_town.spots["street"].update(h, delta)
 		_town.spots["station_cars"].traffic = _open("kiosk")
 	_watch_job(h)
 	_update_village_sound(h)

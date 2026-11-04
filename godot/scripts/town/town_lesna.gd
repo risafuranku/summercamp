@@ -77,6 +77,8 @@ func build(p_worldgen: Node) -> void:
 	add_child(people)
 	people.build()
 	spots["people"] = people
+	spots["street"] = STREET_LIFE.new()
+	add_child(spots["street"])
 	# The Benzina is only for filling up now (Lojza's job is at the one by the camp's
 	# turn): the village's cars come in by day and fill up themselves.
 	var cars = PUMP_JOB.new()
@@ -529,6 +531,7 @@ func _tick_jednota_tube(delta: float) -> void:
 ## its front, the taproom built in it, lit while it is open (`_update_pub`).
 const PUB_VIEW = preload("res://scripts/town/pub_view.gd")
 const PUB_STREET = preload("res://scripts/town/pub_street.gd")
+const STREET_LIFE = preload("res://scripts/town/street_life.gd")
 var _pub_lit := -1
 var _pub_street
 
@@ -624,7 +627,10 @@ func _update_pub(h: float) -> void:
 	var root: Node3D = inn as Node3D
 	if root == null or root.name != "Pub":
 		return
-	var lit := 1 if (h >= 10.0 and h < 23.0) else 0
+	# (Lit a little past its hours: the lamps go window by window, pub_street.gd.)
+	var lit := 1 if (h >= 10.0 and h < PUB_STREET.CLOSE_TO) else 0
+	if _pub_street != null and is_instance_valid(_pub_street):
+		_pub_street.set_hour(h)
 	if lit == _pub_lit and root.get_node_or_null("Taproom") != null:
 		return
 	_pub_lit = lit
