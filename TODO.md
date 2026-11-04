@@ -17,6 +17,7 @@
 - [x] G9 (2eadf063) A guest checked in without you (a receptionist) stood in the tent the same second you finished making it up, their legs filling the picture: a room adds nobody while you are in it, those who leave still go
 - [x] G10 (9a011a6e) LOAD LAST SAVE after a death showed the list of saves: it goes straight back in (tools/smrt_check)
 - [x] G11 (9a011a6e) Label3D is unlit by default: the sluice's board, the buildings' signs and the switch room's letters shone on the air at night; paint now darkens with its wall
+- [x] G12 (c6074a1f) The night's first frame was 110 ms with the hurt's warm-up in it (eight sounds, its shaders): at dusk if you are out, ~50 ms now; each thing made at 20:00 adds its own 6-86 ms (one frame, under the NIGHT card)
 
 ## PLAYTEST 2026-11-04 (2) — the user's notes, afternoon (verbatim, then the note in brackets; tick with the commit)
 
@@ -698,10 +699,7 @@ start, collect good ratings; pay to delete bad reviews".
 - [ ] It is back: 16x in the headless smoke test on the title screen, at HEAD b267f605 as
   well (2. 11., found while checking S25/S27/S9: not from them; the dummy renderer's
   `material_get_instance_shader_parameters`, no script frames)
-- [ ] coop_check 2. 11. (checking S23): one failure, "terrain differ": four Label3D only on
-  the host and four only on the client, each 0.6 m apart along z (at z 105 and -58: a
-  moving vehicle's boards taken at another moment?); the rest PASS, Atlas's banner bought
-  on the other machine included
+- [x] coop_check 2. 11. (checking S23): one failure, "terrain differ": four Label3D 0.6 m apart between the machines: not vehicles, every sign's letters are pulled a share of their distance towards each machine's own eye (retro_materials._pull_labels); the check leaves them out (4. 11. evening)
 - [x] Replace the other code-made sounds too? Yes, all of them (the user, 20. 10.): the
   Photographer's camera, the thump, the pager, the station that does not exist, the phone
   line, the splash's neon and the set's tone are recordings now (agent B; only the radio's
