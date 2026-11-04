@@ -219,6 +219,43 @@ func _apply_light() -> void:
 		bulb.visible = _power
 
 
+## The way through the door (scripts/ui/door_through.gd): the hall as the alley's, the
+## door in its front wall where the building has it.
+var door_walking := false
+
+
+func door_ready(structure: Node3D) -> void:
+	var origin = structure.get_meta("grid_origin", null)
+	if origin is Vector2i:
+		key = "%d:%d" % [origin.x, origin.y]
+	_bowling = BOWLING.of(get_tree())
+	_go("hall", true)
+	_apply_light()
+
+
+func door_spec(_structure: Node3D) -> Dictionary:
+	if _root == null:
+		return {}
+	return {"root": _root, "at": Vector3(LAYOUT.DOOR_X, 0.0, LAYOUT.FRONT_Z + 0.03), "out": Vector3(0, 0, 1), "size": Vector2(1.42, 2.6), "inner": 0.03, "leaf": []}
+
+
+## In from the doorway (door_through: the eye where yours was) to the station the alley opened
+## at, one walk, not the quick step from the hall.
+func door_walk_in(from: Transform3D, fov: float) -> void:
+	var st = _stations.get(_station_open(), null)
+	var to: Transform3D = st.call("cam_pose") if st != null else _interior_camera.global_transform
+	if _station_tween != null and _station_tween.is_valid():
+		_station_tween.kill()
+	var end_fov := _interior_camera.fov
+	_interior_camera.global_transform = from
+	_interior_camera.fov = fov
+	door_walking = true
+	var dur := clampf(from.origin.distance_to(to.origin) / 1.5, 0.9, 2.6)
+	_station_tween = STATION3D.step_camera(self, _interior_camera, to, dur)
+	_station_tween.parallel().tween_property(_interior_camera, "fov", end_fov, dur * 0.7)
+	_station_tween.tween_callback(func() -> void: door_walking = false)
+
+
 ## In by the door of the bowling alley at `p_key` ("x:y"), straight to work.
 func open_bowling(p_key: String) -> void:
 	if _viewport_container != null:
@@ -315,6 +352,10 @@ func _process(delta: float) -> void:
 func _input(event: InputEvent) -> void:
 	if not _is_open:
 		return
+	if door_walking:
+		if (event is InputEventMouseButton and event.pressed) or event.is_action_pressed("ui_cancel"):
+			get_viewport().set_input_as_handled()
+		return
 	if bool(_lane_play.call("active")):
 		if bool(_lane_play.call("handle", event)):
 			get_viewport().set_input_as_handled()
@@ -330,7 +371,11 @@ func _input(event: InputEvent) -> void:
 	if INTERIOR_LOOK.is_exit_event(event, get_viewport()):
 		get_viewport().set_input_as_handled()
 		if _spot == "hall":
-			close_bowling()
+			# Out through the door on foot (door_through), or straight out.
+			var im := get_parent()
+			var at = im.get("_active_bowling_node") if im != null else null
+			if im == null or not im.has_method("leave_on_foot") or not bool(im.call("leave_on_foot", self, at, close_bowling)):
+				close_bowling()
 		else:
 			_go("hall")
 		return

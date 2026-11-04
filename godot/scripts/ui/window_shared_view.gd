@@ -86,9 +86,10 @@ func pane_material(glass := true) -> ShaderMaterial:
 
 ## This frame a window of the room wants the camp: `eye` the room's camera, `room` the
 ## node whose space `xform` maps into the camp, `world` the camp's, `building` the camp's
-## building the room is in (hidden from this view while it is drawn; null: none hidden).
+## building the room is in (hidden from this view while it is drawn; null: none hidden;
+## what is in `keep` stays: a door's leaf seen swinging through its doorway).
 ## The first offer of a frame places the camera.
-func offer(eye: Camera3D, room: Node3D, xform: Transform3D, world: World3D, building: Node3D = null) -> void:
+func offer(eye: Camera3D, room: Node3D, xform: Transform3D, world: World3D, building: Node3D = null, keep: Array = []) -> void:
 	if _offered or eye == null or world == null or room == null:
 		return
 	_offered = true
@@ -115,7 +116,7 @@ func offer(eye: Camera3D, room: Node3D, xform: Transform3D, world: World3D, buil
 	# Drawn before the room that reads it: its viewport under the room's.
 	if sync_at_draw and room_vp != null and vp.get_parent() != room_vp:
 		vp.reparent(room_vp, false)
-	_hide_building(building)
+	_hide_building(building, keep)
 
 
 func _enter_tree() -> void:
@@ -157,7 +158,7 @@ func eye_position() -> Vector3:
 	return cam.global_position
 
 
-func _hide_building(anchor: Node3D) -> void:
+func _hide_building(anchor: Node3D, keep: Array = []) -> void:
 	if anchor == _anchor:
 		return
 	_show_building()
@@ -165,6 +166,8 @@ func _hide_building(anchor: Node3D) -> void:
 	if anchor == null:
 		return
 	for n in anchor.find_children("*", "GeometryInstance3D", true, false):
+		if keep.has(n):
+			continue
 		var g := n as GeometryInstance3D
 		_hidden.append([g, g.layers])
 		g.layers = HIDE_LAYER

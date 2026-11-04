@@ -248,7 +248,133 @@ func set_grid_power_available(power_available: bool) -> void:
 	_apply_time_profile(true)
 
 
+## The way through the door (scripts/ui/door_through.gd): the room made up as the
+## building's, the door where the building has it.
+var door_walking := false
+## The building whose door you are walking up to (its windows' views on the way in).
+var _door_anchor: Node3D
+
+
+func door_ready(structure: Node3D) -> void:
+	_door_anchor = structure
+	var t := str(structure.get_meta("building_type", ""))
+	var im := get_parent()
+	if t == "toilet_block" and im != null and im.has_method("_toilet_door_of"):
+		toilet_entry = im.call("_toilet_door_of", structure)
+	_make_up(t)
+
+
+## On the way in, the room's windows show the camp as from the eye coming through the door.
+func door_tick(eye: Transform3D, fov: float) -> void:
+	if _is_open or _interior_camera == null:
+		return
+	_interior_camera.global_transform = eye
+	_interior_camera.fov = fov
+	_tick_windows(get_process_delta_time())
+
+
+## The door as door_through wants it: where it is in the room, the way out, how big, how
+## deep the wall, the leaf seen from inside; the rooms built in their buildings (the pub,
+## the bistro, the Jednota, the staffroom) lie in them exactly.
+func door_spec(structure: Node3D) -> Dictionary:
+	if _room_root == null or not is_instance_valid(_room_root):
+		return {}
+	var out := Vector3(0, 0, 1)
+	match _current_profile:
+		"toilet":
+			var x := -TOILET_STALL_X if toilet_entry == "left" else TOILET_STALL_X
+			return {"root": _room_root, "at": Vector3(x, 0.0, TOILET_D * 0.5 + 0.03), "out": out, "size": Vector2(0.78, 1.82), "inner": 0.03, "leaf": []}
+		"wash":
+			return {"root": _room_root, "at": Vector3(0.0, 0.0, 1.65), "out": out, "size": Vector2(0.9, 2.0), "inner": 0.05, "leaf": []}
+		"generator":
+			return {"root": _room_root, "at": Vector3(0.0, 0.0, 2.03), "out": out, "size": Vector2(1.22, 1.9), "inner": 0.03, "leaf": []}
+		"pub":
+			return _laid_door(structure, "PubRoom", Vector3(PUB_LAYOUT.FRONT_DOOR.x, 0.0, PUB_LAYOUT.SIZE.z * 0.5 + PUB_LAYOUT.WALL), PUB_LAYOUT.FRONT_DOOR_SIZE, PUB_LAYOUT.WALL)
+		"rest":
+			return _laid_door(structure, "BistroRoom", Vector3(BISTRO_LAYOUT.DOOR.x, 0.0, BISTRO_LAYOUT.SIZE.z * 0.5 + BISTRO_LAYOUT.WALL), BISTRO_LAYOUT.DOOR_SIZE, BISTRO_LAYOUT.WALL)
+		"vecerka":
+			return _laid_door(structure, "JednotaRoom", Vector3(JEDNOTA_LAYOUT.DOOR.x, 0.0, JEDNOTA_LAYOUT.SIZE.z * 0.5 + JEDNOTA_LAYOUT.WALL), JEDNOTA_LAYOUT.DOOR_SIZE, JEDNOTA_LAYOUT.WALL)
+		"staff":
+			var rooms := structure.find_child("StaffRooms", true, false) as Node3D
+			var leaf: Array = []
+			var fd := _room_root.find_child("FrontDoor", true, false)
+			if fd != null:
+				leaf.append(fd)
+			var spec := {"root": _room_root, "at": Vector3(STAFF_PLAN.DOOR_X, STAFF_PLAN.FLOOR, STAFF_PLAN.L_MAX.y + STAFF_PLAN.WALL * 0.5), "out": out,
+				"size": Vector2(STAFF_PLAN.DOOR_W, STAFF_PLAN.DOOR_H), "inner": STAFF_PLAN.WALL * 0.5, "leaf": leaf}
+			if rooms != null:
+				spec["in_camp"] = rooms.global_transform
+			return spec
+	return {}
+
+
+## A business's door in the front wall of its room, the room as its building has it inside
+## (building_models._room_inside: `room_name`), the camp's leaf in front of the wall.
+func _laid_door(structure: Node3D, room_name: String, wall_out: Vector3, size: Vector2, wall: float) -> Dictionary:
+	var leaf: Array = []
+	for n in ["FrontDoor"]:
+		var fd := _room_root.find_child(n, true, false)
+		if fd != null:
+			leaf.append(fd)
+	var spec := {"root": _room_root, "at": wall_out + Vector3(0.0, 0.0, 0.03), "out": Vector3(0, 0, 1), "size": size, "inner": wall + 0.03, "leaf": leaf}
+	var room := structure.find_child(room_name, true, false) as Node3D
+	if room != null:
+		spec["in_camp"] = room.global_transform
+	return spec
+
+
+## In the part of the building its front door is in (a kitchen, a cellar, the boiler room
+## or a shower stall is left the old way, straight out).
+func _at_front_door() -> bool:
+	match _current_profile:
+		"rest":
+			return _restaurant_room == "dining"
+		"pub":
+			return _pub_room == "main"
+		"vecerka":
+			return _active_subroom == "shop"
+		"staff":
+			return _staff_room != null and str(_staff_room.get("room")) == "lounge"
+		"generator":
+			return _shed != null and str(_shed.get("room")) == "set"
+		"toilet":
+			return true
+		"wash":
+			return _active_subroom == "center"
+	return false
+
+
+## Out through the front door on foot (door_through), or false.
+func _leave_on_foot() -> bool:
+	if not _at_front_door() or _station_open() != "":
+		return false
+	var im := get_parent()
+	return im != null and im.has_method("leave_on_foot") and bool(im.call("leave_on_foot", self, _service_anchor(), close_service))
+
+
 func open_service(service_type: String) -> void:
+	_make_up(service_type)
+	if _interior_camera == null:
+		return
+	if _is_open:
+		_update_sewer_ambience_state()
+		return
+	_is_open = true
+	visible = true
+	_sync_viewport_to_window()
+	if _current_profile == "generator" and _shed != null:
+		_active_subroom = "set"
+		_shed.on_open(_time_state == TIME_NIGHT, _nights_visited())
+	if _current_profile == "staff" and _staff_room != null:
+		_staff_room.on_open()
+	_cam_base_rot = _interior_camera.rotation
+	_look.reset()
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	_update_sewer_ambience_state()
+
+
+## The room as `service_type`'s: built if it is another kind, else put back as you find it.
+func _make_up(service_type: String) -> void:
 	# Registered before it was in the tree (size 0, shrink 1): the low resolution now.
 	if _viewport_container != null:
 		RETRO_RENDER.apply_to(_viewport_container)
@@ -270,26 +396,10 @@ func open_service(service_type: String) -> void:
 		elif _current_profile == "wash" and not _is_open:
 			_set_hygiene_room("center")
 		_apply_time_profile()
-	if _interior_camera == null:
-		return
-	if _is_open:
-		_update_sewer_ambience_state()
-		return
-	_is_open = true
-	visible = true
-	_sync_viewport_to_window()
-	if _current_profile == "generator" and _shed != null:
-		_active_subroom = "set"
-		_shed.on_open(_time_state == TIME_NIGHT, _nights_visited())
-	if _current_profile == "staff" and _staff_room != null:
-		_staff_room.on_open()
-	_cam_base_rot = _interior_camera.rotation
-	_look.reset()
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
-	_update_sewer_ambience_state()
 
 
 func close_service() -> void:
+	_door_anchor = null
 	if not _is_open:
 		return
 	if _upkeep_prep != null and _upkeep_prep.tasks != null and _upkeep_prep.tasks.is_scrubbing():
@@ -331,7 +441,8 @@ func close_service() -> void:
 func _process(delta: float) -> void:
 	if not _is_open or _interior_camera == null:
 		return
-	if lodge_sleeping:
+	# (Through the door: the walk has the eye.)
+	if lodge_sleeping or door_walking:
 		_tick_windows(delta)
 		return
 	_tick_windows(delta)
@@ -438,6 +549,10 @@ func _apply_idle_mouse_look(delta: float) -> void:
 func _input(event: InputEvent) -> void:
 	if not _is_open or lodge_sleeping:
 		return
+	if door_walking:
+		if (event is InputEventMouseButton and event.pressed) or event.is_action_pressed("ui_cancel"):
+			get_viewport().set_input_as_handled()
+		return
 	if (_laptop_view != null and _laptop_view.visible) or (_staff_ledger != null and _staff_ledger.visible):
 		return
 	if _staff_room != null and _current_profile == "staff" and _staff_room.walking():
@@ -463,7 +578,8 @@ func _input(event: InputEvent) -> void:
 			_staff_room.walk_to("lounge")
 			get_viewport().set_input_as_handled()
 			return
-		close_service()
+		if not _leave_on_foot():
+			close_service()
 		get_viewport().set_input_as_handled()
 		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
@@ -3584,6 +3700,8 @@ func _tick_windows(delta: float) -> void:
 func _service_anchor() -> Node3D:
 	var im := get_parent()
 	var n = im.get("_active_service_node") if im != null else null
+	if n == null:
+		n = _door_anchor
 	return n as Node3D if n != null and is_instance_valid(n) and (n as Node3D).is_inside_tree() else null
 
 

@@ -230,7 +230,10 @@ func _pub(r: Node3D, _w: float, _d: float) -> Dictionary:
 	var front := cz + sz * 0.5
 	var door_x := cx + (65.0 / 271.0 - 0.5) * sx
 	_quad(r, "PubFront", Vector2(sx, h), Vector3(cx, h * 0.5 + 0.1, front + 0.012), 0.0, _glass_face("camp_pub_front_glass.png", "camp_pub_front.png"))
-	_door_sign(r, Vector3(door_x, 1.45, front + 0.03))
+	# Its old double door, a leaf each side (door_through: in and out on foot).
+	_painted_leaf(r, "Door0", "camp_pub_front_glass.png", Rect2(44, 30, 21, 75), Vector3(cx, h * 0.5 + 0.1, front + 0.012), Vector2(sx, h))
+	_painted_leaf(r, "Door1", "camp_pub_front_glass.png", Rect2(65, 30, 21, 75), Vector3(cx, h * 0.5 + 0.1, front + 0.012), Vector2(sx, h))
+	_door_sign(r, Vector3(door_x, 1.45, front + 0.05))
 	_quad(r, "PubSide", Vector2(sz, h), Vector3(cx - sx * 0.5 - 0.012, h * 0.5 + 0.1, cz), -PI * 0.5, _glass_face("camp_pub_side_glass.png", "camp_pub_side.png"))
 	_side_quad(r, "PubBack", Vector2(sx, h), Vector3(cx, h * 0.5 + 0.1, cz - sz * 0.5 - 0.012), PI, plaster)
 	_side_quad(r, "PubRight", Vector2(sz, h), Vector3(cx + sx * 0.5 + 0.012, h * 0.5 + 0.1, cz), PI * 0.5, plaster)
@@ -330,6 +333,29 @@ func _room_inside(r: Node3D, at: Vector3, room_name: String, build: Callable, la
 	return room
 
 
+## A door painted on a front picture made a real one (the user 4. 11.: a smooth way in at
+## every building; scripts/ui/door_through.gd): a leaf the size of the painted door, its face
+## cut from the same picture (`px`, the door's pixels), hung and swung by door_anim.gd.
+## `quad_at` and `quad_size`: the front's quad the picture is on.
+func _painted_leaf(r: Node3D, n: String, file: String, px: Rect2, quad_at: Vector3, quad_size: Vector2) -> MeshInstance3D:
+	if not ResourceLoader.exists(CAMP + file):
+		return null
+	var tex: Texture2D = load(CAMP + file)
+	var pic := Vector2(tex.get_size())
+	var x0 := quad_at.x - quad_size.x * 0.5 + px.position.x / pic.x * quad_size.x
+	var x1 := quad_at.x - quad_size.x * 0.5 + px.end.x / pic.x * quad_size.x
+	var y_top := quad_at.y + quad_size.y * 0.5 - px.position.y / pic.y * quad_size.y
+	var y_bot := quad_at.y + quad_size.y * 0.5 - px.end.y / pic.y * quad_size.y
+	var size := Vector2(x1 - x0, y_top - y_bot)
+	var centre := Vector3((x0 + x1) * 0.5, (y_top + y_bot) * 0.5, quad_at.z + 0.022)
+	var leaf := _box(r, n, Vector3(size.x, size.y, 0.04), centre, _wood())
+	var face := _face_mat(file)
+	face.uv1_offset = Vector3(px.position.x / pic.x, px.position.y / pic.y, 0.0)
+	face.uv1_scale = Vector3(px.size.x / pic.x, px.size.y / pic.y, 1.0)
+	_quad(r, n + "Face", size, centre + Vector3(0, 0, 0.021), 0.0, face)
+	return leaf
+
+
 ## A face picture whose windows' panes are cut out (tools/artgen/glass_fronts.py): its
 ## glass is clear, the room behind it seen; without the cut picture, the old one.
 func _glass_face(file: String, fallback: String) -> StandardMaterial3D:
@@ -389,7 +415,8 @@ func _restaurant(r: Node3D, _w: float, _d: float) -> Dictionary:
 		var wa: Vector3 = at + (wd["at"] as Vector3)
 		_pane_into(r, wd["size"], Vector3(wa.x, wa.y, front - 0.004), 0.0)
 	var door: Vector3 = at + (lay.DOOR as Vector3)
-	_door_sign(r, Vector3(door.x, 1.45, front + 0.03))
+	_painted_leaf(r, "Door", "camp_bistro_front_glass.png", Rect2(97, 45, 29, 76), Vector3(at.x, h * 0.5 + 0.1, front + 0.015), Vector2(sx, h))
+	_door_sign(r, Vector3(door.x, 1.45, front + 0.05))
 	var awn := _box(r, "Awning", Vector3(1.4, 0.07, 0.8), Vector3(door.x, 2.55, front + 0.4), _flat(Color(0.86, 0.66, 0.16)))
 	awn.rotation.x = 0.25
 	# The big red sign on the roof edge.
@@ -972,6 +999,24 @@ func tent_details(r: Node3D, w: float, h: float, d: float, at: Vector3, yaw: flo
 	flap.name = "TentFlap"
 	flap.position = Vector3(0, 0, d * 0.5 + 0.015)
 	t.add_child(flap)
+	# The doorway behind it, shown when the door is unzipped (interior_manager.tent_doors:
+	# the user 4. 11., unzipped from inside it is open from outside too, you see in, and it
+	# stays so for everybody till somebody zips it): the tent's inside in it near
+	# (tent_interior's view from the camp), its dark further off; the flap rolled up either
+	# side of it.
+	var way := _prism_flap(w * 0.55, h * 0.8, Color(0.03, 0.025, 0.02))
+	way.name = "TentDoorWay"
+	way.position = Vector3(0, 0, d * 0.5 + 0.01)
+	way.visible = false
+	way.set_meta("retro_skip", true)
+	t.add_child(way)
+	var b := w * 0.55
+	var rise := h * 0.8
+	var lean := atan2(b * 0.5, rise)
+	for sx: float in [-1.0, 1.0]:
+		var roll := _box(t, "TentDoorRoll", Vector3(0.07, sqrt(b * b * 0.25 + rise * rise) * 0.9, 0.07), Vector3(sx * b * 0.27, rise * 0.48, d * 0.5 + 0.04), _flat(color.darkened(0.5)))
+		roll.rotation.z = sx * lean
+		roll.visible = false
 	var rope := _flat(Color(0.84, 0.8, 0.66))
 	var peg := _flat(Color(0.3, 0.3, 0.3))
 	for z: float in [-d * 0.5, d * 0.5]:
@@ -1058,7 +1103,9 @@ func caravan(r: Node3D, w: float, d: float, level := 1) -> Vector3:
 	_box(r, "RoofVent", Vector3(0.5, 0.12, 0.4), Vector3(-lx * 0.15, y0 + h + 0.09, 0), _flat(Color(0.95, 0.94, 0.9)))
 	# The door and the windows on the camp side; windows on the back too.
 	var door_x := -lx * 0.25
-	_side_quad(r, "Door", Vector2(0.62, 1.55), Vector3(door_x, y0 + 0.85, lz * 0.5 + 0.012), 0.0, _camp_or("caravan_door.png", Color(1, 1, 1), "wood"))
+	# The door a leaf on its hinges (door_through: in and out on foot), its picture on it.
+	_box(r, "Door", Vector3(0.62, 1.55, 0.04), Vector3(door_x, y0 + 0.85, lz * 0.5 + 0.026), cream)
+	_side_quad(r, "DoorFace", Vector2(0.62, 1.55), Vector3(door_x, y0 + 0.85, lz * 0.5 + 0.047), 0.0, _camp_or("caravan_door.png", Color(1, 1, 1), "wood"))
 	# Its number on an enamel plate beside the door (scripts/lodging_signs.gd).
 	r.set_meta("number_plate", Transform3D(Basis(), Vector3(door_x + 0.56, y0 + 1.2, lz * 0.5 + 0.03)))
 	var glass := _camp_or("caravan_window.png", Color(1, 1, 1), "glass")
@@ -1842,7 +1889,8 @@ func _jednota(r: Node3D, _w: float, _d: float) -> Dictionary:
 	_room_inside(r, lay.AT, "JednotaRoom", func(room: Node3D, host) -> void: lay.shop_outside(room, host), lay, {"till": "till", "shelves": "shelves", "deli": "deli"}, "jednotas")
 	_box(r, "Roof", Vector3(sx + 0.5, 0.25, sz + 0.5), Vector3(0, h + 0.22, 0), _camp_or("concrete.png", Color(0.62, 0.6, 0.58), "roof"))
 	_quad(r, "JednotaFront", Vector2(sx, h), Vector3(0, h * 0.5 + 0.1, front + 0.012), 0.0, _glass_face("jednota_front_glass.png", "jednota_front.png"))
-	_door_sign(r, Vector3((lay.AT as Vector3).x + (lay.DOOR as Vector3).x, 1.75, front + 0.03))
+	_painted_leaf(r, "Door", "jednota_front_glass.png", Rect2(109, 54, 39, 79), Vector3(0, h * 0.5 + 0.1, front + 0.012), Vector2(sx, h))
+	_door_sign(r, Vector3((lay.AT as Vector3).x + (lay.DOOR as Vector3).x, 1.75, front + 0.05))
 	for wd in lay.WINDOWS:
 		var wa: Vector3 = (lay.AT as Vector3) + (wd["at"] as Vector3)
 		_pane_into(r, wd["size"], Vector3(wa.x, wa.y, front - 0.004), 0.0)
@@ -1933,6 +1981,8 @@ func _bowling(r: Node3D, _w: float, _d: float) -> Dictionary:
 	if ResourceLoader.exists(CAMP + "bowling_back.png"):
 		_quad(r, "BowlingBack", Vector2(sx, h), Vector3(0, h * 0.5 + y0, -front - 0.012), PI, _face_mat("bowling_back.png"))
 	var door_x := sx * BOWLING_DOOR_X
+	if ResourceLoader.exists(CAMP + "bowling_front.png"):
+		_painted_leaf(r, "Door", "bowling_front.png", Rect2(60, 93, 51, 102), Vector3(0, h * 0.5 + y0, front + 0.012), Vector2(sx, h))
 	# BOWLING painted on the board over the door, and the step up to it.
 	var board := TOWN + "sign_bowling.png"
 	if ResourceLoader.exists(board):

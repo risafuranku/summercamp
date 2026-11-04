@@ -70,9 +70,13 @@ func _process(delta: float) -> void:
 				units += int(shop.shelf(_key)[g])
 			goods.visible = units > 0
 	# The hands' figures on the room's layer, lit by its lights (building_models.ROOM_LAYER).
+	# (Not what a view of the camp has hidden for now, window_shared_view's HIDE_LAYER: given
+	# its layer back each second, the pub's room stood in its own doorway seen from inside,
+	# and in its windows, 4. 11.)
 	if room != null:
 		for c in room.find_children("*", "GeometryInstance3D", true, false):
-			(c as GeometryInstance3D).layers |= 1 << 13
+			if ((c as GeometryInstance3D).layers & (1 << 16)) == 0:
+				(c as GeometryInstance3D).layers |= 1 << 13
 	var on := 0
 	if _key != "":
 		var s := BUSINESS.site(_key)

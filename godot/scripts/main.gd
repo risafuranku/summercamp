@@ -4068,7 +4068,8 @@ func _update_interaction_hint() -> void:
 	if Coop.is_client():
 		_hud_manager.set_hint_text(_coop_client_hint())
 		return
-	if _is_any_interior_open():
+	# (Walking up to a door or out of one: the keys are not yours.)
+	if _is_any_interior_open() or (_interior_manager != null and _interior_manager.stepping_out()):
 		_hud_manager.set_hint_text("")
 		return
 	if _corn_hunt != null and is_instance_valid(_corn_hunt) and str(_corn_hunt.hint()) != "":

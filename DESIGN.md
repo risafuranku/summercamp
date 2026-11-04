@@ -1922,6 +1922,29 @@ in every weather (agent B's polish, from 20. 10.; the list is in TODO.md, WORLD 
 - **The lamps** are the light itself at night: the bulb bright, its cone of light a warm
   shaft that shows faintly in clear air and fully in mist and rain.
 
+## 9d. Through doors (2026-11-04, the user's playtest)
+
+"The cabin's door has black behind it when it opens; I want a smooth way through into the
+room, as at the reception. AT EVERY BUILDING." Every building with a room (cabins, caravans,
+tents, the toilets, the showers, the substation, the pub, the bistro, the Jednota, the
+staffroom, the bowling alley) is walked into and out of on foot, no dissolve:
+
+- **In.** Up to the door, the hand on the handle, the leaf swings out on the room itself: the
+  doorway shows the room from your own eye carried through the door, so it grows as you come
+  and has the room's lamp, its mess, its guests. In the doorway it fills the view and the
+  room takes the walk on from that very spot to where you stand in it.
+- **Out.** Esc: the room's eye turns to its door (off the wall first: the curtains and the
+  coats hang there), the leaf opens on the camp seen through it, and on the step outside the
+  camp takes the walk on. From a kitchen, a cellar, a station, the boiler room: Esc goes back
+  to the room with the door first (the bowling's hall), then out.
+- **Painted doors made real.** The pub's, the bistro's, the Jednota's and the bowling's doors
+  were part of the front's picture: each is a leaf now, its face cut from the same picture,
+  the pub's an old double door. The substation's two steel leaves open together.
+- **Tents.** You go in on your knees. Unzipped from inside, a tent is unzipped from outside:
+  the flap rolled up either side, the tent's inside seen through it from up to 26 m (the
+  other warden kneeling in it, in co-op), and it stays so for everybody till somebody zips
+  it up again; a guest who checks in zips it.
+
 ## 9c. The body in the world (2026-10-21, decided with the user)
 
 The user: "it still feels a bit like I'm a spectator, a car, a tank... the trees and the

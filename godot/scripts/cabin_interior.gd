@@ -867,7 +867,9 @@ func _input(event: InputEvent) -> void:
 		if _active_room == "bathroom":
 			_walk_to("main")
 		else:
-			close_cabin()
+			var im := get_parent()
+			if lodge_sleeping or im == null or not im.has_method("leave_on_foot") or not im.leave_on_foot(self, _anchor, close_cabin):
+				close_cabin()
 		get_viewport().set_input_as_handled()
 		return
 
@@ -1823,7 +1825,42 @@ var _door_player: AudioStreamPlayer
 
 
 func _walking() -> bool:
-	return _walk != null and _walk.is_valid() and _walk.is_running()
+	return door_walking or (_walk != null and _walk.is_valid() and _walk.is_running())
+
+
+## The way through the door (scripts/ui/door_through.gd): the room as this cabin's is, the
+## door where the model has it, its leaf and handle.
+var door_walking := false
+
+
+func door_ready(structure: Node3D) -> void:
+	if _inview_cabin != structure:
+		_release_inview()
+		_take_inview(structure)
+	set_world_anchor(structure)
+	_set_cabin_room("main", true)
+	_apply_time_profile()
+
+
+## On the way in, the room's windows show the camp as from the eye coming through the door.
+func door_tick(eye: Transform3D, fov: float) -> void:
+	if _is_open or _interior_camera == null:
+		return
+	_interior_camera.global_transform = eye
+	_interior_camera.fov = fov
+	_update_portals()
+
+
+func door_spec(structure: Node3D) -> Dictionary:
+	var t := str(structure.get_meta("building_type", "cabin_1"))
+	var lv := clampi(int(t.right(1)) if t.right(1).is_valid_int() else 1, 1, 3)
+	var CL := CABIN_LAYOUT
+	var leaf: Array = []
+	for n in _cabin_root.find_children("FrontDoor*", "MeshInstance3D", true, false):
+		if (n as Node3D).is_visible_in_tree():
+			leaf.append(n)
+	return {"root": _cabin_root, "at": Vector3(0.0, CL.ROOM_FLOOR, CL.size(lv).y * 0.5 + 0.03), "out": Vector3(0, 0, 1),
+		"size": Vector2(CL.DOOR_W, CL.DOOR_H), "inner": CL.WALL_T + 0.03, "leaf": leaf}
 
 
 func _bath_door_now() -> Dictionary:

@@ -53,7 +53,26 @@ static func find_doors(structure: Node3D) -> Array:
 		for m in structure.find_children(name, "MeshInstance3D", true, false):
 			if (m as MeshInstance3D).mesh is BoxMesh and not out.has(m):
 				out.append(m)
+	_mark_pairs(out)
 	return out
+
+
+## Two leaves side by side in one frame (the substation's steel pair, the pub's old double
+## door) are one doorway: the right one hangs on its right edge and swings the other way,
+## and they open together (entry_points' "pair").
+static func _mark_pairs(doors: Array) -> void:
+	for a in doors:
+		for b in doors:
+			if a == b or (a as Node).has_meta("door_pair") or _doors.has(b.get_instance_id()) or _doors.has(a.get_instance_id()):
+				continue
+			var ba: Basis = (a as Node3D).global_basis.orthonormalized()
+			var d: Vector3 = ba.inverse() * ((b as Node3D).global_position - (a as Node3D).global_position)
+			var wa := ((a as MeshInstance3D).mesh as BoxMesh).size.x
+			var wb := ((b as MeshInstance3D).mesh as BoxMesh).size.x
+			if d.x > 0.0 and absf(d.y) < 0.05 and absf(d.z) < 0.03 and absf(d.x - (wa + wb) * 0.5) < 0.08:
+				(b as Node).set_meta("hinge_right", true)
+				(a as Node).set_meta("door_pair", b)
+				(b as Node).set_meta("door_pair", a)
 
 
 ## Where to stand to go in: {outside, inside, door (or null), duck} in world space. Outside
@@ -68,6 +87,7 @@ static func entry_points(structure: Node3D, pick := 0) -> Dictionary:
 	var door: MeshInstance3D = doors[absi(pick) % doors.size()] if not doors.is_empty() else null
 	var centre: Vector3
 	var normal: Vector3
+	var way_pane: MeshInstance3D = null
 	var flaps: Array = structure.find_children("TentFlap", "MeshInstance3D", true, false) if door == null else []
 	if door != null and _doors.has(door.get_instance_id()):
 		centre = _doors[door.get_instance_id()]["centre_global"]
@@ -79,6 +99,7 @@ static func entry_points(structure: Node3D, pick := 0) -> Dictionary:
 		var flap: Node3D = flaps[absi(pick) % flaps.size()]
 		centre = flap.global_position
 		normal = flap.global_basis.z
+		way_pane = flap.get_parent().get_node_or_null("TentDoorWay") as MeshInstance3D
 	else:
 		# (get_meta with a null default still complains when the key is missing.)
 		var size: Vector3 = structure.get_meta("model_size") if structure.has_meta("model_size") and structure.get_meta("model_size") is Vector3 else Vector3(2, 2, 2)
@@ -86,8 +107,21 @@ static func entry_points(structure: Node3D, pick := 0) -> Dictionary:
 		centre = structure.global_position + normal.normalized() * size.z * 0.5
 	normal.y = 0.0
 	normal = normal.normalized() if normal.length() > 0.01 else Vector3.BACK
+	# A double door: its middle, both leaves.
+	var pair: MeshInstance3D = null
+	if door != null and door.has_meta("door_pair") and is_instance_valid(door.get_meta("door_pair")):
+		pair = door.get_meta("door_pair") as MeshInstance3D
+		var other: Vector3 = _doors[pair.get_instance_id()]["centre_global"] if _doors.has(pair.get_instance_id()) else pair.global_position
+		centre = (centre + other) * 0.5
 	var ground := Vector3(centre.x, structure.global_position.y, centre.z)
-	return {"outside": ground + normal * 0.7, "inside": ground - normal * 0.55, "door": door, "duck": door == null and not flaps.is_empty()}
+	# The doorway's floor in the leaf's plane (door_through lays the room's door on it).
+	var sill := ground
+	if door != null:
+		sill.y = centre.y - (door.mesh as BoxMesh).size.y * 0.5
+	var out := {"outside": ground + normal * 0.7, "inside": ground - normal * 0.55, "door": door, "pair": pair, "duck": door == null and not flaps.is_empty(), "sill": sill, "normal": normal}
+	if way_pane != null:
+		out["pane"] = way_pane
+	return out
 
 
 ## Open `door` now and keep it open for `seconds`.
@@ -102,6 +136,26 @@ static func open(door: MeshInstance3D, seconds: float = 1.6) -> void:
 	_doors[id]["quiet"] = false
 
 
+## The doorway behind `door` (it is hung now if nobody has used it yet): door_through puts
+## the room's picture on it.
+static func way_of(door: MeshInstance3D) -> MeshInstance3D:
+	if door == null or not is_instance_valid(door):
+		return null
+	var id := door.get_instance_id()
+	if not _doors.has(id) and not _hang(door):
+		return null
+	return _doors[id].get("hole", null) as MeshInstance3D
+
+
+## The leaf and what is fixed on it.
+static func moving_parts(door: MeshInstance3D) -> Array:
+	if door == null or not is_instance_valid(door):
+		return []
+	var out: Array = [door]
+	out.append_array(door.find_children("*", "GeometryInstance3D", true, false))
+	return out
+
+
 ## Open `door` at once, no swing (the warden stepping out through it: a leaf still
 ## swinging out would pass through his eye), and keep it open for `seconds`.
 static func open_now(door: MeshInstance3D, seconds: float = 1.6) -> void:
@@ -111,7 +165,7 @@ static func open_now(door: MeshInstance3D, seconds: float = 1.6) -> void:
 	var d: Dictionary = _doors[door.get_instance_id()]
 	d["angle"] = OPEN_DEG
 	d["quiet"] = true
-	(d["pivot"] as Node3D).basis = (d["base"] as Basis) * Basis(Vector3.UP, deg_to_rad(OPEN_DEG))
+	(d["pivot"] as Node3D).basis = (d["base"] as Basis) * Basis(Vector3.UP, deg_to_rad(OPEN_DEG * float(d.get("sign", 1.0))))
 	if is_instance_valid(d.get("hole", null)):
 		(d["hole"] as Node3D).visible = true
 
@@ -123,9 +177,12 @@ static func _hang(door: MeshInstance3D) -> bool:
 		return false
 	var base_global := door.global_basis
 	var centre_global := door.global_position
+	# The right leaf of a double door hangs on its right edge.
+	var right := door.has_meta("hinge_right")
+	var hx := box.size.x * (0.5 if right else -0.5)
 	var pivot := Node3D.new()
 	pivot.name = door.name + "Hinge"
-	pivot.transform = Transform3D(door.basis, door.position - door.basis.x * box.size.x * 0.5)
+	pivot.transform = Transform3D(door.basis, door.position + door.basis.x * hx)
 	parent.add_child(pivot)
 	# A model may have its own doorway (<leaf>Way: the reception's shows the office); else
 	# a dark one.
@@ -151,7 +208,8 @@ static func _hang(door: MeshInstance3D) -> bool:
 	for c in parent.get_children():
 		# (Not the doorway's own dark: taken for a fitting, it swung out with the leaf and
 		# the bare wall stood in the doorway, walked through: playtest 25. 10.)
-		if c == door or c == hole or not (c is MeshInstance3D or c is Label3D):
+		# (A card hung on it, a Sprite3D, too: the pub's OTEVRENO stayed in the air.)
+		if c == door or c == hole or not (c is MeshInstance3D or c is Label3D or c is Sprite3D):
 			continue
 		var at: Vector3 = to_leaf * (c as Node3D).position
 		if absf(at.x) > box.size.x * 0.5 or absf(at.y) > box.size.y * 0.5 or absf(at.z) > 0.12:
@@ -160,10 +218,16 @@ static func _hang(door: MeshInstance3D) -> bool:
 			var s: Vector3 = ((c as MeshInstance3D).mesh as BoxMesh).size
 			if s.x >= box.size.x * 0.9 or s.y >= box.size.y * 0.9:
 				continue
+		# (Nor the front's whole picture the door is painted on: the leaf's own face is cut
+		# from it, the size of the leaf.)
+		if c is MeshInstance3D and (c as MeshInstance3D).mesh is QuadMesh:
+			var qs: Vector2 = ((c as MeshInstance3D).mesh as QuadMesh).size
+			if qs.x >= box.size.x * 1.2 or qs.y >= box.size.y * 1.2:
+				continue
 		fittings.append(c)
 	parent.remove_child(door)
 	pivot.add_child(door)
-	door.transform = Transform3D(Basis(), Vector3(box.size.x * 0.5, 0, 0))
+	door.transform = Transform3D(Basis(), Vector3(-hx, 0, 0))
 	for f in fittings:
 		(f as Node3D).reparent(door, true)
 	# Its creak and its thud, from the door.
@@ -174,7 +238,7 @@ static func _hang(door: MeshInstance3D) -> bool:
 	snd.max_distance = 16.0
 	snd.position = pivot.position
 	parent.add_child(snd)
-	_doors[door.get_instance_id()] = {"door": door, "pivot": pivot, "hole": hole, "snd": snd, "base": pivot.basis, "base_global": base_global, "centre_global": centre_global, "angle": 0.0, "open_until": -1.0, "speed": 0.0, "bounced": false, "quiet": false}
+	_doors[door.get_instance_id()] = {"door": door, "pivot": pivot, "hole": hole, "snd": snd, "base": pivot.basis, "base_global": base_global, "centre_global": centre_global, "angle": 0.0, "open_until": -1.0, "speed": 0.0, "bounced": false, "quiet": false, "sign": -1.0 if right else 1.0}
 	return true
 
 
@@ -234,7 +298,7 @@ static func tick(delta: float) -> void:
 					_sound(d, SHUTS, -12.0)
 		if a != a0:
 			d["angle"] = a
-			pivot.basis = (d["base"] as Basis) * Basis(Vector3.UP, deg_to_rad(a))
+			pivot.basis = (d["base"] as Basis) * Basis(Vector3.UP, deg_to_rad(a * float(d.get("sign", 1.0))))
 			if is_instance_valid(d.get("hole", null)):
 				(d["hole"] as Node3D).visible = absf(a) > 4.0
 	for id in gone:

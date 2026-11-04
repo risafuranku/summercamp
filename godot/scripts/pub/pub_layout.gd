@@ -53,8 +53,10 @@ const ASHTRAY_CARDS := Vector3(0.3, 0.74, -0.28)
 ## everywhere"): what prepares first, then what makes and serves, then the side jobs.
 ## You come in at the tap (where an order starts), the first time.
 const ENTRY := "tap"
-## The front door seen from inside (on the front wall, room space; the building's door).
-const FRONT_DOOR := Vector3(-1.88, 0.0, 2.3)
+## The front door seen from inside (on the front wall, room space; the building's door:
+## the middle of the double door on the front's picture, 44-86 of its 271 px across 6 m;
+## it was -1.88 for the old picture, 0.3 m off the new one's door, 4. 11.).
+const FRONT_DOOR := Vector3(-1.56, 0.0, 2.3)
 const FRONT_DOOR_SIZE := Vector2(1.1, 2.02)
 const STATIONS := {
 	"keg": {"room": "cellar", "at": Vector3(-1.0, 0.55, -1.85), "size": Vector3(1.0, 1.1, 0.8), "stand": Vector3(-1.0, 0.05, -1.15), "pose": "fix", "mark": Vector3(-1.0, 1.45, -1.85), "label": "the keg", "tab_label": "KEG", "icon": "res://assets/textury/ui/mark_keg.png"},

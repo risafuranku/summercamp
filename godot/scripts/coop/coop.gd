@@ -853,6 +853,26 @@ func _inv(kind: String, data: Array) -> void:
 		sender = 0
 
 
+## A tent's door unzipped or zipped up (interior_manager.tent_doors), everyone's to
+## everyone: it stays as somebody left it on every machine.
+func send_tent_door(key: String, open: bool) -> void:
+	if role != Role.NONE and not wardens.is_empty():
+		_tent_door.rpc(key, open)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _tent_door(key: String, open: bool) -> void:
+	var id := multiplayer.get_remote_sender_id()
+	if not wardens.has(id):
+		return
+	var main := _main()
+	var im = main.get("_interior_manager") if main != null else null
+	if im != null and im.has_method("set_tent_door"):
+		sender = id
+		im.set_tent_door(key, open, false)
+		sender = 0
+
+
 ## A room's curtains (scripts/ui/window_portal.gd), everyone's to everyone: the building
 ## (its room key) and each window's curtain open or shut, drawn on every machine.
 func send_curtains(key: String, state: Array) -> void:

@@ -193,6 +193,7 @@ func open_caravan(level: int = 1, walked := false) -> void:
 
 
 func close_caravan() -> void:
+	_door_anchor = null
 	if not _is_open:
 		return
 	_kill_walk()
@@ -289,7 +290,34 @@ const FLOOR_UP := -0.45
 func _anchor() -> Node3D:
 	var im := get_parent()
 	var n = im.get("_active_caravan_node") if im != null else null
+	if n == null:
+		n = _door_anchor
 	return n as Node3D if n != null and is_instance_valid(n) and (n as Node3D).is_inside_tree() else null
+
+
+## The way through the door (scripts/ui/door_through.gd): the van as this one is, its door
+## where the model has it; the van walks its own way in from your eye in the doorway.
+var _door_anchor: Node3D
+
+
+func door_ready(structure: Node3D) -> void:
+	_door_anchor = structure
+	if _inview_van != structure:
+		_release_inview()
+		_take_inview(structure)
+
+
+func door_spec(structure: Node3D) -> Dictionary:
+	var panes := _panes_of(structure)
+	if panes.is_empty() or _root == null:
+		return {}
+	var model := (panes[0] as Node3D).get_parent() as Node3D
+	return {"root": _root, "at": Vector3(DOOR_X, 0.0, W * 0.5 + 0.026), "out": Vector3(0, 0, 1), "size": Vector2(DOOR_W, DOOR_H),
+		"inner": WALL_T + 0.026, "leaf": [], "in_camp": model.global_transform * Transform3D(Basis(), Vector3(0.0, VAN_FLOOR, 0.0))}
+
+
+func door_walk_in(from: Transform3D, fov: float) -> void:
+	_walk_in(from, fov)
 
 
 func _tick_windows(delta: float) -> void:
@@ -678,16 +706,23 @@ func _door_open() -> float:
 	return clampf(_door_pivot.rotation_degrees.y / DOOR_OPEN_DEG, 0.0, 1.0) if _door_pivot != null else 0.0
 
 
-## In from the doorstep (interior_manager has walked you up to the door and opened it).
-func _walk_in() -> void:
+## In from the doorstep (interior_manager has walked you up to the door and opened it);
+## `from` (global) where your eye was in the doorway when you walked up to it.
+func _walk_in(from := Transform3D(), from_fov := -1.0) -> void:
 	_kill_walk()
 	_walking = true
 	_door_pivot.rotation_degrees.y = DOOR_OPEN_DEG
-	_interior_camera.fov = _camp_fov()
-	_interior_camera.position = STEP_EYE
-	_interior_camera.rotation = Vector3(-0.04, 0.0, 0.0)
+	var start_pos := STEP_EYE
+	var start_rot := Vector3(-0.04, 0.0, 0.0)
+	if from != Transform3D() and _interior_camera.get_parent() is Node3D:
+		var l := (_interior_camera.get_parent() as Node3D).global_transform.affine_inverse() * from
+		start_pos = l.origin
+		start_rot = l.basis.orthonormalized().get_euler(EULER_ORDER_YXZ)
+	_interior_camera.fov = from_fov if from_fov > 0.0 else _camp_fov()
+	_interior_camera.position = start_pos
+	_interior_camera.rotation = start_rot
 	_walk = WALK_PATH.play(self, _interior_camera, [
-		{"pos": STEP_EYE, "rot": Vector3(-0.04, 0.0, 0.0)},
+		{"pos": start_pos, "rot": start_rot},
 		{"pos": Vector3(DOOR_X + 0.06, 1.46, W * 0.5 - 0.24), "rot": Vector3(-0.07, deg_to_rad(-38.0), 0.0)},
 		{"pos": EYE, "rot": Vector3(deg_to_rad(EYE_PITCH_DEG), deg_to_rad(EYE_YAW_DEG), 0.0)},
 	], 1.2)

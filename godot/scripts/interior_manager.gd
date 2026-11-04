@@ -40,6 +40,9 @@ const COOP_LOOKS = preload("res://scripts/coop/warden_looks.gd")
 ## The beds of the camp's own tents, cabins and caravans for a warden to sleep in.
 const LODGE_BED = preload("res://scripts/lodge_bed.gd")
 const DOOR_ANIM = preload("res://scripts/attractions/door_anim.gd")
+## On foot through a door, in and out, at every building (scripts/ui/door_through.gd).
+const DOOR_THROUGH = preload("res://scripts/ui/door_through.gd")
+var through: Node
 var lodge_bed: Node
 
 const TIME_NIGHT: int = 2
@@ -155,6 +158,10 @@ func town_trip() -> Node:
 	return _town_trip
 
 
+func _process(delta: float) -> void:
+	_tick_tent_doors(delta)
+
+
 ## The camp is about to give way to a room, or a room has just closed: the frame on
 ## screen still shows what was there; it breaks up into what is there now.
 func _door_transition(going_in: bool) -> void:
@@ -188,6 +195,10 @@ func setup(
 	if _door_fx == null:
 		_door_fx = DOOR_TRANSITION_SCRIPT.new()
 		add_child(_door_fx)
+	if through == null:
+		through = DOOR_THROUGH.new()
+		through.name = "DoorThrough"
+		add_child(through)
 	if _town_trip == null:
 		_town_trip = TOWN_TRIP_SCRIPT.new()
 		_town_trip.name = "TownTrip"
@@ -745,6 +756,33 @@ func stepping_out() -> bool:
 	return _stepping_out != null and _stepping_out.is_valid() and _stepping_out.is_running()
 
 
+## Out of `room` on foot (door_through): its walk to the door, the leaf opening on the camp;
+## `close` shuts the room on the step. false: the caller closes it as it is.
+func leave_on_foot(room: Object, structure: Node3D, close: Callable) -> bool:
+	if structure == null or not is_instance_valid(structure) or stepping_out():
+		return false
+	var doors: Array = DOOR_ANIM.find_doors(structure)
+	if doors.is_empty():
+		doors = structure.find_children("TentFlap", "MeshInstance3D", true, false)
+	var body := _player as Node3D
+	var pick := 0
+	var best := INF
+	for i in doors.size():
+		var d := body.global_position.distance_to((doors[i] as Node3D).global_position)
+		if d < best:
+			best = d
+			pick = i
+	var way: Dictionary = DOOR_ANIM.entry_points(structure, pick)
+	return not way.is_empty() and through.leave(room, structure, way, _world_3d, close)
+
+
+## Where the walk out through a door left the eye in the camp, once; INF for none.
+func _through_eye() -> Vector3:
+	var eye: Vector3 = through.handoff_eye
+	through.handoff_eye = Vector3.INF
+	return eye
+
+
 ## `from_eye`: where the room's own walk out left the eye in the camp (the caravan's
 ## doorway): the body starts under it, so the camp's view goes on from the same point.
 func _step_out_of(structure: Node3D, from_eye := Vector3.INF) -> void:
@@ -774,6 +812,8 @@ func _step_out_of(structure: Node3D, from_eye := Vector3.INF) -> void:
 	sill.y = body.global_position.y
 	if way["door"] != null:
 		DOOR_ANIM.open_now(way["door"], WALK_OUT_SEC + 0.6)
+	if way.get("pair") != null:
+		DOOR_ANIM.open_now(way["pair"], WALK_OUT_SEC + 0.6)
 	var from: Vector3 = sill + out * STEP_OUT_FROM
 	var head := body.get_node_or_null("Head") as Node3D
 	if from_eye.is_finite() and head != null:
@@ -843,7 +883,7 @@ var _walked_up_to := 0
 var _walked_in_ms := -100000
 
 
-func _walk_up_first(structure: Node3D, again: Callable) -> bool:
+func _walk_up_first(structure: Node3D, again: Callable, room: Object = null) -> bool:
 	if structure == null or not is_instance_valid(structure):
 		return false
 	if _walked_up_to == structure.get_instance_id():
@@ -876,8 +916,20 @@ func _walk_up_first(structure: Node3D, again: Callable) -> bool:
 	var d := Vector2(body.global_position.x - to.x, body.global_position.z - to.z).length()
 	if d > WALK_UP_FROM_M or d < 0.2:
 		return false
+	# A tent: its door unzipped as you come, and down on your knees to it.
+	if bool(way.get("duck", false)):
+		set_tent_door(_room_key_for(structure), true)
+		if body.has_method("set_stance"):
+			body.call("set_stance", 2)
+	# The room on the other side, seen through the door as it opens.
+	if room != null:
+		_apply_time_to_interior(room)
+		through.approach(room, structure, way, _world_3d)
+		_push_room_state(room, structure)
 	if way["door"] != null:
 		DOOR_ANIM.open(way["door"], 3.0)
+	if way.get("pair") != null:
+		DOOR_ANIM.open(way["pair"], 3.0)
 	_set_player_controls_enabled(false)
 	var mask := body.collision_mask
 	body.collision_mask = 0
@@ -903,6 +955,9 @@ func _walk_up_first(structure: Node3D, again: Callable) -> bool:
 
 ## Inside, the room's eye takes the last step in from the doorway to where it stands.
 func _step_in(interior: Object) -> void:
+	if through.coming_to(interior):
+		through.step_in()
+		return
 	var cam := interior.get("_interior_camera") as Camera3D if interior != null else null
 	if cam == null or not (interior is Node):
 		return
@@ -918,7 +973,7 @@ func _on_tent_interact(tent_node: Node) -> void:
 		return
 	if _refuse_if_occupied(tent_node as Node3D, "tent"):
 		return
-	if _walk_up_first(tent_node as Node3D, _on_tent_interact.bind(tent_node)):
+	if _walk_up_first(tent_node as Node3D, _on_tent_interact.bind(tent_node), _tent_interior):
 		return
 	var level = 1
 	var tent_type = str(tent_node.get_meta("building_type", "tent_1"))
@@ -979,7 +1034,7 @@ func _on_caravan_interact(caravan_node: Node) -> void:
 		return
 	if _refuse_if_occupied(caravan_node as Node3D, "caravan"):
 		return
-	if _walk_up_first(caravan_node as Node3D, _on_caravan_interact.bind(caravan_node)):
+	if _walk_up_first(caravan_node as Node3D, _on_caravan_interact.bind(caravan_node), _caravan_interior):
 		return
 	var t := str(caravan_node.get_meta("building_type", "caravan_1"))
 	var level := clampi(int(t.right(1)), 1, 3)
@@ -987,11 +1042,15 @@ func _on_caravan_interact(caravan_node: Node) -> void:
 	_apply_time_to_interior(_caravan_interior)
 	_door_transition(true)
 	# The room takes the walk on from the doorstep: up the step, down the van (the camp
-	# walked you up to the door and opened it).
-	_caravan_interior.open_caravan(level, true)
+	# walked you up to the door and opened it), from your very eye in the doorway when you
+	# walked up to it (door_through).
+	var on_foot: bool = through.coming_to(_caravan_interior)
+	_caravan_interior.open_caravan(level, not on_foot)
+	if on_foot:
+		_step_in(_caravan_interior)
 	call_deferred("_restore_curtains")
 	_push_room_state(_caravan_interior, _active_caravan_node)
-	if _audio_manager != null and _audio_manager.has_method("play_door_open"):
+	if not on_foot and _audio_manager != null and _audio_manager.has_method("play_door_open"):
 		_audio_manager.play_door_open()
 	_set_player_controls_enabled(false)
 
@@ -1030,16 +1089,17 @@ func _on_caravan_upgrade_requested() -> void:
 func _on_bowling_interact(structure: Node3D) -> void:
 	if _bowling_interior == null or _bowling_interior.is_open():
 		return
-	if _walk_up_first(structure, _on_bowling_interact.bind(structure)):
+	if _walk_up_first(structure, _on_bowling_interact.bind(structure), _bowling_interior):
 		return
 	var origin = structure.get_meta("grid_origin", null)
 	var bkey := "%d:%d" % [origin.x, origin.y] if origin is Vector2i else ""
 	_active_bowling_node = structure
 	_apply_time_to_interior(_bowling_interior)
 	_door_transition(true)
+	var on_foot: bool = through.coming_to(_bowling_interior)
 	_bowling_interior.open_bowling(bkey)
 	_step_in(_bowling_interior)
-	if _audio_manager != null and _audio_manager.has_method("play_door_open"):
+	if not on_foot and _audio_manager != null and _audio_manager.has_method("play_door_open"):
 		_audio_manager.play_door_open()
 	_set_player_controls_enabled(false)
 
@@ -1060,7 +1120,7 @@ func _on_bowling_closed() -> void:
 	var was: Node3D = _active_bowling_node
 	_active_bowling_node = null
 	_play_door_close()
-	_step_out_of(was)
+	_step_out_of(was, _through_eye())
 
 
 func _on_tent_closed() -> void:
@@ -1068,7 +1128,10 @@ func _on_tent_closed() -> void:
 		_tent_interior.set_guest_occupants([])
 	var was: Node3D = _active_tent_node
 	_active_tent_node = null
-	_step_out_of(was)
+	# Up off your knees as you come out of it.
+	if _player != null and _player.has_method("set_stance"):
+		_player.call("set_stance", 0)
+	_step_out_of(was, _through_eye())
 
 
 func _setup_cabin_interior() -> void:
@@ -1098,7 +1161,7 @@ func _on_cabin_interact(cabin_node: Node) -> void:
 		return
 	if _refuse_if_occupied(cabin_node as Node3D, "cabin"):
 		return
-	if _walk_up_first(cabin_node as Node3D, _on_cabin_interact.bind(cabin_node)):
+	if _walk_up_first(cabin_node as Node3D, _on_cabin_interact.bind(cabin_node), _cabin_interior):
 		return
 	var level = 1
 	var cabin_type = str(cabin_node.get_meta("building_type", "cabin_1"))
@@ -1117,12 +1180,13 @@ func _on_cabin_interact(cabin_node: Node) -> void:
 	if _cabin_interior.has_method("set_world_anchor"):
 		_cabin_interior.set_world_anchor(_active_cabin_node)
 	_door_transition(true)
+	var on_foot: bool = through.coming_to(_cabin_interior)
 	_cabin_interior.open_cabin(level)
 	_step_in(_cabin_interior)
 	call_deferred("_restore_curtains")
 	_sync_cabin_guest_visuals()
 	_push_room_state(_cabin_interior, _active_cabin_node)
-	if _audio_manager != null and _audio_manager.has_method("play_door_open"):
+	if not on_foot and _audio_manager != null and _audio_manager.has_method("play_door_open"):
 		_audio_manager.play_door_open()
 	_set_player_controls_enabled(false)
 
@@ -1133,7 +1197,7 @@ func _on_cabin_closed() -> void:
 	var was: Node3D = _active_cabin_node
 	_active_cabin_node = null
 	_play_door_close()
-	_step_out_of(was)
+	_step_out_of(was, _through_eye())
 
 
 ## Room preparation: the interior shows the mess for what is not done yet.
@@ -1215,14 +1279,17 @@ func _on_service_interact(service_node: Node) -> void:
 	var building_type = str(structure.get_meta("building_type", ""))
 	if not _is_supported_service_building_type(building_type):
 		return
-	if _walk_up_first(structure as Node3D, _on_service_interact.bind(service_node)):
+	if _walk_up_first(structure as Node3D, _on_service_interact.bind(service_node), _service_interior):
 		return
 	_active_service_node = structure
 	_apply_time_to_interior(_service_interior)
 	if building_type == "toilet_block" and "toilet_entry" in _service_interior:
 		_service_interior.toilet_entry = _toilet_door_of(structure as Node3D)
 	_door_transition(true)
+	var on_foot: bool = through.coming_to(_service_interior)
 	_service_interior.open_service(building_type)
+	if on_foot:
+		through.step_in()
 	if _service_interior.has_method("set_upkeep_target"):
 		_service_interior.set_upkeep_target(structure.get_meta("grid_origin", Vector2i(-999, -999)), building_type)
 	call_deferred("_restore_curtains")
@@ -1230,7 +1297,7 @@ func _on_service_interact(service_node: Node) -> void:
 		var origin: Vector2i = structure.get_meta("grid_origin", Vector2i(-999, -999))
 		var state = CoreRoot.get_state() if CoreRoot != null else null
 		_service_interior.set_sewer_broken(state != null and state.failures.has("%d:%d" % [origin.x, origin.y]))
-	if _audio_manager != null and _audio_manager.has_method("play_door_open"):
+	if not on_foot and _audio_manager != null and _audio_manager.has_method("play_door_open"):
 		_audio_manager.play_door_open()
 	_set_player_controls_enabled(false)
 
@@ -1248,7 +1315,7 @@ func _on_service_closed() -> void:
 	var was: Node3D = _active_service_node as Node3D
 	_active_service_node = null
 	_play_door_close()
-	_step_out_of(was)
+	_step_out_of(was, _through_eye())
 
 
 func _on_service_repair_requested() -> void:
@@ -1732,6 +1799,60 @@ func photo_windows() -> Array:
 func photo_building() -> String:
 	var r := coop_room()
 	return str(r.get("k", ""))
+
+
+## The tents' doors as the wardens left them, "x:y" -> unzipped (the user 4. 11.: unzipped
+## from inside, it is unzipped from outside too and you see in, the warden in it too; it
+## stays so for everybody till somebody zips it up; a guest who checks in zips it).
+var tent_doors: Dictionary = {}
+var _tent_doors_t := 0.0
+
+
+func tent_door_open(key: String) -> bool:
+	return bool(tent_doors.get(key, false))
+
+
+func set_tent_door(key: String, open: bool, send := true) -> void:
+	if key == "":
+		return
+	var was := tent_door_open(key)
+	if open:
+		tent_doors[key] = true
+	else:
+		tent_doors.erase(key)
+	_show_tent_door(key, open)
+	if send and was != open and Coop.is_active():
+		Coop.send_tent_door(key, open)
+
+
+## The camp's tent at `key` as its door is: the flap, or the doorway with the flap rolled up.
+func _show_tent_door(key: String, open: bool) -> void:
+	var parts := key.split(":")
+	if parts.size() != 2:
+		return
+	var s: Node3D = DOOR_ANIM.structure_at(Vector2i(int(parts[0]), int(parts[1])))
+	if s == null:
+		return
+	for f in s.find_children("TentFlap", "MeshInstance3D", true, false):
+		(f as Node3D).visible = not open
+	for w in s.find_children("TentDoorWay", "MeshInstance3D", true, false):
+		(w as Node3D).visible = open
+	for r in s.find_children("TentDoorRoll*", "MeshInstance3D", true, false):
+		(r as Node3D).visible = open
+
+
+## Each second: a guest in a tent has zipped it; a tent built again shows its door as it is.
+func _tick_tent_doors(delta: float) -> void:
+	_tent_doors_t -= delta
+	if _tent_doors_t > 0.0:
+		return
+	_tent_doors_t = 1.0
+	for key in tent_doors.keys():
+		if GuestManager != null and bool(GuestManager.get_room_state(str(key)).get("occupied", false)) \
+				and not (_tent_interior != null and _tent_interior.is_open() and _room_key_for(_active_tent_node) == str(key)):
+			set_tent_door(str(key), false)
+		else:
+			_show_tent_door(str(key), true)
 
 
 ## Curtains drawn here: to the other wardens (they see them drawn when in the same room).

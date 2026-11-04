@@ -10,6 +10,7 @@ const INTERIOR_TORCH = preload("res://scripts/ui/interior_torch.gd")
 var _torch: Node
 const INTERIOR_PREP = preload("res://scripts/interior_prep.gd")
 const INTERIOR_KIT = preload("res://scripts/interior_kit.gd")
+const DOOR_ANIM = preload("res://scripts/attractions/door_anim.gd")
 const ROOM_WEATHER = preload("res://scripts/ambient/room_weather.gd")
 ## Node name prefix -> [camp texture, metres per repeat] (world mapped, see interior_kit).
 const SURFACES := {
@@ -143,6 +144,7 @@ func open_tent(level: int = 1) -> void:
 		_apply_time_profile()
 		_refresh_guest_visuals()
 		return
+	_release_inview()
 	_is_open = true
 	visible = true
 	_sync_viewport_to_window()
@@ -154,7 +156,8 @@ func open_tent(level: int = 1) -> void:
 	_cam_base_rot = _interior_camera.rotation
 	_look.reset()
 	_facing_door = false
-	_set_door_open(false)
+	# The door as it was left (open if you came in through it).
+	_set_door_open(_tent_door_state(), false)
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 
@@ -165,7 +168,7 @@ func close_tent() -> void:
 	if _turn_tween != null and _turn_tween.is_valid():
 		_turn_tween.kill()
 	_facing_door = false
-	_set_door_open(false)
+	_set_door_open(false, false)
 	_set_torn(false)
 	visible = false
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
@@ -173,7 +176,14 @@ func close_tent() -> void:
 
 
 func _process(delta: float) -> void:
-	if not _is_open or _interior_camera == null:
+	if not _is_open:
+		_update_inview(delta)
+		return
+	if _interior_camera == null:
+		return
+	# (Through the door: the walk has the eye.)
+	if door_walking:
+		_tick_door(delta)
 		return
 	_apply_idle_mouse_look(delta)
 	_tick_turn(delta)
@@ -195,12 +205,20 @@ func _apply_idle_mouse_look(delta: float) -> void:
 func _input(event: InputEvent) -> void:
 	if not _is_open or lodge_sleeping:
 		return
+	if door_walking:
+		if (event is InputEventMouseButton and event.pressed) or event.is_action_pressed("ui_cancel"):
+			get_viewport().set_input_as_handled()
+		return
 	if _prep != null and _prep.is_scrubbing():
 		return
 	# Esc or the way out behind you leaves (but not a
-	# click on something to tidy, however low on the screen it is).
+	# click on something to tidy, however low on the screen it is): out through the door on
+	# your knees (door_through), unzipping it if it is zipped.
 	if INTERIOR_LOOK.is_exit_event(event, get_viewport()) and not (_prep.is_busy() and event is InputEventMouseButton):
-		close_tent()
+		var im := get_parent()
+		var at = im.get("_active_tent_node") if im != null else null
+		if im == null or not im.has_method("leave_on_foot") or not bool(im.call("leave_on_foot", self, at, close_tent)):
+			close_tent()
 		get_viewport().set_input_as_handled()
 		return
 
@@ -657,6 +675,8 @@ func _turn_to_door() -> void:
 func _tick_door(delta: float) -> void:
 	if _door_portal == null:
 		return
+	# (Not while you come in through it: the eye is out in front of it, the view behind you.)
+	_door_portal.quad.visible = _door_open and not door_walking
 	var im := get_parent()
 	var a = im.get("_active_tent_node") if im != null else null
 	var anchor := a as Node3D if a != null and is_instance_valid(a) and (a as Node3D).is_inside_tree() else null
@@ -720,13 +740,37 @@ func _set_torn(on: bool) -> void:
 		am.set_room_leak(0.6 if on else 0.0)
 
 
-func _set_door_open(open: bool) -> void:
+## The key of the tent you are in ("x:y"), "" none.
+func _tent_key() -> String:
+	var im := get_parent()
+	var a = im.get("_active_tent_node") if im != null else null
+	if a == null or not is_instance_valid(a) or not im.has_method("_room_key_for"):
+		return ""
+	return str(im.call("_room_key_for", a))
+
+
+## Its door as the wardens left it (interior_manager.tent_doors).
+func _tent_door_state() -> bool:
+	var im := get_parent()
+	var key := _tent_key()
+	return key != "" and im != null and im.has_method("tent_door_open") and bool(im.call("tent_door_open", key))
+
+
+## `tell`: zipped or unzipped by you, the camp's tent (and the others') as you left it.
+func _set_door_open(open: bool, tell := true) -> void:
 	if _tent_root == null:
 		return
+	if tell and _is_open:
+		var im := get_parent()
+		var key := _tent_key()
+		if key != "" and im != null and im.has_method("set_tent_door"):
+			im.call("set_tent_door", key, open)
 	if _door_portal == null:
 		_door_portal = WINDOW_PORTAL.make(self, _tent_root, Vector3(0.0, TENT_RIDGE_HEIGHT * 0.48, 1.16), Vector3(0, 0, 1),
 			Vector2(TENT_HALF_WIDTH * 2.0, TENT_RIDGE_HEIGHT), "", 192, false)
 		_door_portal.quad.visible = false
+		# The view out is for the inside: not for the camp looking in (_update_inview).
+		_hide_from_camp(_door_portal.quad)
 		# The flaps rolled up and tied either side of the doorway.
 		for sx: float in [-1.0, 1.0]:
 			var roll := _add_box("DoorRoll%s" % ("L" if sx < 0.0 else "R"), Vector3(sx * TENT_HALF_WIDTH * 0.62, 0.42, 1.1), Vector3(0.09, 0.62, 0.09), Color(0.58, 0.48, 0.40))
@@ -751,6 +795,227 @@ func _set_door_open(open: bool) -> void:
 		_zip.volume_db = -8.0
 		if _zip.stream != null:
 			_zip.play()
+
+
+# -- through the door on your knees (scripts/ui/door_through.gd) and the camp looking in
+# through it while it is unzipped (the user 4. 11.: "unzipped from inside it should be open
+# from outside too and you should see in; you should see the warden") --
+
+var door_walking := false
+
+
+func door_ready(structure: Node3D) -> void:
+	_make_up_as(structure)
+
+
+## The room as `structure`'s tent: its tier, its guests, its door open.
+func _make_up_as(structure: Node3D) -> void:
+	var t := str(structure.get_meta("building_type", "tent_1"))
+	_tent_level = clampi(int(t.right(1)) if t.right(1).is_valid_int() else 1, 1, 3)
+	_apply_level_variant()
+	_apply_time_profile()
+	var im := get_parent()
+	if im != null and im.has_method("_guest_visuals_for_structure"):
+		_guest_occupants = im.call("_guest_visuals_for_structure", structure)
+		_refresh_guest_visuals()
+	if im != null and im.has_method("_push_room_state"):
+		im.call("_push_room_state", self, structure)
+	_set_door_open(true, false)
+
+
+func door_spec(_structure: Node3D) -> Dictionary:
+	if _tent_root == null:
+		return {}
+	return {"root": _tent_root, "at": Vector3(0.0, 0.0, DOOR_PLANE_Z), "out": Vector3(0, 0, 1),
+		"size": Vector2(TENT_HALF_WIDTH * 2.0, TENT_RIDGE_HEIGHT), "inner": 0.05, "leaf": []}
+
+
+## On the way out: the door unzips as you come to it (and stays so).
+func door_opening() -> void:
+	if not _door_open:
+		_set_door_open(true)
+
+
+const INVIEW_RANGE := 26.0
+## What lies over the room's doorway inside (the camp's view in it): not for the camp's eye.
+const INVIEW_HIDE_LAYER := 1 << 17
+const COOP_FIGURE = preload("res://scripts/coop/remote_player.gd")
+const COOP_LOOKS = preload("res://scripts/coop/warden_looks.gd")
+var _inview_vp: SubViewport
+var _inview_cam: Camera3D
+var _inview_mat: ShaderMaterial
+var _inview_way: MeshInstance3D
+var _inview_tent: Node3D
+var _inview_ways: Array = []
+var _inview_scan_t := 0.0
+var _inview_light_t := 0.0
+var _inview_figs: Dictionary = {}
+
+
+func _camp_camera() -> Camera3D:
+	var scene := get_tree().current_scene if is_inside_tree() else null
+	var w3d = scene.get("_world_3d") if scene != null else null
+	if w3d is Node3D and (w3d as Node3D).is_inside_tree():
+		return (w3d as Node3D).get_viewport().get_camera_3d()
+	return null
+
+
+## The camp's unzipped tents' doorways: [[structure, pane]].
+func _find_open_ways() -> Array:
+	var out: Array = []
+	var im := get_parent()
+	var doors = im.get("tent_doors") if im != null else null
+	if not (doors is Dictionary):
+		return out
+	for key in (doors as Dictionary).keys():
+		var p := str(key).split(":")
+		if p.size() != 2:
+			continue
+		var s: Node3D = DOOR_ANIM.structure_at(Vector2i(int(p[0]), int(p[1])))
+		if s == null:
+			continue
+		for w in s.find_children("TentDoorWay", "MeshInstance3D", true, false):
+			out.append([s, w])
+	return out
+
+
+func _update_inview(delta: float) -> void:
+	var cam := _camp_camera()
+	var way: MeshInstance3D = null
+	var tent: Node3D = null
+	if cam != null and _tent_root != null:
+		_inview_scan_t -= delta
+		if _inview_scan_t <= 0.0:
+			_inview_scan_t = 0.5
+			_inview_ways = _find_open_ways()
+		var best := INVIEW_RANGE
+		for e in _inview_ways:
+			var w = e[1]
+			if not is_instance_valid(w) or not (w as MeshInstance3D).is_visible_in_tree():
+				continue
+			var to: Vector3 = cam.global_position - (w as Node3D).global_position
+			if to.length() >= best or (w as Node3D).global_basis.z.dot(to) <= 0.05:
+				continue
+			best = to.length()
+			way = w
+			tent = e[0]
+	if way != _inview_way:
+		_release_inview()
+		if way != null:
+			_take_inview(tent, way)
+	if _inview_way == null:
+		return
+	# The camp's eye in the room, the doors laid one on the other: the doorway's foot on
+	# the room's door plane.
+	var camp_frame := Transform3D(_inview_way.global_basis.orthonormalized(), _inview_way.global_position)
+	var room_frame := _tent_root.global_transform * Transform3D(Basis(), Vector3(0.0, 0.0, DOOR_PLANE_Z))
+	var t := room_frame * camp_frame.affine_inverse() * cam.global_transform
+	_inview_cam.global_transform = Transform3D(t.basis.orthonormalized(), t.origin)
+	_inview_cam.fov = cam.fov
+	_inview_cam.keep_aspect = cam.keep_aspect
+	_inview_cam.projection = cam.projection
+	var nk := _inview_cam.near / maxf(cam.near, 0.001)
+	_inview_cam.size = cam.size * nk
+	_inview_cam.frustum_offset = cam.frustum_offset * nk
+	var px := Vector2i(cam.get_viewport().get_visible_rect().size)
+	if _inview_vp.size != px and px.x > 0:
+		_inview_vp.size = px
+	_inview_light_t -= delta
+	if _inview_light_t <= 0.0:
+		_inview_light_t = 0.25
+		var im := get_parent()
+		var ll: Array = im.get("_last_light") if im != null and im.get("_last_light") != null else []
+		if ll.size() >= 4:
+			set_daylight_profile(ll[0], ll[1], ll[2], ll[3])
+		_inview_wardens()
+
+
+func _take_inview(tent: Node3D, way: MeshInstance3D) -> void:
+	_ensure_inview()
+	_inview_tent = tent
+	_inview_way = way
+	_make_up_as(tent)
+	if not way.has_meta("dark_mat"):
+		way.set_meta("dark_mat", way.material_override)
+	way.material_override = _inview_mat
+	_inview_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	_inview_light_t = 0.0
+
+
+func _release_inview() -> void:
+	if _inview_way != null and is_instance_valid(_inview_way) and _inview_way.material_override == _inview_mat and _inview_way.has_meta("dark_mat"):
+		_inview_way.material_override = _inview_way.get_meta("dark_mat")
+	_inview_way = null
+	_inview_tent = null
+	if _inview_vp != null:
+		_inview_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	for id in _inview_figs.keys():
+		var f = _inview_figs[id]
+		if f != null and is_instance_valid(f):
+			f.queue_free()
+	_inview_figs.clear()
+
+
+func _ensure_inview() -> void:
+	if _inview_vp != null:
+		return
+	_inview_vp = SubViewport.new()
+	_inview_vp.name = "TentFromCamp"
+	_inview_vp.size = Vector2i(426, 240)
+	_inview_vp.world_3d = _viewport.find_world_3d()
+	_inview_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	add_child(_inview_vp)
+	_inview_cam = Camera3D.new()
+	_inview_cam.near = 0.05
+	_inview_cam.far = 30.0
+	_inview_cam.cull_mask = 0xFFFFF & ~INVIEW_HIDE_LAYER
+	_inview_vp.add_child(_inview_cam)
+	_inview_mat = ShaderMaterial.new()
+	_inview_mat.shader = load("res://materials/window_into.gdshader")
+	_inview_mat.set_shader_parameter("room_tex", _inview_vp.get_texture())
+	_inview_mat.set_shader_parameter("live", 1.0)
+	_inview_mat.set_shader_parameter("tint", Vector3.ONE)
+	_inview_mat.set_shader_parameter("sheen", 0.0)
+	_inview_mat.set_shader_parameter("depth_pull", 0.009)
+	# The room's own view out through the doorway is for the inside.
+	if _door_portal != null:
+		_hide_from_camp(_door_portal.quad)
+
+
+static func _hide_from_camp(n: Node) -> void:
+	if n is VisualInstance3D:
+		(n as VisualInstance3D).layers = INVIEW_HIDE_LAYER
+	for c in n.get_children():
+		_hide_from_camp(c)
+
+
+## The other wardens in this tent, seen through its door: on their knees in it, facing out.
+func _inview_wardens() -> void:
+	var key := ""
+	var im := get_parent()
+	if im != null and _inview_tent != null and im.has_method("_room_key_for"):
+		key = str(im.call("_room_key_for", _inview_tent))
+	var seen: Array = []
+	if key != "" and Coop.is_active():
+		for id in Coop.others():
+			var info: Dictionary = Coop.state_of(id).get("room", {})
+			if str(info.get("k", "")) != key:
+				continue
+			seen.append(id)
+			var fig = _inview_figs.get(id)
+			if fig == null or not is_instance_valid(fig):
+				var look: Dictionary = Coop.look_of(id)
+				fig = COOP_FIGURE.new()
+				fig.setup(int(look.get("m", 1)), int(look.get("c", 0)), true)
+				_viewport.add_child(fig)
+				_inview_figs[id] = fig
+			fig.show_at(_tent_root.global_transform * Vector3(0.0, 0.0, 0.25), "crouch", false, _tent_root.global_basis * Vector3(0, 0, 1))
+	for id in _inview_figs.keys():
+		if not id in seen:
+			var f = _inview_figs[id]
+			if f != null and is_instance_valid(f):
+				f.queue_free()
+			_inview_figs.erase(id)
 
 
 ## Whether the pointer (normalised) is on the door: the ray through it onto the front
