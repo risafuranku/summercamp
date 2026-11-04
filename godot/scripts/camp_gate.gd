@@ -115,6 +115,27 @@ func set_night(night: bool) -> void:
 		_booth_light.visible = night
 
 
+## Whoever walks through lifts it (the user 4. 11.: "all the characters must"): a figure in
+## the group "gate_users" coming up to the arm, on foot, from either side.
+const USER_NEAR_M := 4.5
+var _users_poll := 0.0
+
+
+func _process(delta: float) -> void:
+	_users_poll -= delta
+	if _users_poll > 0.0:
+		return
+	_users_poll = 0.25
+	for n in get_tree().get_nodes_in_group("gate_users"):
+		var f := n as Node3D
+		if f == null or not f.is_visible_in_tree():
+			continue
+		var p := f.global_position
+		if absf(p.x - gap_center_x) < 3.2 and absf(p.z - fence_z) < USER_NEAR_M:
+			_raise(2.0)
+			return
+
+
 func open_briefly() -> void:
 	_party_until = _now() + OPEN_HOLD_SEC
 	_raise(OPEN_HOLD_SEC)

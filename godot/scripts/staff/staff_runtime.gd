@@ -699,6 +699,7 @@ func _draw() -> void:
 		if spr == null or not is_instance_valid(spr):
 			spr = Sprite3D.new()
 			spr.name = "StaffHand_" + slug
+			spr.add_to_group("gate_users")
 			spr.pixel_size = PERSON_M / 128.0
 			spr.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 			spr.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD

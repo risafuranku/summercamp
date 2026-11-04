@@ -25,6 +25,10 @@ const DOOR_ANIM := preload("res://scripts/attractions/door_anim.gd")
 const CREW := preload("res://scripts/business/crew_figures.gd")
 const STAND := preload("res://scripts/business/corn_stand_life.gd")
 const TIMES := preload("res://scripts/town/bus_timetable.gd")
+const GEO := preload("res://scripts/geo/geo_data.gd")
+## How long a hand stands at the stop for the works bus at most (hours): past that there is
+## none tonight and they are gone down the road.
+const STOP_WAIT_H := 2.5
 const PERSON_M := 1.74
 ## Their pace: the guests' 1.35 m/s, in metres a game minute (1.25 game minutes a second).
 const M_PER_MIN := 1.35 / 1.25
@@ -139,12 +143,38 @@ func _now_walking(h: float) -> Array:
 				out.append({"id": id, "slug": slug, "path": path_in, "k": (h - come) / walk_h, "in": true, "key": str(key)})
 			elif bool(place.get("stays", false)) and h >= come + walk_h and h < opens:
 				out.append({"id": id, "slug": slug, "path": PackedVector3Array([place["at"], place["at"] + (place.get("face", Vector3.FORWARD) as Vector3) * 0.2]), "k": 0.0, "standing": true})
-			elif h >= ends:
+			elif (h + 24.0 if h < 6.0 else h) >= ends:
+				# Out through the barrier and on down the road to the stop, to wait there
+				# for the works bus (they went out of being just past the barrier: the
+				# user 4. 11.).
+				var hh := h + 24.0 if h < 6.0 else h
 				var path_out := _way(id + "/out/%d" % day, sr, place["at"], road)
+				if not _ways.has(id + "/home/%d" % day):
+					var home := PackedVector3Array(path_out)
+					home.append(_camp_stop(road))
+					_ways[id + "/home/%d" % day] = home
+				path_out = _ways[id + "/home/%d" % day]
 				var out_h := maxf(1.0, _len(path_out) / M_PER_MIN) / 60.0
-				if h < ends + out_h:
-					out.append({"id": id, "slug": slug, "path": path_out, "k": (h - ends) / out_h})
+				var gone := ends + out_h
+				for t in TIMES.STAFF_LEAVE:
+					if float(t) >= gone and float(t) - gone < STOP_WAIT_H:
+						gone = float(t)
+						break
+				if hh < gone:
+					var k := (hh - ends) / out_h
+					out.append({"id": id, "slug": slug, "path": path_out, "k": minf(k, 1.0), "standing": k >= 1.0})
 	return out
+
+
+## Where the hands wait for the bus: by the camp's stop, on the ground.
+func _camp_stop(fallback: Vector3) -> Vector3:
+	var s: Dictionary = GEO.stop_point("camp")
+	var p = s.get("p", s.get("pos", null))
+	if p is Vector2:
+		return Vector3((p as Vector2).x, fallback.y, (p as Vector2).y)
+	if p is Vector3:
+		return Vector3((p as Vector3).x, fallback.y, (p as Vector3).z)
+	return fallback
 
 
 func _way(cache: String, sr: Node, a: Vector3, b: Vector3) -> PackedVector3Array:
@@ -227,6 +257,7 @@ func _exit_tree() -> void:
 func _make(slug: String) -> Sprite3D:
 	var s := Sprite3D.new()
 	s.name = "Commuter_" + slug
+	s.add_to_group("gate_users")
 	s.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 	s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	s.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD

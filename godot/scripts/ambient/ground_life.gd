@@ -19,6 +19,8 @@ extends Node3D
 
 const FPS := 12.0
 const PUDDLES := 26
+## The ground's cells for puddles (m): each has its own place for one, the same every time.
+const PUDDLE_CELL := 8.0
 const MIST := 18
 const RADIUS := 22.0
 const MIST_TEX := "res://assets/textury/world/mist_bank.png"
@@ -121,7 +123,8 @@ func _ready() -> void:
 		dr.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 		dr.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 		dr.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
-		dr.shaded = false
+		# (Lit as the world is: they shone in the dark, the user 4. 11.)
+		dr.shaded = true
 		dr.visible = false
 		add_child(dr)
 		var cr := Sprite3D.new()
@@ -130,7 +133,7 @@ func _ready() -> void:
 		cr.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 		cr.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 		cr.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
-		cr.shaded = false
+		cr.shaded = true
 		cr.offset = Vector2(0, 5)
 		cr.visible = false
 		add_child(cr)
@@ -188,18 +191,54 @@ func _mist_texture() -> Texture2D:
 	return load(MIST_TEX) if ResourceLoader.exists(MIST_TEX) else null
 
 
-## A puddle a new place round `centre` (more of them near you), lying on the ground there:
-## a few tries for a place flat enough, else none this time.
-func _lay_puddle(pd: Dictionary, centre: Vector3) -> void:
+## The puddles lie in the world: the cells round you each have theirs, a puddle that falls
+## out of reach goes to a cell coming into reach at the far edge. (They formed anew round you
+## every few steps, gone from behind you and up before your feet: the user 4. 11.)
+func _keep_puddles(centre: Vector3) -> void:
+	var here := Vector2i(floori(centre.x / PUDDLE_CELL), floori(centre.z / PUDDLE_CELL))
+	var reach := int(ceil(RADIUS / PUDDLE_CELL))
+	var want: Array = []
+	var inside := {}
+	for dz in range(-reach, reach + 1):
+		for dx in range(-reach, reach + 1):
+			var c := here + Vector2i(dx, dz)
+			var d := Vector2((float(c.x) + 0.5) * PUDDLE_CELL - centre.x, (float(c.y) + 0.5) * PUDDLE_CELL - centre.z).length()
+			if d <= RADIUS:
+				want.append([d, c])
+				inside[c] = true
+	want.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) < float(b[0]))
+	var free: Array = []
+	var taken := {}
+	for pd in _puddles:
+		if pd.has("cell") and inside.has(pd["cell"]):
+			taken[pd["cell"]] = true
+		else:
+			pd.erase("cell")
+			pd["ok"] = false
+			free.append(pd)
+	for w in want:
+		if free.is_empty():
+			break
+		if taken.has(w[1]):
+			continue
+		var pd: Dictionary = free.pop_back()
+		pd["cell"] = w[1]
+		_lay_puddle(pd, w[1], centre.y)
+
+
+## The puddle of `cell`, lying on the ground there: a few tries (the same each time) for a
+## place flat enough, else it has none.
+func _lay_puddle(pd: Dictionary, cell: Vector2i, y0: float) -> void:
 	pd["ok"] = false
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(cell)
+	pd["share"] = rng.randf()
 	var space := get_world_3d().direct_space_state if is_inside_tree() and get_world_3d() != null else null
 	var me: Node3D = player_getter.call() if player_getter.is_valid() else null
 	var r := float(pd["size"]) * 0.45
 	var yaw := float(pd["yaw"])
 	for attempt in 4:
-		var ang := _rng.randf() * TAU
-		var d := lerpf(2.0, RADIUS, pow(_rng.randf(), 1.8))
-		var at := Vector3(centre.x + cos(ang) * d, centre.y, centre.z + sin(ang) * d)
+		var at := Vector3((float(cell.x) + rng.randf_range(0.12, 0.88)) * PUDDLE_CELL, y0, (float(cell.y) + rng.randf_range(0.12, 0.88)) * PUDDLE_CELL)
 		if space == null:
 			pd["spot"] = Vector3(at.x, 0.045, at.z)
 			pd["basis"] = Basis(Vector3.UP, yaw)
@@ -317,16 +356,14 @@ func _process(delta: float) -> void:
 		return
 	_acc = 0.0
 	var centre := p.global_position
-	# The puddles stay where they formed while you are near; far off they form anew round you.
-	if _anchor == Vector3.INF or Vector2(_anchor.x - centre.x, _anchor.z - centre.z).length() > RADIUS * 0.7:
+	if _anchor == Vector3.INF or Vector2(_anchor.x - centre.x, _anchor.z - centre.z).length() > PUDDLE_CELL * 0.5:
 		_anchor = centre
-		for pd in _puddles:
-			_lay_puddle(pd, centre)
+		_keep_puddles(centre)
 	for i in _puddles.size():
 		var pd: Dictionary = _puddles[i]
 		var mi: MeshInstance3D = pd["mesh"]
 		# The wetter it is the more there are, the bigger.
-		var share := float(i) / float(_puddles.size())
+		var share := float(pd.get("share", 1.0))
 		var on := _wet > share * 0.9 + 0.05 and bool(pd["ok"])
 		mi.visible = on
 		var k := clampf((_wet - share * 0.9) * 3.0, 0.3, 1.0)

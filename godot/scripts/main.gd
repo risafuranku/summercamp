@@ -171,6 +171,9 @@ var _pending_loaded_crt_state: Dictionary = {}
 var _last_known_crt_desktop_state: Dictionary = {}
 var _boot_screen: CanvasLayer
 var _player_health: int = PLAYER_MAX_HEALTH
+const GATE_BULB_ON_HOUR := 18.75
+const GATE_BULB_OFF_HOUR := 6.25
+var _gate_bulb_on := false
 var _blood_fx: Node
 var _game_over_active: bool = false
 ## The game clock's pace against its usual (1): town_trip.gd slows it while a warden
@@ -1404,11 +1407,14 @@ func _sync_runtime_state_from_systems(force: bool = false) -> void:
 		var force_sky_snap = force or (absf(_time_of_day_hours - previous_hour) >= (DEBUG_TIME_STEP_HOURS - 0.001))
 		var state_transition = force or (previous_time_state != _time_state)
 		_apply_time_from_clock(state_transition, force_sky_snap)
-		if state_transition:
+		# The gatehouse bulb is on as it gets dark, whatever the game's state says (it waited
+		# for the night to begin, the user 4. 11.), till it is light.
+		var gate_dark: bool = _time_of_day_hours >= GATE_BULB_ON_HOUR or _time_of_day_hours < GATE_BULB_OFF_HOUR
+		if force or gate_dark != _gate_bulb_on:
 			var gate := get_tree().get_first_node_in_group("camp_gate")
 			if gate != null:
-				# The gatehouse bulb is on from the evening lamps (19:30) to dawn.
-				gate.set_night(_time_state == TIME_NIGHT or _time_of_day_hours >= LAMP_FLASHLIGHT_START_HOUR)
+				_gate_bulb_on = gate_dark
+				gate.set_night(gate_dark)
 		if previous_time_state == TIME_NIGHT and _time_state == TIME_DAY:
 			_on_day_phase_started()
 		if previous_time_state != TIME_NIGHT and _time_state == TIME_NIGHT and _day_events != null and Coop.sim_here() and camp_rule("events"):

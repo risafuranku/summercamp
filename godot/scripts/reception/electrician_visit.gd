@@ -228,6 +228,7 @@ func _make_body() -> void:
 	var world = _main.get("_world_3d")
 	(world if world != null else _main).add_child(_body)
 	_sprite = Sprite3D.new()
+	_sprite.add_to_group("gate_users")
 	var path := SPRITE if ResourceLoader.exists(SPRITE) else SPRITE_FALLBACK
 	var tex := load(path) as Texture2D
 	_sprite.texture = tex

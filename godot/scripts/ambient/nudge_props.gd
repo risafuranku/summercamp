@@ -197,6 +197,8 @@ func _add(kind: String, at: Vector3, by: int, rng: RandomNumberGenerator) -> voi
 	sp.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	sp.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
 	sp.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# Lit as the world is (a bucket shone in the dark, the user 4. 11.).
+	sp.shaded = true
 	# Its foot on the ground.
 	sp.offset = Vector2(0, tex.get_height() * 0.5)
 	sp.flip_h = rng.randf() < 0.5

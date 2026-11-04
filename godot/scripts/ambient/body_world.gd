@@ -469,6 +469,8 @@ func _sprite(tex: Texture2D, px: float) -> Sprite3D:
 	s.texture = tex
 	s.pixel_size = px
 	s.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	# Lit as the world is (leaves off a branch shone in the dark, the user 4. 11.).
+	s.shaded = true
 	s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	s.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
 	s.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

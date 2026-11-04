@@ -28,6 +28,9 @@ const SYNC_EVERY := 0.5
 const VIEW_DISTANCE := 4.2
 const VIEW_DOT := 0.55
 const SIGN_PIXEL_SIZE := 0.05
+const LAMP_SIGN_PIXEL_SIZE := 0.024
+const LAMP_SIGN_Y := 4.0
+var _tex_lamp: Texture2D = load("res://assets/textury/camp/lamp_out.png")
 ## Kept up from the inside (scripts/service_interior.gd), not with hold R.
 const CLEANED_INSIDE := ["toilet_block", "shower_block"]
 
@@ -160,7 +163,7 @@ func _sync_world() -> void:
 			elif _building_manager.has_method("set_structure_condition"):
 				_building_manager.set_structure_condition(structure, shown)
 		# Only a dead lamp (or the derelict cabin) gets the blinking sign.
-		_set_sign(key, "broken" if broken else "", structure)
+		_set_sign(key, ("lamp" if str(row["type"]) == "lamp_post" else "broken") if broken else "", structure)
 	for key in _markers.keys():
 		if not seen.has(key):
 			_set_sign(key, "", null)
@@ -284,12 +287,14 @@ func _set_sign(key: String, kind: String, structure: Node3D) -> void:
 		existing.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 		existing.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
 		existing.shaded = false
-		existing.pixel_size = SIGN_PIXEL_SIZE
+		existing.pixel_size = LAMP_SIGN_PIXEL_SIZE if kind == "lamp" else SIGN_PIXEL_SIZE
 		_markers_root.add_child(existing)
 		_markers[key] = existing
-		existing.global_position = _sign_anchor(structure)
+		# A dead lamp: its own little burnt-out bulb (Grok), at the head of the post, not up
+		# over the box of everything it has (the user 4. 11.: "too high").
+		existing.global_position = structure.global_position + Vector3(0.0, LAMP_SIGN_Y, 0.0) if kind == "lamp" else _sign_anchor(structure)
 		existing.set_meta("base_y", existing.global_position.y)
-	existing.texture = _tex_broken if kind == "broken" else _tex_poor
+	existing.texture = _tex_lamp if kind == "lamp" else (_tex_broken if kind == "broken" else _tex_poor)
 	existing.set_meta("kind", kind)
 
 
@@ -324,7 +329,7 @@ func _update_sign_blink() -> void:
 		var m: Sprite3D = _markers[key]
 		if not is_instance_valid(m):
 			continue
-		var broken := str(m.get_meta("kind", "")) == "broken"
+		var broken := str(m.get_meta("kind", "")) in ["broken", "lamp"]
 		m.visible = not broken or fmod(_blink_t, 1.0) < 0.7
 		var bob := sin(_blink_t * 2.2 + float(key.hash() % 7)) * 0.08 if broken else 0.0
 		m.global_position.y = float(m.get_meta("base_y", m.global_position.y)) + bob

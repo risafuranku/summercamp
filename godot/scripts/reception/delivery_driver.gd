@@ -255,6 +255,7 @@ func _ensure_man() -> void:
 
 func _person_sprite() -> Sprite3D:
 	var s := Sprite3D.new()
+	s.add_to_group("gate_users")
 	var path := SPRITE if ResourceLoader.exists(SPRITE) else POST.SPRITE_FALLBACK
 	var tex := load(path) as Texture2D
 	s.texture = tex

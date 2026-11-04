@@ -99,7 +99,7 @@ func resolve_interaction(interact_distance: float, utility_repairs_enabled: bool
 	if collider == null:
 		return {}
 	var structure = resolve_interactable_structure(collider)
-	if structure == null:
+	if structure == null or not _at_door(structure):
 		return {}
 	return {
 		"type": "structure",
@@ -121,7 +121,7 @@ func build_hint_text(interact_distance: float, utility_repairs_enabled: bool) ->
 	if collider == null:
 		return ""
 	var structure = resolve_interactable_structure(collider)
-	if structure == null:
+	if structure == null or not _at_door(structure):
 		return ""
 	var building_type = str(structure.get_meta("building_type", ""))
 	var hint = ""
@@ -134,6 +134,42 @@ func build_hint_text(interact_distance: float, utility_repairs_enabled: bool) ->
 	# The hint looked up alone: the HUD gets it upper-cased with its key, which no
 	# catalogue has ("[E] ENTER CABIN" stayed English, S6).
 	return "[E] %s" % tr(hint)
+
+
+## A building is gone into at its door (the user 4. 11.: "stop going into buildings from
+## anywhere, E only at the doors"): standing before one of them and looking at it. What has
+## no door (a stand, a sign, the barrier) is used from where it is.
+const DOOR_ANIM = preload("res://scripts/attractions/door_anim.gd")
+const DOOR_REACH_M := 3.2
+const DOOR_LOOK := 0.55
+
+
+func _at_door(structure: Node3D) -> bool:
+	var doors: Array = DOOR_ANIM.find_doors(structure)
+	var ways := doors.size()
+	if ways == 0:
+		ways = structure.find_children("TentFlap", "MeshInstance3D", true, false).size()
+	if ways == 0:
+		return true
+	var player := _get_player() as Node3D
+	if player == null:
+		return true
+	var cam := player.get("_camera") as Camera3D
+	for pick in ways:
+		var way: Dictionary = DOOR_ANIM.entry_points(structure, pick)
+		var at: Vector3 = way.get("outside", Vector3.INF)
+		if at == Vector3.INF:
+			continue
+		var flat := Vector2(at.x - player.global_position.x, at.z - player.global_position.z)
+		if flat.length() > DOOR_REACH_M:
+			continue
+		if cam == null or flat.length() < 0.8:
+			return true
+		var fwd := -cam.global_basis.z
+		var to := Vector2(fwd.x, fwd.z).normalized()
+		if to.dot(flat.normalized()) >= DOOR_LOOK:
+			return true
+	return false
 
 
 func _get_player() -> Node:

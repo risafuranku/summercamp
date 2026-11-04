@@ -260,6 +260,7 @@ func _create_party(entry: Dictionary) -> Dictionary:
 		var tex := _texture_for(own)
 		var sprite := Sprite3D.new()
 		sprite.name = "Sprite"
+		sprite.add_to_group("gate_users")
 		sprite.texture = tex
 		sprite.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 		sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
