@@ -373,6 +373,13 @@ func _hide_plane() -> void:
 	var inv := _frame_g.affine_inverse()
 	for n in (_spec["root"] as Node3D).find_children("*", "GeometryInstance3D", true, false):
 		var g := n as GeometryInstance3D
+		# Not what lies over the room's windows inside (their views of the camp): kept off the
+		# camp's looks into the room on their own layer, given HIDE_LAYER they showed in the
+		# building's front windows from outside, the camp in them, all the way up to the
+		# door (the user 4. 11.: "the outside windows stop working while you walk in"). In the
+		# door's own wall they are not seen through the doorway anyway.
+		if g.layers & OVER_WINDOWS:
+			continue
 		var box: AABB = (inv * g.global_transform) * g.get_aabb()
 		if box.position.z > -PLANE_DEPTH:
 			_plane.append([g, g.layers])
