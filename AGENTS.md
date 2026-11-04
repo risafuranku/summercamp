@@ -299,10 +299,14 @@ every night's sewer, toilets and frozen pipes the moment they broke).
   fragment: the lake mirror's cut, camera y < -0.4 and the pixel's y < 0.1 are discarded).
   A room of its own world goes over the ground, never under it (the bowling's cellar sits at
   `CELLAR_AT` y 60 over its hall: built at y -40 it came out black).
-- **Esc is always the pause menu** (main `_unhandled_input`), in rooms, at the PC, in
- close-ups and jobs: nothing else may consume it. Its CanvasLayer is 150, above every
- full-screen overlay (the check-in desk is 140); a new overlay stays below it. Leaving is S, the bottom band or a
- right click; the pause menu's "Go outside" (`main._on_pause_leave_requested`) ends any
+- **Leaving is Esc or Space, the pause menu P or F10** (the user, 4. 11.): Esc leaves a
+ room, the PC, a close-up or a job a step at a time (`INTERIOR_LOOK.is_exit_event`) and is
+ the pause menu only outdoors (main `_unhandled_input`); Space leaves the same way wherever
+ it is nobody else's (`INTERIOR_LOOK.is_space`; a close-up asks its `_key` first, so the
+ till, the phone, a page and the PC keep it); P and F10 pause anywhere
+ (`ui/pause_keys.gd`). The pause menu's CanvasLayer is 150, above every full-screen overlay
+ (the check-in desk is 140); a new overlay stays below it. Leaving is also the bottom band
+ or a right click; the pause menu's "Go outside" (`main._on_pause_leave_requested`) ends any
  room or job the way its own exit would. Back to the title screen closes them too, silently
  (`main._leave_everything(true)` in `_enter_main_menu`): a room left open went on taking
  clicks behind the menu. Always-processing modals return early from
