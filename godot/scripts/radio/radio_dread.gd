@@ -64,6 +64,8 @@ var _nudge_left := 0.0
 ## The relay (relay()): on, and how loud.
 var _relay_on := false
 var _relay_gain := 0.0
+## How much of the relay the set gives switched off.
+const RELAY_OFF_GAIN := 0.55
 
 
 func nudge(amount: float, seconds: float) -> void:
@@ -348,6 +350,10 @@ func _mix_layers(dt: float, inside_db: float, outside_db: float) -> void:
 				_stop(l)
 		l.gain = move_toward(l.gain, l.target if l.playing() else 0.0, l.rate * dt)
 		var power := 1.0 if (l.ignores_power and _phantom_left > 0.0) else _power
+		# Her meal comes through the set switched off too, a little less (the user 4. 11.:
+		# "the granny eats the guests and at the reception I know nothing of it").
+		if id == "relay":
+			power = maxf(power, RELAY_OFF_GAIN)
 		var g := maxf(l.gain * power, 0.00001)
 		l.p2.volume_db = inside_db + linear_to_db(g)
 		_sync_outdoor(l, outside_db + linear_to_db(g))

@@ -77,7 +77,16 @@ const SFX := {
 	"eat_b": S + "eat_b.ogg", "bone": S + "bone.mp3", "spores": S + "spores.ogg", "leave": S + "leave.mp3",
 	"hum": S + "hum.ogg", "ring": G + "ring.mp3", "creak": "res://assets/sfx/npc/basket_creak.mp3",
 	"kick": "res://assets/sfx/npc/twig_snap.mp3",
+	# A caravan's thin door rattled and forced, wrenched open; the struggle inside after the
+	# cry (4. 11.).
+	"caravan_pry": S + "caravan_pry.mp3", "caravan_break": S + "caravan_break.mp3", "struggle": S + "struggle.mp3",
 }
+## Her raid on a lodging carries through the night (the user 4. 11.: "at the reception the
+## granny eats the guests and I know nothing about it; more sound cues: how she creeps in,
+## by tent, cabin or caravan, the attack and the guest's cry, the eating, morbid"): far,
+## and through the walls muffled as the camp's own sounds are (world_sounds' outdoor bus,
+## low-passed in a room). Per cue: how far it is heard, how big it is (unit size).
+const RAID_FAR := {"in": [90.0, 6.0], "break": [110.0, 8.0], "cry": [170.0, 12.0], "struggle": [120.0, 8.0], "bone": [70.0, 5.0], "eat": [80.0, 6.0]}
 
 const FROM_HOUR := 2.5
 const TO_HOUR := 6.0
@@ -237,7 +246,7 @@ func _on_start() -> void:
 	_arm.visible = false
 	_root.add_child(_arm)
 	# The loops (looped on their own resource: co-op mirrors a sound by its path).
-	for k in ["eat_a", "eat_b", "pry"]:
+	for k in ["eat_a", "eat_b", "pry", "caravan_pry"]:
 		var s := _stream(SFX[k])
 		if s is AudioStreamMP3:
 			(s as AudioStreamMP3).loop = true
@@ -253,8 +262,11 @@ func _on_start() -> void:
 	if _spores != null:
 		_spores.max_distance = 9.0
 	_work = AudioStreamPlayer3D.new()
-	_work.unit_size = 5.0
-	_work.max_distance = 45.0
+	# (Her prising at a door and her meal: heard across the camp, RAID_FAR.)
+	_work.unit_size = float(RAID_FAR["eat"][1])
+	_work.max_distance = float(RAID_FAR["eat"][0])
+	if AudioServer.get_bus_index(WORLD_SOUNDS.BUS) >= 0:
+		_work.bus = WORLD_SOUNDS.BUS
 	_root.add_child(_work)
 	_in_room = AudioStreamPlayer.new()
 	_in_room.bus = WORLD_SOUNDS.wall_bus("Master")
@@ -772,9 +784,9 @@ func _start_breach() -> void:
 	_face_toward(_target["at"])
 	var at: Vector3 = _target["door"]
 	if kind == "tent":
-		_sound(SFX["zip"], at + Vector3(0, 0.6, 0), 0.0, 1.0, 35.0)
+		_raid(SFX["zip"], at + Vector3(0, 0.6, 0), "in")
 	else:
-		_play_work(SFX["pry"], at, 0.0)
+		_play_work(SFX["caravan_pry"] if kind == "caravan" else SFX["pry"], at, 0.0)
 	# They hear it: a light comes on inside.
 	_force_window(str(_target["key"]), "on")
 
@@ -784,12 +796,12 @@ func _tick_breach(dt: float) -> void:
 	_face_toward(_target["at"])
 	var kind := str(_target.get("kind", "tent"))
 	if kind == "tent" and _phase_t < 2.0 and _phase_t + dt >= 2.0:
-		_sound(SFX["tear"], (_target["door"] as Vector3) + Vector3(0, 0.6, 0), 2.0, 1.0, 40.0)
+		_raid(SFX["tear"], (_target["door"] as Vector3) + Vector3(0, 0.6, 0), "break", 2.0)
 	if _phase_t > 0.0:
 		return
 	if kind != "tent":
 		_work.stop()
-		_sound(SFX["break"], (_target["door"] as Vector3) + Vector3(0, 1.0, 0), 3.0, 1.0, 45.0)
+		_raid(SFX["caravan_break"] if kind == "caravan" else SFX["break"], (_target["door"] as Vector3) + Vector3(0, 1.0, 0), "break", 3.0)
 	# In, and the light goes out.
 	_target["guests"] = _guests_in(str(_target["key"]))
 	_target["i"] = 0
@@ -813,7 +825,7 @@ func _tick_eat(dt: float) -> void:
 	_bone_t -= dt
 	if _bone_t <= 0.0:
 		_bone_t = _rng.randf_range(2.0, 4.5)
-		_sound(SFX["bone"], (_target["at"] as Vector3) + Vector3(0, 0.5, 0), -2.0, _rng.randf_range(0.85, 1.1), 30.0)
+		_raid(SFX["bone"], (_target["at"] as Vector3) + Vector3(0, 0.5, 0), "bone", -2.0, _rng.randf_range(0.85, 1.1))
 	if not _work.playing:
 		_play_work(SFX["eat_a"] if _rng.randf() < 0.5 else SFX["eat_b"], _target["at"], 2.0)
 	_relay(true)
@@ -837,8 +849,25 @@ func _begin_meal() -> void:
 	if i >= guests.size():
 		return
 	var g: Dictionary = guests[i]
-	_sound(SFX["cry_f"] if _is_woman(g) else SFX["cry_m"], (_target["at"] as Vector3) + Vector3(0, 0.8, 0), 4.0, _rng.randf_range(0.95, 1.05), 45.0)
+	var at: Vector3 = (_target["at"] as Vector3) + Vector3(0, 0.8, 0)
+	_raid(SFX["cry_f"] if _is_woman(g) else SFX["cry_m"], at, "cry", 4.0, _rng.randf_range(0.95, 1.05))
+	# A moment after the cry the struggle: thrown against the wall, the chair, cut short.
+	if _root != null and _root.is_inside_tree():
+		_root.get_tree().create_timer(0.7).timeout.connect(func() -> void:
+			if _root != null and is_instance_valid(_root) and _phase == "eat":
+				_raid(SFX["struggle"], at, "struggle", 1.0))
 	_target["cried"] = true
+
+
+## One of her raid's sounds, heard as far as RAID_FAR has it (`cue`), on the outdoor bus.
+func _raid(path: String, at: Vector3, cue: String, db := 0.0, pitch := 1.0) -> AudioStreamPlayer3D:
+	var far: Array = RAID_FAR.get(cue, [45.0, 3.0])
+	var p := _sound(path, at, db, pitch, float(far[0]))
+	if p != null:
+		p.unit_size = float(far[1])
+		if AudioServer.get_bus_index(WORLD_SOUNDS.BUS) >= 0:
+			p.bus = WORLD_SOUNDS.BUS
+	return p
 
 
 ## Nobody left in it: hers. Out again, to the next.
@@ -863,7 +892,7 @@ func _come_out() -> void:
 	if _phase == "eat" or _phase == "breach":
 		var at: Vector3 = _target.get("door", _body.global_position)
 		_place_body(at)
-		_sound(SFX["zip"] if str(_target.get("kind", "")) == "tent" else SFX["creak"], at + Vector3(0, 0.8, 0), 0.0, 0.9, 30.0)
+		_raid(SFX["zip"] if str(_target.get("kind", "")) == "tent" else SFX["creak"], at + Vector3(0, 0.8, 0), "in", 0.0, 0.9)
 		# She had begun: what she did in there stays for the cleaning.
 		if _phase == "eat" and (int(_target.get("i", 0)) > 0 or float(_target.get("t", 0.0)) > 2.5):
 			_ate_in[str(_target.get("key", ""))] = true

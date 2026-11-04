@@ -534,7 +534,7 @@ func _snapshot_root(root: Node, prefix: String, out: Array, with_root := false, 
 			if a.stream == null or a.stream.resource_path == "" or not a.playing:
 				continue
 			out.append({"k": key, "t": "a", "st": a.stream.resource_path, "pos": a.global_position, "db": float(a.get_meta("coop_db", a.volume_db)), "pt": a.pitch_scale,
-				"md": a.max_distance, "us": a.unit_size, "at": a.get_playback_position()})
+				"md": a.max_distance, "us": a.unit_size, "at": a.get_playback_position(), "bus": str(a.bus)})
 		elif n is Light3D:
 			var l := n as Light3D
 			out.append({"k": key, "t": "l", "spot": n is SpotLight3D, "xf": l.global_transform, "v": _shown_below(l, root, for_quarry), "c": l.light_color,
@@ -719,6 +719,10 @@ func show_view(items: Array) -> void:
 				a.pitch_scale = float(it["pt"])
 				a.max_distance = float(it["md"])
 				a.unit_size = float(it["us"])
+				# (Far through the walls as on the host: the granny's raid on the outdoor bus.)
+				var bus := str(it.get("bus", "Master"))
+				if a.bus != bus and AudioServer.get_bus_index(bus) >= 0:
+					a.bus = bus
 			"l":
 				var l := n as Light3D
 				if l == null or not is_instance_valid(l):
