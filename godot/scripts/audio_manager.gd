@@ -400,6 +400,27 @@ func try_roll_evening_ambient_music(day_index: int, time_of_day_label: String) -
 
 ## 0 = the night is full of insects, 1 = they have all stopped. Smoothing is done by
 ## the caller (threat_senses.gd): silence falls fast and lifts slowly.
+## The evening holding its breath (scripts/night/evening_unease.gd): the outdoors' bus
+## brought down to almost nothing, on a stage of its own (the rooms' ducking is a tween on
+## the bus's volume: the two do not fight).
+var _world_hold := 0.0
+var _world_hold_fx: AudioEffectAmplify
+const WORLD_HOLD_FLOOR := 0.07
+
+
+func set_world_hold(value: float) -> void:
+	value = clampf(value, 0.0, 1.0)
+	if is_equal_approx(value, _world_hold):
+		return
+	_world_hold = value
+	if _outdoor_ambience_bus_index < 0 or _outdoor_ambience_bus_index >= AudioServer.get_bus_count():
+		return
+	if _world_hold_fx == null:
+		_world_hold_fx = AudioEffectAmplify.new()
+		AudioServer.add_bus_effect(_outdoor_ambience_bus_index, _world_hold_fx)
+	_world_hold_fx.volume_db = linear_to_db(lerpf(1.0, WORLD_HOLD_FLOOR, value))
+
+
 func set_insect_hush(value: float) -> void:
 	value = clampf(value, 0.0, 1.0)
 	if is_equal_approx(value, _insect_hush):

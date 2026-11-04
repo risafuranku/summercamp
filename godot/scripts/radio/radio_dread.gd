@@ -48,7 +48,25 @@ const LOWPASS_CLEAN_HZ := 4200.0
 const LOWPASS_RUINED_HZ := 1500.0
 const LOWPASS_DRIFT_HZ := 850.0
 
-enum Ev { NONE, STUTTER, SAG, GHOST, DRIFT, CREATURE }
+enum Ev { NONE, STUTTER, SAG, GHOST, DRIFT, CREATURE, TERROR }
+## On a bad night, with you in the office to hear it (the user 4. 11.: "when a song breaks
+## off, put something morbid there"): the song cut, a breath of dead air with nothing in
+## it, then something close on the frequency (t_*.mp3: breathing at the microphone, a meal,
+## something dragged, a scream cut off, the microphone knocked over and knocks), a moment
+## of carrier, and the song back as if nothing. Seldom: TERROR_GAP_SEC apart, TERROR_MAX a
+## night, never the same twice running.
+const TERRORS := ["t_breath", "t_chew", "t_drag", "t_cut", "t_knock"]
+const TERROR_DREAD := 0.55
+const TERROR_GAP_SEC := 300.0
+const TERROR_MAX := 3
+const TERROR_SILENCE := 1.7
+const TERROR_AFTER := 1.5
+var _terror_clip := ""
+var _terror_last := ""
+var _terror_at := -9999.0
+var _terror_n := 0
+var _terror_night := -1
+var _clock := 0.0
 
 var dread: float = 0.0
 ## Linear gain the interior multiplies into the song (1 = untouched).
@@ -271,6 +289,7 @@ static func near_from_distance(d: float) -> float:
 ## power_on: the set's switch; building: the reception (the outdoor layers sit there).
 func update(delta: float, ctx: Dictionary, inside_db: float, outside_db: float, power_on: bool, building: Node3D) -> void:
 	var dt := maxf(delta, 0.0)
+	_clock += dt
 	_ctx = ctx
 	_building = building
 	if _fx_lowpass == null:
@@ -418,6 +437,8 @@ func _clip(id: String) -> AudioStream:
 	if _streams.has(id):
 		return _streams[id]
 	var path := DIR + id + ".wav"
+	if not ResourceLoader.exists(path) and ResourceLoader.exists(DIR + id + ".mp3"):
+		path = DIR + id + ".mp3"
 	var s: AudioStream = load(path) as AudioStream if ResourceLoader.exists(path) else null
 	if s is AudioStreamWAV and id in ["static", "carrier", "buzzer"]:
 		var w := (s as AudioStreamWAV).duplicate() as AudioStreamWAV
@@ -511,6 +532,19 @@ func _update_events(dt: float) -> void:
 			_music_target = 0.7
 			if not (_layers["voice"] as Layer).playing():
 				_end_event()
+		Ev.TERROR:
+			# Dead air: no song, no hiss even; then it; then the carrier a moment.
+			_music_target = 0.0
+			(_layers["static"] as Layer).target = 0.0
+			(_layers["ghost"] as Layer).target = 0.0
+			if _event_t >= TERROR_SILENCE and _event_step > 0.0:
+				_event_step = 0.0
+				_one_shot("fx", _terror_clip, 0.9)
+			if _event_step <= 0.0 and not (_layers["fx"] as Layer).playing():
+				(_layers["carrier"] as Layer).target = 0.35
+			if _event_t >= _event_len:
+				(_layers["carrier"] as Layer).target = 0.0
+				_end_event()
 
 
 func _pick_event() -> int:
@@ -526,6 +560,8 @@ func _pick_event() -> int:
 		bag.append([Ev.CREATURE, 0.8])
 	if dread > 0.4 and night:
 		bag.append([Ev.DRIFT, 1.5 * dread])
+	if _terror_ready():
+		bag.append([Ev.TERROR, 2.5 * dread])
 	var total := 0.0
 	for e in bag:
 		total += float(e[1])
@@ -563,12 +599,31 @@ func _begin_event(ev: int) -> void:
 			_one_shot("fx", TUNES[_rng.randi() % TUNES.size()], 0.7)
 		Ev.CREATURE:
 			_one_shot("voice", _pick_creature(), _rng.randf_range(0.35, 0.6))
+		Ev.TERROR:
+			var left: Array = TERRORS.filter(func(t): return t != _terror_last)
+			_terror_clip = str(left[_rng.randi() % left.size()])
+			_terror_last = _terror_clip
+			_terror_at = _clock
+			_terror_n += 1
+			var s := _clip(_terror_clip)
+			_event_len = TERROR_SILENCE + (s.get_length() if s != null else 4.0) + TERROR_AFTER
+			_event_step = 1.0
 		Ev.NONE:
 			pass
 
 
 func _end_event() -> void:
 	_event = Ev.NONE
+
+
+## A terror may come now: a bad night, you in the office with the set on, not too soon
+## after the last, not too many.
+func _terror_ready() -> bool:
+	if _night_id() != _terror_night:
+		_terror_night = _night_id()
+		_terror_n = 0
+	return dread >= TERROR_DREAD and bool(_ctx.get("night", false)) and bool(_ctx.get("listening", false)) \
+		and _power > 0.5 and _terror_n < TERROR_MAX and _clock - _terror_at >= TERROR_GAP_SEC and not _hushed
 
 
 ## Halfway through a drift: something on the frequency. Late and bad: a code word.

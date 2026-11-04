@@ -4222,6 +4222,8 @@ func _radio_dread_context(delta: float) -> Dictionary:
 		"tonight": tonight,
 		"nearest": nearest,
 		"guests": _count_guests_in_camp(),
+		# In the office to hear it (radio_dread's terror waits for an ear).
+		"listening": visible,
 	}
 
 

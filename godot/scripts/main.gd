@@ -66,6 +66,9 @@ const DAY_EVENTS_SCRIPT = preload("res://scripts/day_events.gd")
 const WEEK_LEDGER_SCRIPT = preload("res://scripts/week_ledger.gd")
 const SEASON_LOOK_SCRIPT = preload("res://scripts/season_look.gd")
 const OMENS_SCRIPT = preload("res://scripts/omens.gd")
+## The evening before a bad night (W19/W27, 4. 11.): its silences and wrong far sounds.
+const EVENING_SCRIPT = preload("res://scripts/night/evening_unease.gd")
+var _evening: Node
 const CORN_HUNT_SCRIPT = preload("res://scripts/corn_hunt.gd")
 const WEEK_REPORT_SCREEN_SCRIPT = preload("res://scripts/ui/week_report_screen.gd")
 const BREAKER_PANEL_SCRIPT = preload("res://scripts/breaker_panel.gd")
@@ -518,6 +521,11 @@ func _setup_night_jobs() -> void:
 		_omens.name = "Omens"
 		add_child(_omens)
 		_omens.setup(self)
+	if _evening == null or not is_instance_valid(_evening):
+		_evening = EVENING_SCRIPT.new()
+		_evening.name = "EveningUnease"
+		add_child(_evening)
+		_evening.setup(self)
 	if not _pending_omens.is_empty():
 		_omens.import_state(_pending_omens)
 		_pending_omens.clear()
@@ -739,6 +747,35 @@ func _omen_context() -> Dictionary:
 		"dark": not _is_grid_powered(),
 		"admitted": _desk_strangers_admitted(),
 	}
+
+
+## The evening before the night (scripts/night/evening_unease.gd), read off the warden:
+## how hard tonight presses, whether they are at something, running, in a room, the office.
+func _tick_evening() -> void:
+	if _evening == null or not is_instance_valid(_evening) or _game_over_active or _player == null or not is_instance_valid(_player) or not camp_rule("threats"):
+		return
+	var bi = _interior_manager.get("_building_interior") if _interior_manager != null else null
+	var si = _interior_manager.get("_service_interior") if _interior_manager != null else null
+	var busy := false
+	if bi != null:
+		busy = bool(bi.get("_crt_active"))
+		var dr = bi.get("_desk_room")
+		if dr != null and dr.has_method("is_open") and bool(dr.is_open()):
+			busy = true
+	if si != null and si.has_method("_station_open") and str(si.call("_station_open")) != "":
+		busy = true
+	var v: Vector3 = (_player as CharacterBody3D).velocity if _player is CharacterBody3D else Vector3.ZERO
+	var ctx := {
+		"pressure": OMENS_SCRIPT.pressure(_omen_context()),
+		"quiet": _day_index <= QUIET_NIGHTS,
+		"busy": busy or get_tree().paused,
+		"running": Vector2(v.x, v.z).length() > 4.2,
+		"indoors": _is_any_interior_open(),
+		"in_office": bi != null and bool(bi.get("visible")),
+		"player_pos": _player.global_position,
+	}
+	var abs_minute := (maxi(1, _day_index) - 1) * 1440 + int(round(_time_of_day_hours * 60.0))
+	_evening.tick(get_process_delta_time(), abs_minute, ctx)
 
 
 ## Those who came to the desk unbooked at night and were written in (checkin_desk.gd).
@@ -1315,6 +1352,7 @@ func _process(delta: float) -> void:
 		_tick_night_jobs()
 		_tick_week_ledger()
 		_poll_guest_quotes(delta)
+	_tick_evening()
 	# The other warden's machine sees its own omens (they are only signs near you).
 	if not sim and _omens != null and not _game_over_active and _player != null and is_instance_valid(_player) and camp_rule("threats"):
 		var omen_minute := (maxi(1, _day_index) - 1) * 1440 + int(round(_time_of_day_hours * 60.0))
@@ -1628,7 +1666,10 @@ func _update_threat_senses(delta: float) -> void:
 		var dir_hush: float = _director.hush() if _director != null and (_time_of_day_hours >= 21.0 or _time_of_day_hours < 5.5) else 0.0
 		if _director_fx != null:
 			dir_hush = maxf(dir_hush, float(_director_fx.extra_hush))
-		_audio_manager.set_insect_hush(maxf(maxf(maxf(_senses.hush, _omens.hush if _omens != null else 0.0), corn_hush), dir_hush))
+		var evening_hold: float = float(_evening.hold) if _evening != null and is_instance_valid(_evening) else 0.0
+		_audio_manager.set_insect_hush(maxf(maxf(maxf(maxf(_senses.hush, _omens.hush if _omens != null else 0.0), corn_hush), dir_hush), evening_hold))
+		if _audio_manager.has_method("set_world_hold"):
+			_audio_manager.set_world_hold(evening_hold)
 	if _hud_manager != null:
 		_hud_manager.set_fear(_senses.fear)
 		_hud_manager.set_face_gaze(_senses.gaze)
