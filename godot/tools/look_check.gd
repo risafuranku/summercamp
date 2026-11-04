@@ -31,11 +31,13 @@ func _ready() -> void:
 	_run(look, Vector2(0.005, 0.5), 0.0, 8.0)
 	_expect(look.yaw_deg <= 60.0 and look.yaw_deg > 55.0, "left edge: yaw %.1f, want near 60" % look.yaw_deg)
 
-	# Pitch has its own limits (up 18, down 24).
-	_run(look, Vector2(0.5, 0.0), 0.0, 6.0)
-	_expect(look.pitch_deg <= 18.0 and look.pitch_deg > 14.0, "top edge: pitch %.1f, want near 18" % look.pitch_deg)
-	_run(look, Vector2(0.5, 1.0), 0.0, 8.0)
-	_expect(look.pitch_deg >= -24.0 and look.pitch_deg < -20.0, "bottom edge: pitch %.1f, want near -24" % look.pitch_deg)
+	# The top and the bottom edges do not tip the head (point and click, 4. 11.: along the
+	# top hangs the rail of orders, along the bottom lies the way out; W and S tip it).
+	var pitch_was: float = look.pitch_deg
+	_run(look, Vector2(0.5, 0.0), 0.0, 3.0)
+	_expect(is_equal_approx(look.pitch_deg, pitch_was), "top edge tipped the head: pitch %.1f" % look.pitch_deg)
+	_run(look, Vector2(0.5, 1.0), 0.0, 3.0)
+	_expect(is_equal_approx(look.pitch_deg, pitch_was), "bottom edge tipped the head: pitch %.1f" % look.pitch_deg)
 
 	# Arrow keys turn too, with the cursor outside the window.
 	look.reset()
