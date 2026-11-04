@@ -23,6 +23,9 @@ var _from_rot := Vector3.ZERO
 var _end_rot := Vector3.ZERO
 var _then: Callable
 var _t := 0.0
+var _tw: Tween
+## Told where you set off to (co-op: the other wardens see you go).
+var on_go: Callable
 
 
 func _init(p_room, p_spots: Dictionary, p_ways: Array, start: String, steps_path := "res://assets/sfx/rooms/steps_wood.mp3", steps_db := -15.0) -> void:
@@ -97,6 +100,8 @@ func go(to: String, then := Callable(), look = null) -> void:
 		_total += float(_lens.back())
 		_path.append(p)
 	here = to
+	if on_go.is_valid():
+		on_go.call(to)
 	_from_rot = room._base_rot
 	_end_rot = end_rot
 	_then = then
@@ -105,17 +110,17 @@ func go(to: String, then := Callable(), look = null) -> void:
 	if _steps.stream != null:
 		_steps.play()
 	var dur := clampf(_total / speed, 0.4, 9.0)
-	var tw: Tween = room.create_tween()
-	tw.tween_method(_walk, 0.0, 1.0, dur)
-	tw.tween_callback(_arrive)
+	_tw = room.create_tween()
+	_tw.tween_method(_walk, 0.0, 1.0, dur)
+	_tw.tween_callback(_arrive)
 
 
 ## Just turned where you stand (to what you clicked).
 func _turn(rot: Vector3, then: Callable) -> void:
 	busy = true
-	var tw: Tween = room.create_tween()
-	tw.tween_property(room, "_base_rot", rot, 0.45).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	tw.tween_callback(func():
+	_tw = room.create_tween()
+	_tw.tween_property(room, "_base_rot", rot, 0.45).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_tw.tween_callback(func():
 		busy = false
 		if then.is_valid():
 			then.call())
@@ -178,6 +183,8 @@ func _arrive() -> void:
 
 func stop() -> void:
 	busy = false
+	if _tw != null and _tw.is_valid():
+		_tw.kill()
 	if _steps != null and is_instance_valid(_steps):
 		_steps.stop()
 

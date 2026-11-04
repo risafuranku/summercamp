@@ -31,6 +31,9 @@ const PIXEL_M := 0.011
 const TEX := "res://assets/textury/items/"
 const UI_TEX := "res://assets/textury/ui/"
 const SFX := "res://assets/sfx/inventory/"
+const SFX_SHOP := "res://assets/sfx/shop/"
+const PAPER = preload("res://scripts/town/newspaper_closeup.gd")
+const MATCH = preload("res://scripts/town/counter_match.gd")
 ## What there is: its size in pockets, how many uses ("n": a pack of Start has twenty).
 const KINDS := {
 	"torch": {"w": 2, "h": 1, "tex": "torch.png"},
@@ -45,6 +48,14 @@ const KINDS := {
 	"megaphone": {"w": 1, "h": 1, "tex": "megaphone.png"},
 	# Number four's key from the Liblice motel (town_trip._rent_room), left in its door in the morning.
 	"key_motel": {"w": 1, "h": 1, "tex": "key_motel.png"},
+	# From Liblice's shops (scripts/town/counter_goods.gd): a box of matches (the chapel's
+	# candles, or struck for its few seconds of light), a votive candle for the chapel's stand,
+	# a loaf (bite by bite), a bottle of Kofola, the village paper ("n" is the day it came out).
+	"matches": {"w": 1, "h": 1, "tex": "matches.png", "n": 10},
+	"candle": {"w": 1, "h": 1, "tex": "candle.png"},
+	"bread": {"w": 1, "h": 1, "tex": "bread.png", "n": 4},
+	"kofola": {"w": 1, "h": 1, "tex": "kofola.png"},
+	"newspaper": {"w": 1, "h": 1, "tex": "newspaper.png"},
 }
 
 signal changed
@@ -70,6 +81,9 @@ var _drops: Dictionary = {}
 var _reconcile_t := -1.0
 var _reconcile_give := true
 var _rng := RandomNumberGenerator.new()
+## The paper up close (newspaper_closeup.gd), and whether reading it stopped you walking.
+var _paper
+var _paper_stopped := false
 
 
 static func find(tree: SceneTree) -> Node:
@@ -141,10 +155,32 @@ func room_for(id: String) -> bool:
 	return _free_spot({"id": id, "r": false}) != Vector3i(-1, -1, -1)
 
 
+## Of `ids`, in order, what would go into the bag together (the counter rings up no more).
+func fitting(ids: Array) -> Array:
+	var kept := items
+	items = items.duplicate()
+	var out: Array = []
+	for id in ids:
+		var it := {"id": str(id), "x": 0, "y": 0, "r": false, "n": 1}
+		var spot := _free_spot(it)
+		if spot.x < 0:
+			continue
+		it["x"] = spot.x
+		it["y"] = spot.y
+		it["r"] = spot.z == 1
+		items.append(it)
+		out.append(id)
+	items = kept
+	return out
+
+
 ## Into the first pocket it fits (turned if it only fits turned).
 func add_item(id: String, n := -1) -> bool:
 	if not KINDS.has(id):
 		return false
+	# A paper is the day's: bought today, it says what today's says, always.
+	if id == "newspaper" and n < 0:
+		n = CoreRoot.get_day()
 	var it := {"id": id, "x": 0, "y": 0, "r": false, "n": n if n >= 0 else int(KINDS[id].get("n", 1))}
 	var spot := _free_spot(it)
 	if spot.x < 0:
@@ -171,7 +207,19 @@ func remove_item(id: String) -> bool:
 	return false
 
 
-## One use: a cigarette out of the most smoked pack (the empty one thrown away), or the thing.
+## How many uses of `id` you have left, all told (a box of matches holds ten).
+func uses_of(id: String) -> int:
+	var n := 0
+	for it in items:
+		if str(it["id"]) == id:
+			n += int(it["n"]) if KINDS.get(id, {}).has("n") else 1
+	if str(_held.get("id", "")) == id:
+		n += int(_held.get("n", 1)) if KINDS.get(id, {}).has("n") else 1
+	return n
+
+
+## One use: a cigarette out of the most smoked pack, a match out of the emptiest box (the
+## empty one thrown away), or the thing itself.
 func consume(id: String) -> bool:
 	var best: Dictionary = {}
 	for it in items:
@@ -268,6 +316,54 @@ func use(it: Dictionary) -> void:
 			_say("On the tag, in pen: SHED - BACK.")
 		"megaphone":
 			_say("The camp's megaphone. Hold %s and shout: the whole camp hears you." % GameSettings.key_name("megaphone_talk"))
+		"matches":
+			if consume("matches"):
+				close()
+				MATCH.strike(self)
+		"candle":
+			_say("On its base, in pencil: burns a day and a night.")
+		"bread":
+			if consume("bread"):
+				_play_shop("bread_bite.mp3")
+				_feed(0.35, 0.5)
+		"kofola":
+			if consume("kofola"):
+				_play_shop("kofola_open.mp3")
+				get_tree().create_timer(0.75).timeout.connect(func(): _play_shop("kofola_gulp.mp3"))
+				_feed(1.0, 0.25)
+		"newspaper":
+			_read_paper(int(it.get("n", 1)))
+
+
+## Food and drink: the breath back (the sprint), the head a little clearer.
+func _feed(breath: float, sober: float) -> void:
+	var player := _player()
+	if player != null and "stamina" in player:
+		player.set("stamina", minf(1.0, float(player.get("stamina")) + breath))
+		if float(player.get("stamina")) > 0.3:
+			player.set("_stamina_locked", false)
+	if pockets != null:
+		pockets.drunk = maxf(0.0, float(pockets.drunk) - sober)
+
+
+## The Bulletin up close, out of the bag: your hands are on the paper till you put it down.
+func _read_paper(issue: int) -> void:
+	if _paper == null:
+		_paper = PAPER.new()
+		add_child(_paper)
+		_paper.closed.connect(_paper_read)
+	_paper_stopped = not _in_room() and trip != null
+	close(false)
+	if _paper_stopped:
+		trip._set_player_controls(false)
+	_paper.read(issue)
+
+
+func _paper_read() -> void:
+	if _paper_stopped:
+		_paper_stopped = false
+		trip._set_player_controls(true)
+	Input.set_mouse_mode(_mouse_before)
 
 
 # ── open and shut ────────────────────────────────────────────────────────────
@@ -336,6 +432,8 @@ func _allowed() -> bool:
 	if stand != null and is_instance_valid(stand) and bool(stand.get("visible")):
 		return false
 	if trip != null and (trip.is_open() or bool(trip.get("_sleeping"))):
+		return false
+	if _paper != null and _paper.visible:
 		return false
 	var pm = main.get("_pause_menu")
 	return not (pm != null and pm.has_method("is_open") and pm.is_open())
@@ -929,7 +1027,8 @@ func _hovered() -> Dictionary:
 
 
 ## What E does with a thing, for the line by the cursor ("" nothing).
-const VERBS := {"cigs": "Smoke one", "beer": "Drink", "card": "Scratch it", "torch": "Torch on / off", "key_shed": "Read the tag"}
+const VERBS := {"cigs": "Smoke one", "beer": "Drink", "card": "Scratch it", "torch": "Torch on / off", "key_shed": "Read the tag",
+	"matches": "Strike one", "bread": "Take a bite", "kofola": "Drink", "newspaper": "Read", "candle": "Look at it"}
 
 
 ## The line by the cursor over a thing: what it is for and that E does it (a click
@@ -1013,4 +1112,13 @@ func _play(file: String, db := -6.0) -> void:
 		_audio.stream = load(SFX + file)
 		_audio.volume_db = db
 		_audio.pitch_scale = _rng.randf_range(0.94, 1.06)
+		_audio.play()
+
+
+## A sound of the goods from Liblice's shops.
+func _play_shop(file: String, db := -2.0) -> void:
+	if ResourceLoader.exists(SFX_SHOP + file):
+		_audio.stream = load(SFX_SHOP + file)
+		_audio.volume_db = db
+		_audio.pitch_scale = 1.0
 		_audio.play()

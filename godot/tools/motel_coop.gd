@@ -4,16 +4,20 @@ extends "res://tools/coop_check.gd"
 ## First both go into the Jednota, the pub and the kiosk in turn (jednota_view.gd,
 ## pub_view.gd, kiosk_view.gd) and each sees the other standing there.
 ## In the chapel the host lights two candles and the other sees them burn; in the evening
-## both take number four (the host's key, then the spare), the host lies down, the other
-## sees him in the second bed, lies down too; a knock wakes both in the night (the host's
-## night stops, the other's with it), both lie down again and wake in the room in the
-## morning. Each side prints what it sees, tagged
-## ["MOTEL <role> <tag>", hour, place, figures seen, sleepers, flames, key] for
-## tools/motel_coop.py, and takes a picture.
+## the host is at the reception's counter when the other comes in, takes number four's key
+## off the board (the other sees it go), goes off into the corridor; the other follows,
+## sees the host there, the host goes in at four and the other after them (the door opens
+## for whoever is with a warden inside). The host puts the set on and the other sees it
+## on; the host lies down, the other sees them in the second bed, lies down too; a knock
+## wakes both in the night (the host's night stops, the other's with it), both lie down
+## again and wake in the room in the morning. Each side prints what it sees, tagged
+## ["MOTEL <role> <tag>", hour, place, figures seen, sleepers, flames, key, event, keys on
+## the board, the set on] for tools/motel_coop.py, and takes a picture.
 ##   godot --path godot res://tools/motel_coop.tscn -- --role=host --out=DIR
 
 const BI := "_interior_manager._building_interior"
 const TT := "_interior_manager.town_trip()"
+const MOTEL_PORT := 24993
 
 
 func _ready() -> void:
@@ -22,11 +26,6 @@ func _ready() -> void:
 		["eval", BI + "._exit_crt_view()"], ["wait", 1.0], ["eval", BI + ".close_interior()"], ["wait", 1.0],
 		["eval", TT + "._ensure_town()"], ["wait", 2.0],
 		["eval", TT + "._put_player(" + TT + "._town.arrive_spot())"], ["wait", 2.0],
-	]
-	var take_four := [
-		["eval", TT + "._open_room('motel')"], ["wait", 1.5], ["eval", TT + "._room._clicked('desk')"], ["wait", 1.0],
-		["eval", TT + "._room.close()"], ["wait", 1.0],
-		["eval", TT + "._motel_door(4)"], ["wait", 2.5],
 	]
 	# The shops: the host goes in first, the other follows, both look, both come out.
 	var shops := []
@@ -57,10 +56,18 @@ func _ready() -> void:
 			["eval", TT + "._room.close()"], ["wait", 1.0],
 			["eval", "debug_jump_to(1, 19.6)"], ["wait", 2.0],
 		])
-		_steps.append_array(take_four)
 		_steps.append_array([
-			["coop_signal", "host_in4"], ["coop_wait_file", "client_in4"], ["wait", 2.5],
+			["eval", TT + "._open_room('motel')"], ["wait", 2.0], ["coop_signal", "host_lobby"], ["coop_wait_file", "client_lobby"],
+			["wait", 1.5], ["motel_see", "lobby_mate"], ["shot", "host_lobby"],
+			["eval", TT + "._room._clicked('key4')"], ["wait", 3.5], ["eval", TT + "._room._clicked('key4')"], ["wait", 1.5],
+			["motel_see", "booked"], ["coop_signal", "host_booked"], ["coop_wait_file", "client_saw_booked"],
+			["eval", TT + "._room._clicked('hall')"], ["wait", 6.0], ["motel_see", "hall_host"], ["coop_signal", "host_hall"],
+			["coop_wait_file", "client_hall"], ["wait", 1.0],
+			["eval", TT + "._room._clicked('door4')"], ["wait", 16.0], ["motel_see", "in_four"], ["coop_signal", "host_in4"],
+			["coop_wait_file", "client_in4"], ["wait", 2.5],
 			["motel_see", "mate_in_room"], ["shot", "host_mate"],
+			["eval", TT + "._room._clicked('tv')"], ["wait", 5.0], ["motel_see", "set_on"], ["coop_signal", "host_tv"],
+			["coop_wait_file", "client_tv"],
 			# Something wakes them in the night (motel_night.gd: here the first step, a knock).
 			["eval", TT + ".set('debug_force_wake', 'knock')"],
 			["eval", TT + "._room._clicked('bed')"], ["wait", 2.5], ["motel_see", "lying_alone"], ["shot", "host_lying"],
@@ -84,11 +91,15 @@ func _ready() -> void:
 			["eval", TT + "._room.set('_base_rot', Vector3(-0.17, -1.66, 0))"], ["wait", 0.8],
 			["motel_see", "candles"], ["shot", "client_candles"], ["coop_signal", "client_saw_candles"],
 			["eval", TT + "._room.close()"], ["wait", 1.0],
-			["coop_wait_file", "host_in4"], ["wait", 2.0],
-		])
-		_steps.append_array(take_four)
-		_steps.append_array([
-			["coop_signal", "client_in4"], ["coop_wait_file", "host_bed"], ["wait", 3.0],
+			["coop_wait_file", "host_lobby"], ["eval", TT + "._open_room('motel')"], ["wait", 2.0], ["coop_signal", "client_lobby"],
+			["wait", 1.5], ["motel_see", "lobby_mate"], ["shot", "client_lobby"],
+			["coop_wait_file", "host_booked"], ["wait", 1.0], ["motel_see", "board"], ["shot", "client_board"], ["coop_signal", "client_saw_booked"],
+			["coop_wait_file", "host_hall"], ["wait", 0.5], ["motel_see", "host_gone"],
+			["eval", TT + "._room._clicked('hall')"], ["wait", 7.0], ["motel_see", "hall_mate"], ["shot", "client_hall"], ["coop_signal", "client_hall"],
+			["coop_wait_file", "host_in4"], ["wait", 1.0],
+			["eval", TT + "._room._clicked('door4')"], ["wait", 16.0], ["motel_see", "in_four"], ["coop_signal", "client_in4"],
+			["coop_wait_file", "host_tv"], ["wait", 1.5], ["motel_see", "set_on"], ["shot", "client_tv"], ["coop_signal", "client_tv"],
+			["coop_wait_file", "host_bed"], ["wait", 3.0],
 			["eval", TT + "._room.set('_base_rot', Vector3(-0.3, 3.0, 0))"], ["wait", 0.8],
 			["motel_see", "mate_asleep"], ["shot", "client_mate_asleep"],
 			["eval", TT + "._room._clicked('bed')"], ["wait", 2.0], ["coop_signal", "client_bed"],
@@ -101,6 +112,11 @@ func _ready() -> void:
 
 func _run_step(step: Array) -> void:
 	match str(step[0]):
+		# A port of its own: another check running beside it would be its host.
+		"coop_port":
+			Coop.port = MOTEL_PORT
+		"coop_join":
+			_main.call("_on_menu_coop_join", "%s:%d" % [str(step[1]), MOTEL_PORT])
 		"motel_see":
 			var trip = _main._interior_manager.town_trip()
 			var room = trip.get("_room")
@@ -121,8 +137,15 @@ func _run_step(step: Array) -> void:
 						flames = (v.get("flames") as Array).size()
 			var key: bool = trip._has_motel_key()
 			var ev := ""
+			var board := 0
+			var tv := false
 			if room != null and room.is_open() and room.get("_view") != null and room.get("_view").get("event") != null:
 				ev = str(room.get("_view").get("event"))
-			print("MOTEL_TAG [\"MOTEL %s %s\", %.2f, \"%s\", %d, %d, %d, %s, \"%s\"]" % [_role, str(step[1]), float(_main.get("_time_of_day_hours")), place, figs, sleepers, flames, str(key).to_lower(), ev])
+				tv = bool(room.get("_view").get("tv_on"))
+				var keys: Dictionary = (room.get("_view").get("parts") as Dictionary).get("keys", {})
+				for k in keys.values():
+					if k != null and is_instance_valid(k) and (k as Node3D).visible:
+						board += 1
+			print("MOTEL_TAG [\"MOTEL %s %s\", %.2f, \"%s\", %d, %d, %d, %s, \"%s\", %d, %s]" % [_role, str(step[1]), float(_main.get("_time_of_day_hours")), place, figs, sleepers, flames, str(key).to_lower(), ev, board, str(tv).to_lower()])
 		_:
 			super._run_step(step)

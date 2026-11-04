@@ -273,8 +273,6 @@ func hint_for(structure: Node3D) -> String:
 			return "Talk to Lojza"
 		"town_door":
 			var door_id := str(structure.get_meta("door", ""))
-			if door_id.begins_with("motel_"):
-				return _motel_hint(int(door_id.substr(6)))
 			match door_id:
 				"jednota":
 					return "Go into the Jednota" if _open("jednota") else "Read the note on the door"
@@ -284,6 +282,8 @@ func hint_for(structure: Node3D) -> String:
 					return "Ask for a room"
 				"kiosk":
 					return "Knock on the kiosk window"
+				"wc":
+					return "Go to the toilet"
 				"chapel":
 					return "Try the chapel door"
 	return ""
@@ -447,9 +447,9 @@ func _door(which: String) -> void:
 				_open_room("chapel")
 			else:
 				_one_shot("res://assets/sfx/director/knock_wrong.mp3", -10.0)
-		_:
-			if which.begins_with("motel_"):
-				_motel_door(int(which.substr(6)))
+		"wc":
+			# Round the side of the kiosk, never locked.
+			_open_room("wc")
 
 
 ## In through the door: the room in 3D (scripts/town/town_room.gd), the frame of the
@@ -461,7 +461,7 @@ func _open_room(which: String) -> void:
 		_room.set_modal_check(func(): return (_shop != null and _shop.visible) or (_pub != null and _pub.visible))
 		_room.can_buy = func(item: String) -> bool: return inventory == null or inventory.room_for(item)
 		_room.bought.connect(func(item: String):
-			if inventory != null and item in ["cigs", "beer", "card"]:
+			if inventory != null:
 				inventory.add_item(item)
 		)
 		_room.drank.connect(func(): pockets.drunk += 1.0)
@@ -482,8 +482,8 @@ func _open_room(which: String) -> void:
 
 func _room_closeup(kind: String) -> void:
 	if kind == "motel_room" and _town != null and _town.spots.has("motel_block"):
-		# Mr Simek's rooms: from seven, fifteen dollars, number four's key off the board.
-		_rent_room()
+		# Mr Simek at the desk.
+		desk_talk()
 		return
 	if kind == "sleep":
 		_sleep_in_room()
@@ -561,53 +561,40 @@ func _has_motel_key() -> bool:
 	return inventory != null and inventory.has("key_motel")
 
 
-## Number four is let tonight: your key, or another warden in it.
-func _four_let() -> bool:
-	if _has_motel_key():
-		return true
-	for id in Coop.others():
-		if str(Coop.state_of(id).get("tr", "")) == "motel_room":
-			return true
-	return false
+## The room taken for the night: by you (your key) or by a warden with you (the corridor's
+## door opens for whoever is with them, the desk has a spare). 0 none.
+var motel_room_n := 0
+var _party_room := 0
+## Where each warden last went in the corridor (Coop "walk"), id -> spot.
+var _mate_spots: Dictionary = {}
 
 
-## The keys on Simek's board: every room's but tonight's taken ones, yours once it is
-## let, and never six's (he keeps that one).
-func _keys_on_board(night: int) -> Array:
-	var taken: Array = MOTEL_PLAN.taken(night)
+## The room your key opens (a key in the bag from a save before this game's session: four).
+func _key_room() -> int:
+	return motel_room_n if motel_room_n > 0 else MOTEL_PLAN.YOURS
+
+
+## The keys on Simek's board: the rooms he lets, but the one taken.
+func _keys_on_board(_night: int) -> Array:
 	var out: Array = []
-	for n in range(1, 13):
-		if taken.has(n) or n == MOTEL_PLAN.NEVER:
-			continue
-		if n == MOTEL_PLAN.YOURS and _four_let():
-			continue
-		out.append(n)
+	for n in MOTEL_PLAN.LETS:
+		if int(n) != _party_room:
+			out.append(int(n))
 	return out
 
 
-func _motel_hint(n: int) -> String:
-	if n == MOTEL_PLAN.YOURS and _has_motel_key():
-		return "Unlock number %d" % n
-	return "Try the door"
+func mate_spot(id: int) -> String:
+	return str(_mate_spots.get(id, "lobby"))
 
 
-## A room's door from the car park or the gallery: four opens with its key, the others
-## are somebody's or nobody's and stay shut. Six's light, if it is on, goes out.
-func _motel_door(n: int) -> void:
-	var block := _motel_block()
-	if n == MOTEL_PLAN.YOURS and _has_motel_key():
-		if block != null:
-			block.swing(n, true)
-		_one_shot("res://assets/sfx/motel/lock_turn.mp3", -4.0)
-		get_tree().create_timer(0.35).timeout.connect(func():
-			_open_room("motel_room")
-			if block != null:
-				block.swing(n, false))
-		return
-	_one_shot("res://assets/sfx/director/knock_wrong.mp3", -10.0)
-	if n == MOTEL_PLAN.NEVER and block != null:
-		block.six_dark_night = _night_index(hour())
-		_update_motel(hour())
+## May you go in at room `n`'s door: your key to it, or another warden in there.
+func may_enter(n: int) -> bool:
+	if _has_motel_key() and _key_room() == n:
+		return true
+	for id in Coop.others():
+		if str(Coop.state_of(id).get("tr", "")) == "motel_room:%d" % n:
+			return true
+	return false
 
 
 func _one_shot(path: String, db: float) -> void:
@@ -621,30 +608,87 @@ func _one_shot(path: String, db: float) -> void:
 	a.finished.connect(a.queue_free)
 
 
-## At the counter: from seven, fifteen dollars, and four's key goes into your bag. With
-## another warden in four already: the spare.
-func _rent_room() -> void:
+## Simek's line for a key off his board, the money for it; after that it is yours.
+const KEY_LINES := {
+	2: "Two. The hunters' room. The stove works. Twelve dollars.",
+	4: "Four. Best mattress we have. Fifteen dollars.",
+	9: "Nine. The apartment. Twenty-five dollars. There is a fridge.",
+	11: "Eleven. Ten dollars. Mr Hora has not been back for his things.",
+}
+const KEY_TAKEN := {
+	2: "Number two. Lock it twice.",
+	4: "Number four. Lock it twice.",
+	9: "Number nine. Lock it twice.",
+	11: "Number eleven. Lock it twice.",
+}
+const KEY_SPARE := {
+	2: "Your friend has got two. There is a spare.",
+	4: "Your friend has got four. Two beds. The spare.",
+	9: "Your friend has got nine. The spare.",
+	11: "Your friend has got eleven. The spare.",
+}
+
+
+## Simek speaking: to you, and for whoever else is at the reception to see.
+func _simek(text: String) -> void:
+	_room.say("Mr Simek", text)
+	Coop.send_place("town", "motel", "say", [text])
+
+
+## The key of room `n` shown to Simek: he says what it is and what it costs.
+func key_line(n: int) -> void:
 	var h := hour()
 	if h >= 6.0 and h < MOTEL_FROM:
-		_room.say("Mr Simek", "Rooms from seven in the evening. Sit on the bench if you are tired.")
+		_simek("Rooms from seven in the evening. Sit on the bench if you are tired.")
 		return
+	_simek(str(KEY_LINES.get(n, "")))
+
+
+## At the counter: from seven; the money, and room `n`'s key goes into your bag. With a
+## warden already in a room: the spare to that one. Returns whether it went.
+func rent(n: int) -> bool:
+	var h := hour()
+	if h >= 6.0 and h < MOTEL_FROM:
+		_simek("Rooms from seven in the evening. Sit on the bench if you are tired.")
+		return false
 	if _has_motel_key():
-		_room.say("Mr Simek", "You have got four. Lock it twice.")
-		return
+		_simek(str(KEY_TAKEN.get(_key_room(), "")))
+		return false
 	if inventory != null and not inventory.room_for("key_motel"):
-		_room.say("Mr Simek", "And where will you put the key? Empty your pockets first.")
-		return
-	if CoreRoot.get_money() < MOTEL_PRICE or not CoreRoot.actions.spend_money(MOTEL_PRICE):
-		_room.say("Mr Simek", "Fifteen dollars. The bench by the pond is free.")
-		return
-	var spare := _four_let()
+		_simek("And where will you put the key? Empty your pockets first.")
+		return false
+	var price := int(MOTEL_PLAN.LETS.get(n, MOTEL_PRICE))
+	var spare := _party_room > 0
+	if spare:
+		n = _party_room
+		price = 0
+	if price > 0 and (CoreRoot.get_money() < price or not CoreRoot.actions.spend_money(price)):
+		_simek("That money is not on the counter. The bench by the pond is free.")
+		return false
+	if price > 0:
+		_one_shot("res://assets/sfx/jednota/coin.mp3", -8.0)
 	if inventory != null:
 		inventory.add_item("key_motel")
+	motel_room_n = n
+	_party_room = n
 	_one_shot(SFX_TOWN + "motel_key.mp3", -4.0)
 	if _room != null and _room.has_method("take_key"):
-		_room.take_key(MOTEL_PLAN.YOURS)
-	_room.say("Mr Simek", "Your friend has got four. Two beds. The spare." if spare else "Number four. Lock it twice.")
+		_room.take_key(n)
+	_simek(str((KEY_SPARE if spare else KEY_TAKEN).get(n, "")))
+	Coop.send_place("town", "motel", "book", [n])
 	_update_motel(h)
+	return true
+
+
+## The desk: the spare to the room the other warden took; else he points at the board.
+func desk_talk() -> void:
+	if _party_room > 0 and not _has_motel_key():
+		rent(_party_room)
+		return
+	if _has_motel_key():
+		_simek(str(KEY_TAKEN.get(_key_room(), "")))
+		return
+	_simek("Keys are on the board. Take your pick.")
 
 
 ## Lying in four at night: the night passes (camp_office, both wardens in bed in co-op).
@@ -658,10 +702,9 @@ func _sleep_in_room() -> void:
 	office.start_sleep()
 
 
-## Out of a room: out of four after a night in it, the key is left in its door.
-func _after_room(place: String) -> void:
-	if place != "motel_room":
-		return
+## Out of a room: not in bed any more; out of it after a night there, the key is left in
+## its door and the room is free again.
+func left_motel_room() -> void:
 	var office = _main().get("camp_office") if _main() != null else null
 	if office != null and office.has_method("in_bed") and office.in_bed() and office.has_method("cancel_sleep"):
 		office.cancel_sleep()
@@ -669,7 +712,15 @@ func _after_room(place: String) -> void:
 		_motel_slept = false
 		if inventory != null:
 			inventory.remove_item("key_motel")
+		motel_room_n = 0
+		_party_room = 0
+		Coop.send_place("town", "motel", "book", [0])
 	_update_motel(hour())
+
+
+func _after_room(place: String) -> void:
+	if place == "motel_room":
+		left_motel_room()
 
 
 ## Every second: the motel's rooms as they are (yours lit while a warden is in it awake
@@ -683,11 +734,12 @@ func _update_motel(h: float) -> void:
 	if _room != null and _room.is_open() and str(_room.place) == "motel_room" and not _sleeping:
 		var v = _room.get("_view")
 		if v != null and v.lit():
-			awake[MOTEL_PLAN.YOURS] = true
+			awake[int(_room.motel_n)] = true
 	for id in Coop.others():
 		var st: Dictionary = Coop.state_of(id)
-		if str(st.get("tr", "")) == "motel_room" and not bool(st.get("z", false)):
-			awake[MOTEL_PLAN.YOURS] = true
+		var tr := str(st.get("tr", ""))
+		if tr.begins_with("motel_room:") and not bool(st.get("z", false)):
+			awake[int(tr.substr(11))] = true
 	block.awake_in = awake
 	block.keys_on_board = _keys_on_board(night)
 	block.set_state(h, night)
@@ -870,7 +922,7 @@ func _process(delta: float) -> void:
 	if _room != null and _room.is_open():
 		var here: Array = []
 		for id in Coop.others():
-			if str(Coop.state_of(id).get("tr", "")) == str(_room.place):
+			if str(Coop.state_of(id).get("tr", "")) == coop_place():
 				here.append(int(id))
 		_room.coop_mates(here)
 	var road := _road()
@@ -1021,7 +1073,7 @@ func _motel_night(office, delta: float) -> void:
 	if Coop.is_client():
 		return
 	for id in Coop.others():
-		if str(Coop.state_of(id).get("tr", "")) != "motel_room":
+		if str(Coop.state_of(id).get("tr", "")) != coop_place():
 			return
 	var h := hour()
 	var night := _night_index(h)
@@ -1048,6 +1100,7 @@ func _motel_night(office, delta: float) -> void:
 			"hour": h, "sanity": _sanity_now(), "six": MOTEL_PLAN.six_lit(night, h), "rain": _raining_now(),
 			"watch": not win.is_empty() and hrs >= float(win[0]) and hrs < float(win[1]) and night != _watcher_gone,
 			"woken": _wakes, "since": _since_wake_h, "taken": MOTEL_PLAN.taken(night), "had": _wake_had,
+			"sides": MOTEL_PLAN.beside(int(_room.motel_n)), "above": MOTEL_PLAN.above(int(_room.motel_n)),
 		}
 		var lam := MOTEL_NIGHT.hazard(ctx)
 		if lam > 0.0 and _wake_rng.randf() < 1.0 - exp(-lam * dt):
@@ -1113,6 +1166,39 @@ func _ring_bell_now() -> void:
 ## The other wardens' doings in Liblice's places (Coop.send_place "town", through
 ## town_places.gd): the chapel's candles burning.
 func coop_town_place(key: String, op: String, data: Array) -> void:
+	if key == "motel" and op == "book" and not data.is_empty():
+		# A warden took a key off the board (0: gave it back in the morning).
+		var n := int(data[0])
+		_party_room = n
+		if n == 0 and motel_room_n != 0 and not _in_four():
+			motel_room_n = 0
+		if n > 0 and _room != null and _room.is_open() and str(_room.place) == "motel":
+			_room.take_key(n)
+			_room.set("_npc_nod", 0.6)
+			_one_shot(SFX_TOWN + "motel_key.mp3", -9.0)
+		_update_motel(hour())
+		return
+	if key == "motel" and op == "say" and not data.is_empty():
+		# What Simek told the other warden at the counter.
+		if _room != null and _room.is_open() and str(_room.place) == "motel":
+			_room.say("Mr Simek", str(data[0]))
+			_room.set("_npc_nod", 0.5)
+		return
+	if key == "motel" and op == "walk" and not data.is_empty():
+		var who := int(Coop.get("sender"))
+		_mate_spots[who] = str(data[0])
+		if _room != null and _room.is_open():
+			var here = _room.get("_view")
+			if here != null and here.has_method("mate_walk"):
+				here.mate_walk(who, str(data[0]))
+		return
+	if key == "motel" and op == "room" and data.size() >= 2:
+		# What a warden switched in the room you are both in.
+		if _in_four() and int(_room.motel_n) == int(data[0]):
+			var v = _room.get("_view")
+			if v != null and v.has_method("take_state"):
+				v.take_state(data[1])
+		return
 	if key == "motel" and op == "wake" and not data.is_empty():
 		# The host's night in four stopped: what woke them wakes you too.
 		var kind := str(data[0])
@@ -1514,7 +1600,11 @@ func coop_take_hamlet(d: Dictionary) -> void:
 
 ## Co-op: the place in Lesna you are in ("pub", "jednota"...), "" outside them.
 func coop_place() -> String:
-	return str(_room.place) if _room != null and _room.is_open() else ""
+	if _room == null or not _room.is_open():
+		return ""
+	if str(_room.place) == "motel_room":
+		return "motel_room:%d" % int(_room.motel_n)
+	return str(_room.place)
 
 
 # ── getting on, the ride, getting off ────────────────────────────────────────

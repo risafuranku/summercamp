@@ -7,12 +7,17 @@ extends RefCounted
 ## shop, the same room you stand in: the counter with Mrs Lojzova, the shelves of oil,
 ## maps and cigarettes behind her, the calendar. Lit from six to nine in the evening.
 ## Inside, the window and the door look out at the pumps under the canopy.
+## It sells what a petrol station sells: Start at three dollars out of the little rack,
+## Kofola out of the crate at the counter's end, matches and the paper on the counter. What
+## you point at she puts on the counter, the till rings it up (counter_shop.gd, the goods
+## and her lines counter_goods.gd).
 ##
 ## Room space: the middle of the kiosk's floor, x east, z towards the pumps (the front).
 ## The kiosk's own node in the station faces -z: room space is turned half round in it.
 
 const K = preload("res://scripts/interior_kit.gd")
 const WINDOW_PORTAL = preload("res://scripts/ui/window_portal.gd")
+const GOODS = preload("res://scripts/town/counter_goods.gd")
 const CAMP := "res://assets/textury/camp/"
 ## The front's picture: metres, pixels a metre; the box it is on.
 const W := 5.7
@@ -25,6 +30,19 @@ const DOOR_GLASS := [[183, 47, 218, 133]]
 const FLOOR_Y := 0.2
 const ROOM := Vector3(5.4, 2.7, 4.0)
 const STAND := Vector3(1.45, 1.58, 1.15)
+## The counter's top; where she puts what you take (the near end first), what the others buy.
+const TOP_Y := 1.0
+const SLOTS := [
+	Vector3(0.5, TOP_Y, -0.36), Vector3(0.25, TOP_Y, -0.38), Vector3(0.0, TOP_Y, -0.36), Vector3(-0.25, TOP_Y, -0.38),
+	Vector3(-0.5, TOP_Y, -0.36), Vector3(-0.75, TOP_Y, -0.38), Vector3(-1.0, TOP_Y, -0.36), Vector3(-1.25, TOP_Y, -0.38),
+]
+const MATE_SLOTS := [
+	Vector3(-1.5, TOP_Y, -0.36), Vector3(-1.75, TOP_Y, -0.38), Vector3(-1.95, TOP_Y, -0.36),
+	Vector3(-1.5, TOP_Y, -0.58), Vector3(-1.75, TOP_Y, -0.6), Vector3(-1.95, TOP_Y, -0.58),
+]
+## The till stands turned to you, and its display: a share of its picture.
+const TILL_YAW := 40.0
+const TILL_WINDOW := Rect2(0.53, 0.055, 0.3, 0.125)
 
 
 ## The room's middle on its floor in the kiosk node's frame (its front at -BOX.z/2, the room
@@ -61,6 +79,13 @@ static func _lit(m: Material, lit: bool) -> Material:
 		s.emission_texture = s.albedo_texture
 	s.emission = Color(0.92, 0.96, 1.0)
 	s.emission_energy_multiplier = 0.5
+	return s
+
+
+## A sprite of the shop's own (counter_goods.gd), lit with the rest of the shell.
+static func _spr(root: Node3D, file: String, height: float, pos: Vector3, yaw: float, lit: bool, billboard := false, name := "Good") -> MeshInstance3D:
+	var s := GOODS.sprite(root, GOODS.SHOP + file, height, pos, yaw, billboard, name)
+	s.material_override = _lit(s.material_override, lit)
 	return s
 
 
@@ -103,8 +128,20 @@ static func build(root: Node3D, room = null, lit := false) -> Dictionary:
 	var cpos := Vector3(-0.6, 0.475, -0.55)
 	K.slab(root, counter, cpos, _lit(K.surface("veneer_dark", 0.6), l), "Counter")
 	var cf := K.picture(root, "kiosk_counter", Vector2(counter.x, counter.y), cpos + Vector3(0, 0, counter.z * 0.5 + 0.005), 0.0, "CounterFront")
+	var front := GOODS.SHOP + "kiosk_front.png"
+	if ResourceLoader.exists(front):
+		(cf.material_override as StandardMaterial3D).albedo_texture = load(front)
 	cf.material_override = _lit(cf.material_override, l)
-	K.slab(root, Vector3(counter.x + 0.1, 0.05, counter.z + 0.07), cpos + Vector3(0, counter.y * 0.5 + 0.025, 0), _lit(K.surface("plastic", 0.5, Color(0.56, 0.52, 0.46)), l), "CounterTop")
+	K.slab(root, Vector3(counter.x + 0.1, 0.05, counter.z + 0.07), cpos + Vector3(0, counter.y * 0.5 + 0.025, 0), _lit(GOODS.laminate(), l), "CounterTop")
+	# What stands on the counter: the till, the cigarettes' little rack, the paper, the matches.
+	var top := counter.y + 0.05
+	var till := _spr(root, "kiosk_till.png", 0.42, Vector3(0.45, top, -0.66), TILL_YAW, l, false, "Till")
+	var rack := _spr(root, "kiosk_rack.png", 0.34, Vector3(-0.15, top, -0.68), TILL_YAW, l, false, "CigRack")
+	var papers := _spr(root, "kiosk_papers.png", 0.15, Vector3(-0.75, top, -0.66), TILL_YAW, l, false, "Newspapers")
+	var matches := _spr(root, "matches_tray.png", 0.16, Vector3(-1.3, top, -0.64), TILL_YAW, l, false, "Matches")
+	# Kofola in a crate on the floor at the counter's end.
+	var crate := _spr(root, "kofola_crate.png", 0.42, Vector3(1.35, 0.0, -0.75), 0.0, l, true, "KofolaCrate")
+	_spr(root, "kofola_crate.png", 0.42, Vector3(1.32, 0.42, -0.8), 0.0, l, true, "KofolaCrate2")
 	K.slab(root, Vector3(3.8, 1.6, 0.3), Vector3(-0.4, 1.4, -d * 0.5 + 0.15), _lit(K.surface("planks_dark", 0.6), l), "Shelves")
 	var shelves := K.picture(root, "kiosk_shelves", Vector2(3.7, 1.55), Vector3(-0.4, 1.4, -d * 0.5 + 0.305), 0.0, "ShelvesFace")
 	shelves.material_override = _lit(shelves.material_override, l)
@@ -132,8 +169,18 @@ static func build(root: Node3D, room = null, lit := false) -> Dictionary:
 			(g as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		return out
 	room._tube(Vector3(-0.4, h - 0.06, -0.4))
-	room._hot_box("cigs", Vector3(-0.4, 1.4, -d * 0.5 + 0.3), Vector3(3.7, 1.5, 0.2), [shelves])
+	room._hot_box("cigs", Vector3(-0.15, top + 0.17, -0.68), Vector3(0.3, 0.36, 0.3), [rack])
+	room._hot_box("till", Vector3(0.45, top + 0.2, -0.66), Vector3(0.5, 0.44, 0.34), [till])
+	room._hot_box("newspaper", Vector3(-0.75, top + 0.08, -0.66), Vector3(0.44, 0.2, 0.34), [papers])
+	room._hot_box("matches", Vector3(-1.3, top + 0.08, -0.64), Vector3(0.34, 0.2, 0.3), [matches])
+	room._hot_box("kofola", Vector3(1.34, 0.42, -0.78), Vector3(0.6, 0.84, 0.5), [crate])
 	room._npc_sprite("town_lojzova", 1.6, Vector3(-0.8, 0.0, -1.15), "her")
+	out["till"] = till
+	# What it all costs, on little cards by the goods.
+	GOODS.tag(root, 3, Vector3(0.06, top, -0.6), TILL_YAW, 0.11)
+	GOODS.tag(root, 1, Vector3(-0.5, top, -0.58), TILL_YAW, 0.11)
+	GOODS.tag(root, 1, Vector3(-1.08, top, -0.56), TILL_YAW, 0.11)
+	GOODS.tag(root, 2, Vector3(1.22, 0.8, -0.66), 20.0, 0.15)
 	var dp := pane(DOOR_GLASS[0])
 	room._hot_box("door", Vector3((dp["at"] as Vector3).x, 1.0, d * 0.5 - 0.05), Vector3(0.9, 2.0, 0.12), [])
 	room._light_profile(false)
@@ -159,7 +206,8 @@ func _init(p_room = null, p_anchor: Node3D = null, p_shell: Node3D = null) -> vo
 
 
 func build_inside(hour: float) -> void:
-	build(room._root, room, false)
+	var built := build(room._root, room, false)
+	room.counter().begin("kiosk", {"slots": SLOTS, "mate_slots": MATE_SLOTS, "till": built["till"], "window": TILL_WINDOW, "billboard": true})
 	for r in PANES + DOOR_GLASS:
 		var p := pane(r)
 		windows.append(WINDOW_PORTAL.make(room, room._root, (p["at"] as Vector3) - Vector3(0, 0, 0.02), Vector3(0, 0, 1), p["size"], "", 224, false))
@@ -198,9 +246,11 @@ func place_mates(mates: Dictionary, ids: Array) -> void:
 		fig.visible = true
 		fig.show_at(MATE_SPOTS[k % MATE_SPOTS.size()], "stand")
 		k += 1
+	room.counter().mates_here(ids)
 
 
 func close() -> void:
+	room.counter().end()
 	for w in windows:
 		w.free_all()
 	windows.clear()

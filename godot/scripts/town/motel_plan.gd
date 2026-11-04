@@ -1,17 +1,21 @@
 extends RefCounted
 
-## The Liblice motel's one plan (the user, 3. 11. 2026: "the whole gallery of rooms"):
-## the building in the village (motel_block.gd) and the rooms you go into (motel_rooms.gd,
-## opened by town_room.gd) are both built from it, so the window you look out of is the
-## window seen from the car park, and the lamp you switch on lights it.
+## The Liblice motel's one plan (the user, 3. 11. 2026: "the whole gallery of rooms"; 4. 11.:
+## "it should work like in some RPG": a corridor inside, keys off the board): the building
+## in the village (motel_block.gd), the rooms you go into (motel_rooms.gd) and the corridor
+## (motel_hall.gd), all opened by town_room.gd, are built from it, so the window you look
+## out of is the window seen from the car park, and the lamp you switch on lights it.
 ##
 ## Motel space: the block's middle on the ground at the origin, x east along its front,
 ## y up, z south; the front (FRONT_Z) faces north to the street. Seven bays of BAY metres:
 ## the reception in the two west ones downstairs, rooms 1-5 in the other five, rooms 6-12
-## over all seven along the gallery, reached by the stairs up the east end.
+## over all seven. The rooms lie along the front, their windows on the street; behind them
+## the corridor (CORRIDOR_Z) runs the block's length on both floors, reached from the
+## reception by a short passage, the stairs at its east end. A room: from its door on the
+## corridor a little hall, the bathroom off it, the bedroom beyond.
 ##
-## A room's own space: the middle of its floor at the origin, the same axes (its street
-## wall at -ROOM_D / 2).
+## A room's own space: the middle of its bedroom's floor at the origin, the same axes (its
+## street wall at -ROOM_D / 2, the hall and the bathroom behind its back wall).
 
 const SIZE := Vector3(22.0, 6.4, 9.0)
 const FRONT_Z := -4.5
@@ -22,20 +26,18 @@ const BAY := 22.0 / 7.0
 const UPPER_Y := 3.2
 const ROOM_H := 2.7
 const ROOM_D := 4.3
-## In a bay, from its west edge: the door's sides, the window's sides; the window's sill
-## and head over the room's floor.
-const DOOR := Vector2(0.4, 1.3)
-const DOOR_H := 2.05
+## In a bay, from its west edge: the window's sides; the window's sill and head over the
+## room's floor; a door's height.
 const WIN := Vector2(1.65, 2.85)
 const WIN_Y := Vector2(0.9, 2.15)
-## The gallery stands out this far from the front, its slab this thick; the rail.
-const GALLERY_D := 1.6
-const GALLERY_T := 0.2
-const RAIL_H := 1.0
-## The stairs: along the east end wall, from the ground at STAIR_FOOT_Z up to the landing
-## at the gallery's east end.
-const STAIR_W := 1.2
-const STAIR_FOOT_Z := 1.7
+const DOOR_H := 2.05
+## The reception's street door in its bay, from its west edge.
+const DOOR := Vector2(0.4, 1.3)
+## The corridor (motel space): its north and south walls; the stairs up along its south
+## side at the east end, rising to the west (foot at STAIRS_X.y, top at STAIRS_X.x).
+const CORRIDOR_Z := Vector2(1.95, 3.6)
+const STAIRS_X := Vector2(6.6, 10.6)
+const STAIRS_Z := Vector2(2.9, 3.6)
 const STEPS := 16
 ## The reception: bays 0 and 1 downstairs; its door in bay 1, a window in each.
 const LOBBY_BAYS := [0, 1]
@@ -48,9 +50,11 @@ const ROOMS := {
 	9: {"bay": 3, "up": true}, 10: {"bay": 4, "up": true}, 11: {"bay": 5, "up": true},
 	12: {"bay": 6, "up": true},
 }
-## The room he lets (the best mattress), the one he does not.
-const YOURS := 4
+## The rooms he lets, each its own (motel_rooms.gd), and what a night costs: the keys on
+## his board. The one he does not. The one you get if nothing says otherwise.
+const LETS := {2: 12, 4: 15, 9: 25, 11: 10}
 const NEVER := 6
+const YOURS := 4
 
 # ── the room inside (its own space) ──────────────────────────────────────────
 
@@ -64,19 +68,27 @@ const BED_Z := ROOM_D * 0.5 - BED_SIZE.z * 0.5
 const NIGHTSTAND := Vector3(-0.36, 0.0, ROOM_D * 0.5 - 0.22)
 ## The headboard wall's picture, its own 16:9 tall over the room's width, from this high;
 ## only the part of it from CROP.x to CROP.y across, its left edge on the west wall (the
-## bathroom's door is east of it).
+## opening to the hall is east of it).
 const HEADWALL_Y := 0.25
 const HEADWALL_CROP := Vector2(0.12, 0.88)
-## The bathroom behind the back wall (the block is deeper than the rooms): its door in the
-## back wall (x from, to), its inside (x from, to; z from the back wall's far face, deep).
+## The opening from the bedroom to the hall in the back wall (x from, to); its height.
 const BATH_DOOR := Vector2(0.82, 1.44)
 const BATH_DOOR_H := 2.0
-const BATH_X := Vector2(-0.2, ROOM_W * 0.5)
-const BATH_D := 1.75
+## Behind the back wall, BACK_D deep: the bathroom in the west and middle, the hall in the
+## east, a wall between them at WALL_X with the bathroom's door in it (z from, to); the
+## room's door from the corridor in the hall's south wall (x from, to).
+const BACK_Z := ROOM_D * 0.5 + 0.1
+const BACK_D := 1.75
+const BATH_D := BACK_D
 const BATH_H := 2.4
+const BATH_X := Vector2(-ROOM_W * 0.5, 0.52)
+const WALL_X := 0.57
+const HALL_X := Vector2(0.62, ROOM_W * 0.5)
+const INNER_DOOR_Z := Vector2(BACK_Z + 0.75, BACK_Z + 1.4)
+const ENTRY_X := Vector2(0.74, 1.38)
 ## Where you stand when you come in (eye height), and lie in the first bed; the
 ## wardrobe's middle along the west wall.
-const STAND := Vector3(-0.15, 1.6, -1.25)
+const STAND := Vector3(1.06, 1.6, BACK_Z + BACK_D - 0.8)
 const WARDROBE_Z := -0.5
 const LIE := Vector3(-0.97, 0.78, 1.55)
 
@@ -122,9 +134,44 @@ static func lobby_size() -> Vector3:
 	return Vector3(x1 - x0, ROOM_H, ROOM_D)
 
 
-## The door of a bay (motel space): its middle on the floor.
+## The reception's street door (motel space): its middle on the floor.
 static func door_at(bay: int, up: bool) -> Vector3:
 	return Vector3(bay_x0(bay) + (DOOR.x + DOOR.y) * 0.5, UPPER_Y if up else 0.0, FRONT_Z)
+
+
+## Room `n`'s door on the corridor (motel space): its middle on the floor.
+static func hall_door(n: int) -> Vector3:
+	var o := room_origin(n)
+	return Vector3(o.x + (ENTRY_X.x + ENTRY_X.y) * 0.5, o.y, CORRIDOR_Z.x)
+
+
+## The reception's door to the passage to the corridor: on its back wall at the east end, in
+## its own space; the passage's middle along x (motel space).
+const LOBBY_HALL_X := 2.42
+
+
+static func passage_x() -> float:
+	return lobby_origin().x + LOBBY_HALL_X
+
+
+## The rooms either side of `n` on its floor.
+static func beside(n: int) -> Array:
+	var out: Array = []
+	var b := int(ROOMS[n]["bay"])
+	for k in ROOMS:
+		if bool(ROOMS[k]["up"]) == bool(ROOMS[n]["up"]) and absi(int(ROOMS[k]["bay"]) - b) == 1:
+			out.append(int(k))
+	return out
+
+
+## The room over `n` (0: the roof).
+static func above(n: int) -> int:
+	if bool(ROOMS[n]["up"]):
+		return 0
+	for k in ROOMS:
+		if bool(ROOMS[k]["up"]) and int(ROOMS[k]["bay"]) == int(ROOMS[n]["bay"]):
+			return int(k)
+	return 0
 
 
 ## The window of a bay (motel space): the glass's middle.
@@ -149,17 +196,19 @@ static func room_windows(n: int) -> Array:
 	return [to_room(n, window_at(b, bool(ROOMS[n]["up"])))]
 
 
+## A room's door in its own space: the reception's street door; a room's door from the
+## corridor, in its hall's south wall.
 static func room_door(n: int) -> Vector3:
 	if n == 0:
 		return to_room(0, door_at(LOBBY_DOOR_BAY, false))
-	var b := int(ROOMS[n]["bay"])
-	return to_room(n, door_at(b, bool(ROOMS[n]["up"])))
+	return Vector3((ENTRY_X.x + ENTRY_X.y) * 0.5, 0.0, BACK_Z + BACK_D + 0.05)
 
 
 # ── who is in which room tonight ─────────────────────────────────────────────
 
-## The rooms taken tonight besides yours (the same on every machine: the day's seed): a
-## travelling salesman, a lorry driver, a couple off the 12; never six.
+## The rooms taken tonight (the same on every machine: the day's seed): a travelling
+## salesman, a lorry driver, a couple off the 12; never six, never the ones he lets out to
+## you (their keys are on the board).
 static func taken(day: int) -> Array:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash("motel_taken_%d" % day)
@@ -169,7 +218,7 @@ static func taken(day: int) -> Array:
 	while out.size() < want and guard < 40:
 		guard += 1
 		var n := rng.randi_range(1, 12)
-		if n == YOURS or n == NEVER or out.has(n):
+		if LETS.has(n) or n == NEVER or out.has(n):
 			continue
 		out.append(n)
 	return out

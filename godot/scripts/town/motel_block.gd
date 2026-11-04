@@ -1,13 +1,16 @@
 extends Node3D
 
-## The Liblice motel in the village (the user, 3. 11. 2026: "the whole gallery of rooms"),
-## built from its one plan (motel_plan.gd) by town_lesna._motel: two floors of rooms with
-## their own doors onto the car park and the gallery, the concrete stairs up the east
-## end, the reception at the west end, MOTEL in tubes on the roof. The windows are holes
+## The Liblice motel in the village (the user, 3. 11. 2026: "the whole gallery of rooms";
+## 4. 11.: "it should work like in some RPG", a corridor inside), built from its one plan
+## (motel_plan.gd) by town_lesna._motel: two floors of rooms along the front with only
+## their windows on the car park (their doors are on the corridor inside, motel_hall.gd),
+## the reception's door at the west end, MOTEL in tubes on the roof. The windows are holes
 ## with glass and the rooms behind them (motel_rooms.gd, the same rooms you go into): by
 ## day the empty ones made up, at night the taken ones lit behind their curtains till
 ## their lamps go out; the reception keeps its light on. Yours is lit while a warden is in
-## it awake; number six some nights though nobody is (motel_plan.six_lit).
+## it awake; number six some nights though nobody is (motel_plan.six_lit). The car park
+## before it: its sodium lamps, a couple of old cars, the bins: what you see out of the
+## windows at night.
 ##
 ## Its own space is motel space (the block's middle on the ground, the front to -z); it
 ## stands in the village's frame unturned.
@@ -31,7 +34,8 @@ var leaves: Dictionary = {}
 var neon: StandardMaterial3D
 var _plaster: StandardMaterial3D
 var _lobby_light: OmniLight3D
-var _stairs_light: OmniLight3D
+## The car park's lamps (on after dark).
+var _yard_lights: Array = []
 ## Who is in which room now and awake (n -> true), set by town_trip each second.
 var awake_in: Dictionary = {}
 ## The keys on the board (the reception's shell shows them).
@@ -50,11 +54,10 @@ func build(p_town) -> void:
 	_plaster = _triplanar(TEX_TOWN + "motel_plaster.png", 2.4, Color(0.97, 0.94, 0.88))
 	_walls()
 	_front()
-	_gallery()
-	_stairs()
 	_roof()
 	_doors_and_windows()
 	_lights()
+	_car_park()
 	_clicks()
 	set_state(12.0, 1)
 
@@ -112,19 +115,19 @@ func _walls() -> void:
 	add_child(solid)
 
 
-## The front: two storeys of plaster cut round every door and window, the band of the
-## gallery's slab between them, the parapet over the top.
+## The front: two storeys of plaster cut round every window and the reception's door, a
+## concrete band between them, the parapet over the top.
 func _front() -> void:
 	var s := PLAN.SIZE
 	var half := s.x * 0.5
-	var ws := PLAN.window_size()
+	var band := 0.2
 	for up in [false, true]:
 		var y0 := PLAN.UPPER_Y if up else 0.0
-		var hgt := (s.y - 0.2 - PLAN.UPPER_Y) if up else (PLAN.UPPER_Y - PLAN.GALLERY_T)
+		var hgt := (s.y - 0.2 - PLAN.UPPER_Y) if up else (PLAN.UPPER_Y - band)
 		var holes: Array = []
 		for b in PLAN.BAYS:
 			var x0 := PLAN.bay_x0(b)
-			if up or b != 0:
+			if not up and b == PLAN.LOBBY_DOOR_BAY:
 				holes.append([x0 + PLAN.DOOR.x, x0 + PLAN.DOOR.y, 0.0, PLAN.DOOR_H])
 			holes.append([x0 + PLAN.WIN.x, x0 + PLAN.WIN.y, PLAN.WIN_Y.x, PLAN.WIN_Y.y])
 		for p in K.wall_pieces(half, hgt, holes):
@@ -134,9 +137,9 @@ func _front() -> void:
 			var b1: float = p[3]
 			var piece := K.slab(self, Vector3(a1 - a0, b1 - b0, PLAN.WALL), Vector3((a0 + a1) * 0.5, y0 + (b0 + b1) * 0.5, PLAN.FRONT_Z + PLAN.WALL * 0.5), _plaster, "Front")
 			piece.set_meta("no_wear", true)
-	# The slab's edge between the storeys and the parapet.
+	# The band between the storeys and the parapet.
 	var concrete := _triplanar(TEX_CAMP + "concrete.png", 2.0, Color(0.86, 0.84, 0.8))
-	K.slab(self, Vector3(s.x, PLAN.GALLERY_T, PLAN.WALL), Vector3(0, PLAN.UPPER_Y - PLAN.GALLERY_T * 0.5, PLAN.FRONT_Z + PLAN.WALL * 0.5), concrete, "Band")
+	K.slab(self, Vector3(s.x, band, PLAN.WALL), Vector3(0, PLAN.UPPER_Y - band * 0.5, PLAN.FRONT_Z + PLAN.WALL * 0.5), concrete, "Band")
 	K.slab(self, Vector3(s.x + 0.3, 0.25, PLAN.WALL + 0.25), Vector3(0, s.y - 0.075, PLAN.FRONT_Z + PLAN.WALL * 0.5 - 0.05), concrete, "Parapet")
 
 
@@ -153,57 +156,6 @@ func _quad(mat: Material, size: Vector2, pos: Vector3, facing: Vector3) -> MeshI
 	return mi
 
 
-## The gallery along the upper floor: its slab out over the car park on square posts, the
-## brown sheet rail along its edge; walkable, the rail solid.
-func _gallery() -> void:
-	var s := PLAN.SIZE
-	var x0 := -s.x * 0.5
-	var x1 := s.x * 0.5 + PLAN.STAIR_W
-	var z0 := PLAN.FRONT_Z - PLAN.GALLERY_D
-	var concrete := _triplanar(TEX_CAMP + "concrete.png", 2.0, Color(0.8, 0.78, 0.74))
-	var slab := Vector3(x1 - x0, PLAN.GALLERY_T, PLAN.GALLERY_D)
-	var at := Vector3((x0 + x1) * 0.5, PLAN.UPPER_Y - PLAN.GALLERY_T * 0.5, (z0 + PLAN.FRONT_Z) * 0.5)
-	K.slab(self, slab, at, concrete, "Gallery")
-	_solid(at, slab)
-	# Its posts, every other bay.
-	var steel := _flat("", Color(0.28, 0.25, 0.22))
-	for b in range(0, PLAN.BAYS + 1, 2):
-		var px := clampf(-s.x * 0.5 + float(b) * PLAN.BAY, x0 + 0.1, x1 - 0.1)
-		K.slab(self, Vector3(0.14, PLAN.UPPER_Y - PLAN.GALLERY_T, 0.14), Vector3(px, (PLAN.UPPER_Y - PLAN.GALLERY_T) * 0.5, z0 + 0.12), steel, "Post")
-	# The rail along the edge and across the west end.
-	_rail(Vector3(x0, PLAN.UPPER_Y, z0 + 0.03), Vector3(x1, PLAN.UPPER_Y, z0 + 0.03))
-	_rail(Vector3(x0 + 0.03, PLAN.UPPER_Y, z0), Vector3(x0 + 0.03, PLAN.UPPER_Y, PLAN.FRONT_Z))
-	_rail(Vector3(x1 - 0.03, PLAN.UPPER_Y, z0), Vector3(x1 - 0.03, PLAN.UPPER_Y, PLAN.FRONT_Z + 0.02))
-
-
-## A stretch of the gallery's rail from `a` to `b` (its foot), both faces, solid.
-func _rail(a: Vector3, b: Vector3) -> void:
-	var mat := _flat(TEX_TOWN + "motel_rail.png")
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	var length := Vector2(b.x - a.x, b.z - a.z).length()
-	mat.uv1_scale = Vector3(maxf(1.0, roundf(length / 4.6)), 1.0, 1.0)
-	var mid := (a + b) * 0.5
-	var yaw := atan2(b.x - a.x, b.z - a.z) + PI * 0.5
-	var mi := MeshInstance3D.new()
-	var q := QuadMesh.new()
-	q.size = Vector2(length, PLAN.RAIL_H)
-	mi.mesh = q
-	mi.material_override = mat
-	mi.position = mid + Vector3(0, PLAN.RAIL_H * 0.5, 0)
-	mi.rotation = Vector3(0, yaw, 0)
-	mi.name = "Rail"
-	add_child(mi)
-	var body := StaticBody3D.new()
-	var cs := CollisionShape3D.new()
-	var bx := BoxShape3D.new()
-	bx.size = Vector3(length, PLAN.RAIL_H + 0.2, 0.08)
-	cs.shape = bx
-	body.add_child(cs)
-	body.position = mid + Vector3(0, (PLAN.RAIL_H + 0.2) * 0.5, 0)
-	body.rotation.y = yaw
-	add_child(body)
-
-
 func _solid(at: Vector3, size: Vector3, rot := Vector3.ZERO) -> StaticBody3D:
 	var body := StaticBody3D.new()
 	var cs := CollisionShape3D.new()
@@ -215,50 +167,6 @@ func _solid(at: Vector3, size: Vector3, rot := Vector3.ZERO) -> StaticBody3D:
 	body.rotation = rot
 	add_child(body)
 	return body
-
-
-## The concrete stairs up the east end: from the ground at the back to the landing at
-## the gallery's east end. Steps to see, a ramp to walk; the rail on the open side.
-func _stairs() -> void:
-	var s := PLAN.SIZE
-	var xa := s.x * 0.5
-	var xm := xa + PLAN.STAIR_W * 0.5
-	var z_foot := PLAN.STAIR_FOOT_Z
-	var z_top := PLAN.FRONT_Z
-	var run := z_foot - z_top
-	var rise := PLAN.UPPER_Y
-	var concrete := _triplanar(TEX_CAMP + "concrete.png", 2.0, Color(0.84, 0.82, 0.78))
-	var n := PLAN.STEPS
-	var tread := run / float(n)
-	var step_h := rise / float(n)
-	for i in n:
-		var top := step_h * float(i + 1)
-		var z := z_foot - tread * (float(i) + 0.5)
-		K.slab(self, Vector3(PLAN.STAIR_W, step_h, tread + 0.01), Vector3(xm, top - step_h * 0.5, z), concrete, "Step")
-	# The flight's underside: one slab along the slope under the steps.
-	var length := sqrt(run * run + rise * rise)
-	var ang := atan2(rise, run)
-	var under := K.slab(self, Vector3(PLAN.STAIR_W, 0.22, length), Vector3(xm, rise * 0.5 - 0.18, (z_foot + z_top) * 0.5), concrete, "Flight")
-	under.rotation.x = ang
-	# The ramp you walk up (its top on the steps' noses).
-	_solid(Vector3(xm, rise * 0.5 - 0.06, (z_foot + z_top) * 0.5), Vector3(PLAN.STAIR_W, 0.12, length), Vector3(ang, 0, 0))
-	# The rail on its open side, along the slope.
-	var mat := _flat(TEX_TOWN + "motel_rail.png")
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	mat.uv1_scale = Vector3(maxf(1.0, roundf(length / 4.6)), 1.0, 1.0)
-	var rail := MeshInstance3D.new()
-	var q := QuadMesh.new()
-	q.size = Vector2(length, PLAN.RAIL_H)
-	rail.mesh = q
-	rail.material_override = mat
-	rail.name = "StairRail"
-	rail.position = Vector3(xa + PLAN.STAIR_W - 0.03, rise * 0.5 + PLAN.RAIL_H * 0.5, (z_foot + z_top) * 0.5)
-	# Its long side up the flight, its short side square to it, its face to the east.
-	var along := Vector3(0, rise, -run).normalized()
-	var up := Vector3(0, run, rise).normalized()
-	rail.basis = Basis(along, up, along.cross(up))
-	add_child(rail)
-	_solid(Vector3(xa + PLAN.STAIR_W - 0.03, rise * 0.5 + 0.6, (z_foot + z_top) * 0.5), Vector3(0.08, 1.2, length), Vector3(ang, 0, 0))
 
 
 ## The flat roof and its things: MOTEL in tubes on brackets over the reception, LIBLICE
@@ -307,12 +215,7 @@ func _doors_and_windows() -> void:
 			g.name = "Glass"
 			g.set_meta("retro_skip", true)
 			g.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	# The doors: every room's own with its number, the reception's glass one.
-	for n in PLAN.ROOMS:
-		var b := int(PLAN.ROOMS[n]["bay"])
-		var up := bool(PLAN.ROOMS[n]["up"])
-		var tex := TEX_TOWN + "motel_door_%d.png" % n
-		leaves[n] = _leaf(PLAN.door_at(b, up), tex if ResourceLoader.exists(tex) else TEX_TOWN + "motel_door_out.png")
+	# The one door on the front: the reception's glass one.
 	leaves[0] = _leaf(PLAN.door_at(PLAN.LOBBY_DOOR_BAY, false), TEX_TOWN + "motel_lobby_door.png")
 
 
@@ -356,33 +259,59 @@ func _lights() -> void:
 	_lobby_light.position = Vector3(d.x, 2.6, PLAN.FRONT_Z - 0.6)
 	_lobby_light.visible = false
 	add_child(_lobby_light)
-	_stairs_light = OmniLight3D.new()
-	_stairs_light.light_color = Color(0.86, 0.9, 1.0)
-	_stairs_light.light_energy = 0.6
-	_stairs_light.omni_range = 6.0
-	_stairs_light.position = Vector3(PLAN.SIZE.x * 0.5 + 0.4, PLAN.UPPER_Y + 2.4, PLAN.FRONT_Z - 0.6)
-	_stairs_light.visible = false
-	add_child(_stairs_light)
 
 
-## The click boxes on the doors (town_lesna._click: "town_door", "motel" for the
-## reception, "motel_<n>" for the rooms), in the village's frame.
+## The click box on the reception's door (town_lesna._click: "town_door", "motel"), in the
+## village's frame.
 func _clicks() -> void:
 	if town == null:
 		return
 	var d := PLAN.door_at(PLAN.LOBBY_DOOR_BAY, false)
 	town._click(position + d + Vector3(0, 1.1, -0.25), Vector3(1.1, 2.2, 0.5), "town_door", "motel")
-	for n in PLAN.ROOMS:
-		var dn := PLAN.door_at(int(PLAN.ROOMS[n]["bay"]), bool(PLAN.ROOMS[n]["up"]))
-		town._click(position + dn + Vector3(0, 1.1, -0.25), Vector3(1.0, 2.2, 0.5), "town_door", "motel_%d" % n)
 
 
-## Where you stand at a room's door outside (village frame), facing it.
-func door_spot(n: int) -> Vector3:
-	if n == 0:
-		return position + PLAN.door_at(PLAN.LOBBY_DOOR_BAY, false) + Vector3(0, 0, -1.0)
-	var dn := PLAN.door_at(int(PLAN.ROOMS[n]["bay"]), bool(PLAN.ROOMS[n]["up"]))
-	return position + dn + Vector3(0, 0, -0.9)
+## Where you stand at the reception's door outside (village frame), facing it.
+func door_spot(_n := 0) -> Vector3:
+	return position + PLAN.door_at(PLAN.LOBBY_DOOR_BAY, false) + Vector3(0, 0, -1.0)
+
+
+## Before the windows: the car park's sodium lamps and what stands under them, a couple of
+## old cars, the bins. Sprites on the ground, what the rooms look out on at night.
+func _car_park() -> void:
+	var fz := PLAN.FRONT_Z
+	for at in [Vector3(-1.2, 0.0, fz - 7.2), Vector3(7.4, 0.0, fz - 7.2)]:
+		_yard_sprite("sodium_lamp", 6.2, at)
+		var l := OmniLight3D.new()
+		l.light_color = Color(1.0, 0.62, 0.3)
+		l.light_energy = 4.4
+		l.omni_range = 15.0
+		l.omni_attenuation = 1.1
+		l.position = (at as Vector3) + Vector3(0.6, 5.7, 0.4)
+		l.visible = false
+		add_child(l)
+		_yard_lights.append(l)
+	_yard_sprite("parked_car_a", 1.45, Vector3(2.8, 0.0, fz - 3.2))
+	_yard_sprite("parked_car_b", 1.55, Vector3(9.3, 0.0, fz - 4.0))
+	_yard_sprite("dumpster", 1.5, Vector3(-3.6, 0.0, fz - 1.5))
+
+
+func _yard_sprite(tex: String, height: float, at: Vector3) -> Sprite3D:
+	var path := "res://assets/textury/town/" + tex + ".png"
+	if not ResourceLoader.exists(path):
+		return null
+	var t: Texture2D = load(path)
+	var sp := Sprite3D.new()
+	sp.name = "Yard"
+	sp.texture = t
+	sp.pixel_size = height / float(t.get_height())
+	sp.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+	sp.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	sp.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+	sp.shaded = true
+	sp.offset = Vector2(0, t.get_height() * 0.5)
+	sp.position = at
+	add_child(sp)
+	return sp
 
 
 # ── the rooms behind the windows ────────────────────────────────────────────
@@ -395,7 +324,8 @@ func set_state(hour: float, night: int) -> void:
 		neon.emission_energy_multiplier = 1.8 if (hour >= 19.0 or hour < 6.0) else 0.0
 	if _lobby_light != null:
 		_lobby_light.visible = hour >= 19.0 or hour < 6.5
-		_stairs_light.visible = _lobby_light.visible
+		for l in _yard_lights:
+			(l as Node3D).visible = _lobby_light.visible
 	var taken: Array = PLAN.taken(night)
 	var hrs := hour if hour >= 12.0 else hour + 24.0
 	var states := {}

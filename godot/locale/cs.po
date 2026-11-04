@@ -30150,3 +30150,558 @@ msgstr "Pokoje od sedmi večer. Klíče jsou na tabuli."
 
 msgid "Eleven is ten dollars. Mr Hora paid to the end of the year."
 msgstr "Jedenáctka je za deset. Pan Hora má zaplaceno do konce roku."
+
+msgid "Go out   [Esc]"
+msgstr "Odejít   [Esc]"
+
+msgid "Edit"
+msgstr "Úpravy"
+
+msgid "gbook|Special"
+msgstr "Speciální"
+
+msgid "About This gBook..."
+msgstr "O tomto gBooku..."
+
+msgid "Calculator"
+msgstr "Kalkulačka"
+
+msgid "Puzzle"
+msgstr "Hlavolam"
+
+msgid "Control Panels"
+msgstr "Ovládací panely"
+
+msgid "Restart"
+msgstr "Restartovat"
+
+msgid "Shut Down"
+msgstr "Vypnout"
+
+msgid "New Folder"
+msgstr "Nová složka"
+
+msgid "Open"
+msgstr "Otevřít"
+
+msgid "Close Window"
+msgstr "Zavřít okno"
+
+msgid "Get Info"
+msgstr "Informace"
+
+msgid "Undo"
+msgstr "Zpět"
+
+msgid "Cut"
+msgstr "Vyjmout"
+
+msgid "Copy"
+msgstr "Kopírovat"
+
+msgid "Paste"
+msgstr "Vložit"
+
+msgid "Select All"
+msgstr "Vybrat vše"
+
+msgid "by Icon"
+msgstr "podle ikon"
+
+msgid "by Name"
+msgstr "podle názvu"
+
+msgid "Clean Up"
+msgstr "Uspořádat"
+
+msgid "Empty Trash..."
+msgstr "Vysypat koš..."
+
+msgid "Eject"
+msgstr "Vysunout"
+
+msgid "Erase Disk..."
+msgstr "Vymazat disk..."
+
+msgid "Trash"
+msgstr "Koš"
+
+msgid "Applications"
+msgstr "Aplikace"
+
+msgid "System Folder"
+msgstr "Systémová složka"
+
+msgid "expenses"
+msgstr "výdaje"
+
+msgid "letter to Hanka"
+msgstr "dopis Hance"
+
+msgid "phone"
+msgstr "telefon"
+
+msgid "steps"
+msgstr "kroky"
+
+msgid "letter to Hanka 2"
+msgstr "dopis Hance 2"
+
+msgid "Installer"
+msgstr "Instalátor"
+
+msgid "Dialer"
+msgstr "Vytáčení"
+
+msgid "Sounds"
+msgstr "Zvuky"
+
+msgid "Date & Time"
+msgstr "Datum a čas"
+
+msgid "About This gBook"
+msgstr "O tomto gBooku"
+
+msgid "untitled"
+msgstr "bez názvu"
+
+msgid "Disk"
+msgstr "Disk"
+
+msgid "Folder"
+msgstr "Složka"
+
+msgid "gText document"
+msgstr "dokument gText"
+
+msgid "application"
+msgstr "aplikace"
+
+msgid "control panel"
+msgstr "ovládací panel"
+
+msgid "%s in disk"
+msgstr "%s na disku"
+
+msgid "%s available"
+msgstr "%s volných"
+
+msgid "Size"
+msgstr "Velikost"
+
+msgid "Last Modified"
+msgstr "Změněno"
+
+msgid "%s Info"
+msgstr "%s: informace"
+
+msgid "Kind:"
+msgstr "Druh:"
+
+msgid "Size:"
+msgstr "Velikost:"
+
+msgid "Where:"
+msgstr "Umístění:"
+
+msgid "Created:"
+msgstr "Vytvořeno:"
+
+msgid "Modified:"
+msgstr "Změněno:"
+
+msgid "Locked"
+msgstr "Zamčeno"
+
+msgid "Desktop"
+msgstr "Plocha"
+
+msgid "Error"
+msgstr "Chyba"
+
+msgid "gOS Installer"
+msgstr "Instalátor gOS"
+
+msgid "Easy Install"
+msgstr "Snadná instalace"
+
+msgid "Click Install to place gOS 2.1 Update and Network Software on the disk “gBook HD”."
+msgstr "Klepnutím na Instalovat umístíte aktualizaci gOS 2.1 a síťový software na disk „gBook HD“."
+
+msgid "Disk space needed: %s"
+msgstr "Potřebné místo na disku: %s"
+
+msgid "Quit"
+msgstr "Ukončit"
+
+msgid "Download..."
+msgstr "Stáhnout..."
+
+msgid "Status: %s"
+msgstr "Stav: %s"
+
+msgid "Idle"
+msgstr "Nečinný"
+
+msgid "Initializing modem..."
+msgstr "Inicializace modemu..."
+
+msgid "Waiting for dial tone..."
+msgstr "Čekání na oznamovací tón..."
+
+msgid "There is no dial tone. Check that the telephone line is connected."
+msgstr "Není slyšet oznamovací tón. Zkontrolujte, zda je připojena telefonní linka."
+
+msgid "Speaker Volume"
+msgstr "Hlasitost"
+
+msgid "Alert Sound"
+msgstr "Výstražný zvuk"
+
+msgid "Clonk"
+msgstr "Klonk"
+
+msgid "Drip"
+msgstr "Kapka"
+
+msgid "Pip"
+msgstr "Píp"
+
+msgid "Current Date"
+msgstr "Dnešní datum"
+
+msgid "Current Time"
+msgstr "Přesný čas"
+
+msgid "Set..."
+msgstr "Nastavit..."
+
+msgid "Built-in Memory: %s"
+msgstr "Vestavěná paměť: %s"
+
+msgid "Largest Unused Block: %s"
+msgstr "Největší volný blok: %s"
+
+msgid "Name:"
+msgstr "Jméno:"
+
+msgid "Password:"
+msgstr "Heslo:"
+
+msgid "%s requires that you type an administrator's name and password."
+msgstr "%s vyžaduje zadání jména a hesla správce."
+
+msgid "The name or password is incorrect."
+msgstr "Jméno nebo heslo není správné."
+
+msgid "You do not have enough access privileges."
+msgstr "Nemáte dostatečná přístupová práva."
+
+msgid "The folder “%s” could not be opened, because you do not have enough access privileges."
+msgstr "Složku „%s“ nelze otevřít, protože nemáte dostatečná přístupová práva."
+
+msgid "The item “%s” could not be moved to the Trash, because you do not have enough access privileges."
+msgstr "Položku „%s“ nelze přesunout do koše, protože nemáte dostatečná přístupová práva."
+
+msgid "The item “%s” could not be moved, because you do not have enough access privileges."
+msgstr "Položku „%s“ nelze přesunout, protože nemáte dostatečná přístupová práva."
+
+msgid "The folder could not be created, because you do not have enough access privileges."
+msgstr "Složku nelze vytvořit, protože nemáte dostatečná přístupová práva."
+
+msgid "The Trash contains 1 item. It uses 4K of disk space. Are you sure you want to permanently remove it?"
+msgstr "Koš obsahuje 1 položku, která zabírá 4K místa na disku. Opravdu ji chcete natrvalo odstranit?"
+
+msgid "The item “%s” could not be deleted, because you do not have enough access privileges."
+msgstr "Položku „%s“ nelze smazat, protože nemáte dostatečná přístupová práva."
+
+msgid "Erase Disk"
+msgstr "Vymazání disku"
+
+msgid "Welcome to gOS."
+msgstr "Vítejte v gOS."
+
+msgid "MOTEL LIBLICE, room 11\n\n3 Aug\tmonth in advance\t$250\n3 Aug\tkey deposit\t$5\n7 Aug\tJednota\t$6\n12 Aug\tbulb, from Simek\t$1\n18 Aug\tcandles\t$3\n25 Aug\tsecond key\t$5\n28 Aug\tfish food\t$2\n1 Sep\tthird key\t$5\n2 Sep\tcandles, chalk\t$4\n3 Sep\tmonth\t$250\n15 Sep\tcandles\t$3\n16 Sep\tto New Year. he says it is paid\t$0"
+msgstr "MOTEL LIBLICE, pokoj 11\n\n3. 8.\tměsíc předem\t2 500 Kč\n3. 8.\tzáloha na klíč\t50 Kč\n7. 8.\tJednota\t60 Kč\n12. 8.\tžárovka od Šimka\t10 Kč\n18. 8.\tsvíčky\t30 Kč\n25. 8.\tdruhý klíč\t50 Kč\n28. 8.\tkrmení pro rybičky\t20 Kč\n1. 9.\ttřetí klíč\t50 Kč\n2. 9.\tsvíčky, křída\t40 Kč\n3. 9.\tměsíc\t2 500 Kč\n15. 9.\tsvíčky\t30 Kč\n16. 9.\tdo Silvestra. prý je zaplaceno\t0 Kč"
+
+msgid "Hanka,\n\nthe job was finished in August. I know what I told you.\n\nMr Simek says the room is paid to the end of the year. I did not pay it. I asked to see the book and the page is in my handwriting.\n\nDo not come for your birthday. I will come to you. Tell your mother the car is at the garage, that is all she needs.\n\nThey are kind here. They ask after you by name.\n\nI will write again when"
+msgstr "Hanko,\n\npráci jsem dokončil v srpnu. Vím, co jsem ti říkal.\n\nPan Šimek tvrdí, že pokoj je zaplacený do konce roku. Já ho neplatil. Chtěl jsem vidět knihu a ta stránka je psaná mým písmem.\n\nNa narozeniny nejezdi. Přijedu já za tebou. Mámě řekni, že je auto v servisu, víc vědět nemusí.\n\nJsou tu hodní. Ptají se na tebe jménem.\n\nNapíšu zas, až"
+
+msgid "Hanka,\n\nplease come and get me. Come by day. Take the car, not the bus."
+msgstr "Hanko,\n\nprosím přijeď pro mě. Ve dne. Autem, ne autobusem."
+
+msgid "nights the phone rang\n\n11 Aug\t2:40\n12 Aug\t2:40\n19 Aug\t2:40\n26 Aug\t2:40\n27 Aug\t2:40\n2 Sep\t2:40\n3 Sep\t2:40 picked up\n4 Sep\t2:40\n9 Sep\t2:40\n10 Sep\t2:40 picked up\n11 Sep\tdid not ring. worse\n16 Sep\t2:40"
+msgstr "noci, kdy zvonil telefon\n\n11. 8.\t2:40\n12. 8.\t2:40\n19. 8.\t2:40\n26. 8.\t2:40\n27. 8.\t2:40\n2. 9.\t2:40\n3. 9.\t2:40 zvedl jsem to\n4. 9.\t2:40\n9. 9.\t2:40\n10. 9.\t2:40 zvedl jsem to\n11. 9.\tnezvonil. horší\n16. 9.\t2:40"
+
+msgid "where the steps were\n\n6\tevery night. Simek says six is not let\n12\tfrom the second week\n10\tthe pipes, he says\n4\tunder me. a chair moved\ncorridor\tup to my door. never back\nroof\tthere is nothing over 11\n11"
+msgstr "kde byly kroky\n\n6\tkaždou noc. Šimek říká, že šestku nepronajímá\n12\tod druhého týdne\n10\ttrubky, říká on\n4\tpode mnou. posunula se židle\nchodba\taž k mým dveřím. zpátky nikdy\nstřecha\tnad jedenáctkou nic není\n11"
+
+msgid "%d item"
+msgid_plural "%d items"
+msgstr[0] "%d položka"
+msgstr[1] "%d položky"
+msgstr[2] "%d položek"
+
+msgid "Not my job, this one."
+msgstr "Tenhle na starost nemám."
+
+msgid "Go to the toilet"
+msgstr "Jít na záchod"
+
+msgid "Matches. A dollar. Ten in a box, it used to be forty."
+msgstr "Sirky. Za desítku. Deset v krabičce, bývalo jich čtyřicet."
+
+msgid "A candle, a dollar. Light it and go, you do not have to stay and watch it."
+msgstr "Svíčka, deset korun. Zapal ji a jdi, koukat se na ni nemusíš."
+
+msgid "Bread, a dollar. It came Tuesday. It is still bread."
+msgstr "Chleba, deset korun. Přišel v úterý. Pořád je to chleba."
+
+msgid "Bread, a dollar. This morning's."
+msgstr "Chleba, deset korun. Dnešní."
+
+msgid "Bread, a dollar. It came Friday. It is still bread."
+msgstr "Chleba, deset korun. Přišel v pátek. Pořád je to chleba."
+
+msgid "Kofola, a dollar. Cold, when the fridge feels like it."
+msgstr "Kofola, deset korun. Studená, když se lednici chce."
+
+msgid "The Bulletin, a dollar. It comes out whether anything happened or not."
+msgstr "Zpravodaj, deset korun. Vychází, ať se něco stalo, nebo ne."
+
+msgid "Kofola. Two dollars, love. Same bottle as at the Jednota, further from the Jednota."
+msgstr "Kofola. Dvacet korun, zlato. Stejná láhev jako v Jednotě, jen dál od Jednoty."
+
+msgid "Matches, a dollar. Not by the pumps, love."
+msgstr "Sirky, deset korun. Ale ne u stojanů, zlato."
+
+msgid "The Bulletin, a dollar. Lojza does the crossword. Nobody has ever finished it."
+msgstr "Zpravodaj, deset korun. Lojza v něm luští křížovku. Ještě ji nikdo nedoluštil."
+
+msgid "Lesnak. A dollar. Bring the bottle back next time."
+msgstr "Lesňák. Deset korun. Příště vrať láhev."
+
+msgid "Rychla kacka. A dollar. Scratch it at home, not on my counter."
+msgstr "Rychlá kačka. Deset korun. Stírej ji doma, ne na mým pultu."
+
+msgid "Back it goes."
+msgstr "Tak zpátky."
+
+msgid "As you like."
+msgstr "Jak chceš."
+
+msgid "People change their minds. It does not help them."
+msgstr "Lidi si to rozmyslí. Nic jim to nepomůže."
+
+msgid "Anything else?"
+msgstr "Ještě něco?"
+
+msgid "Anything else, love?"
+msgstr "Ještě něco, zlato?"
+
+msgid "And what am I to ring up, the air?"
+msgstr "A co mám markovat, vzduch?"
+
+msgid "That is enough on my counter. Pay for it first."
+msgstr "Víc se mi na pult nevejde. Nejdřív zaplať."
+
+msgid "That stays here, your bag is full. The rest makes $%d."
+msgstr "Tohle tu zůstane, brašnu máš plnou. Zbytek dělá %d0 korun."
+
+msgid "That makes $%d."
+msgstr "To dělá %d0 korun."
+
+msgid "Exact. Good."
+msgstr "Přesně. Dobře."
+
+msgid "$%d back."
+msgstr "%d0 korun zpátky."
+
+msgid "Have you nothing smaller? No. Nobody has."
+msgstr "Nemáš to menší? Ne. Nikdo nemá."
+
+msgid "There you are."
+msgstr "Tak tady to máš."
+
+msgid "We shut at five."
+msgstr "V pět zavíráme."
+
+msgid "Mind the step."
+msgstr "Pozor na schod."
+
+msgid "The rest stays on the counter until you have room for it."
+msgstr "Zbytek počká na pultu, až na něj budeš mít místo."
+
+msgid "It can lie there. It is not going anywhere."
+msgstr "Ať to tu leží. Nikam to neuteče."
+
+msgid "Your Vera took them three at a time too."
+msgstr "Ta vaše Věra je taky brala po třech."
+
+msgid "Put it back then, love."
+msgstr "Tak to vrať, zlato."
+
+msgid "Your money."
+msgstr "Tvoje peníze."
+
+msgid "Please yourself."
+msgstr "Jak je libo."
+
+msgid "Ring up what, love?"
+msgstr "A co mám markovat, zlato?"
+
+msgid "One thing at a time, love. Pay for that lot first."
+msgstr "Pomalu, zlato. Nejdřív zaplať tohle."
+
+msgid "That stays here, love, your bag is full. The rest makes $%d."
+msgstr "Tohle tu zůstane, zlato, brašnu máš plnou. Zbytek dělá %d0 korun."
+
+msgid "That makes $%d, love."
+msgstr "To dělá %d0 korun, zlato."
+
+msgid "Exact. Lojza would be pleased."
+msgstr "Přesně. Lojza by měl radost."
+
+msgid "$%d back, love."
+msgstr "%d0 korun zpátky, zlato."
+
+msgid "A note like that in a kiosk. Lojza will want to see it."
+msgstr "Taková bankovka v kiosku. To bude chtít Lojza vidět."
+
+msgid "Mind how you go, love."
+msgstr "Dávej na sebe pozor, zlato."
+
+msgid "Pump first, then pay. You paid."
+msgstr "Nejdřív natankovat, pak zaplatit. Zaplaceno máš."
+
+msgid "Off you go."
+msgstr "Tak běž."
+
+msgid "The rest can wait here, love, until you have room."
+msgstr "Zbytek tu počká, zlato, až budeš mít místo."
+
+msgid "It will keep, love."
+msgstr "To neuteče, zlato."
+
+msgid "On its base, in pencil: burns a day and a night."
+msgstr "Na dně tužkou: hoří den a noc."
+
+msgid "Strike one"
+msgstr "Škrtnout"
+
+msgid "Take a bite"
+msgstr "Kousnout si"
+
+msgid "Read"
+msgstr "Číst"
+
+msgid "Look at it"
+msgstr "Prohlédnout si"
+
+msgid "LIBLICE BULLETIN"
+msgstr "LIBLICKÝ ZPRAVODAJ"
+
+msgid "No. %d"
+msgstr "Č. %d"
+
+msgid "Published by the parish council"
+msgstr "Vydává obecní úřad"
+
+msgid "FROM THE COUNCIL"
+msgstr "Z OBECNÍHO ÚŘADU"
+
+msgid "The pond will not be drained this year either. Whoever opened the sluice on the ninth is asked to shut it again."
+msgstr "Rybník se ani letos vypouštět nebude. Kdo devátého otevřel stavidlo, ať ho zase zavře."
+
+msgid "LOST"
+msgstr "ZTRÁTY"
+
+msgid "Brown dog, answers to Bobik. Found: a brown collar, still buckled, on the chapel step. If he is yours do not call him after dark."
+msgstr "Hnědý pes, slyší na Bobík. Nalezen: hnědý obojek, zapnutý, na schodě kaple. Je-li váš, po setmění na něj nevolejte."
+
+msgid "THE 380"
+msgstr "LINKA 380"
+
+msgid "The 380 keeps to its timetable. Passengers are reminded not to wave at the cross. The driver has been told not to stop there."
+msgstr "Linka 380 jezdí podle jízdního řádu. Cestujícím připomínáme, ať na křížku nemávají. Řidič má pokyn tam nezastavovat."
+
+msgid "THANKS"
+msgstr "PODĚKOVÁNÍ"
+
+msgid "Mrs Hruba thanks whoever mended her fence in the night. She did not ask anybody. She would like it to stop."
+msgstr "Paní Hrubá děkuje tomu, kdo jí v noci opravil plot. Nikoho o to nežádala. Byla by ráda, kdyby toho nechal."
+
+msgid "The Tuesday van came on Wednesday too and nobody can say who ordered it. It was empty. The driver did not get out."
+msgstr "Úterní dodávka přijela i ve středu a nikdo neví, kdo ji objednal. Byla prázdná. Řidič nevystoupil."
+
+msgid "ANNIVERSARIES"
+msgstr "JUBILEA"
+
+msgid "Mr Vondra is 81. Mrs Novotna does not wish to say. Mr Hronek would have been 90 on Sunday; his table is still laid."
+msgstr "Panu Vondrovi je 81. Paní Novotná si nepřeje uvádět. Pan Hronek by měl v neděli 90; stůl má pořád prostřený."
+
+msgid "THE MOTEL"
+msgstr "MOTEL"
+
+msgid "Mr Simek asks his guests not to answer the telephone in number four. It is not connected."
+msgstr "Pan Šimek žádá hosty, aby ve čtyřce nezvedali telefon. Není zapojený."
+
+msgid "The camp on the lake has a new warden. We wish the new warden well. We wished the last one well."
+msgstr "Kemp u jezera má nového správce. Přejeme mu hodně štěstí. Tomu minulému jsme ho přáli taky."
+
+msgid "THE CHAPEL"
+msgstr "KAPLE"
+
+msgid "St Prokop will be cleaned before his feast. Whoever keeps turning him to the wall is asked to leave him as he is."
+msgstr "Svatý Prokop bude před svátkem očištěn. Kdo ho pořád otáčí ke zdi, ať ho nechá být."
+
+msgid "THE PUB"
+msgstr "HOSTINEC"
+
+msgid "Mr Kubat reminds the public that the cellar is not open to guests, and that nobody is being kept there."
+msgstr "Pan Kubát připomíná veřejnosti, že sklep není pro hosty a že tam nikdo nikoho nedrží."
+
+msgid "ROAD 12"
+msgstr "SILNICE 12"
+
+msgid "The verge by the Benzina will be mended. Mr Lojza reports the same car at the pumps three nights running, nobody in it."
+msgstr "Krajnice u Benziny bude opravena. Pan Lojza hlásí u stojanů tři noci po sobě stejné auto, nikdo v něm neseděl."
+
+msgid "WEATHER"
+msgstr "POČASÍ"
+
+msgid "Fog over the fields until further notice. Those walking to Pristoupim should count the poles. There are eleven."
+msgstr "Mlha nad poli do odvolání. Kdo jde pěšky do Přistoupimi, ať počítá sloupy. Je jich jedenáct."
+
+msgid "THE SILO"
+msgstr "SILO"
+
+msgid "The JZD silo is shut and its cellar filled in, whatever people say. Children will stop listening at the hatch."
+msgstr "Silo JZD je zavřené a sklep zasypaný, ať si lidé říkají, co chtějí. Děti přestanou poslouchat u poklopu."
+
+msgid "FOUND"
+msgstr "NÁLEZY"
+
+msgid "A child's sandal in the reeds by the camp's jetty. It has been there a long time. No child in the village has a foot that size."
+msgstr "Dětský sandálek v rákosí u mola v kempu. Leží tam dlouho. Žádné dítě ve vsi nemá takovou nohu."
+
+msgid "THE PARISH"
+msgstr "FARNOST"
+
+msgid "Candles are now a dollar. The box by the door was full again this week. Nobody has been seen putting anything in it."
+msgstr "Svíčky jsou teď za deset korun. Pokladnička u dveří byla tento týden zase plná. Nikdo neviděl, že by do ní někdo něco dával."
+
+msgid "SMALL ADS"
+msgstr "INZERCE"
+
+msgid "For sale: pram, as new, used once. Wanted: somebody to sit in the Hronek house at night. Pay by arrangement."
+msgstr "Prodám kočárek, jako nový, použitý jednou. Hledám někoho, kdo by v noci sedával v Hronkově domě. Plat dohodou."
+
+msgid "The pond on Sunday. Mr Vondra cannot say who that is on the far bank."
+msgstr "Rybník v neděli. Pan Vondra neumí říct, kdo to stojí na druhém břehu."
+
+msgid "The chapel after the rain. The door was shut when this was taken."
+msgstr "Kaple po dešti. Když se to fotilo, dveře byly zavřené."
+
+msgid "In the field by Pristoupim, last Thursday. Nobody remembers the occasion."
+msgstr "Na poli u Přistoupimi, minulý čtvrtek. Nikdo si nepamatuje, při jaké příležitosti."

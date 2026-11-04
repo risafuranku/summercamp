@@ -17,7 +17,7 @@ The room doors get their numbers painted on the blank plate of face_motel_door_o
 import os
 import sys
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageOps
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -108,7 +108,34 @@ ROWS = [
     ("spr_plastic_bowl", "sprite", 20, "camp/plastic_bowl.png"),
     ("sheet_lobby_grime", "sheet", [("camp/flypaper.png", 48), ("camp/fly_zapper.png", 28), ("camp/desk_fan.png", 28)], None),
     ("spr_mirror_crack", "sprite", 64, "camp/mirror_crack.png"),
+    # The rooms he lets, each its own (the user, 4. 11.: "like in some RPG").
+    ("tex_motel_panel_wood", "texture", 128, "camp/motel_panel_wood.png"),
+    ("tex_motel_blanket_wool", "texture", 128, "camp/motel_blanket_wool.png"),
+    ("spr_stuffed_owl", "sprite", 44, "camp/stuffed_owl.png"),
+    ("spr_stuffed_owl_turned", "sprite", 44, "camp/stuffed_owl_turned.png"),
+    ("face_tiled_stove", "panel", 96, "camp/tiled_stove.png"),
+    ("sheet_stove_fire", "sheet", [("camp/stove_fire_%d.png" % i, 24) for i in range(3)], None),
+    ("spr_cuckoo_clock", "sprite", 52, "camp/cuckoo_clock.png"),
+    ("spr_cuckoo_bird", "sprite", 16, "camp/cuckoo_bird.png"),
+    ("spr_gun_cabinet", "sprite", 144, "camp/gun_cabinet.png"),
+    ("tex_motel_floral_wall", "texture", 128, "camp/motel_floral_wall.png"),
+    ("tex_satin_spread", "texture", 128, "camp/satin_spread.png"),
+    ("sheet_dirty_dishes", "sheet", [("camp/dishes_plates.png", 20), ("camp/dishes_mug.png", 14), ("camp/dishes_pan.png", 14)], None),
+    ("spr_gbook_desk", "sprite", 32, "camp/gbook_desk.png"),
+    ("sheet_rm_small", "sheet", [("camp/tube_radio.png", 32), ("camp/vcr.png", 18), ("camp/hot_plate.png", 20), ("camp/portable_radio.png", 22)], None),
+    ("sheet_rm_furniture", "sheet", [("camp/radiogram.png", 60), ("camp/minibar.png", 68), ("camp/minibar_open.png", 68), ("camp/armchair.png", 76)], None),
+    ("sheet_rm_things", "sheet", [("camp/aquarium.png", 40), ("camp/newspaper_stack.png", 36), ("camp/suitcase.png", 32), ("camp/suitcase_open.png", 40)], None),
+    ("sheet_rm_wide", "sheet", [("camp/boar_rug.png", 72), ("camp/clothesline.png", 72)], None),
+    ("sheet_rm_pictures", "sheet", [("camp/wedding_photo.png", 88), ("camp/district_map.png", 112), ("camp/crossed_calendar.png", 84)], None),
+    # The corridor, the car park.
+    ("sheet_rm_corridor", "sheet", [("camp/fire_extinguisher.png", 44), ("camp/wall_lamp.png", 24), ("camp/cleaning_cart.png", 76)], None),
+    ("sheet_rm_hall", "sheet", [("camp/hall_tray.png", 24), ("camp/hall_plant.png", 64), ("camp/hall_shoes.png", 18), ("camp/hall_phone.png", 48), ("camp/hall_rubbish.png", 34)], None),
+    ("sheet_rm_yard", "sheet", [("town/sodium_lamp.png", 160), ("town/parked_car_a.png", 56), ("town/parked_car_b.png", 56), ("town/dumpster.png", 56)], None),
+    ("tex_corridor_carpet", "texture", 128, "camp/corridor_carpet.png"),
 ]
+
+# Textures coloured anew after processing: their dark, middle and light.
+RECOLOUR = {"camp/motel_panel_wood.png": ((30, 21, 12), (98, 78, 44), (172, 146, 98))}
 
 # The Jednota's front: its window panes and the door's glass cut out (jednota_view.gd
 # PANES, DOOR_GLASS: the same rectangles, picture px x0, y0, x1, y1).
@@ -321,7 +348,7 @@ def main():
             continue
         if mode == "sheet":
             # The Stations stand close together: a narrower gap tells them apart.
-            do_sheet(art_id, size, 4 if art_id == "sheet_stations" else 14)
+            do_sheet(art_id, size, 4 if art_id in ("sheet_stations", "sheet_rm_things", "sheet_rm_yard") else 14)
             continue
         if mode == "retable":
             do_retable(art_id, size)
@@ -343,6 +370,12 @@ def main():
             out = process.panel(src, size)
         else:
             out = process.texture(src, size)
+        if dest in RECOLOUR:
+            # Grok's pine came near black and red: the panelling has to read as old pine by
+            # a bedside lamp, the grain kept, the colours laid over it again.
+            lo, mid, hi = RECOLOUR[dest]
+            grey = ImageOps.autocontrast(out.convert("L"), cutoff=1)
+            out = ImageOps.colorize(grey, black=lo, mid=mid, white=hi)
         save(out, dest)
     doors()
     jednota_glass()

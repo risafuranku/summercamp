@@ -1,0 +1,23 @@
+ch2_scrape	0.7	assets/sfx/chapel/candle_scrape.mp3	A wooden match dragged slowly and weakly along the rough striking strip of a cardboard matchbox, a short dry scrape with no flame, very close, in a quiet stone room
+ch2_strike_dud	0.6	assets/sfx/chapel/candle_strike_dud.mp3	One quick hard strike of a wooden match along a matchbox that does not catch, a sharp dry rasp and a few tiny sparks, very close, in a quiet stone room
+ch2_flare	1.6	assets/sfx/chapel/candle_flare.mp3	A wooden match struck once along a matchbox: a sharp rasp, then the head flaring up in a soft hissing burst of fire that settles to a small flame, very close, in a quiet stone room
+ch2_burn	7	../tools/audiogen/raw/candle_burn_raw.mp3	A small open flame burning right next to the microphone, a continuous soft fluttering of fire with steady gentle crackling of burning wood, no pauses, close and intimate
+ch2_catch	1.0	assets/sfx/chapel/candle_catch.mp3	A candle wick catching from a match, a tiny soft fffp and a faint sputter of wax, very close, in a quiet stone room
+ch2_shake	0.6	assets/sfx/chapel/candle_shake.mp3	A burning match shaken out with a quick flick of the wrist, a soft quick whoosh of air and the little flame gone, very close
+ch2_hiss	0.9	assets/sfx/chapel/candle_hiss.mp3	A match burnt right down to a damp leather glove, a thin sizzling hiss of the flame dying on wet leather, very close
+ch2_drop	0.5	assets/sfx/chapel/candle_drop.mp3	A burnt matchstick falling on a wooden ledge, one tiny dry tick
+ch2_take	0.5	assets/sfx/chapel/candle_take.mp3	A wooden match picked out of a small enamel saucer, a faint scrape of wood and a tiny clink
+ch2_set	0.5	assets/sfx/chapel/candle_set.mp3	A small white candle set down in a thick glass cup, a soft dull clink of wax on glass
+ch2_out	1.0	assets/sfx/chapel/candle_out.mp3	A small candle flame going out by itself in a glass cup, a faint soft pfff and a tiny sputter of wax, then silence, in an empty stone chapel
+ch2_whisper	3.0	assets/sfx/chapel/candle_whisper.mp3	A faint dry whisper close by in an empty stone chapel, breath and consonants only, no words you can make out, cut off suddenly, unsettling
+ch2_draft	5.0	assets/sfx/chapel/candle_draft.mp3	A cold draught passing through an empty stone chapel, one long low hollow moan of air under a heavy old door, rising and dying away, damp, unsettling
+ch2_harmonium	7.0	assets/sfx/chapel/candle_harmonium.mp3	Three slow soft wheezing notes on an old out-of-tune church harmonium, each held about a second with long gaps between, no melody, the bellows sighing once, far away across an empty stone chapel
+wc_door_scrape	1.3	assets/sfx/town/wc_door.mp3	A light battered steel door of an outdoor toilet dragged open on rusty hinges, a long scrape and a hollow rattle, close
+wc_switch_click	0.5	assets/sfx/town/wc_switch.mp3	An old round bakelite light switch flicked once, a hard hollow click in a small tiled room
+wc_dryer	2.4	assets/sfx/town/wc_dryer.mp3	An old broken electric hand dryer started by a button in a small tiled toilet: a coughing grinding rattle of a seized motor that gasps twice and dies with a clunk, no air
+wc_chain	2.2	assets/sfx/town/wc_chain.mp3	An old toilet pull chain yanked in a small tiled room: a rattle of chain, a hollow clank inside a rusty iron cistern, a short choked gurgle and a thin trickle, nothing more
+wc_mop_slop	0.8	assets/sfx/town/wc_mop.mp3	A wet string mop shifted in a zinc bucket, a slop of dirty water against the metal, a small tiled room
+wc_roll	0.5	assets/sfx/town/wc_roll.mp3	An empty metal toilet roll holder flicked with a finger, a hollow tinny rattle, a small tiled room
+wc_seat	0.7	assets/sfx/town/wc_seat.mp3	A cracked plastic toilet seat knocked on its one remaining hinge, a flat plastic clatter against a ceramic bowl, a small tiled room
+wc_tap	1.0	assets/sfx/town/wc_tap.mp3	An old brass tap turned on a small cracked basin: a squeak, a dry cough of air in the pipe and two drops of water, nothing more, a small tiled room
+wc_room_tone	12	../tools/audiogen/raw/wc_room_raw.mp3	The room tone of a tiny damp tiled toilet at a roadside petrol station: a low hollow hum, faint air moving through a gap, a very distant car passing on the road outside, nothing else

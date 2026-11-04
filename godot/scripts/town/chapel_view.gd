@@ -14,8 +14,10 @@ extends RefCounted
 ##   you walk     a click on something across the nave takes you there on foot
 ##                (room_walk.gd) and then it is done: the candles by the door, the altar
 ##                from the rail, the confessional under the loft, a pew to sit in;
-##   the candles  a coin and a match: one more flame on the stand (they stay lit while you
-##                are in Liblice; the other wardens' too, and theirs for you: co-op);
+##   the candles  up close (candle_closeup.gd): your match, or a coin and one of the
+##                chapel's, struck on the box, brought to a wick: one more flame on the
+##                stand (they stay lit while you are in Liblice; the other wardens' too,
+##                and theirs for you: co-op);
 ##   the rope     the bell rings over the village;
 ##   Mrs Hruba    kneels in the second pew from four to six (town_people.gd has her
 ##                indoors then), and talks quietly;
@@ -23,11 +25,16 @@ extends RefCounted
 ## Now and then, the more the worse you are (the hidden sanity, coop_night.gd), never
 ## explained: somebody stands up in the loft while you are not looking there and is gone
 ## when you look again; St Prokop has turned his head; the figure under the dust sheet is
-## somewhere else each time; something breathes behind the confessional's curtain.
+## somewhere else each time; something breathes behind the confessional's curtain; every
+## flame on the stand out at once while your back was to it, without a sound; the harmonium
+## up in the presbytery, three slow notes, when you are at the far end from it; a cold
+## draught from the door, the flames and the light through the dust flickering together.
 ## Nobody narrates.
 
 const K = preload("res://scripts/interior_kit.gd")
 const WALK = preload("res://scripts/town/room_walk.gd")
+const CANDLE_CLOSEUP = preload("res://scripts/town/candle_closeup.gd")
+const GESTURE = preload("res://scripts/ui/gesture.gd")
 const SFX := "res://assets/sfx/"
 const CAMP := "res://assets/textury/camp/"
 ## The building in the village (town_lesna._chapel): its oval windows outside along its
@@ -65,6 +72,14 @@ const NAVE_WINDOW_Y := 3.6
 const DAMP_H := 2.3
 ## The bucket in the aisle under the leak in the vault.
 const BUCKET := Vector3(0.36, 0.0, 0.62)
+## How long a cold draught lasts.
+const DRAFT_SEC := 5.0
+## The wicks in the rack's picture (candle_stand.png), as shares of it, top tier first.
+const RACK_CUPS := [[0.214, 0.032], [0.361, 0.032], [0.508, 0.032], [0.653, 0.032], [0.798, 0.032],
+	[0.204, 0.166], [0.355, 0.166], [0.506, 0.166], [0.653, 0.166], [0.800, 0.166],
+	[0.190, 0.311], [0.346, 0.311], [0.505, 0.311], [0.658, 0.311], [0.812, 0.311]]
+## The cups the flames of others go to, spread over the stand.
+const LIGHT_ORDER := [7, 2, 11, 5, 13, 0, 9, 3, 14, 6, 1, 12, 8, 4, 10]
 ## Where you stand when you come in: under the loft, inside the door.
 const STAND := Vector3(0.0, 1.6, 4.2)
 ## The figure under the dust sheet stands somewhere else each time: [where, yaw].
@@ -134,6 +149,29 @@ var _sheet_unseen := 0.0
 var _pigeons_t := 30.0
 var _breath_t := -1.0
 var _shafts: Array = []
+var _flame_tex: Array = []
+var _old_flames := false
+var _dust: CPUParticles3D
+## The candles up close (candle_closeup.gd), made with the room; a coin paid for a match
+## not struck yet; your own candle standing in a cup, not lit yet; those lit.
+var _candle_cu
+var paid_match := false
+var set_cup := -1
+var own_cups: Array = []
+## The flames all out at once: the stand unseen how long, the next roll, done this visit;
+## the threads of smoke left over the cups ({node, t}).
+var _stand_unseen := 0.0
+var _out_roll := 6.0
+var _out_done := false
+var _smokes: Array = []
+## The harmonium by itself: the next roll, how many times this visit.
+var _organ: AudioStreamPlayer
+var _organ_roll := 9.0
+var _organ_n := 0
+## The draught: how far through it (-1 none), the next roll, how long till another may come.
+var _draft_t := -1.0
+var _draft_roll := 7.0
+var _draft_wait := 0.0
 
 
 func _init(p_room) -> void:
@@ -206,6 +244,7 @@ func build(hour: float, candles: int) -> void:
 	room._look.pitch_down_deg = 34.0
 	room._hot_box("door", Vector3(0, 1.3, D * 0.5 - 0.05), Vector3(1.6, 2.6, 0.12), [])
 	_sounds()
+	_make_closeup()
 	# Somebody let go of the rope just before you came in.
 	if _rope != null and _rng.randf() < 0.1 + 0.25 * _low():
 		_rope_t = 1.6
@@ -224,7 +263,7 @@ static func _spots() -> Dictionary:
 		"rail": {"at": Vector3(0.0, 1.6 + STEP, -5.2), "rot": r.call(2.0, 0.0)},
 		"altar": {"at": Vector3(0.0, 1.6 + PRES_Y, -7.6), "rot": r.call(-4.0, 0.0)},
 		"confess": {"at": Vector3(-0.55, 1.6, 4.15), "rot": r.call(-8.0, 90.0)},
-		"candles": {"at": Vector3(0.85, 1.6, 4.05), "rot": r.call(-18.0, -150.0)},
+		"candles": {"at": Vector3(1.55, 1.6, 4.02), "rot": r.call(-16.0, -162.0)},
 	}
 
 
@@ -494,7 +533,7 @@ func _shaft(root: Node3D, from: Vector3, dir: Vector3, length: float, col: Color
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.set_meta("retro_skip", true)
 	root.add_child(mi)
-	_shafts.append({"node": mi, "axis": y})
+	_shafts.append({"node": mi, "axis": y, "col": col})
 	_face_shaft(_shafts.back())
 
 
@@ -523,14 +562,16 @@ func _by_the_door(root: Node3D) -> void:
 	if _exists("collection_box"):
 		var box := K.cutout(root, "collection_box", _size("collection_box", 1.0), Vector3(-1.45, 0.0, 5.0), 0.0, true, "OfferBox")
 		room._hot_box("box", Vector3(-1.45, 0.8, 5.0), Vector3(0.4, 0.5, 0.4), [box])
-	# The votive candles by the door, turned to the nave.
-	var stand_tex := "votive_stand" if _exists("votive_stand") else "candles_rack"
-	var ss := _size(stand_tex, 1.1)
-	var at := Vector3(1.55, 0.0, 5.05)
+	# The votive candles by the door, turned to the nave: the iron rack on its table, the
+	# one you see up close (candle_closeup.gd), cup for cup.
+	var rack := _exists("candle_stand")
+	var stand_tex := "candle_stand" if rack else ("votive_stand" if _exists("votive_stand") else "candles_rack")
+	var ss := _size(stand_tex, 1.52 if rack else 1.1)
+	var at := Vector3(1.95, 0.0, 5.05) if rack else Vector3(1.55, 0.0, 5.05)
 	var stand := K.cutout(root, stand_tex, ss, at, 180.0, false, "Votive")
 	parts["stand"] = {"node": stand, "size": ss, "at": at}
-	room._hot_box("candles", at + Vector3(0, 0.75, 0), Vector3(ss.x, 0.7, 0.4), [stand])
-	cups = _cup_spots(stand_tex, ss, at, 180.0)
+	room._hot_box("candles", at + Vector3(0, 0.78, 0), Vector3(ss.x, 1.5, 0.4), [stand])
+	cups = _rack_cups(ss, at, 180.0) if rack else _cup_spots(stand_tex, ss, at, 180.0)
 	# The bell's rope down through the loft's floor, its grip within reach of the door.
 	if _exists("bell_rope"):
 		var rlen := LOFT_Y - 0.25 - 0.9
@@ -540,7 +581,19 @@ func _by_the_door(root: Node3D) -> void:
 		room._hot_box("rope", Vector3(-1.0, 1.35, 4.95), Vector3(0.3, 1.1, 0.3), [_rope])
 
 
-## The cups of the stand (its picture's red glass, found once), as spots in the room for
+## The rack's cups as spots in the room for the flames, from RACK_CUPS (the picture's wicks,
+## the same fifteen in the same order as candle_closeup.CUPS). The quad faces +Z turned `yaw`.
+func _rack_cups(size: Vector2, at: Vector3, yaw: float) -> Array:
+	var th := deg_to_rad(yaw)
+	var right := Vector3(cos(th), 0.0, -sin(th))
+	var fwd := Vector3(sin(th), 0.0, cos(th))
+	var out: Array = []
+	for c in RACK_CUPS:
+		out.append(at + right * ((float(c[0]) - 0.5) * size.x) + Vector3(0, (1.0 - float(c[1])) * size.y + 0.01, 0) + fwd * 0.03)
+	return out
+
+
+## The cups of the old stand (its picture's red glass, found once), as spots in the room for
 ## the flames: in the top half of the picture the two rows with the most runs of red (its
 ## two tiers), each run a cup. The stand's quad faces +Z turned `yaw`.
 func _cup_spots(tex: String, size: Vector2, at: Vector3, yaw: float) -> Array:
@@ -822,6 +875,7 @@ func _air(root: Node3D, hour: float) -> void:
 	p.color_ramp = g
 	p.set_meta("retro_skip", true)
 	root.add_child(p)
+	_dust = p
 
 
 # ── light ────────────────────────────────────────────────────────────────────
@@ -830,18 +884,37 @@ func _light(hour: float, candles: int) -> void:
 	var env: Environment = room._env
 	env.ambient_light_color = Color(0.76, 0.8, 0.76) if hour < 16.0 else Color(0.8, 0.74, 0.66)
 	env.ambient_light_energy = 0.24 if hour < 16.0 else 0.19
+	var kept: Array = room.get_meta("candle_cups", [])
 	for i in candles:
-		add_flame()
+		add_flame(int(kept[i]) if i < kept.size() else -1)
 
 
-## One more flame on the stand, at the next empty cup (a small light with it).
-func add_flame() -> bool:
-	if flames.size() >= maxi(1, cups.size()):
+## The cups with no flame on them (their indexes in `cups`).
+func free_cups() -> Array:
+	var out: Array = []
+	for i in maxi(1, cups.size()):
+		out.append(i)
+	for f in flames:
+		out.erase(int((f as Dictionary).get("cup", -1)))
+	return out
+
+
+## One more flame on the stand, on cup `cup` if that one is free, else on the next empty
+## one (a small light with it).
+func add_flame(cup := -1) -> bool:
+	var free := free_cups()
+	if free.is_empty():
 		return false
+	var i: int = cup if free.has(cup) else int(free[0])
+	if not free.has(cup):
+		for o in LIGHT_ORDER:
+			if free.has(o):
+				i = int(o)
+				break
 	var root: Node3D = room._root
-	var at: Vector3 = cups[flames.size()] if flames.size() < cups.size() else Vector3(1.55, 1.0, 5.0)
-	var tex := "votive_flame_0"
-	var f := K.cutout(root, tex if _exists(tex) else "candles_rack", Vector2(0.05, 0.08), at, 0.0, true, "Flame")
+	var at: Vector3 = cups[i] if i < cups.size() else Vector3(1.55, 1.0, 5.0)
+	var tex := "candle_flame_2" if _exists("candle_flame_2") else "votive_flame_0"
+	var f := K.cutout(root, tex if _exists(tex) else "candles_rack", Vector2(0.045, 0.1), at, 0.0, true, "Flame")
 	var m := f.material_override as StandardMaterial3D
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	f.set_meta("retro_skip", true)
@@ -851,8 +924,41 @@ func add_flame() -> bool:
 	l.omni_range = 2.2
 	l.position = at + Vector3(0, 0.1, -0.15)
 	root.add_child(l)
-	flames.append({"node": f, "light": l, "phase": randf() * 4.0})
+	flames.append({"node": f, "light": l, "phase": randf() * 4.0, "cup": i})
+	_keep_cups()
 	return true
+
+
+## Which cups burn, kept on the room while you are in Liblice (it counts them in `_candles`).
+func _keep_cups() -> void:
+	var lit: Array = []
+	for f in flames:
+		lit.append(int((f as Dictionary).get("cup", -1)))
+	room.set_meta("candle_cups", lit)
+
+
+## Cup `cup`'s flame out (the stand's count with it; the other wardens' stands go on
+## burning: what goes out here goes out for this warden).
+func put_out(cup: int) -> void:
+	for f in flames.duplicate():
+		if int((f as Dictionary).get("cup", -1)) == cup:
+			_smoke_at(cup)
+			(f["node"] as Node).queue_free()
+			(f["light"] as Node).queue_free()
+			flames.erase(f)
+	own_cups.erase(cup)
+	room._candles = flames.size()
+	_keep_cups()
+
+
+## A thread of smoke over a cup for a few seconds (its three pictures in turn).
+func _smoke_at(cup: int) -> void:
+	if cup < 0 or cup >= cups.size() or not _exists("candle_smoke_0"):
+		return
+	var s := K.cutout(room._root, "candle_smoke_0", Vector2(0.05, 0.2), (cups[cup] as Vector3) + Vector3(0, 0.05, 0), 0.0, true, "Smoke")
+	(s.material_override as StandardMaterial3D).shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	s.set_meta("retro_skip", true)
+	_smokes.append({"node": s, "t": 0.0})
 
 
 ## Mrs Hruba on her knees in the second pew on the left, her back to you.
@@ -904,6 +1010,7 @@ func _sounds() -> void:
 		_rain_snd = _player(-24.0)
 		_loop(_rain_snd, "weather/raininside.mp3", -24.0)
 	_pigeons_t = _rng.randf_range(12.0, 40.0)
+	_organ = _player(-17.0)
 
 
 func _loop(p: AudioStreamPlayer, path: String, db: float) -> void:
@@ -934,16 +1041,18 @@ func _fx_play(path: String, db: float) -> void:
 func tick(delta: float) -> void:
 	_t += delta
 	var step := floorf(_t * 12.0)
+	var gust := _gust()
 	for i in flames.size():
 		var f: Dictionary = flames[i]
 		var node: MeshInstance3D = f["node"]
 		if not is_instance_valid(node):
 			continue
-		var k := int(step + float(f["phase"]) * 3.0) % 4
-		var tex := CAMP + "votive_flame_%d.png" % k
-		if ResourceLoader.exists(tex):
-			(node.material_override as StandardMaterial3D).albedo_texture = load(tex)
-		(f["light"] as OmniLight3D).light_energy = 0.18 + 0.06 * float(k % 2)
+		# In the draught they all go with it, the same picture at the same moment, bent over.
+		var k := int(step + float(f["phase"]) * 3.0) % 4 if gust <= 0.0 else int(step) % 4
+		var tex: Texture2D = _flame_pic(k, gust)
+		if tex != null:
+			(node.material_override as StandardMaterial3D).albedo_texture = tex
+		(f["light"] as OmniLight3D).light_energy = (0.18 + 0.06 * float(k % 2)) * (1.0 - 0.75 * gust)
 	if _rope != null and _rope_t > 0.0:
 		_rope_t -= delta
 		# The rope jerks up and down with the strokes, in steps.
@@ -956,6 +1065,12 @@ func tick(delta: float) -> void:
 	_tick_watcher(delta)
 	_tick_saint(delta)
 	_tick_sheet(delta)
+	_tick_smoke(delta)
+	# Nothing new begins behind the close-up: your eyes are on the stand.
+	if _candle_cu == null or not _candle_cu.visible:
+		_tick_stand(delta)
+		_tick_organ(delta)
+		_tick_draft(delta)
 	_pigeons_t -= delta
 	if _pigeons_t <= 0.0:
 		_pigeons_t = _rng.randf_range(28.0, 75.0)
@@ -964,6 +1079,24 @@ func tick(delta: float) -> void:
 		_breath_t -= delta
 		if _breath_t <= 0.0 and _looking == "confess":
 			_fx_play("chapel/confession_breath.mp3", -14.0)
+
+
+## The flames' pictures, read once: those of the close-up, bent over when the draught blows.
+func _flame_pic(k: int, gust: float) -> Texture2D:
+	if _flame_tex.is_empty():
+		for i in 7:
+			var path := CAMP + "candle_flame_%d.png" % i
+			_flame_tex.append(load(path) if ResourceLoader.exists(path) else null)
+		_old_flames = _flame_tex[2] == null
+		if _old_flames:
+			for i in 4:
+				var old := CAMP + "votive_flame_%d.png" % i
+				_flame_tex[i] = load(old) if ResourceLoader.exists(old) else null
+	if _old_flames:
+		return _flame_tex[k % 4]
+	if gust > 0.3:
+		return _flame_tex[5 if k % 3 != 0 else 6]
+	return _flame_tex[2 + k % 3]
 
 
 func _seen(p: Vector3) -> bool:
@@ -1106,6 +1239,130 @@ func _tick_sheet(delta: float) -> void:
 		(hb as Node3D).position = (to[0] as Vector3) + Vector3(0, 0.9, 0)
 
 
+## Every flame on the stand out at once while your back was to it, without a sound (more
+## likely the worse you are, once a visit): you see it when you turn round, the threads
+## of smoke still going up if you turn soon enough.
+func _tick_stand(delta: float) -> void:
+	if flames.is_empty() or _out_done:
+		return
+	var at: Vector3 = (parts.get("stand", {}) as Dictionary).get("at", Vector3(1.55, 0.0, 5.05))
+	if _seen(at + Vector3(0, 1.1, 0)):
+		_stand_unseen = 0.0
+		return
+	_stand_unseen += delta
+	_out_roll -= delta
+	if _out_roll > 0.0:
+		return
+	_out_roll = 6.0
+	if _t < 20.0 or _stand_unseen < 8.0 or flames.size() < 2 or _looking != "":
+		return
+	_sanity = _read_sanity()
+	if _rng.randf() < 0.008 + 0.09 * _low():
+		_all_out()
+
+
+func _all_out() -> void:
+	_out_done = true
+	for f in flames.duplicate():
+		put_out(int((f as Dictionary).get("cup", -1)))
+
+
+func _tick_smoke(delta: float) -> void:
+	for s in _smokes.duplicate():
+		var n: MeshInstance3D = s["node"]
+		s["t"] = float(s["t"]) + delta
+		if not is_instance_valid(n) or float(s["t"]) > 7.0:
+			if is_instance_valid(n):
+				n.queue_free()
+			_smokes.erase(s)
+			continue
+		var tex := "candle_smoke_%d" % mini(2, int(float(s["t"]) / 2.4))
+		if _exists(tex):
+			(n.material_override as StandardMaterial3D).albedo_texture = load(CAMP + tex + ".png")
+
+
+## The harmonium up in the presbytery: three slow notes, only when you are down at the far
+## end of the nave from it, once a visit at most, nobody at it when you get there.
+func _tick_organ(delta: float) -> void:
+	_organ_roll -= delta
+	if _organ_roll > 0.0:
+		return
+	_organ_roll = 9.0
+	if _organ_n >= 1 or _t < 30.0 or _looking != "" or room._cam.position.z < 0.5:
+		return
+	_sanity = _read_sanity()
+	if _rng.randf() < 0.01 + 0.1 * _low():
+		_organ_n += 1
+		_organ_notes()
+
+
+func _organ_notes() -> void:
+	if _organ == null or not ResourceLoader.exists(SFX + "chapel/candle_harmonium.mp3"):
+		return
+	_organ.stream = load(SFX + "chapel/candle_harmonium.mp3")
+	_organ.play()
+
+
+## How hard the draught is blowing now (0 none), in steps, twelve a second.
+func _gust() -> float:
+	if _draft_t < 0.0:
+		return 0.0
+	var k := clampf(_draft_t / DRAFT_SEC, 0.0, 1.0)
+	var swell := sin(k * PI)
+	var stepped := floorf(_draft_t * 12.0)
+	var shake := 0.55 + 0.45 * sin(stepped * 2.3) * sin(stepped * 0.7)
+	return clampf(swell * shake, 0.0, 1.0)
+
+
+## A cold draught from the door: the low moan under it, the flames and the shafts of light
+## flickering together, the dust carried up the nave, the bell's rope stirring.
+func _tick_draft(delta: float) -> void:
+	if _draft_t >= 0.0:
+		_draft_t += delta
+		if _draft_t >= DRAFT_SEC:
+			_end_draft()
+			return
+		var g := _gust()
+		for s in _shafts:
+			var c: Color = s["col"]
+			((s["node"] as MeshInstance3D).material_override as StandardMaterial3D).albedo_color = c * (1.0 - 0.8 * g)
+		if _wind != null:
+			_wind.volume_db = -27.0 + 8.0 * g
+		if _rope != null and _rope_t <= 0.0:
+			_rope.rotation.z = sin(floorf(_draft_t * 12.0) / 12.0 * 2.4) * 0.05 * g
+		return
+	_draft_wait -= delta
+	_draft_roll -= delta
+	if _draft_roll > 0.0:
+		return
+	_draft_roll = 7.0
+	if _draft_wait > 0.0 or _t < 14.0 or _looking != "":
+		return
+	_sanity = _read_sanity()
+	if _rng.randf() < 0.012 + 0.07 * _low():
+		_start_draft()
+
+
+func _start_draft() -> void:
+	_draft_t = 0.0
+	_draft_wait = _rng.randf_range(80.0, 160.0)
+	if _dust != null:
+		_dust.gravity = Vector3(0, -0.004, -0.09)
+	_fx_play("chapel/candle_draft.mp3", -13.0)
+
+
+func _end_draft() -> void:
+	_draft_t = -1.0
+	for s in _shafts:
+		((s["node"] as MeshInstance3D).material_override as StandardMaterial3D).albedo_color = s["col"]
+	if _wind != null:
+		_wind.volume_db = -27.0
+	if _dust != null:
+		_dust.gravity = Vector3(0, -0.004, 0)
+	if _rope != null and _rope_t <= 0.0:
+		_rope.rotation.z = 0.0
+
+
 # ── clicks ───────────────────────────────────────────────────────────────────
 
 func click(id: String, hour: float) -> bool:
@@ -1119,7 +1376,7 @@ func click(id: String, hour: float) -> bool:
 		return true
 	match id:
 		"candles":
-			_walker.go("candles", func(): _light_candle())
+			_walker.go("candles", func(): _candles_close())
 		"box", "rope":
 			# By the door: within reach from there.
 			var act := func():
@@ -1158,16 +1415,46 @@ func click(id: String, hour: float) -> bool:
 	return true
 
 
+## At the stand: the eye goes down to it (candle_closeup.gd). Tools have no hands to strike
+## a match with (GESTURE.auto, the harnesses): the coin and the flame at once.
+func _candles_close() -> void:
+	if GESTURE.auto:
+		_light_candle()
+		return
+	open_closeup()
+
+
+func open_closeup() -> void:
+	_make_closeup()
+	_candle_cu.open_view()
+
+
+func _make_closeup() -> void:
+	if _candle_cu != null:
+		return
+	_candle_cu = CANDLE_CLOSEUP.new()
+	room.add_child(_candle_cu)
+	room.add_overlay(_candle_cu)
+	_candle_cu.setup(self)
+
+
 func _light_candle() -> void:
-	if CoreRoot.get_money() < 1 or not CoreRoot.actions.spend_money(1):
+	if free_cups().is_empty() or CoreRoot.get_money() < 1 or not CoreRoot.actions.spend_money(1):
 		_play("director/knock_wrong.mp3", -14.0)
 		return
 	_play("chapel/coin_box.mp3", -6.0)
-	if add_flame():
-		room._candles = flames.size()
+	if lit_on_stand():
 		room.get_tree().create_timer(0.45).timeout.connect(func(): _play("chapel/match.mp3", -6.0))
-		if room.has_signal("candle_lit"):
-			room.candle_lit.emit(flames.size())
+
+
+## One more flame burning here, for the other wardens too (candle_lit: town_trip sends it).
+func lit_on_stand(cup := -1) -> bool:
+	if not add_flame(cup):
+		return false
+	room._candles = flames.size()
+	if room.has_signal("candle_lit"):
+		room.candle_lit.emit(flames.size())
+	return true
 
 
 func _stand_up() -> void:
@@ -1211,7 +1498,7 @@ func _unlook() -> void:
 	tw.tween_property(room._cam, "fov", float(_look_back.get("fov", 66.0)), 0.5).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
-## S: looking at something, let it go first; else out.
+## Esc: looking at something, let it go first; else out.
 func wants_out() -> bool:
 	if _looking != "":
 		_unlook()
@@ -1257,6 +1544,9 @@ func close() -> void:
 	if _looking != "":
 		room._cam.fov = float(_look_back.get("fov", 66.0))
 	_looking = ""
+	if _candle_cu != null and is_instance_valid(_candle_cu):
+		_candle_cu.queue_free()
+	_candle_cu = null
 	if _walker != null:
 		_walker.stop()
 		_walker.free_all()
@@ -1286,3 +1576,16 @@ func debug_saint() -> void:
 	if _saint != null and _saint_tex.size() > 1:
 		_saint_turned = true
 		(_saint.material_override as StandardMaterial3D).albedo_texture = _saint_tex[1]
+
+
+## Debug: every flame out now, the three notes now, the draught now.
+func debug_all_out() -> void:
+	_all_out()
+
+
+func debug_organ() -> void:
+	_organ_notes()
+
+
+func debug_draft() -> void:
+	_start_draft()

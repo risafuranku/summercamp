@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Liblice for two: a host and a joining copy (tools/motel_coop.tscn). PASS when each sees
 the other standing in the Jednota, the pub and the kiosk, the joining
-warden sees the host's two candles burn in the chapel, both get number four's key, each
-sees the other in the room (the host standing, then asleep in the second bed), a knock
-wakes both in the night, and the rest of it goes by for both: both wake in four in the
-morning.
+warden sees the host's two candles burn in the chapel; the other sees the host at the
+reception's counter, the key go off the board, the host gone and then in the corridor,
+goes in at four after them, sees the set the host put on; each sees the other in the room
+(the host standing, then asleep in the second bed), a knock wakes both in the night, and
+the rest of it goes by for both: both wake in four in the morning.
 
     python godot/tools/motel_coop.py [OUT_DIR]
 """
@@ -33,11 +34,11 @@ def tagged(role):
     text = open(os.path.join(OUT, "%s.log" % role), encoding="utf-8", errors="replace").read()
     out = {}
     for line in text.splitlines():
-        m = re.search(r'MOTEL_TAG \["MOTEL (\w+) (\w+)", ([\d.]+), "(\w*)", (\d+), (\d+), (\d+), (\w+)(?:, "(\w*)")?\]', line)
+        m = re.search(r'MOTEL_TAG \["MOTEL (\w+) (\w+)", ([\d.]+), "(\w*)", (\d+), (\d+), (\d+), (\w+)(?:, "(\w*)")?(?:, (\d+), (\w+))?\]', line)
         if m:
             out[m.group(2)] = {"h": float(m.group(3)), "place": m.group(4), "figs": int(m.group(5)),
                                "sleepers": int(m.group(6)), "flames": int(m.group(7)), "key": m.group(8) == "true",
-                               "ev": m.group(9) or ""}
+                               "ev": m.group(9) or "", "board": int(m.group(10) or 0), "tv": m.group(11) == "true"}
     return text, out
 
 
@@ -82,8 +83,17 @@ def main():
             want(side, p + "_mate", lambda g, p=p: g["place"] == p and g["figs"] >= 1, "%s seeing the other warden in the %s" % (who, p))
     want(h, "candles_lit", lambda g: g["flames"] >= 2, "two candles on the host's stand")
     want(c, "candles", lambda g: g["place"] == "chapel" and g["flames"] >= 2, "the host's two candles burning for the other")
+    for side, who in ((h, "the host"), (c, "the other")):
+        want(side, "lobby_mate", lambda g: g["place"] == "motel" and g["figs"] >= 1, "%s seeing the other at the reception" % who)
+    want(h, "booked", lambda g: g["key"], "the host's key off the board")
+    want(c, "board", lambda g: g["place"] == "motel" and g["board"] == 3, "the key gone from the other's board")
+    want(h, "hall_host", lambda g: g["place"] == "motel_hall", "the host in the corridor")
+    want(c, "hall_mate", lambda g: g["place"] == "motel_hall" and g["figs"] >= 1, "the other seeing the host in the corridor")
+    for side, who in ((h, "the host"), (c, "the other")):
+        want(side, "in_four", lambda g: g["place"] == "motel_room", "%s in four" % who)
+        want(side, "set_on", lambda g: g["tv"], "the set on for %s" % who)
     want(h, "mate_in_room", lambda g: g["place"] == "motel_room" and g["figs"] >= 1 and g["key"], "the other warden in four with the host")
-    want(c, "mate_asleep", lambda g: g["place"] == "motel_room" and g["sleepers"] >= 1 and g["key"], "the host asleep in the second bed")
+    want(c, "mate_asleep", lambda g: g["place"] == "motel_room" and g["sleepers"] >= 1, "the host asleep in the second bed")
     want(h, "lying_alone", lambda g: g["place"] == "motel_room", "the host lying in four while the other is up")
     for side, who in ((h, "the host"), (c, "the other")):
         want(side, "woken", lambda g: g["place"] == "motel_room" and g["ev"] == "knock" and (g["h"] >= 18.0 or g["h"] < 6.0),

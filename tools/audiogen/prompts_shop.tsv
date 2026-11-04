@@ -1,0 +1,21 @@
+sh_wallet_open	1.0	assets/sfx/shop/wallet_open.mp3	An old leather wallet is pulled open: the soft creak of worn leather and a small rattle of coins inside, close up, a quiet shop
+sh_wallet_shut	0.8	assets/sfx/shop/wallet_shut.mp3	A worn leather wallet folded shut with a soft leather pat and a muffled rattle of coins, close up
+sh_coin_mat	0.5	assets/sfx/shop/coin_mat.mp3	A single coin put down on a rubber change mat on a shop counter, one dull little click and a short wobble, close, dry, no ring
+sh_note_mat	0.6	assets/sfx/shop/note_mat.mp3	One soft worn paper banknote laid flat on a rubber mat on a counter, a small crisp papery rustle, close up
+sh_money_sweep	0.9	assets/sfx/shop/money_sweep.mp3	A hand sweeps a few coins and a banknote off a rubber mat on a shop counter and gathers them up, a short scrape and a clink of coins in the fingers
+sh_change_count	1.4	assets/sfx/shop/change_count.mp3	A shopkeeper counts out three coins one after another onto a rubber change mat on a counter, three separate dull clicks with short pauses, close, a quiet shop
+sh_coins_back	1.0	assets/sfx/shop/coins_back.mp3	A few coins slid across a counter and dropped into a leather wallet's coin pouch, a soft slide and a muffled clink, close up
+sh_till_key	0.5	assets/sfx/shop/till_key.mp3	One key pressed on an old heavy mechanical cash register, a single short dry metal clack, close, a quiet shop
+sh_put_glass	0.5	assets/sfx/shop/put_glass.mp3	A small glass bottle set down firmly on a laminate shop counter, one short glassy knock, close, a quiet shop
+sh_put_box	0.5	assets/sfx/shop/put_box.mp3	A small matchbox tossed lightly on a laminate counter, a dry light tap and the small rattle of matches inside it, close
+sh_put_soft	0.5	assets/sfx/shop/put_soft.mp3	A round loaf of bread set down on a shop counter, a soft dull crusty thud, close, a quiet shop
+sh_put_paper	0.6	assets/sfx/shop/put_paper.mp3	A folded thin newspaper dropped flat on a shop counter, a short papery slap, close, a quiet shop
+sh_put_pack	0.5	assets/sfx/shop/put_pack.mp3	A soft paper pack of cigarettes put down on a laminate counter, a small dry papery tap, close
+sh_take_back	0.5	assets/sfx/shop/take_back.mp3	Something small is picked up off a laminate shop counter, a light scrape and a soft lift, close, a quiet shop
+sh_bread_bite	1.3	assets/sfx/shop/bread_bite.mp3	A person tears a piece off a hard crusted rye loaf with their teeth and chews it a few times, the crust cracking, close, dry, no voice
+sh_kofola_open	1.0	assets/sfx/shop/kofola_open.mp3	The crown cap of a small glass bottle of fizzy cola levered off with a dull pop and a soft short hiss of gas, close up
+sh_kofola_gulp	2.0	assets/sfx/shop/kofola_gulp.mp3	A person takes three quick gulps from a glass bottle of fizzy cola, fizz in the bottle, then a short breath out, close, no voice
+sh_match_strike	1.6	assets/sfx/shop/match_strike.mp3	A wooden match struck once on the side of a matchbox: a dry scrape, the sulphur flaring with a soft hiss, a small flame burning, close, a quiet room
+sh_match_out	0.8	assets/sfx/shop/match_out.mp3	A small match flame pinched out between the fingers, a soft short puff and a tiny sizzle, close
+sh_paper_open	1.0	assets/sfx/shop/paper_open.mp3	A thin cheap newspaper unfolded and shaken open with both hands, soft dry newsprint rustle, close up, a quiet room
+sh_paper_shut	0.8	assets/sfx/shop/paper_shut.mp3	A thin newspaper folded in half and put down, a soft rustle and a short pat, close up

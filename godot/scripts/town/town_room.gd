@@ -6,14 +6,14 @@ extends CanvasLayer
 ## and turns in steps), what you can buy or use glints under the gloved finger. What is
 ## said comes up in a strip along the bottom, typed out like the close-ups'.
 ##
-##   - the Jednota: Start off the shelf behind the counter ($2), Lesnak out of the crate
-##     ($1), a scratch card from the box by the till ($1), all into the bag (scratched
-##     from there), batteries sold out; Mrs Novotna to talk to; fluorescent tubes, one dying;
+##   - the Jednota: the goods where they stand, Mrs Novotna puts what you point at on the
+##     counter, the till rings it up, you pay out of your wallet (counter_shop.gd,
+##     counter_pay.gd, counter_goods.gd); fluorescent tubes, one dying;
 ##   - the pub U Jezera: the tap ($1, the mug lands on the bar, three pulls and it is
 ##     yours: `drank`), the fruit machine in the corner (pub_closeup.gd's reels), Mr Kubat,
 ##     two regulars; lamps over the tables, smoke in the air, the room's murmur.
 ##   - the chapel (open by day): chapel_view.gd, built to its baroque front;
-##   - the kiosk at the Benzina: Start at three dollars, Mrs Lojzova;
+##   - the kiosk at the Benzina: the same counter, Mrs Lojzova, a petrol station's prices;
 ##   - the motel: motel_view.gd (its reception, Mr Simek and the key board; number four),
 ##     built from motel_plan.gd with the block in the village.
 ## S, the bottom edge or the door behind you leaves.
@@ -21,7 +21,7 @@ extends CanvasLayer
 ## The rooms are Build boxes with Grok faces (assets/textury/camp, tools/artgen/town_rooms.py).
 
 signal closed
-## Into the bag (scripts/ui/inventory.gd): "cigs", "beer", "card" (scratched from there).
+## Paid for at the counter (counter_shop.gd), into the bag (scripts/ui/inventory.gd).
 signal bought(item: String)
 signal drank
 ## Handed to town_trip.gd: "slot" (the pub's fruit machine, pub_closeup), "motel_room".
@@ -40,12 +40,9 @@ const SFX_TOWN := "res://assets/sfx/town/"
 const RENDER := Vector2i(960, 540)
 const STRIP := Vector2i(320, 30)
 
-const SHOP_ITEMS := {
-	"cigs": {"price": 2, "say": "Start. Twenty. Two dollars."},
-	"beer": {"price": 1, "say": "Lesnak. Bring the bottle back next time."},
-	"card": {"price": 1, "say": "Rychla kacka. Scratch it at home, not on my counter."},
-	"batteries": {"price": 0, "say": "Batteries are sold out until further notice. Please stop asking."},
-}
+## The counter of the Jednota and the kiosk: what lies on it, the till, paying
+## (counter_shop.gd; what they sell and for how much: counter_goods.gd).
+const COUNTER_SHOP = preload("res://scripts/town/counter_shop.gd")
 const SHOP_LINES := [
 	"What will it be.",
 	"My husband does your lamps up there. He says your main is older than he is.",
@@ -80,10 +77,12 @@ var hour := 12.0
 ## The motel's rooms (motel_view.gd, built from motel_plan.gd): its reception "motel" and
 ## your room "motel_room"; the chapel's own (chapel_view.gd) the same way. Null elsewhere.
 const MOTEL_VIEW = preload("res://scripts/town/motel_view.gd")
+const MOTEL_HALL = preload("res://scripts/town/motel_hall.gd")
 const CHAPEL_VIEW = preload("res://scripts/town/chapel_view.gd")
 const JEDNOTA_VIEW = preload("res://scripts/town/jednota_view.gd")
 const PUB_VIEW = preload("res://scripts/town/pub_view.gd")
 const KIOSK_VIEW = preload("res://scripts/town/kiosk_view.gd")
+const WC_VIEW = preload("res://scripts/town/wc_view.gd")
 ## Set by town_trip: the place's building in the village and the room built in it behind
 ## its glass (jednota_view.gd: the windows look out of the one, hide the other).
 var place_anchor: Node3D
@@ -93,6 +92,11 @@ var _view
 ## from), the keys on its board.
 var motel_block: Node3D
 var motel_keys: Array = []
+## The room "motel_room" opens, where you come out in "motel_hall"; true for one open: you
+## came through from the next place in the building (no greeting, the door is behind you).
+var motel_n := MOTEL_VIEW.PLAN.YOURS
+var arrive_spot := ""
+var _through := false
 var _open := false
 var _vpc: SubViewportContainer
 var _vp: SubViewport
@@ -174,12 +178,28 @@ func set_modal_check(modal: Callable) -> void:
 	_modal = modal
 
 
+## Close-ups and screens a place puts over the room (the laptop's, the counter's, the
+## candles' up close): while one of them is visible, its input is its own.
+var _overlays: Array = []
+
+
+func add_overlay(n: Node) -> void:
+	if not _overlays.has(n):
+		_overlays.append(n)
+
+
+func _is_modal() -> bool:
+	if _modal.call():
+		return true
+	for n in _overlays:
+		if is_instance_valid(n) and n.get("visible") == true:
+			return true
+	return false
+
+
 ## Callable(item) -> bool: is there room in the bag for it (nothing is sold without).
 var can_buy: Callable
-
-
-func _room_in_bag(item: String) -> bool:
-	return not can_buy.is_valid() or bool(can_buy.call(item))
+var _counter
 
 
 func is_open() -> bool:
@@ -243,8 +263,14 @@ func open(p_place: String, p_hour: float) -> void:
 			else:
 				_build_motel()
 		"motel_room":
-			_view = MOTEL_VIEW.new(self, MOTEL_VIEW.PLAN.YOURS, motel_block)
+			_view = MOTEL_VIEW.new(self, motel_n, motel_block)
 			_view.build(hour, [])
+		"motel_hall":
+			_view = MOTEL_HALL.new(self, motel_block)
+			_view.build(hour, arrive_spot)
+		"wc":
+			_view = WC_VIEW.new(self)
+			_view.build_inside(hour)
 	_look.reset()
 	_cam.rotation = _base_rot
 	_open = true
@@ -252,6 +278,9 @@ func open(p_place: String, p_hour: float) -> void:
 	RETRO_RENDER.apply_to(_vpc)
 	_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	if _through:
+		_through = false
+		return
 	match place:
 		"jednota":
 			_play(SFX_TOWN + "shop_bell.mp3", -8.0)
@@ -285,9 +314,14 @@ var _mates: Dictionary = {}
 func coop_mates(ids: Array) -> void:
 	for id in _mates.keys():
 		if not ids.has(id) or not _open or _root == null:
-			if is_instance_valid(_mates[id]):
-				_mates[id].queue_free()
+			# A view with a door can see them out through it (then their figure is its own).
+			var fig = _mates[id]
 			_mates.erase(id)
+			var where := str(Coop.state_of(int(id)).get("tr", ""))
+			if _open and _view != null and _view.has_method("mate_leaves") and is_instance_valid(fig) and bool(_view.mate_leaves(int(id), fig, where)):
+				continue
+			if is_instance_valid(fig):
+				fig.queue_free()
 	if not _open or _root == null:
 		return
 	if _view != null:
@@ -324,6 +358,8 @@ func close() -> void:
 	if _view != null:
 		_view.close()
 		_view = null
+	elif _counter != null:
+		_counter.end()
 	_open = false
 	visible = false
 	_glint.clear()
@@ -332,6 +368,19 @@ func close() -> void:
 	if _exit_hint != null:
 		_exit_hint.modulate.a = 0.0
 	closed.emit()
+
+
+## Through a door to the next place in the same building (the motel's reception, corridor
+## and rooms): `n` the room, `spot` where you come out.
+func go_to(p_place: String, n := 0, spot := "") -> void:
+	if n > 0:
+		motel_n = n
+	arrive_spot = spot
+	_through = true
+	var trip = get_parent()
+	if trip != null and trip.has_method("_door_fx"):
+		trip._door_fx(true)
+	open(p_place, float(trip.hour()) if trip != null and trip.has_method("hour") else hour)
 
 
 ## The night passed in the motel's room (town_trip): the morning's light in it.
@@ -376,7 +425,7 @@ func _process(delta: float) -> void:
 	if not _open:
 		return
 	_t += delta
-	var modal: bool = _modal.call()
+	var modal: bool = _is_modal()
 	if not modal:
 		var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.turn_axis())
 		_cam.rotation = _base_rot + offset
@@ -394,7 +443,7 @@ func _process(delta: float) -> void:
 		_glint.clear()
 		_hover = ""
 	if _exit_hint == null:
-		_exit_hint = INTERIOR_LOOK.make_exit_hint(self, "Go out   [S]")
+		_exit_hint = INTERIOR_LOOK.make_exit_hint(self, "Go out   [Esc]")
 	INTERIOR_LOOK.update_exit_hint(_exit_hint, get_viewport(), delta, not modal)
 	_animate_npc(delta)
 	_animate_tubes()
@@ -450,9 +499,7 @@ func _animate_tubes() -> void:
 # ── input ────────────────────────────────────────────────────────────────────
 
 func _input(event: InputEvent) -> void:
-	if not _open or _modal.call():
-		return
-	if event.is_action_pressed("ui_cancel"):
+	if not _open or _is_modal():
 		return
 	if INTERIOR_LOOK.is_exit_event(event, get_viewport()):
 		get_viewport().set_input_as_handled()
@@ -515,29 +562,23 @@ func _clicked(id: String) -> void:
 			_motel_click(id)
 
 
+## The counter of the shop you are in.
+func counter():
+	if _counter == null:
+		_counter = COUNTER_SHOP.new()
+		_counter.room = self
+		add_child(_counter)
+	return _counter
+
+
+## Goods, the till and what is on the counter are the counter's; she herself, talk.
 func _shop_click(id: String) -> void:
+	if counter().click(id):
+		return
 	if id == "her":
 		_line += 1
 		_npc_nod = 0.5
 		say("Mrs Novotna", SHOP_LINES[_line % SHOP_LINES.size()])
-		return
-	var item: Dictionary = SHOP_ITEMS.get(id, {})
-	if item.is_empty():
-		return
-	var price := int(item["price"])
-	_npc_nod = 0.5
-	if price <= 0:
-		say("Mrs Novotna", str(item["say"]))
-		return
-	if not _room_in_bag(id):
-		say("Mrs Novotna", "And where will you put it? Your bag is full.")
-		return
-	if CoreRoot.get_money() < price or not CoreRoot.actions.spend_money(price):
-		say("Mrs Novotna", "That's %d dollars. You have not got %d dollars." % [price, price])
-		return
-	_play("res://assets/sfx/bistro/till.mp3", -6.0)
-	say("Mrs Novotna", str(item["say"]))
-	bought.emit(id)
 
 
 func _pub_click(id: String) -> void:
@@ -576,22 +617,12 @@ func _pub_click(id: String) -> void:
 
 
 func _kiosk_click(id: String) -> void:
-	match id:
-		"her":
-			_line += 1
-			_npc_nod = 0.5
-			say("Mrs Lojzova", KIOSK_LINES[_line % KIOSK_LINES.size()])
-		"cigs":
-			_npc_nod = 0.5
-			if not _room_in_bag("cigs"):
-				say("Mrs Lojzova", "Your bag is full, love. Make room first.")
-				return
-			if CoreRoot.get_money() < 3 or not CoreRoot.actions.spend_money(3):
-				say("Mrs Lojzova", "Start is three dollars here. Two at the Jednota. Go to the Jednota.")
-				return
-			_play("res://assets/sfx/bistro/till.mp3", -6.0)
-			bought.emit("cigs")
-			say("Mrs Lojzova", "Start. Three dollars, it is a petrol station. Mind the pumps with that.")
+	if counter().click(id):
+		return
+	if id == "her":
+		_line += 1
+		_npc_nod = 0.5
+		say("Mrs Lojzova", KIOSK_LINES[_line % KIOSK_LINES.size()])
 
 
 func _motel_click(id: String) -> void:
@@ -649,7 +680,7 @@ func _layout_strip() -> void:
 	var k := maxi(1, int(floor(minf(vp.x * 0.7 / STRIP.x, vp.y / 270.0))))
 	_strip_view.size = Vector2(STRIP * k)
 	_strip_view.position = Vector2(floorf((vp.x - _strip_view.size.x) * 0.5), vp.y - _strip_view.size.y - 6.0 * k)
-	_strip_view.visible = _text != "" and not _modal.call()
+	_strip_view.visible = _text != "" and not _is_modal()
 
 
 func _draw_strip() -> void:
@@ -827,7 +858,8 @@ func _build_jednota() -> void:
 	_box(Vector3(3.4, 0.9, 0.62), Vector3(0.0, 0.45, -0.5), K.surface("veneer_dark", 0.8), "Counter")
 	_face("shop_counter", Vector2(3.4, 0.9), Vector3(0.0, 0.45, -0.185), 0.0, "CounterFront")
 	_box(Vector3(3.5, 0.05, 0.7), Vector3(0.0, 0.925, -0.5), top, "CounterTop")
-	_sprite("shop_till", Vector2(0.5, 0.46), Vector3(0.95, 0.95, -0.6), 0.0, false, "Till")
+	var till := _sprite("shop_till", Vector2(0.5, 0.46), Vector3(0.95, 0.95, -0.6), 0.0, false, "Till")
+	_hot_box("till", Vector3(0.95, 1.18, -0.6), Vector3(0.52, 0.48, 0.24), [till])
 	_sprite("shop_scales", Vector2(0.42, 0.42), Vector3(-1.05, 0.95, -0.55), 0.0, false, "Scales")
 	var cards := _sprite("card_box", Vector2(0.26, 0.26), Vector3(0.45, 0.95, -0.36), 0.0, false, "CardBox")
 	_hot_box("card", Vector3(0.45, 1.08, -0.36), Vector3(0.3, 0.28, 0.2), [cards])
@@ -868,6 +900,7 @@ func _build_jednota() -> void:
 	_window(Vector2(2.4, 1.4), Vector3(1.0, 1.55, 2.49), 180.0)
 	_cam.position = Vector3(0.0, 1.58, 0.95)
 	_base_rot = Vector3(deg_to_rad(-6.0), 0.0, 0.0)
+	counter().begin("jednota", {"slots": [Vector3(-0.2, 0.95, -0.3), Vector3(0.05, 0.95, -0.3), Vector3(0.3, 0.95, -0.3), Vector3(-0.7, 0.95, -0.3), Vector3(0.7, 0.95, -0.3)], "till": till})
 
 
 # ── the pub U Jezera ─────────────────────────────────────────────────────────
@@ -949,7 +982,8 @@ func _build_kiosk() -> void:
 	_light_profile(false)
 	_tube(Vector3(0.0, 2.54, -0.4))
 	_box(Vector3(2.8, 0.95, 0.55), Vector3(0, 0.475, -0.55), K.surface("veneer_dark", 0.6), "Counter")
-	_face("kiosk_counter", Vector2(2.8, 0.95), Vector3(0, 0.475, -0.27), 0.0, "CounterFront")
+	var front := _face("kiosk_counter", Vector2(2.8, 0.95), Vector3(0, 0.475, -0.27), 0.0, "CounterFront")
+	_hot_box("till", Vector3(0.9, 0.5, -0.27), Vector3(0.6, 0.9, 0.1), [front])
 	_box(Vector3(2.9, 0.05, 0.62), Vector3(0, 0.975, -0.55), _laminate(), "CounterTop")
 	_box(Vector3(3.6, 1.6, 0.3), Vector3(0, 1.4, -1.5), K.surface("planks_dark", 0.6), "Shelves")
 	var shelves := _face("kiosk_shelves", Vector2(3.5, 1.55), Vector3(0, 1.4, -1.345), 0.0, "ShelvesFace")
@@ -961,6 +995,7 @@ func _build_kiosk() -> void:
 	_hot_box("door", Vector3(1.1, 1.0, 1.65), Vector3(0.9, 2.0, 0.12), [door])
 	_cam.position = Vector3(0.0, 1.58, 0.75)
 	_base_rot = Vector3(deg_to_rad(-6.0), 0.0, 0.0)
+	counter().begin("kiosk", {"slots": [Vector3(-0.4, 1.0, -0.4), Vector3(-0.1, 1.0, -0.4), Vector3(0.2, 1.0, -0.4), Vector3(0.5, 1.0, -0.4)], "billboard": true})
 
 
 # ── the motel's lobby ────────────────────────────────────────────────────────

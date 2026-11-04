@@ -1,0 +1,12 @@
+# After gen.py and normalize.py: python tools/audiogen/raw/gbook_cut.py (press and release apart, the fan as a loop).
+gb_chord	3.5	assets/sfx/gbook/chord.mp3	The startup sound of a cheap 1990s laptop computer: one single warm soft synthesised major seventh chord, played once on a gentle electric piano pad through a tiny laptop speaker, swelling in and ringing out, slightly detuned and a little melancholy, lo-fi, no melody, no voice, no other sounds
+gb_power	1.0	assets/sfx/gbook/power.mp3	The small plastic power button of an old laptop pressed with one soft clunk, then a faint electric tick of a relay inside the case, close up, quiet small room
+gb_spin	3.0	assets/sfx/gbook/spinup.mp3	The small hard disk of an old laptop spinning up: a thin rising electric whirr that settles, then a few soft dry mechanical ticks of the head, close up, quiet
+gb_seek_a	2.0	assets/sfx/gbook/seek_a.mp3	The hard disk of an old laptop reading: a burst of quiet dry rapid mechanical ticks and chirrs, close up, no hum, no room
+gb_seek_b	1.2	assets/sfx/gbook/seek_b.mp3	A short burst of soft dry ticking from an old laptop hard disk head moving, four or five small mechanical ticks, close up, no hum
+gb_click	0.5	assets/sfx/gbook/click.mp3	One click of the button under an old laptop trackball, a small soft plastic clack, close up, dry, no room
+gb_key	0.5	assets/sfx/gbook/key.mp3	One single key press on a 1990s laptop keyboard, a soft plastic click, close up, dry, no room
+gb_fan	10	../tools/audiogen/raw/gbook_fan_raw.mp3	The faint steady hum of a small fan and electronics inside an old laptop computer, low, even and thin, close up, continuous, no clicks, no changes
+gb_alert_clonk	0.7	assets/sfx/gbook/alert_clonk.mp3	One short soft low electronic alert sound of an old computer through a tiny speaker: a dull hollow wooden clonk made by a synthesiser, one note, lo-fi, dry
+gb_alert_drip	0.7	assets/sfx/gbook/alert_drip.mp3	A short electronic drop of water alert sound from an old computer through a tiny speaker, one rising pitched plip, lo-fi, dry
+gb_alert_pip	0.7	assets/sfx/gbook/alert_pip.mp3	A short two note falling electronic error beep from an old computer through a tiny speaker, soft square wave, lo-fi, dry

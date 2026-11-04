@@ -1,30 +1,33 @@
 extends RefCounted
 
-## Inside the Liblice motel (town_room.gd's places "motel", the reception, and
-## "motel_room", number four), built from its plan (motel_plan.gd, motel_rooms.gd) so its
-## windows look out of the block where it stands in the village (window_portal.gd).
+## Inside the Liblice motel (town_room.gd's places "motel", the reception, and "motel_room",
+## the rooms he lets), built from its plan (motel_plan.gd, motel_rooms.gd) so its windows look
+## out of the block where it stands in the village (window_portal.gd).
 ##
-## One star, and a night in it like a clicking horror adventure (the user, 4. 11.): you
-## walk to what you click (room_walk.gd) and it is done there.
-##   the reception  Simek behind the counter (from seven a room: he takes four's key off
-##                  the board and it goes in your bag), the bell, the guest book, the
-##                  drinks machine, the television in the corner, the fan, the zapper
-##                  crackling, the flypaper;
-##   number four    the key turns twice in the lock, the chain, the peephole (the gallery
-##                  outside through its lens); the lamps over the beds, the light by the
-##                  door, the TV (late at night one more channel: the car park from the
-##                  pole), the curtains, the wardrobe, the radiator (knock and now and then
-##                  it knocks back), the print over the beds, the telephone, the clock
-##                  radio with the time in red; the bathroom: its light and the fan with
-##                  it, the tap that drips, the toilet, the shower's curtain, the mirror
-##                  (a real one: the room behind you, and you in it);
+## One star, and a night in it like a clicking horror adventure (the user, 4. 11.): you walk to
+## what you click (room_walk.gd) and it is done there; like in some RPG the keys hang on
+## the board and every room is its own (motel_two.gd, motel_nine.gd, motel_eleven.gd; number
+## four is this file's).
+##   the reception  Simek behind the counter: the key off the board, once to hear what it
+##                  is, again to take it (from seven); the bell, the guest book, the drinks
+##                  machine, the television, the fan, the zapper, the flypaper; the door past
+##                  the counter's end to the corridor (motel_hall.gd);
+##   every room     the key turns twice in the lock, the chain, the peephole (the corridor
+##                  through its lens); the light by the door, the curtains, the telephone, a
+##                  radio (motel_radio.gd); the bathroom off the little hall: its light and
+##                  the fan with it, the tap that drips, the toilet, the shower's curtain,
+##                  the mirror (a real one: the room behind you, and you in it);
+##   number four    two beds, the TV (late at night one more channel: the car park from the
+##                  pole), the wardrobe, the radiator (knock and now and then it knocks
+##                  back), the print over the beds, the clock radio with the time in red;
 ##   the night      lie down and sleep; town_trip passes the night and motel_night.gd
 ##                  weighs what wakes you: a knock, the phone, the set on by itself, the
 ##                  light under the bathroom door, headlights, steps upstairs, the wall,
-##                  the pipes. You lie in the dark with the clock at 02:47 and go and see,
-##                  or lie down again. In the morning the clock radio, and something is
-##                  not as it was: the one in the print by the river is nearer.
-## Nobody narrates: things answer with their sounds and their light.
+##                  the pipes. You lie in the dark and go and see, or lie down again. In the
+##                  morning something is not as it was.
+## Nobody narrates: things answer with their sounds and their light. In co-op what is
+## switched in a room is switched for both (_state, take_state), and you see the other
+## warden walk (room_mates.gd).
 
 const PLAN = preload("res://scripts/town/motel_plan.gd")
 const ROOMS = preload("res://scripts/town/motel_rooms.gd")
@@ -32,6 +35,11 @@ const K = preload("res://scripts/interior_kit.gd")
 const WINDOW_PORTAL = preload("res://scripts/ui/window_portal.gd")
 const WALK = preload("res://scripts/town/room_walk.gd")
 const SEVEN_SEG = preload("res://scripts/ui/seven_seg.gd")
+const RADIO = preload("res://scripts/town/motel_radio.gd")
+const MATES = preload("res://scripts/town/room_mates.gd")
+const TWO = preload("res://scripts/town/motel_two.gd")
+const NINE = preload("res://scripts/town/motel_nine.gd")
+const ELEVEN = preload("res://scripts/town/motel_eleven.gd")
 const LOOKS = preload("res://scripts/coop/warden_looks.gd")
 const SFX := "res://assets/sfx/"
 const CAMP := "res://assets/textury/camp/"
@@ -39,25 +47,33 @@ const CAMP := "res://assets/textury/camp/"
 const TV_NIGHT := ["tv_testcard", "tvshow_forest", "tvshow_weather", "cam"]
 const TV_DAY := ["tvshow_weather", "tvshow_forest", "tv_testcard"]
 const SIMEK_LINES := [
-	"Rooms from seven in the evening. Fifteen dollars.",
+	"Rooms from seven in the evening. Keys are on the board.",
 	"The camp people used to come down for the shower. Then they stopped coming down at all.",
 	"Number four has the best mattress. Number six I do not let.",
+	"Eleven is ten dollars. Mr Hora paid to the end of the year.",
 	"Breakfast is a promise, not a guarantee.",
 	"Do not open the window in number six. It does not open, but do not.",
 ]
-const WAYS := [["entry", "door"], ["entry", "wardrobe"], ["entry", "aisle"], ["entry", "bedfoot"], ["wardrobe", "bedfoot"],
-	["aisle", "window"], ["aisle", "tv"], ["window", "tv"], ["aisle", "bathdoor"], ["bathdoor", "bathin"], ["bathin", "bath"],
-	["aisle", "bedfoot"]]
+## The ways every room has (door, little hall, bathroom), number four's; the reception's.
+const WAYS := [["door", "entry"], ["entry", "bathdoor"], ["bathdoor", "bathin"], ["bathin", "bath"], ["entry", "room"]]
+const WAYS_FOUR := [["room", "aisle"], ["aisle", "window"], ["aisle", "tv"], ["window", "tv"], ["aisle", "bedfoot"],
+	["aisle", "wardrobe"], ["wardrobe", "bedfoot"]]
+const WAYS_LOBBY := [["door", "desk"], ["desk", "end"], ["door", "end"], ["end", "hall"]]
 ## Things you reach from the bed (the rest: you get up and go).
 const FROM_BED := ["phone", "clock", "lamps", "wall", "stain"]
-## What the nights leave (the print by the river, the stain): the game's, not one visit's.
-static var marks := {"painting": 0, "stain": 0}
+## What the nights leave in a room (the print by the river, the stain), n -> marks: the
+## game's, not one visit's. How a room was left tonight, n -> {"night", "s"}.
+static var marks := {}
+static var kept := {}
 
 var room                         # town_room.gd
 var n := 0                       # 0 the reception, else the room's number
 ## The motel in the village (motel_block.gd): its transform maps this room out.
 var block: Node3D
 var parts: Dictionary = {}
+## The room's own (motel_two.gd ...; null: number four), its radio.
+var quirk
+var radio
 var windows: Array = []          # window_portal.gd
 var lights: Dictionary = {}      # "ceiling", "lamp_a", "lamp_b", "tv", "day", "clock", "desk"
 var lamps_on := false
@@ -138,6 +154,13 @@ var _roach_wait := 30.0
 var _headlight: SpotLight3D
 var _head_t := -1.0
 var _zap_t := 12.0
+var _picked := 0
+## The other wardens on foot here; what you last told them is switched.
+var _crew
+var _sent := ""
+var _sync_t := 0.0
+var _closed := false
+var _taped := false
 
 
 func _init(p_room, p_n: int, p_block: Node3D) -> void:
@@ -205,13 +228,39 @@ func build(hour: float, keys: Array) -> void:
 		parts = ROOMS.build_lobby(root, true, keys)
 		_lobby_things(hour)
 	else:
-		parts = ROOMS.build_room(root, n, true, {"made": true, "painting": int(marks["painting"]), "stain": int(marks["stain"])})
+		var mk := _marks()
+		parts = ROOMS.build_room(root, n, true, {"made": true, "painting": int(mk["painting"]), "stain": int(mk["stain"])})
+		match n:
+			2:
+				quirk = TWO.new(self, room)
+			9:
+				quirk = NINE.new(self, room)
+			11:
+				quirk = ELEVEN.new(self, room)
 		_room_things(hour)
 		# Coming in after dark you flick the switch by the door.
 		ceiling_on = _night(hour)
+		radio = RADIO.new(self, room, quirk.radio_voice() if quirk != null else "clock")
 	_make_windows()
 	_set_light(hour)
 	_sounds(hour)
+	if n != 0:
+		var k: Dictionary = kept.get(n, {})
+		if not k.is_empty() and int(k.get("night", -1)) == _night_no():
+			take_state(k.get("s", {}), true)
+	_sent = _state_key()
+	Coop.send_place("town", "motel", "walk", [str(_walker.here)])
+
+
+func _marks() -> Dictionary:
+	if not marks.has(n):
+		marks[n] = {"painting": 0, "stain": 0}
+	return marks[n]
+
+
+func _night_no() -> int:
+	var trip = room.get_parent()
+	return int(trip._night_index(_now())) if trip != null and trip.has_method("_night_index") else 1
 
 
 func _lobby_things(hour: float) -> void:
@@ -232,9 +281,19 @@ func _lobby_things(hour: float) -> void:
 		_make_tv_screen(tv["node"], Vector2(0.62, 0.465), Rect2(0.13, 0.17, 0.62, 0.6))
 	var door := PLAN.room_door(0)
 	room._hot_box("door", Vector3(door.x, 1.0, door.z + 0.05), Vector3(1.0, 2.1, 0.15), [])
-	# You stand inside the door, the counter before you.
-	room._cam.position = Vector3(door.x, 1.6, door.z + 0.7)
-	room._base_rot = Vector3(deg_to_rad(-5.0), PI - 0.31, 0.0)
+	# The keys on the board behind him, the door to the corridor past the counter's end.
+	var keys: Dictionary = parts.get("keys", {})
+	for k in keys:
+		var kn: Node3D = keys[k]
+		room._hot_box("key%d" % int(k), kn.position + Vector3(0, 0.07, -0.04), Vector3(0.13, 0.2, 0.08), [kn])
+	var hd = parts.get("hall_door")
+	room._hot_box("hall", Vector3(PLAN.LOBBY_HALL_X, 1.0, PLAN.lobby_size().z * 0.5 - 0.06), Vector3(0.95, 2.05, 0.1), [hd] if hd != null else [])
+	# You stand inside the door, the counter before you; or you came back from the corridor.
+	var sp := _lobby_spots()
+	_walker = WALK.new(room, sp, WAYS_LOBBY, "door", SFX + "rooms/steps_wood.mp3", -17.0)
+	_walker.on_go = func(to: String): _went(to)
+	_walker.put(str(room.arrive_spot) if sp.has(str(room.arrive_spot)) else "door")
+	_crew = MATES.new(room, sp, WAYS_LOBBY, "door")
 	room._look.yaw_limit_deg = 110.0
 	if parts.get("zapper") != null:
 		var zl := OmniLight3D.new()
@@ -246,20 +305,52 @@ func _lobby_things(hour: float) -> void:
 		lights["zapper"] = zl
 
 
-## Where you can stand in number four and how you look there.
-static func _spots() -> Dictionary:
+## Where you stand in the reception: inside the street door, at the counter, past its end,
+## at the door to the corridor.
+func _lobby_spots() -> Dictionary:
+	var r := func(p: float, y: float) -> Vector3: return Vector3(deg_to_rad(p), deg_to_rad(y), 0.0)
+	var door := PLAN.room_door(0)
+	var c: Vector3 = parts.get("counter", Vector3(0, 1.1, 0.55))
+	var hx := PLAN.LOBBY_HALL_X
+	return {
+		"door": {"at": Vector3(door.x, 1.6, door.z + 0.7), "rot": Vector3(deg_to_rad(-5.0), PI - 0.31, 0.0)},
+		"desk": {"at": Vector3(c.x + 0.1, 1.6, c.z - 0.82), "rot": r.call(-1.0, 180.0)},
+		"end": {"at": Vector3(hx, 1.6, c.z - 0.82), "rot": r.call(-4.0, 180.0)},
+		"hall": {"at": Vector3(hx, 1.6, PLAN.lobby_size().z * 0.5 - 0.62), "rot": r.call(-4.0, 180.0)},
+	}
+
+
+## Where you can stand in a room and how you look there: the door, the little hall, the
+## bathroom, the way into the bedroom in all of them; the bedroom's are the room's own.
+func _spots() -> Dictionary:
+	var r := func(p: float, y: float) -> Vector3: return Vector3(deg_to_rad(p), deg_to_rad(y), 0.0)
+	var out := _spots_common()
+	if quirk != null:
+		out.merge(quirk.spots(), true)
+	else:
+		out.merge({
+			"wardrobe": {"at": Vector3(-0.5, 1.6, -0.45), "rot": r.call(-8.0, 90.0)},
+			"aisle": {"at": Vector3(1.02, 1.6, -0.35), "rot": r.call(-8.0, 0.0)},
+			"window": {"at": Vector3(0.68, 1.6, -1.4), "rot": r.call(-4.0, 0.0)},
+			"tv": {"at": Vector3(0.5, 1.6, -0.75), "rot": r.call(-30.0, -42.0)},
+			"bedfoot": {"at": Vector3(-0.72, 1.6, -0.05), "rot": r.call(-16.0, 180.0)},
+		}, true)
+	return out
+
+
+func _ways() -> Array:
+	return WAYS + (quirk.ways() if quirk != null else WAYS_FOUR)
+
+
+func _spots_common() -> Dictionary:
 	var r := func(p: float, y: float) -> Vector3: return Vector3(deg_to_rad(p), deg_to_rad(y), 0.0)
 	return {
-		"entry": {"at": PLAN.STAND, "rot": r.call(-6.0, 180.0)},
-		"door": {"at": Vector3(-0.72, 1.6, -1.45), "rot": r.call(-6.0, 0.0)},
-		"wardrobe": {"at": Vector3(-0.5, 1.6, -0.45), "rot": r.call(-8.0, 90.0)},
-		"aisle": {"at": Vector3(1.02, 1.6, -0.35), "rot": r.call(-8.0, 180.0)},
-		"window": {"at": Vector3(0.68, 1.6, -1.4), "rot": r.call(-4.0, 0.0)},
-		"tv": {"at": Vector3(0.5, 1.6, -0.75), "rot": r.call(-30.0, -42.0)},
-		"bathdoor": {"at": Vector3(1.13, 1.6, 1.3), "rot": r.call(-6.0, 180.0)},
-		"bathin": {"at": Vector3(1.12, 1.6, 2.6), "rot": r.call(-8.0, 120.0)},
-		"bath": {"at": Vector3(0.45, 1.6, 3.07), "rot": r.call(-6.0, 90.0)},
-		"bedfoot": {"at": Vector3(-0.72, 1.6, -0.05), "rot": r.call(-16.0, 180.0)},
+		"door": {"at": Vector3(1.06, 1.6, PLAN.BACK_Z + PLAN.BACK_D - 0.45), "rot": r.call(-6.0, 180.0)},
+		"entry": {"at": PLAN.STAND, "rot": r.call(-6.0, 0.0)},
+		"bathdoor": {"at": Vector3(1.05, 1.6, (PLAN.INNER_DOOR_Z.x + PLAN.INNER_DOOR_Z.y) * 0.5), "rot": r.call(-6.0, 90.0)},
+		"bathin": {"at": Vector3(0.05, 1.6, (PLAN.INNER_DOOR_Z.x + PLAN.INNER_DOOR_Z.y) * 0.5), "rot": r.call(-6.0, 90.0)},
+		"bath": {"at": Vector3(PLAN.BATH_X.x + 0.62, 1.6, PLAN.BACK_Z + ROOMS.MIRROR_Z_OFF), "rot": r.call(-6.0, 90.0)},
+		"room": {"at": Vector3(1.05, 1.6, 1.7), "rot": r.call(-6.0, 0.0)},
 	}
 
 
@@ -267,60 +358,75 @@ func _room_things(hour: float) -> void:
 	var d := PLAN.room_door(n)
 	var w := PLAN.ROOM_W
 	var dd := PLAN.ROOM_D
-	room._hot_box("door", Vector3(d.x, 1.0, d.z + 0.06), Vector3(0.95, 2.05, 0.1), [])
+	var z1 := PLAN.BACK_Z + PLAN.BACK_D
+	room._hot_box("door", Vector3(d.x, 1.0, z1 + 0.02), Vector3(0.7, 2.05, 0.06), [])
 	if parts.get("key") != null:
-		room._hot_box("lock", (parts["key"] as Node3D).position + Vector3(0, 0.1, 0.02), Vector3(0.22, 0.26, 0.1), [parts["key"]])
+		room._hot_box("lock", (parts["key"] as Node3D).position + Vector3(0, 0.1, -0.04), Vector3(0.22, 0.26, 0.08), [parts["key"]])
 	if parts.get("chain") != null:
-		room._hot_box("chain", (parts["chain"] as Node3D).position + Vector3(0, 0.1, 0.03), Vector3(0.2, 0.22, 0.1), [parts["chain"]])
-	room._hot_box("peephole", Vector3(d.x, 1.55, d.z + 0.07), Vector3(0.14, 0.14, 0.1), [parts.get("peephole")] if parts.get("peephole") != null else [])
+		room._hot_box("chain", (parts["chain"] as Node3D).position + Vector3(0, 0.1, -0.04), Vector3(0.2, 0.22, 0.08), [parts["chain"]])
+	room._hot_box("peephole", Vector3(d.x, 1.55, z1 - 0.02), Vector3(0.14, 0.14, 0.08), [parts.get("peephole")] if parts.get("peephole") != null else [])
 	if parts.get("switch") != null:
-		room._hot_box("switch", (parts["switch"] as Node3D).position + Vector3(0, 0, 0.04), Vector3(0.16, 0.2, 0.1), [parts["switch"]])
-	for u in [0.155, 0.845]:
-		var at := PLAN.headwall_at(float(u), 0.54)
-		room._hot_box("lamps", Vector3(at.x, at.y, dd * 0.5 - 0.08), Vector3(0.3, 0.25, 0.12), [])
-	room._hot_box("wall", Vector3(PLAN.headwall_rect().x, 0.82, dd * 0.5 - 0.04), Vector3(PLAN.headwall_rect().y, 0.24, 0.06), [])
-	for i in PLAN.BED_X.size():
-		room._hot_box("bed", Vector3(PLAN.BED_X[i], 0.35, PLAN.BED_Z), Vector3(PLAN.BED_SIZE.x, 0.4, PLAN.BED_SIZE.z), [])
+		room._hot_box("switch", (parts["switch"] as Node3D).position + Vector3(-0.04, 0, 0), Vector3(0.1, 0.2, 0.16), [parts["switch"]])
+	if quirk == null:
+		for u in [0.155, 0.845]:
+			var at := PLAN.headwall_at(float(u), 0.54)
+			room._hot_box("lamps", Vector3(at.x, at.y, dd * 0.5 - 0.08), Vector3(0.3, 0.25, 0.12), [])
+		room._hot_box("wall", Vector3(PLAN.headwall_rect().x, 0.82, dd * 0.5 - 0.04), Vector3(PLAN.headwall_rect().y, 0.24, 0.06), [])
+		for i in PLAN.BED_X.size():
+			room._hot_box("bed", Vector3(PLAN.BED_X[i], 0.35, PLAN.BED_Z), Vector3(PLAN.BED_SIZE.x, 0.4, PLAN.BED_SIZE.z), [])
+		room._hot_box("wardrobe", Vector3(-w * 0.5 + 0.21, 0.95, PLAN.WARDROBE_Z), Vector3(0.44, 1.9, 1.0), [parts.get("wardrobe")] if parts.get("wardrobe") != null else [])
+		var win: Vector3 = PLAN.room_windows(n)[0]
+		room._hot_box("radiator", Vector3(win.x, 0.4, -dd * 0.5 + 0.12), Vector3(1.0, 0.55, 0.2), [])
+		room._hot_box("stain", Vector3(0.95, PLAN.ROOM_H - 0.05, 0.45), Vector3(1.0, 0.06, 0.9), [])
+	else:
+		for b in parts.get("beds", []):
+			room._hot_box("bed", b["at"], b["size"], [])
+		for lp in parts.get("lamp_points", []):
+			room._hot_box("lamps", lp, Vector3(0.22, 0.34, 0.22), [])
 	if parts.get("print") != null:
 		var pr: Node3D = parts["print"]
 		room._hot_box("print", pr.position + Vector3(0, 0, -0.03), Vector3(0.72, 0.52, 0.06), [pr])
 	if parts.get("phone") != null:
 		room._hot_box("phone", (parts["phone"] as Node3D).position + Vector3(0, 0.06, 0), Vector3(0.22, 0.14, 0.18), [parts["phone"]])
-	if parts.get("clock") != null:
+	if bool(parts.get("digits", false)):
 		room._hot_box("clock", (parts["clock"] as Node3D).position + Vector3(0, 0.05, 0), Vector3(0.16, 0.12, 0.12), [parts["clock"]])
 		_make_clock()
 	var tv: Dictionary = parts.get("tv", {})
 	if not tv.is_empty():
 		room._hot_box("tv", (tv["at"] as Vector3) + Vector3(0, 0.3, 0), Vector3(0.5, 0.6, 0.5), [tv["node"]])
 		_make_tv_screen(tv["node"], ROOMS.TV_SIZE, ROOMS.TV_SCREEN)
-	room._hot_box("wardrobe", Vector3(-w * 0.5 + 0.21, 0.95, PLAN.WARDROBE_Z), Vector3(0.44, 1.9, 1.0), [parts.get("wardrobe")] if parts.get("wardrobe") != null else [])
-	var win: Vector3 = PLAN.room_windows(n)[0]
-	room._hot_box("radiator", Vector3(win.x, 0.4, -dd * 0.5 + 0.12), Vector3(1.0, 0.55, 0.2), [])
-	room._hot_box("stain", Vector3(0.95, PLAN.ROOM_H - 0.05, 0.45), Vector3(1.0, 0.06, 0.9), [])
 	# The bathroom: its door, the switch outside it, the basin, the mirror, the toilet, the shower.
-	var bx0 := PLAN.BATH_DOOR.x
-	var bx1 := PLAN.BATH_DOOR.y
-	room._hot_box("bathdoor", Vector3((bx0 + bx1) * 0.5, 1.0, dd * 0.5 + 0.05), Vector3(bx1 - bx0, 2.0, 0.12), [])
+	var dz := (PLAN.INNER_DOOR_Z.x + PLAN.INNER_DOOR_Z.y) * 0.5
+	room._hot_box("bathdoor", Vector3(PLAN.HALL_X.x + 0.02, 1.0, dz), Vector3(0.08, 2.0, PLAN.INNER_DOOR_Z.y - PLAN.INNER_DOOR_Z.x), [])
 	if parts.get("bath_switch") != null:
-		room._hot_box("bathswitch", (parts["bath_switch"] as Node3D).position + Vector3(0, 0, -0.04), Vector3(0.16, 0.2, 0.1), [parts["bath_switch"]])
-	var z0 := dd * 0.5 + 0.1
+		room._hot_box("bathswitch", (parts["bath_switch"] as Node3D).position + Vector3(0.04, 0, 0), Vector3(0.1, 0.2, 0.16), [parts["bath_switch"]])
 	var x0 := PLAN.BATH_X.x
-	var bz := z0 + ROOMS.MIRROR_Z_OFF
+	var bz := PLAN.BACK_Z + ROOMS.MIRROR_Z_OFF
 	room._hot_box("tap", Vector3(x0 + 0.12, 0.82, bz), Vector3(0.24, 0.3, 0.5), [])
 	room._hot_box("mirror", Vector3(x0 + 0.05, ROOMS.MIRROR_Y, bz), Vector3(0.08, 0.5, 0.46), [])
-	room._hot_box("toilet", Vector3(x0 + 0.42, 0.5, z0 + PLAN.BATH_D - 0.25), Vector3(0.45, 1.0, 0.45), [])
+	room._hot_box("toilet", Vector3(-0.4, 0.5, z1 - 0.25), Vector3(0.45, 1.0, 0.45), [])
 	if parts.get("shower_curtain") != null:
 		var span: Vector2 = parts["shower_span"]
-		room._hot_box("shower", Vector3(0.72, 1.0, (span.x + span.y) * 0.5), Vector3(0.12, 1.9, span.y - span.x), [parts["shower_curtain"]])
-	_walker = WALK.new(room, _spots(), WAYS, "entry", SFX + "rooms/steps_wood.mp3", -17.0)
-	_walker.put("entry")
+		room._hot_box("shower", Vector3((span.x + span.y) * 0.5, 1.0, PLAN.BACK_Z + 0.72), Vector3(span.y - span.x, 1.9, 0.12), [parts["shower_curtain"]])
+	var sp := _spots()
+	_walker = WALK.new(room, sp, _ways(), "door", SFX + "rooms/steps_wood.mp3", -17.0)
+	_walker.on_go = func(to: String): _went(to)
+	_walker.put("door")
+	_crew = MATES.new(room, sp, _ways(), "door")
+	if quirk != null:
+		quirk.things(hour)
 	_stand_rot = room._base_rot
 	room._look.yaw_limit_deg = 170.0
 	room._look.pitch_up_deg = 40.0
 	room._look.pitch_down_deg = 45.0
 	room._cam.cull_mask = 0xFFFFF & ~ROOMS.ONLY_MIRROR
-	_make_leak()
+	if parts.has("drip_at"):
+		_make_leak()
 	_make_roach()
+	# Through the little hall and into the room as you come in.
+	room.get_tree().create_timer(0.35).timeout.connect(func():
+		if _alive() and str(_walker.here) == "door":
+			_walker.go("room"))
 
 
 ## A picture for the TV's screen, laid over the screen of its sprite (which turns to you):
@@ -424,15 +530,18 @@ func _set_light(hour: float) -> void:
 		lights["desk"] = _omni(root, c + Vector3(-1.05, 0.45, 0.15), Color(1.0, 0.78, 0.5), 0.9, 4.0, true)
 		lights["ceiling"] = _omni(root, Vector3(0, PLAN.ROOM_H - 0.3, 0), Color(1.0, 0.86, 0.66), 0.62 if not day else 0.36, 6.0)
 		return
-	var a := PLAN.headwall_at(0.845, 0.54)
-	var b := PLAN.headwall_at(0.155, 0.54)
-	lights["lamp_a"] = _omni(root, Vector3(a.x, a.y, PLAN.ROOM_D * 0.5 - 0.25), Color(1.0, 0.72, 0.42), 0.5, 2.5, true)
-	lights["lamp_b"] = _omni(root, Vector3(b.x, b.y, PLAN.ROOM_D * 0.5 - 0.25), Color(1.0, 0.72, 0.42), 0.5, 2.5)
-	lights["ceiling"] = _omni(root, Vector3(0, PLAN.ROOM_H - 0.55, 0.2), Color(1.0, 0.84, 0.6), 0.95, 5.5, true)
+	var pts: Array = parts.get("lamp_points", [])
+	if pts.size() > 0:
+		lights["lamp_a"] = _omni(root, pts[0], Color(1.0, 0.72, 0.42), 0.5, 2.5, true)
+	if pts.size() > 1:
+		lights["lamp_b"] = _omni(root, pts[1], Color(1.0, 0.72, 0.42), 0.5, 2.5)
+	lights["ceiling"] = _omni(root, parts.get("ceiling_at", Vector3(0, PLAN.ROOM_H - 0.55, 0.2)), Color(1.0, 0.84, 0.6), 0.95, 5.5, true)
+	if parts.has("hall_at"):
+		lights["hall"] = _omni(root, parts["hall_at"], Color(1.0, 0.8, 0.56), 0.6, 3.0)
 	var tv: Dictionary = parts.get("tv", {})
 	if not tv.is_empty():
 		lights["tv"] = _omni(root, (tv["at"] as Vector3) + Vector3(-0.3, 0.4, 0.3), Color(0.6, 0.72, 1.0), 0.5, 3.0)
-	if parts.get("clock") != null:
+	if bool(parts.get("digits", false)):
 		lights["clock"] = _omni(root, (parts["clock"] as Node3D).position + Vector3(0.04, 0.07, -0.1), Color(1.0, 0.24, 0.14), 0.025 if not day else 0.0, 0.3)
 	_apply_switches()
 
@@ -457,6 +566,8 @@ func _apply_switches() -> void:
 		(g as Node3D).visible = lamps_on
 	if lights.has("ceiling"):
 		(lights["ceiling"] as OmniLight3D).visible = ceiling_on
+	if lights.has("hall"):
+		(lights["hall"] as OmniLight3D).visible = ceiling_on
 	if lights.has("tv"):
 		(lights["tv"] as OmniLight3D).visible = tv_on
 	if _tv_screen != null:
@@ -479,7 +590,7 @@ func _apply_bath() -> void:
 		var span: Vector2 = parts["shower_span"]
 		var w := span.y - span.x
 		sc.scale.x = 1.0 if shower_drawn else 0.28
-		sc.position.z = (span.x + span.y) * 0.5 if shower_drawn else span.y - w * 0.14
+		sc.position.x = (span.x + span.y) * 0.5 if shower_drawn else span.y - w * 0.14
 	_tap_mix()
 
 
@@ -579,9 +690,15 @@ func tick(delta: float) -> void:
 		if _knock_back <= 0.0:
 			# Two knocks in the pipe, from somewhere in the building.
 			_play("motel/radiator_knock.mp3", -9.0)
+	if _crew != null:
+		_crew.tick(delta)
 	if n == 0:
 		_tick_zapper(delta)
 		return
+	_tick_sync(delta)
+	radio.tick(delta)
+	if quirk != null:
+		quirk.tick(delta)
 	_tick_clock()
 	_tick_event(delta)
 	_tick_phone(delta)
@@ -754,6 +871,8 @@ func woken(kind: String) -> void:
 	_ev_n = 0
 	_woken_tonight += 1
 	_ghost = _rng.randf() < 0.22 + 0.6 * _low()
+	if quirk != null:
+		quirk.woken(kind)
 	# Eyes open on the clock first (the red digits, 02:47), then back to the dark room.
 	var clock: Node3D = parts.get("clock")
 	if lying and clock != null:
@@ -792,12 +911,15 @@ func _tick_event(delta: float) -> void:
 		"tv":
 			if _ev_n == 0 and _ev_t >= 1.6:
 				_ev_n = 1
-				tv_on = true
-				tv_channel = TV_NIGHT.size() - 1 if (_ghost and block != null) else 0
-				_set_channel()
-				_play("backroom/tv_on.mp3", -6.0)
-				_loop_on(_amb2, "backroom/tv_hiss.mp3", -16.0)
-				_apply_switches()
+				if quirk != null:
+					quirk.set_by_itself()
+				else:
+					tv_on = true
+					tv_channel = TV_NIGHT.size() - 1 if (_ghost and block != null) else 0
+					_set_channel()
+					_play("backroom/tv_on.mp3", -6.0)
+					_loop_on(_amb2, "backroom/tv_hiss.mp3", -16.0)
+					_apply_switches()
 		"upstairs":
 			if _ev_n == 0 and _ev_t >= 1.0:
 				_ev_n = 1
@@ -836,12 +958,13 @@ func _tick_event(delta: float) -> void:
 				_fx_play("motel/toilet_gurgle.mp3", -12.0)
 
 
-## Somebody in three or five tonight.
+## Somebody either side of you tonight.
 func _neighbours() -> bool:
-	var trip = room.get_parent()
-	var night := int(trip._night_index(_now())) if trip != null and trip.has_method("_night_index") else 1
-	var taken: Array = PLAN.taken(night)
-	return taken.has(3) or taken.has(5)
+	var taken: Array = PLAN.taken(_night_no())
+	for k in PLAN.beside(n):
+		if taken.has(int(k)):
+			return true
+	return false
 
 
 ## The phone: ringing (once every four seconds, eight times), the call when you pick up.
@@ -980,19 +1103,24 @@ func click(id: String, hour: float) -> bool:
 
 
 func _lobby_click(id: String, hour: float) -> bool:
+	if _walker != null and _walker.busy:
+		return true
 	match id:
 		"him":
-			_line += 1
-			room._npc_nod = 0.5
-			room.say("Mr Simek", SIMEK_LINES[_line % SIMEK_LINES.size()])
+			_walker.go("desk", func():
+				_line += 1
+				room._npc_nod = 0.5
+				room.say("Mr Simek", SIMEK_LINES[_line % SIMEK_LINES.size()]))
 		"desk":
-			room._npc_nod = 0.5
-			room.wants_closeup.emit("motel_room")
+			_walker.go("desk", func():
+				room._npc_nod = 0.5
+				room.wants_closeup.emit("motel_room"))
 		"bell":
-			_play("bistro/bell_ding.mp3", -6.0)
-			room._npc_nod = 0.6
+			_walker.go("desk", func():
+				_play("bistro/bell_ding.mp3", -6.0)
+				room._npc_nod = 0.6)
 		"book":
-			_play("desk/keys.mp3", -14.0)
+			_walker.go("desk", func(): _play("motel/newspaper.mp3", -13.0))
 		"machine":
 			if CoreRoot.get_money() < 1 or not CoreRoot.actions.spend_money(1):
 				_play("director/knock_wrong.mp3", -14.0)
@@ -1001,12 +1129,34 @@ func _lobby_click(id: String, hour: float) -> bool:
 			room.get_tree().create_timer(0.5).timeout.connect(func(): _play("motel/can_drop.mp3", -4.0))
 		"tv":
 			_toggle_tv(hour)
+		"hall":
+			_walker.go("hall", func():
+				_play("backroom/room_door_open.mp3", -9.0)
+				room.go_to("motel_hall", 0, "lobby"))
 		_:
-			if id.begins_with("curtain"):
+			if id.begins_with("key"):
+				var k := int(id.substr(3))
+				_walker.go("desk", func(): _key_click(k))
+			elif id.begins_with("curtain"):
 				_curtain(int(id.substr(7)))
 			else:
 				return false
 	return true
+
+
+## A key on the board: he says what it is and what it costs; again, and it is yours.
+func _key_click(k: int) -> void:
+	var trip = room.get_parent()
+	if trip == null or not trip.has_method("rent"):
+		return
+	room._npc_nod = 0.5
+	if _picked != k:
+		_picked = k
+		trip.key_line(k)
+		_play("desk/keys.mp3", -16.0)
+		return
+	_picked = 0
+	trip.rent(k)
 
 
 func _room_click(id: String, _hour: float) -> bool:
@@ -1032,7 +1182,7 @@ func _room_click(id: String, _hour: float) -> bool:
 			else:
 				get_up()
 			return true
-		if FROM_BED.has(id):
+		if (quirk.from_bed() if quirk != null else FROM_BED).has(id):
 			_do(id)
 			return true
 		# Anything else: up off the bed and over to it.
@@ -1044,6 +1194,8 @@ func _room_click(id: String, _hour: float) -> bool:
 
 ## What a click does, from where it is done (walking there first).
 func _do(id: String) -> void:
+	if quirk != null and quirk.click(id):
+		return
 	match id:
 		"lock":
 			_walker.go("door", func():
@@ -1055,16 +1207,12 @@ func _do(id: String) -> void:
 					_unlock())
 		"chain":
 			_walker.go("door", func():
-				chain_on = not chain_on
-				_fx_play("motel/door_chain.mp3", -6.0)
-				var c: MeshInstance3D = parts.get("chain")
-				var tex := "chain_hooked" if chain_on else "chain_loose"
-				if c != null and ResourceLoader.exists(CAMP + tex + ".png"):
-					(c.material_override as StandardMaterial3D).albedo_texture = load(CAMP + tex + ".png"))
+				_set_chain(not chain_on)
+				_fx_play("motel/door_chain.mp3", -6.0))
 		"peephole":
 			_walker.go("door", func(): _open_peephole())
 		"switch":
-			_walker.go("door", func():
+			_walker.go("entry", func():
 				ceiling_on = not ceiling_on
 				_play("bistro/switch.mp3", -8.0)
 				_apply_switches())
@@ -1124,9 +1272,17 @@ func _do(id: String) -> void:
 			if lying:
 				pick.call()
 			else:
-				_walker.go("bedfoot", pick)
+				_walker.go(str(parts.get("phone_spot", "bedfoot")), pick)
 		"clock":
-			_look_at("clock")
+			if quirk != null:
+				_look_at("clock")
+			else:
+				# The clock radio's knob (it stops the alarm before it gets here).
+				var flip := func(): radio.toggle()
+				if lying:
+					flip.call()
+				else:
+					_walker.go("bedfoot", flip)
 		"print", "stain", "bowl":
 			_look_at(id)
 		"wall":
@@ -1150,15 +1306,33 @@ func _to_bath(then: Callable) -> void:
 			_went_in = true
 			_play("backroom/room_door_open.mp3", -9.0)
 			_apply_bath()
-			room.get_tree().create_timer(0.5).timeout.connect(func(): _walker.go("bath", then)))
+			room.get_tree().create_timer(0.5).timeout.connect(func():
+				if _alive():
+					_walker.go("bath", then)))
 		return
 	_went_in = true
 	_walker.go("bath", then)
 
 
-func _wardrobe() -> void:
+func _set_chain(on: bool) -> void:
+	chain_on = on
+	var c: MeshInstance3D = parts.get("chain")
+	var tex := "chain_hooked" if chain_on else "chain_loose"
+	if c != null and ResourceLoader.exists(CAMP + tex + ".png"):
+		(c.material_override as StandardMaterial3D).albedo_texture = load(CAMP + tex + ".png")
+
+
+## Where you set off to: the room's own knows, the other wardens see you go.
+func _went(to: String) -> void:
+	if quirk != null:
+		quirk.walked(to)
+	Coop.send_place("town", "motel", "walk", [to])
+
+
+func _wardrobe(quiet := false) -> void:
 	wardrobe_open = not wardrobe_open
-	_fx_play("motel/wardrobe_creak.mp3" if wardrobe_open else "caravan/locker_shut.mp3", -8.0)
+	if not quiet:
+		_fx_play("motel/wardrobe_creak.mp3" if wardrobe_open else "caravan/locker_shut.mp3", -8.0)
 	var wf: MeshInstance3D = parts.get("wardrobe")
 	var tex := "motel_wardrobe_open" if wardrobe_open else "motel_wardrobe"
 	if wf != null and ResourceLoader.exists(CAMP + tex + ".png"):
@@ -1179,6 +1353,10 @@ func _curtain(i: int) -> void:
 
 
 func _toggle_tv(hour: float) -> void:
+	if _taped and quirk != null:
+		# The set shows the tape: its button stops the tape.
+		quirk.click("eject")
+		return
 	if n != 0 and tv_on:
 		# On: the next channel, after the last one off.
 		var chans: Array = TV_NIGHT if _night(hour) else TV_DAY
@@ -1219,8 +1397,8 @@ func _set_channel() -> void:
 
 ## The key turned once in the lock: it goes edge on and comes round flat again.
 func _turn_key() -> void:
-	var key: Node3D = parts.get("key")
-	if key == null:
+	var key = parts.get("key")
+	if key == null or not is_instance_valid(key):
 		return
 	var tw: Tween = room.create_tween()
 	tw.tween_property(key, "scale:x", 0.15, 0.12)
@@ -1239,7 +1417,7 @@ func _unlock() -> void:
 		_turn_key())
 
 
-## S: off the bed first; the key turned back before you go.
+## Esc: off the bed first; the key turned back before you go out into the corridor.
 func wants_out() -> bool:
 	if n == 0:
 		return true
@@ -1254,26 +1432,35 @@ func wants_out() -> bool:
 		return false
 	if _walker != null:
 		_walker.stop()
-	_out_sounds()
-	return true
+	_into_hall()
+	return false
 
 
 func _out_sounds() -> void:
 	if turns > 0:
 		_unlock()
 	if chain_on:
-		chain_on = false
+		_set_chain(false)
 		_fx_play("motel/door_chain.mp3", -8.0)
 	_play("backroom/room_door_open.mp3", -8.0)
 
 
+func _into_hall() -> void:
+	_out_sounds()
+	var trip = room.get_parent()
+	if trip != null and trip.has_method("left_motel_room"):
+		trip.left_motel_room()
+	room.go_to("motel_hall", 0, "r%d" % n)
+
+
 ## The door clicked: to it on foot (off the bed first), then out.
 func walk_out() -> void:
-	if n == 0:
-		_play("res://assets/sfx/dvereotevrit.mp3".trim_prefix(SFX), -8.0)
-		room.close()
-		return
 	if _walker == null or _walker.busy:
+		return
+	if n == 0:
+		_walker.go("door", func():
+			_play("dvereotevrit.mp3", -8.0)
+			room.close())
 		return
 	if _peeping:
 		_close_peephole()
@@ -1285,10 +1472,10 @@ func walk_out() -> void:
 		get_up(func(): walk_out())
 		return
 	_walker.go("door", func():
-		_out_sounds()
-		room.get_tree().create_timer(0.35 if turns == 0 else 0.7).timeout.connect(func():
-			if room.is_open():
-				room.close()))
+		var wait := 0.7 if turns > 0 else 0.3
+		room.get_tree().create_timer(wait).timeout.connect(func():
+			if _alive():
+				_into_hall()))
 
 
 ## The eye goes to the thing (narrower, turned to it); any click lets it go.
@@ -1335,21 +1522,24 @@ func lie_down(hour: float) -> void:
 		# The lights off to sleep (the set too): only the clock's red in the dark.
 		lamps_on = false
 		ceiling_on = false
+		if _taped and quirk != null:
+			quirk.click("eject")
 		if tv_on:
 			tv_on = false
 			_tv_cam_off()
 			_play("backroom/tv_off.mp3", -10.0)
 		room.get_tree().create_timer(0.7).timeout.connect(func(): _play("backroom/lamp_click.mp3", -8.0))
 		_apply_switches()
+	var lie: Dictionary = parts.get("lie", {"at": PLAN.LIE, "rot": Vector3(deg_to_rad(6.0), deg_to_rad(-25.0), 0.0)})
 	var tw: Tween = room.create_tween().set_parallel(true)
-	tw.tween_property(room._cam, "position", PLAN.LIE, 0.9).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	tw.tween_property(room, "_base_rot", Vector3(deg_to_rad(6.0), deg_to_rad(-25.0), 0.0), 0.9).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_property(room._cam, "position", lie["at"], 0.9).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_property(room, "_base_rot", lie["rot"], 0.9).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	room._look.yaw_limit_deg = 100.0
 	room._look.pitch_down_deg = 30.0
 	room._look.pitch_up_deg = 50.0
 	if _night(_now()):
 		room.get_tree().create_timer(1.2).timeout.connect(func():
-			if lying and room.is_open():
+			if lying and _alive():
 				_sleep_again())
 
 
@@ -1381,8 +1571,9 @@ func get_up(then := Callable()) -> void:
 		_walker.here = "bedfoot"
 		_walker.busy = true
 	room.get_tree().create_timer(0.85).timeout.connect(func():
-		if _walker != null:
-			_walker.busy = false
+		if not _alive():
+			return
+		_walker.busy = false
 		if then.is_valid():
 			then.call())
 
@@ -1415,37 +1606,47 @@ func morning(hour: float) -> void:
 	_tv_cam_off()
 	_sanity = _read_sanity()
 	# The print over the beds: whoever is by the river comes nearer, some mornings.
-	if (_woken_tonight > 0 or _low() > 0.35) and _rng.randf() < 0.4 + 0.4 * _low():
-		marks["painting"] = mini(2, int(marks["painting"]) + 1)
+	var mk := _marks()
+	if parts.get("print") != null and (_woken_tonight > 0 or _low() > 0.35) and _rng.randf() < 0.4 + 0.4 * _low():
+		mk["painting"] = mini(2, int(mk["painting"]) + 1)
 		var pr: MeshInstance3D = parts.get("print")
-		var tex := CAMP + "motel_painting_%d.png" % int(marks["painting"])
-		if pr != null and ResourceLoader.exists(tex):
+		var tex := CAMP + "motel_painting_%d.png" % int(mk["painting"])
+		if ResourceLoader.exists(tex):
 			(pr.material_override as StandardMaterial3D).albedo_texture = load(tex)
 	if _raining():
-		marks["stain"] = 1
+		mk["stain"] = 1
 	# Wet feet from the bathroom to your bed, if its light woke you and you never went in.
 	if _had_bath_night and not _went_in:
 		# Round the foot of the second bed, as somebody would walk it.
 		var way := [[1.1, 1.75, 0.0], [1.08, 1.15, 0.0], [1.05, 0.5, 0.2], [0.7, -0.05, 1.3], [0.1, -0.14, 1.6], [-0.5, -0.02, 1.8]]
+		if quirk != null:
+			# From the hall's mouth straight to where you lay.
+			var to: Vector3 = _spots()["bedfoot"]["at"]
+			way = []
+			for i in 6:
+				var at := Vector3(1.1, 0.0, 1.75).lerp(to, float(i) / 5.0)
+				way.append([at.x, at.z, atan2(to.x - 1.1, to.z - 1.75)])
 		for wv in way:
 			ROOMS.decal(room._root, "wet_footprints", Vector2(0.3, 0.22), Vector3(float(wv[0]), 0.0, float(wv[1])), Vector3.UP, float(wv[2]), "WetPrints")
-	if not wardrobe_open and _rng.randf() < 0.15 + 0.35 * _low():
+	if parts.get("wardrobe") != null and not wardrobe_open and _rng.randf() < 0.15 + 0.35 * _low():
 		_wardrobe()
 	if chain_on and _rng.randf() < 0.1 + 0.4 * _low():
-		chain_on = false
-		var c: MeshInstance3D = parts.get("chain")
-		if c != null and ResourceLoader.exists(CAMP + "chain_loose.png"):
-			(c.material_override as StandardMaterial3D).albedo_texture = load(CAMP + "chain_loose.png")
+		_set_chain(false)
+	if quirk != null:
+		quirk.morning(hour)
+	kept.erase(n)
 	_woken_tonight = 0
 	_had_bath_night = false
 	_went_in = false
 	if block != null and is_instance_valid(block) and block.get("marks") != null:
-		block.set("marks", {PLAN.YOURS: {"painting": int(marks["painting"]), "stain": int(marks["stain"])}})
+		var bm: Dictionary = block.get("marks")
+		bm[n] = {"painting": int(mk["painting"]), "stain": int(mk["stain"])}
 	_loop_on(_amb, "motel/flies.ogg", -26.0)
 	if _amb2 != null:
 		_amb2.stop()
 	_set_light(hour)
-	_alarm()
+	if bool(parts.get("digits", false)):
+		_alarm()
 
 
 # ── the peephole ─────────────────────────────────────────────────────────────
@@ -1467,8 +1668,6 @@ void fragment() {
 
 ## Your eye to the peephole: the gallery and the car park out there, bent round its lens.
 func _open_peephole() -> void:
-	if block == null or not is_instance_valid(block) or not block.is_inside_tree():
-		return
 	if _peep_layer == null:
 		_peep_layer = CanvasLayer.new()
 		_peep_layer.layer = 57
@@ -1501,10 +1700,9 @@ func _open_peephole() -> void:
 		sm.shader = sh
 		tr.material = sm
 		_peep_layer.add_child(tr)
-	_peep_vp.world_3d = block.get_world_3d()
-	var bay := int(PLAN.ROOMS[n]["bay"])
-	var dm := PLAN.door_at(bay, bool(PLAN.ROOMS[n]["up"]))
-	_peep_cam.global_transform = block.global_transform * Transform3D(Basis(), dm + Vector3(0, 1.55, -0.14))
+	_peep_vp.world_3d = room._vp.find_world_3d()
+	var dm := PLAN.room_door(n)
+	_peep_cam.global_transform = Transform3D(Basis(Vector3.UP, PI), dm + Vector3(0, 1.55, 0.1))
 	_peep_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_peep_layer.visible = true
 	_peeping = true
@@ -1512,14 +1710,14 @@ func _open_peephole() -> void:
 	# Who knocked, standing right outside (the worse you are, the likelier), under the bulb
 	# over your door.
 	if event == "knock" and _ghost and _peep_fig == null:
-		_peep_fig = _figure(block, dm + Vector3(0.12, 0.0, -0.72))
+		_peep_fig = _figure(room._root, dm + Vector3(0.12, 0.0, 0.8))
 		if _peep_fig != null:
 			var bulb := OmniLight3D.new()
 			bulb.name = "DoorBulb"
 			bulb.light_color = Color(1.0, 0.8, 0.52)
 			bulb.light_energy = 0.9
 			bulb.omni_range = 2.6
-			bulb.position = Vector3(-0.1, 2.3, 0.55)
+			bulb.position = Vector3(-0.1, 2.3, -0.55)
 			_peep_fig.add_child(bulb)
 	if event == "knock":
 		_ev_n = 3
@@ -1579,7 +1777,7 @@ void fragment() {
 }"
 
 
-func _tv_cam_on() -> void:
+func _cam_make() -> void:
 	if _cam_vp == null:
 		_cam_vp = SubViewport.new()
 		_cam_vp.size = Vector2i(96, 72)
@@ -1594,6 +1792,31 @@ func _tv_cam_on() -> void:
 		_cam_mat = ShaderMaterial.new()
 		_cam_mat.shader = sh
 		_cam_mat.set_shader_parameter("view", _cam_vp.get_texture())
+
+
+## The tape in the recorder (motel_nine.gd): the set shows this room from `eye`.
+func tape_on(eye: Transform3D) -> void:
+	_cam_make()
+	_cam_vp.world_3d = room._vp.find_world_3d()
+	_cam_cam.fov = 78.0
+	_cam_cam.global_transform = eye
+	_cam_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	_taped = true
+	tv_on = true
+	_tv_screen.material_override = _cam_mat
+	_apply_switches()
+
+
+func tape_off() -> void:
+	_taped = false
+	tv_on = false
+	_tv_cam_off()
+	_apply_switches()
+
+
+func _tv_cam_on() -> void:
+	_cam_make()
+	_cam_cam.fov = 58.0
 	_cam_vp.world_3d = block.get_world_3d()
 	var bay := int(PLAN.ROOMS[n]["bay"])
 	var wm := PLAN.window_at(bay, bool(PLAN.ROOMS[n]["up"]))
@@ -1634,7 +1857,7 @@ func _tick_mirror() -> void:
 	var mirror: MeshInstance3D = parts.get("mirror")
 	if mirror == null:
 		return
-	var inside: bool = room._cam.position.z > PLAN.ROOM_D * 0.5 + 0.2
+	var inside: bool = room._cam.position.z > PLAN.BACK_Z and room._cam.position.x < PLAN.HALL_X.x + 0.5
 	if not inside:
 		if _mir_vp != null:
 			_mir_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
@@ -1751,27 +1974,149 @@ var _sleepers: Dictionary = {}
 
 
 func place_mates(mates: Dictionary, ids: Array) -> void:
-	var k := 0
 	for id in _sleepers.keys():
 		if not ids.has(id) or not bool(Coop.state_of(int(id)).get("z", false)):
 			if is_instance_valid(_sleepers[id]):
 				(_sleepers[id] as Node).queue_free()
 			_sleepers.erase(id)
+	var trip = room.get_parent()
 	for id in ids:
-		var fig = mates.get(int(id))
+		var i := int(id)
+		var fig = mates.get(i)
 		if fig == null:
 			continue
-		var asleep_there := bool(Coop.state_of(int(id)).get("z", false))
-		fig.visible = true
-		if n != 0 and asleep_there:
+		if n != 0 and bool(Coop.state_of(i).get("z", false)):
 			fig.visible = false
-			_lay(int(id))
-		elif n != 0:
-			fig.show_at(Vector3(1.05, 0.0, -0.75 + 0.5 * float(k)), "stand")
+			_lay(i)
+			continue
+		fig.visible = true
+		if not _crew.mates.has(i):
+			_crew.put(i, fig, str(trip.mate_spot(i)) if trip != null and trip.has_method("mate_spot") else "door")
+			# Somebody came in: the door, and the room as it is, for them.
+			_play("backroom/room_door_open.mp3" if n != 0 or str(trip.mate_spot(i)) == "hall" else "dvereotevrit.mp3", -13.0)
+			_sent = ""
+
+
+## Warden `id` has set off to `spot` in here.
+func mate_walk(id: int, spot: String) -> void:
+	if _crew != null:
+		_crew.walk(id, spot)
+
+
+## A warden leaving: they walk to the door they went by, then they are gone.
+func mate_leaves(id: int, fig: Node, where: String) -> bool:
+	if _crew == null or not _crew.mates.has(id):
+		return false
+	var out := "door"
+	if n == 0 and where == "motel_hall":
+		out = "hall"
+	var path: Array = []
+	var way = WALK.new(room, _crew.spots, _crew.ways, _crew._nearest(_crew.mates[id]["at"]))
+	for sp in way.path_to(out):
+		path.append(_crew.feet(str(sp)))
+	way.free_all()
+	if n == 0 and where == "motel_hall":
+		path.append(Vector3(PLAN.LOBBY_HALL_X, 0.0, PLAN.lobby_size().z * 0.5 - 0.05))
+	elif n == 0:
+		var d := PLAN.room_door(0)
+		path.append(Vector3(d.x, 0.0, d.z + 0.05))
+	var through := "backroom/room_door_open.mp3" if where == "motel_hall" or n != 0 else "dvereotevrit.mp3"
+	_crew.leave(id, path, func():
+		_play(through, -12.0)
+		if is_instance_valid(fig):
+			fig.queue_free())
+	return true
+
+
+## What is switched in here, as it is now (for the other warden, and for when you come back
+## to it tonight).
+func _state() -> Dictionary:
+	var cur: Array = []
+	for w in windows:
+		cur.append(float(w.curtain_open()) >= 0.5)
+	return {"l": lamps_on, "c": ceiling_on, "t": tv_on and not _taped, "h": tv_channel, "b": bath_on, "d": bath_open,
+		"p": tap_on, "s": shower_drawn, "w": wardrobe_open, "k": turns, "n": chain_on, "u": cur,
+		"q": quirk.state() if quirk != null else [], "r": radio.state() if radio != null else []}
+
+
+func _state_key() -> String:
+	if n == 0:
+		return ""
+	var st := _state()
+	var r: Array = st["r"]
+	st["r"] = r.slice(0, 2)
+	return str(st)
+
+
+func _tick_sync(delta: float) -> void:
+	_sync_t -= delta
+	if _sync_t > 0.0:
+		return
+	_sync_t = 0.25
+	if not Coop.has_partner():
+		return
+	var key := _state_key()
+	if key != _sent:
+		_sent = key
+		Coop.send_place("town", "motel", "room", [n, _state()])
+
+
+## What the other warden switched (or how you left it: `quiet`, nothing heard).
+func take_state(d: Dictionary, quiet := false) -> void:
+	if d.is_empty():
+		return
+	var snd := func(path: String, db: float):
+		if not quiet:
+			_play(path, db)
+	if bool(d.get("l", lamps_on)) != lamps_on:
+		lamps_on = not lamps_on
+		snd.call("backroom/lamp_click.mp3", -8.0)
+	if bool(d.get("c", ceiling_on)) != ceiling_on:
+		ceiling_on = not ceiling_on
+		snd.call("bistro/switch.mp3", -9.0)
+	if bool(d.get("b", bath_on)) != bath_on:
+		bath_on = not bath_on
+		snd.call("bistro/switch.mp3", -10.0)
+	if bool(d.get("d", bath_open)) != bath_open:
+		bath_open = not bath_open
+		snd.call("backroom/room_door_open.mp3" if bath_open else "backroom/room_door_close.mp3", -10.0)
+	if bool(d.get("p", tap_on)) != tap_on:
+		tap_on = not tap_on
+		snd.call("caravan/tap.mp3", -10.0)
+	if bool(d.get("s", shower_drawn)) != shower_drawn:
+		shower_drawn = not shower_drawn
+		snd.call("motel/shower_curtain.mp3", -10.0)
+	if bool(d.get("w", wardrobe_open)) != wardrobe_open and parts.get("wardrobe") != null:
+		_wardrobe(quiet)
+	if int(d.get("k", turns)) != turns:
+		turns = int(d.get("k", turns))
+		snd.call("motel/lock_turn.mp3", -6.0)
+		_turn_key()
+	if bool(d.get("n", chain_on)) != chain_on:
+		_set_chain(not chain_on)
+		snd.call("motel/door_chain.mp3", -8.0)
+	var tv_want := bool(d.get("t", tv_on and not _taped))
+	var ch := int(d.get("h", tv_channel))
+	if (tv_want != (tv_on and not _taped) or ch != tv_channel) and not parts.get("tv", {}).is_empty():
+		tv_on = tv_want
+		tv_channel = ch
+		snd.call("backroom/tv_on.mp3" if tv_on else "backroom/tv_off.mp3", -9.0)
+		if tv_on:
+			_set_channel()
 		else:
-			var d := PLAN.room_door(0)
-			fig.show_at(Vector3(d.x + (0.9 if k % 2 == 0 else -0.9), 0.0, d.z + 1.4), "stand")
-		k += 1
+			_tv_cam_off()
+	var cur: Array = d.get("u", [])
+	for i in mini(cur.size(), windows.size()):
+		var w = windows[i]
+		if bool(cur[i]) != (float(w.curtain_open()) >= 0.5):
+			w.set_curtain(bool(cur[i]), quiet)
+			snd.call("backroom/curtain_open.mp3" if bool(cur[i]) else "backroom/curtain_shut.mp3", -9.0)
+	if quirk != null:
+		quirk.take(d.get("q", []), quiet)
+	if radio != null:
+		radio.take(d.get("r", []), quiet)
+	_apply_switches()
+	_sent = _state_key()
 
 
 ## Warden `id` on their back in the second bed, the head at the pillow.
@@ -1794,16 +2139,28 @@ func _lay(id: int) -> void:
 		sl.offset = Vector2(0.0, tex.get_height() * 0.5)
 		room._root.add_child(sl)
 		_sleepers[id] = sl
-	var bx: float = PLAN.BED_X[1]
-	var head := Vector3(bx, 0.55, PLAN.ROOM_D * 0.5 - 0.35)
-	var along := Vector3(0, 0, 1)
+	var where: Dictionary = parts.get("sleeper", {})
+	var head: Vector3 = where.get("head", Vector3(PLAN.BED_X[1], 0.55, PLAN.ROOM_D * 0.5 - 0.35))
+	var along: Vector3 = where.get("along", Vector3(0, 0, 1))
 	var tilt := deg_to_rad(SLEEPER_TILT)
 	var up := (along * cos(tilt) + Vector3.UP * sin(tilt)).normalized()
 	var nrm := (Vector3.UP * cos(tilt) - along * sin(tilt)).normalized()
 	sl.transform = Transform3D(Basis(up.cross(nrm), up, nrm), head - along * (SLEEPER_LENGTH * cos(tilt)) + Vector3(0, 0.04, 0))
 
 
+## Is this view still the one on (a timer started in it may outlive it).
+func _alive() -> bool:
+	return not _closed and _walker != null and room.is_open()
+
+
 func close() -> void:
+	_closed = true
+	if n != 0:
+		kept[n] = {"night": _night_no(), "s": _state()}
+	if quirk != null:
+		quirk.close()
+	if radio != null:
+		radio.free_all()
 	for w in windows:
 		w.free_all()
 	windows.clear()

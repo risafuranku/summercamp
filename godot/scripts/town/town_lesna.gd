@@ -700,6 +700,9 @@ func _station(at: Vector3) -> void:
 		_box(kiosk, Vector3(0, 1.6, 0), Vector3(10.0, 3.2, 6.0), kwall, true)
 		_face(kiosk, Vector3(0, 1.6, -3.0), Vector2(5.7, 3.2), Vector3(0, 0, -1), _mat(_first([TEX + "kiosk_front.png"]), Color(0.7, 0.72, 0.74)))
 	_box(kiosk, Vector3(0, 3.3, 0), Vector3(10.4, 0.2, 6.4), _mat("", Color(0.3, 0.3, 0.3)))
+	# The toilet's door round the east side (wc_view.gd): its click in _hotspots.
+	if ResourceLoader.exists(TEX_CAMP + "wc_door_out.png"):
+		_face(kiosk, WC_DOOR + Vector3(0.03, 0, 0), Vector2(1.29, 2.3), Vector3(1, 0, 0), _mat(TEX_CAMP + "wc_door_out.png", Color(0.9, 0.9, 0.9)))
 	spots["kiosk"] = kiosk
 	spots["kiosk_door"] = w(at + Vector3(0, 0, 9.0 - 4.2))
 	spots["station"] = root
@@ -709,6 +712,8 @@ func _station(at: Vector3) -> void:
 ## box hollow, the front wall cut round the glass behind the picture with its holes, the
 ## little shop built in it, lit while it is open (`_update_kiosk`).
 const KIOSK_VIEW = preload("res://scripts/town/kiosk_view.gd")
+## The toilet's door on the kiosk's east wall (the kiosk's own frame: x east, z to the back).
+const WC_DOOR := Vector3(5.0, 1.15, 1.5)
 var _kiosk_lit := -1
 
 
@@ -1644,6 +1649,8 @@ func _hotspots() -> void:
 	if not spots.has("motel_block"):
 		_click(Vector3(-30.0, 1.1, 10.4), Vector3(1.6, 2.2, 0.4), "town_door", "motel")
 	_click(Vector3(50.0, 1.1, 18.9), Vector3(1.6, 2.2, 0.4), "town_door", "kiosk")
+	if ResourceLoader.exists(TEX_CAMP + "wc_door_out.png"):
+		_click(Vector3(48.0, 0, 22.0) + WC_DOOR + Vector3(0.1, 0, 0), Vector3(0.4, 2.2, 1.2), "town_door", "wc")
 	_click(Vector3(-28.0, 1.3, -18.4), Vector3(1.6, 2.6, 0.4), "town_door", "chapel")
 	_click(Vector3(26.0, 1.4, 12.6), Vector3(1.2, 2.2, 0.8), "town_read", "memorial")
 	var pumps: Array = spots.get("pumps", [])

@@ -37,3 +37,34 @@ mt_line	6	assets/sfx/motel/phone_breath.mp3	Slow breathing heard through the ear
 mt_zapper	3	assets/sfx/motel/fly_zapper.mp3	An electric insect zapper crackles sharply as a fly hits it, then its low hum
 mt_lobby_fan	10	../tools/audiogen/raw/motel_lobby_fan_raw.mp3	An old metal desk fan wobbling and ticking as it turns in a stuffy small motel reception, a slow hum
 mt_sticky	1.2	assets/sfx/motel/sticky_step.mp3	A shoe peeling off a sticky dirty carpet, a short tacky crackle
+mr_stove_fire	12	../tools/audiogen/raw/motel_stove_fire_raw.mp3	A small wood fire crackling inside a tiled stove in a quiet room, soft pops and a low draught in the flue, close and warm
+mr_stove_door	1.5	assets/sfx/motel/stove_door.mp3	A small cast iron stove door creaks open and clanks against its hinge
+mr_stove_log	2	assets/sfx/motel/stove_log.mp3	A split log dropped onto embers inside a cast iron stove, a wooden thud and a burst of sparks crackling
+mr_stove_tick	2	assets/sfx/motel/stove_tick.mp3	A cooling iron stove pipe ticking and pinging slowly in a silent room
+mr_cuckoo	1.2	assets/sfx/motel/cuckoo.mp3	One single call of a wooden cuckoo clock, two soft bellows pipe notes, in a quiet wood panelled room
+mr_cuckoo_door	0.7	assets/sfx/motel/cuckoo_door.mp3	The tiny wooden door of a cuckoo clock clacks open with a small spring whirr
+mr_cuckoo_wind	1.5	assets/sfx/motel/cuckoo_wind.mp3	Pulling the chain of a cuckoo clock's weight, a small ratchet clicking fast
+mr_clock_tick	8	../tools/audiogen/raw/motel_clock_tick_raw.mp3	A slow wooden wall clock pendulum ticking in a silent room, steady tick tock, nothing else
+mr_tube_warm	3	assets/sfx/motel/tube_warm.mp3	An old valve radio switched on: a heavy bakelite switch click, then a low mains hum slowly rising as the tubes warm up
+mr_gun_rattle	1.2	assets/sfx/motel/gun_rattle.mp3	A locked wooden cabinet with a glass door rattled by hand, the pane buzzing in its frame and a small lock catch holding
+mr_minibar_hum	10	../tools/audiogen/raw/motel_minibar_hum_raw.mp3	A small old hotel fridge compressor humming with a slight rattle and shudder, steady, in a quiet room
+mr_minibar_open	1.2	assets/sfx/motel/minibar_open.mp3	A small fridge door pulled open, the rubber seal unsticking, little glass bottles clinking inside
+mr_minibar_shut	0.8	assets/sfx/motel/minibar_shut.mp3	A small fridge door pushed shut with a soft rubber thud and a clink of bottles
+mr_bottle_cap	1	assets/sfx/motel/bottle_cap.mp3	The metal screw cap of a miniature spirits bottle twisted off, a small crack of the seal
+mr_gulp	1.5	assets/sfx/motel/gulp.mp3	One quick swallow from a small bottle and a dry breath out afterwards, close, a person alone
+mr_vcr_in	2.5	assets/sfx/motel/vcr_in.mp3	A VHS cassette pushed into an old video recorder, motorised loading clunks and a whirr
+mr_vcr_out	1.8	assets/sfx/motel/vcr_out.mp3	An old video recorder ejecting a VHS cassette, motor whirr and a plastic clunk
+mr_vcr_run	8	../tools/audiogen/raw/motel_vcr_run_raw.mp3	The quiet mechanical whirr and faint tape hiss of a video recorder playing, steady
+mr_radiogram_lid	1.2	assets/sfx/motel/radiogram_lid.mp3	The heavy wooden lid of an old radiogram cabinet lifted, a soft hinge creak
+mr_record_crackle	10	../tools/audiogen/raw/motel_record_crackle_raw.mp3	Vinyl record surface noise, gentle crackle and pops of a worn groove, no music at all
+mr_armchair	1.5	assets/sfx/motel/armchair.mp3	Sitting down heavily in an old sprung armchair, the springs creak and the cushion sighs
+mr_aquarium	10	../tools/audiogen/raw/motel_aquarium_raw.mp3	A small old aquarium air pump humming and bubbles rising steadily through water, in a quiet room
+mr_glass_tap	0.6	assets/sfx/motel/glass_tap.mp3	A fingernail tapping twice on the glass of a fish tank
+mr_fish_food	0.9	assets/sfx/motel/fish_food.mp3	Dry fish flakes shaken from a small tin onto water, a light rattle and patter
+mr_hotplate_tick	1.6	assets/sfx/motel/hotplate_tick.mp3	An old electric hot plate switched on, a rotary click and the coil ticking and pinging as it heats
+mr_hotplate_sizzle	1	assets/sfx/motel/hotplate_sizzle.mp3	A wet fingertip touching a hot iron plate, a short sharp sizzle
+mr_dishes	0.8	assets/sfx/motel/dishes.mp3	Greasy plates and a mug knocked together on a shelf, a dull ceramic clink
+mr_suitcase	1.5	assets/sfx/motel/suitcase.mp3	The two metal latches of an old cardboard suitcase snapped open one after the other
+mr_newspaper	1.2	assets/sfx/motel/newspaper.mp3	An old yellowed newspaper page lifted and turned, dry paper rustle
+mr_slippers	1.6	assets/sfx/motel/slippers.mp3	Slippers shuffling slowly on a linoleum floor, three dragging steps, then they stop
+mr_tune	2.5	assets/sfx/motel/radio_tune.mp3	A small transistor radio's tuning wheel turned, whistles and static between stations, a voice that never comes clear

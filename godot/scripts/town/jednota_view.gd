@@ -9,11 +9,17 @@ extends RefCounted
 ## shelf of cigarettes and spirits behind her, the long goods shelf on the west wall, the
 ## fridge, the bread and the freezer on the east, the tubes on the ceiling (one dying).
 ## Inside, the windows look out at the street and the green (window_portal.gd).
+## What is for sale stands where it is sold, each kind clickable with its price by it: the
+## Start on the shelf behind her, the Lesnak crates, the matches and the candles on the
+## counter, the scratch cards, the Kofola in the fridge, the bread on its rack, the paper on
+## its wire stand. She puts what you point at on the counter's free strip; the till rings it
+## up (counter_shop.gd; prices and her lines counter_goods.gd).
 ##
 ## Room space: the middle of the sales room's floor, x east, z towards the street.
 
 const K = preload("res://scripts/interior_kit.gd")
 const WINDOW_PORTAL = preload("res://scripts/ui/window_portal.gd")
+const GOODS = preload("res://scripts/town/counter_goods.gd")
 const CAMP := "res://assets/textury/camp/"
 ## The front's picture: metres, its pixels a metre.
 const W := 12.0
@@ -29,6 +35,20 @@ const FLOOR_Y := 0.66
 const ROOM := Vector3(11.6, 3.1, 6.0)
 const STAND := Vector3(0.0, 1.58, 1.75)
 const DISPLAYS := ["jednota_display_a", "jednota_display_b"]
+## The counter's top; the strip along its front where she puts what you take, a second row
+## behind it, and behind that what the other wardens are buying.
+const TOP_Y := 0.95
+const SLOTS := [
+	Vector3(-0.12, TOP_Y, -0.74), Vector3(0.13, TOP_Y, -0.72), Vector3(-0.37, TOP_Y, -0.72), Vector3(0.38, TOP_Y, -0.74),
+	Vector3(-0.62, TOP_Y, -0.74), Vector3(0.63, TOP_Y, -0.72), Vector3(-0.87, TOP_Y, -0.72), Vector3(0.88, TOP_Y, -0.74),
+	Vector3(0.0, TOP_Y, -0.92), Vector3(-0.5, TOP_Y, -0.92), Vector3(0.5, TOP_Y, -0.92), Vector3(-0.25, TOP_Y, -0.94),
+]
+const MATE_SLOTS := [
+	Vector3(-0.75, TOP_Y, -1.1), Vector3(-0.5, TOP_Y, -1.12), Vector3(-0.25, TOP_Y, -1.1), Vector3(0.0, TOP_Y, -1.12),
+	Vector3(0.25, TOP_Y, -1.1), Vector3(0.5, TOP_Y, -1.12), Vector3(0.75, TOP_Y, -1.1), Vector3(1.0, TOP_Y, -1.12),
+]
+## The till's sum: the dark window of its picture as a share of it.
+const TILL_WINDOW := Rect2(0.318, 0.14, 0.38, 0.1)
 
 
 ## The sales room's middle on its floor, in the building's own frame (its front at +z).
@@ -75,6 +95,13 @@ static func _quad(root: Node3D, tex: String, size: Vector2, pos: Vector3, yaw: f
 	var q := K.picture(root, tex, size, pos, yaw, name)
 	q.material_override = _lit(q.material_override, lit)
 	return q
+
+
+## A sprite of the shop's own (counter_goods.gd), lit with the rest of the shell.
+static func _spr(root: Node3D, file: String, height: float, pos: Vector3, lit: bool, billboard := false, name := "Good") -> MeshInstance3D:
+	var s := GOODS.sprite(root, GOODS.SHOP + file, height, pos, 0.0, billboard, name)
+	s.material_override = _lit(s.material_override, lit)
+	return s
 
 
 ## The room under `root` (room space). `room` (town_room.gd) when you stand in it: the
@@ -130,12 +157,14 @@ static func build(root: Node3D, room = null, lit := false) -> Dictionary:
 	var cpos := Vector3(0.0, 0.45, -0.95)
 	K.slab(root, counter, cpos, _lit(K.surface("veneer_dark", 0.8), l), "Counter")
 	_quad(root, "shop_counter", Vector2(counter.x, counter.y), cpos + Vector3(0, 0, counter.z * 0.5 + 0.005), 0.0, l, "CounterFront")
-	K.slab(root, Vector3(counter.x + 0.1, 0.05, counter.z + 0.08), cpos + Vector3(0, counter.y * 0.5 + 0.025, 0), _lit(K.surface("plastic", 0.5, Color(0.56, 0.52, 0.46)), l), "CounterTop")
+	K.slab(root, Vector3(counter.x + 0.1, 0.05, counter.z + 0.08), cpos + Vector3(0, counter.y * 0.5 + 0.025, 0), _lit(GOODS.laminate(), l), "CounterTop")
 	var top := counter.y + 0.05
-	K.cutout(root, "shop_till", Vector2(0.5, 0.46), Vector3(1.2, top, -1.05), 0.0, false, "Till")
-	K.cutout(root, "shop_scales", Vector2(0.42, 0.42), Vector3(-1.3, top, -1.0), 0.0, false, "Scales")
-	var cards := K.cutout(root, "card_box", Vector2(0.26, 0.26), Vector3(0.55, top, -0.82), 0.0, false, "CardBox")
-	var batt := K.slab(root, Vector3(0.3, 0.16, 0.2), Vector3(-0.55, top + 0.08, -0.82), K.surface("cardboard", 0.3), "BatteryBox")
+	var till := _spr(root, "till.png", 0.46, Vector3(1.5, top, -1.05), l, false, "Till")
+	K.cutout(root, "shop_scales", Vector2(0.42, 0.42), Vector3(-1.85, top, -1.0), 0.0, false, "Scales")
+	var cards := K.cutout(root, "card_box", Vector2(0.26, 0.26), Vector3(1.1, top, -0.8), 0.0, false, "CardBox")
+	var batt := _spr(root, "battery_box.png", 0.2, Vector3(-1.5, top, -0.8), l, false, "BatteryBox")
+	var matches := _spr(root, "matches_tray.png", 0.16, Vector3(-1.14, top, -0.8), l, false, "Matches")
+	var candles := _spr(root, "candle_carton.png", 0.2, Vector3(1.86, top, -0.8), l, false, "Candles")
 	# Behind it the shelf of cigarettes and spirits on the back wall.
 	K.slab(root, Vector3(3.4, 1.6, 0.3), Vector3(0.0, 1.6, -d * 0.5 + 0.15), _lit(K.surface("planks_dark", 0.6), l), "BackShelf")
 	var cigs := _quad(root, "shop_shelf_cigs", Vector2(3.3, 1.55), Vector3(0.0, 1.6, -d * 0.5 + 0.305), 0.0, l, "Cigarettes")
@@ -150,17 +179,21 @@ static func build(root: Node3D, room = null, lit := false) -> Dictionary:
 	K.slab(root, Vector3(0.7, 1.9, 0.7), Vector3(w * 0.5 - 0.36, 0.95, -1.2), _lit(K.surface("enamel_white", 0.6, Color(0.85, 0.86, 0.84)), l), "Fridge")
 	var fglass := K.picture(root, "shop_fridge", Vector2(0.66, 1.84), Vector3(w * 0.5 - 0.715, 0.97, -1.2), -90.0, "FridgeDoor")
 	var fm := fglass.material_override as StandardMaterial3D
+	if ResourceLoader.exists(GOODS.SHOP + "fridge_kofola.png"):
+		fm.albedo_texture = load(GOODS.SHOP + "fridge_kofola.png")
 	fm.emission_enabled = true
 	fm.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
 	fm.emission_texture = fm.albedo_texture
 	fm.emission = Color(0.7, 0.85, 1.0)
 	fm.emission_energy_multiplier = 0.5
 	K.slab(root, Vector3(0.4, 1.6, 0.9), Vector3(w * 0.5 - 0.22, 0.8, 0.2), _lit(K.surface("planks_grey", 0.5, Color(0.8, 0.7, 0.55)), l), "BreadRack")
-	_quad(root, "shop_bread", Vector2(0.86, 1.15), Vector3(w * 0.5 - 0.425, 0.95, 0.2), -90.0, l, "Bread")
+	var bread := _quad(root, "shop_bread", Vector2(0.86, 1.15), Vector3(w * 0.5 - 0.425, 0.95, 0.2), -90.0, l, "Bread")
 	K.cutout(root, "shop_freezer", Vector2(1.0, 0.75), Vector3(w * 0.5 - 0.7, 0.0, 1.5), -90.0, false, "Freezer")
 	# The beer crates by the counter's end.
 	var crate := K.cutout(root, "beer_crate_full", Vector2(0.56, 0.42), Vector3(-2.6, 0.0, -0.55), 0.0, true, "BeerCrate")
 	K.cutout(root, "beer_crate_full", Vector2(0.56, 0.42), Vector3(-2.64, 0.42, -0.6), 0.0, true, "BeerCrate2")
+	# The paper on its wire stand by the counter's other end.
+	var papers := _spr(root, "newspaper_rack.png", 1.15, Vector3(2.75, 0.0, -0.6), l, true, "Newspapers")
 	# The tubes on the ceiling.
 	for t in [[Vector3(-2.6, h - 0.06, -0.8), false], [Vector3(1.6, h - 0.06, -0.8), true], [Vector3(-1.0, h - 0.06, 1.4), false], [Vector3(3.2, h - 0.06, 1.4), false]]:
 		if inside:
@@ -194,11 +227,27 @@ static func build(root: Node3D, room = null, lit := false) -> Dictionary:
 			(g as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		return out
 	# Inside: what you click, who serves, where you stand.
-	room._hot_box("card", Vector3(0.55, top + 0.13, -0.82), Vector3(0.3, 0.28, 0.2), [cards])
-	room._hot_box("batteries", Vector3(-0.55, top + 0.08, -0.82), Vector3(0.32, 0.2, 0.22), [batt])
-	room._hot_box("cigs", Vector3(0.0, 1.6, -d * 0.5 + 0.3), Vector3(3.3, 1.55, 0.3), [cigs])
+	room._hot_box("card", Vector3(1.1, top + 0.13, -0.8), Vector3(0.3, 0.28, 0.2), [cards])
+	room._hot_box("batteries", Vector3(-1.5, top + 0.1, -0.8), Vector3(0.3, 0.22, 0.2), [batt])
+	room._hot_box("matches", Vector3(-1.14, top + 0.08, -0.8), Vector3(0.34, 0.2, 0.2), [matches])
+	room._hot_box("candle", Vector3(1.86, top + 0.1, -0.8), Vector3(0.36, 0.24, 0.2), [candles])
+	room._hot_box("till", Vector3(1.5, top + 0.23, -1.05), Vector3(0.52, 0.5, 0.24), [till])
+	room._hot_box("cigs", Vector3(-0.3, 1.52, -d * 0.5 + 0.3), Vector3(2.7, 0.62, 0.3), [cigs])
 	room._hot_box("beer", Vector3(-2.6, 0.42, -0.55), Vector3(0.6, 0.84, 0.5), [crate])
+	room._hot_box("newspaper", Vector3(2.75, 0.58, -0.6), Vector3(0.7, 1.15, 0.3), [papers])
+	room._hot_box("kofola", Vector3(w * 0.5 - 0.72, 0.97, -1.2), Vector3(0.12, 1.84, 0.66), [fglass])
+	room._hot_box("bread", Vector3(w * 0.5 - 0.43, 0.95, 0.2), Vector3(0.12, 1.15, 0.86), [bread])
 	room._npc_sprite("town_shopgirl", 1.62, Vector3(0.1, 0.0, -1.8), "her")
+	out["till"] = till
+	# What it all costs, on little cards by the goods.
+	GOODS.tag(root, 1, Vector3(1.28, top, -0.72))
+	GOODS.tag(root, 1, Vector3(-1.1, top, -0.72))
+	GOODS.tag(root, 1, Vector3(1.96, top, -0.72))
+	GOODS.tag(root, 1, Vector3(w * 0.5 - 0.44, 1.56, 0.2), -90.0, 0.14)
+	GOODS.tag(root, 1, Vector3(w * 0.5 - 0.74, 1.92, -1.2), -90.0, 0.14)
+	GOODS.tag(root, 1, Vector3(-2.46, 0.8, -0.42), 0.0, 0.15)
+	GOODS.tag(root, 1, Vector3(2.75, 1.1, -0.52), 0.0, 0.15)
+	GOODS.tag(root, 2, Vector3(1.32, 1.1, -d * 0.5 + 0.33), 0.0, 0.13)
 	room._omni(Vector3(w * 0.5 - 1.1, 1.2, -1.2), Color(0.7, 0.85, 1.0), 0.25, 1.8)
 	var dl_at: Vector3 = pane(DOOR_GLASS[0])["at"]
 	var dr_at: Vector3 = pane(DOOR_GLASS[1])["at"]
@@ -227,7 +276,8 @@ func _init(p_room = null, p_anchor: Node3D = null, p_shell: Node3D = null) -> vo
 
 
 func build_inside(hour: float) -> void:
-	build(room._root, room, false)
+	var built := build(room._root, room, false)
+	room.counter().begin("jednota", {"slots": SLOTS, "mate_slots": MATE_SLOTS, "till": built["till"], "window": TILL_WINDOW})
 	room._light_profile(false)
 	for r in PANES + DOOR_GLASS:
 		var p := pane(r)
@@ -248,7 +298,7 @@ func tick(delta: float) -> void:
 		w.update(room._root, room._cam, xf, true, world, delta, shell)
 
 
-## The shop's own clicks are town_room's (_shop_click): nothing here.
+## The shop's own clicks are town_room's (_shop_click, the counter): nothing here.
 func click(_id: String, _hour: float) -> bool:
 	return false
 
@@ -268,9 +318,11 @@ func place_mates(mates: Dictionary, ids: Array) -> void:
 		fig.visible = true
 		fig.show_at(Vector3(1.1 if k % 2 == 0 else -1.2, 0.0, -0.25 + 0.6 * float(k / 2)), "stand")
 		k += 1
+	room.counter().mates_here(ids)
 
 
 func close() -> void:
+	room.counter().end()
 	for w in windows:
 		w.free_all()
 	windows.clear()
