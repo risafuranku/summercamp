@@ -194,6 +194,7 @@ func open_caravan(level: int = 1, walked := false) -> void:
 
 func close_caravan() -> void:
 	_door_anchor = null
+	_glint.clear()
 	if not _is_open:
 		return
 	_kill_walk()
@@ -230,7 +231,20 @@ func _process(delta: float) -> void:
 	if _exit_hint == null:
 		_exit_hint = INTERIOR_LOOK.make_exit_hint(self)
 	INTERIOR_LOOK.update_exit_hint(_exit_hint, get_viewport(), delta)
-	if _brochure_hover() or (_life != null and _life.is_thing(_collider_under(get_viewport().get_mouse_position()))):
+	# What you can use glints under the pointer, as in every room (the user 4. 11.: "check
+	# the hovers everywhere"): the brochure, a curtain, the van's things.
+	var under := _collider_under(get_viewport().get_mouse_position())
+	var lit: Array = []
+	if _brochure_hover():
+		lit = [_brochure, _brochure_cover]
+	elif _life != null and _life.is_thing(under):
+		lit = _meshes_under(under)
+	else:
+		var wp = _curtain_under(get_viewport().get_mouse_position())
+		if wp != null and wp.curtain != null:
+			lit = wp.curtain.meshes
+	_glint.show_on(lit)
+	if not lit.is_empty():
 		HandCursor.want(HandCursor.POINT)
 	elif INTERIOR_LOOK.in_exit_zone(get_viewport()):
 		HandCursor.want(HandCursor.WALK)
@@ -912,6 +926,22 @@ static func _hide_from_camp(n: Node) -> void:
 		(n as VisualInstance3D).layers = INVIEW_HIDE_LAYER
 	for c in n.get_children():
 		_hide_from_camp(c)
+
+
+const HOVER_GLINT = preload("res://scripts/ui/hover_glint.gd")
+var _glint = HOVER_GLINT.new()
+
+
+## The meshes of the thing a click box is for: under its parent, the box's own size round it.
+func _meshes_under(body: Node) -> Array:
+	var out: Array = []
+	var p := body.get_parent() if body != null else null
+	if p == null:
+		return out
+	for m in p.find_children("*", "MeshInstance3D", true, false):
+		if (m as Node3D).is_visible_in_tree():
+			out.append(m)
+	return out
 
 
 func _brochure_hover() -> bool:

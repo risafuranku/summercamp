@@ -557,7 +557,7 @@ func show_hint(h: Dictionary) -> void:
 			return
 		_hint_off()
 		if not (_glint_on is Sprite3D and _glint_on == n):
-			(n as Sprite3D).material_overlay = _hint_mat((n as Sprite3D).texture)
+			(n as Sprite3D).material_overlay = _hint_mat((n as Sprite3D).texture, _snap_of(n as Sprite3D))
 		_hint_on = n
 		return
 	if h.has("rect") and not h.has("node"):
@@ -594,13 +594,25 @@ func _hint_off() -> void:
 		_hint_hot.visible = false
 
 
+## How the retro look draws this sprite (retro_materials._track_sprite): in the camp's world
+## an upright one snaps to its grid, one lying flat does not, nothing in a room does. Its
+## glint must do the same or the two fight (the corn stand, 4. 11.).
+static func _snap_of(s: Sprite3D) -> float:
+	var vp := s.get_viewport()
+	if vp is SubViewport and (vp as SubViewport).own_world_3d:
+		return 0.0
+	var flat := s.billboard == BaseMaterial3D.BILLBOARD_DISABLED and absf(s.global_basis.z.normalized().y) > 0.9
+	return 0.0 if flat else 150.0
+
+
 ## The breathing light: the hover glint's shader, warm and soft, sparkling a little.
-func _hint_mat(mask: Texture2D) -> ShaderMaterial:
-	var id := mask.get_instance_id() if mask != null else 0
+func _hint_mat(mask: Texture2D, snap := 0.0) -> ShaderMaterial:
+	var id := "%d|%d" % [mask.get_instance_id() if mask != null else 0, int(snap)]
 	var m: ShaderMaterial = _hint_mats.get(id, null)
 	if m == null:
 		m = ShaderMaterial.new()
 		m.shader = SPRITE_GLINT
+		m.set_shader_parameter("snap_lines", snap)
 		if mask == null:
 			var img := Image.create(1, 1, false, Image.FORMAT_RGBA8)
 			img.fill(Color.WHITE)
@@ -616,10 +628,18 @@ func _hint_mat(mask: Texture2D) -> ShaderMaterial:
 	return m
 
 
+## The things of a place lit in their own shapes (_glint_rect).
+var _glint_place: Array = []
+
+
 func _glint_off() -> void:
+	for sp in _glint_place:
+		if is_instance_valid(sp) and _sprite_glint_mats.values().has((sp as Sprite3D).material_overlay):
+			(sp as Sprite3D).material_overlay = null
+	_glint_place.clear()
 	if _glint_on is Sprite3D and is_instance_valid(_glint_on):
 		# The pointer gone off the next step: it goes back to breathing.
-		(_glint_on as Sprite3D).material_overlay = _hint_mat((_glint_on as Sprite3D).texture) if _hint_on is Sprite3D and _glint_on == _hint_on else null
+		(_glint_on as Sprite3D).material_overlay = _hint_mat((_glint_on as Sprite3D).texture, _snap_of(_glint_on as Sprite3D)) if _hint_on is Sprite3D and _glint_on == _hint_on else null
 	_glint_on = null
 	_glint.clear()
 	_hot.visible = false
@@ -631,18 +651,19 @@ func _glint_sprite(s: Sprite3D) -> void:
 	_glint_off()
 	if s.texture == null:
 		return
-	s.material_overlay = _sprite_glint_mat(s.texture)
+	s.material_overlay = _sprite_glint_mat(s.texture, 0.2, _snap_of(s))
 	_glint_on = s
 
 
 ## The glint in the shape of a sprite's picture (one material per picture and wash: a
 ## station's things pointed at from across the room glow warmer, to be seen at all).
-static func _sprite_glint_mat(tex: Texture2D, wash := 0.2) -> ShaderMaterial:
-	var key := "%d|%.2f" % [tex.get_instance_id(), wash]
+static func _sprite_glint_mat(tex: Texture2D, wash := 0.2, snap := 0.0) -> ShaderMaterial:
+	var key := "%d|%.2f|%d" % [tex.get_instance_id(), wash, int(snap)]
 	var m: ShaderMaterial = _sprite_glint_mats.get(key, null)
 	if m == null:
 		m = ShaderMaterial.new()
 		m.shader = SPRITE_GLINT
+		m.set_shader_parameter("snap_lines", snap)
 		m.set_shader_parameter("mask", tex)
 		m.set_shader_parameter("wash", wash)
 		if ResourceLoader.exists(GLINT_TEX):
@@ -670,16 +691,29 @@ func room_glint(on: bool) -> void:
 	for c in find_children("*", "Sprite3D", true, false):
 		var s := c as Sprite3D
 		if s.is_visible_in_tree() and s.texture != null and s.material_overlay == null:
-			s.material_overlay = _sprite_glint_mat(s.texture, ROOM_GLINT_WASH)
+			s.material_overlay = _sprite_glint_mat(s.texture, ROOM_GLINT_WASH, _snap_of(s))
 			_room_glint.append(s)
 
 
-## A place of the surface itself (a bowl, the sack): a quad over it takes the glint.
+## A place of the surface itself (a bowl, the sack): what stands there glints in its own
+## shape (a rectangle round it crossed the things beside it at the corn stand: "the hovers
+## clip badly", the user 4. 11.); an empty place, a quad over it.
 func _glint_rect(r: Rect2) -> void:
 	var key := "%s" % r
 	if _glint_on is String and str(_glint_on) == key:
 		return
 	_glint_off()
+	var inside: Array = []
+	for c in find_children("*", "Sprite3D", true, false):
+		var sp := c as Sprite3D
+		if sp.is_visible_in_tree() and sp.texture != null and sp.material_overlay == null and r.grow(4.0).has_point(design_of(to_local(sp.global_position))):
+			inside.append(sp)
+	if not inside.is_empty():
+		for sp2 in inside:
+			(sp2 as Sprite3D).material_overlay = _sprite_glint_mat((sp2 as Sprite3D).texture, 0.2, _snap_of(sp2 as Sprite3D))
+		_glint_place = inside
+		_glint_on = key
+		return
 	var q := PlaneMesh.new() if surf_flat else QuadMesh.new()
 	var size := Vector2(metres_x(r.size.x), r.size.y / DESIGN.y * surf_size.y)
 	if q is PlaneMesh:

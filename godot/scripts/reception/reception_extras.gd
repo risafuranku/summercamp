@@ -602,6 +602,10 @@ func _hover_under_mouse() -> String:
 			if id == "door":
 				return id if where != "store" else ""
 			var room := "back" if back.hot.has(id) else ("store" if store.hot.has(id) else "office")
+			# (The bench is under the office's window: from it the office's things are there
+			# to use, its curtains first; nothing glinted from it, the user 4. 11.)
+			if where == "bench" and room == "office":
+				return id if id != "bench" else ""
 			return id if room == where else ""
 		n = n.get_parent()
 	return ""

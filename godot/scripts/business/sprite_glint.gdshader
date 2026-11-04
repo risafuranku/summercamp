@@ -12,11 +12,27 @@ uniform vec4 tint : source_color = vec4(1.0, 0.80, 0.42, 1.0);
 uniform float wash = 0.2;
 uniform float sparkle = 0.9;
 uniform float metres = 1.4;
+// As the sprite under it is drawn (scripts/retro_materials.gd): in the camp's world an
+// upright one snaps to the coarse grid (one lying flat does not, nor anything in a room),
+// and the glint is pulled a hair toward the eye so it lies on it and does not fight it (the
+// corn stand's glints were cut to pieces, the user 4. 11.).
+uniform float snap_lines = 0.0;
+uniform float depth_pull = 0.012;
 
 varying vec3 wpos;
 
 void vertex() {
 	wpos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	vec4 vpos = MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
+	vpos.xyz *= 1.0 - depth_pull;
+	vec4 clip = PROJECTION_MATRIX * vpos;
+	if (snap_lines > 0.0 && clip.w > 0.05) {
+		vec2 grid = vec2(snap_lines * VIEWPORT_SIZE.x / max(VIEWPORT_SIZE.y, 1.0), snap_lines) * 0.5;
+		vec2 ndc = clip.xy / clip.w;
+		ndc = floor(ndc * grid + 0.5) / grid;
+		clip.xy = ndc * clip.w;
+	}
+	POSITION = clip;
 }
 
 void fragment() {

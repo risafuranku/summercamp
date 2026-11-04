@@ -13,6 +13,9 @@ const SHADER := preload("res://materials/hover_glint.gdshader")
 const GLINT_TEX := "res://assets/textury/ui/hover_glint.png"
 
 static var _mat: ShaderMaterial
+## The camp's own (its surfaces snap: retro_materials.SNAP_LINES; a room's do not).
+static var _mat_camp: ShaderMaterial
+const SNAP_LINES := 150.0
 ## The sprites' copies, by picture and turn.
 static var _sprite_mats: Dictionary = {}
 
@@ -38,12 +41,26 @@ func show_on(nodes: Array) -> void:
 	if meshes == _meshes:
 		return
 	for m in _meshes:
-		if is_instance_valid(m) and ((m as MeshInstance3D).material_overlay == _mat or _sprite_mats.values().has((m as MeshInstance3D).material_overlay)):
+		if is_instance_valid(m) and ((m as MeshInstance3D).material_overlay == _mat or (m as MeshInstance3D).material_overlay == _mat_camp or _sprite_mats.values().has((m as MeshInstance3D).material_overlay)):
 			(m as MeshInstance3D).material_overlay = null
 	_meshes = meshes
 	var mat := material()
 	for m in _meshes:
-		(m as MeshInstance3D).material_overlay = _for_mesh(m as MeshInstance3D, mat)
+		(m as MeshInstance3D).material_overlay = _for_mesh(m as MeshInstance3D, mat if _in_room(m) else camp_material())
+
+
+## The glint for the camp's world (the corn stand, the pipes, the lake): snapped as it is.
+static func camp_material() -> ShaderMaterial:
+	if _mat_camp == null:
+		_mat_camp = material().duplicate() as ShaderMaterial
+		_mat_camp.set_shader_parameter("snap_lines", SNAP_LINES)
+	return _mat_camp
+
+
+## In a room (a viewport of its own world, retro_materials._in_room): nothing snaps there.
+static func _in_room(n: Node) -> bool:
+	var vp := n.get_viewport()
+	return vp is SubViewport and (vp as SubViewport).own_world_3d
 
 
 ## The overlay for this mesh: the shared one, or for a sprite its own copy.
@@ -62,7 +79,7 @@ static func _for_mesh(mi: MeshInstance3D, shared: ShaderMaterial) -> ShaderMater
 			bb = 2
 	if not cut and bb == 0:
 		return shared
-	var key := "%d|%d" % [base.albedo_texture.get_instance_id(), bb]
+	var key := "%d|%d|%d" % [base.albedo_texture.get_instance_id(), bb, shared.get_instance_id()]
 	if not _sprite_mats.has(key):
 		var m := shared.duplicate() as ShaderMaterial
 		m.set_shader_parameter("sprite_tex", base.albedo_texture)

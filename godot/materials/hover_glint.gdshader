@@ -21,6 +21,12 @@ uniform sampler2D sprite_tex : source_color, filter_nearest;
 uniform bool use_sprite = false;
 // 0 none, 1 turned to the camera, 2 turned round the upright only.
 uniform int sprite_billboard = 0;
+// As the camp's surfaces under it are drawn (scripts/retro_materials.gd): their vertices on
+// the coarse grid (0 in a room: rooms do not snap) and pulled toward the eye by a share of
+// their distance; the glint a hair more, so it lies on its own thing and does not fight it
+// (the corn stand's glints were cut to pieces, the user 4. 11.).
+uniform float snap_lines = 0.0;
+uniform float depth_pull = 0.012;
 
 varying vec3 wpos;
 varying vec3 wnorm;
@@ -40,6 +46,16 @@ void vertex() {
 		wpos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 		wnorm = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 	}
+	vec4 vpos = MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
+	vpos.xyz *= 1.0 - depth_pull;
+	vec4 clip = PROJECTION_MATRIX * vpos;
+	if (snap_lines > 0.0 && clip.w > 0.05) {
+		vec2 grid = vec2(snap_lines * VIEWPORT_SIZE.x / max(VIEWPORT_SIZE.y, 1.0), snap_lines) * 0.5;
+		vec2 ndc = clip.xy / clip.w;
+		ndc = floor(ndc * grid + 0.5) / grid;
+		clip.xy = ndc * clip.w;
+	}
+	POSITION = clip;
 }
 
 void fragment() {

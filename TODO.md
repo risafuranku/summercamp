@@ -25,7 +25,7 @@
 - [ ] V16 „udělej lepší pocit chůze, ať jsou víc cítit kroky. pohyb je teď pořád takovej floaty. podívej se klidně do projektu greed, tam je pocit z kroků dobrej.“ (player_controller's step feel, after GREED's)
 - [x] V17 (the pager's line went into "Pager: %s" with its own values and a lookup does not go two deep: looked up before it goes in, the night jobs' too; the knock on a taken room, things left behind, the other warden at the barrier and "sorted" had English pieces in them; tools/hlasky_check.tscn, the lang audit of guests/day/night finds only Czech looked up again) „pager, a branch has come down není přeložené do čestiny.. zkontrolovat hlášky“ (every message: cs.po)
 - [ ] V18 „otočit recepci o 90 stupnu tak, aby hlavni dveře byly hned k přichodove ceste/zavore. udělat nové okno tam, kde je uvnitř zhruba umístěna nástěnka s klíči. tu nějak šikovně lehce posunout.“
-- [ ] V19 „hrozně clippujou hovery během dělání kukuřice. na recepci chybí hovery na laviččce, záclonách a tak. prosím všude to zkontroluj“ (the hover glints)
+- [x] V19 (a place at a station glinted as a rectangle over its things and the glints neither snapped nor were pulled as the camp's surfaces are: now the things there glint in their own shapes, snapped and pulled like them (hover_glint, sprite_glint, station3d); the reception's office things glint from the bench; the caravan's curtains, brochure and things, the tent's door and catalogue glint; tools/hover_check, tools/kukurice_hover) „hrozně clippujou hovery během dělání kukuřice. na recepci chybí hovery na laviččce, záclonách a tak. prosím všude to zkontroluj“ (the hover glints)
 
 ## PLAYTEST 2026-11-01 — the user's notes (verbatim, then the note in brackets; tick with the commit)
 

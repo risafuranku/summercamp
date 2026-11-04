@@ -170,6 +170,7 @@ func close_tent() -> void:
 	_facing_door = false
 	_set_door_open(false, false)
 	_set_torn(false)
+	_glint.clear()
 	visible = false
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	request_close.emit()
@@ -193,6 +194,37 @@ func _process(delta: float) -> void:
 	if _exit_hint == null:
 		_exit_hint = INTERIOR_LOOK.make_exit_hint(self)
 	INTERIOR_LOOK.update_exit_hint(_exit_hint, get_viewport(), delta)
+	_update_hover()
+
+
+const HOVER_GLINT = preload("res://scripts/ui/hover_glint.gd")
+var _glint = HOVER_GLINT.new()
+
+
+## What you can use glints under the pointer, as in every room (the user 4. 11.: "check the
+## hovers everywhere"): the door (zipped, its canvas and zip; open, the rolled flaps), the
+## catalogue.
+func _update_hover() -> void:
+	var vp := get_viewport()
+	var size := vp.get_visible_rect().size
+	if size.x <= 0.0 or _prep.is_busy():
+		_glint.clear()
+		return
+	var norm := vp.get_mouse_position() / size
+	var lit: Array = []
+	if _catalog_screen_rect().has_point(norm):
+		lit = [_catalog_mesh]
+		var cover := _tent_root.get_node_or_null("CatalogCover")
+		if cover != null:
+			lit.append(cover)
+	elif _door_under(norm):
+		for n in (["DoorRollL", "DoorRollR"] if _door_open else ["FrontWall", "ZipLine", "ZipHandle"]):
+			var m := _tent_root.get_node_or_null(n)
+			if m != null:
+				lit.append(m)
+	_glint.show_on(lit)
+	if not lit.is_empty():
+		HandCursor.want(HandCursor.POINT)
 
 
 func _apply_idle_mouse_look(delta: float) -> void:
