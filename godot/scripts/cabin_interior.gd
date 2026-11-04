@@ -1635,9 +1635,9 @@ func _build_prep_props() -> void:
 	var top := BED_TOP
 	var heap_a := P.box(_cabin_root, Vector3(b.x + 0.02, top + 0.09, b.z + 0.35), Vector3(0.72, 0.2, 0.6), blanket, Vector3(0.1, 0.4, -0.12))
 	var heap_b := P.box(_cabin_root, Vector3(b.x - 0.05, top + 0.04, b.z - 0.35), Vector3(0.6, 0.1, 0.5), blanket, Vector3(0.0, -0.3, 0.08))
-	var pillow_floor := P.box(_cabin_root, Vector3(-0.3, 0.11, -0.15), Vector3(0.6, 0.1, 0.3), P.flat(Color(0.7, 0.7, 0.7)), Vector3(0.0, 0.7, 0.25))
+	var pillow_floor := P.box(_cabin_root, Vector3(-0.3, 0.11, -0.15), Vector3(0.6, 0.1, 0.3), INTERIOR_KIT.surface("mattress", 0.5, Color(0.8, 0.78, 0.72)), Vector3(0.0, 0.7, 0.25))
 	var made := P.box(_cabin_root, Vector3(b.x, top + 0.025, b.z + 0.18), Vector3(0.84, 0.05, 1.3), blanket)
-	var made_fold := P.box(_cabin_root, Vector3(b.x, top + 0.04, b.z - 0.42), Vector3(0.84, 0.07, 0.14), P.flat(Color(0.88, 0.86, 0.8)))
+	var made_fold := P.box(_cabin_root, Vector3(b.x, top + 0.04, b.z - 0.42), Vector3(0.84, 0.07, 0.14), INTERIOR_KIT.surface("mattress", 0.5, Color(1.0, 0.98, 0.92)))
 	var pillow_bed := _cabin_root.get_node_or_null("Pillow")
 	var bed_body := P.body(_cabin_root, Vector3(b.x, 0.4, b.z), Vector3(1.0, 0.7, 1.9))
 	_prep.register("bed", bed_body, [heap_a, heap_b, pillow_floor], [made, made_fold, pillow_bed])
@@ -1753,7 +1753,7 @@ func _build_bathroom_room() -> void:
 	shower.name = "ShowerCorner"
 	K.picture(_bathroom_root, "glass_blocks", CL.BATH_WIN, Vector3(w * 0.5 - 0.005, CL.ROOM_FLOOR + 1.62, 0.0), -90.0, "BathWindow")
 	# Newspaper squares on a nail by the toilet.
-	K.slab(_bathroom_root, Vector3(0.015, 0.18, 0.14), Vector3(w * 0.5 - 0.01, CL.ROOM_FLOOR + 0.85, BATH_WC.z - 0.35), INTERIOR_PREP.flat(Color(0.82, 0.8, 0.72)), "Newspaper")
+	K.cutout(_bathroom_root, "newspaper_stack", Vector2(0.15, 0.21), Vector3(w * 0.5 - 0.02, CL.ROOM_FLOOR + 0.75, BATH_WC.z - 0.35), -90.0, false, "Newspaper")
 	_build_boiler()
 
 

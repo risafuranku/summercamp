@@ -327,7 +327,7 @@ func _sync_tent_guest_visuals() -> void:
 		return
 	if not _tent_interior.has_method("is_open") or not _tent_interior.is_open():
 		return
-	_tent_interior.set_guest_occupants(_guest_visuals_for_structure(_active_tent_node))
+	_tent_interior.set_guest_occupants(_room_guests_now(_tent_interior, _active_tent_node))
 
 
 func _sync_cabin_guest_visuals() -> void:
@@ -337,7 +337,15 @@ func _sync_cabin_guest_visuals() -> void:
 		return
 	if not _cabin_interior.has_method("is_open") or not _cabin_interior.is_open():
 		return
-	_cabin_interior.set_guest_occupants(_guest_visuals_for_structure(_active_cabin_node))
+	_cabin_interior.set_guest_occupants(_room_guests_now(_cabin_interior, _active_cabin_node))
+
+
+## Who a room shows while you are in it: those who left go; one just checked in (at the desk
+## without you, by a receptionist) is on their way, not in your face the same second.
+func _room_guests_now(room: Node, structure: Node) -> Array:
+	var now := _guest_visuals_for_structure(structure)
+	var had: Array = room.get("_guest_occupants")
+	return had.duplicate(true) if now.size() > had.size() else now
 
 
 func _guest_visuals_for_structure(structure: Node) -> Array:

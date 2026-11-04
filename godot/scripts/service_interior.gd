@@ -1994,11 +1994,11 @@ func _build_toilet_layout() -> void:
 		cyl.bottom_radius = 0.05
 		cyl.height = 0.1
 		roll.mesh = cyl
-		roll.material_override = INTERIOR_PREP.flat(Color(0.92, 0.9, 0.84))
+		roll.material_override = INTERIOR_KIT.surface("porcelain", 0.12, Color(0.96, 0.94, 0.86))
 		roll.rotation.z = PI * 0.5
 		roll.position = Vector3(cx - side * 0.66, 0.78, -d * 0.5 + 0.55)
 		r.add_child(roll)
-		K.slab(r, Vector3(0.02, 0.24, 0.18), Vector3(side * (w * 0.5 - 0.02), 1.05, -d * 0.5 + 0.6), INTERIOR_PREP.flat(Color(0.8, 0.78, 0.7)), "Newspaper")
+		K.cutout(r, "newspaper_stack", Vector2(0.17, 0.24), Vector3(side * (w * 0.5 - 0.03), 0.93, -d * 0.5 + 0.6), -90.0 * side, false, "Newspaper")
 		# The heart cut in the door lets a little day in: a warm patch on the floor.
 		var heart := OmniLight3D.new()
 		heart.position = Vector3(cx, 1.6, d * 0.5 - 0.1)
@@ -2080,11 +2080,11 @@ func _build_bowl(r: Node3D, at: Vector3) -> void:
 	tm.rings = 18
 	tm.ring_segments = 6
 	seat.mesh = tm
-	seat.material_override = INTERIOR_PREP.flat(Color(0.08, 0.08, 0.09))
+	seat.material_override = INTERIOR_KIT.surface("plastic", 0.4, Color(0.2, 0.19, 0.2))
 	seat.position = at + Vector3(0, 0.44, 0.06)
 	seat.scale = Vector3(1.0, 0.25, 1.28)
 	r.add_child(seat)
-	var lid := INTERIOR_KIT.slab(r, Vector3(0.4, 0.46, 0.025), at + Vector3(0, 0.68, -0.2), INTERIOR_PREP.flat(Color(0.1, 0.1, 0.11)), "Lid")
+	var lid := INTERIOR_KIT.slab(r, Vector3(0.4, 0.46, 0.025), at + Vector3(0, 0.68, -0.2), INTERIOR_KIT.surface("plastic", 0.4, Color(0.24, 0.23, 0.24)), "Lid")
 	lid.rotation.x = -0.12
 	INTERIOR_KIT.slab(r, Vector3(0.46, 0.22, 0.16), at + Vector3(0, 1.86, -0.22), INTERIOR_KIT.surface("enamel_white", 0.5), "Cistern")
 	var pipe := MeshInstance3D.new()

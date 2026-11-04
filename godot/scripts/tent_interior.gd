@@ -467,7 +467,7 @@ func _build_prep_props() -> void:
 	var heap_mat := P.camp_material("blanket_check.png", Color(0.75, 0.72, 0.7))
 	var heap_a := P.box(_tent_root, Vector3(-0.24, 0.12, -0.30), Vector3(0.62, 0.22, 0.46), heap_mat, Vector3(0.12, 0.35, -0.08))
 	var heap_b := P.box(_tent_root, Vector3(-0.18, 0.06, -0.75), Vector3(0.5, 0.08, 0.5), heap_mat, Vector3(0.0, -0.4, 0.06))
-	var pillow_off := P.box(_tent_root, Vector3(-0.58, 0.07, 0.05), Vector3(0.36, 0.08, 0.22), P.flat(Color(0.42, 0.40, 0.36)), Vector3(0.0, 0.9, 0.5))
+	var pillow_off := P.box(_tent_root, Vector3(-0.58, 0.07, 0.05), Vector3(0.36, 0.08, 0.22), INTERIOR_KIT.surface("mattress", 0.4, Color(0.72, 0.7, 0.64)), Vector3(0.0, 0.9, 0.5))
 	var tidy_bag := _tent_root.get_node_or_null("SleepingBag")
 	var tidy_pillow := _tent_root.get_node_or_null("Pillow")
 	if tidy_bag is MeshInstance3D:

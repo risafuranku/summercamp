@@ -60,7 +60,10 @@ const DESK := Rect2(0, 116, 480, 154)
 const BOOK := Rect2(4, 118, 226, 150)
 const RACK := Rect2(298, 120, 178, 100)
 const STAMP_SIZE := Vector2(42, 38)
-const STAMP_HOME := {"in": Vector2(304, 222), "out": Vector2(360, 222)}
+## One over the other right of the papers, the one you use most near you where its label
+## reads: side by side the guest's card lay on CHECKED IN and REFUSED's label ran off the
+## picture (the polish pass of 4. 11.).
+const STAMP_HOME := {"in": Vector2(336, 218), "out": Vector2(344, 162)}
 const CARD_SIZE := Vector2(108, 70)
 const SLIP_SIZE := Vector2(88, 118)
 ## The key board (RACK): 8 x 3 hooks, one cell each: the label at the top, the hook

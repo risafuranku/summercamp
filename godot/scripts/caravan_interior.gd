@@ -1050,16 +1050,7 @@ func _build_room() -> void:
 	K.slab(_root, Vector3(0.05, 0.05, 0.12), Vector3(DOOR_X + 0.5, 1.6, W * 0.5 - 0.06), K.surface("galvanized", 0.4), "CoatHook")
 	# The near end: a crate and the gas bottle (Lv1); the bunks (Lv2, Lv3).
 	var ex := -L * 0.5 + 0.38
-	var gas := MeshInstance3D.new()
-	gas.name = "EndGas"
-	var gcyl := CylinderMesh.new()
-	gcyl.top_radius = 0.14
-	gcyl.bottom_radius = 0.14
-	gcyl.height = 0.5
-	gas.mesh = gcyl
-	gas.material_override = INTERIOR_PREP.flat(Color(0.72, 0.22, 0.12))
-	gas.position = Vector3(ex, 0.25, 0.5)
-	_root.add_child(gas)
+	K.cutout(_root, "gas_bottle", Vector2(0.26, 0.54), Vector3(ex, 0.0, 0.5), 0.0, true, "EndGas")
 	var lower := Node3D.new()
 	lower.name = "BunkLower"
 	_root.add_child(lower)
