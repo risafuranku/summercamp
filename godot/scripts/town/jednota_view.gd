@@ -146,7 +146,7 @@ static func build(root: Node3D, room = null, lit := false) -> Dictionary:
 		var x0: float = (a["at"] as Vector3).x - (a["size"] as Vector2).x * 0.5
 		var x1: float = (b["at"] as Vector3).x + (b["size"] as Vector2).x * 0.5
 		var sill: float = (a["at"] as Vector3).y - (a["size"] as Vector2).y * 0.5
-		K.slab(root, Vector3(x1 - x0, sill, 0.6), Vector3((x0 + x1) * 0.5, sill * 0.5, d * 0.5 - 0.3), _lit(K.surface("veneer_dark", 0.6, Color(0.7, 0.3, 0.26)), l), "DisplayBase")
+		K.slab(root, Vector3(x1 - x0, sill, 0.6), Vector3((x0 + x1) * 0.5, sill * 0.5, d * 0.5 - 0.3), _lit(K.surface("armchair_fabric", 0.5, Color(0.95, 0.42, 0.36)), l), "DisplayBase")
 		var tex: String = DISPLAYS[i]
 		if _exists(tex):
 			var sz := Vector2(x1 - x0 - 0.1, (x1 - x0 - 0.1) * _size(tex, 1.0).y / maxf(0.01, _size(tex, 1.0).x))

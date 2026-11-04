@@ -621,6 +621,22 @@ func _chapel(at: Vector3) -> void:
 		_box(root, Vector3(0, 9.4, -2.5), Vector3(0.5, 0.1, 0.1), _mat("", Color(0.3, 0.3, 0.3)))
 		_face(root, Vector3(0, 1.3, 3.5), Vector2(1.4, 2.6), Vector3(0, 0, 1), _mat(_first([TEX + "house_door.png", TEX_CAMP + "door_wood.png"]), Color(0.4, 0.3, 0.2)))
 	spots["chapel"] = w(at + Vector3(0, 0, 4.5))
+	# A lamp in its bracket over the door, on at night, not always steadily.
+	if ResourceLoader.exists(TEX_CAMP + "wall_lamp.png"):
+		var door := at + Vector3(0, 0, 3.62)
+		var lm := _cut_mat(TEX_CAMP + "wall_lamp.png")
+		var lt: Texture2D = lm.albedo_texture
+		var lw := 0.42 * float(lt.get_width()) / float(lt.get_height())
+		_face(self, door + Vector3(0, 2.92, 0.03), Vector2(lw, 0.42), Vector3(0, 0, 1), lm)
+		var l := OmniLight3D.new()
+		l.light_color = Color(1.0, 0.78, 0.5)
+		l.light_energy = 1.2
+		l.omni_range = 6.0
+		l.position = door + Vector3(0, 2.75, 0.5)
+		l.visible = false
+		add_child(l)
+		var g := _glow(door + Vector3(0, 2.86, 0.12), 0.5)
+		_chapel_bulb = [l, g]
 
 
 ## The motel: tube letters MOTEL standing on its roof on their brackets over the
@@ -670,25 +686,67 @@ func _station(at: Vector3) -> void:
 	root.position = at
 	add_child(root)
 	# The canopy on four pillars over two pumps, the kiosk behind.
-	var steel := _mat("", Color(0.86, 0.86, 0.84))
+	var steel := _mat(TEX_CAMP + "galvanized.png", Color(0.94, 0.94, 0.92), Vector2(1.0, 4.0))
+	var side_pic := TEX + "pump_side.png"
+	var red := _mat(side_pic, Color(1, 1, 1), Vector2(1.0, 1.0)) if ResourceLoader.exists(side_pic) else _mat("", Color(0.82, 0.1, 0.08))
 	for p in [Vector3(-6, 0, -3), Vector3(6, 0, -3), Vector3(-6, 0, 3), Vector3(6, 0, 3)]:
 		_box(root, p + Vector3(0, 2.4, 0), Vector3(0.3, 4.8, 0.3), steel, true)
+		# The red band round each pillar's foot, kicked by bumpers.
+		_box(root, p + Vector3(0, 0.45, 0), Vector3(0.34, 0.9, 0.34), red)
 	# The canopy: weathered concrete panels underneath, streaked white sheet at the edge.
 	_box(root, Vector3(0, 5.0, 0), Vector3(14.0, 0.5, 8.0), _tiled(_mat(TEX_CAMP + "concrete.png", Color(0.95, 0.95, 0.93), Vector2(3.0, 2.0)), Vector3(14.0, 0.5, 8.0)))
-	_box(root, Vector3(0, 4.9, -4.02), Vector3(14.0, 0.5, 0.06), _mat("", Color(0.82, 0.1, 0.08)))
+	_box(root, Vector3(0, 4.9, -4.02), Vector3(14.0, 0.5, 0.06), _mat(side_pic, Color(1, 1, 1), Vector2(14.0, 0.5)) if ResourceLoader.exists(side_pic) else _mat("", Color(0.82, 0.1, 0.08)))
 	# BENZINA in white metal letters along the red fascia.
 	_letters(root, "benzina", Vector3(0, 4.9, -4.05), Vector3(0, 0, -1))
 	var pump_face := _mat(_first([TEX + "fuel_pump.png"]), Color(0.8, 0.2, 0.15))
 	var pumps: Array = []
 	for x in [-2.6, 2.6]:
-		var island := _box(root, Vector3(x, 0.1, 0), Vector3(1.4, 0.2, 3.0), _mat("", Color(0.6, 0.6, 0.6)), true)
+		var island := _box(root, Vector3(x, 0.1, 0), Vector3(1.4, 0.2, 3.0), _mat(TEX_CAMP + "concrete.png", Color(0.78, 0.78, 0.74), Vector2(1.0, 2.0)), true)
 		island.name = "Island"
-		var body := _box(root, Vector3(x, 1.0, 0), Vector3(0.9, 1.7, 0.6), _mat("", Color(0.8, 0.22, 0.16)), true)
+		var body := _box(root, Vector3(x, 1.0, 0), Vector3(0.9, 1.7, 0.6), red, true)
 		_face(root, Vector3(x, 1.0, -0.3), Vector2(0.9, 1.7), Vector3(0, 0, -1), pump_face)
 		_face(root, Vector3(x, 1.0, 0.3), Vector2(0.9, 1.7), Vector3(0, 0, 1), pump_face)
 		pumps.append(w(at + Vector3(x, 0, -1.2)))
 		body.name = "Pump"
 	spots["pumps"] = pumps
+	# Under the canopy three fluorescent tubes in their fittings, lit at night (one of
+	# them going), and their hum.
+	var tubes: Array = []
+	for x in [-4.0, 0.0, 4.0]:
+		var tm := StandardMaterial3D.new()
+		tm.albedo_color = Color(0.86, 0.9, 0.88)
+		tm.emission_enabled = true
+		tm.emission = Color(0.86, 0.96, 0.92)
+		tm.emission_energy_multiplier = 0.0
+		_box(root, Vector3(x, 4.72, 0.0), Vector3(2.4, 0.08, 0.22), _mat(TEX_CAMP + "galvanized.png", Color(0.7, 0.7, 0.68)))
+		_box(root, Vector3(x, 4.67, 0.0), Vector3(2.2, 0.05, 0.12), tm)
+		var tl := OmniLight3D.new()
+		tl.light_color = Color(0.82, 0.92, 0.86)
+		tl.light_energy = 3.2
+		tl.omni_range = 10.0
+		tl.omni_attenuation = 1.0
+		tl.position = Vector3(x, 4.3, 0.0)
+		tl.visible = false
+		root.add_child(tl)
+		tubes.append({"mat": tm, "light": tl})
+	spots["station_tubes"] = tubes
+	var buzz := AudioStreamPlayer3D.new()
+	var bs = load("res://assets/sfx/motel/neon_buzz.ogg") if ResourceLoader.exists("res://assets/sfx/motel/neon_buzz.ogg") else null
+	if bs != null:
+		bs = (bs as AudioStream).duplicate()
+		if bs is AudioStreamOggVorbis:
+			(bs as AudioStreamOggVorbis).loop = true
+		buzz.stream = bs
+		buzz.volume_db = -14.0
+		buzz.unit_size = 3.0
+		buzz.max_distance = 22.0
+		buzz.position = Vector3(0, 4.4, 0)
+		root.add_child(buzz)
+		spots["station_buzz"] = buzz
+	# By the islands and the kiosk: the oil rack, the air post, the bin with the towels,
+	# old tyres.
+	for v in [["oil_rack", 0.95, Vector3(-3.6, 0, 5.2)], ["air_post", 1.25, Vector3(6.9, 0, 1.5)], ["bin_towels", 1.1, Vector3(-1.4, 0.2, 1.2)], ["tyres", 0.62, Vector3(4.6, 0, 6.2)]]:
+		_station_prop(root, str(v[0]), float(v[1]), v[2])
 	var kiosk := Node3D.new()
 	kiosk.name = "Kiosk"
 	kiosk.position = Vector3(0, 0, 9.0)
@@ -706,6 +764,24 @@ func _station(at: Vector3) -> void:
 	spots["kiosk"] = kiosk
 	spots["kiosk_door"] = w(at + Vector3(0, 0, 9.0 - 4.2))
 	spots["station"] = root
+
+
+func _station_prop(root: Node3D, tex: String, height: float, at: Vector3) -> void:
+	var path := TEX + tex + ".png"
+	if not ResourceLoader.exists(path):
+		return
+	var t: Texture2D = load(path)
+	var sp := Sprite3D.new()
+	sp.name = "StationThing"
+	sp.texture = t
+	sp.pixel_size = height / float(t.get_height())
+	sp.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+	sp.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	sp.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+	sp.shaded = true
+	sp.offset = Vector2(0, float(t.get_height()) * 0.5)
+	sp.position = at
+	root.add_child(sp)
 
 
 ## Since 3. 11. the kiosk's window and door are glass you see through (kiosk_view.gd): its
@@ -847,26 +923,159 @@ func _pole(root: Node3D, at: Vector3, stop_name: String, stop_id: String) -> voi
 		body.set_meta("stop", "town")
 
 
+const POND_SHADER = preload("res://materials/lake_water.gdshader")
+const REEDS := "res://assets/textury/world/reeds.png"
+var _pond_mat: ShaderMaterial
+
+
+## Reeds thick in the pond's corners and thin along its long sides, standing in the water.
+func _pond_reeds(pond: Vector3) -> void:
+	if not ResourceLoader.exists(REEDS):
+		return
+	var t: Texture2D = load(REEDS)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4111
+	for c in [Vector2(-5.2, -3.2), Vector2(5.2, -3.2), Vector2(-5.2, 3.2), Vector2(5.2, 3.2), Vector2(-1.5, 3.4), Vector2(2.4, -3.4)]:
+		var n := 5 if absf(c.x) > 5.0 else 2
+		for k in n:
+			var sp := Sprite3D.new()
+			sp.name = "Reeds"
+			sp.texture = t
+			var h := rng.randf_range(0.9, 1.5)
+			sp.pixel_size = h / float(t.get_height())
+			sp.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+			sp.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+			sp.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+			sp.shaded = true
+			sp.flip_h = rng.randf() < 0.5
+			sp.offset = Vector2(0, float(t.get_height()) * 0.5)
+			sp.position = pond + Vector3(c.x + rng.randf_range(-0.6, 0.6), 0.02, c.y + rng.randf_range(-0.4, 0.4))
+			add_child(sp)
+
+
+## The pond as lit as the hour: dark at night with a glint of the moon, bright by day.
+func _pond_light(h: float) -> void:
+	if _pond_mat == null:
+		return
+	var day := clampf(minf((h - 5.0) / 2.0, (21.0 - h) / 2.0), 0.0, 1.0)
+	_pond_mat.set_shader_parameter("light_level", lerpf(0.14, 1.0, day))
+	_pond_mat.set_shader_parameter("sky_col", Color(0.58, 0.64, 0.7).lerp(Color(0.12, 0.14, 0.22), 1.0 - day))
+
+
 func _lamps() -> void:
-	var post := _mat(TEX_CAMP + "concrete.png", Color(0.78, 0.78, 0.76))
 	var lights: Array = []
+	var pic := TEX + "sodium_lamp.png"
 	for x in [-40.0, -12.0, 18.0, 44.0]:
 		var at := Vector3(x, 0, -4.2)
+		var l := OmniLight3D.new()
+		l.light_color = Color(1.0, 0.62, 0.3)
+		l.light_energy = 4.2
+		l.omni_range = 15.0
+		l.omni_attenuation = 1.05
+		l.position = at + Vector3(0, 5.4, 0.6)
+		l.visible = false
+		add_child(l)
+		if ResourceLoader.exists(pic):
+			var glow := _lamp_post(at, pic)
+			lights.append([l, glow])
+			continue
+		var post := _mat(TEX_CAMP + "concrete.png", Color(0.78, 0.78, 0.76))
 		_box(self, at + Vector3(0, 2.6, 0), Vector3(0.16, 5.2, 0.16), post, true)
 		_box(self, at + Vector3(0, 5.15, 0.6), Vector3(0.1, 0.1, 1.3), post)
 		var bulb := StandardMaterial3D.new()
 		bulb.albedo_color = Color(0.6, 0.58, 0.5)
 		bulb.emission_enabled = true
 		_box(self, at + Vector3(0, 5.05, 1.15), Vector3(0.4, 0.14, 0.3), bulb)
-		var l := OmniLight3D.new()
-		l.light_color = Color(1.0, 0.76, 0.46)
-		l.light_energy = 1.8
-		l.omni_range = 13.0
-		l.position = at + Vector3(0, 4.8, 1.15)
-		l.visible = false
-		add_child(l)
 		lights.append([l, bulb])
+	# The chapel's bulb (built before these) is switched with them.
+	if not _chapel_bulb.is_empty():
+		lights.append(_chapel_bulb)
 	spots["lamps"] = lights
+
+
+var _chapel_bulb: Array = []
+var _bulb_t := 12.0
+
+
+## A soft round glow at `at` (an effect, turned to you), lit by set_night: its material.
+func _glow(at: Vector3, size: float) -> StandardMaterial3D:
+	var img := Image.create(12, 12, false, Image.FORMAT_RGBA8)
+	for y in 12:
+		for x in 12:
+			var d := Vector2(x - 5.5, y - 5.5).length() / 6.0
+			img.set_pixel(x, y, Color(1.0, 0.74, 0.42, clampf(1.0 - d, 0.0, 1.0) * (0.9 if d < 0.45 else 0.45)))
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.albedo_texture = ImageTexture.create_from_image(img)
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	m.emission_enabled = true
+	m.emission = Color(0, 0, 0)
+	m.albedo_color = Color(1, 1, 1, 0)
+	var q := MeshInstance3D.new()
+	q.name = "Glow"
+	var qm := QuadMesh.new()
+	qm.size = Vector2(size, size)
+	q.mesh = qm
+	q.material_override = m
+	q.position = at
+	q.set_meta("retro_skip", true)
+	add_child(q)
+	return m
+
+
+## Lamp post `pic` (a sprite turned to you, the post on `at`) and the glow over its head:
+## the glow's material comes back, for set_night to light.
+const LAMP_H := 6.2
+const LAMP_POST_PX := 10
+const LAMP_HEAD_PX := Vector2(41, 22)
+
+
+func _lamp_post(at: Vector3, pic: String) -> StandardMaterial3D:
+	var t: Texture2D = load(pic)
+	var px := LAMP_H / float(t.get_height())
+	var sp := Sprite3D.new()
+	sp.name = "LampPost"
+	sp.texture = t
+	sp.pixel_size = px
+	sp.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+	sp.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	sp.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+	sp.shaded = true
+	# The post's foot on `at` (it stands at the picture's left).
+	sp.offset = Vector2(float(t.get_width()) * 0.5 - float(LAMP_POST_PX), float(t.get_height()) * 0.5)
+	sp.position = at
+	add_child(sp)
+	_solid(self, at + Vector3(0, 2.6, 0), Vector3(0.2, 5.2, 0.2))
+	# The glow: a soft round patch over the glass, turned with the post.
+	var img := Image.create(12, 12, false, Image.FORMAT_RGBA8)
+	for y in 12:
+		for x in 12:
+			var d := Vector2(x - 5.5, y - 5.5).length() / 6.0
+			img.set_pixel(x, y, Color(1.0, 0.7, 0.36, clampf(1.0 - d, 0.0, 1.0) * (0.9 if d < 0.45 else 0.45)))
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.albedo_texture = ImageTexture.create_from_image(img)
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y
+	m.billboard_keep_scale = true
+	m.emission_enabled = true
+	m.emission = Color(0, 0, 0)
+	m.albedo_color = Color(1, 1, 1, 0)
+	var q := MeshInstance3D.new()
+	q.name = "LampGlow"
+	var qm := QuadMesh.new()
+	qm.size = Vector2(0.75, 0.75)
+	# Over the glass, where the picture has it from the post (in its pixels).
+	qm.center_offset = Vector3((LAMP_HEAD_PX.x - float(LAMP_POST_PX)) * px, (float(t.get_height()) - LAMP_HEAD_PX.y) * px, 0.02)
+	q.mesh = qm
+	q.material_override = m
+	q.position = at
+	q.set_meta("retro_skip", true)
+	add_child(q)
+	return m
 
 
 ## The naves across the road from the Jednota and the pub, as in Liblice ("Ve Stare
@@ -876,7 +1085,22 @@ func _lamps() -> void:
 func _green() -> void:
 	var stone := _mat(TEX_CAMP + "plaster_stone.png", Color(0.82, 0.8, 0.76), Vector2(3.0, 1.0))
 	var pond := Vector3(8.0, 0, 20.0)
-	_plane(self, pond + Vector3(0, 0.05, 0), Vector2(12.0, 8.0), _mat(TEX_CAMP + "lake_water.png", Color(0.56, 0.62, 0.6), Vector2(3.0, 2.0)))
+	var water := _plane(self, pond + Vector3(0, 0.05, 0), Vector2(12.0, 8.0), _mat(TEX_CAMP + "lake_water.png", Color(0.56, 0.62, 0.6), Vector2(3.0, 2.0)))
+	if water is GeometryInstance3D:
+		var wm := ShaderMaterial.new()
+		wm.shader = POND_SHADER
+		wm.set_shader_parameter("water_tex", load(TEX_CAMP + "lake_water.png"))
+		wm.set_shader_parameter("tex_scale", 0.16)
+		wm.set_shader_parameter("tint", Color(0.38, 0.46, 0.36))
+		wm.set_shader_parameter("deep", Color(0.2, 0.24, 0.18))
+		# No shore to go deeper from: the same all over.
+		wm.set_shader_parameter("shore_z", Vector2(-1000.0, -900.0))
+		wm.set_shader_parameter("sky_col", Color(0.58, 0.64, 0.7))
+		wm.set_shader_parameter("wind", 0.12)
+		(water as GeometryInstance3D).material_override = wm
+		(water as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_pond_mat = wm
+	_pond_reeds(pond)
 	for side in [[Vector3(0, 0.2, -4.1), Vector3(12.4, 0.4, 0.3)], [Vector3(0, 0.2, 4.1), Vector3(12.4, 0.4, 0.3)], [Vector3(-6.1, 0.2, 0), Vector3(0.3, 0.4, 8.2)], [Vector3(6.1, 0.2, 0), Vector3(0.3, 0.4, 8.2)]]:
 		_box(self, pond + side[0], side[1], stone, true)
 	spots["pond"] = w(pond)
@@ -1702,6 +1926,9 @@ func _build_smoke() -> void:
 
 func _process(delta: float) -> void:
 	_smoke_t += delta
+	if _station_night:
+		_tick_tubes(delta)
+		_tick_bulb(delta)
 	var step := floorf(_smoke_t * 12.0) / 12.0
 	for p in _smoke:
 		var age := fmod(step * 0.22 + float(p["phase"]), 1.0)
@@ -1711,9 +1938,42 @@ func _process(delta: float) -> void:
 		s.modulate = Color(1, 1, 1, (1.0 - age) * 0.7)
 
 
+var _station_night := false
+var _tube_t := 0.0
+var _tube_out := 0.0
+
+
+func _tick_bulb(delta: float) -> void:
+	if _chapel_bulb.is_empty():
+		return
+	_bulb_t -= delta
+	var l: OmniLight3D = _chapel_bulb[0]
+	var g: StandardMaterial3D = _chapel_bulb[1]
+	var out := _bulb_t < 0.0 and _bulb_t > -0.16
+	if _bulb_t < -0.16:
+		_bulb_t = _rng.randf_range(8.0, 30.0)
+	l.light_energy = 0.1 if out else 1.2
+	g.albedo_color = Color(1, 1, 1, 0.15 if out else 1.0)
+
+
+func _tick_tubes(delta: float) -> void:
+	var tubes: Array = spots.get("station_tubes", [])
+	if tubes.size() < 2:
+		return
+	var t: Dictionary = tubes[1]
+	_tube_t -= delta
+	if _tube_t <= 0.0:
+		_tube_t = _rng.randf_range(0.05, 0.4) if _tube_out > 0.0 else _rng.randf_range(2.0, 9.0)
+		_tube_out = 0.0 if _tube_out > 0.0 else 1.0
+	var on := _tube_out <= 0.0 or fmod(_smoke_t * 23.0, 1.0) < 0.35
+	(t["light"] as OmniLight3D).light_energy = 3.2 if on else 0.3
+	(t["mat"] as StandardMaterial3D).emission_energy_multiplier = 2.2 if on else 0.3
+
+
 ## The hour, for the windows (town_trip.gd, now and then).
 func set_hour(h: float) -> void:
 	_hour = h
+	_pond_light(h)
 	_update_jednota(h)
 	_update_pub(h)
 	_update_kiosk(h)
@@ -1731,7 +1991,20 @@ func set_night(night: bool) -> void:
 	ROAD_POST.set_night(night)
 	for pair in spots.get("lamps", []):
 		(pair[0] as OmniLight3D).visible = night
-		(pair[1] as StandardMaterial3D).emission = Color(1.0, 0.76, 0.42) * (1.6 if night else 0.0)
+		var gm := pair[1] as StandardMaterial3D
+		gm.emission = Color(1.0, 0.76, 0.42) * (1.6 if night else 0.0)
+		if gm.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA:
+			gm.albedo_color = Color(1, 1, 1, 1.0 if night else 0.0)
+	_station_night = night
+	for t in spots.get("station_tubes", []):
+		(t["light"] as OmniLight3D).visible = night
+		(t["mat"] as StandardMaterial3D).emission_energy_multiplier = 2.2 if night else 0.0
+	var buzz = spots.get("station_buzz")
+	if buzz != null and is_instance_valid(buzz):
+		if night and not (buzz as AudioStreamPlayer3D).playing:
+			(buzz as AudioStreamPlayer3D).play()
+		elif not night:
+			(buzz as AudioStreamPlayer3D).stop()
 	var neon = spots.get("motel_neon", null)
 	if neon != null:
 		(neon as StandardMaterial3D).emission_energy_multiplier = 1.8 if night else 0.0

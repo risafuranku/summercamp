@@ -127,6 +127,9 @@ ROWS = [
     ("sheet_rm_things", "sheet", [("camp/aquarium.png", 40), ("camp/newspaper_stack.png", 36), ("camp/suitcase.png", 32), ("camp/suitcase_open.png", 40)], None),
     ("sheet_rm_wide", "sheet", [("camp/boar_rug.png", 72), ("camp/clothesline.png", 72)], None),
     ("sheet_rm_pictures", "sheet", [("camp/wedding_photo.png", 88), ("camp/district_map.png", 112), ("camp/crossed_calendar.png", 84)], None),
+    # The Benzina (polish, 4. 11. evening).
+    ("tex_pump_side", "texture", 64, "town/pump_side.png"),
+    ("sheet_benzina", "sheet", [("town/oil_rack.png", 48), ("town/air_post.png", 64), ("town/bin_towels.png", 48), ("town/tyres.png", 32)], None),
     # The corridor, the car park.
     ("sheet_rm_corridor", "sheet", [("camp/fire_extinguisher.png", 44), ("camp/wall_lamp.png", 24), ("camp/cleaning_cart.png", 76)], None),
     ("sheet_rm_hall", "sheet", [("camp/hall_tray.png", 24), ("camp/hall_plant.png", 64), ("camp/hall_shoes.png", 18), ("camp/hall_phone.png", 48), ("camp/hall_rubbish.png", 34)], None),
