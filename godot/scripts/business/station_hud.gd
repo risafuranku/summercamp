@@ -235,6 +235,10 @@ func _refresh_hint() -> void:
 		for i in tabs.size():
 			if str(tabs[i][0]) == str(h["tab"]):
 				_hint_rect = _tab_rect(i)
+		# A station in another room (the keg down in the cellar: every room its own, 4. 11.):
+		# away from this one first, then through the door.
+		if _hint_rect == Rect2():
+			_hint_rect = _back_rect()
 		return
 	match str(h.get("ui", "")):
 		"serve":

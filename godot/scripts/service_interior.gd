@@ -2877,18 +2877,22 @@ func _station_beside(dir: int) -> String:
 	return best
 
 
-## The tabs of the place's stations on the frame's bar, every room's (the brief of 21. 10.:
-## the stations as tabs always in sight, a tab to another room takes you there):
-## [[id, LABEL, icon], ...] in the order of the chain; what is off the books' menu has no
-## tab (a station whose `menu` items are all off). `_room` is kept for the old callers.
+## The tabs of the stations on the frame's bar: the room's you are in only (the user 4. 11.:
+## "the keg is no station of the tap's: you leave the tap, click the cellar door and there
+## the keg; the bistro's cellar, the Jednota the same, every room its own"): [[id, LABEL,
+## icon], ...] in the order of the chain; what is off the books' menu has no tab (a station
+## whose `menu` items are all off). `_room` is kept for the old callers.
 func _room_tabs(_room: String = "") -> Array:
 	var out: Array = []
 	var stations: Dictionary = _station_layout().STATIONS
 	var site := _business_site()
 	var kind := str(site.get("kind", ""))
+	var here := _door_room()
 	for id in stations:
 		var st: Dictionary = stations[id]
 		if not bool(st.get("tab", true)) or not _station_scripts().has(id):
+			continue
+		if _subroom_of(str(st.get("room", ""))) != here:
 			continue
 		var items: Array = st.get("menu", [])
 		if not items.is_empty() and kind != "":
