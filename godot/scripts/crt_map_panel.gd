@@ -144,7 +144,9 @@ const ICON_BACK_PATHS := {
 ## step (a turn of 0 is the picture as drawn, 1 mirrored, 2 the back, 3 the back
 ## mirrored); these few are drawn with the door on the right face and keep the old turns.
 ## (Every building stood a quarter turn off: the pub's door where the 3D pub had a wall.)
-const ICON_DOOR_RIGHT := {"shower_block": true, "caravan_1": true, "caravan_2": true, "caravan_3": true, "vecerka_iso": true}
+const ICON_DOOR_RIGHT := {"shower_block": true, "caravan_1": true, "caravan_2": true, "caravan_3": true, "vecerka_iso": true,
+	# (Its door stood on the map's other face than the camp's model has it, the user 4. 11.)
+	"staffroom": true}
 
 
 func _view_steps(icon_key: String, rotation_steps: int) -> int:

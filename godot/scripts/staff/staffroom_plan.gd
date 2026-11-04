@@ -243,7 +243,10 @@ static func build(root: Node3D, camp: bool) -> Dictionary:
 	door.name = "FrontDoor"
 	door.position = Vector3(DOOR_X, FLOOR, L_MAX.y + WALL * 0.5)
 	root.add_child(door)
-	K.slab(door, Vector3(DOOR_W - 0.04, DOOR_H - 0.02, 0.05), Vector3(0, DOOR_H * 0.5, 0), K.surface("door_interior", 2.0), "DoorLeaf")
+	var leaf := K.slab(door, Vector3(DOOR_W - 0.04, DOOR_H - 0.02, 0.05), Vector3(0, DOOR_H * 0.5, 0), K.surface("door_interior", 2.0), "DoorLeaf")
+	# Hung on its right edge, away from the handle its picture has (door_anim: it swung on
+	# the handle's side, the user 4. 11.).
+	leaf.set_meta("hinge_right", true)
 	face(door, "staff_door", "door_wood", Vector2(DOOR_W - 0.04, DOOR_H - 0.02), Vector3(0, DOOR_H * 0.5, 0.027), Vector3(0, 0, 1), "DoorOut")
 	face(door, "door_interior", "door_wood", Vector2(DOOR_W - 0.04, DOOR_H - 0.02), Vector3(0, DOOR_H * 0.5, -0.027), Vector3(0, 0, -1), "DoorIn")
 	out["door"] = door
