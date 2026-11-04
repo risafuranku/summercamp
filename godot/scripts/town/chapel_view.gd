@@ -30,6 +30,14 @@ extends RefCounted
 ## up in the presbytery, three slow notes, when you are at the far end from it; a cold
 ## draught from the door, the flames and the light through the dust flickering together.
 ## Nobody narrates.
+##
+## At night (seven in the evening till six; the user, 4. 11.: open through the night, a
+## night to it, just enough light to see by, candles burning) the door gives all the same:
+## the moon thin and cold through the oval windows, a dark haze down the nave, the altar's
+## two candles lit, the eternal light red on its chain in the presbytery, grave lanterns on
+## the step before the rail and under St Prokop, stubs burning down before the first pew,
+## more flames on the stand than anybody left (somebody came in the evening); no pigeons,
+## an owl up in the roof; and the worse things come a little easier.
 
 const K = preload("res://scripts/interior_kit.gd")
 const WALK = preload("res://scripts/town/room_walk.gd")
@@ -74,6 +82,9 @@ const DAMP_H := 2.3
 const BUCKET := Vector3(0.36, 0.0, 0.62)
 ## How long a cold draught lasts.
 const DRAFT_SEC := 5.0
+## Night here as in the village (town_trip._night): seven in the evening till six.
+const NIGHT_FROM := 19.0
+const NIGHT_TO := 6.0
 ## The wicks in the rack's picture (candle_stand.png), as shares of it, top tier first.
 const RACK_CUPS := [[0.214, 0.032], [0.361, 0.032], [0.508, 0.032], [0.653, 0.032], [0.798, 0.032],
 	[0.204, 0.166], [0.355, 0.166], [0.506, 0.166], [0.653, 0.166], [0.800, 0.166],
@@ -172,6 +183,11 @@ var _organ_n := 0
 var _draft_t := -1.0
 var _draft_roll := 7.0
 var _draft_wait := 0.0
+## Night: built so; its own lights, each what flickers of it ({kind, phase, base, light,
+## halo, col, flame, mat, glow}).
+var _night := false
+var _night_lights: Array = []
+static var _halo_tex: ImageTexture
 
 
 func _init(p_room) -> void:
@@ -205,7 +221,12 @@ func _read_sanity() -> float:
 
 ## 0 calm .. 1 at the end of the tether.
 func _low() -> float:
-	return clampf((100.0 - _sanity) / 100.0, 0.0, 1.0)
+	# At night the chapel is worse for anybody.
+	return clampf((100.0 - _sanity) / 100.0 + (0.15 if _night else 0.0), 0.0, 1.0)
+
+
+static func is_night(hour: float) -> bool:
+	return hour >= NIGHT_FROM or hour < NIGHT_TO
 
 
 ## The vault's height over the nave at `x` (its walls' top to the crown, a flat arch).
@@ -219,6 +240,7 @@ static func vault_y(x: float) -> float:
 func build(hour: float, candles: int) -> void:
 	_rng.randomize()
 	_sanity = _read_sanity()
+	_night = is_night(hour)
 	var root: Node3D = room._root
 	_nave(root)
 	_presbytery(root)
@@ -235,6 +257,8 @@ func build(hour: float, candles: int) -> void:
 	_make_watcher(root)
 	_air(root, hour)
 	_light(hour, candles)
+	if _night:
+		_night_lights_build(root)
 	if hour >= 16.0 and hour < 18.0:
 		_mrs_hruba()
 	_walker = WALK.new(room, _spots(), WAYS, "door", SFX + "rooms/steps_wood.mp3", -13.0)
@@ -489,10 +513,31 @@ func _windows(root: Node3D, hour: float) -> void:
 		l.light_color = Color(0.86, 0.9, 0.88) if not late else Color(1.0, 0.78, 0.55)
 		l.light_energy = 0.3
 		l.omni_range = 5.0
+		if _night:
+			# The moon through the dirt on the glass.
+			m.emission = Color(0.36, 0.44, 0.66)
+			m.emission_energy_multiplier = 0.6
+			m.albedo_color = Color(0.3, 0.33, 0.4)
+			l.light_color = Color(0.5, 0.6, 0.86)
+			l.light_energy = 0.15
+			l.omni_range = 6.0
 		l.position = at + Vector3(-side * 1.2, -0.6, 0)
 		root.add_child(l)
-		# The shafts come in through the east side (the sun's), lower and warmer late.
-		if side > 0.0:
+		# The shafts come in through the east side (the sun's), lower and warmer late; at
+		# night the moon's through the west side, steep, thin and cold.
+		if _night:
+			if side < 0.0:
+				var from := at + Vector3(0.05, 0, 0)
+				var down := Vector3(1.0, -0.9, -0.14).normalized()
+				_shaft(root, from, down, 6.0, Color(0.11, 0.13, 0.21))
+				# Where it comes down over the pews, a patch of the moon on them.
+				var pool := OmniLight3D.new()
+				pool.light_color = Color(0.55, 0.65, 0.95)
+				pool.light_energy = 0.75
+				pool.omni_range = 3.0
+				pool.position = from + down * ((from.y - 1.2) / -down.y)
+				root.add_child(pool)
+		elif side > 0.0:
 			var dir := Vector3(-1.0, -0.72 if not late else -0.42, 0.18).normalized()
 			_shaft(root, at + Vector3(-0.05, 0, 0), dir, 6.5, Color(0.17, 0.18, 0.16) if not late else Color(0.26, 0.19, 0.12))
 	room._hot_box("window", Vector3(-W * 0.5 + 0.1, NAVE_WINDOW_Y, float(NAVE_WINDOWS_Z[1])), Vector3(0.2, 1.3, 0.9), [])
@@ -844,9 +889,13 @@ func _air(root: Node3D, hour: float) -> void:
 	env.fog_light_energy = 1.0
 	env.fog_density = 0.042
 	env.fog_sky_affect = 0.0
+	if _night:
+		# A dark haze: the far end of the nave goes into it, the candles through it.
+		env.fog_light_color = Color(0.05, 0.055, 0.08)
+		env.fog_density = 0.05
 	var p := CPUParticles3D.new()
 	p.name = "Dust"
-	p.amount = 260
+	p.amount = 260 if not _night else 150
 	p.lifetime = 16.0
 	p.preprocess = 8.0
 	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
@@ -884,9 +933,28 @@ func _light(hour: float, candles: int) -> void:
 	var env: Environment = room._env
 	env.ambient_light_color = Color(0.76, 0.8, 0.76) if hour < 16.0 else Color(0.8, 0.74, 0.66)
 	env.ambient_light_energy = 0.24 if hour < 16.0 else 0.19
+	if _night:
+		# Just enough to find the pews by.
+		env.ambient_light_color = Color(0.46, 0.52, 0.72)
+		env.ambient_light_energy = 0.16
+		# Somebody lit candles on the stand in the evening: as many on every warden's.
+		var lit := _night_lit(hour)
+		if candles < lit:
+			candles = lit
+			room._candles = lit
 	var kept: Array = room.get_meta("candle_cups", [])
 	for i in candles:
 		add_flame(int(kept[i]) if i < kept.size() else -1)
+
+
+## How many burn on the stand at night before you come: the night's own number
+## (town_trip._night_index), the same on every warden's machine.
+func _night_lit(hour: float) -> int:
+	var trip = room.get_parent()
+	var n := 1
+	if trip != null and trip.has_method("_night_index"):
+		n = int(trip._night_index(hour))
+	return 3 + posmod(n * 7 + 2, 5)
 
 
 ## The cups with no flame on them (their indexes in `cups`).
@@ -921,10 +989,12 @@ func add_flame(cup := -1) -> bool:
 	var l := OmniLight3D.new()
 	l.light_color = Color(1.0, 0.68, 0.34)
 	l.light_energy = 0.22
-	l.omni_range = 2.2
+	l.omni_range = 2.2 if not _night else 3.0
 	l.position = at + Vector3(0, 0.1, -0.15)
 	root.add_child(l)
-	flames.append({"node": f, "light": l, "phase": randf() * 4.0, "cup": i})
+	# In the dark each flame has its glow round it.
+	var halo: MeshInstance3D = _halo(root, at + Vector3(0, 0.05, -0.02), 0.24, Color(1.0, 0.6, 0.28)) if _night else null
+	flames.append({"node": f, "light": l, "phase": randf() * 4.0, "cup": i, "halo": halo})
 	_keep_cups()
 	return true
 
@@ -945,6 +1015,8 @@ func put_out(cup: int) -> void:
 			_smoke_at(cup)
 			(f["node"] as Node).queue_free()
 			(f["light"] as Node).queue_free()
+			if f.get("halo") != null and is_instance_valid(f["halo"]):
+				(f["halo"] as Node).queue_free()
 			flames.erase(f)
 	own_cups.erase(cup)
 	room._candles = flames.size()
@@ -987,6 +1059,188 @@ func _mrs_hruba() -> void:
 	room._root.add_child(mi)
 	_hruba = mi
 	room._hot_box("her", mi.position + Vector3(0, 0.55, 0), Vector3(0.5, 1.0, 0.5), [mi])
+
+
+# ── night ────────────────────────────────────────────────────────────────────
+
+## The altar's two candles lit, the eternal light on its chain in the presbytery, grave
+## lanterns on the step before the rail, under St Prokop and under a Station, two plates
+## of stubs burning down (before the rail, before the first pew).
+func _night_lights_build(root: Node3D) -> void:
+	var z0 := -D * 0.5 - ARCH_T
+	var zb := z0 - PRES_D
+	var top := PRES_Y + 0.98 + 0.03
+	var warm := Color(1.0, 0.64, 0.3)
+	if _exists("altar_candlestick"):
+		var cs := _size("altar_candlestick", 0.62)
+		var wick := _wick("altar_candlestick")
+		for sx in [-0.52, 0.52]:
+			var at := Vector3(float(sx), top, zb + 0.3)
+			K.cutout(root, "altar_candlestick", cs, at, 0.0, false, "AltarCandle")
+			var tip := at + Vector3((wick.x - 0.5) * cs.x, (1.0 - wick.y) * cs.y - 0.02, 0.012)
+			_night_flame(root, tip, Vector2(0.05, 0.11), warm, 0.5, 4.2, 0.42)
+	if _exists("sanctuary_lamp"):
+		var ls := _size("sanctuary_lamp", 0.86)
+		var x := 1.3
+		var z := z0 - 0.8
+		var y0 := PRES_Y + 2.05
+		var lamp := K.cutout(root, "sanctuary_lamp", ls, Vector3(x, y0, z), 0.0, true, "EternalLight")
+		var k := clampf(x / (PRES_W * 0.5), 0.0, 1.0)
+		var vy := PRES_Y + PRES_WALL + sqrt(maxf(0.0, 1.0 - k * k)) * (PRES_CROWN - PRES_WALL)
+		var hook := y0 + ls.y
+		K.slab(root, Vector3(0.012, maxf(0.05, vy - hook), 0.012), Vector3(x, (vy + hook) * 0.5, z), K.surface("galvanized", 0.3, Color(0.44, 0.36, 0.22)), "Chain")
+		# Its own flame in the red glass is all that lights it (the red light it throws
+		# on the walls would only blaze it).
+		var m := lamp.material_override as StandardMaterial3D
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		var tint := Color(0.74, 0.5, 0.46)
+		m.albedo_color = tint
+		var glass := Vector3(x, y0 + ls.y * 0.3, z)
+		var red := Color(0.95, 0.14, 0.08)
+		_night_lights.append({"kind": "lamp", "phase": _rng.randf() * 6.0, "base": 0.32, "col": red, "mat": m, "tint": tint,
+			"light": _night_light(root, glass + Vector3(0, -0.2, 0.5), red, 0.32, 4.0),
+			"halo": _halo(root, glass + Vector3(0, 0, 0.04), 0.36, red)})
+	if _exists("grave_lantern"):
+		var gs := _size("grave_lantern", 0.21)
+		var red := Color(1.0, 0.3, 0.14)
+		for g in [[Vector3(-1.2, STEP, -D * 0.5 + 0.36), [-0.2, 0.02, 0.22]],
+				[Vector3(-1.75, PRES_Y, zb + 0.34), [-0.13, 0.13]],
+				[Vector3(-W * 0.5 + 0.22, 0.0, -1.95), [0.0]]]:
+			var c: Vector3 = g[0]
+			for dx in g[1]:
+				var at := c + Vector3(float(dx), 0.0, absf(float(dx)) * 0.2)
+				var ln := K.cutout(root, "grave_lantern", gs, at, 0.0, true, "GraveLantern")
+				var m := ln.material_override as StandardMaterial3D
+				m.emission_enabled = true
+				m.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
+				m.emission_texture = m.albedo_texture
+				m.emission = Color(1.0, 0.55, 0.35)
+				m.emission_energy_multiplier = 1.3
+				_night_lights.append({"kind": "lantern", "phase": _rng.randf() * 6.0, "base": 1.0, "mat": m, "glow": 1.3, "col": red,
+					"halo": _halo(root, at + Vector3(0, gs.y * 0.45, 0.03), 0.24, red)})
+			_night_lights.append({"kind": "lantern", "phase": _rng.randf() * 6.0, "base": 0.3,
+				"light": _night_light(root, c + Vector3(0, 0.3, 0.3), red, 0.3, 2.4)})
+	if _exists("candle_stubs"):
+		var ss := _size("candle_stubs", 0.17)
+		var wick := _wick("candle_stubs")
+		for at in [Vector3(0.95, STEP, -D * 0.5 + 0.34), Vector3(-0.38, 0.0, float(ROWS[0]) - 0.5)]:
+			K.cutout(root, "candle_stubs", ss, at, 0.0, true, "Stubs")
+			var tip: Vector3 = at + Vector3((wick.x - 0.5) * ss.x, (1.0 - wick.y) * ss.y - 0.008, 0.01)
+			_night_flame(root, tip, Vector2(0.03, 0.065), warm, 0.28, 2.6, 0.3)
+
+
+## A candle's flame at `tip` (the pictures of the stand's, in their steps), its light and
+## its glow.
+func _night_flame(root: Node3D, tip: Vector3, size: Vector2, col: Color, energy: float, reach: float, halo: float) -> void:
+	var tex := "candle_flame_2" if _exists("candle_flame_2") else "votive_flame_0"
+	var f := K.cutout(root, tex, size, tip, 0.0, true, "NightFlame")
+	(f.material_override as StandardMaterial3D).shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	f.set_meta("retro_skip", true)
+	_night_lights.append({"kind": "candle", "phase": _rng.randf() * 4.0, "base": energy, "flame": f, "col": col,
+		"light": _night_light(root, tip + Vector3(0, size.y * 0.7, 0.4), col, energy, reach),
+		"halo": _halo(root, tip + Vector3(0, size.y * 0.45, 0.02), halo, col)})
+
+
+func _night_light(root: Node3D, at: Vector3, col: Color, energy: float, reach: float) -> OmniLight3D:
+	var l := OmniLight3D.new()
+	l.light_color = col
+	l.light_energy = energy
+	l.omni_range = reach
+	l.position = at
+	root.add_child(l)
+	return l
+
+
+## A glow round a light in the dark: a flat disc turned to you, in a few hard rings (the
+## Build way, no soft bloom), added on.
+func _halo(root: Node3D, at: Vector3, size: float, col: Color) -> MeshInstance3D:
+	if _halo_tex == null:
+		var img := Image.create(32, 32, false, Image.FORMAT_RGBA8)
+		for yy in 32:
+			for xx in 32:
+				var d := clampf(1.0 - Vector2(float(xx) - 15.5, float(yy) - 15.5).length() / 16.0, 0.0, 1.0)
+				img.set_pixel(xx, yy, Color(1, 1, 1, floorf(d * d * 4.0) / 4.0))
+		_halo_tex = ImageTexture.create_from_image(img)
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.disable_fog = true
+	m.albedo_texture = _halo_tex
+	m.albedo_color = Color(col.r, col.g, col.b, 0.55)
+	m.set_meta("retro_skip", true)
+	var mi := MeshInstance3D.new()
+	mi.name = "Halo"
+	var q := QuadMesh.new()
+	q.size = Vector2(size, size)
+	mi.mesh = q
+	mi.material_override = m
+	mi.position = at
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.set_meta("retro_skip", true)
+	root.add_child(mi)
+	return mi
+
+
+## The top of a picture's opaque part (a wick), as shares of its width and height.
+func _wick(tex: String) -> Vector2:
+	var t: Texture2D = load(CAMP + tex + ".png")
+	var img: Image = t.get_image() if t != null else null
+	if img == null:
+		return Vector2(0.5, 0.0)
+	img = img.duplicate()
+	if img.is_compressed():
+		img.decompress()
+	for y in img.get_height():
+		var x0 := -1
+		var x1 := -1
+		for x in img.get_width():
+			if img.get_pixel(x, y).a > 0.5:
+				if x0 < 0:
+					x0 = x
+				x1 = x
+		if x0 >= 0:
+			return Vector2((float(x0 + x1) * 0.5 + 0.5) / float(img.get_width()), float(y) / float(img.get_height()))
+	return Vector2(0.5, 0.0)
+
+
+## The night's lights: the candles' flames in their steps (with the draught bent and low
+## like those on the stand), the eternal light slow and red, the lanterns breathing.
+func _tick_night(step: float, gust: float) -> void:
+	for nl in _night_lights:
+		var ph := float(nl["phase"])
+		var k := 1.0
+		match str(nl["kind"]):
+			"candle":
+				var fi := int(step + ph * 3.0) % 4 if gust <= 0.0 else int(step) % 4
+				var f = nl.get("flame")
+				if f != null and is_instance_valid(f):
+					var tex: Texture2D = _flame_pic(fi, gust)
+					if tex != null:
+						((f as MeshInstance3D).material_override as StandardMaterial3D).albedo_texture = tex
+				k = (0.85 + 0.15 * float(fi % 2)) * (1.0 - 0.6 * gust)
+			"lamp":
+				var s1 := floorf(_t * 5.0)
+				k = 0.84 + 0.1 * sin(s1 * 0.7 + ph) + 0.06 * sin(s1 * 2.9)
+			_:
+				var s2 := floorf(_t * 7.0)
+				k = (0.82 + 0.18 * absf(sin(s2 * 1.3 + ph))) * (1.0 - 0.4 * gust)
+		var l = nl.get("light")
+		if l != null and is_instance_valid(l):
+			(l as OmniLight3D).light_energy = float(nl["base"]) * k
+		var h = nl.get("halo")
+		if h != null and is_instance_valid(h):
+			var c: Color = nl["col"]
+			((h as MeshInstance3D).material_override as StandardMaterial3D).albedo_color = Color(c.r, c.g, c.b, 0.55 * k)
+		var m = nl.get("mat")
+		if m != null:
+			if nl.has("tint"):
+				var t: Color = nl["tint"]
+				(m as StandardMaterial3D).albedo_color = Color(t.r * (0.8 + 0.2 * k), t.g * (0.8 + 0.2 * k), t.b * (0.8 + 0.2 * k))
+			else:
+				(m as StandardMaterial3D).emission_energy_multiplier = float(nl.get("glow", 1.0)) * k
 
 
 # ── sound ────────────────────────────────────────────────────────────────────
@@ -1052,7 +1306,13 @@ func tick(delta: float) -> void:
 		var tex: Texture2D = _flame_pic(k, gust)
 		if tex != null:
 			(node.material_override as StandardMaterial3D).albedo_texture = tex
-		(f["light"] as OmniLight3D).light_energy = (0.18 + 0.06 * float(k % 2)) * (1.0 - 0.75 * gust)
+		var e := (0.18 + 0.06 * float(k % 2)) * (1.0 - 0.75 * gust)
+		(f["light"] as OmniLight3D).light_energy = e * (1.3 if _night else 1.0)
+		var h = f.get("halo")
+		if h != null and is_instance_valid(h):
+			((h as MeshInstance3D).material_override as StandardMaterial3D).albedo_color = Color(1.0, 0.6, 0.28, e * 2.0)
+	if _night:
+		_tick_night(step, gust)
 	if _rope != null and _rope_t > 0.0:
 		_rope_t -= delta
 		# The rope jerks up and down with the strokes, in steps.
@@ -1074,7 +1334,12 @@ func tick(delta: float) -> void:
 	_pigeons_t -= delta
 	if _pigeons_t <= 0.0:
 		_pigeons_t = _rng.randf_range(28.0, 75.0)
-		_fx_play("chapel/pigeons.mp3", -15.0)
+		if _night:
+			# The pigeons asleep; an owl up in the roof.
+			_pigeons_t += 30.0
+			_fx_play("life/owl_hoot.mp3", -21.0)
+		else:
+			_fx_play("chapel/pigeons.mp3", -15.0)
 	if _breath_t > 0.0:
 		_breath_t -= delta
 		if _breath_t <= 0.0 and _looking == "confess":

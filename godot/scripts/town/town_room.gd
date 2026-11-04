@@ -12,7 +12,7 @@ extends CanvasLayer
 ##   - the pub U Jezera: the tap ($1, the mug lands on the bar, three pulls and it is
 ##     yours: `drank`), the fruit machine in the corner (pub_closeup.gd's reels), Mr Kubat,
 ##     two regulars; lamps over the tables, smoke in the air, the room's murmur.
-##   - the chapel (open by day): chapel_view.gd, built to its baroque front;
+##   - the chapel (open day and night): chapel_view.gd, built to its baroque front;
 ##   - the kiosk at the Benzina: the same counter, Mrs Lojzova, a petrol station's prices;
 ##   - the motel: motel_view.gd (its reception, Mr Simek and the key board; number four),
 ##     built from motel_plan.gd with the block in the village.

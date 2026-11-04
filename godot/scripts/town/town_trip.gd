@@ -313,7 +313,7 @@ func hint_for(structure: Node3D) -> String:
 				"wc":
 					return "Go to the toilet"
 				"chapel":
-					return "Try the chapel door"
+					return "Go into the chapel"
 	return ""
 
 
@@ -469,12 +469,9 @@ func _door(which: String) -> void:
 				return
 			_open_room("kiosk")
 		"chapel":
-			# Open by day; locked in the evening and the night (the handle goes down, the
-			# door does not give).
-			if hour() >= 8.0 and hour() < 18.0:
-				_open_room("chapel")
-			else:
-				_one_shot("res://assets/sfx/director/knock_wrong.mp3", -10.0)
+			# Never locked, day or night (the user, 4. 11.): at night the candles burn
+			# inside (chapel_view.gd).
+			_open_room("chapel")
 		"wc":
 			# Round the side of the kiosk, never locked.
 			_open_room("wc")

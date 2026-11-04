@@ -130,6 +130,8 @@ ROWS = [
     # The Benzina (polish, 4. 11. evening).
     ("tex_pump_side", "texture", 64, "town/pump_side.png"),
     ("sheet_benzina", "sheet", [("town/oil_rack.png", 48), ("town/air_post.png", 64), ("town/bin_towels.png", 48), ("town/tyres.png", 32)], None),
+    # The chapel at night: the altar's candlesticks, the eternal light, the grave lanterns, the stubs.
+    ("sheet_chapel_night", "sheet", [("camp/altar_candlestick.png", 64), ("camp/sanctuary_lamp.png", 64), ("camp/grave_lantern.png", 24), ("camp/candle_stubs.png", 20)], None),
     # The corridor, the car park.
     ("sheet_rm_corridor", "sheet", [("camp/fire_extinguisher.png", 44), ("camp/wall_lamp.png", 24), ("camp/cleaning_cart.png", 76)], None),
     ("sheet_rm_hall", "sheet", [("camp/hall_tray.png", 24), ("camp/hall_plant.png", 64), ("camp/hall_shoes.png", 18), ("camp/hall_phone.png", 48), ("camp/hall_rubbish.png", 34)], None),
@@ -203,7 +205,26 @@ def do_sheet(art_id, parts, gap=14):
         boxes = sorted(boxes, key=lambda b: -(b[2] - b[0]) * (b[3] - b[1]))[:len(parts)]
         boxes.sort(key=lambda b: b[0])
     for (dest, h), box in zip(parts, boxes):
-        save(keyed_item(split_sheet.own(img, box, labels[box], sw), h), dest)
+        item = keyed_item(split_sheet.own(img, box, labels[box], sw), h)
+        if dest in DESPILL:
+            item = despill(item)
+        save(item, dest)
+
+
+# Drawn on a darker pink than the key: what is left of it on their edges taken out (blue
+# no higher than green where both red and blue stand over green).
+DESPILL = {"camp/altar_candlestick.png", "camp/sanctuary_lamp.png", "camp/grave_lantern.png", "camp/candle_stubs.png"}
+
+
+def despill(img):
+    img = img.convert("RGBA")
+    px = img.load()
+    for y in range(img.height):
+        for x in range(img.width):
+            r, g, b, a = px[x, y]
+            if a > 0 and b > g and r > g:
+                px[x, y] = (r, g, g, a)
+    return img
 
 
 def panel_img(img, width):

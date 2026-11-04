@@ -30803,3 +30803,6 @@ msgstr "%s: %s uklizeny."
 
 msgid "Reception (%s): %s -> %s."
 msgstr "Recepce (%s): %s -> %s."
+
+msgid "Go into the chapel"
+msgstr "Jít do kaple"

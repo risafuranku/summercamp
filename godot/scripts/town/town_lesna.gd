@@ -608,6 +608,13 @@ func _chapel(at: Vector3) -> void:
 		oval.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 		oval.alpha_scissor_threshold = 0.5
 		oval.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+		# At night the candles inside show through the dirty glass (chapel_view.gd).
+		oval.emission_enabled = true
+		oval.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
+		oval.emission_texture = oval.albedo_texture
+		oval.emission = Color(1.0, 0.6, 0.3)
+		oval.emission_energy_multiplier = 0.0
+		_chapel_oval = oval
 		var t: Texture2D = oval.albedo_texture
 		var size := Vector2(1.1 * float(t.get_width()) / float(t.get_height()), 1.1)
 		var half: float = (house["size"] as Vector3).x * 0.5
@@ -994,6 +1001,7 @@ func _lamps() -> void:
 
 
 var _chapel_bulb: Array = []
+var _chapel_oval: StandardMaterial3D
 var _bulb_t := 12.0
 
 
@@ -1929,6 +1937,10 @@ func _process(delta: float) -> void:
 	if _station_night:
 		_tick_tubes(delta)
 		_tick_bulb(delta)
+		if _chapel_oval != null:
+			# The candles inside the chapel: slow, uneven.
+			var cs := floorf(_smoke_t * 6.0)
+			_chapel_oval.emission_energy_multiplier = 0.5 + 0.08 * sin(cs * 0.9) + 0.05 * sin(cs * 2.3)
 	var step := floorf(_smoke_t * 12.0) / 12.0
 	for p in _smoke:
 		var age := fmod(step * 0.22 + float(p["phase"]), 1.0)
@@ -1996,6 +2008,8 @@ func set_night(night: bool) -> void:
 		if gm.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA:
 			gm.albedo_color = Color(1, 1, 1, 1.0 if night else 0.0)
 	_station_night = night
+	if _chapel_oval != null:
+		_chapel_oval.emission_energy_multiplier = 0.5 if night else 0.0
 	for t in spots.get("station_tubes", []):
 		(t["light"] as OmniLight3D).visible = night
 		(t["mat"] as StandardMaterial3D).emission_energy_multiplier = 2.2 if night else 0.0
