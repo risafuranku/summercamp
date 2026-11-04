@@ -161,6 +161,18 @@ var _bob_offset: Vector3 = Vector3.ZERO
 ## the spring's stiffness and damping (soft, a little under critical: it settles, it does
 ## not ring), the roll over the bearing foot (radians).
 const RUN_NOD_KICK := 0.075
+## Every foot that comes down, at a walk too (the user 4. 11.: "the walk is floaty, I want to
+## feel the steps; GREED's are good": GREED's PlayerHeadBob): the head dips and nods, nose
+## down, on a quick spring kicked by the step, and rolls over the foot that bears it. Its
+## numbers: a dip of 0.26 m/s and a nod of 0.13 rad/s per footfall at full strength (a walk's
+## is 0.7 of it), the nod's spring at 15 rad/s, a little under-damped; the roll 0.6 deg.
+const STEP_DIP := 0.26
+const STEP_NOD := 0.13
+const STEP_NOD_W := 15.0
+const STEP_NOD_ZETA := 0.55
+const WALK_ROLL := 0.0105
+var _step_nod := 0.0
+var _step_nod_v := 0.0
 const RUN_NOD_K := 70.0
 const RUN_NOD_DAMP := 13.0
 const RUN_ROLL := 0.009
@@ -538,8 +550,12 @@ func _after_physics(delta: float) -> void:
 
 ## A foot comes down: its sound (by what is under it) and the head's dip with it.
 func _foot_down(motion: float) -> void:
-	_spring_v -= step_kick_strength * (0.6 + motion) * 4.0 * float(view.get("bob", 1.0))
-	# Running, the head dips with the landing foot (the nod spring, _update_head).
+	# The step lands: the head drops and nods on its springs (a walk 0.7 of a run's), and a
+	# run's heavier nod on its own spring on top (_update_head).
+	var strength := clampf(0.5 + 0.5 * motion / 0.5, 0.5, 1.2) * (0.6 if stance != 0 else 1.0)
+	var bob := float(view.get("bob", 1.0))
+	_spring_v -= (step_kick_strength * (0.6 + motion) * 4.0 + STEP_DIP * strength * 0.6) * bob
+	_step_nod_v -= STEP_NOD * strength * bob
 	_run_nod_v -= RUN_NOD_KICK * _run_k
 	_play_step(motion)
 	match last_step_surface:
@@ -845,6 +861,8 @@ func reset_damage_feedback_state(clear_overlay: bool = false) -> void:
 
 	_shift = 0.0
 	_spring_y = 0.0
+	_step_nod = 0.0
+	_step_nod_v = 0.0
 	_spring_v = 0.0
 	if _head != null:
 		_head.position = _base_head_pos
@@ -999,10 +1017,18 @@ func _update_head_motion(delta: float) -> void:
 	# once every two steps. (Not a fast wobble on top: "like being shaken, up and down,
 	# linear and mad fast" was the first try of it.) All of it under Options' bob.
 	_run_k = run * walk
-	_run_roll = sin(PI * phase) * RUN_ROLL * _run_k
+	# The roll over the bearing foot at a walk too (GREED's), a run's on top.
+	_run_roll = sin(PI * phase) * (RUN_ROLL * _run_k + WALK_ROLL * walk)
 	var nod_acc := -RUN_NOD_K * _run_nod - RUN_NOD_DAMP * _run_nod_v
 	_run_nod_v += nod_acc * delta
 	_run_nod = clampf(_run_nod + _run_nod_v * delta, -0.06, 0.03)
+	# The step's nod: a quick spring, in small steps so a long frame does not throw it.
+	var ns := clampi(ceili(delta / 0.01), 1, 10)
+	var nh := delta / float(ns)
+	for _i in ns:
+		_step_nod_v += (-STEP_NOD_W * STEP_NOD_W * _step_nod - 2.0 * STEP_NOD_ZETA * STEP_NOD_W * _step_nod_v) * nh
+		_step_nod += _step_nod_v * nh
+	_step_nod = clampf(_step_nod, -0.05, 0.02)
 
 	# Stopping dead from a walk: the body settles (a small dip on the spring).
 	if _was_moving > 1.5 and speed < 0.3 and grounded:
@@ -1046,7 +1072,7 @@ func _update_head_motion(delta: float) -> void:
 	var visual_pitch := _pitch - _shift
 	var jitter_roll = sin(_idle_noise_time * 2.4) * handheld_idle_strength * 0.4
 	var jitter_pitch = cos(_idle_noise_time * 2.1) * handheld_idle_strength * 0.4
-	_head.rotation.x = visual_pitch + _mouse_impact.x + idle_pitch + jitter_pitch + damage_rot_jitter.x + _run_nod
+	_head.rotation.x = visual_pitch + _mouse_impact.x + idle_pitch + jitter_pitch + damage_rot_jitter.x + _run_nod + _step_nod
 
 	# The lean (Options "Lean"): into a sidestep, and a little into a quick turn.
 	var yaw := rotation.y
