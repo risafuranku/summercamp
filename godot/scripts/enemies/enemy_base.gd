@@ -381,13 +381,19 @@ func _in_flashlight(point: Vector3) -> bool:
 
 # ── space ─────────────────────────────────────────────────────────────────────
 
-func _ray_blocked(from: Vector3, to: Vector3) -> bool:
+## `also`: bodies the ray goes through as well (another warden's own, when it starts at
+## their torch: from inside their body it stopped on them, and their light never counted).
+func _ray_blocked(from: Vector3, to: Vector3, also: Array = []) -> bool:
 	var space := _world_root.get_world_3d().direct_space_state if _world_root.get_world_3d() != null else null
 	if space == null:
 		return false
 	var q := PhysicsRayQueryParameters3D.create(from, to)
 	q.collide_with_areas = false
-	q.exclude = [_player.get_rid()]
+	var ex: Array[RID] = [_player.get_rid()]
+	for o in also:
+		if o is CollisionObject3D and is_instance_valid(o):
+			ex.append((o as CollisionObject3D).get_rid())
+	q.exclude = ex
 	return not space.intersect_ray(q).is_empty()
 
 
@@ -474,7 +480,7 @@ func _lit_by_others(point: Vector3) -> bool:
 		var d := to.length()
 		var in_cone := d <= float(aim["range"]) and (aim["dir"] as Vector3).normalized().dot(to / maxf(d, 0.01)) > cos(deg_to_rad(float(aim["half_angle"])))
 		# (A wall between their torch and him: their light never reached him.)
-		if in_cone and not _ray_blocked(aim["origin"] as Vector3, point):
+		if in_cone and not _ray_blocked(aim["origin"] as Vector3, point, [o]):
 			return true
 	return false
 

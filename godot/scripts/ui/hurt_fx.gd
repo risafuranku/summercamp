@@ -203,7 +203,35 @@ func _add_splat(tier: int) -> void:
 	_splats.append({"node": t, "life": float(SPLAT_LIFE[tier]) * _rng.randf_range(0.8, 1.2), "age": 0.0, "drip": _rng.randf_range(4.0, 12.0)})
 
 
+## Made at the night's first enemy (main._prewarm_hurt), not at the first hit: its sounds
+## read and its screen's shader compiled now (cold, the first bite cost a 76 ms frame and
+## the frames after it more; holka_shots --part=hitch, 4. 11.).
+var _warm: Array = []
+var _warm_frames := 0
+var _sfx_keep: Array = []
+
+
+func prewarm() -> void:
+	for f in ["hit_1", "hit_2", "hit_3", "rip_1", "rip_2", "bone", "splat", "drip"]:
+		if ResourceLoader.exists(D + f + ".mp3"):
+			_sfx_keep.append(load(D + f + ".mp3"))
+	NIGHTMARE_FX.get_for(self)
+	var scr := ColorRect.new()
+	scr.material = _mat
+	scr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	scr.size = Vector2(1.0, 1.0)
+	add_child(scr)
+	_warm = [scr]
+	_warm_frames = 3
+
+
 func _process(delta: float) -> void:
+	if _warm_frames > 0:
+		_warm_frames -= 1
+		if _warm_frames == 0:
+			for n in _warm:
+				(n as Node).queue_free()
+			_warm.clear()
 	if main == null or not is_instance_valid(main):
 		return
 	var playing: bool = bool(main.get("_gameplay_started")) and not bool(main.get("_menu_mode"))

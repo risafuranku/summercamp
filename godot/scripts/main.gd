@@ -1411,6 +1411,9 @@ func _sync_runtime_state_from_systems(force: bool = false) -> void:
 			_on_day_phase_started()
 		if previous_time_state != TIME_NIGHT and _time_state == TIME_NIGHT and _day_events != null and Coop.sim_here() and camp_rule("events"):
 			_day_events.on_night()
+		# On every warden's machine (the joining one has no enemy of its own to start it).
+		if previous_time_state != TIME_NIGHT and _time_state == TIME_NIGHT and _gameplay_started:
+			_prewarm_hurt()
 
 	if weather_changed:
 		_set_weather_state(_weather_state)
@@ -2034,6 +2037,7 @@ func _start_enemy_brain(script: Script, night_index: int, difficulty: int, night
 	if brain.has_method("start_night"):
 		brain.start_night(seed, difficulty, refs)
 	_enemy_brains.append(brain)
+	_prewarm_hurt()
 	if _week_ledger != null and brain.has_method("get_enemy_id"):
 		_week_ledger.note_enemy(str(brain.get_enemy_id()), night_index)
 	if _active_enemy_brain == null:
@@ -3135,12 +3139,36 @@ func _finalize_game_over_sequence(delay_sec: float) -> void:
 func _spawn_blood_damage_fx(tier: int, fatal_hit: bool) -> void:
 	if _world_3d == null or not _gameplay_started or _menu_mode:
 		return
+	_ensure_blood_fx()
+	_blood_fx.spawn(tier, fatal_hit)
+
+
+func _ensure_blood_fx() -> void:
 	if _blood_fx == null:
 		_blood_fx = BLOOD_FX_SCRIPT.new()
 		_blood_fx.name = "BloodFx"
 		add_child(_blood_fx)
 		_blood_fx.setup(_world_3d, Callable(self, "_get_player_camera"), Callable(self, "_get_player_ref"))
-	_blood_fx.spawn(tier, fatal_hit)
+
+
+## The night's first enemy: the hurt on the screen, its sounds, the blood and the night's
+## own layer made now and their shaders compiled, not at the first scare or hit (cold, the
+## girl's strike, bite and the blood landing each cost a 76-132 ms frame; measured 4. 11.
+## with tools/holka_shots.tscn --part=hitch). Once a session.
+var _hurt_warmed := false
+
+
+func _prewarm_hurt() -> void:
+	if _hurt_warmed or _world_3d == null:
+		return
+	_hurt_warmed = true
+	if _hurt_fx == null or not is_instance_valid(_hurt_fx):
+		_hurt_fx = HURT_FX_SCRIPT.new()
+		_hurt_fx.set("main", self)
+		add_child(_hurt_fx)
+	_hurt_fx.prewarm()
+	_ensure_blood_fx()
+	_blood_fx.prewarm()
 
 
 func _clear_blood_fx() -> void:

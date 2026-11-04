@@ -65,13 +65,21 @@ func _run_step(step: Array) -> void:
 	var fx: Node = _main.get_tree().root.get_node_or_null("NightmareFX")
 	var close := false
 	var over := false
+	# Her face on the screen: the close-up, or (from 1.12 s, while girl5_split.png is not
+	# drawn) the same face split down the middle in two halves.
+	var face := false
 	if fx != null:
 		close = bool(fx.get("_close").visible)
 		over = bool(fx.get("_over").visible)
+		var halves: Array = fx.get("_halves")
+		face = close or (not halves.is_empty() and (halves[0] as CanvasItem).visible)
 	var night = _main.get("_coop_night")
 	var shown := 0
 	var what: Array = []
 	if night != null:
+		var held: Dictionary = night.get("_rfx_held")
+		var ct = fx.get("_close").texture if fx != null else null
+		print("COOP SCARE %s held: %s close_tex=%s" % [_role, held.keys(), ct.resource_path if ct != null else "null"])
 		var m: Dictionary = night.get("_mirror")
 		for k in m:
 			var v = m[k]
@@ -92,4 +100,4 @@ func _run_step(step: Array) -> void:
 		root_seen = r != null and is_instance_valid(r) and r.visible
 		private_now = bool(brains.back().call("is_private_now"))
 	var cam: Camera3D = (_main.get("_player") as Node).get_node_or_null("Head/Camera3D")
-	print("COOP SCARE %s: %s close=%s over=%s mirror_shown=%d enemy_root_seen=%s private=%s roll=%.2f strike_t=%.2f elapsed=%.1f night=%s" % [_role, str(step[1]), close, over, shown, root_seen, private_now, cam.rotation.z if cam != null else 0.0, st, el, _main.call("_is_enemy_night_active")])
+	print("COOP SCARE %s: %s face=%s close=%s over=%s mirror_shown=%d enemy_root_seen=%s private=%s roll=%.2f strike_t=%.2f elapsed=%.1f night=%s" % [_role, str(step[1]), face, close, over, shown, root_seen, private_now, cam.rotation.z if cam != null else 0.0, st, el, _main.call("_is_enemy_night_active")])

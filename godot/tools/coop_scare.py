@@ -2,7 +2,9 @@
 """Co-op scare check: a host and a client of the game on this machine
 (tools/coop_scare.tscn). PASS when a scare is one warden's alone: the Girl's strike on the
 joining warden is on their screen and nowhere on the host's; on the host, it is the
-host's and the joining machine shows nothing of her.
+host's and the joining machine shows nothing of her. "face": her face on the screen, as
+the close-up or split down the middle (her strike from 1.12 s, while there is no
+girl5_split.png).
 
     python godot/tools/coop_scare.py [OUT_DIR]
 """
@@ -56,19 +58,19 @@ def main():
                 failures.append("%s: %s" % (role, line.strip()))
                 break
     r = report(h, "host", "strike_on_other")
-    if r is None or r["enemy_root_seen"] != "false" or r["close"] != "false":
+    if r is None or r["enemy_root_seen"] != "false" or r["face"] != "false":
         failures.append("host sees the strike on the other warden: %s" % r)
     r = report(c, "client", "struck_here")
-    if r is None or r["close"] != "true":
+    if r is None or r["face"] != "true":
         failures.append("the joining warden has no strike on their screen: %s" % r)
     r = report(c, "client", "struck_after")
     if r is None or abs(float(r["roll"])) < 0.3:
         failures.append("the joining warden's view is not turned by the strike: %s" % r)
     r = report(h, "host", "strike_on_host")
-    if r is None or r["close"] != "true":
+    if r is None or r["face"] != "true":
         failures.append("the host has no strike on their screen: %s" % r)
     r = report(c, "client", "host_struck_seen_from_here")
-    if r is None or r["mirror_shown"] != "0" or r["close"] != "false":
+    if r is None or r["mirror_shown"] != "0" or r["face"] != "false":
         failures.append("the joining machine sees the host's strike: %s" % r)
     print("\n".join(l for l in (h + c).splitlines() if "COOP SCARE" in l))
     if failures:

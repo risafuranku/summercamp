@@ -484,15 +484,30 @@ is the price, and she never steps into a lamp's light. The table row above has h
 - **Inside**: lures every 14-24 s, counted over the whole night; at the window you look
   at (any room with windows, yours or the other warden's), its curtain open, she is
   pressed to the glass, and she goes only when you look away.
-- **Co-op**: the other warden's torch on her holds her too (she does not step while it is
-  on her); what is the hunted warden's (the stings, the ring's end, the shriek) is theirs
-  alone; her cold on their torch lasts while she holds it, on their machine too.
+- **Co-op**: the other warden's torch on her holds her as the hunted warden's does: no
+  step, no step in their dead torch, not suddenly behind them (4. 11.: the check's ray
+  started inside the other warden's body and stopped on it, so it never counted; the ray
+  now goes through them, `enemy_base._ray_blocked(..., also)`); what is the hunted
+  warden's (the stings, the ring's end, the shriek) is theirs alone; her cold on their
+  torch lasts while she holds it, on their machine too.
 - She stands where one can stand (never on a roof or up a tree: `enemy_base._stand`); a
   red heel is left where she went, the last three of them stay.
 - Art `npc/girl*` (`tools/artgen/prompts.tsv` rows `girl*`; decision samples in
-  `prompts_holka.tsv`); sounds `sfx/npc/girl_*` at -23 LUFS (loops `girl_hum.ogg`,
-  `girl_static.ogg`), and the Silent Man's tear, bite, snap and rustle. Tests:
-  `tools/enemy_check.tscn`, the shot driver's `testgirl`, `tools/coop_scare.py`.
+  `prompts_holka.tsv`). Her back and her reach (`girl4_back`, `girl4_reach`, 4. 11.)
+  are drawn after the guest herself (`host3`), as the first stages were: drawn after a
+  drawing of her they came out smooth (the user: "moc dokonalý ai slop"), after her the
+  face keeps the first stages' grit. No red cheeks. Sounds `sfx/npc/girl_*` at -23 LUFS
+  (loops `girl_hum.ogg`, `girl_static.ogg`), and the Silent Man's tear, bite, snap and
+  rustle. Tests: `tools/enemy_check.tscn`, `tools/holka_shots.tscn` (`--part=stages`
+  every stage on pictures, the reach, her eyes far off, the strike in steps;
+  `--part=hitch` her firsts timed, with the pipelines compiled in a long frame),
+  the shot driver's `testgirl`, co-op `tools/coop_scare.py` and `tools/coop_girl.py`.
+- **No hitch at her firsts**: the night's layer (`nightmare_fx`: the close-ups, the split
+  face, the blood, the flashes, the eyes, the screen's own effect), the hurt on the screen
+  (`hurt_fx`, its sounds) and the blood (`blood_fx`) are made and drawn once, unseen,
+  when the night begins (`main._prewarm_hurt`), not at the first scare or hit. Cold
+  (the first play on a machine), her strike, bite and the blood landing each cost a
+  76-132 ms frame compiling them; now none.
 
 ### 5a.2 The Boy (Family; `scripts/enemies/boy_brain.gd`)
 

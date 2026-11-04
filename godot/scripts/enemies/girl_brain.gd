@@ -50,8 +50,10 @@ const GUEST := "res://assets/textury/npc/host3.png"
 const N := "res://assets/textury/npc/"
 ## No crawling (playtest 18. 10.: "weird, not scary"): long arms, wrong proportions; no
 ## red cheeks, the brows furious over the drooling grin. Each stage the newest art first.
+## (4. 11.: girl4_back and girl4_reach drawn after the guest herself, host3, for the grit of
+## the first phases; the ones drawn after a drawing of her came out too clean.)
 const M := [[N + "girl_m1.png"], [N + "girl4_m2.png", N + "girl_m2.png"], [N + "girl4_tall.png", N + "girl2_tall.png"], [N + "girl4_back.png", N + "girl_m3.png"], [N + "girl4_arms.png"]]
-const REACH_TEX := N + "girl_reach.png"
+const REACH_TEX := N + "girl4_reach.png"
 ## The strike, in order (playtest 18. 10.: girl_face_b is the one): drooling, then the
 ## face stretched long, then the jaw dropped further than it can.
 const FACES := [[N + "girl4_face.png", N + "girl_face_b.png"], [N + "girl4_face_long.png"], [N + "girl4_face_jaw.png", N + "girl3_face_b.png"]]
@@ -107,6 +109,9 @@ var _strike_t := -1.0
 var _wet_next := 3.0
 ## Not looking her way at all (the turn-round scare waits for this).
 var _away_for := 0.0
+## Co-op: another warden's torch on her this tick. It holds her as yours does: no step,
+## no step in your dead torch, not suddenly behind you.
+var _held := false
 var _behind_done := false
 var _jump_ready := false
 var _fake_done := false
@@ -306,7 +311,8 @@ func _on_tick(dt: float) -> void:
 	var looking := _is_seen(head, -4.0)
 	var stuttering := _stutter_t > 0.0
 	var sees := looking and lit and not stuttering
-	_away_for = 0.0 if looking else _away_for + dt
+	_held = _lit_by_others(head)
+	_away_for = 0.0 if looking or _held else _away_for + dt
 	if not _behind_done and _away_for >= BEHIND_AFTER and d < 22.0 and _rng.randf() < dt * 1.5:
 		_go_behind()
 		return
@@ -332,7 +338,7 @@ func _on_tick(dt: float) -> void:
 				# And for two frames, the face she pretends with.
 				if d < 11.0 and _tex.has(T_SMILE) and _fx() != null and _rng.randf() < 0.5:
 					_fx().subliminal(_tex[T_SMILE], 2, 0.95, Color(1, 1, 1, 0.85))
-	elif not _lit_by_others(head):
+	elif not _held:
 		_unseen_for += dt * (2.5 if stuttering else 1.0)
 		_tick_chatter(dt, d)
 	# Another warden's machine holds the cold till told: off the moment your torch is off her.
@@ -1046,7 +1052,8 @@ func _update_stutter(dt: float, d: float, coming: bool) -> void:
 			_player.set("flashlight_stutter", 0.0)
 			if _step_in_dark:
 				_step_in_dark = false
-				_advance(true)
+				if not _held:
+					_advance(true)
 		return
 	if d > 12.0 or not _flashlight_on():
 		return
@@ -1058,7 +1065,7 @@ func _update_stutter(dt: float, d: float, coming: bool) -> void:
 	_player.set("flashlight_stutter", 1.0)
 	_step_in_dark = false
 	# Her step, in this dark: you see her eyes there, nearer, before the light is back.
-	if d < TOO_CLOSE:
+	if d < TOO_CLOSE and not _held:
 		_advance(true)
 	var fx := _fx()
 	if fx != null:

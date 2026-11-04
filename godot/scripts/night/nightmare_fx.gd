@@ -585,6 +585,63 @@ func tinnitus(seconds: float) -> void:
 	_lowpass.cutoff_hz = 500.0
 
 
+## Its shaders compiled before the first scare: for its first frames in the tree all of it
+## is drawn once, see-through (a face, the hands, the split face, blood, the flashes, eyes,
+## the screen's own effect a pixel big in the corner), then put away. Cold, the girl's
+## strike cost 76-132 ms frames compiling them (holka_shots --part=hitch, 4. 11.). Main
+## makes the layer when the night begins (main._prewarm_hurt), before any scare.
+const WARM_FRAMES := 3
+var _warm: Array = []
+var _warm_frames := 0
+var _warm_tex: Texture2D
+
+
+func _ready() -> void:
+	var img := Image.create(2, 2, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0.0, 0.0, 0.0, 0.0))
+	_warm_tex = ImageTexture.create_from_image(img)
+	var scr := ColorRect.new()
+	scr.material = _mat
+	scr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	scr.size = Vector2(1.0, 1.0)
+	add_child(scr)
+	_warm = [scr]
+	_warm_frames = WARM_FRAMES
+
+
+## A frame of the rehearsal (after the frame's own updates, so it is what gets drawn).
+func _warm_step() -> void:
+	_warm_frames -= 1
+	if _warm_frames <= 0:
+		for n in _warm:
+			(n as Node).queue_free()
+		_warm.clear()
+		close_up_off()
+		_sub.visible = false
+		blood_off()
+		for r in [_flash, _white, _black]:
+			(r as ColorRect).color.a = 0.0
+			(r as ColorRect).visible = false
+		for n in get_children():
+			if n is CanvasItem:
+				(n as CanvasItem).modulate.a = 1.0
+		return
+	for n in get_children():
+		if n is CanvasItem:
+			(n as CanvasItem).modulate.a = 0.004
+	for t in [_sub, _close, _over]:
+		(t as TextureRect).texture = _warm_tex
+		(t as TextureRect).scale = Vector2(0.002, 0.002)
+		(t as TextureRect).visible = true
+	split(_warm_tex, 0.002, 0.05)
+	if _splats.is_empty():
+		blood(0.0)
+	for r in [_flash, _white, _black]:
+		(r as ColorRect).color.a = 0.004
+		(r as ColorRect).visible = true
+	_eyes["_warm"] = {"pos": Vector2(2, 2), "spread": 1.0, "open": 1.0, "open2": 1.0, "tilt": 0.0, "near": 0.0}
+
+
 func _process(delta: float) -> void:
 	_time += delta
 	if is_inside_tree():
@@ -643,6 +700,8 @@ func _process(delta: float) -> void:
 		_white.visible = _white_t > 0.0
 	_update_ring(delta)
 	_tick_blood(delta)
+	if _warm_frames > 0:
+		_warm_step()
 
 
 ## Two pale points, one game pixel each, close together; nothing round them. Each eye

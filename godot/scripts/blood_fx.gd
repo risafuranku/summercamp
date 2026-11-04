@@ -56,6 +56,29 @@ func spawn(tier: int, fatal_hit: bool) -> void:
 		_spawn_drop(camera, tier_idx)
 
 
+## A drop and a stain in their materials, far too small to see, drawn 0.6 m in front of the
+## eye for a few frames at the night's first enemy (main._prewarm_hurt): their shaders are
+## compiled then, not when the first hit's stains land (cold, that frame cost 111 ms).
+func prewarm() -> void:
+	var camera: Camera3D = _camera_getter.call() if _camera_getter.is_valid() else null
+	if _world == null or camera == null or not camera.is_inside_tree():
+		return
+	_ensure_root()
+	var at := camera.global_transform.origin - camera.global_transform.basis.z * 0.6
+	var box := BoxMesh.new()
+	box.size = Vector3.ONE * 0.0005
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.0005, 0.0005)
+	for pair in [[box, _chunk_material()], [quad, _decal_material()]]:
+		var mi := MeshInstance3D.new()
+		mi.mesh = pair[0]
+		mi.material_override = pair[1]
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_root.add_child(mi)
+		mi.global_position = at
+		get_tree().create_timer(0.15).timeout.connect(mi.queue_free)
+
+
 func clear() -> void:
 	_decals.clear()
 	_drops.clear()
