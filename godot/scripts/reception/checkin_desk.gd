@@ -96,6 +96,17 @@ const STAMP_GREEN := Color(0.12, 0.46, 0.20, 0.86)
 const STAMP_RED := Color(0.70, 0.08, 0.08, 0.86)
 const PAPER_TEXT := Color(0.12, 0.11, 0.10)
 const OPEN_SEC := 0.22
+## Sitting down to it and standing up (the user 4. 11.: "animate the way in and out: the
+## book opening, the stamps sliding in; going, it shuts again; smooth, first person, no
+## hands, like an adventure or old 90s CGI"): the register's cover swings over on its
+## spine, then the two stamps slide in from under the edge of the picture, one after the
+## other; going, they slide off first and the cover comes down after them.
+const INTRO_SEC := 0.95
+const CLOSE_SEC := 0.6
+const COVER_TEX := "res://assets/textury/ui/inv_leather.png"
+const COVER_TINT := Color(1.9, 1.05, 0.85)
+const COVER_EDGE := Color8(36, 20, 14)
+const COVER_LABEL := Color8(214, 200, 168)
 ## Czech letters in that hand: [the plain letter, where its mark goes over it] (a háček
 ## in the middle, an acute and a ring as they fall in three pixels).
 const HAND_MARKS := {
@@ -319,6 +330,15 @@ func close_desk() -> void:
 	if not _guest.is_empty():
 		_progress[current_guest_id()] = _p
 	_closing_t = 0.0
+	_play("book", -12.0)
+
+
+## How far the desk is set out (0 the book shut, the stamps away .. 1 all of it there): up
+## over INTRO_SEC from sitting down, down over CLOSE_SEC going.
+func _setout() -> float:
+	if _closing_t >= 0.0:
+		return 1.0 - clampf(_closing_t / CLOSE_SEC, 0.0, 1.0)
+	return clampf(_open_t / INTRO_SEC, 0.0, 1.0)
 
 
 func export_state() -> Dictionary:
@@ -621,8 +641,11 @@ func _process(delta: float) -> void:
 		_page = _page_count() - 1
 	if _closing_t >= 0.0:
 		_closing_t += delta
-		var f := 1.0 - clampf(_closing_t / (OPEN_SEC * 0.6), 0.0, 1.0)
+		# The stamps off and the book shut first, then the picture goes (2D: then it folds).
+		var shut := clampf(_closing_t / CLOSE_SEC, 0.0, 1.0)
+		var f := 1.0 - clampf((_closing_t - CLOSE_SEC) / (OPEN_SEC * 0.6), 0.0, 1.0) if not mode_3d else (0.0 if shut >= 1.0 else 1.0)
 		_set_open_fraction(f)
+		_canvas.queue_redraw()
 		if f <= 0.0:
 			visible = false
 			_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
@@ -1370,6 +1393,11 @@ func _draw_desk(c: Control) -> void:
 
 func _draw_book(c: Control) -> void:
 	var tex: Texture2D = _tex.get("register")
+	# The cover swinging over on the spine (the first part of _setout), in six steps.
+	var k := smoothstep(0.0, 0.62, _setout())
+	if k < 1.0:
+		_draw_book_opening(c, tex, ceilf(k * 6.0) / 6.0)
+		return
 	if tex != null:
 		c.draw_texture_rect(tex, BOOK, false)
 	else:
@@ -1630,10 +1658,62 @@ func _draw_dymo(c: Control) -> void:
 
 
 func _draw_stamps(c: Control) -> void:
+	var out := _setout()
 	for s in STAMP_HOME.keys():
 		if _holding_stamp == s:
 			continue
-		_draw_stamp_tool(c, str(s), STAMP_HOME[s], false)
+		# In from under the picture's edge, one after the other, slowing to their place.
+		var a := 0.48 if str(s) == "in" else 0.6
+		var ks := clampf((out - a) / 0.32, 0.0, 1.0)
+		ks = 1.0 - pow(1.0 - ks, 3.0)
+		var home: Vector2 = STAMP_HOME[s]
+		_draw_stamp_tool(c, str(s), Vector2(home.x, lerpf(float(H) + 6.0, home.y, ks)), false)
+
+
+## The register as its cover swings over (`k` 0 shut .. 1 open): the right page under the
+## cover, the cover narrowing on the spine; past the upright, its inside widening on the
+## left as the left page.
+func _draw_book_opening(c: Control, tex: Texture2D, k: float) -> void:
+	var half := BOOK.size.x * 0.5
+	var spine := BOOK.position.x + half
+	var tw := float(tex.get_width()) if tex != null else BOOK.size.x
+	var th := float(tex.get_height()) if tex != null else BOOK.size.y
+	# The right page, as much of it as the cover leaves.
+	var cover_w := half * cos(k * PI)
+	var shown := half - maxf(0.0, cover_w)
+	if shown > 0.5:
+		var dst := Rect2(spine + half - shown, BOOK.position.y, shown, BOOK.size.y)
+		if tex != null:
+			c.draw_texture_rect_region(tex, dst, Rect2(tw - shown / BOOK.size.x * tw, 0, shown / BOOK.size.x * tw, th))
+		else:
+			c.draw_rect(dst, Color8(232, 222, 196))
+	if cover_w > 0.5:
+		# The cover, foreshortened as it rises: cloth over board, a paper label.
+		var cr := Rect2(spine, BOOK.position.y - 2.0 * (1.0 - cover_w / half), cover_w, BOOK.size.y + 4.0 * (1.0 - cover_w / half))
+		var cloth: Texture2D = _tex.get("cover")
+		if cloth == null and ResourceLoader.exists(COVER_TEX):
+			cloth = load(COVER_TEX)
+			_tex["cover"] = cloth
+		if cloth != null:
+			c.draw_texture_rect(cloth, cr, true, COVER_TINT)
+		else:
+			c.draw_rect(cr, Color8(92, 40, 28))
+		c.draw_rect(cr, COVER_EDGE, false, 1.0)
+		if cover_w > 20.0:
+			var lw := cover_w * 0.5
+			c.draw_rect(Rect2(cr.position.x + (cover_w - lw) * 0.5, cr.position.y + cr.size.y * 0.22, lw, 16), COVER_LABEL)
+			c.draw_rect(Rect2(cr.position.x + (cover_w - lw) * 0.5, cr.position.y + cr.size.y * 0.22, lw, 16), COVER_EDGE, false, 1.0)
+		# Its shadow on the page beside it.
+		c.draw_rect(Rect2(spine + cover_w, BOOK.position.y, minf(6.0, half - cover_w), BOOK.size.y), Color(0, 0, 0, 0.18))
+	elif cover_w < -0.5:
+		# Over: the inside of the cover is the left page, widening from the spine.
+		var w := -cover_w
+		var dst2 := Rect2(spine - w, BOOK.position.y, w, BOOK.size.y)
+		if tex != null:
+			c.draw_texture_rect_region(tex, dst2, Rect2(0, 0, tw * 0.5, th))
+		else:
+			c.draw_rect(dst2, Color8(232, 222, 196))
+		c.draw_rect(Rect2(spine - 3.0, BOOK.position.y, 3.0, BOOK.size.y), Color(0, 0, 0, 0.12 * (1.0 - k)))
 
 
 func _draw_stamp_tool(c: Control, kind: String, pos: Vector2, lifted: bool) -> void:
