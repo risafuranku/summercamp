@@ -1,11 +1,15 @@
 extends RefCounted
 
 ## Wires (the masts' guys and frames, the power lines along the roads) as ribbons turned to
-## the eye that never get thinner than a pixel and a bit on the low-resolution screen, and
-## solid: a 1-px line flickered in and out as you went past, a 3.5 cm box went under a
-## pixel a few metres off and broke up, and the guys were drawn see-through (the user
-## 4. 11.: "the masts' cables close to them clip weirdly, they are half transparent, not
-## quite there, riding the bus"). Far off they go into the haze by colour, not by alpha.
+## the eye that never get thinner than one pixel of the low-resolution screen, and solid:
+## a 1-px line flickered in and out as you went past, a 3.5 cm box went under a pixel a few
+## metres off and broke up, and the guys were drawn see-through (the user 4. 11.: "the
+## masts' cables close to them clip weirdly, they are half transparent, not quite there,
+## riding the bus"). One pixel, not more: at a pixel and a third they came out two pixels
+## wide along much of their length, fat bands on the big screen (the user 4. 11. evening:
+## "the masts' cables are very thick now"). A strip a pixel across still covers a pixel in
+## every row (or column) it crosses, so it never breaks into dashes. Far off they go into
+## the haze by colour, not by alpha.
 ##
 ## mesh(): every pair of points (a, b, a, b, ...) one straight piece of wire, each end
 ## knowing the other (CUSTOM0: the other end and the side), the vertex shader widening it
@@ -20,7 +24,7 @@ uniform float light = 1.0;
 uniform vec3 color = vec3(0.24, 0.24, 0.25);
 // Half its real thickness (m), and the least it is on the screen (pixels across).
 uniform float radius = 0.02;
-uniform float min_px = 1.3;
+uniform float min_px = 1.02;
 void vertex() {
 	vec3 p = (MODELVIEW_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	vec3 q = (MODELVIEW_MATRIX * vec4(CUSTOM0.xyz, 1.0)).xyz;

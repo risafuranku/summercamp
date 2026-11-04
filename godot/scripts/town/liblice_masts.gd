@@ -73,7 +73,7 @@ void fragment() {
 }
 """
 
-## The guys and the frames: solid ribbons at least a pixel and a bit wide (a 1-px line
+## The guys and the frames: solid ribbons at least a pixel wide (a 1-px line
 ## flickered in and out and they were drawn see-through: the user 4. 11., "the masts'
 ## cables close to them clip weirdly, half transparent, from the bus"). Far off they go
 ## into the haze by colour. Real steel: guys 4 cm, the frames' girders 0.3 m.
