@@ -2,6 +2,7 @@ extends CanvasLayer
 
 signal dialog_closed
 
+const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
 var _active: bool = false
 var _root: Control
 var _panel: Panel
@@ -41,7 +42,7 @@ func close_dialog() -> void:
 func _input(event: InputEvent) -> void:
 	if not _active:
 		return
-	if event.is_action_pressed("ui_cancel"):
+	if event.is_action_pressed("ui_cancel") or INTERIOR_LOOK.is_space(event):
 		get_viewport().set_input_as_handled()
 		close_dialog()
 

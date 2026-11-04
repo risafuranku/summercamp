@@ -31,6 +31,7 @@ signal repair_completed(coord: Vector2i, building_type: String)
 signal repair_cancelled
 signal player_hurt(amount: int)
 
+const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
 const RETRO_RENDER = preload("res://scripts/retro_render.gd")
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 
@@ -1526,7 +1527,7 @@ func _draw_map() -> void:
 func _input(event: InputEvent) -> void:
 	if not _active:
 		return
-	if event.is_action_pressed("ui_cancel"):
+	if event.is_action_pressed("ui_cancel") or INTERIOR_LOOK.is_space(event):
 		get_viewport().set_input_as_handled()
 		abort()
 		return

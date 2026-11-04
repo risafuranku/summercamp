@@ -30737,3 +30737,12 @@ msgstr "{g:Přišel|Přišla} jsi od závory. %s je někde poblíž."
 #. manual
 msgid "You came in by the barrier. %s are about."
 msgstr "{g:Přišel|Přišla} jsi od závory. %s jsou někde poblíž."
+
+msgid "Leave a room or a job"
+msgstr "Odejít z místnosti nebo od práce"
+
+msgid "Esc  or  Space"
+msgstr "Esc  nebo  mezerník"
+
+msgid "Leave the PC"
+msgstr "Odejít od počítače"

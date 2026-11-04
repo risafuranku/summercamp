@@ -13,6 +13,7 @@ extends CanvasLayer
 signal finished(task_id: String)
 signal closed
 
+const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
 const WORK_HAND = preload("res://scripts/ui/work_hand.gd")
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 const LANG = preload("res://scripts/lang.gd")
@@ -204,7 +205,7 @@ func _input(event: InputEvent) -> void:
 	if not visible or get_tree().paused:
 		return
 	if (event is InputEventMouseButton and event.pressed and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_RIGHT) \
-			or event.is_action_pressed("ui_cancel"):
+			or event.is_action_pressed("ui_cancel") or INTERIOR_LOOK.is_space(event):
 		get_viewport().set_input_as_handled()
 		close()
 		return

@@ -39,6 +39,7 @@ signal refused(guest_id: int)
 signal stranger_admitted
 signal stranger_refused
 
+const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
 const TEX := "res://assets/textury/desk/"
 const SEASON = preload("res://core/systems/season.gd")
 const LANG = preload("res://scripts/lang.gd")
@@ -759,7 +760,7 @@ func _input(event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 	if _closing_t >= 0.0:
 		return
-	if event.is_action_pressed("ui_cancel"):
+	if event.is_action_pressed("ui_cancel") or INTERIOR_LOOK.is_space(event):
 		close_desk()
 		return
 	if event is InputEventMouseButton:

@@ -452,7 +452,7 @@ func input(event: InputEvent) -> void:
 	host.get_viewport().set_input_as_handled()
 	if not _at_desk or _gliding():
 		return
-	if event.is_action_pressed("ui_cancel"):
+	if event.is_action_pressed("ui_cancel") or INTERIOR_LOOK.is_space(event):
 		desk.close_desk()
 		return
 	if not (event is InputEventMouseButton):

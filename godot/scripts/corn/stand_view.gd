@@ -16,6 +16,7 @@ extends CanvasLayer
 
 signal closed
 
+const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
 const RETRO_RENDER = preload("res://scripts/retro_render.gd")
 const STATION3D = preload("res://scripts/business/station3d.gd")
 const STATION_HUD = preload("res://scripts/business/station_hud.gd")
@@ -325,7 +326,7 @@ func _input(event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 	var open := _station_open()
 	if open == "":
-		if event.is_action_pressed("ui_cancel"):
+		if event.is_action_pressed("ui_cancel") or INTERIOR_LOOK.is_space(event):
 			close_view()
 		return
 	var st: Node = _stations[open]

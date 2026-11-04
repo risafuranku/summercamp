@@ -281,8 +281,15 @@ static func in_exit_zone(viewport: Viewport) -> bool:
 	return c.y >= 1.0 - EXIT_BAND
 
 
+## Space leaves too (the user, 4. 11.), wherever Space is nobody else's: not where it
+## serves, rows, turns a page or types (those take it before they ask this).
+static func is_space(event: InputEvent) -> bool:
+	var k := event as InputEventKey
+	return k != null and k.pressed and not k.echo and k.physical_keycode == KEY_SPACE
+
+
 static func is_exit_event(event: InputEvent, viewport: Viewport) -> bool:
-	if event.is_action_pressed("ui_cancel"):
+	if event.is_action_pressed("ui_cancel") or is_space(event):
 		return true
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		return in_exit_zone(viewport)

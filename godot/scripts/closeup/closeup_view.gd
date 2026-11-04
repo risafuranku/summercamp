@@ -17,6 +17,7 @@ extends CanvasLayer
 
 signal closed
 
+const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 const W := 320
 const PIC_H := 240
@@ -201,7 +202,9 @@ func _input(event: InputEvent) -> void:
 				close_view()
 			return
 	if event is InputEventKey and event.pressed and not event.echo:
-		_key(event as InputEventKey)
+		# Space leaves unless the close-up has a use for it (a page, the till, the phone).
+		if not _key(event as InputEventKey) and INTERIOR_LOOK.is_space(event):
+			close_view()
 
 
 func _draw_all() -> void:

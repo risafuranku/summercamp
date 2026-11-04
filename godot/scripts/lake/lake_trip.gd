@@ -780,7 +780,7 @@ func _input(event: InputEvent) -> void:
 			_look_round((event as InputEventMouseMotion).relative)
 		if _state == PASSENGER:
 			# By the camp jetty a passenger may step out (Esc or the right button too).
-			var out: bool = event.is_action_pressed("ui_cancel") \
+			var out: bool = event.is_action_pressed("ui_cancel") or INTERIOR_LOOK.is_space(event) \
 				or (event is InputEventMouseButton and event.pressed and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_RIGHT)
 			if out and _by_camp_jetty() and not _moving:
 				_get_out()
