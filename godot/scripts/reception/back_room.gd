@@ -188,6 +188,7 @@ func _cut_window(walls: Dictionary) -> void:
 	K.slab(root, Vector3(0.04, y1 - y0, 0.04), Vector3(fx - 0.03, c.y, c.z), frame, "BackWinBar")
 	window_quad = MeshInstance3D.new()
 	window_quad.name = "BackWindowView"
+	window_quad.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var q := QuadMesh.new()
 	q.size = RL.BACK_WINDOW_SIZE
 	window_quad.mesh = q

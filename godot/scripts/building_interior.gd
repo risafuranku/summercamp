@@ -184,6 +184,16 @@ var _room_environment: Environment
 var _ceiling_light: OmniLight3D
 var _desk_lamp: OmniLight3D
 var _sun_beam: SpotLight3D
+## The sun itself in the room (the user 4. 11.: "the light in the reception from outside
+## for real: the lit square on the floor where it comes in through the window, moving as
+## the sun moves; not lamps in the room lit by what goes on outside"): the camp's own sun,
+## turned into the room as the room lies in the reception building (its Shell), its colour
+## and its strength; the walls' and the drawn curtains' shadows leave only what the
+## windows let in. The old beam from a fixed point outside the window is off.
+var _room_sun: DirectionalLight3D
+## Three times the camp's: the office's daylight fill is strong (raised against "too dark
+## by day"), and the patch has to stand out of it as the sun does in a room.
+const ROOM_SUN_K := 3.0
 var _office_curtain
 var _window_light: OmniLight3D
 var _crt_glow_light: OmniLight3D
@@ -546,6 +556,7 @@ func close_interior() -> void:
 
 func _process(delta: float) -> void:
 	_update_inview(delta)
+	_update_room_sun()
 	_update_radio_mix(delta)
 	_tick_radio_greetings()
 	_tick_music_duck(delta)
@@ -1047,7 +1058,18 @@ func _build_room() -> void:
 	_sun_beam.spot_attenuation = 0.6
 	_sun_beam.shadow_enabled = true
 	_sun_beam.light_energy = 0.0
+	_sun_beam.visible = false
 	_room_root.add_child(_sun_beam)
+	_room_sun = DirectionalLight3D.new()
+	_room_sun.name = "RoomSun"
+	_room_sun.shadow_enabled = true
+	_room_sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
+	_room_sun.directional_shadow_max_distance = 14.0
+	_room_sun.shadow_bias = 0.04
+	_room_sun.shadow_normal_bias = 1.2
+	_room_sun.sky_mode = DirectionalLight3D.SKY_MODE_LIGHT_ONLY
+	_room_sun.visible = false
+	_room_root.add_child(_room_sun)
 
 	# ── FLOOR ─────────────────────────────────────────────────────────────────
 	_add_box(_room_root, "Floor", Vector3(0.0, 0.0, 0.0), Vector3(5.0, 0.1, 5.0), Color(0.44, 0.32, 0.22))
@@ -1109,6 +1131,8 @@ func _build_room() -> void:
 	wq.size = Vector2(1.86, 1.38)
 	_window_quad.mesh = wq
 	_window_quad.position = Vector3(-0.4, 1.68, -2.51)
+	# (A view, not a pane: the sun comes in through it, _room_sun.)
+	_window_quad.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_room_root.add_child(_window_quad)
 	_setup_window_view()
 	_update_window_texture()
@@ -2001,8 +2025,9 @@ func _apply_room_time_profile(animated: bool = false) -> void:
 		_desk_lamp.light_color = Color(1.0, 0.86, 0.6)
 		_desk_lamp.omni_range = 2.8
 	if _window_light != null:
+		# The sky's light off the window only (the sun comes in itself now: _room_sun).
 		_window_light.light_color = _tri(d, Color(0.54, 0.60, 0.84), Color(0.84, 0.66, 0.54), Color(0.98, 0.98, 0.92))
-		_window_light.light_energy = _tri(d, 0.01, 0.34, 1.6)
+		_window_light.light_energy = _tri(d, 0.01, 0.26, 0.9)
 
 	var daylight = d
 	var sun_tint = _sunlight_color.lerp(Color(1.0, 0.96, 0.90), 0.25)
@@ -2126,6 +2151,7 @@ func _build_side_window(rw) -> void:
 	_add_box(_room_root, "WindowMullionSideH", Vector3(2.50, c.y, c.z), Vector3(0.08, 0.06, s.x - 0.08), Color(0.66, 0.66, 0.62))
 	_side_quad = MeshInstance3D.new()
 	_side_quad.name = "SideWindowView"
+	_side_quad.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var q := QuadMesh.new()
 	q.size = s
 	_side_quad.mesh = q
@@ -2301,6 +2327,52 @@ static func _portal_frame(center: Vector3, outward: Vector3) -> Transform3D:
 ## Whether the eye is on the room's side of a window (its glass in front of it).
 func _aim_portal(_cam: Camera3D, frame: Transform3D, _size: Vector2, eye_room: Vector3) -> bool:
 	return (frame.affine_inverse() * eye_room).z >= 0.05
+
+
+## The camp's sun in the room, every frame the room is drawn (in it, or seen into from the
+## camp): its direction as it falls on the reception building, turned into the room; its
+## colour and strength as the camp has them (the hour, the weather); off below the horizon.
+var _room_sun_debug := false
+var _room_sun_shell: Node3D
+var _room_sun_seek_ms := -100000
+
+
+func _update_room_sun() -> void:
+	if _room_sun == null or _room_root == null or _room_sun_debug:
+		return
+	if not visible and not _inview_live:
+		return
+	var main := _resolve_main_for_radio()
+	var sun = main.get("sun") if main != null else null
+	# The reception's shell, looked up once (not a search of the camp every frame).
+	if _room_sun_shell != null and (not is_instance_valid(_room_sun_shell) or not _room_sun_shell.is_inside_tree()):
+		_room_sun_shell = null
+	if _room_sun_shell == null and Time.get_ticks_msec() - _room_sun_seek_ms > 1000:
+		_room_sun_seek_ms = Time.get_ticks_msec()
+		var scene := get_tree().current_scene if get_tree() != null else null
+		var reception := scene.find_child("MainBuilding", true, false) as Node3D if scene != null else null
+		_room_sun_shell = reception.get_node_or_null("Shell") as Node3D if reception != null else null
+	var shell := _room_sun_shell
+	if not (sun is DirectionalLight3D) or shell == null or not (sun as Node3D).is_inside_tree():
+		_room_sun.visible = false
+		return
+	var s := sun as DirectionalLight3D
+	# Camp -> room: the room as it lies in the building (RL.room_to_local), its own world.
+	var to_room: Transform3D = _room_root.global_transform * RL.room_to_local().affine_inverse() * shell.global_transform.affine_inverse()
+	var b := (to_room.basis * s.global_basis).orthonormalized()
+	var f := -b.z
+	# Through a window at all: the office's front one (it looks out along -z), its side one
+	# (+x) and the store's (-x). The sun behind the building lights only the walls' outer
+	# faces, which nobody sees from in here: then no light and no shadow pass for nothing.
+	var through := f.z > 0.05 or absf(f.x) > 0.05
+	_room_sun.visible = s.visible and s.light_energy > 0.02 and f.y < -0.04 and through
+	if not _room_sun.visible:
+		return
+	_room_sun.global_basis = b
+	_room_sun.light_color = s.light_color
+	# A grey day has no sun to throw in (the camp's own sun dims in it only so far).
+	var wk: float = WEATHER_DAY_K.get(_weather_state, 1.0)
+	_room_sun.light_energy = s.light_energy * ROOM_SUN_K * pow(wk, 4.0)
 
 
 ## Where the room lies in the camp: over the reception building, its window wall on the
