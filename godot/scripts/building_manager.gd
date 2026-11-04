@@ -898,7 +898,8 @@ func place_lamp_post_at(origin: Vector2i) -> bool:
 	var models = _models if _models != null else BUILDING_MODELS.new(Callable(self, "_make_psx_material"))
 	_models = models
 	var concrete: Material = models._camp_or("concrete.png", Color(0.62, 0.62, 0.58), "stone")
-	var wood: Material = models._camp("planks_dark.png", Color(0.6, 0.5, 0.42), Vector3(0.6, 2.0, 1.0))
+	# (Tinted down to half it read as a black bar on its shaded sides.)
+	var wood: Material = models._camp("planks_dark.png", Color(1.25, 1.08, 0.92), Vector3(0.6, 2.0, 1.0))
 	var enamel := StandardMaterial3D.new()
 	enamel.albedo_color = Color(0.2, 0.36, 0.26)
 	enamel.roughness = 0.4
