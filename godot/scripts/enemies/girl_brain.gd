@@ -113,6 +113,12 @@ var _away_for := 0.0
 ## Co-op: another warden's torch on her this tick. It holds her as yours does: no step,
 ## no step in your dead torch, not suddenly behind you.
 var _held := false
+## Her interference out of your sight (nightmare_fx.set_jam): from this far, full this near.
+const JAM_FROM := 16.0
+const JAM_FULL := 3.0
+const FOUND_EVERY := 2.5
+var _found_ok_at := 0.0
+var _found_quiet_until := 0.0
 var _behind_done := false
 var _jump_ready := false
 var _fake_done := false
@@ -333,12 +339,8 @@ func _on_tick(dt: float) -> void:
 			_player.set("flashlight_drain_boost", 5.0)
 		if _moved_unseen:
 			_moved_unseen = false
-			if d < 16.0:
-				# Found again, nearer than she was: the sound of it.
-				_near_you(_sound_quarry(SFX_STING, _player_pos() + Vector3(0, 1.5, 0), lerpf(0.5, -5.0, d / 16.0)))
-				# And for two frames, the face she pretends with.
-				if d < 11.0 and _tex.has(T_SMILE) and _fx() != null and _rng.randf() < 0.5:
-					_fx().subliminal(_tex[T_SMILE], 2, 0.95, Color(1, 1, 1, 0.85))
+			if d < JAM_FROM:
+				_found(d)
 	elif not _held:
 		_unseen_for += dt * (2.5 if stuttering else 1.0)
 		_tick_chatter(dt, d)
@@ -369,7 +371,7 @@ func _on_tick(dt: float) -> void:
 	_update_decoy(dt, sees and torch_on_her, d)
 	var near := clampf(1.0 - d / 22.0, 0.0, 1.0)
 	_hush = d < HUSH_DIST and not looking
-	_set_audio(near, not _hush)
+	_set_audio(near, not _hush and _elapsed >= _found_quiet_until)
 	if _hush and not _breath_done and d < 3.0:
 		_breath_done = true
 		_near_you(_sound(SFX_DROOL, _player_pos() + Vector3(0, 1.55, 0) - _forward_flat() * 0.3, -1.0, 0.8, 5.0))
@@ -378,6 +380,9 @@ func _on_tick(dt: float) -> void:
 		var in_lamp := _lamp_light_at(_player_pos()) > LAMP_SAFE
 		var lv := 1.0 if _hush else clampf(near * near * 0.9 + (0.25 if stuttering and d < TOO_CLOSE else 0.0), 0.0, 1.0)
 		fxp.set_presence("girl", 0.0 if in_lamp else lv)
+		# Out of your sight, she jams you from where she is.
+		if not sees and not in_lamp and d < JAM_FROM:
+			fxp.set_jam("girl", _eyes_world(), _camera(), clampf((JAM_FROM - d) / (JAM_FROM - JAM_FULL), 0.0, 1.0))
 	# Close: her drool on the gravel, now and then a wet laugh through the teeth.
 	if d < 7.0:
 		_wet_next -= dt
@@ -519,10 +524,25 @@ func _advance(small: bool) -> void:
 	_set_pose(not small and nd > 12.0 and _rng.randf() < 0.3)
 	_moved_unseen = true
 	_sound(SFX_HEEL if small else SFX_RUSH, target, lerpf(-3.0, -16.0, clampf(nd / 22.0, 0.0, 1.0)), _rng.randf_range(0.92, 1.08))
+	if nd < JAM_FROM and _fx() != null:
+		_fx().jam_burst(lerpf(1.0, 0.45, nd / JAM_FROM))
 	# The nearest lamp out there stutters as she passes it (never one you stand under).
 	if not small and _rng.randf() < 0.35 and _building_manager != null and _building_manager.has_method("darken_lamp_near"):
 		if _lamp_light_at(_player_pos()) <= LAMP_SAFE:
 			_building_manager.call("darken_lamp_near", target, 7.0, _rng.randf_range(0.3, 0.8))
+
+
+## You have her again: the set catches its picture (nightmare_fx.lock), the nearer the harder.
+## Once in a while only: looking away and back is not a new find.
+func _found(d: float) -> void:
+	var fx := _fx()
+	if fx == null or _elapsed < _found_ok_at:
+		return
+	_found_ok_at = _elapsed + FOUND_EVERY
+	# And for a moment nothing of her either: "oukej, teď dobrý".
+	_found_quiet_until = _elapsed + 0.7
+	var tall := float(_body.texture.get_height()) * _body.pixel_size * _body.scale.y
+	fx.lock(clampf(1.0 - d / JAM_FROM, 0.35, 1.0), _body.texture, _body.global_position, _body.global_position + Vector3(0, tall, 0), _camera())
 
 
 ## At the edge of the light you stand in: a step round it at the same distance, the way

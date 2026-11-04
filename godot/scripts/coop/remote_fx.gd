@@ -19,7 +19,7 @@ func _init(p := 0) -> void:
 var _last := {}
 var _presence := 0.0
 ## The steady ones (each tick from a brain): at most this often each.
-const STEADY := {"set_dread": 0.1, "set_presence": 0.1, "set_eyes": 0.05, "set_spores": 0.1}
+const STEADY := {"set_dread": 0.1, "set_presence": 0.1, "set_eyes": 0.05, "set_spores": 0.1, "set_jam": 0.1}
 var _steady_at := {}
 
 
@@ -43,7 +43,7 @@ func _send(method: String, args: Array) -> void:
 		return
 	var packed: Array = pack(args)
 	var key := method
-	if method in ["set_dread", "set_presence", "set_spores"]:
+	if method in ["set_dread", "set_presence", "set_spores", "set_jam"]:
 		key = method + str(args[0])
 	var now := Time.get_ticks_msec() / 1000.0
 	# The steady ones again now and then even unchanged: the other side lets a level go
@@ -57,7 +57,7 @@ func _send(method: String, args: Array) -> void:
 		_steady_at[key] = now
 	_last[key] = packed
 	# A one-off (a face for two frames, a flash) is always sent; only what holds is kept.
-	if method in ["subliminal", "freeze", "glitch", "red_flash", "tinnitus", "white_blast", "blood", "ext"]:
+	if method in ["subliminal", "freeze", "glitch", "red_flash", "tinnitus", "white_blast", "blood", "ext", "jam_burst", "lock"]:
 		_last.erase(key)
 	# An "off" ends what was on: always said, and the next "on" is new again.
 	if method.ends_with("_off"):
@@ -88,6 +88,19 @@ func presence() -> float:
 
 func set_eyes(source: String, head: Vector3, cam: Camera3D, open: float = 1.0, tilt: float = 0.0, half_gap: float = 0.035, open2: float = -1.0) -> void:
 	_send("set_eyes", [source, head.snapped(Vector3.ONE * 0.01), cam, snappedf(open, 0.05), snappedf(tilt, 0.01), half_gap, snappedf(open2, 0.05)])
+
+
+## Where it is goes in the world: the other machine turns it by its own camera, each frame.
+func set_jam(source: String, point: Vector3, cam: Camera3D, level: float) -> void:
+	_send("set_jam", [source, point.snapped(Vector3.ONE * 0.05), cam, snappedf(level, 0.05)])
+
+
+func jam_burst(strength: float) -> void:
+	_send("jam_burst", [snappedf(strength, 0.05)])
+
+
+func lock(strength: float, tex: Texture2D = null, foot: Vector3 = Vector3.INF, top: Vector3 = Vector3.INF, cam: Camera3D = null) -> void:
+	_send("lock", [snappedf(strength, 0.05), tex, foot, top, cam])
 
 
 func close_up(tex: Texture2D, scale: float, stretch_y: float = 1.0, shake: float = 0.0, rot: float = 0.0, off: Vector2 = Vector2.ZERO) -> void:

@@ -108,6 +108,42 @@ var _ring_lp := 0.0
 const SFX_BREATH := "res://assets/sfx/night/ears_breath.mp3"
 const SFX_SWALLOW := "res://assets/sfx/night/ears_swallow.mp3"
 const SFX_POP := "res://assets/sfx/night/ears_pop.mp3"
+## Her interference (the Girl, `set_jam`; the user 4. 11.: "vim že sem v píči, vim odkud, a
+## když se podivám tak takový unc, oukej teď dobrý ale mám problém"). Out of your sight she
+## jams you from where she is: the picture loses its signal from that side
+## (materials/nightmare_screen.gdshader: rows leaning her way, dark, TV snow), a hiss and a
+## whistle in the ear on that side. The whistle is tuned by where you look: low with her
+## behind you, climbing as you turn to her, so you find her by ear as on a radio's dial.
+## Each step of hers a burst from where she went.
+var _jam := 0.0
+var _jam_src := {}                 # source -> {point, cam, level}
+var _jam_at := Vector2(1.0, 0.0)   # on the picture, -1..1
+var _jam_ang := 0.0                # from where you look: 0 ahead, + right, PI behind
+var _jam_burst := 0.0
+var _jam_mute := 0.0
+var _jam_snd: AudioStreamPlayer
+var _jam_pb: AudioStreamGeneratorPlayback
+var _jam_ph := [0.0, 0.0]
+var _jam_lp := 0.0
+var _jam_hz := 330.0
+var _jam_gain := Vector2(0.7, 0.7)
+const JAM_RATE := 22050.0
+## Found (`lock`): the set catches its picture. The jamming cut dead; a blink of the world
+## gone and her in it, in hard white; the frame rolls a few steps and holds; a clean,
+## quiet picture for a moment, the night's grain gone from it. And the clunk in your chest.
+const SFX_LOCK := "res://assets/sfx/npc/girl_lock.wav"
+const LOCK_FIGURE := preload("res://materials/lock_figure.gdshader")
+const LOCK_FIGURE_SEC := 0.085
+const LOCK_ROLL := [0.15, -0.055, 0.02, -0.006]
+const LOCK_SEC := 1.0
+var _lock_t := -1.0
+var _lock_k := 0.0
+var _lock_hold := 0.0
+var _lock_clean := 0.0
+var _lock_punch := 0.0
+var _lock_black: ColorRect
+var _lock_fig: TextureRect
+var _lock_stream: AudioStream
 
 
 ## The one layer under the tree's root (made the first time).
@@ -266,6 +302,22 @@ func _build() -> void:
 	_white.color = Color(1, 1, 1, 0)
 	_white.visible = false
 	add_child(_white)
+	_lock_black = ColorRect.new()
+	_lock_black.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_lock_black.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_lock_black.color = Color(0.0, 0.0, 0.0, 0.95)
+	_lock_black.visible = false
+	add_child(_lock_black)
+	_lock_fig = TextureRect.new()
+	_lock_fig.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_lock_fig.stretch_mode = TextureRect.STRETCH_SCALE
+	_lock_fig.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_lock_fig.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	var fig_mat := ShaderMaterial.new()
+	fig_mat.shader = LOCK_FIGURE
+	_lock_fig.material = fig_mat
+	_lock_fig.visible = false
+	add_child(_lock_fig)
 	_ring = AudioStreamPlayer.new()
 	var gen := AudioStreamGenerator.new()
 	gen.mix_rate = 22050.0
@@ -293,6 +345,45 @@ func presence() -> float:
 ## every tick: 0 none .. 1 she is breathing on you.
 func set_spores(source: String, level: float) -> void:
 	_spores_src[source] = clampf(level, 0.0, 1.0)
+
+
+## Something jamming you this tick from `point` (0 off .. 1 on you), as `cam` sees it.
+func set_jam(source: String, point: Vector3, cam: Camera3D, level: float) -> void:
+	_jam_src[source] = {"point": point, "cam": cam, "level": clampf(level, 0.0, 1.0)}
+
+
+## A step of it, where it is now: the jamming jumps in from there and falls back.
+func jam_burst(strength: float) -> void:
+	_jam_burst = maxf(_jam_burst, clampf(strength, 0.0, 1.0))
+
+
+## Found it: see the members above. `strength` 0-1 (how near); `tex`, from `foot` to `top`
+## in the world as `cam` sees it, is what stands in the blink.
+func lock(strength: float, tex: Texture2D = null, foot: Vector3 = Vector3.INF, top: Vector3 = Vector3.INF, cam: Camera3D = null) -> void:
+	if not is_inside_tree():
+		return
+	_lock_t = 0.0
+	_lock_k = clampf(strength, 0.0, 1.0)
+	_jam = 0.0
+	_jam_burst = 0.0
+	_jam_mute = 1.2
+	_update_jam_sound()
+	_one_shot(SFX_LOCK, lerpf(-8.0, 0.0, _lock_k))
+	_lock_fig.texture = null
+	if tex == null or cam == null or not is_instance_valid(cam) or foot == Vector3.INF or top == Vector3.INF:
+		return
+	if cam.is_position_behind(foot) or cam.is_position_behind(top):
+		return
+	var vp := cam.get_viewport()
+	if vp == null:
+		return
+	var k := get_viewport().get_visible_rect().size / vp.get_visible_rect().size
+	var a := cam.unproject_position(foot) * k
+	var b := cam.unproject_position(top) * k
+	var h := a.distance_to(b)
+	_lock_fig.texture = tex
+	_lock_fig.size = Vector2(h * float(tex.get_width()) / float(tex.get_height()), h)
+	_lock_fig.position = ((a + b) * 0.5 - _lock_fig.size * 0.5).floor()
 
 
 ## Its eyes this frame at world point `head` (the middle between them) seen by `cam`:
@@ -606,13 +697,19 @@ func _ready() -> void:
 	pic.material = retro_material()
 	var scr := ColorRect.new()
 	scr.material = _mat
-	for n in [pic, scr]:
+	var fig := TextureRect.new()
+	fig.texture = pic.texture
+	fig.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	fig.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	fig.material = _lock_fig.material
+	for n in [pic, scr, fig]:
 		(n as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
 		(n as Control).size = Vector2(1.0, 1.0)
 		(n as Control).modulate.a = 0.004
 		add_child(n)
-	_warm = [pic, scr]
+	_warm = [pic, scr, fig]
 	_warm_frames = WARM_FRAMES
+	_lock_stream = load(SFX_LOCK) if ResourceLoader.exists(SFX_LOCK) else null
 
 
 func _warm_step() -> void:
@@ -649,9 +746,17 @@ func _process(delta: float) -> void:
 	_update_sense(delta)
 	_update_ears(delta)
 	_update_muffle()
-	var on := _dread > 0.01 or _amount > 0.01 or _presence > 0.01 or _strain > 0.05 or _spores > 0.01
+	_tick_jam(delta)
+	_tick_lock(delta)
+	var jam := maxf(_jam, _jam_burst)
+	var on := _dread > 0.01 or _amount > 0.01 or _presence > 0.01 or _strain > 0.05 or _spores > 0.01 or jam > 0.01 or _lock_t >= 0.0
 	_screen.visible = on
 	if on:
+		_mat.set_shader_parameter("jam", ceilf(jam * 6.0) / 6.0)
+		_mat.set_shader_parameter("jam_at", _jam_at)
+		_mat.set_shader_parameter("hold", _lock_hold)
+		_mat.set_shader_parameter("clean", _lock_clean)
+		_mat.set_shader_parameter("punch", _lock_punch)
 		_mat.set_shader_parameter("spores", _spores)
 		_mat.set_shader_parameter("amount", _amount)
 		_mat.set_shader_parameter("dread", _dread)
@@ -683,6 +788,119 @@ func _process(delta: float) -> void:
 	_tick_blood(delta)
 	if _warm_frames > 0:
 		_warm_step()
+
+
+func _tick_jam(delta: float) -> void:
+	var want := 0.0
+	var from: Dictionary = {}
+	for k in _jam_src:
+		var e: Dictionary = _jam_src[k]
+		if float(e["level"]) > want:
+			want = float(e["level"])
+			from = e
+	_jam_src.clear()
+	_jam_mute = maxf(0.0, _jam_mute - delta)
+	if _jam_mute > 0.0:
+		want = 0.0
+	_jam = move_toward(_jam, want, delta * (1.4 if want > _jam else 2.5))
+	_jam_burst = maxf(0.0, _jam_burst - delta * 2.4)
+	if not from.is_empty():
+		_jam_place(from["point"], from["cam"])
+	_update_jam_sound()
+
+
+## Where it is from where you look: `_jam_ang`, and `_jam_at` on the picture: where it
+## stands if it is in the frame; else on the frame's edge, down the side and along the
+## bottom the further round behind you it is.
+func _jam_place(point: Vector3, cam: Camera3D) -> void:
+	if cam == null or not is_instance_valid(cam):
+		return
+	var vp := cam.get_viewport()
+	if vp == null:
+		return
+	var local: Vector3 = cam.global_transform.affine_inverse() * point
+	_jam_ang = atan2(local.x, -local.z)
+	var size := vp.get_visible_rect().size
+	var half := atan(tan(deg_to_rad(cam.fov) * 0.5) * size.x / maxf(size.y, 1.0))
+	var off := absf(_jam_ang) - half
+	if off <= 0.0 and not cam.is_position_behind(point):
+		var p := cam.unproject_position(point) / size
+		_jam_at = Vector2(clampf(p.x * 2.0 - 1.0, -1.0, 1.0), clampf(p.y * 2.0 - 1.0, -1.0, 1.0))
+		return
+	var side := 1.0 if _jam_ang >= 0.0 else -1.0
+	var t := clampf(off / (PI - half), 0.0, 1.0)
+	_jam_at = Vector2(side, t * 2.0) if t < 0.5 else Vector2(side * (2.0 - t * 2.0), 1.0)
+
+
+## The hiss and the whistle, made here: louder in the ear on its side, the whistle's pitch
+## by how far round it is from where you look. A short buffer: it answers your turning.
+func _update_jam_sound() -> void:
+	var lv := maxf(_jam, _jam_burst)
+	if lv <= 0.01:
+		if _jam_snd != null and _jam_snd.playing:
+			_jam_snd.stop()
+			_jam_pb = null
+		return
+	if _jam_snd == null:
+		_jam_snd = AudioStreamPlayer.new()
+		var gen := AudioStreamGenerator.new()
+		gen.mix_rate = JAM_RATE
+		gen.buffer_length = 0.08
+		_jam_snd.stream = gen
+		add_child(_jam_snd)
+	if not _jam_snd.playing:
+		_jam_snd.play()
+		_jam_pb = _jam_snd.get_stream_playback() as AudioStreamGeneratorPlayback
+	if _jam_pb == null:
+		return
+	var frames := _jam_pb.get_frames_available()
+	if frames <= 0:
+		return
+	var aim := 1.0 - absf(_jam_ang) / PI
+	var hz_want := lerpf(330.0, 1500.0, aim * aim)
+	# Each ear at constant power; the far one never quite gone.
+	var w := (sin(_jam_ang) + 1.0) * PI * 0.25
+	var gain_want := Vector2(maxf(cos(w), 0.12), maxf(sin(w), 0.12))
+	var a_tone := 0.012 + 0.075 * lv
+	var a_hiss := 0.02 + 0.13 * lv + 0.2 * _jam_burst
+	var crackle := 0.002 * lv + 0.01 * _jam_burst
+	var dt := 1.0 / JAM_RATE
+	var buf := PackedVector2Array()
+	buf.resize(frames)
+	for i in frames:
+		var u := float(i + 1) / float(frames)
+		var hz := lerpf(_jam_hz, hz_want, u)
+		_jam_ph[0] = fmod(_jam_ph[0] + hz * dt, 1.0)
+		_jam_ph[1] = fmod(_jam_ph[1] + (hz * 1.006 + 1.5) * dt, 1.0)
+		var tone := (sin(TAU * _jam_ph[0]) + sin(TAU * _jam_ph[1])) * 0.5
+		var n := randf() * 2.0 - 1.0
+		_jam_lp += (n - _jam_lp) * 0.35
+		var v := tone * a_tone + (n - _jam_lp) * a_hiss
+		if randf() < crackle:
+			v += (randf() * 2.0 - 1.0) * 0.45
+		buf[i] = _jam_gain.lerp(gain_want, u) * v
+	_jam_hz = hz_want
+	_jam_gain = gain_want
+	_jam_pb.push_buffer(buf)
+
+
+func _tick_lock(delta: float) -> void:
+	if _lock_t < 0.0:
+		return
+	_lock_t += delta
+	var t := _lock_t
+	var blink := t < LOCK_FIGURE_SEC
+	_lock_black.visible = blink
+	_lock_fig.visible = blink and _lock_fig.texture != null
+	var i := int((t - LOCK_FIGURE_SEC) * 24.0)
+	_lock_hold = float(LOCK_ROLL[i]) * _lock_k if not blink and i < LOCK_ROLL.size() else 0.0
+	_lock_punch = 0.04 * _lock_k * floorf(maxf(0.0, 1.0 - t / 0.3) * 4.0) / 4.0
+	_lock_clean = 1.0 if t < 0.5 else floorf(clampf(1.0 - (t - 0.5) / 0.5, 0.0, 1.0) * 5.0) / 5.0
+	if t >= LOCK_SEC:
+		_lock_t = -1.0
+		_lock_hold = 0.0
+		_lock_punch = 0.0
+		_lock_clean = 0.0
 
 
 ## Two pale points, one game pixel each, close together; nothing round them. Each eye

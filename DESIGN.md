@@ -484,6 +484,21 @@ is the price, and she never steps into a lamp's light. The table row above has h
 - **Inside**: lures every 14-24 s, counted over the whole night; at the window you look
   at (any room with windows, yours or the other warden's), its curtain open, she is
   pressed to the glass, and she goes only when you look away.
+- **Tuning her in** (the user 4. 11.: "vim že sem v píči, vim odkud, a když se podivám tak
+  takový unc, oukej teď dobrý ale mám problém"; own effects, not copied ones). She is static:
+  out of your sight she jams you from where she is (`nightmare_fx.set_jam`, from 16 m, full
+  at 3 m, not under a lamp). On the picture dashes of a lost signal and a dark come in from
+  her side, the rows there lean her way: on the frame's edge, down the side and along the
+  bottom the further round behind you she is; in the frame where she stands in the dark.
+  In the ears a hiss and a whistle on her side, the whistle tuned by where you look (low
+  with her behind you, climbing as you turn to her), so you find her by ear as on a
+  radio's dial. Each step of hers a burst from where she went. **The clunk**: the moment
+  your light has her again after she moved (`_found`, at most every 2.5 s) the set
+  catches its picture (`nightmare_fx.lock`): the jamming cut dead, a blink of the world
+  gone with her in it in hard white (`materials/lock_figure.gdshader`), the clunk in your
+  chest (`npc/girl_lock.wav`, `tools/audiogen/mix_lock.py`), the frame rolling a few steps
+  and holding, then a clean picture and nothing of her in your ears for 0.7 s. It took
+  the place of the sting and the face for two frames at finding her.
 - **Co-op**: the other warden's torch on her holds her as the hunted warden's does: no
   step, no step in their dead torch, not suddenly behind them (4. 11.: the check's ray
   started inside the other warden's body and stopped on it, so it never counted; the ray

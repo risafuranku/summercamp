@@ -7,7 +7,12 @@ extends "res://tools/shot_driver.gd"
 ##   --part=hitch   the same night without her and with her, then her firsts one after
 ##                  another (each nearer stage, the face for two frames, the ring round your
 ##                  lamp, the strike), every frame timed
+##   --part=jam     her interference from all round (nightmare_fx.set_jam, her brain held
+##                  still), then finding her frame by frame (run it with --fixed-fps 30)
+##   --part=film    the real thing for --write-movie: she comes from behind on your right,
+##                  you turn to her, she is found; you turn away, she comes, you find her
 ##   godot --path godot --audio-driver Dummy --resolution 1280x720 res://tools/holka_shots.tscn -- --part=stages --out=DIR
+##   godot --path godot --write-movie OUT/film.avi --fixed-fps 30 --resolution 960x540 res://tools/holka_shots.tscn -- --part=film
 ## (Co-op: tools/coop_scare.py, tools/coop_girl.py.)
 
 const H := "get_tree().root.get_node('HolkaShots')"
@@ -111,6 +116,92 @@ func probe() -> String:
 	return ", ".join(out)
 
 
+## Her `deg` from where you look (+ right), `dist` m off, her brain held still, and the
+## interference she would give there set by hand each frame.
+var _jam_hand := {}
+
+
+func jam_at(deg: float, dist: float) -> String:
+	var g = girl()
+	if g == null:
+		return "no girl"
+	g.set("_night_active", false)
+	var p: Node3D = _main.get("_player")
+	var cam: Camera3D = p.get_node("Head/Camera3D")
+	var fwd := (-cam.global_transform.basis.z).slide(Vector3(0, 1, 0)).normalized()
+	var dir := fwd.rotated(Vector3(0, 1, 0), -deg_to_rad(deg))
+	var want := p.global_position + dir * dist
+	var at: Vector3 = g._stand(want)
+	var body: Node3D = g.get("_body")
+	body.global_position = at if at != Vector3.INF else want
+	body.visible = true
+	g._set_look(false, dist)
+	_jam_hand = {"point": body.global_position + Vector3(0, 1.5, 0), "level": clampf((16.0 - dist) / 13.0, 0.0, 1.0)}
+	return "%d deg %.1f m level %.2f" % [int(deg), dist, float(_jam_hand["level"])]
+
+
+func lock_now(k: float) -> String:
+	_jam_hand = {}
+	var g = girl()
+	var fx = g._fx()
+	var body: Sprite3D = g.get("_body")
+	var p: Node3D = _main.get("_player")
+	var tall := float(body.texture.get_height()) * body.pixel_size
+	fx.lock(k, body.texture, body.global_position, body.global_position + Vector3(0, tall, 0), p.get_node("Head/Camera3D"))
+	return "lock"
+
+
+## The film: her from behind on your right, going on as herself.
+func film_place(deg: float, dist: float) -> String:
+	var g = girl()
+	var p: Node3D = _main.get("_player")
+	var cam: Camera3D = p.get_node("Head/Camera3D")
+	var fwd := (-cam.global_transform.basis.z).slide(Vector3(0, 1, 0)).normalized()
+	var want := p.global_position + fwd.rotated(Vector3(0, 1, 0), -deg_to_rad(deg)) * dist
+	var at: Vector3 = g._stand(want)
+	var body: Node3D = g.get("_body")
+	body.global_position = at if at != Vector3.INF else want
+	body.visible = true
+	g.set("_night_active", true)
+	g.set("_phase", 1)
+	g.set("_behind_done", true)
+	g.set("_guest_done", true)
+	g.set("_unseen_for", 0.0)
+	g.set("_stutter_next", 99.0)
+	g.set("_curse_next", 99.0)
+	g._set_look(false, dist)
+	return "at %.1f m, frame %d" % [dist, Engine.get_frames_drawn()]
+
+
+## Turning at `speed` degrees a second to her (`to` true) or away from her, until there.
+var _turn := {}
+
+
+func turn(to: bool, speed: float) -> String:
+	_turn = {"to": to, "speed": speed}
+	return "turning, frame %d" % Engine.get_frames_drawn()
+
+
+func _do_turn(delta: float) -> void:
+	if _turn.is_empty():
+		return
+	var g = girl()
+	var p: Node3D = _main.get("_player")
+	if g == null or p == null:
+		return
+	var to: Vector3 = (g.get("_body") as Node3D).global_position - p.global_position
+	var want := atan2(-to.x, -to.z)
+	if not bool(_turn["to"]):
+		want += PI
+	var diff := wrapf(want - p.rotation.y, -PI, PI)
+	var step := deg_to_rad(float(_turn["speed"])) * delta
+	if absf(diff) <= step:
+		p.rotation.y = want
+		_turn = {}
+		return
+	p.rotation.y += signf(diff) * step
+
+
 func ring() -> String:
 	var g = girl()
 	if g == null:
@@ -145,6 +236,12 @@ var _compiled_last := 0
 
 func _process(delta: float) -> void:
 	super._process(delta)
+	_do_turn(delta)
+	if not _jam_hand.is_empty():
+		var g0 = girl()
+		var fx0 = g0._fx() if g0 != null else null
+		if fx0 != null:
+			fx0.set_jam("test", _jam_hand["point"], (_main.get("_player") as Node).get_node("Head/Camera3D"), float(_jam_hand["level"]))
 	var comp := _compiled()
 	var new_comp := comp - _compiled_last
 	_compiled_last = comp
@@ -236,6 +333,35 @@ const HITCH_STEPS := [
 ]
 
 
+const JAM_STEPS := [
+	["wait_menu"], ["call", "_on_menu_test_night", ["girl"]], ["wait", 4.0],
+	["call_on", "_interior_manager", "close_main_interior_if_open", []], ["wait", 1.0],
+	["call", "_stop_active_enemy_brain", []], ["wait", 1.0], ["eval", "_set_player_health(100)"],
+	["eval", "debug_spawn_enemy('girl', 3)"], ["wait", 0.5],
+	["eval", H + ".jam_at(70.0, 9.0)"], ["wait", 1.2], ["shot", "j0_right_70_9m"],
+	["eval", H + ".jam_at(110.0, 6.0)"], ["wait", 1.2], ["shot", "j1_right_110_6m"],
+	["eval", H + ".jam_at(150.0, 6.0)"], ["wait", 1.2], ["shot", "j2_right_150_6m"],
+	["eval", H + ".jam_at(180.0, 6.0)"], ["wait", 1.2], ["shot", "j3_behind_6m"],
+	["eval", H + ".jam_at(-110.0, 4.0)"], ["wait", 1.2], ["shot", "j4_left_110_4m"],
+	["eval", H + ".jam_at(-70.0, 13.0)"], ["wait", 1.2], ["shot", "j5_left_70_13m"],
+	["eval", H + ".jam_at(35.0, 12.0)"], ["wait", 1.2], ["shot", "j6_in_frame_dark"],
+	["eval", H + ".jam_at(0.0, 7.0)"], ["wait", 1.2], ["shot", "k0_before"],
+	["eval", H + ".lock_now(0.8)"], ["shot", "k1"], ["shot", "k2"], ["shot", "k3"], ["shot", "k4"], ["shot", "k5"], ["shot", "k6"], ["shot", "k7"],
+	["wait", 0.3], ["shot", "k8"], ["wait", 0.5], ["shot", "k9"],
+]
+
+const FILM_STEPS := [
+	["wait_menu"], ["call", "_on_menu_test_night", ["girl"]], ["wait", 4.0],
+	["call_on", "_interior_manager", "close_main_interior_if_open", []], ["wait", 1.0],
+	["call", "_stop_active_enemy_brain", []], ["wait", 1.0], ["eval", "_set_player_health(100)"],
+	["eval", "debug_spawn_enemy('girl', 3)"], ["wait", 2.0],
+	["eval", H + ".film_place(125.0, 13.0)"], ["wait", 3.2],
+	["eval", H + ".turn(true, 170.0)"], ["wait", 2.6],
+	["eval", H + ".turn(false, 200.0)"], ["wait", 2.4],
+	["eval", H + ".turn(true, 260.0)"], ["wait", 2.2],
+	["eval", "get_tree().quit()"],
+]
+
 const PROBE_STEPS := [
 	["wait_menu"], ["call", "_on_menu_test_night", ["girl"]], ["wait", 4.0],
 	["call", "_stop_active_enemy_brain", []], ["wait", 1.0],
@@ -246,6 +372,12 @@ const PROBE_STEPS := [
 
 func _ready() -> void:
 	super._ready()
+	if OS.get_cmdline_user_args().has("--part=jam"):
+		_steps = JAM_STEPS.duplicate(true)
+		return
+	if OS.get_cmdline_user_args().has("--part=film"):
+		_steps = FILM_STEPS.duplicate(true)
+		return
 	if OS.get_cmdline_user_args().has("--part=probe"):
 		_steps = PROBE_STEPS.duplicate(true)
 		return

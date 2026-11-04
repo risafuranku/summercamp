@@ -20,6 +20,18 @@ uniform float aspect = 1.333;
 // Spores (the granny near you, scripts/enemies/basket_brain.gd): a sour yellow haze over
 // the picture and motes drifting through it, in whole game pixels; 0 off, 1 at your face.
 uniform float spores = 0.0;
+// Her interference (the Girl: nightmare_fx.set_jam): the picture loses its signal from where
+// she is: the rows there lean her way, it goes dark and TV snow creeps in, in whole game
+// pixels. `jam_at`: where she is on the picture (-1..1, y down; out of the frame, on its
+// edge). `jam`: 0 off, 1 she is on you.
+uniform float jam = 0.0;
+uniform vec2 jam_at = vec2(1.0, 0.0);
+// Found (nightmare_fx.lock): the set catches its picture. `hold`: the frame's roll, in frame
+// heights, a black bar where it wraps. `clean`: the night's grain and tears gone from it for
+// a moment. `punch`: the picture a little nearer.
+uniform float hold = 0.0;
+uniform float clean = 0.0;
+uniform float punch = 0.0;
 
 float hash(vec2 p) {
 	return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
@@ -28,6 +40,26 @@ float hash(vec2 p) {
 void fragment() {
 	vec2 uv = SCREEN_UV;
 	vec2 px = SCREEN_PIXEL_SIZE * cell;
+	uv = 0.5 + (uv - 0.5) * (1.0 - punch);
+	float bar = 0.0;
+	if (abs(hold) > 0.0001) {
+		float y = fract(uv.y + hold);
+		bar = step(y, 0.035);
+		uv.y = y;
+	}
+	// Where her interference is on this game pixel (cells of two: coarser than the world).
+	float jm = clamp(jam, 0.0, 1.0);
+	float her = 0.0;
+	vec2 jsize = px * vec2(5.0, 1.0);
+	vec2 jcell = floor(SCREEN_UV / jsize);
+	if (jm > 0.001) {
+		vec2 box = (jcell * jsize - 0.5) * 2.0;
+		vec2 dd = (box - jam_at) * vec2(aspect, 1.0);
+		her = clamp(1.0 - length(dd) / mix(0.42, 1.6, jm), 0.0, 1.0);
+		// The rows near her lean her way.
+		float lean = hash(vec2(floor(uv.y / (px.y * 2.0)), floor(time_s * 12.0)));
+		uv.x += (jam_at.x < 0.0 ? 1.0 : -1.0) * floor(lean * her * her * 9.0) * px.x;
+	}
 	// Presence: the world bends. A slow wave runs through the picture in whole game
 	// pixels, and the view narrows towards the middle (tunnel vision), both with the dread
 	// that is in you, not with anything you see.
@@ -39,7 +71,8 @@ void fragment() {
 		uv = 0.5 + (uv - 0.5) * (1.0 - 0.045 * w * w - beat * 0.006 * w);
 	}
 	float a = clamp(amount, 0.0, 1.0);
-	float d = clamp(dread, 0.0, 1.0);
+	float q = 1.0 - clamp(clean, 0.0, 1.0);
+	float d = clamp(dread, 0.0, 1.0) * q;
 	float tick = floor(time_s * 12.0);
 	// Tears: bands of the frame slide sideways, more and wider with a hit.
 	float row = floor(uv.y / (px.y * 6.0));
@@ -54,7 +87,7 @@ void fragment() {
 	// Grain on the game-pixel grid, twelve times a second.
 	vec2 g = floor(uv / px);
 	float n = hash(g + tick * 7.13);
-	c += (n - 0.5) * (0.03 + 0.12 * d + 0.35 * a);
+	c += (n - 0.5) * (0.03 * q + 0.12 * d + 0.35 * a);
 	// The colour drains towards rust and black.
 	float drain = d * 0.35 + a * 0.6;
 	float lum = dot(c, vec3(0.3, 0.59, 0.11));
@@ -82,5 +115,15 @@ void fragment() {
 		c *= 1.0 - v * (0.55 + 0.4 * sq);
 		c = mix(c, c * vec3(1.05, 0.82, 0.8), v * sq);
 	}
+	// Her snow: dashes of a lost signal over a dark that comes with it, in a few hard shades,
+	// the nearer the denser, ragged, twelve a second.
+	if (her > 0.0) {
+		float grainy = hash(jcell + tick * 3.1);
+		float density = her * her * (0.1 + 0.42 * jm);
+		float snow = step(1.0 - density, hash(jcell * 1.7 + tick * 11.3));
+		c *= 1.0 - floor(her * 6.0) / 6.0 * (0.45 + 0.5 * jm);
+		c = mix(c, mix(vec3(0.1, 0.1, 0.12), vec3(0.62, 0.6, 0.54), grainy * grainy), snow * 0.85);
+	}
+	c *= 1.0 - bar;
 	COLOR = vec4(c, 1.0);
 }

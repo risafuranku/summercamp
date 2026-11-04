@@ -2,8 +2,8 @@
 """Co-op Girl check: a host and a client of the game on this machine
 (tools/coop_girl.tscn). PASS when the Girl hunting the joining warden is held by the
 host's torch (no step, not behind them while it is on her), comes once nobody lights
-her, and is theirs alone: her stage, the cold in their torch and the presence on their
-machine, none of it on the host's.
+her, and is theirs alone: her stage, the cold in their torch, the presence, her interference
+and the set catching its picture as they find her on their machine, none of it on the host's.
 
     python godot/tools/coop_girl.py [OUT_DIR]
 """
@@ -67,7 +67,9 @@ def main():
     need(lambda r: int(r["mirror"]) > 0, "the joining warden does not see her", report(c, "client", "faced_here"))
     need(lambda r: float(r["drain"]) > 0.0, "no cold in the joining warden's torch on her", report(c, "client", "faced_here"))
     need(lambda r: float(r["presence"]) > 0.05, "the joining warden does not feel her near", report(c, "client", "faced_here"))
-    need(lambda r: float(r["presence"]) < 0.05 and float(r["dread"]) < 0.05 and float(r["drain"]) == 0.0,
+    need(lambda r: float(r["jam"]) > 0.2, "no interference from her on the joining warden's screen", report(c, "client", "faced_here"))
+    need(lambda r: r["lock"] == "true", "the joining warden's set did not catch its picture as they found her", report(c, "client", "faced_here"))
+    need(lambda r: float(r["presence"]) < 0.05 and float(r["dread"]) < 0.05 and float(r["drain"]) == 0.0 and float(r["jam"]) == 0.0 and r["lock"] == "false",
          "the host's screen or torch had some of the other's hunt", report(h, "host", "host_end"))
     print("\n".join(l for l in (h + c).splitlines() if "COOP GIRL" in l))
     if failures:

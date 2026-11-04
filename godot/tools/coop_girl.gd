@@ -6,8 +6,9 @@ extends "res://tools/coop_check.gd"
 ##     step, not suddenly behind them: another warden's torch holds her as theirs does);
 ##   - the host looks away too: now she comes;
 ##   - they turn to her with their torch: her stage on their screen, the cold in their
-##     torch (the drain held on their machine), the presence in their ears; the host's
-##     screen and ears have none of it all night.
+##     torch (the drain held on their machine), the presence in their ears, her
+##     interference from where she was and the set catching its picture as they find her;
+##     the host's screen and ears have none of it all night.
 ## Each side prints what it has seen ("COOP GIRL <role>: ...").
 ##
 ##   godot --path godot res://tools/coop_girl.tscn -- --role=host --out=DIR
@@ -50,12 +51,23 @@ func _ready() -> void:
 			["coop_place", 14, 14, 1.0], ["wait", 1.5], ["coop_signal", "client_ready"],
 			["coop_wait_file", "host_night"], ["coop_wait", "night"], ["wait", 2.0], ["eval", "_set_player_health(100)"],
 			["gl_torch"], ["gl_report", "start"], ["coop_signal", "client_night"],
-			["coop_wait_file", "host_placed"], ["wait", 0.8], ["gl_face", false], ["wait", 0.5], ["coop_signal", "client_away"],
-			["coop_wait_file", "host_face"], ["wait", 0.8], ["gl_face", true], ["wait", 2.0], ["gl_report", "faced_here"], ["shot", "c1_faced"],
+			["coop_wait_file", "host_placed"], ["coop_wait", "her_copy"], ["gl_face", false], ["wait", 0.5], ["coop_signal", "client_away"],
+			["coop_wait_file", "host_face"], ["coop_wait", "her_copy"], ["gl_face", true], ["wait", 2.0], ["gl_report", "faced_here"], ["shot", "c1_faced"],
 			["coop_signal", "client_faced"],
 			["coop_wait_file", "host_faced_seen"], ["wait", 0.3], ["coop_signal", "client_done"],
 			["coop_wait", "host_done"], ["coop_leave"], ["wait", 2.0],
 		]
+
+
+func _condition_met(what: String) -> bool:
+	if what == "her_copy":
+		if Time.get_ticks_msec() > _coop_wait_deadline:
+			print("COOP CHECK %s: gave up waiting for %s" % [_role, what])
+			get_tree().quit(1)
+			return false
+		var her := _her_body()
+		return her != null and (her as Node3D).visible
+	return super._condition_met(what)
 
 
 ## Every frame as it is drawn: the most of the presence and dread on this screen, her
@@ -67,6 +79,9 @@ func _look() -> void:
 	if fx != null:
 		_saw["presence"] = maxf(float(_saw.get("presence", 0.0)), float(fx.get("_presence")))
 		_saw["dread"] = maxf(float(_saw.get("dread", 0.0)), float(fx.get("_dread")))
+		_saw["jam"] = maxf(float(_saw.get("jam", 0.0)), float(fx.get("_jam")))
+		if float(fx.get("_lock_t")) >= 0.0:
+			_saw["lock"] = true
 	var night = _main.get("_coop_night")
 	if night != null:
 		var shown := 0
@@ -130,6 +145,7 @@ func _run_step(step: Array) -> void:
 			_gl.set("_phase", 1)
 			_gl.set("_unseen_for", 0.0)
 			_gl.set("_away_for", 0.0)
+			_gl.set("_moved_unseen", true)
 			_gl.call("_set_look", false, float(step[1]))
 		"gl_host_look":
 			var me: Node3D = _main.get("_player")
@@ -160,10 +176,10 @@ func _run_step(step: Array) -> void:
 				dist = float(_gl.call("_distance_to_player", body2.global_position))
 				held = str(_gl.get("_held"))
 				phase = int(_gl.get("_phase"))
-			print("COOP GIRL %s: %s moved=%s dist=%.1f held=%s phase=%d presence=%.2f dread=%.2f mirror=%d drain=%.1f torch=%s hp=%d" % [
+			print("COOP GIRL %s: %s moved=%s dist=%.1f held=%s phase=%d presence=%.2f dread=%.2f mirror=%d drain=%.1f torch=%s hp=%d jam=%.2f lock=%s" % [
 				_role, str(step[1]), moved, dist, held, phase, float(_saw.get("presence", 0.0)), float(_saw.get("dread", 0.0)),
 				int(_saw.get("mirror", 0)), float(_saw.get("drain", 0.0)), bool((_main.get("_player") as Node).call("is_flashlight_active")),
-				int(_main.get("_player_health"))])
+				int(_main.get("_player_health")), float(_saw.get("jam", 0.0)), _saw.get("lock", false)])
 			# The host's screen is never the hunted one here: what it saw is kept to the end.
 			if _role != "host":
 				_saw.clear()
