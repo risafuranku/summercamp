@@ -30758,3 +30758,48 @@ msgstr "Objednávka odeslána: $%d. Pojede dnešní dodávkou."
 
 msgid "Order sent: $%d. The van comes tomorrow."
 msgstr "Objednávka odeslána: $%d. Dodávka přijede zítra."
+
+msgid "Everybody"
+msgstr "Všichni"
+
+msgid "Works at"
+msgstr "Pracoviště"
+
+msgid "Nobody yet."
+msgstr "Zatím nikdo."
+
+msgid "From tomorrow"
+msgstr "Od zítřka"
+
+msgid "Away today"
+msgstr "Dnes chybí"
+
+msgid "At work"
+msgstr "V práci"
+
+msgid "Moved: %s -> %s."
+msgstr "Přeřazeno: %s -> %s."
+
+msgid "Taken on: %s, from tomorrow (%s)."
+msgstr "Přijato: %s, nastupuje zítra (%s)."
+
+msgid "Take on at:"
+msgstr "Přijmout do:"
+
+msgid "Nowhere to work in the camp yet."
+msgstr "V kempu zatím není kde pracovat."
+
+msgid "Wages $%d"
+msgstr "Mzdy $%d"
+
+msgid "and %d more"
+msgstr "a další %d"
+
+msgid "Toilets and showers"
+msgstr "Záchody a sprchy"
+
+msgid "%s: the %s cleaned."
+msgstr "%s: %s uklizeny."
+
+msgid "Reception (%s): %s -> %s."
+msgstr "Recepce (%s): %s -> %s."

@@ -232,7 +232,8 @@ func _biz_upgrade(site: Dictionary) -> void:
 			var p := BIZ_RULES.person(slug, kind)
 			p["role"] = BIZ_RULES.front(kind)
 			p["shift"] = "day"
-			p["since"] = int(site.get("since_day", day))
+			# (At work already: "since" is the day a hand starts, 4. 11.)
+			p["since"] = mini(int(site.get("since_day", day)), day)
 			site["crew"].append(p)
 	for k in ["waste", "short"]:
 		for d in ["today", "yesterday"]:
@@ -746,7 +747,8 @@ func biz_close_day(day := -1) -> Dictionary:
 		var crew: Array = site["crew"]
 		for i in range(crew.size() - 1, -1, -1):
 			var p: Dictionary = crew[i]
-			if day >= 0 and int(p.get("absent", -1)) == day:
+			# (Away, or taken on for a later day: no shift worked.)
+			if day >= 0 and (int(p.get("absent", -1)) == day or int(p.get("since", 0)) > day):
 				continue
 			var due := BIZ_RULES.shift_pay(p) + int(p.get("owed", 0))
 			if _state.money >= due:
@@ -773,7 +775,7 @@ func biz_close_day(day := -1) -> Dictionary:
 	var screw: Array = st["crew"]
 	for i in range(screw.size() - 1, -1, -1):
 		var p: Dictionary = screw[i]
-		if day >= 0 and int(p.get("absent", -1)) == day:
+		if day >= 0 and (int(p.get("absent", -1)) == day or int(p.get("since", 0)) > day):
 			continue
 		var due := STAFF_RULES.wage_of(p) + int(p.get("owed", 0))
 		if _state.money >= due:

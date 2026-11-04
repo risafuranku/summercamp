@@ -383,8 +383,16 @@ static func crew_now(key: String) -> Array:
 	if now == "closed":
 		return out
 	var day := CoreRoot.get_day() if CoreRoot != null else 0
+	# Open late with nobody on the late shift: the day's hands stay on.
+	var late_crew := false
 	for p in s.get("crew", []):
-		if str(p.get("shift", "day")) == now and int(p.get("absent", -1)) != day and not arriving.has(key + "/" + str(p.get("slug", ""))):
+		late_crew = late_crew or str(p.get("shift", "day")) == "late"
+	for p in s.get("crew", []):
+		# Taken on today: in tomorrow (the user 4. 11.: "hired and at work at once?").
+		if int(p.get("since", 0)) > day:
+			continue
+		var shift := str(p.get("shift", "day"))
+		if (shift == now or (now == "late" and not late_crew)) and int(p.get("absent", -1)) != day and not arriving.has(key + "/" + str(p.get("slug", ""))):
 			out.append(p)
 	return out
 

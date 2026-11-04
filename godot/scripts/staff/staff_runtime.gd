@@ -23,6 +23,8 @@ extends Node
 ## outside (at the laptop, at the books), and its lamps and curtains are as they are in.
 
 const RULES = preload("res://core/systems/staff_rules.gd")
+const MAINT_RULES = preload("res://core/systems/maintenance_rules.gd")
+const DOOR_ANIM_S = preload("res://scripts/attractions/door_anim.gd")
 const PLAN = preload("res://scripts/staff/staffroom_plan.gd")
 const ROOM = preload("res://scripts/staff/staffroom.gd")
 const ROOM_RULES = preload("res://core/systems/room_rules.gd")
@@ -277,7 +279,7 @@ func _run() -> void:
 		var p: Dictionary = crew[i]
 		var slug := str(p.get("slug", ""))
 		var act: Dictionary = acts.get(slug, {})
-		var on := RULES.on_duty(p, hour, i)
+		var on := RULES.on_duty(p, hour, i, CoreRoot.get_day())
 		var doing := str(act.get("do", "home"))
 		match doing:
 			"home":
@@ -339,6 +341,11 @@ func _arrive(slug: String, p: Dictionary, act: Dictionary, now: float) -> void:
 				var left := _room_left(str(next.get("room", "")))
 				minutes *= maxf(1.0, float(left))
 				next["each"] = RULES.work_minutes("rooms", int(p.get("speed", 1)))
+			if str(next.get("what", "")) == "desk":
+				# Behind the counter till home time, a guest every DESK_EACH_MIN or so.
+				minutes = 9999.0
+				next["each"] = RULES.DESK_EACH_MIN * float(RULES.SPEED_K[clampi(int(p.get("speed", 1)), 0, 2)])
+				next["last"] = now
 			next["t1"] = now + minutes
 			CoreRoot.actions.staff_act(slug, next)
 
@@ -429,7 +436,25 @@ func _find_work(slug: String, p: Dictionary, act: Dictionary, now: float) -> boo
 			if d < best_d:
 				best_d = d
 				best = {"what": str(j["kind"]), "ev": int(j["id"]), "pos": j["pos"]}
-	if bool(jobs.get("rooms", true)):
+	# The reception: the one ticked for it goes and stays there (nobody else at the desk).
+	if RULES.does(p, "desk") and _desk() != Vector3.INF:
+		var at_desk := false
+		for s in acts:
+			if str(s) != slug and str(acts[s].get("room", "")) == "desk":
+				at_desk = true
+		if not at_desk:
+			best = {"what": "desk", "room": "desk", "pos": _desk()}
+			best_d = -1.0
+	# The toilets and the showers worn into wanting a clean (not a broken one: a crew's).
+	if RULES.does(p, "blocks") and best_d >= 0.0:
+		for b in _blocks_dirty():
+			if taken_room.has(str(b["room"])):
+				continue
+			var d2 := from.distance_to(b["pos"]) + 15.0
+			if d2 < best_d:
+				best_d = d2
+				best = b
+	if bool(jobs.get("rooms", true)) and best_d >= 0.0:
 		var state = CoreRoot.get_state()
 		for key in state.accommodation_states:
 			var acc: Dictionary = state.accommodation_states[key]
@@ -463,6 +488,28 @@ func _find_work(slug: String, p: Dictionary, act: Dictionary, now: float) -> boo
 func _work(slug: String, p: Dictionary, act: Dictionary, now: float, on: bool) -> void:
 	var what := str(act.get("what", ""))
 	var name := str(p.get("name", ""))
+	if what == "desk":
+		if not on:
+			_leave(slug, act)
+			return
+		if not RULES.does(p, "desk"):
+			_back(slug, _v(act.get("at", [0, 0, 0])))
+			return
+		if now - float(act.get("last", now)) >= float(act.get("each", RULES.DESK_EACH_MIN)):
+			act["last"] = now
+			_desk_check_in(name)
+		return
+	if what == "blocks":
+		if now >= float(act.get("t1", now)) or not on:
+			var c: Vector2i = _block_coord(str(act.get("room", "")))
+			if now >= float(act.get("t1", now)) and c.x >= 0 and _block_wants(c):
+				CoreRoot.actions.service_building(c, 0)
+				_log(tr("%s: the %s cleaned.") % [name, tr(_block_label(c)).to_lower()])
+			if on:
+				_back(slug, _v(act.get("at", [0, 0, 0])))
+			else:
+				_leave(slug, act)
+		return
 	if what == "rooms":
 		var key := str(act.get("room", ""))
 		var acc_ok := _room_free(key)
@@ -496,6 +543,81 @@ func _work(slug: String, p: Dictionary, act: Dictionary, now: float, on: bool) -
 			_back(slug, _v(act.get("at", [0, 0, 0])))
 		else:
 			_leave(slug, act)
+
+
+## The reception's door, a step out of it (INF without the reception).
+func _desk() -> Vector3:
+	var main := _main()
+	var b := main.find_child("MainBuilding", true, false) as Node3D if main != null else null
+	if b == null:
+		return Vector3.INF
+	var way: Dictionary = load("res://scripts/attractions/door_anim.gd").entry_points(b, 0)
+	var p: Vector3 = way.get("outside", Vector3.INF)
+	if p != Vector3.INF:
+		p.y = _ground_y(p)
+	return p
+
+
+## The guest waiting longest at the reception with their lodging made up: checked in.
+func _desk_check_in(name: String) -> void:
+	if GuestManager == null:
+		return
+	var state = CoreRoot.get_state()
+	var now_abs: int = GuestManager._absolute_minutes(maxi(1, GuestManager._last_known_day), GuestManager._last_known_hour, GuestManager._last_known_minute)
+	var best := {}
+	for g in state.guests:
+		if not (g is Dictionary) or str((g as Dictionary).get("status", "")) != GuestManager.STATUS_WAITING:
+			continue
+		var since := int((g as Dictionary).get("gate_since_abs", now_abs))
+		if now_abs - since < int(RULES.DESK_WAIT_MIN):
+			continue
+		if best.is_empty() or since < int(best.get("gate_since_abs", 0)):
+			best = g
+	if best.is_empty():
+		return
+	var res: Dictionary = GuestManager.request_check_in(int(best.get("id", -1)))
+	if bool(res.get("ok", false)):
+		var rooms: Array = []
+		for r in res.get("rooms", []):
+			rooms.append(str((r as Dictionary).get("label", "")))
+		_log(tr("Reception (%s): %s -> %s.") % [name, str(best.get("name", "")), ", ".join(rooms)])
+
+
+## The toilet and shower blocks wanting a clean, not broken: [{what, room, pos}].
+func _blocks_dirty() -> Array:
+	var out: Array = []
+	var state = CoreRoot.get_state()
+	var dirty_at: float = MAINT_RULES.DIRTY_AT
+	for coord in state.grid.cells.keys():
+		var cell: Dictionary = state.grid.cells[coord]
+		var t := str(cell.get("type", ""))
+		if (t != "toilet_block" and t != "shower_block") or cell.get("root_coord", coord) != coord:
+			continue
+		var c := coord as Vector2i
+		if not _block_wants(c):
+			continue
+		var s = DOOR_ANIM_S.structure_at(c)
+		var pos: Vector3 = (DOOR_ANIM_S.entry_points(s, 0) as Dictionary).get("outside", Vector3.INF) if s != null else Vector3.INF
+		if pos == Vector3.INF:
+			continue
+		pos.y = _ground_y(pos)
+		out.append({"what": "blocks", "room": "block:%d:%d" % [c.x, c.y], "pos": pos})
+	return out
+
+
+func _block_wants(c: Vector2i) -> bool:
+	var state = CoreRoot.get_state()
+	var cell: Dictionary = state.grid.cells.get(c, {})
+	return not cell.is_empty() and float(cell.get("maintenance", 1.0)) < MAINT_RULES.DIRTY_AT and not state.failures.has("%d:%d" % [c.x, c.y])
+
+
+func _block_coord(room: String) -> Vector2i:
+	var p := room.split(":")
+	return Vector2i(int(p[1]), int(p[2])) if p.size() == 3 and p[0] == "block" else Vector2i(-1, -1)
+
+
+func _block_label(c: Vector2i) -> String:
+	return "Toilets" if str(CoreRoot.get_state().grid.cells.get(c, {}).get("type", "")) == "toilet_block" else "Showers"
 
 
 func _back(slug: String, from: Vector3) -> void:
@@ -681,6 +803,12 @@ func _draw() -> void:
 				if str(act.get("what", "")) == "rooms":
 					# In the lodging, sweeping its step now and then.
 					pose = "sweep" if int(now / 6.0) % 2 == 0 else ""
+				elif str(act.get("what", "")) == "desk":
+					# Inside, behind the reception's counter.
+					pose = ""
+				elif str(act.get("what", "")) == "blocks":
+					# In the block with the mop, out at its door now and then.
+					pose = "sweep" if int(now / 8.0) % 3 == 0 else ""
 			"rest", "coffee":
 				var spot := str(act.get("spot", ""))
 				if room != null and (spot.begins_with("chair:") or spot.begins_with("sofa:") or spot == "stand"):

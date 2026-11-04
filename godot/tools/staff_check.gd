@@ -47,12 +47,16 @@ func _ready() -> void:
 	# Applicants.
 	var ap1 := RULES.applicants("rest", "4:4", 5, [], 7)
 	var ap2 := RULES.applicants("rest", "4:4", 5, [], 7)
-	_expect(ap1 == ap2 and ap1.size() == 3, "three ask, the same on every machine (%d)" % ap1.size())
+	_expect(ap1 == ap2 and ap1.size() == RULES.ASKING, "%d ask, the same on every machine (%d)" % [RULES.ASKING, ap1.size()])
 	var slugs := {}
+	var asked := 0
 	for p in ap1:
 		slugs[str(p["slug"])] = true
-		_expect((RULES.PEOPLE[str(p["slug"])]["asks"] as Array).has("rest"), "%s asks at a bistro" % str(p["slug"]))
-	_expect(slugs.size() == 3, "three different people")
+		if (RULES.PEOPLE[str(p["slug"])]["asks"] as Array).has("rest"):
+			asked += 1
+	# Those asking for the bistro first, then anybody not in work (4. 11.: "hardly anybody").
+	_expect(asked >= mini(RULES.ASKING, 8), "the bistro's own first (%d of %d)" % [asked, ap1.size()])
+	_expect(slugs.size() == RULES.ASKING, "different people")
 	var ap3 := RULES.applicants("rest", "4:4", 5, ["pepa", "hanka", "dvorakova"], 7)
 	for p in ap3:
 		_expect(not (str(p["slug"]) in ["pepa", "hanka", "dvorakova"]), "nobody already working asks (%s)" % str(p["slug"]))
@@ -81,7 +85,9 @@ func _ready() -> void:
 	GuestManager._last_known_hour = 21
 	_expect(BUSINESS.shift_now(site) == "closed" and BUSINESS.crew_now("4:4").is_empty(), "nine at night, not open late: shut")
 	a.biz_set_late("4:4", true)
-	_expect(BUSINESS.shift_now(site) == "late" and BUSINESS.crew_now("4:4").is_empty(), "open late: the late shift (Pepa works days)")
+	# (Nobody on the late shift: the day's hands stay on, 4. 11.: the shifts are no longer
+	# handed out on the PC.)
+	_expect(BUSINESS.shift_now(site) == "late" and BUSINESS.crew_now("4:4").size() == 1, "open late with nobody on the late shift: Pepa stays on")
 	a.biz_set_job("4:4", "pepa", "pass", "late")
 	_expect(BUSINESS.crew_now("4:4").size() == 1, "Pepa on the late shift")
 	a.biz_set_job("4:4", "pepa", "pass", "day")

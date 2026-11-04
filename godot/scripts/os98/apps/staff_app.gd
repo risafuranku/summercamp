@@ -1,20 +1,25 @@
 extends Control
 
-## Personal 98: SoftSklad's fifth program (the user 21. 10.: "a fifth tab in SoftSklad
-## where you hire the staff"), for the staffroom's hands (DESIGN.md §7c, the rules
-## core/systems/staff_rules.gd). The same as the staffroom's paper books
-## (scripts/staff/staff_ledger.gd), from the office PC or the staffroom's laptop:
-##   Staff     who works here and where each of them is now; the one picked: their wage,
-##             what their papers say, and a tick box for each job they see to; Let go
-##   Hire      who is asking today (ID photo, wage, papers), Take on: one to a locker,
-##             only with a staffroom standing
+## Personal 98: SoftSklad's program for everybody who works in the camp (the user 4. 11.:
+## "sharing the hands out by the stands on the PC is horribly complicated; redo the whole
+## program simply, so managing the staff is fun: there are the businesses' hands, and the
+## staffroom's, who clean or take the guests in at the reception"). One list of the lot,
+## and a click moves somebody where they are wanted; the businesses' programs only run their
+## places. Pages:
+##   Staff     everybody, where they work and what they are doing; the one picked: their
+##             photo, how they are, a button for each place to move them to, the
+##             staffroom's jobs as tick boxes (the blocks and the reception too), Let go
+##   Hire      who is asking today (five, anybody not in work: ID photo, papers), a button
+##             for each place to take them on at, with what they ask there; they come in
+##             the next morning (the staffroom only with a locker free)
 ##   Lockers   one more locker for the boiler room, one more armchair for the lounge, Buy
-##   Today     what the hands did today, the wages tonight
+##   Today     what the staffroom's hands did today, the wages tonight
 ## Drawn in the 98 look like its siblings (business_app.gd); nothing scrolls.
 
 const T = preload("res://scripts/os98/os_theme.gd")
 const LANG = preload("res://scripts/lang.gd")
 const RULES := preload("res://core/systems/staff_rules.gd")
+const BRT := preload("res://core/systems/business_rules.gd")
 const BUSINESS := preload("res://scripts/business/business_runtime.gd")
 const LEDGER := preload("res://scripts/staff/staff_ledger.gd")
 const PAGES := [["staff", "Staff", "staff"], ["hire", "Hire", "staff"], ["lockers", "Lockers", "stock"], ["today", "Today", "books"]]
@@ -22,12 +27,15 @@ const BAR_H := 34
 const BANNER_H := 24
 const STATUS_H := 20
 const ROW_H := 18
+const ROWS := 11
 const RED := Color8(176, 0, 0)
 const GREEN := Color8(0, 112, 0)
 const HEAD := Color8(70, 54, 30)
 const ICONS := "res://assets/textury/os98/icons/"
 const PHOTOS := "res://assets/textury/os98/photos/"
 const CARDS := "res://assets/textury/closeup/parts/"
+## The places' colours on the list (business_app's banner colours), the staffroom's brown.
+const PLACE_COL := {"pub": Color8(120, 60, 20), "rest": Color8(150, 40, 30), "vecerka": Color8(30, 90, 50), "corn": Color8(170, 130, 10), "bowl": Color8(40, 60, 130), "staff": HEAD}
 
 var _shell
 var _win
@@ -73,27 +81,153 @@ func _crew() -> Array:
 	return _st().get("crew", [])
 
 
-func _who(slug: String) -> Dictionary:
-	for p in _crew():
-		if str(p.get("slug", "")) == slug:
-			return p
-	return {}
-
-
 func _has_room() -> bool:
 	var tree := get_tree()
 	return tree != null and not tree.get_nodes_in_group("staffroom").is_empty()
 
 
-func _applicants() -> Array:
-	var taken: Array = []
+# ── who works where ──────────────────────────────────────────────────────────
+
+## The places to work at: the businesses standing in the camp (their keys, by kind) and
+## the staffroom ("staff") when there is one.
+func _places() -> Array:
+	var out: Array = []
+	if CoreRoot == null or CoreRoot.get_state() == null:
+		return out
+	var state = CoreRoot.get_state()
+	var sites: Dictionary = state.biz.get("sites", {})
+	var keys := sites.keys()
+	keys.sort()
+	for kind in ["pub", "rest", "vecerka", "corn", "bowl"]:
+		for k in keys:
+			if str((sites[k] as Dictionary).get("kind", "")) != kind:
+				continue
+			var p := str(k).split(":")
+			if p.size() != 2:
+				continue
+			var cell: Dictionary = state.grid.cells.get(Vector2i(int(p[0]), int(p[1])), {})
+			if BRT.is_business(str(cell.get("type", ""))):
+				out.append(str(k))
+	if _has_room():
+		out.append("staff")
+	return out
+
+
+func _kind_of(place: String) -> String:
+	return "staff" if place == "staff" else str(BUSINESS.site(place).get("kind", ""))
+
+
+func _place_label(place: String) -> String:
+	if place == "staff":
+		return tr("Staffroom")
+	var kind := _kind_of(place)
+	var name := tr(str(BRT.info(kind).get("name", "")))
+	var same: Array = _places().filter(func(k): return _kind_of(str(k)) == kind)
+	return name if same.size() <= 1 else "%s %d" % [name, same.find(place) + 1]
+
+
+## Everybody: [{p, at}], the businesses' first, the staffroom's after.
+func _everyone() -> Array:
+	var out: Array = []
+	for place in _places():
+		if place == "staff":
+			continue
+		for p in BUSINESS.site(place).get("crew", []):
+			out.append({"p": p, "at": place})
 	for p in _crew():
-		taken.append(str(p.get("slug", "")))
+		out.append({"p": p, "at": "staff"})
+	return out
+
+
+func _entry(slug: String) -> Dictionary:
+	for e in _everyone():
+		if str((e["p"] as Dictionary).get("slug", "")) == slug:
+			return e
+	return {}
+
+
+func _taken() -> Array:
+	var out: Array = []
+	for e in _everyone():
+		out.append(str((e["p"] as Dictionary).get("slug", "")))
+	# (Somebody's whose place was pulled down is still on its books.)
 	if CoreRoot != null and CoreRoot.get_state() != null:
 		for k in CoreRoot.get_state().biz.get("sites", {}):
 			for p in CoreRoot.get_state().biz["sites"][k].get("crew", []):
-				taken.append(str(p.get("slug", "")))
-	return RULES.applicants(CoreRoot.get_day(), taken, BUSINESS.camp_seed())
+				if not out.has(str(p.get("slug", ""))):
+					out.append(str(p.get("slug", "")))
+	return out
+
+
+## Who is asking today: anybody not working in the camp, five a day (the same on every
+## machine).
+func _applicants() -> Array:
+	return BRT.applicants("camp", "camp", CoreRoot.get_day(), _taken(), BUSINESS.camp_seed())
+
+
+## Whether `slug` would work at `place`: the businesses anybody; the staffroom (its
+## brooms, its lounge) those who ask for it.
+func _would(slug: String, place: String) -> bool:
+	if place != "staff":
+		return true
+	return (BRT.PEOPLE.get(slug, {}).get("asks", []) as Array).has("staff")
+
+
+## What `slug` asks a day at `place`.
+func _wage_at(slug: String, place: String) -> int:
+	return int(BRT.person(slug, _kind_of(place), BUSINESS.camp_seed()).get("wage", 25))
+
+
+## What they are doing now, for the list.
+func _status(e: Dictionary) -> String:
+	var p: Dictionary = e["p"]
+	var day := CoreRoot.get_day()
+	if int(p.get("since", 0)) > day:
+		return "From tomorrow"
+	if int(p.get("absent", -1)) == day:
+		return "Away today"
+	if str(e["at"]) == "staff":
+		return LEDGER.whereabouts(p, (_st().get("act", {}) as Dictionary).get(str(p.get("slug", "")), {}))
+	var now := BUSINESS.crew_now(str(e["at"]))
+	for q in now:
+		if str(q.get("slug", "")) == str(p.get("slug", "")):
+			return "At work"
+	return "Off"
+
+
+# ── doing ────────────────────────────────────────────────────────────────────
+
+## Taken on at `place` (from tomorrow).
+func _take_on(person: Dictionary, place: String) -> bool:
+	var slug := str(person.get("slug", ""))
+	var day := CoreRoot.get_day() + 1
+	if place == "staff":
+		if not RULES.can_hire(_st()):
+			_shell.message_box(tr("Personal 98"), tr("No locker is free. One locker, one hand.\n\nBuy one on the Lockers page."), "error")
+			return false
+		return CoreRoot.actions.staff_hire(BRT.person(slug, "staff", BUSINESS.camp_seed()), day)
+	return CoreRoot.actions.biz_hire(place, BRT.person(slug, _kind_of(place), BUSINESS.camp_seed()), day)
+
+
+## Somebody working here moved to `place` (at once: they are in the camp already).
+func _move(slug: String, place: String) -> void:
+	var e := _entry(slug)
+	if e.is_empty() or str(e["at"]) == place:
+		return
+	if place == "staff" and not RULES.can_hire(_st()):
+		_shell.message_box(tr("Personal 98"), tr("No locker is free. One locker, one hand.\n\nBuy one on the Lockers page."), "error")
+		return
+	var p: Dictionary = (e["p"] as Dictionary)
+	var since := int(p.get("since", CoreRoot.get_day()))
+	var person := BRT.person(slug, _kind_of(place), BUSINESS.camp_seed())
+	if str(e["at"]) == "staff":
+		CoreRoot.actions.staff_fire(slug)
+	else:
+		CoreRoot.actions.biz_fire(str(e["at"]), slug)
+	var ok: bool = CoreRoot.actions.staff_hire(person, since) if place == "staff" else CoreRoot.actions.biz_hire(place, person, since)
+	if ok:
+		_say(LANG.f("Moved: %s -> %s.", [str(p.get("name", "")), _place_label(place)]), GREEN)
+		_shell.play("ding", -10.0)
 
 
 # ── input ────────────────────────────────────────────────────────────────────
@@ -135,13 +269,26 @@ func _click(id: String) -> void:
 	if id.begins_with("cand:"):
 		_candidate = int(id.substr(5))
 		return
+	if id.begins_with("move:"):
+		_move(_pick, id.substr(5))
+		return
+	if id.begins_with("take:"):
+		var ap := _applicants()
+		if ap.is_empty():
+			return
+		var p: Dictionary = ap[_candidate % ap.size()]
+		var place := id.substr(5)
+		if _take_on(p, place):
+			_pick = str(p["slug"])
+			_say(LANG.f("Taken on: %s, from tomorrow (%s).", [str(p["name"]), _place_label(place)]), GREEN)
+			_shell.play("ding", -10.0)
+		return
 	if id.begins_with("job:"):
-		var p := _who(_pick)
-		if p.is_empty():
+		var e := _entry(_pick)
+		if e.is_empty() or str(e["at"]) != "staff":
 			return
 		var job := id.substr(4)
-		var jobs: Dictionary = p.get("jobs", RULES.default_jobs())
-		CoreRoot.actions.staff_set_job(_pick, job, not bool(jobs.get(job, true)))
+		CoreRoot.actions.staff_set_job(_pick, job, not RULES.does(e["p"], job))
 		_shell.play("click", -12.0)
 		return
 	if id.begins_with("buy:"):
@@ -158,33 +305,22 @@ func _click(id: String) -> void:
 				_shell.message_box(tr("Personal 98"), LANG.f("The purchase of $%d could not be made.\n\nThe camp has $%d.", [price, CoreRoot.get_money()]), "error")
 			queue_redraw())
 		return
-	match id:
-		"hire":
-			var ap := _applicants()
-			if ap.is_empty():
-				return
-			if not _has_room():
-				_shell.message_box(tr("Personal 98"), tr("There is no staffroom in the camp.\n\nBuild one in Builder 98 (Utilities): the hands need a locker and somewhere to sit."), "error")
-				return
-			if not RULES.can_hire(_st()):
-				_shell.message_box(tr("Personal 98"), tr("No locker is free. One locker, one hand.\n\nBuy one on the Lockers page."), "error")
-				return
-			var p: Dictionary = ap[_candidate % ap.size()]
-			if CoreRoot.actions.staff_hire(p, CoreRoot.get_day()):
-				_pick = str(p["slug"])
-				_say(LANG.f("%s starts tomorrow at seven.", str(p["name"])), GREEN)
-				_shell.play("ding", -10.0)
-		"fire":
-			var who := _who(_pick)
-			if who.is_empty():
-				return
-			var slug := _pick
-			_shell.message_box(tr("Personal 98"), LANG.f("Let %s go?", str(who.get("name", ""))), "question", [tr("Yes"), tr("No")], func(b: String):
-				if b == tr("Yes"):
+	if id == "fire":
+		var e2 := _entry(_pick)
+		if e2.is_empty():
+			return
+		var slug := _pick
+		var name := str((e2["p"] as Dictionary).get("name", ""))
+		var at := str(e2["at"])
+		_shell.message_box(tr("Personal 98"), LANG.f("Let %s go?", name), "question", [tr("Yes"), tr("No")], func(b: String):
+			if b == tr("Yes"):
+				if at == "staff":
 					CoreRoot.actions.staff_fire(slug)
-					_pick = ""
-					_say(LANG.f("%s has been let go.", str(who.get("name", ""))), T.TEXT_DISABLED)
-					queue_redraw())
+				else:
+					CoreRoot.actions.biz_fire(at, slug)
+				_pick = ""
+				_say(LANG.f("%s has been let go.", name), T.TEXT_DISABLED)
+				queue_redraw())
 
 
 func _say(text: String, col: Color) -> void:
@@ -225,6 +361,20 @@ func _button(r: Rect2, label: String, id: String, enabled := true) -> void:
 	else:
 		_tc(Rect2(r.position + Vector2(1, 1), r.size), label, T.WHITE)
 		_tc(r, label, T.SHADOW)
+
+
+## A place's button: its colour's chip, its name, what they ask there under it.
+func _place_button(r: Rect2, place: String, id: String, enabled: bool, wage := -1) -> void:
+	var pushed := enabled and _down == id and _hover == id
+	draw_style_box(T.box("pressed" if pushed else "raised", T.FACE, Vector4.ZERO), r)
+	var off := Vector2(1, 1) if pushed else Vector2.ZERO
+	draw_rect(Rect2(r.position + Vector2(5, 6) + off, Vector2(8, 8)), PLACE_COL.get(_kind_of(place), T.NAVY) if enabled else T.SHADOW)
+	var label := _place_label(place)
+	if wage >= 0:
+		label += "  " + LANG.money("$%d" % wage)
+	_t(r.position + Vector2(17, 15) + off, label, T.TEXT if enabled else T.SHADOW)
+	if enabled:
+		_hit(id, r)
 
 
 func _group(r: Rect2, caption: String) -> void:
@@ -296,10 +446,9 @@ func _draw() -> void:
 	_t(band.position + Vector2(26, 16), "SoftSklad  -  Personal 98", T.WHITE, true)
 	_tr(band.end.x - 8, band.position.y + 16, LANG.f("Cash $%d", CoreRoot.get_money() if CoreRoot != null else 0), T.WHITE, true)
 	var m := Rect2(4, band.end.y + 6, size.x - 8, size.y - band.end.y - 10 - STATUS_H - 2)
-	if not _has_room() and _crew().is_empty() and _page != "hire":
+	if _places().is_empty() and _page != "lockers":
 		draw_style_box(T.box("field", T.WHITE, Vector4.ZERO), m)
-		_tc(Rect2(m.position, Vector2(m.size.x, m.size.y * 0.5)), tr("There is no staffroom in the camp."), T.SHADOW)
-		_tc(Rect2(m.position + Vector2(0, 20), Vector2(m.size.x, m.size.y * 0.5)), tr("Builder 98, Utilities: Staffroom."), T.SHADOW)
+		_tc(Rect2(m.position, Vector2(m.size.x, m.size.y * 0.5)), tr("Nowhere to work in the camp yet."), T.SHADOW)
 	else:
 		match _page:
 			"staff":
@@ -316,8 +465,11 @@ func _draw() -> void:
 func _draw_status() -> void:
 	var y := size.y - STATUS_H
 	var st := _st()
-	var cells := [[_notice if _notice != "" else tr("Ready"), size.x - 4 - 90 - 140], [LANG.f("Day %d", CoreRoot.get_day() if CoreRoot != null else 0), 86],
-		[LANG.f("Lockers %d / %d", [_crew().size(), RULES.gear_count(st, "locker")]), 136]]
+	var wages := 0
+	for e in _everyone():
+		wages += int((e["p"] as Dictionary).get("wage", 0))
+	var cells := [[_notice if _notice != "" else tr("Ready"), size.x - 4 - 90 - 140 - 120], [LANG.f("Day %d", CoreRoot.get_day() if CoreRoot != null else 0), 86],
+		[LANG.f("Lockers %d / %d", [_crew().size(), RULES.gear_count(st, "locker")]), 136], [LANG.f("Wages $%d", wages), 116]]
 	var x := 2.0
 	for i in cells.size():
 		var r := Rect2(x, y, float(cells[i][1]), STATUS_H - 2)
@@ -327,52 +479,75 @@ func _draw_status() -> void:
 
 
 func _draw_staff(m: Rect2) -> void:
-	var left := Rect2(m.position + Vector2(0, 8), Vector2(m.size.x * 0.55 - 6, m.size.y - 8))
+	var left := Rect2(m.position + Vector2(0, 8), Vector2(m.size.x * 0.56 - 6, m.size.y - 8))
 	var right := Rect2(Vector2(left.end.x + 12, left.position.y), Vector2(m.end.x - left.end.x - 12, left.size.y))
-	_group(left, tr("Working here"))
-	var crew := _crew()
-	var acts: Dictionary = _st().get("act", {})
-	var lb := Rect2(left.position + Vector2(8, 14), Vector2(left.size.x - 16, 6 * ROW_H + 4))
+	_group(left, tr("Everybody"))
+	var all := _everyone()
+	var lb := Rect2(left.position + Vector2(8, 14), Vector2(left.size.x - 16, ROWS * ROW_H + 4))
 	draw_style_box(T.box("field", T.WHITE, Vector4.ZERO), lb)
-	if crew.is_empty():
+	if all.is_empty():
 		_t(lb.position + Vector2(6, 15), tr("Nobody. You do it all yourself."), RED)
-	if _pick == "" and not crew.is_empty():
-		_pick = str(crew[0].get("slug", ""))
-	for i in mini(crew.size(), 6):
-		var p: Dictionary = crew[i]
+	if _entry(_pick).is_empty() and not all.is_empty():
+		_pick = str((all[0]["p"] as Dictionary).get("slug", ""))
+	for i in mini(all.size(), ROWS):
+		var e: Dictionary = all[i]
+		var p: Dictionary = e["p"]
 		var r := Rect2(lb.position.x + 2, lb.position.y + 2 + i * ROW_H, lb.size.x - 4, ROW_H)
 		var slug := str(p.get("slug", ""))
 		var sel := slug == _pick
 		if sel:
 			draw_rect(r, T.NAVY)
 		var fg := T.WHITE if sel else T.TEXT
-		_t(r.position + Vector2(4, 13), str(p.get("name", "")), fg)
-		var where := LEDGER.whereabouts(p, acts.get(slug, {}))
-		_t(r.position + Vector2(118, 13), tr(where), (RED if where == "In a guest bed" and not sel else fg))
-		var tag := (LANG.f("Owed $%d", int(p.get("owed", 0)))) if int(p.get("owed", 0)) > 0 else LANG.f("$%d", RULES.wage_of(p))
-		_tr(r.end.x - 4, r.position.y + 13, tag, (RED if int(p.get("owed", 0)) > 0 and not sel else fg))
+		draw_rect(Rect2(r.position + Vector2(4, 5), Vector2(8, 8)), PLACE_COL.get(_kind_of(str(e["at"])), T.NAVY))
+		_t(r.position + Vector2(16, 13), str(p.get("name", "")), fg)
+		_t(r.position + Vector2(118, 13), _place_label(str(e["at"])), fg)
+		var status := _status(e)
+		var warn := status in ["Away today", "In a guest bed"] or int(p.get("owed", 0)) > 0
+		_tr(r.end.x - 4, r.position.y + 13, LANG.f("Owed $%d", int(p.get("owed", 0))) if int(p.get("owed", 0)) > 0 else tr(status), (RED if warn and not sel else (GREEN if status == "From tomorrow" and not sel else fg)))
 		_hit("crew:" + slug, r)
-	_button(Rect2(left.position.x + 8, lb.end.y + 8, 90, 22), tr("Let go"), "fire", not _who(_pick).is_empty())
-	_group(right, tr("Sees to"))
-	var who := _who(_pick)
-	if who.is_empty():
-		_t(right.position + Vector2(12, 30), tr("Pick somebody on the left."), T.SHADOW)
+	if all.size() > ROWS:
+		_t(Vector2(lb.position.x + 6, lb.end.y + 14), LANG.f("and %d more", all.size() - ROWS), T.SHADOW)
+	# The one picked.
+	var e2 := _entry(_pick)
+	_group(right, tr("Works at"))
+	if e2.is_empty():
+		_t(right.position + Vector2(12, 30), tr("Nobody yet."), T.SHADOW)
 		return
-	_t(right.position + Vector2(12, 26), str(who.get("name", "")), T.TEXT, true)
-	var jobs: Dictionary = who.get("jobs", RULES.default_jobs())
-	for i in RULES.JOBS.size():
-		var id := str(RULES.JOBS[i][0])
-		_check(right.position + Vector2(12, 40 + i * 22), tr(str(RULES.JOBS[i][1])), bool(jobs.get(id, true)), "job:" + id)
-	var ways := [BUSINESS.RULES.SPEED_WORD[clampi(int(who.get("speed", 1)), 0, 2)], str(BUSINESS.RULES.TEMPER_WORD.get(str(who.get("temper", "flat")), ""))]
-	var y := right.position.y + 40 + RULES.JOBS.size() * 22 + 14
+	var who: Dictionary = e2["p"]
+	var pr := Rect2(right.position + Vector2(12, 18), Vector2(52, 66))
+	_photo(pr, _pick)
+	_t(Vector2(pr.end.x + 10, pr.position.y + 14), str(who.get("name", "")), T.TEXT, true)
+	_t(Vector2(pr.end.x + 10, pr.position.y + 32), LANG.f("$%d a day", int(who.get("wage", 0))))
+	var ways := [BRT.SPEED_WORD[clampi(int(who.get("speed", 1)), 0, 2)], str(BRT.TEMPER_WORD.get(str(who.get("temper", "flat")), ""))]
+	var wy := pr.position.y + 50
 	for w in ways:
-		_t(Vector2(right.position.x + 12, y), tr(str(w)), T.SHADOW)
-		y += 16
+		_t(Vector2(pr.end.x + 10, wy), tr(str(w)), T.SHADOW)
+		wy += 14
+	# A button for each place: where they are now pressed in, a click moves them.
+	var places := _places()
+	var bw := (right.size.x - 30) * 0.5
+	var by := pr.end.y + 10
+	for i in places.size():
+		var place := str(places[i])
+		var br := Rect2(right.position.x + 12 + (i % 2) * (bw + 6), by + (i / 2) * 24, bw, 22)
+		if place == str(e2["at"]):
+			draw_style_box(T.box("pressed", T.LIGHT, Vector4.ZERO), br)
+			draw_rect(Rect2(br.position + Vector2(6, 7), Vector2(8, 8)), PLACE_COL.get(_kind_of(place), T.NAVY))
+			_t(br.position + Vector2(18, 16), _place_label(place), T.TEXT, true)
+		else:
+			_place_button(br, place, "move:" + place, _would(_pick, place))
+	var jy := by + ((places.size() + 1) / 2) * 24 + 6
+	# The staffroom's jobs as tick boxes.
+	if str(e2["at"]) == "staff":
+		for i in RULES.JOBS.size():
+			var id := str(RULES.JOBS[i][0])
+			_check(Vector2(right.position.x + 12 + (i % 2) * (bw + 6), jy + (i / 2) * 20), tr(str(RULES.JOBS[i][1])), RULES.does(who, id), "job:" + id)
+	_button(Rect2(right.end.x - 102, right.end.y - 30, 90, 22), tr("Let go"), "fire")
 
 
 func _draw_hire(m: Rect2) -> void:
 	var ap := _applicants()
-	var left := Rect2(m.position + Vector2(0, 8), Vector2(m.size.x * 0.45 - 6, m.size.y - 8))
+	var left := Rect2(m.position + Vector2(0, 8), Vector2(m.size.x * 0.4 - 6, m.size.y - 8))
 	var right := Rect2(Vector2(left.end.x + 12, left.position.y), Vector2(m.end.x - left.end.x - 12, left.size.y))
 	_group(left, tr("Asking today"))
 	if ap.is_empty():
@@ -386,22 +561,30 @@ func _draw_hire(m: Rect2) -> void:
 		if sel:
 			draw_rect(r2, T.NAVY)
 		_t(r2.position + Vector2(4, 13), str(ap[i]["name"]), T.WHITE if sel else T.TEXT)
-		_tr(r2.end.x - 4, r2.position.y + 13, LANG.f("$%d", int(ap[i]["wage"])), T.WHITE if sel else T.TEXT)
 		_hit("cand:%d" % i, r2)
 	var free := RULES.gear_count(_st(), "locker") - _crew().size()
 	_t(Vector2(left.position.x + 12, alb.end.y + 22), LANG.f("Lockers free: %d", maxi(0, free)), GREEN if free > 0 else RED)
-	_t(Vector2(left.position.x + 12, alb.end.y + 40), tr("They come at 7:00, go home at 20:00."), T.SHADOW)
 	_group(right, tr("Papers"))
 	var p2: Dictionary = ap[_candidate % ap.size()]
+	var slug := str(p2["slug"])
 	var pr := Rect2(right.position + Vector2(12, 18), Vector2(52, 66))
-	_photo(pr, str(p2["slug"]))
+	_photo(pr, slug)
 	_t(Vector2(pr.end.x + 10, pr.position.y + 14), str(p2["name"]), T.TEXT, true)
-	_t(Vector2(pr.end.x + 10, pr.position.y + 32), LANG.f("$%d a day", int(p2["wage"])))
-	var ty := pr.end.y + 18
+	# (Their papers say how they are: the speed, the temper, where they come from.)
+	var ty := pr.position.y + 34
 	for line in p2.get("refs", []):
-		_t(Vector2(right.position.x + 12, ty), tr(str(line)), T.TEXT)
-		ty += 16
-	_button(Rect2(right.position.x + 12, right.end.y - 32, 100, 22), tr("Take on"), "hire", free > 0 and _has_room())
+		_t(Vector2(pr.end.x + 10, ty), tr(str(line)), T.TEXT)
+		ty += 15
+	ty = maxf(ty, pr.end.y + 4)
+	# Take them on at: a button for each place, with what they ask there.
+	_t(Vector2(right.position.x + 12, ty + 8), tr("Take on at:"), T.TEXT, true)
+	var places := _places()
+	var bw := (right.size.x - 30) * 0.5
+	var by := ty + 16
+	for i in places.size():
+		var place := str(places[i])
+		var ok := _would(slug, place) and (place != "staff" or free > 0)
+		_place_button(Rect2(right.position.x + 12 + (i % 2) * (bw + 6), by + (i / 2) * 24, bw, 22), place, "take:" + place, ok, _wage_at(slug, place))
 
 
 func _draw_lockers(m: Rect2) -> void:
@@ -449,8 +632,8 @@ func _draw_today(m: Rect2) -> void:
 		_t(Vector2(m.position.x + 60, y), tr(str(e.get("text", ""))))
 		y += 16
 	var wages := 0
-	for p in _crew():
-		wages += RULES.wage_of(p)
+	for e2 in _everyone():
+		wages += int((e2["p"] as Dictionary).get("wage", 0))
 	var fy := m.end.y - 12
 	_t(Vector2(m.position.x + 10, fy), LANG.f("Jobs today: %d   yesterday: %d", [int(st.get("done_n", 0)), int(st.get("done_y", 0))]), T.TEXT, true)
 	_tr(m.end.x - 10, fy, LANG.f("Wages tonight: $%d", wages), T.TEXT, true)

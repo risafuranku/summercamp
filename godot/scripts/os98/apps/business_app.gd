@@ -22,7 +22,9 @@ const T = preload("res://scripts/os98/os_theme.gd")
 const LANG = preload("res://scripts/lang.gd")
 const RULES := preload("res://core/systems/business_rules.gd")
 const BUSINESS := preload("res://scripts/business/business_runtime.gd")
-const PAGES := [["stock", "Stock"], ["order", "Order"], ["staff", "Staff"], ["gear", "Gear"], ["books", "Books"]]
+## (Its hands are Personal 98's now, with everybody else's: one program for the staff, the
+## user 4. 11.: "sharing them out by the stands on the PC is horribly complicated".)
+const PAGES := [["stock", "Stock"], ["order", "Order"], ["gear", "Gear"], ["books", "Books"]]
 const KIND_OF_APP := {"pub_app": "pub", "bistro_app": "rest", "shop_app": "vecerka", "corn_app": "corn"}
 const BAR_H := 34
 const BANNER_H := 24

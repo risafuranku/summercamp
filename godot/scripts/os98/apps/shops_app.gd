@@ -89,7 +89,15 @@ func _first_ready() -> String:
 
 
 func _licensed(kind: String) -> bool:
-	return CoreRoot != null and CoreRoot.actions != null and CoreRoot.actions.biz_has_licence(kind)
+	if CoreRoot == null or CoreRoot.actions == null:
+		return false
+	# Personal 98 has every place's hands now (4. 11.): a place's licence brings it with it.
+	if kind == "staff":
+		for k in ["pub", "rest", "vecerka", "corn", "bowl", "staff"]:
+			if CoreRoot.actions.biz_has_licence(k):
+				return true
+		return false
+	return CoreRoot.actions.biz_has_licence(kind)
 
 
 func _kind(app_id: String) -> String:

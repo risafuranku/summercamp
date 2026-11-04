@@ -301,10 +301,11 @@ func _clicked(id: String) -> void:
 			if ap.is_empty():
 				return
 			var p: Dictionary = ap[_candidate % ap.size()]
-			if CoreRoot.actions.biz_hire(building_key, p, CoreRoot.get_day()):
+			# In the next morning (the user 4. 11.: "hired and at work at once?").
+			if CoreRoot.actions.biz_hire(building_key, p, CoreRoot.get_day() + 1):
 				_stamp("HIRED")
 				_picked = str(p["slug"])
-				var lines := ["I start now? Right.", "I'll need the keys.", "Fine. Cash on Fridays.", "Where do I put my coat?"]
+				var lines := ["Tomorrow at seven, then.", "I'll need the keys.", "Fine. Cash on Fridays.", "Where do I put my coat?"]
 				if str(p.get("strange", "")) == "night":
 					lines = ["I know where everything is."]
 				elif str(p.get("strange", "")) == "unseen":

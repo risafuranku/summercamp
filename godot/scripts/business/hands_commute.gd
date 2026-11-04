@@ -117,7 +117,7 @@ func _now_walking(h: float) -> Array:
 		var n := 0
 		for p in s.get("crew", []):
 			n += 1
-			if int(p.get("absent", -1)) == day or str(p.get("strange", "")) != "":
+			if int(p.get("absent", -1)) == day or str(p.get("strange", "")) != "" or int(p.get("since", 0)) > day:
 				continue
 			var slug := str(p.get("slug", ""))
 			var role := str(p.get("role", ""))

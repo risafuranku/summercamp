@@ -505,10 +505,10 @@ static func applicants(kind: String, key: String, day: int, taken: Array, seed :
 		else:
 			pool.append(slug)
 	pool.sort()
-	# The staffroom takes anyone for the brooms and the bins: when those who ask for it are
-	# all taken by the businesses, the others not in work come too (its list was empty:
-	# playtest 21. 10.).
-	if kind == "staff" and pool.size() < 3:
+	# Anybody not in work asks when those who ask for this kind of work are few (the
+	# staffroom's list was empty, playtest 21. 10.; "hardly anybody applied for any job",
+	# the user 4. 11.): the work wanted first, then the rest.
+	if pool.size() < ASKING:
 		var more: Array = []
 		for slug in PEOPLE:
 			if not taken.has(slug) and not pool.has(slug) and str(PEOPLE[slug].get("strange", "")) == "":
@@ -517,7 +517,7 @@ static func applicants(kind: String, key: String, day: int, taken: Array, seed :
 		pool.append_array(more)
 	var out: Array = []
 	var h := absi(hash("%s|%s|%d|%d" % [kind, key, day, seed]))
-	for i in mini(3, pool.size()):
+	for i in mini(ASKING, pool.size()):
 		var j := (h / (i * 7 + 1) + i * 5) % pool.size()
 		var slug: String = pool[j]
 		pool.remove_at(j)
@@ -525,11 +525,15 @@ static func applicants(kind: String, key: String, day: int, taken: Array, seed :
 	# Every fourth day or so one of the two nobody quite remembers is among them.
 	if not odd.is_empty() and (h / 97) % 4 == 0:
 		var s2: String = odd[(h / 389) % odd.size()]
-		if out.size() >= 3:
-			out[2] = person(s2, kind, seed)
+		if out.size() >= ASKING:
+			out[ASKING - 1] = person(s2, kind, seed)
 		else:
 			out.append(person(s2, kind, seed))
 	return out
+
+
+## How many ask a day at a place (three, the user 4. 11.: "hardly anybody applies").
+const ASKING := 5
 
 
 static func person(slug: String, kind: String, seed := 0) -> Dictionary:

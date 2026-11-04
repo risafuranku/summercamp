@@ -207,7 +207,7 @@ func _clicked(id: String) -> void:
 			if not RULES.can_hire(_st()):
 				say("", tr("No locker free. One locker, one hand: buy one on the LOCKERS page."))
 				return
-			if CoreRoot.actions.staff_hire(who, CoreRoot.get_day()):
+			if CoreRoot.actions.staff_hire(who, CoreRoot.get_day() + 1):
 				_stamp(tr("HIRED"))
 				_picked = str(who["slug"])
 				var lines := ["Tomorrow at seven, then.", "Where's my locker?", "I bring my own broom.", "Cash on Fridays."]

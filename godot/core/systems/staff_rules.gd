@@ -35,7 +35,16 @@ const JOBS := [
 	["delivery", "Deliveries"],
 	["tree", "Branches"],
 	["rooms", "Lodgings"],
+	# (The user 4. 11.: "the cleaners did not clean the showers and the toilets properly":
+	# they never did, it was no job of theirs.)
+	["blocks", "Toilets and showers"],
+	# At the reception all day, checking in whoever waits there with their room made up
+	# (the user 4. 11.: "the staffroom's: they clean, or take the guests in at the
+	# reception"). Off unless ticked: one at the desk is one fewer at the brooms.
+	["desk", "Reception"],
 ]
+## The jobs off for somebody new.
+const OFF_BY_DEFAULT := ["desk"]
 
 ## Bought in the staffroom's books (the cards with a picture): how many fit the boiler
 ## room, the first one's price, each next one dearer.
@@ -57,7 +66,11 @@ const REST_MIN := 18.0
 ## In the morning, the coffee on the sofa before the first job.
 const COFFEE_MIN := 25.0
 ## One piece of work at the steady speed (game minutes); the quick do it in less.
-const WORK_MIN := {"litter": 14.0, "raccoons": 10.0, "delivery": 16.0, "tree": 30.0, "rooms": 9.0}
+const WORK_MIN := {"litter": 14.0, "raccoons": 10.0, "delivery": 16.0, "tree": 30.0, "rooms": 9.0, "blocks": 16.0}
+## At the desk: a guest who has waited this long (game minutes) is checked in, one every
+## DESK_EACH_MIN at the steady speed.
+const DESK_WAIT_MIN := 4.0
+const DESK_EACH_MIN := 5.0
 const SPEED_K := [1.45, 1.0, 0.72]
 ## A dishonest hand on a delivery: a little of it does not reach the shelves.
 const PILFER := 0.08
@@ -73,8 +86,14 @@ static func job_label(job: String) -> String:
 static func default_jobs() -> Dictionary:
 	var out := {}
 	for j in JOBS:
-		out[str(j[0])] = true
+		out[str(j[0])] = not OFF_BY_DEFAULT.has(str(j[0]))
 	return out
+
+
+## Whether `job` is ticked for this hand (an older save's hand has the new ones as new).
+static func does(p: Dictionary, job: String) -> bool:
+	var jobs: Dictionary = p.get("jobs", {}) if p.get("jobs") is Dictionary else {}
+	return bool(jobs.get(job, not OFF_BY_DEFAULT.has(job)))
 
 
 static func gear_count(staff: Dictionary, id: String) -> int:
@@ -114,8 +133,11 @@ static func start_hour(index: int) -> float:
 	return START_HOUR + 0.25 * float(index)
 
 
-## Whether a hand is on at `hour` (everybody goes home for the night).
-static func on_duty(_p: Dictionary, hour: float, index: int) -> bool:
+## Whether a hand is on at `hour` (everybody goes home for the night; somebody taken on
+## today comes in tomorrow: "since" the day they start, the user 4. 11.).
+static func on_duty(p: Dictionary, hour: float, index: int, day := -1) -> bool:
+	if day >= 0 and int(p.get("since", 0)) > day:
+		return false
 	return hour >= start_hour(index) and hour < HOME_HOUR
 
 
