@@ -242,8 +242,22 @@ func watch(on: bool, tag := "") -> void:
 func _frame() -> void:
 	var now := Time.get_ticks_usec()
 	if _watch and _last_us > 0:
-		_worst = maxf(_worst, float(now - _last_us))
+		var d := float(now - _last_us)
+		_worst = maxf(_worst, d)
+		if d > 45000.0:
+			_spike(d)
 	_last_us = now
+
+
+## Every long frame on the way: where the bus was, what the frame did.
+func _spike(d: float) -> void:
+	var pc := 0
+	for m in [Performance.PIPELINE_COMPILATIONS_CANVAS, Performance.PIPELINE_COMPILATIONS_MESH, Performance.PIPELINE_COMPILATIONS_SURFACE,
+			Performance.PIPELINE_COMPILATIONS_DRAW, Performance.PIPELINE_COMPILATIONS_SPECIALIZATION]:
+		pc += int(Performance.get_monitor(m))
+	var ride = trip().get("_ride")
+	print("BUSLINE spike %.0f ms at s=%.0f pipelines %d objects %d nodes %d video %.0f MB" % [d / 1000.0, float(ride.get("_travelled")) if ride != null else -1.0, pc,
+		int(Performance.get_monitor(Performance.OBJECT_COUNT)), int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)), Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0])
 
 
 func verdict() -> void:

@@ -215,7 +215,8 @@ func _pockets_allowed() -> bool:
 	var main := _main()
 	if main == null or get_tree().paused:
 		return false
-	if not bool(main.get("_gameplay_started")) or bool(main.get("_menu_mode")):
+	# Not Main as the current scene (a check's own scene): null, not a bool.
+	if main.get("_gameplay_started") != true or main.get("_menu_mode") == true:
 		return false
 	if (_ride != null and _ride.is_open()) or (_job() != null and _job().is_open()):
 		return false
@@ -953,7 +954,9 @@ func _process(delta: float) -> void:
 	var road := _road()
 	if road == null:
 		return
-	_ensure_country()
+	# The land made this frame: the rest from the next (a new camp's first frames).
+	if _ensure_country():
+		return
 	_update_seated()
 	_update_ride_clock()
 	var me := _player()
@@ -1414,15 +1417,20 @@ func _line_feed(st: Dictionary) -> Dictionary:
 	return out
 
 
-## Spare buses built with the land, so none is built where it is seen.
+## Spare buses built with the land, so none is built where it is seen: one a frame (three
+## at once were a frame of their own as a new camp began).
+const SPARE_BUSES := 3
+
+
 func _prewarm_buses() -> void:
-	if _geo == null or not is_instance_valid(_geo) or _spares_for == _geo.get_instance_id():
+	if _geo == null or not is_instance_valid(_geo):
 		return
-	_spares_for = _geo.get_instance_id()
-	_line_buses.clear()
-	_spare_buses.clear()
-	_line_was.clear()
-	for i in 3:
+	if _spares_for != _geo.get_instance_id():
+		_spares_for = _geo.get_instance_id()
+		_line_buses.clear()
+		_spare_buses.clear()
+		_line_was.clear()
+	if _spare_buses.size() + _line_buses.size() < SPARE_BUSES:
 		_spare_buses.append(_new_bus())
 
 
@@ -1916,10 +1924,10 @@ var _ride_bus
 ## The real land round the camp (scripts/geo/): built once per camp (a new game makes a
 ## new road and with it the land again); Liblice's centre, Vondra's farm and the poles at
 ## Pristoupim set in it first, their ground cleared of the real houses.
-func _ensure_country() -> void:
+func _ensure_country() -> bool:
 	var road := _road()
 	if road == null or (_geo != null and is_instance_valid(_geo) and _country_road_id == road.get_instance_id()):
-		return
+		return false
 	if _geo != null and is_instance_valid(_geo):
 		_geo.queue_free()
 	_place_towns()
@@ -1933,6 +1941,7 @@ func _ensure_country() -> void:
 	_country_road_id = road.get_instance_id()
 	if _masts != null and is_instance_valid(_masts):
 		_masts.position = Vector3.ZERO
+	return true
 
 
 ## The clock runs as ever on the bus (the user, 4. 11.); only old Vondra's Skoda still

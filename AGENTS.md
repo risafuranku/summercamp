@@ -124,6 +124,12 @@ python godot/tools/window_coop.py [OUT_DIR] # the reception's windows for two: f
 #   res://tools/hover_check.tscn     the reception's glints from behind the counter and from the bench (run alone: it moves the real pointer)
 #   res://tools/kukurice_hover.tscn  the corn stand's glints under the pointer
 #   res://tools/kroky_check.tscn     the walk's steps: per second, the head's dip, nod and roll
+# The polish pass of 4. 11. (evening; windowed, --audio-driver Dummy, -- --out=DIR):
+#   res://tools/pruchod_check.tscn   a first day and night as a new warden plays it: a picture at every turn, the worst frame of each stretch
+#   res://tools/trhnuti_check.tscn   every frame over 40 ms from a new camp's first frame (script time, pipelines), the autosave's,
+#                                    the line's and the land's parts; --part=night: each thing made and seen; --part=nightstart: 20:00 with every kind in
+#   res://tools/soak_check.tscn      three days and nights of every kind of guest at a fast clock (--days=N --speed=K): an hourly line; grep SCRIPT ERROR / ERROR:
+#   res://tools/smrk_check.tscn      a walk into a spruce: held off at its branches' tips, crouched in under it, eased out standing up
 ```
 
 - On some PCs the headless run segfaults once the title screen is up (1. 11., at HEAD too:

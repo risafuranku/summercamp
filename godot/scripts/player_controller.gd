@@ -1074,25 +1074,30 @@ func _update_head_motion(delta: float) -> void:
 	_run_k = run * walk
 	# The roll over the bearing foot at a walk too (GREED's), a run's on top.
 	_run_roll = sin(PI * phase) * (RUN_ROLL * _run_k + WALK_ROLL * walk)
-	var nod_acc := -RUN_NOD_K * _run_nod - RUN_NOD_DAMP * _run_nod_v
-	_run_nod_v += nod_acc * delta
-	_run_nod = clampf(_run_nod + _run_nod_v * delta, -0.06, 0.03)
-	# The step's nod: a quick spring, in small steps so a long frame does not throw it.
-	var ns := clampi(ceili(delta / 0.01), 1, 10)
-	var nh := delta / float(ns)
-	for _i in ns:
-		_step_nod_v += (-STEP_NOD_W * STEP_NOD_W * _step_nod - 2.0 * STEP_NOD_ZETA * STEP_NOD_W * _step_nod_v) * nh
-		_step_nod += _step_nod_v * nh
-	_step_nod = clampf(_step_nod, -0.05, 0.02)
-
 	# Stopping dead from a walk: the body settles (a small dip on the spring).
 	if _was_moving > 1.5 and speed < 0.3 and grounded:
 		_spring_v -= 0.12 * clampf(_was_moving / sprint_speed, 0.0, 1.0) * bob_k
 	_was_moving = lerpf(_was_moving, speed, 1.0 - exp(-12.0 * delta))
-	# The spring (a foot down, a landing, a stance): smooth, slightly under-damped.
-	var acc := -170.0 * _spring_y - 17.0 * _spring_v
-	_spring_v += acc * delta
-	_spring_y = clampf(_spring_y + _spring_v * delta, -0.22, 0.08)
+	# The head's springs (the run's nod, the step's nod, the body's: a foot down, a landing,
+	# a stance) in small steps and at most a tenth of a second a frame: a long frame threw
+	# them whole (a hitch jolted the head to its stops; at a fast clock the speeds ran off to
+	# infinity and the view went NaN, 4. 11. tools/soak_check).
+	var ns := clampi(ceili(minf(delta, 0.1) / 0.01), 1, 10)
+	var nh := minf(delta, 0.1) / float(ns)
+	for _i in ns:
+		_run_nod_v += (-RUN_NOD_K * _run_nod - RUN_NOD_DAMP * _run_nod_v) * nh
+		_run_nod = clampf(_run_nod + _run_nod_v * nh, -0.06, 0.03)
+		_step_nod_v += (-STEP_NOD_W * STEP_NOD_W * _step_nod - 2.0 * STEP_NOD_ZETA * STEP_NOD_W * _step_nod_v) * nh
+		_step_nod = clampf(_step_nod + _step_nod_v * nh, -0.05, 0.02)
+		_spring_v += (-170.0 * _spring_y - 17.0 * _spring_v) * nh
+		_spring_y = clampf(_spring_y + _spring_v * nh, -0.22, 0.08)
+	if not (is_finite(_spring_v) and is_finite(_run_nod_v) and is_finite(_step_nod_v)):
+		_spring_v = 0.0
+		_spring_y = 0.0
+		_run_nod_v = 0.0
+		_run_nod = 0.0
+		_step_nod_v = 0.0
+		_step_nod = 0.0
 
 	_idle_noise_time += delta * (1.8 + (_walk_amp * 2.2))
 	var idle_roll = sin(_idle_noise_time * 1.7) * handheld_idle_strength

@@ -30806,3 +30806,7 @@ msgstr "Recepce (%s): %s -> %s."
 
 msgid "Go into the chapel"
 msgstr "Jít do kaple"
+
+#: scripts/hud_manager.gd
+msgid "Until 06:30"
+msgstr "Do 06:30"

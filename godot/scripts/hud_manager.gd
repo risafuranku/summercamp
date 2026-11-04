@@ -1518,16 +1518,18 @@ func _poll_guest_state() -> void:
 	_refresh_guests()
 
 
+## The day and the night each a title card, as the camp's when you first step out: the
+## day's with its date, the night's with its end (the polish pass of 4. 11.: the feed said
+## in a sentence what the light and the card already did; the user: no explaining texts).
 func _announce_phase(phase: int) -> void:
 	match phase:
 		PHASE_DAY:
-			push_status("Morning. The builder is unlocked again.", STATUS_GOOD, "phase")
-			show_banner("DAY %d OF %d" % [_day, Season.CAMPAIGN_DAYS], "The builder is unlocked. The camp is yours again.", RETRO_UI.C_AMBER, 3.2)
-		PHASE_EVENING:
-			push_status("Evening. Guests start drifting back to their beds.", STATUS_WARN, "phase")
+			# A sandbox camp has no month (main._sandbox): its day alone.
+			var main := get_tree().current_scene
+			var month: bool = main == null or main.get("_sandbox") != true
+			show_banner("DAY %d OF %d" % [_day, Season.CAMPAIGN_DAYS] if month else "DAY %d" % _day, Season.date_long(_day), RETRO_UI.C_AMBER, 3.2)
 		PHASE_NIGHT:
-			push_status("Night. The builder is locked until 06:30.", STATUS_DENY, "phase")
-			show_banner("NIGHT %d" % _day, "Builder locked. Survive until 06:30.", RETRO_UI.C_RED_LIGHT, 4.2)
+			show_banner("NIGHT %d" % _day, "Until 06:30", RETRO_UI.C_RED_LIGHT, 4.2)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1659,8 +1661,20 @@ func _on_unread_count_changed(count: int) -> void:
 	var previous := _unread
 	_unread = maxi(0, count)
 	_refresh_mail()
-	if _unread > previous and _world_visible:
+	if _unread > previous and _world_visible and Time.get_ticks_msec() >= _pager_quiet_until and Engine.get_process_frames() >= _pager_quiet_frame:
 		_page_new_mail()
+
+
+## The mail already there as a camp starts or loads is not paged (Vera's first lands as you
+## sit down at the PC it is on; a save's unread): main quiets the pager for a moment then,
+## in seconds and in frames (a slow machine's first frames take seconds).
+var _pager_quiet_until := 0
+var _pager_quiet_frame := 0
+
+
+func quiet_pager(seconds: float) -> void:
+	_pager_quiet_until = Time.get_ticks_msec() + int(seconds * 1000.0)
+	_pager_quiet_frame = Engine.get_process_frames() + 90
 
 
 ## The belt pager: when a mail lands while you are out in the camp, two beeps and a

@@ -51,6 +51,8 @@ const HURT_FX_SCRIPT = preload("res://scripts/ui/hurt_fx.gd")
 const PAUSE_KEYS_SCRIPT = preload("res://scripts/ui/pause_keys.gd")
 var _hurt_fx: CanvasLayer
 const MENU_FLYTHROUGH_SCRIPT = preload("res://scripts/menu_flythrough.gd")
+const LAND_WARMUP = preload("res://scripts/town/land_warmup.gd")
+const START_DISSOLVE = preload("res://scripts/ui/door_transition.gd")
 const SAVE_CODEC = preload("res://scripts/save_codec.gd")
 const ELECTRICITY_BILLING_SCRIPT = preload("res://scripts/electricity_billing.gd")
 const THREAT_SENSES_SCRIPT = preload("res://scripts/threat_senses.gd")
@@ -313,6 +315,9 @@ func _boot_step(text: String, progress: float) -> void:
 
 func _bootstrap_runtime() -> void:
 	await _boot_step("Waking the camp", 0.05)
+	# The land's and the buses' pictures and sounds read on the loader's threads while the
+	# boot and the title are up (scripts/town/land_warmup.gd): a new camp's first frames.
+	add_child(LAND_WARMUP.new())
 	time_system = TIME_SYSTEM_SCRIPT.new(CoreRoot.get_state())
 	weather_system = WEATHER_SYSTEM_SCRIPT.new()
 	if weather_system != null and weather_system.has_method("set_auto_cycle_enabled"):
@@ -393,6 +398,7 @@ func _start_gameplay_runtime() -> void:
 		weather_system.set_auto_cycle_enabled(true)
 	_ensure_hud_manager()
 	_set_hud_shown(true)
+	_hud_manager.quiet_pager(3.0)
 	_bind_or_create_managers()
 
 	if legacy_ui_adapter == null:
@@ -4888,12 +4894,14 @@ func _start_new_camp(sandbox: bool, test_enemy: String = "", camp_name: String =
 	if not test_enemy.is_empty():
 		return
 	# A new week starts at the desk: the first part of the game is the computer, and
-	# getting up from it is something you find out you can do.
-	get_tree().create_timer(0.25).timeout.connect(func():
-		if _interior_manager != null and _gameplay_started:
-			_interior_manager.open_startup_crt_view()
-			_first_stand_up_pending = true
-	)
+	# getting up from it is something you find out you can do. Two frames on (the mouse is
+	# captured one frame on: _ensure_runtime_started_after_menu_load), so the desk is what
+	# the start's dissolve opens on, not the camp.
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if _interior_manager != null and _gameplay_started:
+		_interior_manager.open_startup_crt_view()
+		_first_stand_up_pending = true
 
 
 # ── co-op (scripts/coop/coop.gd) ────────────────────────────────────────────
@@ -6132,8 +6140,23 @@ func coop_apply_clock(c: Dictionary) -> void:
 	_sync_runtime_state_from_systems()
 
 
+## From the loading card into the game through the doors' own dissolve: the first frames of
+## a camp are long (the rooms set up, their first drawing) and stand behind the still,
+## which then breaks up smoothly (the polish pass of 4. 11.: the desk jolted three times as
+## the PC came on; door_transition moves on by a thirtieth of a second at most a frame).
+var _start_dissolve: CanvasLayer
+
+
+func _play_start_dissolve() -> void:
+	if _start_dissolve == null:
+		_start_dissolve = START_DISSOLVE.new()
+		add_child(_start_dissolve)
+	_start_dissolve.play(true)
+
+
 func _start_game_from_menu() -> void:
 	_stop_menu_music()
+	_play_start_dissolve()
 	if _main_menu != null:
 		_main_menu.close()
 	_start_gameplay_runtime()
