@@ -4,6 +4,20 @@
 
 ---
 
+## POLISH 2026-11-04 (evening) — the user: „ještě pořádnej overall gameplay polishment“ (a first day and night played through as a new warden, three days at a fast clock, every frame over 40 ms looked into: tools/pruchod_check, soak_check, trhnuti_check; tick with the commit)
+
+- [x] G1 A walk into a spruce put your eyes in its needles (only its trunk was solid): its lower branches hold you off at their tips, crouched you still get in under it, stood up there you are eased out (6a2daaf3; tools/smrk_check)
+- [x] G2 (a999e303) A new camp froze 0.5-1.3 s as the PC came on, nearly all of it the first loading of the land's and line 380's pictures and sounds: read on the loader's threads during the boot and the title (scripts/town/land_warmup.gd), the land one frame, the line the next, a spare bus a frame (the land 24 ms, the line 41-58 ms; tools/trhnuti_check); the rooms' setting up (0.6-0.8 s) and first drawing (~150 pipelines, 250-300 ms twice) stand behind a still of the loading card that then breaks up in the doors' own dissolve into the desk, the PC coming on (main._play_start_dissolve, any start: new, load, co-op)
+- [x] G3 (a999e303) The feed's sentences at dusk, nightfall and morning ("Evening. Guests start drifting back to their beds.") gone; the night's card "NIGHT n / UNTIL 06:30", the morning's "DAY n OF 30" (a sandbox camp's "DAY n") with its date, as the camp's card when you first step out
+- [x] G4 (a999e303) The pager beeped "new mail at the office" as you sat down at that office's PC: the mail already there as a camp starts or loads is not paged (3 s and 90 frames)
+- [x] G5 (a999e303) A long frame threw the head's springs whole (after a hitch the head jolted to its stops; at a fast clock their speeds ran off to infinity and the whole view went NaN at 14:00 of day 1): small steps, a tenth of a second at most a frame, a NaN guard
+- [x] G6 (a999e303) town_trip's pockets check: 244 errors in a check's own scene (bool of null)
+- [x] G7 (2eadf063) The check-in desk: the guest's card lay on the CHECKED IN stamp and REFUSED's label ran off the picture: the stamps one over the other right of the papers, CHECKED IN the near one (its label reads)
+- [x] G8 (2eadf063) Bare colours left in the guests' rooms: the pillow thrown off in the tent and the cabin, the made bed's fold, the toilets' seat, lid and roll now on the game's own textures, the newspaper on its nail and the caravan's gas bottle the pictures the store room and the motel use
+- [x] G9 (2eadf063) A guest checked in without you (a receptionist) stood in the tent the same second you finished making it up, their legs filling the picture: a room adds nobody while you are in it, those who leave still go
+- [x] G10 (9a011a6e) LOAD LAST SAVE after a death showed the list of saves: it goes straight back in (tools/smrt_check)
+- [x] G11 (9a011a6e) Label3D is unlit by default: the sluice's board, the buildings' signs and the switch room's letters shone on the air at night; paint now darkens with its wall
+
 ## PLAYTEST 2026-11-04 (2) — the user's notes, afternoon (verbatim, then the note in brackets; tick with the commit)
 
 - [x] W1  (2c9d0da9) „udělej vpravo notifikaci že je závoz na cestě, stejně jako pošta. když objednám několik závozů, všechny je slučuj do jedné dodávky, té nejbližší co přijede.“ (the wholesaler's van: a card on the right like the post; orders merged into the next van)
@@ -967,7 +981,7 @@ Tools: Grok Imagine (Cursor CLI) for textures, ElevenLabs for sound (key in
 - [x] Ballistic drops that land; no stains in mid-air; fewer particles
 
 ### 20. One coherent loop
-- [ ] Play a full day+night end to end (shot-driver run) and fix the seams
+- [x] Play a full day+night end to end (shot-driver run) and fix the seams (4. 11. evening: tools/pruchod_check, soak_check; POLISH G1-G8 on top)
 - [ ] Update DESIGN/PRODUCT/AGENTS after each block; commit + push per block
 
 ### Small leftovers found on the way
