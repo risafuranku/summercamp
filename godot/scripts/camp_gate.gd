@@ -76,11 +76,24 @@ func build(gate_world: Vector3, fence_z_world: float, texture_style) -> void:
 		EventBus.guest_at_gate.connect(_on_guest_at_gate_row)
 
 
-## Where the i-th waiting party stands: at the reception door, one tile in from the
-## fence and west of the gate lane (world_generator.gd starter_path_tiles), in a line
-## along the path. The first two are inside (building_interior.gd shows them).
+## Where the i-th waiting party stands: at the reception's door, in a line down the side of
+## the gate lane toward the barrier (the reception faces the lane since 4. 11.). The first
+## two are inside (building_interior.gd shows them).
 func waiting_spot(i: int) -> Vector3:
+	var d := _reception_door()
+	if d.is_finite():
+		return Vector3(d.x + 0.3 + (0.45 if i % 2 == 1 else 0.0), 0.0, d.z - 0.3 - float(i) * 1.15)
 	return Vector3(gap_center_x - 6.0 + float(i) * 1.15, 0.0, fence_z + 12.9 + (0.45 if i % 2 == 1 else 0.0))
+
+
+## A step out of the reception's door (its leaf, door_anim), INF without the reception.
+func _reception_door() -> Vector3:
+	var scene := get_tree().current_scene if is_inside_tree() else null
+	var b := scene.find_child("MainBuilding", true, false) as Node3D if scene != null else null
+	if b == null:
+		return Vector3.INF
+	var way: Dictionary = load("res://scripts/attractions/door_anim.gd").entry_points(b, 0)
+	return way.get("outside", Vector3.INF)
 
 
 ## Where a party gets out of the bus: on the road, outside the barrier.
@@ -88,9 +101,12 @@ func road_spot() -> Vector3:
 	return Vector3(gap_center_x + 0.6, 0.0, fence_z - 6.0)
 
 
-## The way in for arrivals: through the barrier, up the gate lane, to the turn by the
-## reception's door.
+## The way in for arrivals: through the barrier, up the gate lane to where the reception's
+## door is beside it.
 func way_in() -> Array:
+	var d := _reception_door()
+	if d.is_finite():
+		return [Vector3(gap_center_x, 0.0, fence_z + 1.0), Vector3(gap_center_x, 0.0, d.z - 0.3)]
 	return [Vector3(gap_center_x, 0.0, fence_z + 1.0), Vector3(gap_center_x, 0.0, fence_z + 13.6)]
 
 

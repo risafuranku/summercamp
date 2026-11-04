@@ -45,7 +45,9 @@ const COURIER = preload("res://scripts/builder/courier_news.gd")
 ## New things to click came up (a diploma hung): building_interior hands them on.
 var hot_changed := false
 var _diploma_view: CanvasLayer
-const DIPLOMA_AT := [Vector3(2.488, 1.1, 0.3), Vector3(2.488, 1.1, 0.7), Vector3(2.488, 1.1, 1.1)]
+## (With the key board toward the counter for the side window, the user 4. 11.: a little
+## lower, clear of the cork board over the first.)
+const DIPLOMA_AT := [Vector3(2.488, 0.92, -0.215), Vector3(2.488, 0.92, 0.185), Vector3(2.488, 0.92, 0.585)]
 var _diplomas_hung := 0
 var _diploma_t := 0.0
 
@@ -58,7 +60,8 @@ func build(parent: Node3D) -> void:
 	_build_clock()
 	# The walls.
 	K.picture(root, "calendar", Vector2(0.42, 0.56), Vector3(-2.488, 1.62, -1.56), 90.0, "Calendar1998")
-	K.picture(root, "certificate", Vector2(0.36, 0.48), Vector3(2.488, 1.62, -0.05), -90.0, "Certificate")
+	# Over the key board (it was behind the cork board's edge; the keys moved for the window).
+	K.picture(root, "certificate", Vector2(0.36, 0.48), Vector3(2.488, 2.0, 0.435), -90.0, "Certificate")
 	K.slab(root, Vector3(0.05, 0.05, 0.16), Vector3(2.475, 1.16, -2.1), K.surface("galvanized", 0.2, Color(0.3, 0.3, 0.3)), "ExtinguisherBracket")
 	K.cutout(root, "extinguisher", Vector2(0.27, 0.54), Vector3(2.47, 0.62, -2.1), -90.0, false, "Extinguisher")
 	# The warden's jacket on its hook by the store door, the mat inside the front door.

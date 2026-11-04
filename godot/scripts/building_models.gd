@@ -2155,6 +2155,13 @@ func reception(r: Node3D) -> Dictionary:
 	var bz1 := bc.z + bs.x * 0.5
 	var by0 := bc.y - bs.y * 0.5
 	var by1 := bc.y + bs.y * 0.5
+	# The office's side window (the room's right wall: the building's west end).
+	var sc: Vector3 = L.local(L.SIDE_WINDOW_CENTER)
+	var ss: Vector2 = L.SIDE_WINDOW_SIZE
+	var sz0 := sc.z - ss.x * 0.5
+	var sz1 := sc.z + ss.x * 0.5
+	var sy0 := sc.y - ss.y * 0.5
+	var sy1 := sc.y + ss.y * 0.5
 
 	# Front wall (z1), around the door and the office window.
 	var fz := z1 + t * 0.5
@@ -2164,9 +2171,13 @@ func reception(r: Node3D) -> Dictionary:
 	_wall_x(r, "FrontUnder", wx0, wx1, 0.0, wy0, fz, t, planks)
 	_wall_x(r, "FrontOver", wx0, wx1, wy1, h, fz, t, planks)
 	_wall_x(r, "FrontC", wx1, x1, 0.0, h, fz, t, planks)
-	# Back wall, west wall: whole.
+	# Back wall: whole. West wall (the office's end), around its side window.
 	_wall_x(r, "Back", x0 - t, x1 + t, 0.0, h, z0 - t * 0.5, t, planks)
-	_wall_z(r, "West", z0, z1, 0.0, h, x0 - t * 0.5, t, planks)
+	var wx := x0 - t * 0.5
+	_wall_z(r, "WestA", z0, sz0, 0.0, h, wx, t, planks)
+	_wall_z(r, "WestUnder", sz0, sz1, 0.0, sy0, wx, t, planks)
+	_wall_z(r, "WestOver", sz0, sz1, sy1, h, wx, t, planks)
+	_wall_z(r, "WestB", sz1, z1, 0.0, h, wx, t, planks)
 	# East wall (the gate lane side), around the back room's window.
 	var ex := x1 + t * 0.5
 	_wall_z(r, "EastA", z0, bz0, 0.0, h, ex, t, planks)
@@ -2241,12 +2252,18 @@ func reception(r: Node3D) -> Dictionary:
 	_box(r, "BackMullion", Vector3(0.05, bs.y, 0.06), Vector3(x1 + t * 0.5, bc.y, bc.z), trim)
 	_box(r, "BackSill", Vector3(0.2, 0.06, bs.x + 0.24), Vector3(x1 + t + 0.08, by0 - 0.09, bc.z), trim)
 	var bg := _glass(r, "BackGlass", Vector3(0.02, bs.y, bs.x), Vector3(x1 + 0.04, bc.y, bc.z), "recep_back_night.png")
+	# The office's side window, west: the white frame and the cross of the front one.
+	_frame_z(r, "SideWindowFrame", sz0 - 0.07, sz1 + 0.07, sy0 - 0.07, sy1 + 0.07, x0 - t - 0.02, trim)
+	_box(r, "SideMullionV", Vector3(0.05, ss.y, 0.06), Vector3(x0 - t * 0.5, sc.y, sc.z), trim)
+	_box(r, "SideMullionH", Vector3(0.05, 0.06, ss.x), Vector3(x0 - t * 0.5, sc.y, sc.z), trim)
+	_box(r, "SideSill", Vector3(0.2, 0.06, ss.x + 0.24), Vector3(x0 - t - 0.08, sy0 - 0.09, sc.z), trim)
+	var sg := _glass(r, "SideGlass", Vector3(0.02, ss.y, ss.x), Vector3(x0 - 0.04, sc.y, sc.z), "recep_office_night.png")
 
 	_reception_store(r, L, z0 - t, tin)
 	# Firewood against the west wall.
 	for i in 4:
 		_cyl(r, "Firewood%d" % i, 0.11, 1.1, Vector3(x0 - t - 0.25, 0.18 + i * 0.2, z0 + 1.0 + (i % 2) * 0.12), _psx_mat(Color(0.52, 0.38, 0.24), "tree_bark"), Vector3(PI * 0.5, 0, 0))
-	return {"office_glass": og, "back_glass": bg, "door_way": way}
+	return {"office_glass": og, "back_glass": bg, "door_way": way, "side_glass": sg}
 
 
 ## The lean-to store on the back of the reception (ReceptionLayout.STORE_*): grey boards

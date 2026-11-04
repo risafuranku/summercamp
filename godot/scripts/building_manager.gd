@@ -275,6 +275,11 @@ func place_main_building(origin: Vector2i, footprint: Vector2i = Vector2i(2, 2))
 	var size = Vector3(bounds.size.x + 0.3, 3.4, bounds.size.y + 0.3)
 	var center = _grid_manager.get_footprint_center(origin, footprint)
 	building.position = center + Vector3(0.0, size.y * 0.5 - 0.08, 0.0)
+	# Its front (the door, the office window) to the east, onto the gate lane: in from the
+	# barrier you come straight up to its door (the user 4. 11.: "turn the reception 90
+	# degrees so the main door is right by the way in from the barrier"). Everything inside
+	# and every view in and out goes by its transform (ReceptionLayout.room_to_local).
+	building.rotation.y = PI * 0.5
 	var ground_y: float = -(size.y * 0.5 - 0.08)
 
 	var collider = CollisionShape3D.new()

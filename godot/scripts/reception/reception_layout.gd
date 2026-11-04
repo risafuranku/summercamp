@@ -12,14 +12,16 @@ extends RefCounted
 ## reception's footprint, its front (+Z) the office's front wall. So what you see through
 ## a window from inside is what stands outside that window, and the windows you see from
 ## outside are the ones you look out of (playtest 2026-10-17: "the windows must match the
-## interior").
+## interior"). In the camp the building is turned a quarter (building_manager
+## place_main_building, the user 4. 11.): its front with the door faces the gate lane, the
+## back room's end the fence and the barrier, the office's end the camp.
 ##
-##          local -X (west)                                   local +X (east, the gate lane)
+##        local -X (into the camp)                       local +X (the fence, the barrier)
 ##   +--------------------------------------+---------------------------+
 ##   |  office 5 x 5            |  back room 3 x 5.2, the whole side of |
-##   |  keys  counter   PC      |  the building (the bed under the east |
-##   |                          |  window at its front end)             |
-##   +--[door]-------[window]---+---------------------------------------+   front +Z
+## [side    keys  counter   PC  |  the building (the bed under the end  |
+##  window]                     |  window at its front end)             |
+##   +--[door]-------[window]---+---------------------------------------+   front +Z, the lane
 ##
 ## Behind the office (room +Z, the building's back) a lean-to store of rough boards
 ## under its own tin roof, through the door in the office's back wall: the linen, the
@@ -45,6 +47,11 @@ const OFFICE_WINDOW_SIZE := Vector2(1.86, 1.38)
 ## the gate lane toward the barrier.
 const BACK_WINDOW_CENTER := Vector3(-5.6, 1.42, -1.54)
 const BACK_WINDOW_SIZE := Vector2(0.96, 0.86)   # along z, height
+## The office's side window (the user 4. 11.: "a new window where the key board is"): in
+## its right wall by the stove, where the keys hung (they moved a little toward the
+## counter), out of the building's end into the camp.
+const SIDE_WINDOW_CENTER := Vector3(2.51, 1.62, 1.37)
+const SIDE_WINDOW_SIZE := Vector2(0.9, 1.0)   # along z, height
 
 ## The store behind the office: the door in the back wall (x, the opening's width), the
 ## lean-to's outer faces (x, z) and its roof from the office wall down to the back.

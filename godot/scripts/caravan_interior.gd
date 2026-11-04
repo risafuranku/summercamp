@@ -659,7 +659,7 @@ func _take_inview(van: Node3D) -> void:
 		mi.set_meta("inview_was", mi.material_override)
 		mi.set_meta("inview_live", true)
 		# Its cube's pane (window_lights): the live room fades in over it.
-		var cube := mi.get_meta("wl_cube", null) as ShaderMaterial
+		var cube := mi.get_meta("wl_cube") as ShaderMaterial if mi.has_meta("wl_cube") else null
 		if cube != null:
 			mi.remove_meta("inview_was")
 			mi.material_override = cube
@@ -679,7 +679,7 @@ func _release_inview() -> void:
 		var mi := p as MeshInstance3D
 		if mi == null:
 			continue
-		var cube := mi.get_meta("wl_cube", null) as ShaderMaterial
+		var cube := mi.get_meta("wl_cube") as ShaderMaterial if mi.has_meta("wl_cube") else null
 		if cube != null:
 			cube.set_shader_parameter("live", 0.0)
 		if mi.has_meta("inview_was"):
@@ -713,7 +713,7 @@ func _inview_room_light() -> void:
 	_inview_mat.set_shader_parameter("bright", bright)
 	_inview_mat.set_shader_parameter("glow", 0.0)
 	for p in _inview_panes:
-		var cube := (p as Node).get_meta("wl_cube", null) as ShaderMaterial if is_instance_valid(p) else null
+		var cube := (p as Node).get_meta("wl_cube") as ShaderMaterial if is_instance_valid(p) and (p as Node).has_meta("wl_cube") else null
 		if cube != null:
 			cube.set_shader_parameter("bright", bright)
 

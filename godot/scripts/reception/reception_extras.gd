@@ -88,6 +88,8 @@ var where := "office"
 var hot: Dictionary = {}   # id -> {body, meshes}
 ## The office window's floral curtains (open by day; click to draw them).
 var office_curtain
+## The same on the side window by the stove (ReceptionLayout.SIDE_WINDOW_*).
+var side_curtain
 var phone_view
 var board_view
 var sleep
@@ -277,6 +279,10 @@ func _build_office_curtain() -> void:
 	office_curtain = CURTAIN.new()
 	office_curtain.build(room_root, c, RL.OFFICE_WINDOW_SIZE.x + 0.1, RL.OFFICE_WINDOW_SIZE.y + 0.3, 0.0, "curtain_floral", 0.7, host, true)
 	_hot_body("curtain", room_root, c + Vector3(0, 0, 0.04), Vector3(RL.OFFICE_WINDOW_SIZE.x + 0.5, RL.OFFICE_WINDOW_SIZE.y + 0.4, 0.14), office_curtain.meshes)
+	var sc: Vector3 = RL.SIDE_WINDOW_CENTER + Vector3(-0.21, 0, 0)
+	side_curtain = CURTAIN.new()
+	side_curtain.build(room_root, sc, RL.SIDE_WINDOW_SIZE.x + 0.1, RL.SIDE_WINDOW_SIZE.y + 0.3, -90.0, "curtain_floral", 0.7, host, true)
+	_hot_body("side_curtain", room_root, sc + Vector3(-0.04, 0, 0), Vector3(0.14, RL.SIDE_WINDOW_SIZE.y + 0.4, RL.SIDE_WINDOW_SIZE.x + 0.4), side_curtain.meshes)
 
 
 func _build_board() -> void:
@@ -526,6 +532,8 @@ func process(delta: float, hour: float) -> bool:
 	var moved := false
 	if office_curtain != null and office_curtain.update(delta):
 		moved = true
+	if side_curtain != null and side_curtain.update(delta):
+		moved = true
 	if back.curtain != null and not is_equal_approx(back.curtain.open, back.curtain.target):
 		moved = true
 	# Drawing a curtain changes the light in the room and the window seen from outside.
@@ -567,6 +575,8 @@ func process(delta: float, hour: float) -> bool:
 func tick_unseen(delta: float, _hour: float) -> bool:
 	var moved := false
 	if office_curtain != null and office_curtain.update(delta):
+		moved = true
+	if side_curtain != null and side_curtain.update(delta):
 		moved = true
 	if back.curtain != null and not is_equal_approx(back.curtain.open, back.curtain.target):
 		back.curtain.update(delta)
@@ -651,6 +661,8 @@ func click() -> bool:
 			back.toggle_tv()
 		"curtain":
 			office_curtain.toggle()
+		"side_curtain":
+			side_curtain.toggle()
 		"back_curtain":
 			back.curtain.toggle()
 		"desklamp":

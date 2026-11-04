@@ -37,14 +37,14 @@ const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 const DESK_EYE := Vector3(0.1, 1.42, 0.46)
 const DESK_LOOK_AT := Vector3(0.12, 0.965, -0.02)
 ## Turned right to the keys you lean over to them: the eye goes up to the board.
-const BOARD_EYE := Vector3(1.86, 1.5, 0.95)
+const BOARD_EYE := Vector3(1.86, 1.5, 0.435)
 const SHEET_X0 := -0.52
 const SHEET_W := 1.45
 const SHEET_Z0 := -0.17
 const SHEET_D := 0.5015
 const SHEET_Y := 0.965
 const SHEET_PX_Y := Vector2(104.0, 166.0)
-const BOARD_AT := Vector3(2.462, 1.52, 0.95)
+const BOARD_AT := Vector3(2.462, 1.52, 0.435)
 const BOARD_SIZE := Vector2(0.72, 0.386)
 const BOARD_PX := Rect2(284, 280, 194, 104)
 const STEP_SEC := 0.6

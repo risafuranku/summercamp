@@ -1050,7 +1050,7 @@ func _build_room() -> void:
 	# ── SOLID WALLS ────────────────────────────────────────────────────────────
 	_add_box(_room_root, "WallBack", Vector3(0.0, 1.4, 2.55), Vector3(5.0, 2.8, 0.1), Color(0.62, 0.48, 0.34))
 	_add_box(_room_root, "WallLeft", Vector3(-2.55, 1.4, 0.0), Vector3(0.1, 2.8, 5.0), Color(0.64, 0.48, 0.34))
-	_add_box(_room_root, "WallRight", Vector3(2.55, 1.4, 0.0), Vector3(0.1, 2.8, 5.0), Color(0.64, 0.48, 0.34))
+	# (The right wall is built round its window: _build_side_window.)
 
 	# ── FRONT WALL — broken around window opening (x: -1.4..0.6, y: 0.95..2.40) ──
 	_add_box(_room_root, "WallFrontLeft",   Vector3(-1.95, 1.4, -2.55), Vector3(1.10, 2.8, 0.1), Color(0.66, 0.50, 0.36))
@@ -1099,6 +1099,7 @@ func _build_room() -> void:
 	rw.is_open = func(): return visible
 	_room_root.add_child(rw)
 	rw.add_window(_window_quad)
+	_build_side_window(rw)
 
 	# ── FAKE OUTDOOR SCENE (past the front wall, aligned to shifted window) ───
 	_add_box(_room_root, "OutdoorGround",  Vector3(-0.4,  -0.04, -4.2), Vector3(2.10, 0.08, 4.0), Color(0.44, 0.42, 0.38))
@@ -1352,7 +1353,8 @@ func _build_room() -> void:
 	# ── PROPS AND PICTURES (tools/blender, assets/textury/camp) ───────────────
 	K.prop(_room_root, "filing_cabinet", Vector3(2.2, 0.05, -1.1), -90.0)
 	# The key board on the wall to your right, behind the counter.
-	K.picture(_room_root, "key_rack", Vector2(0.72, 0.405), Vector3(2.47, 1.52, 0.95), -90.0, "KeyRack")
+	# (Moved toward the counter for the side window, the user 4. 11.: desk_room BOARD_AT.)
+	K.picture(_room_root, "key_rack", Vector2(0.72, 0.405), Vector3(2.47, 1.52, 0.435), -90.0, "KeyRack")
 	K.picture(_room_root, "poster_mushrooms", Vector2(0.44, 0.58), Vector3(-2.47, 1.56, -0.9), 90.0, "PosterA")
 
 	K.picture(_room_root, "picture_deer", Vector2(0.48, 0.64), Vector3(-1.26, 1.56, 2.47), 180.0, "PosterC")
@@ -2010,7 +2012,7 @@ func _apply_room_time_profile(animated: bool = false) -> void:
 		if _sun_beam != null:
 			_sun_beam.light_energy *= wk * wk * wk
 	if _room_environment != null and _office_curtain != null:
-		_room_environment.ambient_light_energy *= lerpf(0.55, 1.0, _office_curtain.open) if daylight > 0.3 else 1.0
+		_room_environment.ambient_light_energy *= lerpf(0.55, 1.0, _windows_open()) if daylight > 0.3 else 1.0
 	# The tubes on: their cold light is everywhere in a small room (the walls, the
 	# ceiling, under the desk), not only where the lamp's cone falls; more so the darker
 	# it is outside. Off (the switch by the door) or no power: only what else there is.
@@ -2065,6 +2067,59 @@ func _setup_window_view() -> void:
 		var node := _room_root.get_node_or_null(n)
 		if node != null:
 			node.visible = false
+
+
+## The window in the right wall by the stove (ReceptionLayout.SIDE_WINDOW_*, the user
+## 4. 11.: "a new window where the key board is"): out of the building's end into the
+## camp, the same opening the building has outside. The wall round it, a frame and a cross
+## like the front window's, a sill, the camp in it (the office's one render), its rain.
+var _side_quad: MeshInstance3D
+var _side_pane: ShaderMaterial
+
+
+func _build_side_window(rw) -> void:
+	var c: Vector3 = RL.SIDE_WINDOW_CENTER
+	var s: Vector2 = RL.SIDE_WINDOW_SIZE
+	var z0 := c.z - s.x * 0.5
+	var z1 := c.z + s.x * 0.5
+	var y0 := c.y - s.y * 0.5
+	var y1 := c.y + s.y * 0.5
+	var wall := Color(0.64, 0.48, 0.34)
+	_add_box(_room_root, "WallRightA", Vector3(2.55, 1.4, (z0 - 2.5) * 0.5), Vector3(0.1, 2.8, z0 + 2.5), wall)
+	_add_box(_room_root, "WallRightB", Vector3(2.55, 1.4, (z1 + 2.5) * 0.5), Vector3(0.1, 2.8, 2.5 - z1), wall)
+	_add_box(_room_root, "WallRightUnder", Vector3(2.55, y0 * 0.5, c.z), Vector3(0.1, y0, s.x), wall)
+	_add_box(_room_root, "WallRightOver", Vector3(2.55, (y1 + 2.8) * 0.5, c.z), Vector3(0.1, 2.8 - y1, s.x), wall)
+	var trim := Color(0.78, 0.78, 0.74)
+	_add_box(_room_root, "WindowFrameSideT", Vector3(2.50, y1, c.z), Vector3(0.12, 0.08, s.x + 0.16), trim)
+	_add_box(_room_root, "WindowFrameSideB", Vector3(2.50, y0, c.z), Vector3(0.12, 0.08, s.x + 0.16), trim)
+	_add_box(_room_root, "WindowFrameSideL", Vector3(2.50, c.y, z0), Vector3(0.12, s.y + 0.08, 0.08), trim)
+	_add_box(_room_root, "WindowFrameSideR", Vector3(2.50, c.y, z1), Vector3(0.12, s.y + 0.08, 0.08), trim)
+	_add_box(_room_root, "WindowFrameSideSill", Vector3(2.42, y0 + 0.01, c.z), Vector3(0.20, 0.06, s.x + 0.08), Color(0.84, 0.84, 0.80))
+	_add_box(_room_root, "WindowMullionSideV", Vector3(2.50, c.y, c.z), Vector3(0.08, s.y - 0.08, 0.06), Color(0.66, 0.66, 0.62))
+	_add_box(_room_root, "WindowMullionSideH", Vector3(2.50, c.y, c.z), Vector3(0.08, 0.06, s.x - 0.08), Color(0.66, 0.66, 0.62))
+	_side_quad = MeshInstance3D.new()
+	_side_quad.name = "SideWindowView"
+	var q := QuadMesh.new()
+	q.size = s
+	_side_quad.mesh = q
+	_side_quad.position = c
+	_side_quad.rotation_degrees.y = -90.0
+	_room_root.add_child(_side_quad)
+	_setup_window_view()
+	_side_pane = _view.pane_material(true)
+	_side_quad.material_override = _side_pane
+	if rw != null:
+		rw.add_window(_side_quad)
+
+
+## How open the office's windows are together, each by its glass: the day let in.
+func _windows_open() -> float:
+	var front: float = _office_curtain.open if _office_curtain != null else 1.0
+	var sc = _extras.side_curtain if _extras != null else null
+	var side: float = float(sc.open) if sc != null else 1.0
+	var fa := RL.OFFICE_WINDOW_SIZE.x * RL.OFFICE_WINDOW_SIZE.y
+	var sa := RL.SIDE_WINDOW_SIZE.x * RL.SIDE_WINDOW_SIZE.y
+	return (front * fa + side * sa) / (fa + sa)
 
 
 ## A window's view: its own viewport into the camp's world (given by hand: this room is
@@ -2277,13 +2332,21 @@ func _update_window_portal() -> void:
 	# On the way back from the back room (and with its door open) the office window comes
 	# into view before you stand in the office: it was off till the walk ended, and showed
 	# the night's picture through the morning.
-	var office_on: bool = not in_back or not _extras.in_back_room() or _extras._walking() or _extras.back_door_open()
+	var office_seen: bool = not in_back or not _extras.in_back_room() or _extras._walking() or _extras.back_door_open()
+	var office_on := office_seen
 	if _office_curtain != null and _office_curtain.open < 0.02:
 		office_on = false
 	office_on = office_on and _aim_portal(_window_cam, _portal_frame(WINDOW_CENTER, Vector3(0, 0, -1)), WINDOW_SIZE, eye_room)
 	var any := office_on
 	if _window_pane != null:
 		_window_pane.set_shader_parameter("live", 1.0 if office_on else 0.0)
+	# The side window by the stove: the office's as well.
+	if _side_pane != null:
+		var sc = _extras.side_curtain if _extras != null else null
+		var side_on: bool = office_seen and not (sc != null and sc.open < 0.02)
+		side_on = side_on and _aim_portal(_window_cam, _portal_frame(RL.SIDE_WINDOW_CENTER, Vector3(1, 0, 0)), RL.SIDE_WINDOW_SIZE, eye_room)
+		_side_pane.set_shader_parameter("live", 1.0 if side_on else 0.0)
+		any = any or side_on
 	if _back_pane != null:
 		var back_on: bool = in_back
 		var bc = _extras.back.curtain if _extras != null else null
@@ -2317,6 +2380,8 @@ func photo_windows() -> Array:
 	var specs: Array = []
 	if not in_back or _extras.back_door_open():
 		specs.append([WINDOW_CENTER, Vector3(0, 0, -1), _office_curtain])
+		if _side_quad != null:
+			specs.append([RL.SIDE_WINDOW_CENTER, Vector3(1, 0, 0), _extras.side_curtain if _extras != null else null])
 	if in_back:
 		specs.append([RL.BACK_WINDOW_CENTER, Vector3(-1, 0, 0), _extras.back.curtain if _extras != null else null])
 	for sp in specs:
@@ -2375,6 +2440,8 @@ func _set_window_view_live(on: bool) -> void:
 			_window_pane.set_shader_parameter("live", 0.0)
 		if _back_pane != null:
 			_back_pane.set_shader_parameter("live", 0.0)
+		if _side_pane != null:
+			_side_pane.set_shader_parameter("live", 0.0)
 		if _door_quad != null:
 			_door_quad.visible = false
 
@@ -2450,9 +2517,9 @@ var _glass_cache: Dictionary = {}
 ## and whoever is at it are the room's. Only near and with a pane turned to you; farther
 ## off the panes are dark glass that warms with the lamps at night (_glow_glass).
 const INVIEW_RANGE := 42.0
-## What shows the office from the camp: its window, the back room's, and the front doorway
-## while the door stands open (building_models.reception: door_way).
-const PANES := ["office_glass", "back_glass", "door_way"]
+## What shows the office from the camp: its window, the back room's, the front doorway
+## while the door stands open (building_models.reception: door_way), the side window.
+const PANES := ["office_glass", "back_glass", "door_way", "side_glass"]
 ## What lies over the room's own windows from inside (the camp's view, the rain on the
 ## glass, the doorway's view): the camera from outside does not see it.
 const INVIEW_HIDE_LAYER := 1 << 17
@@ -2569,7 +2636,7 @@ func _ensure_inview() -> void:
 	# The room's own window views and their rain are for the inside only.
 	# So is the room's own front door: from the camp the camp building's leaf is the door,
 	# and open it shows the room through the doorway, not this one shut across it.
-	for n in [_window_quad, _window_outdoor_sky, _door_quad, (_extras.back.window_quad if _extras != null and _extras.back != null else null), (_desk_room.front_door() if _desk_room != null else null)]:
+	for n in [_window_quad, _side_quad, _window_outdoor_sky, _door_quad, (_extras.back.window_quad if _extras != null and _extras.back != null else null), (_desk_room.front_door() if _desk_room != null else null)]:
 		if n is Node3D:
 			_hide_from_camp(n)
 	var shader: Shader = load("res://materials/window_into.gdshader")
@@ -2610,6 +2677,8 @@ func _sync_reception_glass() -> void:
 	var office_lit := (0.8 if _office_lights_on else 0.0) + (0.35 if _desk_lamp_on else 0.0)
 	var office_open: float = _office_curtain.open if _office_curtain != null else 1.0
 	_glow_glass(_glass_cache.get("office_glass"), night * power * office_lit * lerpf(0.45, 1.0, office_open))
+	var sc = _extras.side_curtain if _extras != null else null
+	_glow_glass(_glass_cache.get("side_glass"), night * power * office_lit * lerpf(0.45, 1.0, float(sc.open) if sc != null else 1.0))
 	var way = _glass_cache.get("door_way")
 	if way is MeshInstance3D and is_instance_valid(way) and (way as MeshInstance3D).material_override is ShaderMaterial:
 		_glow_glass(way, night * power * office_lit * 0.6)
@@ -3020,6 +3089,7 @@ func coop_office_state() -> Dictionary:
 	return {
 		"lights": _office_lights_on, "desk": _desk_lamp_on,
 		"oc": _office_curtain.is_open() if _office_curtain != null else true,
+		"sc": _extras.side_curtain.is_open() if _extras.side_curtain != null else true,
 		"bc": back.curtain.is_open() if back != null and back.curtain != null else false,
 		"lamp": bool(back.lamp_on) if back != null else true,
 		"tv": bool(back.tv_on) if back != null else true,
@@ -3040,6 +3110,10 @@ func coop_take_office_state(d: Dictionary) -> void:
 		toggle_desk_lamp(here)
 	if d.has("oc") and _office_curtain != null and bool(d["oc"]) != _office_curtain.is_open():
 		_office_curtain.set_open(bool(d["oc"]), not here)
+		_apply_room_time_profile()
+	var sc = _extras.side_curtain
+	if d.has("sc") and sc != null and bool(d["sc"]) != sc.is_open():
+		sc.set_open(bool(d["sc"]), not here)
 		_apply_room_time_profile()
 	if back != null:
 		if d.has("bc") and back.curtain != null and bool(d["bc"]) != back.curtain.is_open():
