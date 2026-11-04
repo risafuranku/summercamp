@@ -56,17 +56,43 @@ const NEVER := 6
 
 ## Inner width (between the partitions).
 const ROOM_W := BAY - 0.15
-## Two single beds pushed together under the headboard on the back wall: their middles.
-const BED_X := [-0.42, 0.42]
+## Two single beds under the headboard on the back wall, the bedside cabinet between them
+## (the user, 4. 11.: "work out the night in the motel"): their middles.
+const BED_X := [-0.97, 0.25]
 const BED_SIZE := Vector3(0.82, 0.5, 1.95)
 const BED_Z := ROOM_D * 0.5 - BED_SIZE.z * 0.5
-## The headboard wall's picture: as wide as the wall, its own 16:9 tall, from this high.
+const NIGHTSTAND := Vector3(-0.36, 0.0, ROOM_D * 0.5 - 0.22)
+## The headboard wall's picture, its own 16:9 tall over the room's width, from this high;
+## only the part of it from CROP.x to CROP.y across, its left edge on the west wall (the
+## bathroom's door is east of it).
 const HEADWALL_Y := 0.25
+const HEADWALL_CROP := Vector2(0.12, 0.88)
+## The bathroom behind the back wall (the block is deeper than the rooms): its door in the
+## back wall (x from, to), its inside (x from, to; z from the back wall's far face, deep).
+const BATH_DOOR := Vector2(0.82, 1.44)
+const BATH_DOOR_H := 2.0
+const BATH_X := Vector2(-0.2, ROOM_W * 0.5)
+const BATH_D := 1.75
+const BATH_H := 2.4
 ## Where you stand when you come in (eye height), and lie in the first bed; the
 ## wardrobe's middle along the west wall.
 const STAND := Vector3(-0.15, 1.6, -1.25)
 const WARDROBE_Z := -0.5
-const LIE := Vector3(-0.42, 0.78, 1.55)
+const LIE := Vector3(-0.97, 0.78, 1.55)
+
+
+## The headboard picture's middle across and its width (room space).
+static func headwall_rect() -> Vector2:
+	var w := ROOM_W * (HEADWALL_CROP.y - HEADWALL_CROP.x)
+	return Vector2(-ROOM_W * 0.5 + w * 0.5, w)
+
+
+## A point of the headboard's full picture (u across 0..1, v down 0..1) in the room: x, y.
+## The picture faces the room from the back wall, so its u runs from east to west.
+static func headwall_at(u: float, v: float) -> Vector2:
+	var hh := ROOM_W * 9.0 / 16.0
+	var r := headwall_rect()
+	return Vector2(r.x + r.y * 0.5 - (u - HEADWALL_CROP.x) * ROOM_W, HEADWALL_Y + hh * (1.0 - v))
 
 
 static func bay_x0(bay: int) -> float:

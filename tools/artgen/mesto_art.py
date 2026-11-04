@@ -70,6 +70,44 @@ ROWS = [
     # The Jednota's shop windows.
     ("spr_jednota_display_a", "sprite", 40, "camp/jednota_display_a.png"),
     ("spr_jednota_display_b", "sprite", 40, "camp/jednota_display_b.png"),
+    # The chapel damp, dusty and bigger (the user, 4. 11.).
+    ("face_chapel_damp_wall2", "panel", 192, "camp/chapel_damp_wall2.png"),
+    ("tex_chapel_vault_damp", "texture", 128, "camp/chapel_vault_damp.png"),
+    ("sheet_chapel_decay", "sheet", [("camp/decay_stain.png", 56), ("camp/decay_mould.png", 48), ("camp/decay_bricks.png", 48), ("camp/decay_crack.png", 56)], None),
+    ("sheet_chapel_floor", "sheet", [("camp/floor_puddle.png", 28), ("camp/floor_plaster.png", 24), ("camp/floor_leaves.png", 22), ("camp/floor_moss.png", 26)], None),
+    ("spr_chapel_dead_flowers", "sprite", 48, "camp/dead_flowers.png"),
+    ("spr_dust_sheet_figure", "sprite", 96, "camp/dust_sheet_figure.png"),
+    ("spr_confessional", "sprite", 112, "camp/confessional.png"),
+    ("spr_chapel_chandelier", "sprite", 72, "camp/chapel_chandelier.png"),
+    ("face_choir_loft", "panel", 192, "camp/choir_loft.png"),
+    ("spr_cobweb_strands", "sprite", 80, "camp/cobweb_strands.png"),
+    ("spr_saint_turned", "sprite", 112, "camp/saint_statue_turned.png"),
+    # Number four for the night.
+    ("face_motel_painting_a", "panel", 96, "camp/motel_painting_0.png"),
+    ("face_motel_painting_b", "panel", 96, "camp/motel_painting_1.png"),
+    ("face_motel_painting_c", "panel", 96, "camp/motel_painting_2.png"),
+    ("face_motel_nightstand", "panel", 40, "camp/motel_nightstand.png"),
+    ("sheet_motel_nightstand_things", "sheet", [("camp/clock_radio.png", 18), ("camp/phone_on.png", 18), ("camp/phone_off.png", 14), ("camp/water_glass.png", 10)], None),
+    ("tex_motel_bath_tiles", "texture", 128, "camp/motel_bath_tiles.png"),
+    ("spr_motel_shower_curtain", "sprite", 96, "camp/shower_curtain.png"),
+    ("spr_motel_toilet", "sprite", 72, "camp/motel_toilet.png"),
+    ("spr_motel_mirror_cabinet", "sprite", 52, "camp/mirror_cabinet.png"),
+    ("spr_motel_bath_basin", "sprite", 64, "camp/bath_basin.png"),
+    ("face_motel_bath_door", "panel", 64, "camp/motel_bath_door.png"),
+    ("sheet_motel_stains", "sheet", [("camp/ceiling_stain_0.png", 40), ("camp/ceiling_stain_1.png", 48), ("camp/carpet_stain.png", 32), ("camp/wet_footprints.png", 24)], None),
+    ("face_motel_wardrobe_open", "panel", 80, "camp/motel_wardrobe_open.png"),
+    ("sheet_door_chain", "sheet", [("camp/chain_loose.png", 24), ("camp/chain_hooked.png", 16)], None),
+    # The one-star motel (the user, 4. 11.: "like Hotel Hell").
+    ("tex_motel_bedspread_dirty", "texture", 128, "camp/motel_bedspread_dirty.png"),
+    ("tex_motel_carpet_dirty", "texture", 128, "camp/motel_carpet_dirty.png"),
+    ("tex_motel_wall_dirty", "texture", 128, "camp/motel_wall_dirty.png"),
+    ("tex_motel_pillow_dirty", "texture", 64, "camp/motel_pillow_dirty.png"),
+    ("sheet_motel_grime", "sheet", [("camp/ashtray_full.png", 14), ("camp/rum_bottle.png", 10), ("camp/tissue.png", 8), ("camp/roach_dead.png", 8)], None),
+    ("sheet_cockroach", "sheet", [("camp/roach_0.png", 12), ("camp/roach_1.png", 12), ("camp/roach_side.png", 8)], None),
+    ("sheet_motel_bath_grime", "sheet", [("camp/hair_clump.png", 12), ("camp/razor.png", 8), ("camp/mould_grout.png", 24), ("camp/soap_hair.png", 10)], None),
+    ("spr_plastic_bowl", "sprite", 20, "camp/plastic_bowl.png"),
+    ("sheet_lobby_grime", "sheet", [("camp/flypaper.png", 48), ("camp/fly_zapper.png", 28), ("camp/desk_fan.png", 28)], None),
+    ("spr_mirror_crack", "sprite", 64, "camp/mirror_crack.png"),
 ]
 
 # The Jednota's front: its window panes and the door's glass cut out (jednota_view.gd
@@ -204,6 +242,39 @@ def kiosk_glass():
     save(img, "town/kiosk_front_glass.png")
 
 
+def decal_clean():
+    """Grok drew the stains on their own ceiling and carpet: what is not the stain made see-
+    through (the ceiling's near-white, the carpet round the dark stain, the carpet round
+    the grey wet feet), so they lie on the room's own."""
+    import colorsys
+    rules = {
+        "camp/ceiling_stain_0.png": lambda r, g, b, s, v: (v > 0.66 and s < 0.3) or (v > 0.4 and s < 0.18),
+        "camp/ceiling_stain_1.png": lambda r, g, b, s, v: (v > 0.66 and s < 0.3) or (v > 0.4 and s < 0.18),
+        "camp/carpet_stain.png": lambda r, g, b, s, v: v > 0.24,
+        "camp/wet_footprints.png": lambda r, g, b, s, v: s > 0.32,
+    }
+    for dest, cut in rules.items():
+        path = os.path.join(TEX, dest)
+        if not os.path.exists(path):
+            continue
+        img = Image.open(path).convert("RGBA")
+        px = img.load()
+        for y in range(img.height):
+            for x in range(img.width):
+                r, g, b, a = px[x, y]
+                if a == 0:
+                    continue
+                # The patch's own frame (the carpet's edge Grok drew round it).
+                if dest == "camp/carpet_stain.png" and min(x, y, img.width - 1 - x, img.height - 1 - y) < 3:
+                    px[x, y] = (r, g, b, 0)
+                    continue
+                h, s, v = colorsys.rgb_to_hsv(r / 255.0, g / 255.0, b / 255.0)
+                if cut(r, g, b, s, v):
+                    px[x, y] = (r, g, b, 0)
+        img.save(path)
+        print("%s cleaned" % dest)
+
+
 def doors():
     """town/motel_door_<n>.png: the door with its number on the plate."""
     base = os.path.join(TEX, "town", "motel_door_out.png")
@@ -277,6 +348,7 @@ def main():
     jednota_glass()
     pub_glass()
     kiosk_glass()
+    decal_clean()
     if not only:
         signs()
 

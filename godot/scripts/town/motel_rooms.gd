@@ -5,12 +5,19 @@ extends RefCounted
 ## windows from the car park (motel_block.gd, in the village: no clicks, no street wall,
 ## the facade is theirs). Build boxes with Grok faces (tools/artgen/prompts_mesto.tsv).
 ##
-## A room: the striped wallpaper, the headboard wall (face_motel4_wall) with its two lamps
-## over two single beds pushed together, the wardrobe by the door, the basin with its
-## mirror, the radiator under the window, the table with the TV in the corner, the lamp on
-## the ceiling. The reception: the counter across it with Simek behind, the key board
-## with a key on the hook of every free room, the drinks machine, the plant, the corner
-## with the television and the calendar.
+## One star (the user, 4. 11.: "one-star lodging you would rather not go to, like Hotel
+## Hell"): the striped wallpaper gone brown with smoke and damp, the carpet worn and
+## burnt, the bedspreads stained, the pillows yellow; the headboard wall (face_motel4_wall)
+## with its two lamps and its print over two single beds, the bedside cabinet between them
+## with the clock radio, the telephone and the ashtray nobody empties; the wardrobe by the
+## door, the radiator under the window, the table with the TV in the corner, the lamp on
+## the ceiling with the stain spreading round it and the bowl under the drip. Behind the
+## back wall the bathroom: brown tiles black in the grout, the shower behind its mouldy
+## curtain, the toilet with its high cistern, the basin under a mirror cabinet whose
+## glass is a real mirror (motel_view.gd), hair in the plughole.
+## The reception: the counter across it with Simek behind, the key board with a key on
+## the hook of every free room, the drinks machine, the plant, the corner with the
+## television and the calendar, the flypaper black with flies, the zapper, the fan.
 
 const PLAN = preload("res://scripts/town/motel_plan.gd")
 const K = preload("res://scripts/interior_kit.gd")
@@ -23,10 +30,26 @@ const TV_SIZE := Vector2(0.46, 0.6)
 const HOOK_0 := Vector2(0.097, 0.27)
 const HOOK_STEP := Vector2(0.1594, 0.39)
 const KEYBOARD_SIZE := Vector2(1.3, 0.73)
+## The print over the beds (its frame in face_motel4_wall's picture, u and v of its middle)
+## and the size it is hung at over the painted one.
+const PRINT_UV := Vector2(0.4977, 0.2709)
+const PRINT_SIZE := Vector2(0.71, 0.5)
+## The bathroom's mirror (its middle over the basin on the bathroom's west wall).
+const MIRROR_Y := 1.42
+const MIRROR_Z_OFF := 0.82
+## Render layers in the room's own world: what is behind the mirror (its camera skips it),
+## what only the mirror shows.
+const BEHIND_MIRROR := 1 << 17
+const ONLY_MIRROR := 1 << 18
 
 
 static func _exists(tex: String) -> bool:
 	return ResourceLoader.exists(CAMP + tex + ".png")
+
+
+## `tex` if its picture is there, else `old`.
+static func _pick(tex: String, old: String) -> String:
+	return tex if _exists(tex) else old
 
 
 ## A camp texture on a quad facing `facing` (room space, horizontal): pictures on walls.
@@ -50,28 +73,50 @@ static func _shell_mat(m: Material, lit: bool) -> Material:
 	return s
 
 
+## A keyed picture flat on a surface: `normal` out of it into the room, its middle at `pos`.
+static func decal(root: Node3D, tex: String, size: Vector2, pos: Vector3, normal: Vector3, spin := 0.0, name := "Grime") -> MeshInstance3D:
+	if not _exists(tex):
+		return null
+	var mi := MeshInstance3D.new()
+	mi.name = name
+	var q := QuadMesh.new()
+	q.size = size
+	mi.mesh = q
+	var m := K._base(Color(1, 1, 1))
+	m.albedo_texture = load(CAMP + tex + ".png")
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	m.alpha_scissor_threshold = 0.5
+	mi.material_override = m
+	var z := normal.normalized()
+	var up := Vector3.UP if absf(z.y) < 0.9 else Vector3(0, 0, -1)
+	var x := up.cross(z).normalized()
+	var y := z.cross(x)
+	mi.transform = Transform3D(Basis(x, y, z).rotated(z, spin), pos + z * 0.005)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(mi)
+	return mi
+
+
 # ── a guest room ─────────────────────────────────────────────────────────────
 
 ## Room `n` under `root` (room space). `inside`: the room you stand in (the street wall with
-## its door and window, the things to click through `host`, town_room.gd); else the shell
-## behind a window in the village. `state`: {"lit": the lamps on, "made": the beds made,
-## "curtain": 0 drawn .. 1 open (the shell's), "taken": somebody's things}. Returns what
-## changes later: {"lamps": [materials of the lamp shades], "lights": [OmniLight3D],
-## "tv": {"screen": MeshInstance3D}, "key": Node3D, "door": MeshInstance3D}.
-static func build_room(root: Node3D, n: int, inside: bool, state: Dictionary = {}, host = null) -> Dictionary:
+## its door and window, the bathroom behind the back wall, the things to click through
+## motel_view.gd); else the shell behind a window in the village. `state`: {"lit": the
+## lamps on, "made": the beds made, "curtain": 0 drawn .. 1 open (the shell's), "glow",
+## "painting": which print (0 nobody .. 2), "stain": the ceiling's (0, 1), "prints": wet
+## footprints from the bathroom to the bed}. Returns what changes later.
+static func build_room(root: Node3D, n: int, inside: bool, state: Dictionary = {}) -> Dictionary:
 	var out := {"lamps": [], "lights": [], "tv": {}, "key": null, "door": null, "curtains": []}
 	var w := PLAN.ROOM_W
 	var d := PLAN.ROOM_D
 	var h := PLAN.ROOM_H
 	var lit := bool(state.get("lit", false)) and not inside
-	var wall := K.surface("motel_wall", 1.4)
-	var carpet := K.surface("motel_carpet", 1.6)
-	var ceil := K.surface("ceiling_board", 1.0)
-	# Floor, ceiling, the back wall, the side walls (the partitions); the street wall only
-	# inside (outside it is the facade's).
+	var wall := K.surface(_pick("motel_wall_dirty", "motel_wall"), 1.4, Color(0.88, 0.8, 0.66))
+	var carpet := K.surface(_pick("motel_carpet_dirty", "motel_carpet"), 1.6)
+	var ceil := K.surface("ceiling_board", 1.0, Color(0.88, 0.84, 0.74))
 	K.slab(root, Vector3(w, 0.1, d), Vector3(0, -0.05, 0), _shell_mat(carpet, lit), "Floor")
 	K.slab(root, Vector3(w, 0.1, d), Vector3(0, h + 0.05, 0), _shell_mat(ceil, lit), "Ceiling")
-	K.slab(root, Vector3(w, h, 0.1), Vector3(0, h * 0.5, d * 0.5 + 0.05), _shell_mat(wall, lit), "WallBack")
+	var back := K.slab(root, Vector3(w, h, 0.1), Vector3(0, h * 0.5, d * 0.5 + 0.05), _shell_mat(wall, lit), "WallBack")
 	K.slab(root, Vector3(0.1, h, d), Vector3(-w * 0.5 - 0.05, h * 0.5, 0), _shell_mat(wall, lit), "WallWest")
 	K.slab(root, Vector3(0.1, h, d), Vector3(w * 0.5 + 0.05, h * 0.5, 0), _shell_mat(wall, lit), "WallEast")
 	var door := PLAN.room_door(n)
@@ -83,21 +128,39 @@ static func build_room(root: Node3D, n: int, inside: bool, state: Dictionary = {
 			[door.x - 0.45, door.x + 0.45, 0.0, PLAN.DOOR_H],
 			[win.x - ws.x * 0.5, win.x + ws.x * 0.5, PLAN.WIN_Y.x, PLAN.WIN_Y.y],
 		])
+		K.cut_wall(back, [[PLAN.BATH_DOOR.x, PLAN.BATH_DOOR.y, 0.0, PLAN.BATH_DOOR_H]])
 		K.skirting(root, Vector3(w, h, d), "planks_dark")
-	# The headboard wall: its picture on the back wall, a picture rail along its top.
+	# The headboard wall: its picture on the back wall (the part of it west of the
+	# bathroom's door), a picture rail along its top.
+	var hr := PLAN.headwall_rect()
+	var hw_h := w * 9.0 / 16.0
 	if _exists("motel4_wall"):
-		var hw_h := w * 9.0 / 16.0
-		var hw := _quad(root, "motel4_wall", Vector2(w, hw_h), Vector3(0, PLAN.HEADWALL_Y + hw_h * 0.5, d * 0.5 - 0.004), Vector3(0, 0, -1), "Headwall")
-		hw.material_override = _shell_mat(hw.material_override, lit)
-		K.slab(root, Vector3(w, 0.04, 0.03), Vector3(0, PLAN.HEADWALL_Y + hw_h + 0.02, d * 0.5 - 0.015), _shell_mat(K.surface("veneer_dark", 0.5), lit), "PictureRail")
-		# Its two lamps' shades, lit at night: a glow over each (the shades in the picture
-		# are at about a seventh and six sevenths across, a little over the board).
-		for sx in [-0.345, 0.345]:
-			var shade := _glow_patch(root, Vector3(sx * w, PLAN.HEADWALL_Y + hw_h * 0.46, d * 0.5 - 0.008), Vector2(0.17, 0.13))
+		var hw := _quad(root, "motel4_wall", Vector2(hr.y, hw_h), Vector3(hr.x, PLAN.HEADWALL_Y + hw_h * 0.5, d * 0.5 - 0.004), Vector3(0, 0, -1), "Headwall")
+		var hm := (hw.material_override as StandardMaterial3D).duplicate() as StandardMaterial3D
+		hm.uv1_scale = Vector3(PLAN.HEADWALL_CROP.y - PLAN.HEADWALL_CROP.x, 1, 1)
+		# The quad faces -z (turned): its u runs from the room's +x to -x, as the whole
+		# picture's did.
+		hm.uv1_offset = Vector3(PLAN.HEADWALL_CROP.x, 0, 0)
+		hm.albedo_color = Color(0.86, 0.82, 0.74)
+		hw.material_override = _shell_mat(hm, lit)
+		K.slab(root, Vector3(hr.y, 0.04, 0.03), Vector3(hr.x, PLAN.HEADWALL_Y + hw_h + 0.02, d * 0.5 - 0.015), _shell_mat(K.surface("veneer_dark", 0.5), lit), "PictureRail")
+		# Its two lamps' shades, lit at night: a glow over each.
+		for u in [0.155, 0.845]:
+			var at := PLAN.headwall_at(float(u), 0.54)
+			var shade := _glow_patch(root, Vector3(at.x, at.y, d * 0.5 - 0.008), Vector2(0.17, 0.13))
 			out["lamps"].append(shade)
 			shade.visible = lit or bool(state.get("lit", false))
-	# The two beds: veneer frames, the bedspread over the mattresses, the pillows.
-	var spread := K.surface("motel_bedspread", 0.7) if _exists("motel_bedspread") else K.surface("blanket_check", 0.7)
+		# The print over the beds, hung over the painted one: what is by the river changes.
+		var k := int(state.get("painting", 0))
+		var ptex := "motel_painting_%d" % clampi(k, 0, 2)
+		if _exists(ptex):
+			var pa := PLAN.headwall_at(PRINT_UV.x, PRINT_UV.y)
+			var pr := _quad(root, ptex, PRINT_SIZE, Vector3(pa.x, pa.y, d * 0.5 - 0.009), Vector3(0, 0, -1), "Print")
+			pr.material_override = _shell_mat(pr.material_override, lit)
+			out["print"] = pr
+	# The two beds either side of the cabinet: veneer frames, the stained spreads, the pillows.
+	var spread := K.surface(_pick("motel_bedspread_dirty", "motel_bedspread"), 0.7)
+	var pillow_m := K.surface(_pick("motel_pillow_dirty", "mattress"), 0.5, Color(0.96, 0.93, 0.86))
 	var frame := K.surface("veneer_dark", 0.6)
 	for i in PLAN.BED_X.size():
 		var bx: float = PLAN.BED_X[i]
@@ -105,14 +168,29 @@ static func build_room(root: Node3D, n: int, inside: bool, state: Dictionary = {
 		K.slab(root, Vector3(bs.x, 0.3, bs.z), Vector3(bx, 0.15, PLAN.BED_Z), _shell_mat(frame, lit), "BedFrame")
 		var top := K.slab(root, Vector3(bs.x + 0.04, 0.2, bs.z + 0.02), Vector3(bx, 0.4, PLAN.BED_Z - 0.01), _shell_mat(spread, lit), "Bedspread")
 		top.set_meta("bed", i)
-		# The pillow under the spread at the head: made, a rounded hump of the same cloth;
-		# slept in, the spread thrown back and the pillow out on top of it.
 		if bool(state.get("made", true)):
 			var hump := K.slab(root, Vector3(bs.x + 0.02, 0.12, 0.42), Vector3(bx, 0.55, d * 0.5 - 0.27), _shell_mat(spread, lit), "PillowHump")
 			hump.rotation.x = -0.12
 		else:
-			var pillow := K.slab(root, Vector3(0.6, 0.12, 0.34), Vector3(bx + 0.05, 0.56, d * 0.5 - 0.3), _shell_mat(K.surface("mattress", 0.5, Color(0.96, 0.93, 0.86)), lit), "Pillow")
+			var pillow := K.slab(root, Vector3(0.6, 0.12, 0.34), Vector3(bx + 0.05, 0.56, d * 0.5 - 0.3), _shell_mat(pillow_m, lit), "Pillow")
 			pillow.rotation = Vector3(-0.2, 0.15, 0.0)
+	# The bedside cabinet between them: the clock radio, the telephone, the ashtray, a glass.
+	var ns := PLAN.NIGHTSTAND
+	var nsz := Vector3(0.4, 0.52, 0.38)
+	K.slab(root, nsz, Vector3(ns.x, nsz.y * 0.5, ns.z), _shell_mat(frame, lit), "Nightstand")
+	if _exists("motel_nightstand"):
+		var nf := _quad(root, "motel_nightstand", Vector2(nsz.x, nsz.y), Vector3(ns.x, nsz.y * 0.5, ns.z - nsz.z * 0.5 - 0.005), Vector3(0, 0, -1), "NightstandFront")
+		nf.material_override = _shell_mat(nf.material_override, lit)
+	var top_y := nsz.y
+	if _exists("clock_radio"):
+		out["clock"] = K.cutout(root, "clock_radio", _sprite_size("clock_radio", 0.11), Vector3(ns.x - 0.07, top_y, ns.z - 0.03), 215.0, false, "ClockRadio")
+	if _exists("phone_on"):
+		out["phone"] = K.cutout(root, "phone_on", _sprite_size("phone_on", 0.13), Vector3(ns.x + 0.09, top_y, ns.z - 0.06), 200.0, false, "Phone")
+	var ash := _pick("ashtray_full", "motel_ashtray")
+	if _exists(ash):
+		K.cutout(root, ash, _sprite_size(ash, 0.07), Vector3(ns.x + 0.02, top_y, ns.z + 0.1), 180.0, false, "Ashtray")
+	if _exists("water_glass"):
+		K.cutout(root, "water_glass", _sprite_size("water_glass", 0.1), Vector3(ns.x - 0.13, top_y, ns.z + 0.09), 180.0, false, "Glass")
 	# The wardrobe built in by the door, shallow: a veneer box, its doors' picture to the room.
 	var wd := Vector3(0.42, 1.9, 1.0)
 	var wpos := Vector3(-w * 0.5 + wd.x * 0.5, wd.y * 0.5, PLAN.WARDROBE_Z)
@@ -120,10 +198,11 @@ static func build_room(root: Node3D, n: int, inside: bool, state: Dictionary = {
 	if _exists("motel_wardrobe"):
 		var wf := _quad(root, "motel_wardrobe", Vector2(wd.z, wd.y), wpos + Vector3(wd.x * 0.5 + 0.006, 0, 0), Vector3(1, 0, 0), "WardrobeFront")
 		wf.material_override = _shell_mat(wf.material_override, lit)
-	# The basin and its mirror on the east wall, between the corner table and the bed.
-	if _exists("motel_basin"):
-		var basin := K.cutout(root, "motel_basin", _sprite_size("motel_basin", 1.45), Vector3(w * 0.5 - 0.02, 0.62, -0.62), -90.0, false, "Basin")
-		basin.material_override = _shell_mat(basin.material_override, lit)
+		out["wardrobe"] = wf
+	# A print of a stag on the east wall where the basin was (it is in the bathroom now).
+	if _exists("picture_deer"):
+		var dp := _quad(root, "picture_deer", Vector2(0.38, 0.5), Vector3(w * 0.5 - 0.004, 1.55, -0.55), Vector3(-1, 0, 0), "Deer")
+		dp.material_override = _shell_mat(dp.material_override, lit)
 	# The radiator under the window.
 	if _exists("motel_radiator"):
 		var rad := K.cutout(root, "motel_radiator", _sprite_size("motel_radiator", 0.55), Vector3(win.x, 0.12, -d * 0.5 + 0.06), 0.0, false, "Radiator")
@@ -136,9 +215,26 @@ static func build_room(root: Node3D, n: int, inside: bool, state: Dictionary = {
 	var tv := K.cutout(root, "cv_tv", TV_SIZE, table_at + Vector3(0.05, 0.72, 0.05), 0.0, true, "TV")
 	tv.material_override = _shell_mat(tv.material_override, lit)
 	out["tv"] = {"node": tv, "at": table_at + Vector3(0.05, 0.72, 0.05)}
-	# The lamp on the ceiling.
+	# The lamp on the ceiling, the stain spreading over the east side, the bowl under its drip.
 	var cl := K.cutout(root, "ceiling_lamp", Vector2(0.42, 0.42), Vector3(0, h - 0.43, 0.2), 0.0, true, "CeilingLamp")
 	cl.material_override = _shell_mat(cl.material_override, lit)
+	var stain := "ceiling_stain_%d" % clampi(int(state.get("stain", 0)), 0, 1)
+	decal(root, stain, Vector2(1.1, 0.95), Vector3(0.95, h - 0.002, 0.45), Vector3.DOWN, 0.6, "CeilingStain")
+	out["drip_at"] = Vector3(0.95, h - 0.05, 0.45)
+	if _exists("plastic_bowl"):
+		K.cutout(root, "plastic_bowl", _sprite_size("plastic_bowl", 0.17), Vector3(0.95, 0.0, 0.45), 0.0, true, "Bowl")
+	# What the last ones left: the carpet's stains and burns, the bottle, the tissue, a roach.
+	decal(root, "carpet_stain", Vector2(0.75, 0.5), Vector3(0.45, 0.0, -0.55), Vector3.UP, 0.4, "CarpetStain")
+	decal(root, "carpet_stain", Vector2(0.5, 0.35), Vector3(-1.1, 0.0, -1.6), Vector3.UP, 2.2, "CarpetStain")
+	decal(root, "rum_bottle", Vector2(0.3, 0.1), Vector3(-0.42, 0.0, 0.05), Vector3.UP, 1.9, "Bottle")
+	decal(root, "tissue", Vector2(0.12, 0.1), Vector3(1.2, 0.0, -1.05), Vector3.UP, 0.3, "Tissue")
+	decal(root, "roach_dead", Vector2(0.06, 0.06), Vector3(win.x - 0.5, 0.0, -d * 0.5 + 0.12), Vector3.UP, 1.0, "DeadRoach")
+	if bool(state.get("prints", false)):
+		# Wet bare feet from the bathroom's door to the first bed, the morning after.
+		for i in 4:
+			var t := float(i + 1) / 5.0
+			var p: Vector3 = Vector3(1.12, 0.0, 1.95).lerp(Vector3(-0.5, 0.0, 0.45), t)
+			decal(root, "wet_footprints", Vector2(0.3, 0.22), p, Vector3.UP, -0.8 + 0.1 * float(i), "WetPrints")
 	if not inside:
 		# The curtains in the window: two halves, drawn or open.
 		var open := float(state.get("curtain", 1.0))
@@ -150,19 +246,159 @@ static func build_room(root: Node3D, n: int, inside: bool, state: Dictionary = {
 			var cx: float = win.x + float(side) * (ws.x * 0.5 + 0.1 - cw * 0.5)
 			var c := K.slab(root, Vector3(cw, ws.y + 0.25, 0.03), Vector3(cx, win.y + 0.05, -d * 0.5 + 0.08), cm, "Curtain")
 			out["curtains"].append(c)
+		# The bathroom's door shut in the back wall.
+		if _exists("motel_bath_door"):
+			var bd := _quad(root, "motel_bath_door", Vector2(PLAN.BATH_DOOR.y - PLAN.BATH_DOOR.x, PLAN.BATH_DOOR_H), Vector3((PLAN.BATH_DOOR.x + PLAN.BATH_DOOR.y) * 0.5, PLAN.BATH_DOOR_H * 0.5, d * 0.5 - 0.005), Vector3(0, 0, -1), "BathDoor")
+			bd.material_override = _shell_mat(bd.material_override, lit)
 		return out
-	# Inside: the door's leaf in its frame (its inside to the room), the key's place in its
-	# lock; the lights; the things to click.
+	# Inside: the door's leaf in its frame (its inside to the room), the key in its lock, the
+	# chain, the peephole; the bathroom; the switch by the door.
 	var leaf := K.slab(root, Vector3(0.9, PLAN.DOOR_H, 0.05), Vector3(door.x, PLAN.DOOR_H * 0.5, -d * 0.5 - 0.02), K.surface("veneer_dark", 0.6), "DoorLeaf")
 	out["door"] = leaf
 	if _exists("motel_door_in"):
 		_quad(root, "motel_door_in", Vector2(0.9, PLAN.DOOR_H), Vector3(door.x, PLAN.DOOR_H * 0.5, -d * 0.5 + 0.007), Vector3(0, 0, 1), "DoorInside")
 	if _exists("motel_key"):
-		# In the keyhole under the handle (the door's picture: its lock at a seventh across,
-		# two thirds down), the tag hanging from it.
-		var key := K.cutout(root, "motel_key", Vector2(0.075, 0.2), Vector3(door.x - 0.32, 0.5, -d * 0.5 + 0.03), 0.0, false, "KeyInLock")
-		out["key"] = key
+		out["key"] = K.cutout(root, "motel_key", Vector2(0.075, 0.2), Vector3(door.x - 0.32, 0.5, -d * 0.5 + 0.03), 0.0, false, "KeyInLock")
+	if _exists("chain_loose"):
+		out["chain"] = K.cutout(root, "chain_loose", _sprite_size("chain_loose", 0.2), Vector3(door.x - 0.3, 1.34, -d * 0.5 + 0.03), 0.0, false, "Chain")
+	var brass := K.surface("galvanized", 0.3, Color(0.62, 0.52, 0.3))
+	out["peephole"] = K.slab(root, Vector3(0.035, 0.035, 0.02), Vector3(door.x, 1.55, -d * 0.5 + 0.02), brass, "Peephole")
+	out["switch"] = K.slab(root, Vector3(0.08, 0.12, 0.02), Vector3(door.x - 0.62, 1.1, -d * 0.5 + 0.01), K.surface("plastic", 0.3, Color(0.86, 0.82, 0.72)), "Switch")
+	out["bath_switch"] = K.slab(root, Vector3(0.08, 0.12, 0.02), Vector3(PLAN.BATH_DOOR.x - 0.12, 1.1, d * 0.5 - 0.01), K.surface("plastic", 0.3, Color(0.86, 0.82, 0.72)), "BathSwitch")
+	_bathroom(root, out)
 	return out
+
+
+## The bathroom behind the back wall (inside only): tiled, the door swinging in, the
+## basin under the mirror cabinet on its west wall, the toilet at the back, the shower in
+## the east corner behind its curtain; its light, and the line of it under the door.
+static func _bathroom(root: Node3D, out: Dictionary) -> void:
+	var d := PLAN.ROOM_D
+	var z0 := d * 0.5 + 0.1
+	var z1 := z0 + PLAN.BATH_D
+	var x0 := PLAN.BATH_X.x
+	var x1 := PLAN.BATH_X.y
+	var h := PLAN.BATH_H
+	var zm := (z0 + z1) * 0.5
+	var xm := (x0 + x1) * 0.5
+	var tiles := K.surface(_pick("motel_bath_tiles", "tiles_bathroom"), 1.1, Color(0.84, 0.8, 0.7))
+	K.slab(root, Vector3(x1 - x0, 0.1, z1 - z0), Vector3(xm, -0.05, zm), K.surface(_pick("tiles_brown", "kitchen_tiles"), 0.7, Color(0.8, 0.76, 0.7)), "BathFloor")
+	K.slab(root, Vector3(x1 - x0, 0.1, z1 - z0), Vector3(xm, h + 0.05, zm), K.surface("ceiling_board", 1.0, Color(0.8, 0.78, 0.7)), "BathCeiling")
+	var west := K.slab(root, Vector3(0.1, h, z1 - z0), Vector3(x0 - 0.05, h * 0.5, zm), tiles, "BathWest")
+	west.layers = BEHIND_MIRROR
+	K.slab(root, Vector3(0.1, h, z1 - z0), Vector3(x1 + 0.05, h * 0.5, zm), tiles, "BathEast")
+	K.slab(root, Vector3(x1 - x0, h, 0.1), Vector3(xm, h * 0.5, z1 + 0.05), tiles, "BathBack")
+	# Its side of the room's back wall: tiles round the door, over it.
+	var dx0 := PLAN.BATH_DOOR.x
+	var dx1 := PLAN.BATH_DOOR.y
+	var dh := PLAN.BATH_DOOR_H
+	for seg in [[x0, dx0, 0.0, h], [dx1, x1, 0.0, h], [dx0, dx1, dh, h]]:
+		var a0: float = seg[0]
+		var a1: float = seg[1]
+		if a1 - a0 < 0.01:
+			continue
+		K.slab(root, Vector3(a1 - a0, float(seg[3]) - float(seg[2]), 0.02), Vector3((a0 + a1) * 0.5, (float(seg[2]) + float(seg[3])) * 0.5, z0 + 0.01), tiles, "BathFront")
+	# The door, on its hinges at the east jamb, opening in.
+	var pivot := Node3D.new()
+	pivot.name = "BathDoorPivot"
+	pivot.position = Vector3(dx1, 0.0, d * 0.5 + 0.05)
+	root.add_child(pivot)
+	var dw := dx1 - dx0 - 0.02
+	var leaf := K.slab(pivot, Vector3(dw, dh - 0.02, 0.04), Vector3(-dw * 0.5 - 0.01, (dh - 0.02) * 0.5, 0), K.surface("plastic", 0.5, Color(0.86, 0.84, 0.78)), "BathDoorLeaf")
+	if _exists("motel_bath_door"):
+		for f in [-1.0, 1.0]:
+			var face := K.picture(pivot, "motel_bath_door", Vector2(dw, dh - 0.02), Vector3(-dw * 0.5 - 0.01, (dh - 0.02) * 0.5, f * 0.022), 0.0 if f > 0.0 else 180.0, "BathDoorFace")
+			face.name = "BathDoorFace"
+	out["bath_door"] = pivot
+	out["bath_leaf"] = leaf
+	# The basin and the mirror cabinet over it on the west wall (facing east), the real
+	# mirror behind the cabinet's glass.
+	var bz := z0 + MIRROR_Z_OFF
+	if _exists("bath_basin"):
+		K.cutout(root, "bath_basin", _sprite_size("bath_basin", 0.92), Vector3(x0 + 0.03, 0.0, bz), 90.0, false, "Basin")
+	var mirror := MeshInstance3D.new()
+	mirror.name = "Mirror"
+	var mq := QuadMesh.new()
+	mq.size = Vector2(0.42, 0.46)
+	mirror.mesh = mq
+	var mm := StandardMaterial3D.new()
+	mm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mm.albedo_color = Color(0.1, 0.11, 0.12)
+	mirror.material_override = mm
+	mirror.position = Vector3(x0 + 0.012, MIRROR_Y, bz)
+	mirror.rotation.y = PI * 0.5
+	mirror.layers = BEHIND_MIRROR
+	mirror.set_meta("retro_skip", true)
+	root.add_child(mirror)
+	out["mirror"] = mirror
+	if _exists("mirror_cabinet"):
+		var cab := K.cutout(root, "mirror_cabinet", _sprite_size("mirror_cabinet", 0.66), Vector3(x0 + 0.025, MIRROR_Y - 0.36, bz), 90.0, false, "MirrorCabinet")
+		cab.layers = BEHIND_MIRROR
+	if _exists("mirror_crack"):
+		var cr := K.cutout(root, "mirror_crack", Vector2(0.24, 0.24), Vector3(x0 + 0.018, MIRROR_Y - 0.02, bz - 0.08), 90.0, false, "MirrorCrack")
+		cr.layers = BEHIND_MIRROR
+	# The toilet against the back, its cistern high on the wall.
+	if _exists("motel_toilet"):
+		K.cutout(root, "motel_toilet", _sprite_size("motel_toilet", 1.35), Vector3(x0 + 0.42, 0.0, z1 - 0.04), 180.0, false, "Toilet")
+	# The shower in the east corner: its tray, its curtain on the rod along its open side.
+	var sx := 0.72
+	var tray := Vector3(x1 - sx, 0.12, z1 - (z0 + 0.62))
+	K.slab(root, tray, Vector3((sx + x1) * 0.5, 0.06, z1 - tray.z * 0.5), K.surface("enamel_white", 0.6, Color(0.82, 0.8, 0.74)), "ShowerTray")
+	K.slab(root, Vector3(0.02, 0.02, tray.z), Vector3(sx, 2.05, z1 - tray.z * 0.5), K.surface("galvanized", 0.3), "ShowerRod")
+	if _exists("shower_curtain"):
+		var sc := K.cutout(root, "shower_curtain", Vector2(tray.z, 1.9), Vector3(sx, 0.13, z1 - tray.z * 0.5), -90.0, false, "ShowerCurtain")
+		out["shower_curtain"] = sc
+		out["shower_span"] = Vector2(z1 - tray.z, z1)
+	_bath_grime(root, x0, x1, z0, z1, sx, bz)
+	# Its lamp, the light, the line under the door.
+	var lamp := K.cutout(root, "ceiling_lamp", Vector2(0.3, 0.3), Vector3(xm, h - 0.31, zm), 0.0, true, "BathLamp")
+	out["bath_lamp"] = lamp
+	var l := OmniLight3D.new()
+	l.name = "BathLight"
+	l.light_color = Color(1.0, 0.92, 0.72)
+	l.light_energy = 1.1
+	l.omni_range = 3.0
+	l.omni_attenuation = 1.2
+	l.shadow_enabled = true
+	l.position = Vector3(xm, h - 0.45, zm)
+	l.visible = false
+	root.add_child(l)
+	out["bath_light"] = l
+	var gap := MeshInstance3D.new()
+	gap.name = "DoorGap"
+	var gq := QuadMesh.new()
+	gq.size = Vector2(dx1 - dx0 - 0.04, 0.014)
+	gap.mesh = gq
+	var gm := StandardMaterial3D.new()
+	gm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	gm.albedo_color = Color(1.0, 0.86, 0.58)
+	gap.material_override = gm
+	gap.position = Vector3((dx0 + dx1) * 0.5, 0.007, d * 0.5 - 0.006)
+	gap.rotation.y = PI
+	gap.visible = false
+	gap.set_meta("retro_skip", true)
+	root.add_child(gap)
+	out["gap"] = gap
+	var gl := OmniLight3D.new()
+	gl.name = "GapLight"
+	gl.light_color = Color(1.0, 0.86, 0.58)
+	gl.light_energy = 0.35
+	gl.omni_range = 0.9
+	gl.position = Vector3((dx0 + dx1) * 0.5, 0.05, d * 0.5 - 0.15)
+	gl.visible = false
+	root.add_child(gl)
+	out["gap_light"] = gl
+
+
+## The bathroom's filth: hair in the shower's plughole, a rusty blade and the soap on the
+## basin's ledge, mould in the grout along the floor and the shower.
+static func _bath_grime(root: Node3D, x0: float, x1: float, z0: float, z1: float, sx: float, bz: float) -> void:
+	decal(root, "hair_clump", Vector2(0.14, 0.12), Vector3((sx + x1) * 0.5, 0.121, z1 - 0.45), Vector3.UP, 0.5, "Hair")
+	decal(root, "soap_hair", Vector2(0.1, 0.07), Vector3((sx + x1) * 0.5 + 0.2, 0.121, z1 - 0.15), Vector3.UP, 1.2, "Soap")
+	decal(root, "mould_grout", Vector2(0.7, 0.35), Vector3(x1 - 0.004, 0.32, z1 - 0.4), Vector3.LEFT, 0.0, "Mould")
+	decal(root, "mould_grout", Vector2(0.6, 0.3), Vector3(x0 + 0.5, 0.25, z1 - 0.004), Vector3.FORWARD, 0.0, "Mould")
+	decal(root, "mould_grout", Vector2(0.5, 0.28), Vector3(sx + 0.3, 0.3, z0 + 0.004), Vector3.BACK, 3.1, "Mould")
+	decal(root, "razor", Vector2(0.06, 0.03), Vector3(x0 + 0.004, 0.86, bz + 0.2), Vector3.RIGHT, 0.2, "Razor")
 
 
 ## A Grok sprite's size in metres for its height (its picture's aspect).
@@ -207,9 +443,9 @@ static func build_lobby(root: Node3D, inside: bool, keys: Array, state: Dictiona
 	var d := size.z
 	var h := size.y
 	var lit := bool(state.get("lit", false)) and not inside
-	var wall := K.surface("motel_wall", 1.4)
-	K.slab(root, Vector3(w, 0.1, d), Vector3(0, -0.05, 0), _shell_mat(K.surface("motel_carpet", 1.6), lit), "Floor")
-	K.slab(root, Vector3(w, 0.1, d), Vector3(0, h + 0.05, 0), _shell_mat(K.surface("ceiling_board", 1.0), lit), "Ceiling")
+	var wall := K.surface(_pick("motel_wall_dirty", "motel_wall"), 1.4, Color(0.88, 0.8, 0.66))
+	K.slab(root, Vector3(w, 0.1, d), Vector3(0, -0.05, 0), _shell_mat(K.surface(_pick("motel_carpet_dirty", "motel_carpet"), 1.6), lit), "Floor")
+	K.slab(root, Vector3(w, 0.1, d), Vector3(0, h + 0.05, 0), _shell_mat(K.surface("ceiling_board", 1.0, Color(0.88, 0.84, 0.74)), lit), "Ceiling")
 	K.slab(root, Vector3(w, h, 0.1), Vector3(0, h * 0.5, d * 0.5 + 0.05), _shell_mat(wall, lit), "WallBack")
 	K.slab(root, Vector3(0.1, h, d), Vector3(-w * 0.5 - 0.05, h * 0.5, 0), _shell_mat(wall, lit), "WallWest")
 	K.slab(root, Vector3(0.1, h, d), Vector3(w * 0.5 + 0.05, h * 0.5, 0), _shell_mat(wall, lit), "WallEast")
@@ -235,7 +471,7 @@ static func build_lobby(root: Node3D, inside: bool, keys: Array, state: Dictiona
 		cf.material_override = _shell_mat(cf.material_override, lit)
 	out["counter"] = cpos + Vector3(0, counter.y * 0.5 + 0.05, 0)
 	out["simek"] = Vector3(cx + 0.25, 0.0, 1.35)
-	# On the counter: the bell, the guest book, the ashtray, his lamp.
+	# On the counter: the bell, the guest book, the ashtray, his lamp, the fan.
 	var top_y := counter.y + 0.05
 	if _exists("motel_bell"):
 		out["bell"] = K.cutout(root, "motel_bell", _sprite_size("motel_bell", 0.11), Vector3(cx + 0.95, top_y, 0.4), 0.0, true, "Bell")
@@ -254,11 +490,14 @@ static func build_lobby(root: Node3D, inside: bool, keys: Array, state: Dictiona
 		pic.position = Vector3(cx - 0.55, top_y + 0.014, 0.42)
 		pic.rotation.y = PI
 		root.add_child(pic)
-	if _exists("motel_ashtray"):
-		K.cutout(root, "motel_ashtray", _sprite_size("motel_ashtray", 0.07), Vector3(cx + 0.45, top_y, 0.62), 0.0, true, "Ashtray")
+	var ash := _pick("ashtray_full", "motel_ashtray")
+	if _exists(ash):
+		K.cutout(root, ash, _sprite_size(ash, 0.07), Vector3(cx + 0.45, top_y, 0.62), 0.0, true, "Ashtray")
 	var lamp := K.cutout(root, "desk_lamp", Vector2(0.3, 0.31), Vector3(cx - 1.05, top_y, 0.7), 0.0, true, "DeskLamp")
 	lamp.material_override = _shell_mat(lamp.material_override, lit)
 	out["lamp"] = lamp
+	if _exists("desk_fan"):
+		out["fan"] = K.cutout(root, "desk_fan", _sprite_size("desk_fan", 0.3), Vector3(cx + 1.25, top_y, 0.7), 0.0, true, "DeskFan")
 	# The key board on the back wall behind him, a key on the hook of every free room.
 	var kb_at := Vector3(cx + 0.25, 1.62, d * 0.5 - 0.004)
 	if _exists("motel_keyboard"):
@@ -287,6 +526,14 @@ static func build_lobby(root: Node3D, inside: bool, keys: Array, state: Dictiona
 	out["tv"] = {"node": tv, "at": tv_at + Vector3(0, 0.62, 0)}
 	if _exists("calendar"):
 		_quad(root, "calendar", Vector2(0.36, 0.48), Vector3(w * 0.5 - 0.004, 1.55, 0.4), Vector3(-1, 0, 0), "Calendar")
+	# The flypaper over the counter black with flies, the zapper's blue tube on the wall.
+	if _exists("flypaper"):
+		K.cutout(root, "flypaper", _sprite_size("flypaper", 0.62), Vector3(cx - 0.2, h - 0.64, 0.2), 0.0, true, "Flypaper")
+	if _exists("fly_zapper"):
+		var z := K.cutout(root, "fly_zapper", _sprite_size("fly_zapper", 0.32), Vector3(w * 0.5 - 0.02, 1.9, -0.6), -90.0, false, "Zapper")
+		out["zapper"] = z
+	decal(root, "carpet_stain", Vector2(0.8, 0.55), Vector3(door.x + 0.2, 0.0, -0.9), Vector3.UP, 0.8, "CarpetStain")
+	decal(root, "roach_dead", Vector2(0.06, 0.06), Vector3(-w * 0.5 + 0.7, 0.0, 0.1), Vector3.UP, 2.0, "DeadRoach")
 	# The door to his room at the back, west of the board.
 	_quad(root, "door_interior", Vector2(0.85, 2.0), Vector3(cx - 1.3, 1.0, d * 0.5 - 0.006), Vector3(0, 0, -1), "BackDoor")
 	if inside:

@@ -207,6 +207,9 @@ func open(p_place: String, p_hour: float) -> void:
 	_look.yaw_limit_deg = 70.0
 	_look.pitch_up_deg = 24.0
 	_look.pitch_down_deg = 30.0
+	_cam.fov = 66.0
+	# The pub's smoke and the chapel's haze stay in their rooms.
+	_env.fog_enabled = false
 	if _view != null:
 		_view.close()
 	_view = null
@@ -354,6 +357,12 @@ func set_asleep(on: bool) -> void:
 		_view.asleep = on
 
 
+## Woken in the night in the motel's room by `kind` (motel_night.gd; "" nothing).
+func woken_now(kind: String) -> void:
+	if _view != null and _view.has_method("woken"):
+		_view.woken(kind)
+
+
 func say(who: String, text: String) -> void:
 	_who = tr(who)
 	_text = tr(text)
@@ -483,7 +492,10 @@ func _hover_at(mouse: Vector2) -> String:
 func _clicked(id: String) -> void:
 	if _view != null:
 		if id == "door":
-			if _view.wants_out():
+			# A place you walk about in (room_walk.gd): you go to the door first.
+			if _view.has_method("walk_out"):
+				_view.walk_out()
+			elif _view.wants_out():
 				close()
 			return
 		if _view.click(id, hour):

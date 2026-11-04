@@ -2,8 +2,9 @@
 """Liblice for two: a host and a joining copy (tools/motel_coop.tscn). PASS when each sees
 the other standing in the Jednota, the pub and the kiosk, the joining
 warden sees the host's two candles burn in the chapel, both get number four's key, each
-sees the other in the room (the host standing, then asleep in the second bed), and the
-night goes by for both: both wake in four in the morning.
+sees the other in the room (the host standing, then asleep in the second bed), a knock
+wakes both in the night, and the rest of it goes by for both: both wake in four in the
+morning.
 
     python godot/tools/motel_coop.py [OUT_DIR]
 """
@@ -32,10 +33,11 @@ def tagged(role):
     text = open(os.path.join(OUT, "%s.log" % role), encoding="utf-8", errors="replace").read()
     out = {}
     for line in text.splitlines():
-        m = re.search(r'MOTEL_TAG \["MOTEL (\w+) (\w+)", ([\d.]+), "(\w*)", (\d+), (\d+), (\d+), (\w+)\]', line)
+        m = re.search(r'MOTEL_TAG \["MOTEL (\w+) (\w+)", ([\d.]+), "(\w*)", (\d+), (\d+), (\d+), (\w+)(?:, "(\w*)")?\]', line)
         if m:
             out[m.group(2)] = {"h": float(m.group(3)), "place": m.group(4), "figs": int(m.group(5)),
-                               "sleepers": int(m.group(6)), "flames": int(m.group(7)), "key": m.group(8) == "true"}
+                               "sleepers": int(m.group(6)), "flames": int(m.group(7)), "key": m.group(8) == "true",
+                               "ev": m.group(9) or ""}
     return text, out
 
 
@@ -83,6 +85,9 @@ def main():
     want(h, "mate_in_room", lambda g: g["place"] == "motel_room" and g["figs"] >= 1 and g["key"], "the other warden in four with the host")
     want(c, "mate_asleep", lambda g: g["place"] == "motel_room" and g["sleepers"] >= 1 and g["key"], "the host asleep in the second bed")
     want(h, "lying_alone", lambda g: g["place"] == "motel_room", "the host lying in four while the other is up")
+    for side, who in ((h, "the host"), (c, "the other")):
+        want(side, "woken", lambda g: g["place"] == "motel_room" and g["ev"] == "knock" and (g["h"] >= 18.0 or g["h"] < 6.0),
+             "%s woken in four in the night by the knock" % who)
     want(h, "morning", lambda g: g["place"] == "motel_room" and 6.0 <= g["h"] < 12.0, "the host waking in four")
     want(c, "morning", lambda g: g["place"] == "motel_room" and 6.0 <= g["h"] < 12.0, "the other waking in four")
     print("MOTEL COOP: %s" % ("PASS" if not failures else "FAIL"))

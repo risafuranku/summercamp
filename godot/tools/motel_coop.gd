@@ -5,8 +5,9 @@ extends "res://tools/coop_check.gd"
 ## pub_view.gd, kiosk_view.gd) and each sees the other standing there.
 ## In the chapel the host lights two candles and the other sees them burn; in the evening
 ## both take number four (the host's key, then the spare), the host lies down, the other
-## sees him in the second bed, lies down too, and the night goes by for both: both wake
-## in the room in the morning. Each side prints what it sees, tagged
+## sees him in the second bed, lies down too; a knock wakes both in the night (the host's
+## night stops, the other's with it), both lie down again and wake in the room in the
+## morning. Each side prints what it sees, tagged
 ## ["MOTEL <role> <tag>", hour, place, figures seen, sleepers, flames, key] for
 ## tools/motel_coop.py, and takes a picture.
 ##   godot --path godot res://tools/motel_coop.tscn -- --role=host --out=DIR
@@ -51,7 +52,7 @@ func _ready() -> void:
 		_steps.append_array(shops)
 		_steps.append_array([
 			["eval", TT + "._open_room('chapel')"], ["wait", 2.0], ["coop_signal", "host_chapel"], ["coop_wait_file", "client_chapel"],
-			["eval", TT + "._room._clicked('candles')"], ["wait", 0.7], ["eval", TT + "._room._clicked('candles')"], ["wait", 1.0],
+			["eval", TT + "._room._clicked('candles')"], ["wait", 3.0], ["eval", TT + "._room._clicked('candles')"], ["wait", 1.5],
 			["motel_see", "candles_lit"], ["coop_signal", "host_lit"], ["coop_wait_file", "client_saw_candles"],
 			["eval", TT + "._room.close()"], ["wait", 1.0],
 			["eval", "debug_jump_to(1, 19.6)"], ["wait", 2.0],
@@ -60,8 +61,13 @@ func _ready() -> void:
 		_steps.append_array([
 			["coop_signal", "host_in4"], ["coop_wait_file", "client_in4"], ["wait", 2.5],
 			["motel_see", "mate_in_room"], ["shot", "host_mate"],
+			# Something wakes them in the night (motel_night.gd: here the first step, a knock).
+			["eval", TT + ".set('debug_force_wake', 'knock')"],
 			["eval", TT + "._room._clicked('bed')"], ["wait", 2.5], ["motel_see", "lying_alone"], ["shot", "host_lying"],
 			["coop_signal", "host_bed"],
+			["coop_wait_file", "client_bed"], ["wait", 7.0], ["motel_see", "woken"], ["shot", "host_woken"],
+			["coop_signal", "host_woken"], ["coop_wait_file", "client_woken"],
+			["eval", TT + ".set('debug_quiet', true)"], ["eval", TT + "._room._clicked('bed')"], ["wait", 1.0], ["coop_signal", "host_bed2"],
 			["coop_wait", "morning"], ["wait", 1.5], ["motel_see", "morning"], ["shot", "host_morning"],
 			["coop_signal", "host_done"], ["wait", 2.0], ["eval", "get_tree().quit()"],
 		])
@@ -85,7 +91,9 @@ func _ready() -> void:
 			["coop_signal", "client_in4"], ["coop_wait_file", "host_bed"], ["wait", 3.0],
 			["eval", TT + "._room.set('_base_rot', Vector3(-0.3, 3.0, 0))"], ["wait", 0.8],
 			["motel_see", "mate_asleep"], ["shot", "client_mate_asleep"],
-			["eval", TT + "._room._clicked('bed')"], ["wait", 2.0],
+			["eval", TT + "._room._clicked('bed')"], ["wait", 2.0], ["coop_signal", "client_bed"],
+			["coop_wait_file", "host_woken"], ["wait", 1.0], ["motel_see", "woken"], ["shot", "client_woken"], ["coop_signal", "client_woken"],
+			["coop_wait_file", "host_bed2"], ["eval", TT + "._room._clicked('bed')"], ["wait", 1.0],
 			["coop_wait", "morning"], ["wait", 1.5], ["motel_see", "morning"], ["shot", "client_morning"],
 			["coop_wait_file", "host_done"], ["wait", 1.0], ["eval", "get_tree().quit()"],
 		])
@@ -112,6 +120,9 @@ func _run_step(step: Array) -> void:
 					if v.get("flames") != null:
 						flames = (v.get("flames") as Array).size()
 			var key: bool = trip._has_motel_key()
-			print("MOTEL_TAG [\"MOTEL %s %s\", %.2f, \"%s\", %d, %d, %d, %s]" % [_role, str(step[1]), float(_main.get("_time_of_day_hours")), place, figs, sleepers, flames, str(key).to_lower()])
+			var ev := ""
+			if room != null and room.is_open() and room.get("_view") != null and room.get("_view").get("event") != null:
+				ev = str(room.get("_view").get("event"))
+			print("MOTEL_TAG [\"MOTEL %s %s\", %.2f, \"%s\", %d, %d, %d, %s, \"%s\"]" % [_role, str(step[1]), float(_main.get("_time_of_day_hours")), place, figs, sleepers, flames, str(key).to_lower(), ev])
 		_:
 			super._run_step(step)

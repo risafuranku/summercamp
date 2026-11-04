@@ -38,6 +38,9 @@ var awake_in: Dictionary = {}
 var keys_on_board: Array = []
 ## The night six's door was tried (its light, if on, went out for the rest of it).
 var six_dark_night := -999
+## What the nights left in a room (motel_view.marks: n -> {"painting", "stain"}): its shell
+## shows it too.
+var marks: Dictionary = {}
 var _last_state := ""
 
 
@@ -411,6 +414,7 @@ func set_state(hour: float, night: int) -> void:
 				st["lit"] = hrs < PLAN.lights_out(night, n) and hrs >= 19.5
 			else:
 				st["curtain"] = 0.6
+		st.merge(marks.get(n, {}), true)
 		states[n] = st
 	states[0] = {"lit": hour >= 18.0 or hour < 7.0, "keys": keys_on_board.duplicate()}
 	for n in states:

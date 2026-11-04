@@ -1,47 +1,88 @@
 extends RefCounted
 
-## Inside the chapel of the Virgin Mary in Liblice (town_room.gd's place "chapel"), built
-## to its baroque front (town_lesna._chapel: 6 m across, 7 m deep, the oval windows in
-## its sides): the whitewashed nave under its vault, two blocks of pews with carved ends,
-## the presbytery a step up behind its communion rail, the altar (its retable on the back
-## wall, its table standing before it), St Prokop on his console, the harmonium in the
-## corner, the Stations of the Cross between the windows, the bell's rope by the door,
-## the stoup, the box for the coins, the stand of votive candles.
+## Inside the chapel of the Virgin Mary in Liblice (town_room.gd's place "chapel"). Behind
+## its small baroque front (town_lesna._chapel: 6 m across, 7 m deep) it is bigger inside
+## than it is outside (the user, 4. 11.: "dustier, damp, bigger, musty, eerie", and bigger
+## inside than out his choice): the long nave under its barrel vault, the choir loft over
+## the door on its two posts with the stair up to it, seven rows of pews either side of
+## the aisle, the triumphal arch and two steps up to the presbytery beyond it with the
+## altar, St Prokop and the harmonium. The damp climbs the walls in brown tide lines and
+## black mould, the whitewash flakes off, the vault leaks into a bucket in the aisle,
+## cobwebs hang in the corners and off the chandelier, dust turns in the light from the
+## oval windows, the air is a grey musty haze.
 ##
+##   you walk     a click on something across the nave takes you there on foot
+##                (room_walk.gd) and then it is done: the candles by the door, the altar
+##                from the rail, the confessional under the loft, a pew to sit in;
 ##   the candles  a coin and a match: one more flame on the stand (they stay lit while you
 ##                are in Liblice; the other wardens' too, and theirs for you: co-op);
-##   the rope     the bell rings over the village, now and then;
+##   the rope     the bell rings over the village;
 ##   Mrs Hruba    kneels in the second pew from four to six (town_people.gd has her
 ##                indoors then), and talks quietly;
 ##   the rest     looked at closer: the eye goes to it, a click lets it go.
+## Now and then, the more the worse you are (the hidden sanity, coop_night.gd), never
+## explained: somebody stands up in the loft while you are not looking there and is gone
+## when you look again; St Prokop has turned his head; the figure under the dust sheet is
+## somewhere else each time; something breathes behind the confessional's curtain.
 ## Nobody narrates.
 
 const K = preload("res://scripts/interior_kit.gd")
+const WALK = preload("res://scripts/town/room_walk.gd")
 const SFX := "res://assets/sfx/"
 const CAMP := "res://assets/textury/camp/"
-## The nave inside (the walls 0.45 thick in the 6.08 x 7 building): x across, z from the
-## altar (-) to the door (+); the vault from the walls' top to its crown.
-const W := 5.2
-const D := 6.1
-const WALL_H := 3.4
-const CROWN := 4.55
-const STEP := 0.18
-const PRESBYTERY_Z := -1.3
-## The rows of pews (their seats' middle), the aisle's half width, the pews' length.
-const ROWS := [-0.6, 0.35, 1.3]
-const AISLE := 0.4
-const PEW_L := 2.05
-## The oval windows in the side walls (their middle along z, their height).
+## The building in the village (town_lesna._chapel): its oval windows outside along its
+## sides, their height.
 const WINDOWS_Z := [-0.9, 1.4]
 const WINDOW_Y := 2.45
-## Where you stand, inside the door.
-const STAND := Vector3(0.0, 1.6, 2.1)
+## The nave: x across, z from the triumphal arch (-) to the door (+); its barrel vault from
+## the walls' top to its crown.
+const W := 6.4
+const D := 11.0
+const WALL_H := 4.8
+const CROWN := 6.6
+## The arch's wall and its opening; the presbytery beyond it, its floor two steps up, its
+## own lower vault (heights over its floor).
+const ARCH_T := 0.5
+const ARCH_W := 4.0
+const PRES_W := 4.6
+const PRES_D := 3.8
+const STEP := 0.18
+const PRES_Y := 0.36
+const PRES_WALL := 3.9
+const PRES_CROWN := 5.0
+## The choir loft over the door: its front, the top of its floor, its two posts.
+const LOFT_Z := 3.3
+const LOFT_Y := 2.8
+const POSTS_X := [-1.8, 1.8]
+## The pews: seven rows (their seats' middle) either side of the aisle.
+const ROWS := [-4.1, -3.05, -2.0, -0.95, 0.1, 1.15, 2.2]
+const AISLE := 0.55
+const PEW_L := 2.1
+## The nave's oval windows (along z) and their middle's height.
+const NAVE_WINDOWS_Z := [-3.5, -0.4, 2.5]
+const NAVE_WINDOW_Y := 3.6
+## How high the damp has climbed the walls.
+const DAMP_H := 2.3
+## The bucket in the aisle under the leak in the vault.
+const BUCKET := Vector3(0.36, 0.0, 0.62)
+## Where you stand when you come in: under the loft, inside the door.
+const STAND := Vector3(0.0, 1.6, 4.2)
+## The figure under the dust sheet stands somewhere else each time: [where, yaw].
+const SHEET_SPOTS := [
+	[Vector3(-1.8, PRES_Y, -9.05), 25.0],
+	[Vector3(-2.9, 0.0, -4.85), 60.0],
+	[Vector3(-2.05, 0.0, 3.55), 100.0],
+	[Vector3(0.95, LOFT_Y, 3.75), 180.0],
+	[Vector3(2.9, 0.0, -1.45), -90.0],
+]
 const HRUBA_LINES := [
 	"Sit down if you want. He does not mind who.",
 	"I light one for Karel. And one for Vera, though she would not thank me for it.",
 	"They used to ring it for the dead. Now they ring it at noon and at six, and nobody is dead.",
 	"Your camp had a priest come up once. In seventy-one. He did not stay the night either.",
 ]
+const WAYS := [["door", "nave"], ["nave", "pews"], ["pews", "seat_w"], ["pews", "seat_e"], ["pews", "front"],
+	["front", "rail"], ["rail", "altar"], ["door", "confess"], ["door", "candles"]]
 
 var room
 var parts: Dictionary = {}
@@ -52,8 +93,47 @@ var _line := 0
 var _looking := ""
 var _look_back := {}
 var _rope: MeshInstance3D
+var _rope_y := 0.9
 var _rope_t := 0.0
 var _hruba: MeshInstance3D
+var _walker
+var _sitting := false
+var _rng := RandomNumberGenerator.new()
+var _sanity := 100.0
+var _players: Array = []
+var _amb: AudioStreamPlayer
+var _fx: AudioStreamPlayer
+var _drip_snd: AudioStreamPlayer
+var _wind: AudioStreamPlayer
+var _rain_snd: AudioStreamPlayer
+## The leak: the next drop's countdown, the drop falling (its node, its time down).
+var _drip_t := 1.0
+var _drop: MeshInstance3D
+var _drop_t := -1.0
+var _rain := false
+## The one in the loft: shown or not, seen how long, unseen how long, times this visit.
+var _watcher: Sprite3D
+var _watch_on := false
+var _watch_seen := 0.0
+var _watch_unseen := 0.0
+var _watch_n := 0
+var _watch_sink := -1.0
+var _loft_unseen := 0.0
+var _watch_roll := 3.0
+## St Prokop turned: the statue, unseen how long, turned now, seen turned how long.
+var _saint: MeshInstance3D
+var _saint_tex: Array = []
+var _saint_unseen := 0.0
+var _saint_turned := false
+var _saint_seen := 0.0
+var _saint_done := false
+## The figure under the sheet, which spot, unseen how long.
+var _sheet: MeshInstance3D
+var _sheet_at := 0
+var _sheet_unseen := 0.0
+var _pigeons_t := 30.0
+var _breath_t := -1.0
+var _shafts: Array = []
 
 
 func _init(p_room) -> void:
@@ -72,50 +152,80 @@ func _size(tex: String, height: float) -> Vector2:
 	return Vector2(height, height)
 
 
+## The hidden sanity of this machine's warden (coop_night.gd keeps it, 0..100).
+func _read_sanity() -> float:
+	var trip = room.get_parent()
+	var main = trip._main() if trip != null and trip.has_method("_main") else null
+	var night = main.get("_coop_night") if main != null else null
+	if night == null or not is_instance_valid(night):
+		return 100.0
+	var s = night.get("sanity")
+	if not (s is Dictionary):
+		return 100.0
+	return float((s as Dictionary).get("own" if Coop.is_client() else "host", 100.0))
+
+
+## 0 calm .. 1 at the end of the tether.
+func _low() -> float:
+	return clampf((100.0 - _sanity) / 100.0, 0.0, 1.0)
+
+
+## The vault's height over the nave at `x` (its walls' top to the crown, a flat arch).
+static func vault_y(x: float) -> float:
+	var k := clampf(absf(x) / (W * 0.5), 0.0, 1.0)
+	return WALL_H + sqrt(maxf(0.0, 1.0 - k * k)) * (CROWN - WALL_H)
+
+
 # ── building ─────────────────────────────────────────────────────────────────
 
 func build(hour: float, candles: int) -> void:
+	_rng.randomize()
+	_sanity = _read_sanity()
 	var root: Node3D = room._root
-	var lime := K.surface("chapel_lime" if _exists("chapel_lime") else "chapel_wall", 2.4, Color(0.97, 0.96, 0.94))
-	var stone := K.surface("chapel_floor", 1.4)
-	# The floor, the walls up to the vault, the vault in six planks, the ends' lunettes.
-	K.slab(root, Vector3(W, 0.1, D), Vector3(0, -0.05, 0), stone, "Floor")
-	K.slab(root, Vector3(0.1, WALL_H, D), Vector3(-W * 0.5 - 0.05, WALL_H * 0.5, 0), lime, "WallWest")
-	K.slab(root, Vector3(0.1, WALL_H, D), Vector3(W * 0.5 + 0.05, WALL_H * 0.5, 0), lime, "WallEast")
-	K.slab(root, Vector3(W, CROWN + 0.1, 0.1), Vector3(0, (CROWN + 0.1) * 0.5, -D * 0.5 - 0.05), lime, "WallBack")
-	K.slab(root, Vector3(W, CROWN + 0.1, 0.1), Vector3(0, (CROWN + 0.1) * 0.5, D * 0.5 + 0.05), lime, "WallFront")
-	var vault := K.surface("chapel_vault" if _exists("chapel_vault") else "chapel_wall", 2.0)
-	var n := 6
-	for i in n:
-		var a0 := PI * float(i) / float(n)
-		var a1 := PI * float(i + 1) / float(n)
-		var p0 := Vector2(-cos(a0) * W * 0.5, WALL_H + sin(a0) * (CROWN - WALL_H))
-		var p1 := Vector2(-cos(a1) * W * 0.5, WALL_H + sin(a1) * (CROWN - WALL_H))
-		var mid := (p0 + p1) * 0.5
-		var plank := K.slab(root, Vector3(p0.distance_to(p1) + 0.04, 0.08, D + 0.1), Vector3(mid.x, mid.y + 0.04, 0), vault, "Vault")
-		plank.rotation.z = atan2(p1.y - p0.y, p1.x - p0.x)
-	# The painted plinth round the nave.
-	if _exists("chapel_plinth"):
-		for side in [-1.0, 1.0]:
-			var pl := _quad("chapel_plinth", Vector2(D, 0.85), Vector3(float(side) * (W * 0.5 - 0.004), 0.425, 0), Vector3(-float(side), 0, 0), "Plinth")
-			(pl.material_override as StandardMaterial3D).uv1_scale = Vector3(roundf(D / 2.2), 1, 1)
-		var pb := _quad("chapel_plinth", Vector2(W, 0.85), Vector3(0, 0.425, D * 0.5 - 0.004), Vector3(0, 0, -1), "Plinth")
-		(pb.material_override as StandardMaterial3D).uv1_scale = Vector3(roundf(W / 2.2), 1, 1)
-	_presbytery()
-	_pews()
-	_windows(hour)
-	_by_the_door()
-	_on_the_walls()
+	_nave(root)
+	_presbytery(root)
+	_loft(root)
+	_pews(root)
+	_windows(root, hour)
+	_by_the_door(root)
+	_on_the_walls(root)
+	_decay(root)
+	_cobwebs(root)
+	_leak(root)
+	_confessional(root)
+	_sheet_figure(root)
+	_make_watcher(root)
+	_air(root, hour)
 	_light(hour, candles)
 	if hour >= 16.0 and hour < 18.0:
 		_mrs_hruba()
-	room._cam.position = STAND
-	room._base_rot = Vector3(deg_to_rad(-3.0), 0.0, 0.0)
+	_walker = WALK.new(room, _spots(), WAYS, "door", SFX + "rooms/steps_wood.mp3", -13.0)
+	_walker.put("door")
 	room._look.yaw_limit_deg = 160.0
-	room._look.pitch_up_deg = 42.0
-	room._look.pitch_down_deg = 30.0
-	var door_y := 1.3
-	room._hot_box("door", Vector3(0, door_y, D * 0.5 - 0.05), Vector3(1.6, 2.6, 0.12), [])
+	room._look.pitch_up_deg = 52.0
+	room._look.pitch_down_deg = 34.0
+	room._hot_box("door", Vector3(0, 1.3, D * 0.5 - 0.05), Vector3(1.6, 2.6, 0.12), [])
+	_sounds()
+	# Somebody let go of the rope just before you came in.
+	if _rope != null and _rng.randf() < 0.1 + 0.25 * _low():
+		_rope_t = 1.6
+
+
+## Where you can stand and how you look there.
+static func _spots() -> Dictionary:
+	var r := func(p: float, y: float) -> Vector3: return Vector3(deg_to_rad(p), deg_to_rad(y), 0.0)
+	return {
+		"door": {"at": STAND, "rot": r.call(-3.0, 0.0)},
+		"nave": {"at": Vector3(-0.12, 1.6, 0.05), "rot": r.call(-3.0, 0.0)},
+		"pews": {"at": Vector3(-0.1, 1.6, float(ROWS[3]) + 0.4), "rot": r.call(-4.0, 0.0)},
+		"seat_w": {"at": Vector3(-1.45, 1.13, float(ROWS[3]) + 0.05), "rot": r.call(-3.0, 0.0)},
+		"seat_e": {"at": Vector3(1.45, 1.13, float(ROWS[3]) + 0.05), "rot": r.call(-3.0, 0.0)},
+		"front": {"at": Vector3(0.0, 1.6, -4.62), "rot": r.call(-1.0, 0.0)},
+		"rail": {"at": Vector3(0.0, 1.6 + STEP, -5.2), "rot": r.call(2.0, 0.0)},
+		"altar": {"at": Vector3(0.0, 1.6 + PRES_Y, -7.6), "rot": r.call(-4.0, 0.0)},
+		"confess": {"at": Vector3(-0.55, 1.6, 4.15), "rot": r.call(-8.0, 90.0)},
+		"candles": {"at": Vector3(0.85, 1.6, 4.05), "rot": r.call(-18.0, -150.0)},
+	}
 
 
 ## A camp texture on a quad facing `facing`, its material its own (to scale its repeat).
@@ -125,46 +235,169 @@ func _quad(tex: String, size: Vector2, pos: Vector3, facing: Vector3, name := "F
 	return mi
 
 
-## The step, the rail, the altar's table before its retable, the crucifix, St Prokop.
-func _presbytery() -> void:
-	var root: Node3D = room._root
-	var depth := PRESBYTERY_Z + D * 0.5
-	K.slab(root, Vector3(W, STEP, depth), Vector3(0, STEP * 0.5, -D * 0.5 + depth * 0.5), K.surface("chapel_floor", 1.4, Color(0.86, 0.84, 0.8)), "Step")
+## A keyed picture flat on a surface: `normal` out of it into the room, `size` metres,
+## its middle at `pos`, turned `spin` about its normal.
+func _decal(tex: String, size: Vector2, pos: Vector3, normal: Vector3, spin := 0.0, tint := Color(1, 1, 1)) -> MeshInstance3D:
+	if not _exists(tex):
+		return null
+	var mi := MeshInstance3D.new()
+	mi.name = "Decay"
+	var q := QuadMesh.new()
+	q.size = size
+	mi.mesh = q
+	var m := K._base(tint)
+	m.albedo_texture = load(CAMP + tex + ".png")
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	m.alpha_scissor_threshold = 0.5
+	mi.material_override = m
+	var z := normal.normalized()
+	var up := Vector3.UP if absf(z.y) < 0.9 else Vector3(0, 0, -1)
+	var x := up.cross(z).normalized()
+	var y := z.cross(x)
+	mi.transform = Transform3D(Basis(x, y, z).rotated(z, spin), pos + z * 0.006)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	room._root.add_child(mi)
+	return mi
+
+
+## The damp band up a wall: its picture repeated along `length`, `DAMP_H` high.
+func _damp(length: float, mid: Vector3, facing: Vector3, y0 := 0.0) -> void:
+	var tex := "chapel_damp_wall2" if _exists("chapel_damp_wall2") else "chapel_damp_wall"
+	if not _exists(tex):
+		return
+	var q := _quad(tex, Vector2(length, DAMP_H), Vector3(mid.x, y0 + DAMP_H * 0.5, mid.z) + facing * 0.004, facing, "Damp")
+	var t: Texture2D = load(CAMP + tex + ".png")
+	var rep := DAMP_H * float(t.get_width()) / float(t.get_height())
+	(q.material_override as StandardMaterial3D).uv1_scale = Vector3(maxf(1.0, roundf(length / rep)), 1, 1)
+
+
+## A barrel vault of planks over `width` (its middle at x 0) from `y0` to `crown`, `depth`
+## long around `z`.
+func _vault(root: Node3D, width: float, y0: float, crown: float, z: float, depth: float, mat: Material) -> void:
+	var n := 8
+	for i in n:
+		var a0 := PI * float(i) / float(n)
+		var a1 := PI * float(i + 1) / float(n)
+		var p0 := Vector2(-cos(a0) * width * 0.5, y0 + sin(a0) * (crown - y0))
+		var p1 := Vector2(-cos(a1) * width * 0.5, y0 + sin(a1) * (crown - y0))
+		var mid := (p0 + p1) * 0.5
+		var plank := K.slab(root, Vector3(p0.distance_to(p1) + 0.05, 0.08, depth), Vector3(mid.x, mid.y + 0.04, z), mat, "Vault")
+		plank.rotation.z = atan2(p1.y - p0.y, p1.x - p0.x)
+
+
+func _nave(root: Node3D) -> void:
+	var lime := K.surface("chapel_lime" if _exists("chapel_lime") else "chapel_wall", 2.4, Color(0.8, 0.8, 0.76))
+	var stone := K.surface("chapel_floor", 1.4, Color(0.7, 0.68, 0.62))
+	var vault := K.surface("chapel_vault_damp" if _exists("chapel_vault_damp") else "chapel_vault", 2.6, Color(0.84, 0.84, 0.8))
+	K.slab(root, Vector3(W, 0.1, D), Vector3(0, -0.05, 0), stone, "Floor")
+	K.slab(root, Vector3(0.1, WALL_H, D), Vector3(-W * 0.5 - 0.05, WALL_H * 0.5, 0), lime, "WallWest")
+	K.slab(root, Vector3(0.1, WALL_H, D), Vector3(W * 0.5 + 0.05, WALL_H * 0.5, 0), lime, "WallEast")
+	K.slab(root, Vector3(W, CROWN + 0.1, 0.1), Vector3(0, (CROWN + 0.1) * 0.5, D * 0.5 + 0.05), lime, "WallDoor")
+	# The triumphal arch: the opening in steps to its round top, as thick as a church's.
+	var arch := K.slab(root, Vector3(W, CROWN + 0.1, ARCH_T), Vector3(0, (CROWN + 0.1) * 0.5, -D * 0.5 - ARCH_T * 0.5), lime, "Arch")
+	var hw := ARCH_W * 0.5
+	K.cut_wall(arch, [[-hw, hw, 0.0, 3.7], [-hw + 0.18, hw - 0.18, 3.7, 4.0], [-hw + 0.55, hw - 0.55, 4.0, 4.22],
+		[-hw + 1.0, hw - 1.0, 4.22, 4.36], [-0.45, 0.45, 4.36, 4.44]])
+	_vault(root, W, WALL_H, CROWN, 0.0, D + 0.1, vault)
+	# The damp up every wall of the nave.
+	_damp(D, Vector3(-W * 0.5, 0, 0), Vector3(1, 0, 0))
+	_damp(D, Vector3(W * 0.5, 0, 0), Vector3(-1, 0, 0))
+	_damp(W, Vector3(0, 0, D * 0.5), Vector3(0, 0, -1))
+	_damp((W - ARCH_W) * 0.5, Vector3(-(W + ARCH_W) * 0.25, 0, -D * 0.5), Vector3(0, 0, 1))
+	_damp((W - ARCH_W) * 0.5, Vector3((W + ARCH_W) * 0.25, 0, -D * 0.5), Vector3(0, 0, 1))
+
+
+## The steps, the arch's floor, the presbytery: its walls and vault, the rail, the altar's
+## table before its retable, the crucifix, St Prokop, the harmonium, the dead flowers.
+func _presbytery(root: Node3D) -> void:
+	var lime := K.surface("chapel_lime" if _exists("chapel_lime") else "chapel_wall", 2.4, Color(0.8, 0.8, 0.76))
+	var stone := K.surface("chapel_floor", 1.4, Color(0.74, 0.72, 0.66))
+	var vault := K.surface("chapel_vault_damp" if _exists("chapel_vault_damp") else "chapel_vault", 2.6, Color(0.84, 0.84, 0.8))
+	var z0 := -D * 0.5 - ARCH_T
+	var zb := z0 - PRES_D
+	var zm := (z0 + zb) * 0.5
+	K.slab(root, Vector3(ARCH_W + 1.2, STEP, 0.5), Vector3(0, STEP * 0.5, -D * 0.5 + 0.25), stone, "Step")
+	K.slab(root, Vector3(ARCH_W, PRES_Y, ARCH_T), Vector3(0, PRES_Y * 0.5, -D * 0.5 - ARCH_T * 0.5), stone, "Step2")
+	K.slab(root, Vector3(PRES_W, PRES_Y, PRES_D), Vector3(0, PRES_Y * 0.5, zm), stone, "PresFloor")
+	K.slab(root, Vector3(0.1, PRES_WALL, PRES_D), Vector3(-PRES_W * 0.5 - 0.05, PRES_Y + PRES_WALL * 0.5, zm), lime, "PresWest")
+	K.slab(root, Vector3(0.1, PRES_WALL, PRES_D), Vector3(PRES_W * 0.5 + 0.05, PRES_Y + PRES_WALL * 0.5, zm), lime, "PresEast")
+	K.slab(root, Vector3(PRES_W, PRES_Y + PRES_CROWN + 0.1, 0.1), Vector3(0, (PRES_Y + PRES_CROWN + 0.1) * 0.5, zb - 0.05), lime, "PresBack")
+	_vault(root, PRES_W, PRES_Y + PRES_WALL, PRES_Y + PRES_CROWN, zm, PRES_D + 0.1, vault)
+	_damp(PRES_D, Vector3(-PRES_W * 0.5, 0, zm), Vector3(1, 0, 0), PRES_Y)
+	_damp(PRES_D, Vector3(PRES_W * 0.5, 0, zm), Vector3(-1, 0, 0), PRES_Y)
+	_damp(PRES_W, Vector3(0, 0, zb), Vector3(0, 0, 1), PRES_Y)
+	# The communion rail on the first step, a gap in its middle.
 	if _exists("communion_rail"):
 		for side in [-1.0, 1.0]:
-			var half := (W * 0.5 - 0.15 - 0.45)
-			var rx := float(side) * (0.45 + half * 0.5)
-			var rail := K.cutout(root, "communion_rail", Vector2(half, 0.82), Vector3(rx, STEP, PRESBYTERY_Z + 0.04), 0.0, false, "Rail")
+			var half := ARCH_W * 0.5 - 0.45
+			var rail := K.cutout(root, "communion_rail", Vector2(half, 0.82), Vector3(float(side) * (0.45 + half * 0.5), STEP, -D * 0.5 + 0.06), 0.0, false, "Rail")
 			(rail.mesh as QuadMesh).size = Vector2(half, 0.82)
-	# The altar: its table standing on the step against the retable on the wall.
+	# The altar: its table on the floor against the retable on the back wall.
 	var table := Vector3(2.3, 0.98, 0.72)
-	var tpos := Vector3(0, STEP + table.y * 0.5, -D * 0.5 + table.z * 0.5 + 0.02)
+	var tpos := Vector3(0, PRES_Y + table.y * 0.5, zb + table.z * 0.5 + 0.02)
 	K.slab(root, table, tpos, K.surface("veneer_dark", 0.6), "AltarTable")
 	if _exists("chapel_altar_front"):
 		_quad("chapel_altar_front", Vector2(table.x + 0.06, table.y), tpos + Vector3(0, 0, table.z * 0.5 + 0.006), Vector3(0, 0, 1), "AltarFront")
-	K.slab(root, Vector3(table.x + 0.1, 0.03, table.z + 0.06), tpos + Vector3(0, table.y * 0.5 + 0.015, 0), K.surface("paper_old", 0.4, Color(0.95, 0.93, 0.88)), "AltarCloth")
+	K.slab(root, Vector3(table.x + 0.1, 0.03, table.z + 0.06), tpos + Vector3(0, table.y * 0.5 + 0.015, 0), K.surface("paper_old", 0.4, Color(0.78, 0.76, 0.7)), "AltarCloth")
 	var rs := _size("chapel_retable", 2.25) if _exists("chapel_retable") else Vector2(3.2, 2.4)
-	var retable := _quad("chapel_retable" if _exists("chapel_retable") else "chapel_altar", rs, Vector3(0, STEP + table.y + rs.y * 0.5, -D * 0.5 + 0.004), Vector3(0, 0, 1), "Retable")
+	var retable := _quad("chapel_retable" if _exists("chapel_retable") else "chapel_altar", rs, Vector3(0, PRES_Y + table.y + rs.y * 0.5, zb + 0.004), Vector3(0, 0, 1), "Retable")
 	parts["altar"] = retable
-	room._hot_box("altar", Vector3(0, STEP + table.y + 0.9, -D * 0.5 + 0.3), Vector3(rs.x, rs.y, 0.4), [retable])
-	K.cutout(root, "crucifix", Vector2(0.4, 0.8), Vector3(1.95, 1.55, -D * 0.5 + 0.02), 0.0, false, "Crucifix")
+	room._hot_box("altar", Vector3(0, PRES_Y + table.y + 0.9, zb + 0.3), Vector3(rs.x, rs.y, 0.4), [retable])
+	# The flowers nobody has changed since spring, either end of the table.
+	for sx in [-0.85, 0.85]:
+		if _exists("dead_flowers"):
+			K.cutout(root, "dead_flowers", _size("dead_flowers", 0.62), Vector3(sx, PRES_Y + table.y + 0.03, zb + 0.32), 0.0, false, "DeadFlowers")
+	K.cutout(root, "crucifix", Vector2(0.4, 0.8), Vector3(1.75, PRES_Y + 1.25, zb + 0.02), 0.0, false, "Crucifix")
 	# St Prokop on his console on the back wall, west of the altar.
-	var con_y := 1.25
+	var con_y := PRES_Y + 1.25
 	if _exists("wall_console"):
-		K.cutout(root, "wall_console", _size("wall_console", 0.3), Vector3(-1.9, con_y - 0.3, -D * 0.5 + 0.03), 0.0, false, "Console")
-	var saint := K.cutout(root, "saint_statue", _size("saint_statue", 1.15), Vector3(-1.9, con_y, -D * 0.5 + 0.12), 0.0, false, "Saint")
-	room._hot_box("saint", Vector3(-1.9, con_y + 0.55, -D * 0.5 + 0.2), Vector3(0.5, 1.2, 0.3), [saint])
-	# The harmonium in the presbytery's east corner, under the crucifix.
+		K.cutout(root, "wall_console", _size("wall_console", 0.3), Vector3(-1.75, con_y - 0.3, zb + 0.03), 0.0, false, "Console")
+	_saint = K.cutout(root, "saint_statue", _size("saint_statue", 1.15), Vector3(-1.75, con_y, zb + 0.12), 0.0, false, "Saint")
+	_saint_tex = [(_saint.material_override as StandardMaterial3D).albedo_texture]
+	if _exists("saint_statue_turned"):
+		_saint_tex.append(load(CAMP + "saint_statue_turned.png"))
+	room._hot_box("saint", Vector3(-1.75, con_y + 0.55, zb + 0.2), Vector3(0.5, 1.2, 0.3), [_saint])
+	# The harmonium in the presbytery's east corner.
 	if _exists("harmonium"):
-		var hm := K.cutout(root, "harmonium", _size("harmonium", 1.15), Vector3(2.0, STEP, -2.1), 0.0, true, "Harmonium")
-		room._hot_box("harmonium", Vector3(2.0, STEP + 0.55, -2.1), Vector3(0.9, 1.1, 0.6), [hm])
+		var hm := K.cutout(root, "harmonium", _size("harmonium", 1.15), Vector3(1.75, PRES_Y, zb + 0.95), 0.0, true, "Harmonium")
+		room._hot_box("harmonium", Vector3(1.75, PRES_Y + 0.55, zb + 0.95), Vector3(0.9, 1.1, 0.6), [hm])
 
 
-## Two blocks of four pews either side of the aisle: seat, back (its back to the door with
-## the hymn books' shelf), kneeler, the carved end to the aisle.
-func _pews() -> void:
-	var root: Node3D = room._root
-	var wood := K.surface("pew_wood" if _exists("pew_wood") else "veneer_dark", 0.7, Color(0.92, 0.86, 0.8))
+## The choir loft over the door: its floor on the beam and two posts, the painted
+## balustrade, the steep stair up the east wall to it.
+func _loft(root: Node3D) -> void:
+	var wood := K.surface("pew_wood" if _exists("pew_wood") else "veneer_dark", 0.7, Color(0.62, 0.56, 0.5))
+	var depth := D * 0.5 - LOFT_Z
+	var zc := LOFT_Z + depth * 0.5
+	# The floor, open where the stair comes up (the east wall's last metre and a half).
+	K.slab(root, Vector3(W - 0.7, 0.25, depth), Vector3(-0.35, LOFT_Y - 0.125, zc), wood, "LoftFloor")
+	K.slab(root, Vector3(0.7, 0.25, 0.7), Vector3(W * 0.5 - 0.35, LOFT_Y - 0.125, LOFT_Z + 0.35), wood, "LoftFloor")
+	K.slab(root, Vector3(W, 0.3, 0.16), Vector3(0, LOFT_Y - 0.15, LOFT_Z + 0.08), wood, "LoftBeam")
+	K.slab(root, Vector3(W, 1.0, 0.08), Vector3(0, LOFT_Y + 0.5, LOFT_Z + 0.04), wood, "Balustrade")
+	if _exists("choir_loft"):
+		var face := _quad("choir_loft", Vector2(W, 1.0), Vector3(0, LOFT_Y + 0.5, LOFT_Z - 0.004), Vector3(0, 0, -1), "LoftFront")
+		(face.material_override as StandardMaterial3D).uv1_scale = Vector3(2, 1, 1)
+		parts["loft"] = face
+	room._hot_box("loft", Vector3(0, LOFT_Y + 0.6, LOFT_Z), Vector3(W - 0.4, 1.2, 0.3), [parts.get("loft")] if parts.get("loft") != null else [])
+	for px in POSTS_X:
+		K.slab(root, Vector3(0.26, LOFT_Y - 0.3, 0.26), Vector3(float(px), (LOFT_Y - 0.3) * 0.5, LOFT_Z + 0.2), wood, "Post")
+		K.slab(root, Vector3(0.4, 0.12, 0.4), Vector3(float(px), LOFT_Y - 0.36, LOFT_Z + 0.2), wood, "PostHead")
+		K.slab(root, Vector3(0.36, 0.1, 0.36), Vector3(float(px), 0.05, LOFT_Z + 0.2), wood, "PostFoot")
+	# The stair: steep treads up the east wall towards the door, into the loft's floor.
+	var n := 12
+	var z0 := LOFT_Z + 0.15
+	for i in n:
+		var y := float(i + 1) * LOFT_Y / float(n)
+		K.slab(root, Vector3(0.62, 0.05, 0.22), Vector3(W * 0.5 - 0.36, y - 0.025, z0 + float(i) * 0.155), wood, "Tread")
+	var run := float(n) * 0.155
+	var slope := K.slab(root, Vector3(0.06, 0.22, sqrt(run * run + LOFT_Y * LOFT_Y)), Vector3(W * 0.5 - 0.66, LOFT_Y * 0.5, z0 + run * 0.5), wood, "Stringer")
+	slope.rotation.x = -atan2(LOFT_Y, run)
+
+
+## Seven rows each side of the aisle: seat, back (to the door, the hymn books' shelf on
+## it), kneeler, the carved end to the aisle, all grey with dust.
+func _pews(root: Node3D) -> void:
+	var wood := K.surface("pew_wood" if _exists("pew_wood") else "veneer_dark", 0.7, Color(0.78, 0.74, 0.68))
 	for z in ROWS:
 		for side in [-1.0, 1.0]:
 			var cx: float = float(side) * (AISLE + PEW_L * 0.5)
@@ -174,8 +407,8 @@ func _pews() -> void:
 			K.slab(root, Vector3(PEW_L, 0.06, 0.06), Vector3(cx, 0.48, zz + 0.2), wood, "PewRail")
 			K.slab(root, Vector3(PEW_L, 0.08, 0.12), Vector3(cx, 0.14, zz + 0.48), wood, "Kneeler")
 			if _exists("pew_back"):
-				_quad("pew_back", Vector2(PEW_L, 0.56), Vector3(cx, 0.78, zz + 0.228), Vector3(0, 0, 1), "PewBackFace")
-			# The ends: carved to the aisle, plain against the wall.
+				var pb := _quad("pew_back", Vector2(PEW_L, 0.56), Vector3(cx, 0.78, zz + 0.228), Vector3(0, 0, 1), "PewBackFace")
+				(pb.material_override as StandardMaterial3D).albedo_color = Color(0.86, 0.84, 0.8)
 			var ax: float = float(side) * AISLE
 			K.slab(root, Vector3(0.05, 0.95, 0.62), Vector3(ax, 0.475, zz + 0.08), wood, "PewEnd")
 			K.slab(root, Vector3(0.05, 0.95, 0.62), Vector3(float(side) * (AISLE + PEW_L), 0.475, zz + 0.08), wood, "PewEnd")
@@ -184,72 +417,133 @@ func _pews() -> void:
 				var m := (face.material_override as StandardMaterial3D).duplicate() as StandardMaterial3D
 				m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 				m.alpha_scissor_threshold = 0.5
+				m.albedo_color = Color(0.86, 0.84, 0.8)
 				face.material_override = m
-	room._hot_box("pews", Vector3(-AISLE - PEW_L * 0.5, 0.7, 1.0), Vector3(PEW_L, 0.6, 0.6), [])
+	var mid := (float(ROWS[2]) + float(ROWS[4])) * 0.5
+	room._hot_box("pews_w", Vector3(-AISLE - PEW_L * 0.5, 0.7, mid), Vector3(PEW_L, 0.6, 2.4), [])
+	room._hot_box("pews_e", Vector3(AISLE + PEW_L * 0.5, 0.7, mid), Vector3(PEW_L, 0.6, 2.4), [])
 
 
-## The oval windows, bright with the day, and their light.
-func _windows(hour: float) -> void:
-	var root: Node3D = room._root
-	var day := hour >= 7.0 and hour < 18.5
+## The oval windows, grey with the dirt on the glass, their cold light; the shafts of it
+## slanting down through the dust from the east side.
+func _windows(root: Node3D, hour: float) -> void:
+	var late := hour >= 16.0
+	var tex := "chapel_oval" if _exists("chapel_oval") else "stained_window"
+	var size := _size(tex, 1.35) if _exists(tex) else Vector2(0.85, 1.35)
+	var spots: Array = []
 	for side in [-1.0, 1.0]:
-		for wz in WINDOWS_Z:
-			var size := _size("chapel_oval", 1.1) if _exists("chapel_oval") else Vector2(0.7, 1.1)
-			var win := K.cutout(root, "chapel_oval" if _exists("chapel_oval") else "stained_window", size, Vector3(float(side) * (W * 0.5 - 0.01), WINDOW_Y - size.y * 0.5, float(wz)), -90.0 * float(side), false, "Oval")
-			var m := win.material_override as StandardMaterial3D
-			m.emission_enabled = true
-			m.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
-			m.emission_texture = m.albedo_texture
-			m.emission = Color(1.0, 0.96, 0.86)
-			m.emission_energy_multiplier = 1.4 if day else 0.15
-			if day:
-				# Cold daylight through the leaded glass, soft: a whitewashed room evenly lit,
-				# not pools of warm light (the walls went blotchy pink in the palette).
-				var l := OmniLight3D.new()
-				l.light_color = Color(0.96, 0.96, 0.98)
-				l.light_energy = 0.32
-				l.omni_range = 4.5
-				l.position = Vector3(float(side) * 1.6, 2.3, float(wz))
-				root.add_child(l)
-	room._hot_box("window", Vector3(-W * 0.5 + 0.1, WINDOW_Y, WINDOWS_Z[0]), Vector3(0.2, 1.1, 0.8), [])
+		for wz in NAVE_WINDOWS_Z:
+			spots.append([Vector3(float(side) * (W * 0.5 - 0.01), NAVE_WINDOW_Y, float(wz)), float(side)])
+		spots.append([Vector3(float(side) * (PRES_W * 0.5 - 0.01), PRES_Y + 2.7, -D * 0.5 - ARCH_T - PRES_D * 0.5), float(side)])
+	for sp in spots:
+		var at: Vector3 = sp[0]
+		var side: float = sp[1]
+		var win := K.cutout(root, tex, size, at - Vector3(0, size.y * 0.5, 0), -90.0 * side, false, "Oval")
+		var m := win.material_override as StandardMaterial3D
+		m.emission_enabled = true
+		m.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
+		m.emission_texture = m.albedo_texture
+		m.emission = Color(0.86, 0.9, 0.84) if not late else Color(1.0, 0.8, 0.58)
+		m.emission_energy_multiplier = 1.15
+		m.albedo_color = Color(0.82, 0.84, 0.8)
+		var l := OmniLight3D.new()
+		l.light_color = Color(0.86, 0.9, 0.88) if not late else Color(1.0, 0.78, 0.55)
+		l.light_energy = 0.3
+		l.omni_range = 5.0
+		l.position = at + Vector3(-side * 1.2, -0.6, 0)
+		root.add_child(l)
+		# The shafts come in through the east side (the sun's), lower and warmer late.
+		if side > 0.0:
+			var dir := Vector3(-1.0, -0.72 if not late else -0.42, 0.18).normalized()
+			_shaft(root, at + Vector3(-0.05, 0, 0), dir, 6.5, Color(0.17, 0.18, 0.16) if not late else Color(0.26, 0.19, 0.12))
+	room._hot_box("window", Vector3(-W * 0.5 + 0.1, NAVE_WINDOW_Y, float(NAVE_WINDOWS_Z[1])), Vector3(0.2, 1.3, 0.9), [])
 
 
-## The door from inside, the stoup by it, the box on its post, the votive stand, the rope.
-func _by_the_door() -> void:
-	var root: Node3D = room._root
+static var _shaft_tex: ImageTexture
+
+
+## A shaft of light: two crossed quads along `dir` from the window, added on, fading along
+## and across in a few steps (the Build way, banded, no soft glow).
+func _shaft(root: Node3D, from: Vector3, dir: Vector3, length: float, col: Color) -> void:
+	if _shaft_tex == null:
+		var img := Image.create(16, 48, false, Image.FORMAT_RGBA8)
+		for yy in 48:
+			for xx in 16:
+				var across := sin(PI * (float(xx) + 0.5) / 16.0)
+				var along := 1.0 - float(yy) / 47.0
+				var v := floorf(across * along * along * 5.0) / 5.0
+				img.set_pixel(xx, yy, Color(v, v, v, 1.0))
+		_shaft_tex = ImageTexture.create_from_image(img)
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.albedo_texture = _shaft_tex
+	m.albedo_color = col
+	m.set_meta("retro_skip", true)
+	var y := -dir.normalized()
+	var mi := MeshInstance3D.new()
+	mi.name = "Shaft"
+	var q := QuadMesh.new()
+	q.size = Vector2(0.6, length)
+	mi.mesh = q
+	mi.material_override = m
+	mi.position = from - y * length * 0.5
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.set_meta("retro_skip", true)
+	root.add_child(mi)
+	_shafts.append({"node": mi, "axis": y})
+	_face_shaft(_shafts.back())
+
+
+## A shaft turns about its own line to face the eye (a flat quad, never seen edge on).
+func _face_shaft(s: Dictionary) -> void:
+	var mi: MeshInstance3D = s["node"]
+	var y: Vector3 = s["axis"]
+	var v: Vector3 = room._cam.position - mi.position
+	var z := v - y * v.dot(y)
+	if z.length() < 0.01:
+		return
+	z = z.normalized()
+	mi.basis = Basis(y.cross(z), y, z)
+
+
+## The door from inside, the stoup by it, the box on its post, the votive stand, the rope
+## down through the loft's floor.
+func _by_the_door(root: Node3D) -> void:
 	var dz := D * 0.5 - 0.01
 	if _exists("chapel_door_in"):
-		var ds := _size("chapel_door_in", 2.75)
-		K.cutout(root, "chapel_door_in", ds, Vector3(0, 0.0, dz), 180.0, false, "Door")
+		K.cutout(root, "chapel_door_in", _size("chapel_door_in", 2.75), Vector3(0, 0.0, dz), 180.0, false, "Door")
 	else:
 		K.picture(root, "door_interior", Vector2(1.2, 2.2), Vector3(0, 1.1, dz), 180.0, "Door")
 	if _exists("holy_water"):
-		K.cutout(root, "holy_water", _size("holy_water", 0.4), Vector3(1.15, 0.9, dz - 0.02), 180.0, false, "Stoup")
+		K.cutout(root, "holy_water", _size("holy_water", 0.4), Vector3(1.05, 0.9, dz - 0.02), 180.0, false, "Stoup")
 	if _exists("collection_box"):
-		var box := K.cutout(root, "collection_box", _size("collection_box", 1.0), Vector3(-1.75, 0.0, 2.35), 0.0, true, "OfferBox")
-		room._hot_box("box", Vector3(-1.75, 0.8, 2.35), Vector3(0.4, 0.5, 0.4), [box])
-	# The votive candles on the east side, turned to the nave.
+		var box := K.cutout(root, "collection_box", _size("collection_box", 1.0), Vector3(-1.45, 0.0, 5.0), 0.0, true, "OfferBox")
+		room._hot_box("box", Vector3(-1.45, 0.8, 5.0), Vector3(0.4, 0.5, 0.4), [box])
+	# The votive candles by the door, turned to the nave.
 	var stand_tex := "votive_stand" if _exists("votive_stand") else "candles_rack"
 	var ss := _size(stand_tex, 1.1)
-	var sx := W * 0.5 - 0.35
-	var sz := 2.05
-	var stand := K.cutout(root, stand_tex, ss, Vector3(sx, 0.0, sz), -90.0, false, "Votive")
-	parts["stand"] = {"node": stand, "size": ss, "at": Vector3(sx, 0.0, sz)}
-	room._hot_box("candles", Vector3(sx, 0.75, sz), Vector3(0.4, 0.7, ss.x), [stand])
-	cups = _cup_spots(stand_tex, ss, Vector3(sx, 0.0, sz))
-	# The bell's rope down from the vault by the door, its grip within reach.
-	var rope_tex := "bell_rope" if _exists("bell_rope") else ""
-	if rope_tex != "":
-		var rs := _size(rope_tex, 3.3)
-		_rope = K.cutout(root, rope_tex, rs, Vector3(-1.05, CROWN - 3.3 - 0.05, 2.8), 0.0, true, "Rope")
-		room._hot_box("rope", Vector3(-1.05, 1.4, 2.8), Vector3(0.3, 1.2, 0.3), [_rope])
+	var at := Vector3(1.55, 0.0, 5.05)
+	var stand := K.cutout(root, stand_tex, ss, at, 180.0, false, "Votive")
+	parts["stand"] = {"node": stand, "size": ss, "at": at}
+	room._hot_box("candles", at + Vector3(0, 0.75, 0), Vector3(ss.x, 0.7, 0.4), [stand])
+	cups = _cup_spots(stand_tex, ss, at, 180.0)
+	# The bell's rope down through the loft's floor, its grip within reach of the door.
+	if _exists("bell_rope"):
+		var rlen := LOFT_Y - 0.25 - 0.9
+		var rs := _size("bell_rope", rlen)
+		_rope_y = 0.9
+		_rope = K.cutout(root, "bell_rope", rs, Vector3(-1.0, _rope_y, 4.95), 0.0, true, "Rope")
+		room._hot_box("rope", Vector3(-1.0, 1.35, 4.95), Vector3(0.3, 1.1, 0.3), [_rope])
 
 
 ## The cups of the stand (its picture's red glass, found once), as spots in the room for
 ## the flames: in the top half of the picture the two rows with the most runs of red (its
-## two tiers), each run a cup. The stand faces -X (yaw -90): the picture's left edge is
-## towards +Z.
-func _cup_spots(tex: String, size: Vector2, at: Vector3) -> Array:
+## two tiers), each run a cup. The stand's quad faces +Z turned `yaw`.
+func _cup_spots(tex: String, size: Vector2, at: Vector3, yaw: float) -> Array:
 	var out: Array = []
 	var path := CAMP + tex + ".png"
 	if not ResourceLoader.exists(path):
@@ -277,42 +571,265 @@ func _cup_spots(tex: String, size: Vector2, at: Vector3) -> Array:
 				if x - run_start >= 1:
 					runs.append((float(run_start + x) * 0.5) / float(w))
 				run_start = -1
-		# The upper tier in the top fifth of the picture, the lower one below it.
 		var tier := 0 if ry < int(h * 0.2) else 1
 		if runs.size() > (best[tier][1] as Array).size():
 			best[tier] = [ry, runs]
+	var th := deg_to_rad(yaw)
+	var right := Vector3(cos(th), 0.0, -sin(th))
+	var fwd := Vector3(sin(th), 0.0, cos(th))
 	for b in best:
 		var ry: int = b[0]
 		if ry < 0:
 			continue
 		for u in b[1]:
 			var v := float(ry) / float(h)
-			out.append(at + Vector3(-0.03, (1.0 - v) * size.y + 0.02, (0.5 - float(u)) * size.x))
+			out.append(at + right * ((float(u) - 0.5) * size.x) + Vector3(0, (1.0 - v) * size.y + 0.02, 0) + fwd * 0.03)
 	return out
 
 
-## The Stations of the Cross between the windows, three each side.
-func _on_the_walls() -> void:
-	var root: Node3D = room._root
-	var spots := [-0.15, 0.6, 2.2]
+## The Stations of the Cross along the walls, three each side.
+func _on_the_walls(root: Node3D) -> void:
+	var spots := [-4.75, -1.95, 1.0]
 	var i := 1
 	for side in [-1.0, 1.0]:
 		for z in spots:
 			var tex := "station_%d" % i
 			if _exists(tex):
-				var st := K.cutout(root, tex, _size(tex, 0.42), Vector3(float(side) * (W * 0.5 - 0.02), 1.5, float(z)), -90.0 * float(side), false, "Station")
+				var st := K.cutout(root, tex, _size(tex, 0.5), Vector3(float(side) * (W * 0.5 - 0.02), 1.85, float(z)), -90.0 * float(side), false, "Station")
+				(st.material_override as StandardMaterial3D).albedo_color = Color(0.82, 0.8, 0.76)
 				if i == 1:
-					room._hot_box("stations", Vector3(float(side) * (W * 0.5 - 0.05), 1.7, float(z)), Vector3(0.1, 0.45, 0.4), [st])
+					room._hot_box("stations", Vector3(float(side) * (W * 0.5 - 0.05), 2.1, float(z)), Vector3(0.1, 0.55, 0.45), [st])
 			i += 1
+
+
+## The rot: stains and mould up the walls and over the vault, the plaster fallen off the
+## bricks, the cracks; the floor's puddles, the plaster on it, the leaves blown in, moss.
+func _decay(root: Node3D) -> void:
+	var wx := W * 0.5
+	var wall := [
+		["decay_stain", Vector2(1.1, 0.9), Vector3(-wx, 3.95, -2.1), Vector3(1, 0, 0), 0.2],
+		["decay_stain", Vector2(0.9, 0.75), Vector3(wx, 4.15, 0.9), Vector3(-1, 0, 0), -0.4],
+		["decay_mould", Vector2(0.55, 0.45), Vector3(-wx, 2.35, -0.4), Vector3(1, 0, 0), 0.0],
+		["decay_mould", Vector2(0.45, 0.4), Vector3(wx, 2.3, 2.5), Vector3(-1, 0, 0), 2.6],
+		["decay_mould", Vector2(0.6, 0.5), Vector3(-wx, 2.4, -3.6), Vector3(1, 0, 0), 1.0],
+		["decay_bricks", Vector2(0.75, 0.6), Vector3(wx, 2.95, -1.8), Vector3(-1, 0, 0), 0.0],
+		["decay_crack", Vector2(0.55, 1.1), Vector3(-wx, 3.4, 1.6), Vector3(1, 0, 0), 0.1],
+		["decay_crack", Vector2(0.5, 1.0), Vector3(1.6, 5.1, -D * 0.5), Vector3(0, 0, 1), -0.3],
+		["decay_stain", Vector2(1.1, 0.9), Vector3(-1.9, 5.3, -D * 0.5), Vector3(0, 0, 1), 0.5],
+		["decay_stain", Vector2(1.0, 0.8), Vector3(1.4, 4.4, D * 0.5), Vector3(0, 0, -1), 0.0],
+		["decay_mould", Vector2(0.5, 0.42), Vector3(-PRES_W * 0.5, PRES_Y + 2.3, -D * 0.5 - ARCH_T - 1.0), Vector3(1, 0, 0), 0.4],
+	]
+	for d in wall:
+		var tint := Color(0.74, 0.76, 0.7) if str(d[0]) == "decay_mould" else Color(0.86, 0.85, 0.8)
+		_decal(str(d[0]), d[1], d[2], d[3], float(d[4]), tint)
+	# Over the vault: round the leak, and along its foot by the walls.
+	for v in [[0.36, 0.62, 1.8], [-1.9, -3.0, 1.4], [2.2, 3.3, 1.2], [-0.9, -4.6, 1.3]]:
+		var x: float = v[0]
+		var y := vault_y(x)
+		var n := Vector3(-x / pow(W * 0.5, 2.0), -(y - WALL_H) / pow(CROWN - WALL_H, 2.0), 0).normalized()
+		_decal("decay_stain", Vector2(float(v[2]), float(v[2]) * 0.8), Vector3(x, y - 0.05, float(v[1])), n, 0.7, Color(0.84, 0.83, 0.78))
+	_decal("decay_bricks", Vector2(0.8, 0.6), Vector3(2.3, vault_y(2.3) - 0.05, -0.2), Vector3(-0.6, -1.0, 0).normalized(), 0.0)
+	var flat := Vector3.UP
+	var floor := [
+		["floor_puddle", Vector2(1.25, 0.9), BUCKET + Vector3(0.05, 0.0, 0.05), 0.4],
+		["floor_puddle", Vector2(1.0, 0.7), Vector3(-2.75, 0.0, -2.2), 1.6],
+		["floor_plaster", Vector2(0.8, 0.6), Vector3(2.75, 0.0, -1.75), 0.0],
+		["floor_plaster", Vector2(0.6, 0.5), Vector3(2.2, 0.0, -0.2), 2.0],
+		["floor_leaves", Vector2(0.9, 0.6), Vector3(0.5, 0.0, 5.05), 0.3],
+		["floor_leaves", Vector2(0.7, 0.5), Vector3(-0.9, 0.0, 4.2), 2.2],
+		["floor_leaves", Vector2(0.5, 0.4), Vector3(0.15, 0.0, 2.95), 1.1],
+		["floor_moss", Vector2(1.2, 0.5), Vector3(-W * 0.5 + 0.25, 0.0, 5.0), 1.57],
+		["floor_moss", Vector2(1.0, 0.45), Vector3(W * 0.5 - 0.25, 0.0, 4.6), -1.57],
+		["floor_moss", Vector2(0.9, 0.4), Vector3(-PRES_W * 0.5 + 0.25, PRES_Y, -9.4), 1.57],
+	]
+	for f in floor:
+		_decal(str(f[0]), f[1], f[2], flat, float(f[3]), Color(0.8, 0.8, 0.76))
+
+
+## Cobwebs in the corners under the vault, round the windows, in the loft's corners and
+## low between the pews; strands hanging off the vault and the chandelier.
+func _cobwebs(root: Node3D) -> void:
+	var tex := ["pub_cobweb", "bistro_cobweb"]
+	var wx := W * 0.5
+	var webs := [
+		[Vector3(-wx + 0.3, WALL_H - 0.75, -D * 0.5 + 0.3), 45.0, 0.9],
+		[Vector3(wx - 0.3, WALL_H - 0.75, -D * 0.5 + 0.3), -45.0, 0.8],
+		[Vector3(-wx + 0.3, WALL_H - 0.6, D * 0.5 - 0.3), 135.0, 0.9],
+		[Vector3(wx - 0.3, WALL_H - 0.6, D * 0.5 - 0.3), -135.0, 0.85],
+		[Vector3(-wx + 0.25, LOFT_Y - 0.85, D * 0.5 - 0.25), 135.0, 0.6],
+		[Vector3(wx - 0.25, 2.0, D * 0.5 - 0.25), -135.0, 0.5],
+		[Vector3(-PRES_W * 0.5 + 0.3, PRES_Y + PRES_WALL - 0.7, -D * 0.5 - ARCH_T - PRES_D + 0.3), 45.0, 0.8],
+		[Vector3(PRES_W * 0.5 - 0.3, PRES_Y + PRES_WALL - 0.7, -D * 0.5 - ARCH_T - PRES_D + 0.3), -45.0, 0.7],
+		[Vector3(float(POSTS_X[0]) + 0.25, LOFT_Y - 0.75, LOFT_Z + 0.25), 45.0, 0.45],
+		[Vector3(float(POSTS_X[1]) - 0.25, LOFT_Y - 0.75, LOFT_Z + 0.25), -45.0, 0.45],
+	]
+	var i := 0
+	for wv in webs:
+		var t: String = tex[i % 2]
+		if _exists(t):
+			var c := K.cutout(root, t, _size(t, float(wv[2])), wv[0], float(wv[1]), false, "Cobweb")
+			(c.material_override as StandardMaterial3D).albedo_color = Color(0.78, 0.78, 0.74)
+		i += 1
+	# Low between the pews' ends along the walls.
+	for z in [float(ROWS[0]), float(ROWS[3]), float(ROWS[5])]:
+		for side in [-1.0, 1.0]:
+			var t: String = tex[int(z * 10.0) % 2]
+			if _exists(t):
+				K.cutout(root, t, _size(t, 0.3), Vector3(float(side) * (AISLE + PEW_L + 0.2), 0.08, z + 0.2), 90.0, false, "Cobweb")
+	if _exists("cobweb_strands"):
+		for sv in [[-2.7, -2.6, 1.3], [2.6, 1.8, 1.1], [-2.5, 2.9, 1.0], [1.2, -4.9, 1.2], [-1.1, 0.4, 0.9]]:
+			var x: float = sv[0]
+			var h: float = sv[2]
+			K.cutout(root, "cobweb_strands", _size("cobweb_strands", h), Vector3(x, vault_y(x) - h - 0.02, float(sv[1])), 0.0, true, "Strands")
+	# The chandelier off the crown, unlit, its arms webbed together.
+	if _exists("chapel_chandelier"):
+		var ch := 1.05
+		var top := CROWN - 0.75
+		K.slab(root, Vector3(0.025, CROWN - top, 0.025), Vector3(0, (CROWN + top) * 0.5, -1.2), K.surface("galvanized", 0.3, Color(0.35, 0.32, 0.28)), "Chain")
+		var c := K.cutout(root, "chapel_chandelier", _size("chapel_chandelier", ch), Vector3(0, top - ch, -1.2), 0.0, true, "Chandelier")
+		(c.material_override as StandardMaterial3D).albedo_color = Color(0.85, 0.82, 0.76)
+		if _exists("cobweb_strands"):
+			K.cutout(root, "cobweb_strands", _size("cobweb_strands", 0.9), Vector3(0.25, top - ch - 0.55, -1.05), 0.0, true, "Strands")
+
+
+## The bucket in the aisle under the leak, the drop that falls into it.
+func _leak(root: Node3D) -> void:
+	var tex := "pub_bucket" if _exists("pub_bucket") else "mop_bucket"
+	if _exists(tex):
+		var b := K.cutout(root, tex, _size(tex, 0.34), BUCKET, 0.0, true, "Bucket")
+		(b.material_override as StandardMaterial3D).albedo_color = Color(0.8, 0.8, 0.76)
+		room._hot_box("bucket", BUCKET + Vector3(0, 0.2, 0), Vector3(0.4, 0.4, 0.4), [b])
+	_drop = MeshInstance3D.new()
+	_drop.name = "Drop"
+	var q := QuadMesh.new()
+	q.size = Vector2(0.016, 0.06)
+	_drop.mesh = q
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.albedo_color = Color(0.7, 0.74, 0.72)
+	m.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y
+	_drop.material_override = m
+	_drop.visible = false
+	_drop.set_meta("retro_skip", true)
+	root.add_child(_drop)
+	var trip = room.get_parent()
+	var main = trip._main() if trip != null and trip.has_method("_main") else null
+	var ws = main.get("weather_system") if main != null else null
+	_rain = ws != null and int(ws.get("current_weather")) >= 3 and int(ws.get("current_weather")) <= 5
+	_drip_t = 0.6
+
+
+## The confessional under the loft by the west wall: a box with its carved front.
+func _confessional(root: Node3D) -> void:
+	var at := Vector3(-W * 0.5 + 0.42, 0.0, 4.25)
+	var tex := "confessional"
+	if not _exists(tex):
+		return
+	var s := _size(tex, 2.25)
+	K.slab(root, Vector3(0.8, 2.0, s.x * 0.86), at + Vector3(-0.02, 1.0, 0), K.surface("veneer_dark", 0.6, Color(0.5, 0.42, 0.36)), "ConfessionalBox")
+	var f := K.cutout(root, tex, s, at + Vector3(0.4, 0, 0), 90.0, false, "Confessional")
+	(f.material_override as StandardMaterial3D).albedo_color = Color(0.86, 0.84, 0.8)
+	room._hot_box("confess", at + Vector3(0.42, 1.1, 0), Vector3(0.2, 2.1, s.x), [f])
+
+
+## The figure under the dust sheet: somewhere else each time (worse, nearer).
+func _sheet_figure(root: Node3D) -> void:
+	if not _exists("dust_sheet_figure"):
+		return
+	var lo := _low()
+	var weights := [3.0, 2.0, 1.0 + 3.0 * lo, 1.0 + 3.0 * lo, 1.5]
+	_sheet_at = _pick(weights)
+	var sp: Array = SHEET_SPOTS[_sheet_at]
+	_sheet = K.cutout(root, "dust_sheet_figure", _size("dust_sheet_figure", 1.78), sp[0], float(sp[1]), true, "SheetFigure")
+	(_sheet.material_override as StandardMaterial3D).albedo_color = Color(0.82, 0.82, 0.78)
+	room._hot_box("sheet", (sp[0] as Vector3) + Vector3(0, 0.9, 0), Vector3(0.6, 1.8, 0.6), [_sheet])
+
+
+func _pick(weights: Array) -> int:
+	var sum := 0.0
+	for w in weights:
+		sum += float(w)
+	var r := _rng.randf() * sum
+	for i in weights.size():
+		r -= float(weights[i])
+		if r <= 0.0:
+			return i
+	return weights.size() - 1
+
+
+## The one who stands up in the loft (the last guest who left your camp, as they looked).
+func _make_watcher(root: Node3D) -> void:
+	var trip = room.get_parent()
+	var path := ""
+	if trip != null and trip.has_method("_last_departed_sprite"):
+		path = str(trip._last_departed_sprite())
+	if path == "" or not ResourceLoader.exists(path):
+		# Nobody has left the camp yet: one of its guests all the same.
+		path = "res://assets/textury/npc/host%d.png" % _rng.randi_range(1, 3)
+	if not ResourceLoader.exists(path):
+		return
+	var t: Texture2D = load(path)
+	_watcher = Sprite3D.new()
+	_watcher.name = "LoftWatcher"
+	_watcher.texture = t
+	_watcher.pixel_size = 1.7 / float(t.get_height())
+	_watcher.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+	_watcher.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	_watcher.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+	_watcher.shaded = true
+	_watcher.offset = Vector2(0, t.get_height() * 0.5)
+	_watcher.modulate = Color(0.66, 0.66, 0.7)
+	_watcher.visible = false
+	root.add_child(_watcher)
+
+
+## The haze of the damp air, the dust turning in it.
+func _air(root: Node3D, hour: float) -> void:
+	var env: Environment = room._env
+	env.fog_enabled = true
+	env.fog_light_color = Color(0.46, 0.49, 0.44) if hour < 16.0 else Color(0.5, 0.44, 0.36)
+	env.fog_light_energy = 1.0
+	env.fog_density = 0.042
+	env.fog_sky_affect = 0.0
+	var p := CPUParticles3D.new()
+	p.name = "Dust"
+	p.amount = 260
+	p.lifetime = 16.0
+	p.preprocess = 8.0
+	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	p.emission_box_extents = Vector3(W * 0.5 - 0.4, 1.9, D * 0.5 - 0.6)
+	p.position = Vector3(0, 2.6, 0)
+	p.direction = Vector3(0.2, 1, 0)
+	p.spread = 180.0
+	p.gravity = Vector3(0, -0.004, 0)
+	p.initial_velocity_min = 0.0
+	p.initial_velocity_max = 0.035
+	var q := QuadMesh.new()
+	q.size = Vector2(0.014, 0.014)
+	p.mesh = q
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(1.0, 0.96, 0.84)
+	m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.vertex_color_use_as_albedo = true
+	m.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	p.material_override = m
+	var g := Gradient.new()
+	g.set_color(0, Color(1, 1, 1, 0))
+	g.set_color(1, Color(1, 1, 1, 0))
+	g.add_point(0.2, Color(1, 1, 1, 0.8))
+	g.add_point(0.8, Color(1, 1, 1, 0.8))
+	p.color_ramp = g
+	p.set_meta("retro_skip", true)
+	root.add_child(p)
 
 
 # ── light ────────────────────────────────────────────────────────────────────
 
 func _light(hour: float, candles: int) -> void:
 	var env: Environment = room._env
-	var day := hour >= 7.0 and hour < 18.5
-	env.ambient_light_color = Color(0.9, 0.9, 0.9)
-	env.ambient_light_energy = 0.52 if day else 0.1
+	env.ambient_light_color = Color(0.76, 0.8, 0.76) if hour < 16.0 else Color(0.8, 0.74, 0.66)
+	env.ambient_light_energy = 0.24 if hour < 16.0 else 0.19
 	for i in candles:
 		add_flame()
 
@@ -322,7 +839,7 @@ func add_flame() -> bool:
 	if flames.size() >= maxi(1, cups.size()):
 		return false
 	var root: Node3D = room._root
-	var at: Vector3 = cups[flames.size()] if flames.size() < cups.size() else Vector3(W * 0.5 - 0.4, 1.0, 2.05)
+	var at: Vector3 = cups[flames.size()] if flames.size() < cups.size() else Vector3(1.55, 1.0, 5.0)
 	var tex := "votive_flame_0"
 	var f := K.cutout(root, tex if _exists(tex) else "candles_rack", Vector2(0.05, 0.08), at, 0.0, true, "Flame")
 	var m := f.material_override as StandardMaterial3D
@@ -332,7 +849,7 @@ func add_flame() -> bool:
 	l.light_color = Color(1.0, 0.68, 0.34)
 	l.light_energy = 0.22
 	l.omni_range = 2.2
-	l.position = at + Vector3(-0.15, 0.1, 0)
+	l.position = at + Vector3(0, 0.1, -0.15)
 	root.add_child(l)
 	flames.append({"node": f, "light": l, "phase": randf() * 4.0})
 	return true
@@ -359,12 +876,57 @@ func _mrs_hruba() -> void:
 	m.billboard_keep_scale = true
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
 	mi.material_override = m
-	var z: float = ROWS[0] + 0.62
-	mi.position = Vector3(-AISLE - 0.7, 0.05, z)
+	mi.position = Vector3(-AISLE - 0.7, 0.05, float(ROWS[0]) + 0.62)
 	mi.name = "MrsHruba"
 	room._root.add_child(mi)
 	_hruba = mi
 	room._hot_box("her", mi.position + Vector3(0, 0.55, 0), Vector3(0.5, 1.0, 0.5), [mi])
+
+
+# ── sound ────────────────────────────────────────────────────────────────────
+
+func _player(db: float) -> AudioStreamPlayer:
+	var p := AudioStreamPlayer.new()
+	p.volume_db = db
+	room.add_child(p)
+	_players.append(p)
+	return p
+
+
+func _sounds() -> void:
+	_amb = _player(-20.0)
+	_fx = _player(-12.0)
+	_drip_snd = _player(-13.0)
+	_loop(_amb, "chapel/room_tone.ogg", -19.0)
+	_wind = _player(-27.0)
+	_loop(_wind, "chapel/wind_gap.ogg", -27.0)
+	if _rain:
+		_rain_snd = _player(-24.0)
+		_loop(_rain_snd, "weather/raininside.mp3", -24.0)
+	_pigeons_t = _rng.randf_range(12.0, 40.0)
+
+
+func _loop(p: AudioStreamPlayer, path: String, db: float) -> void:
+	if not ResourceLoader.exists(SFX + path):
+		return
+	var s = load(SFX + path)
+	if s is AudioStreamMP3:
+		s = (s as AudioStreamMP3).duplicate()
+		s.loop = true
+	elif s is AudioStreamOggVorbis:
+		s = (s as AudioStreamOggVorbis).duplicate()
+		s.loop = true
+	p.stream = s
+	p.volume_db = db
+	p.play()
+
+
+func _fx_play(path: String, db: float) -> void:
+	if not ResourceLoader.exists(SFX + path):
+		return
+	_fx.stream = load(SFX + path)
+	_fx.volume_db = db
+	_fx.play()
 
 
 # ── each frame ───────────────────────────────────────────────────────────────
@@ -385,46 +947,234 @@ func tick(delta: float) -> void:
 	if _rope != null and _rope_t > 0.0:
 		_rope_t -= delta
 		# The rope jerks up and down with the strokes, in steps.
-		var swing := sin(floorf(_rope_t * 12.0) / 12.0 * 9.0) * 0.12
-		_rope.position.y = CROWN - 3.35 + swing
+		var swing := sin(floorf(_rope_t * 12.0) / 12.0 * 9.0) * 0.1 * minf(1.0, _rope_t)
+		_rope.position.y = _rope_y + swing
+		_rope.rotation.z = swing * 0.3
+	for s in _shafts:
+		_face_shaft(s)
+	_tick_drip(delta)
+	_tick_watcher(delta)
+	_tick_saint(delta)
+	_tick_sheet(delta)
+	_pigeons_t -= delta
+	if _pigeons_t <= 0.0:
+		_pigeons_t = _rng.randf_range(28.0, 75.0)
+		_fx_play("chapel/pigeons.mp3", -15.0)
+	if _breath_t > 0.0:
+		_breath_t -= delta
+		if _breath_t <= 0.0 and _looking == "confess":
+			_fx_play("chapel/confession_breath.mp3", -14.0)
+
+
+func _seen(p: Vector3) -> bool:
+	return room._cam.is_position_in_frustum(p)
+
+
+func _tick_drip(delta: float) -> void:
+	if _drop == null:
+		return
+	if _drop_t >= 0.0:
+		_drop_t += delta
+		var top := vault_y(BUCKET.x) - 0.1
+		var fall := 0.5 * 9.8 * _drop_t * _drop_t
+		var stepped := floorf(fall * 4.0) / 4.0
+		_drop.position = Vector3(BUCKET.x, top - stepped, BUCKET.z)
+		if top - fall <= 0.3:
+			_drop_t = -1.0
+			_drop.visible = false
+			var path := SFX + "chapel/drip_bucket.mp3"
+			if not ResourceLoader.exists(path):
+				path = SFX + "pipes/wetdrop.mp3"
+			if ResourceLoader.exists(path):
+				_drip_snd.stream = load(path)
+				_drip_snd.pitch_scale = _rng.randf_range(0.92, 1.08)
+				_drip_snd.play()
+		return
+	_drip_t -= delta
+	if _drip_t <= 0.0:
+		_drip_t = _rng.randf_range(0.5, 1.0) if _rain else _rng.randf_range(1.6, 3.2)
+		_drop_t = 0.0
+		_drop.visible = true
+
+
+## Somebody up in the loft, while you are not looking there; gone when you look again.
+func _tick_watcher(delta: float) -> void:
+	if _watcher == null:
+		return
+	var spot := Vector3(0, LOFT_Y + 1.0, LOFT_Z + 0.4)
+	if _watch_on:
+		var p := _watcher.position + Vector3(0, 1.2, 0)
+		if _watch_sink >= 0.0:
+			# Stepping back from the rail: down behind it, in steps.
+			_watch_sink += delta
+			_watcher.position.y = LOFT_Y - floorf(_watch_sink * 8.0) / 8.0 * 1.3
+			if _watch_sink >= 1.0:
+				_hide_watcher()
+			return
+		if _seen(p):
+			_watch_seen += delta
+			_watch_unseen = 0.0
+			if _watch_seen > 3.2:
+				_watch_sink = 0.0
+				_fx_play("chapel/loft_creak.mp3", -14.0)
+		else:
+			_watch_unseen += delta
+			if _watch_seen > 0.25 and _watch_unseen > 0.4:
+				_hide_watcher()
+				_fx_play("chapel/loft_creak.mp3", -17.0)
+			elif _watch_seen <= 0.25 and _watch_unseen > 40.0:
+				_hide_watcher()
+		return
+	if _seen(spot):
+		_loft_unseen = 0.0
+	else:
+		_loft_unseen += delta
+	_watch_roll -= delta
+	if _watch_roll > 0.0:
+		return
+	_watch_roll = 3.0
+	if _t < 15.0 or _watch_n >= 2 or _loft_unseen < 5.0 or _looking != "":
+		return
+	if _rng.randf() < 0.025 + 0.12 * _low():
+		_watch_on = true
+		_watch_n += 1
+		_watch_seen = 0.0
+		_watch_unseen = 0.0
+		_watch_sink = -1.0
+		_watcher.position = Vector3(_rng.randf_range(-2.3, 2.3), LOFT_Y, LOFT_Z + 0.4)
+		if absf(_watcher.position.x - float(POSTS_X[0])) < 0.3 or absf(_watcher.position.x - float(POSTS_X[1])) < 0.3:
+			_watcher.position.x *= 0.6
+		_watcher.visible = true
+
+
+func _hide_watcher() -> void:
+	_watch_on = false
+	_watch_sink = -1.0
+	if _watcher != null:
+		_watcher.visible = false
+
+
+## St Prokop's head turned to you when you look back at him (not often, more the worse
+## you are); turned back once you have seen it and looked away.
+func _tick_saint(delta: float) -> void:
+	if _saint == null or _saint_tex.size() < 2:
+		return
+	var p := _saint.position + Vector3(0, 0.6, 0)
+	var m := _saint.material_override as StandardMaterial3D
+	if _seen(p):
+		if not _saint_turned and not _saint_done and _saint_unseen > 6.0 and _t > 10.0:
+			if _rng.randf() < 0.05 + 0.25 * _low():
+				_saint_turned = true
+				m.albedo_texture = _saint_tex[1]
+		_saint_unseen = 0.0
+		if _saint_turned:
+			_saint_seen += delta
+	else:
+		_saint_unseen += delta
+		if _saint_turned and _saint_seen > 1.2 and _saint_unseen > 0.6:
+			_saint_turned = false
+			_saint_done = true
+			m.albedo_texture = _saint_tex[0]
+
+
+## The worse you are, the less the sheet keeps still: unseen a while, it is elsewhere.
+func _tick_sheet(delta: float) -> void:
+	if _sheet == null:
+		return
+	if _seen(_sheet.position + Vector3(0, 0.9, 0)):
+		_sheet_unseen = 0.0
+		return
+	_sheet_unseen += delta
+	if _sheet_unseen < 12.0 or _low() < 0.4:
+		return
+	_sheet_unseen = 0.0
+	if _rng.randf() > 0.35 * _low():
+		return
+	var choices: Array = []
+	for i in SHEET_SPOTS.size():
+		var sp: Array = SHEET_SPOTS[i]
+		if i != _sheet_at and not _seen((sp[0] as Vector3) + Vector3(0, 0.9, 0)):
+			choices.append(i)
+	if choices.is_empty():
+		return
+	_sheet_at = int(choices[_rng.randi_range(0, choices.size() - 1)])
+	var to: Array = SHEET_SPOTS[_sheet_at]
+	_sheet.position = to[0]
+	_sheet.rotation_degrees.y = float(to[1])
+	var hb = room._hot.get("sheet", {}).get("body")
+	if hb != null:
+		(hb as Node3D).position = (to[0] as Vector3) + Vector3(0, 0.9, 0)
 
 
 # ── clicks ───────────────────────────────────────────────────────────────────
 
 func click(id: String, hour: float) -> bool:
+	if _walker != null and _walker.busy:
+		return true
 	if _looking != "":
 		_unlook()
 		return true
+	if _sitting and id != "her":
+		_stand_up()
+		return true
 	match id:
 		"candles":
-			if CoreRoot.get_money() < 1 or not CoreRoot.actions.spend_money(1):
-				_play("director/knock_wrong.mp3", -14.0)
-				return true
-			_play("chapel/coin_box.mp3", -6.0)
-			if add_flame():
-				room._candles = flames.size()
-				room.get_tree().create_timer(0.45).timeout.connect(func(): _play("chapel/match.mp3", -6.0))
-				if room.has_signal("candle_lit"):
-					room.candle_lit.emit(flames.size())
-		"box":
-			if CoreRoot.get_money() >= 1 and CoreRoot.actions.spend_money(1):
-				_play("chapel/coin_box.mp3", -4.0)
-		"rope":
-			_ring()
+			_walker.go("candles", func(): _light_candle())
+		"box", "rope":
+			# By the door: within reach from there.
+			var act := func():
+				if id == "rope":
+					_ring()
+				elif CoreRoot.get_money() >= 1 and CoreRoot.actions.spend_money(1):
+					_play("chapel/coin_box.mp3", -4.0)
+			if _walker.here == "door":
+				act.call()
+			else:
+				_walker.go("door", act)
 		"her":
 			_line += 1
 			room.say("Mrs Hruba", HRUBA_LINES[_line % HRUBA_LINES.size()])
 		"harmonium":
-			_play("chapel/harmonium.mp3", -8.0)
-			_look_at("harmonium")
-		"pews":
-			_play("chapel/pew_creak.mp3", -8.0)
-			_look_at(id)
-		"altar", "saint", "stations", "window":
+			_walker.go("altar", func():
+				_play("chapel/harmonium.mp3", -8.0)
+				_look_at("harmonium"))
+		"pews_w", "pews_e":
+			_walker.go("seat_w" if id == "pews_w" else "seat_e", func():
+				_sitting = true
+				_play("chapel/pew_creak.mp3", -8.0)
+				room._look.pitch_down_deg = 20.0)
+		"altar", "saint":
+			_walker.go("rail", func(): _look_at(id))
+		"confess":
+			_walker.go("confess", func():
+				_look_at("confess")
+				# Behind the curtain, now and then, the worse you are: a breath.
+				if _rng.randf() < 0.12 + 0.45 * _low():
+					_breath_t = _rng.randf_range(1.2, 2.6))
+		"stations", "window", "bucket", "sheet", "loft":
 			_look_at(id)
 		_:
 			return false
 	return true
+
+
+func _light_candle() -> void:
+	if CoreRoot.get_money() < 1 or not CoreRoot.actions.spend_money(1):
+		_play("director/knock_wrong.mp3", -14.0)
+		return
+	_play("chapel/coin_box.mp3", -6.0)
+	if add_flame():
+		room._candles = flames.size()
+		room.get_tree().create_timer(0.45).timeout.connect(func(): _play("chapel/match.mp3", -6.0))
+		if room.has_signal("candle_lit"):
+			room.candle_lit.emit(flames.size())
+
+
+func _stand_up() -> void:
+	_sitting = false
+	room._look.pitch_down_deg = 34.0
+	_play("chapel/pew_creak.mp3", -10.0)
+	_walker.go("pews")
 
 
 func _ring() -> void:
@@ -440,6 +1190,8 @@ func _look_at(id: String) -> void:
 	if body == null:
 		return
 	var target: Vector3 = (body as Node3D).position
+	if id == "loft" and _watch_on and _watcher != null:
+		target = _watcher.position + Vector3(0, 1.3, 0)
 	var eye: Vector3 = room._cam.position
 	var d := target - eye
 	var yaw := atan2(-d.x, -d.z)
@@ -448,32 +1200,56 @@ func _look_at(id: String) -> void:
 	_look_back = {"rot": room._base_rot, "fov": room._cam.fov}
 	var tw: Tween = room.create_tween().set_parallel(true)
 	tw.tween_property(room, "_base_rot", Vector3(pitch, yaw, 0.0), 0.6).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	tw.tween_property(room._cam, "fov", clampf(66.0 * 1.6 / maxf(1.6, d.length()), 22.0, 44.0), 0.6).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_property(room._cam, "fov", clampf(66.0 * 2.4 / maxf(2.4, d.length()), 20.0, 56.0), 0.6).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
 func _unlook() -> void:
 	_looking = ""
+	_breath_t = -1.0
 	var tw: Tween = room.create_tween().set_parallel(true)
 	tw.tween_property(room, "_base_rot", _look_back.get("rot", Vector3.ZERO), 0.5).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	tw.tween_property(room._cam, "fov", float(_look_back.get("fov", 66.0)), 0.5).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
-## S or the door: looking at something, let it go first.
+## S: looking at something, let it go first; else out.
 func wants_out() -> bool:
 	if _looking != "":
 		_unlook()
 		return false
+	if _walker != null:
+		_walker.stop()
+	_play("chapel/door.mp3", -10.0)
 	return true
 
 
+## The door clicked: from across the nave you walk back to it first, then out.
+func walk_out() -> void:
+	if _walker == null or _walker.busy:
+		return
+	if _looking != "":
+		_unlook()
+		return
+	_sitting = false
+	room._look.pitch_down_deg = 34.0
+	if _walker.here == "door":
+		_play("chapel/door.mp3", -10.0)
+		room.close()
+		return
+	_walker.go("door", func():
+		_play("chapel/door.mp3", -10.0)
+		room.close())
+
+
+## The other wardens: in the aisle under the loft, a little ahead of the door.
 func place_mates(mates: Dictionary, ids: Array) -> void:
+	var spots := [Vector3(0.75, 0.0, 3.55), Vector3(-0.8, 0.0, 2.95), Vector3(1.25, 0.0, 2.95)]
 	var k := 0
 	for id in ids:
 		var fig = mates.get(int(id))
 		if fig == null:
 			continue
 		fig.visible = true
-		fig.show_at(Vector3(0.05 if k % 2 == 0 else -0.05, 0.0, 1.35 - 0.7 * float(k)), "stand")
+		fig.show_at(spots[k % spots.size()], "stand")
 		k += 1
 
 
@@ -481,7 +1257,32 @@ func close() -> void:
 	if _looking != "":
 		room._cam.fov = float(_look_back.get("fov", 66.0))
 	_looking = ""
+	if _walker != null:
+		_walker.stop()
+		_walker.free_all()
+	for p in _players:
+		if is_instance_valid(p):
+			(p as Node).queue_free()
+	_players.clear()
+	room._env.fog_enabled = false
 
 
 func _play(path: String, db: float) -> void:
 	room._play(SFX + path, db)
+
+
+## Debug (tools/shot_driver.gd): the one in the loft now, St Prokop turned now.
+func debug_watcher() -> void:
+	if _watcher == null:
+		return
+	_watch_on = true
+	_watch_seen = 0.0
+	_watch_sink = -1.0
+	_watcher.position = Vector3(0.7, LOFT_Y, LOFT_Z + 0.4)
+	_watcher.visible = true
+
+
+func debug_saint() -> void:
+	if _saint != null and _saint_tex.size() > 1:
+		_saint_turned = true
+		(_saint.material_override as StandardMaterial3D).albedo_texture = _saint_tex[1]

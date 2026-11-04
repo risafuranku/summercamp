@@ -6,3 +6,34 @@ kp_pew	1.2	assets/sfx/chapel/pew_creak.mp3	An old wooden church pew creaks under
 kp_match	1.4	assets/sfx/chapel/match.mp3	A match struck on a box and touched to a small candle wick, a short hiss and a crackle, a quiet stone chapel
 kp_coin_box	0.8	assets/sfx/chapel/coin_box.mp3	A coin dropped through the slot of a wooden church offering box, landing on other coins inside, small stone chapel echo
 kp_door	1.6	assets/sfx/chapel/door.mp3	A heavy old wooden church door opens with an iron latch clank and a long creak of its hinges, stone chapel echo
+ch_room_tone	22	../tools/audiogen/raw/chapel_room_tone_raw.mp3	Room tone of a large cold damp empty stone church in a village: a faint wind whistling through the gap of an old wooden door, the hollow deep quiet of a high vault, very far crows outside, no music, no voices
+ch_drip	1.2	assets/sfx/chapel/drip_bucket.mp3	A single drop of water falling from a high vault into a half full zinc bucket inside a large empty stone church: one clear metallic plink with a long cold echo
+ch_pigeons	4	assets/sfx/chapel/pigeons.mp3	Pigeons startled in the dark roof space above a church vault: wings flapping and claws scrabbling on old boards, muffled through the ceiling, then a low coo
+ch_creak	2	assets/sfx/chapel/loft_creak.mp3	One old wooden floorboard creaking slowly up in the empty choir gallery of a large stone church, as if somebody shifted their weight, then silence
+ch_breath	3.5	assets/sfx/chapel/confession_breath.mp3	Slow heavy wet breathing behind a thick velvet curtain inside a small wooden confessional booth, close, no voice, no words
+ch_wind	10	../tools/audiogen/raw/chapel_wind_gap_raw.mp3	Wind moaning softly through the crack of a tall old church window and under its door, inside a big empty stone church, low and steady
+mt_room_night	24	../tools/audiogen/raw/motel_room_night_raw.mp3	Night inside a cheap run-down roadside motel room: the low electrical hum of a neon sign outside, an old fridge compressor through the wall, a loose window pane rattling now and then, a lorry passing far away on a highway, no music, no voices
+mt_neon	10	../tools/audiogen/raw/motel_neon_buzz_raw.mp3	A failing neon sign buzzing and crackling on the roof of a motel at night, irregular flicker clicks, heard through a closed window
+mt_fan	10	../tools/audiogen/raw/motel_fan_rattle_raw.mp3	A dirty bathroom extractor fan droning and rattling in a small tiled room, one loose blade ticking against its grille
+mt_tap_run	8	../tools/audiogen/raw/motel_tap_run_raw.mp3	An old bathroom tap left running into a stained ceramic sink, steady splashing water in a small tiled room
+mt_tap_drip	8	../tools/audiogen/raw/motel_tap_drip_raw.mp3	A leaking tap dripping slowly into a ceramic sink, irregular plops, a quiet small tiled bathroom at night
+mt_flies	8	../tools/audiogen/raw/motel_flies_raw.mp3	A few houseflies buzzing lazily and bumping against a dirty window pane in a stuffy small room
+mt_roach	1.4	assets/sfx/motel/cockroach.mp3	A big cockroach scuttling fast across a dry plaster wall, tiny clicking legs, very close
+mt_springs	2.2	assets/sfx/motel/bed_springs.mp3	The rusty springs of a cheap sagging motel bed creaking and twanging as somebody lies down on it
+mt_neigh_tv	14	../tools/audiogen/raw/motel_neighbour_tv_raw.mp3	A television heard muffled through a thin motel wall at night: indistinct boomy voices and canned laughter, no clear words
+mt_neigh_cough	2.5	assets/sfx/motel/neighbour_cough.mp3	A man in the next room coughing hard, a heavy smoker's wet cough, heard through a thin wall
+mt_argue	7	assets/sfx/motel/neighbours_argue.mp3	A man and a woman arguing in the next motel room, heard muffled through a thin wall at night, the voices completely indistinct with no words that can be made out, then a door slams
+mt_scratch	6	assets/sfx/motel/wall_scratch.mp3	Slow fingernails scratching along the other side of a thin plasterboard wall, moving along it, very close, at night
+mt_steps_above	7	assets/sfx/motel/steps_above.mp3	Heavy slow footsteps walking across the floor of the room upstairs, creaking boards heard through the ceiling, then something heavy dragged across it, then silence
+mt_knock	2.2	assets/sfx/motel/knock_door.mp3	Three slow heavy knocks on a thin hollow plywood motel room door, heard from inside the room
+mt_chain	1.0	assets/sfx/motel/door_chain.mp3	A brass door security chain slid into its slot and hooked, a small metallic rattle
+mt_peep	0.6	assets/sfx/motel/peephole.mp3	The little metal cover of a door peephole flicked aside, one tiny click
+mt_wardrobe	2.0	assets/sfx/motel/wardrobe_creak.mp3	The door of an old cheap veneer wardrobe creaking open on dry hinges, a hanger rattling inside
+mt_curtain	1.4	assets/sfx/motel/shower_curtain.mp3	A plastic shower curtain pulled along its metal rail, the rings scraping
+mt_gurgle	3.0	assets/sfx/motel/toilet_gurgle.mp3	An old toilet gurgling by itself at night, water bubbling up in the pipes of a cheap motel
+mt_car	10	assets/sfx/motel/car_arrive.mp3	A car slowly pulls into a gravel motel car park at night, the engine idling outside the window, then cut off, one car door shuts, then silence
+mt_tube	1.6	assets/sfx/motel/tube_flicker.mp3	A cheap fluorescent tube in a small bathroom flickering on with a ping and settling into a buzz
+mt_line	6	assets/sfx/motel/phone_breath.mp3	Slow breathing heard through the earpiece of an old telephone, crackly line hiss, nobody speaks
+mt_zapper	3	assets/sfx/motel/fly_zapper.mp3	An electric insect zapper crackles sharply as a fly hits it, then its low hum
+mt_lobby_fan	10	../tools/audiogen/raw/motel_lobby_fan_raw.mp3	An old metal desk fan wobbling and ticking as it turns in a stuffy small motel reception, a slow hum
+mt_sticky	1.2	assets/sfx/motel/sticky_step.mp3	A shoe peeling off a sticky dirty carpet, a short tacky crackle

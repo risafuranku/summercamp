@@ -132,6 +132,21 @@ var _watcher_gone := -999
 const DOOM_FIGURE = preload("res://scripts/figures/doom_figure.gd")
 ## The night the bell rang at three (its index).
 var _bell3_night := -999
+## Number four's night (motel_night.gd): what woke you (the host weighs it, the others hear
+## of it), the night it is counted for, how often, what, hours since; the bell's own wake.
+const MOTEL_NIGHT = preload("res://scripts/town/motel_night.gd")
+const CAMP_OFFICE = preload("res://scripts/reception/camp_office.gd")
+var _wake_kind := ""
+var _wakes_night := -999
+var _wakes := 0
+var _wake_had: Array = []
+var _since_wake_h := 0.0
+var _bell3_woke := -999
+var _wake_rng := RandomNumberGenerator.new()
+## Debug (tools/shot_driver.gd): what wakes you at the night's first step in four; true:
+## nothing does.
+var debug_force_wake := ""
+var debug_quiet := false
 var _night := false
 var _night_poll := 0.0
 ## Each stop's runs for the day (paths and poses), made once per road / town.
@@ -995,6 +1010,92 @@ func _update_village_sound(h: float) -> void:
 		_bell.play()
 
 
+func _in_four() -> bool:
+	return _room != null and _room.is_open() and str(_room.place) == "motel_room"
+
+
+## The host's (or your own) night in four, a step of the clock: what wakes you, if
+## anything (motel_night.gd), then the night stops for everybody and the room plays it.
+## In co-op only with every warden asleep in four (getting up stops the night for all).
+func _motel_night(office, delta: float) -> void:
+	if Coop.is_client():
+		return
+	for id in Coop.others():
+		if str(Coop.state_of(id).get("tr", "")) != "motel_room":
+			return
+	var h := hour()
+	var night := _night_index(h)
+	if _wakes_night != night:
+		_wakes_night = night
+		_wakes = 0
+		_wake_had = []
+		_since_wake_h = 0.0
+	var dt := delta * CAMP_OFFICE.SLEEP_RATE
+	_since_wake_h += dt
+	var kind := debug_force_wake
+	debug_force_wake = ""
+	if debug_quiet and kind == "":
+		return
+	# The bell at three, the nights it rings: it wakes you, mostly.
+	if h >= 3.0 and h < 3.0 + dt * 1.5 + 0.05 and MOTEL_PLAN.bell_at_three(night) and _bell3_woke != night:
+		_bell3_woke = night
+		if _wake_rng.randf() < 0.75:
+			kind = "bell"
+	if kind == "":
+		var hrs := h if h >= 12.0 else h + 24.0
+		var win: Array = MOTEL_PLAN.carpark_watch(night)
+		var ctx := {
+			"hour": h, "sanity": _sanity_now(), "six": MOTEL_PLAN.six_lit(night, h), "rain": _raining_now(),
+			"watch": not win.is_empty() and hrs >= float(win[0]) and hrs < float(win[1]) and night != _watcher_gone,
+			"woken": _wakes, "since": _since_wake_h, "taken": MOTEL_PLAN.taken(night), "had": _wake_had,
+		}
+		var lam := MOTEL_NIGHT.hazard(ctx)
+		if lam > 0.0 and _wake_rng.randf() < 1.0 - exp(-lam * dt):
+			kind = MOTEL_NIGHT.pick(ctx, _wake_rng)
+	if kind == "":
+		return
+	_wakes += 1
+	_wake_had.append(kind)
+	_since_wake_h = 0.0
+	_wake_kind = kind
+	if kind == "bell":
+		_bell3_night = night
+		_ring_bell_now()
+	Coop.send_place("town", "motel", "wake", [kind])
+	office.cancel_sleep()
+	# The eyes were shut (however briefly): they open on it.
+	_sleep_fade = 1.0
+
+
+## The hidden sanity of the host's warden (coop_night.gd), 0..100.
+func _sanity_now() -> float:
+	var main := _main()
+	var night = main.get("_coop_night") if main != null else null
+	if night == null or not is_instance_valid(night):
+		return 100.0
+	var s = night.get("sanity")
+	return float((s as Dictionary).get("host", 100.0)) if s is Dictionary else 100.0
+
+
+func _raining_now() -> bool:
+	var main := _main()
+	var ws = main.get("weather_system") if main != null else null
+	var w := int(ws.get("current_weather")) if ws != null else 0
+	return w >= 3 and w <= 5
+
+
+## Debug (tools/shot_driver.gd): the night in four stopped now by `kind`, as the host's
+## clock would (for two machines too).
+func debug_motel_wake(kind: String) -> void:
+	_wake_kind = kind
+	if kind == "bell":
+		_ring_bell_now()
+	Coop.send_place("town", "motel", "wake", [kind])
+	var office = _main().get("camp_office") if _main() != null else null
+	if office != null and office.has_method("cancel_sleep"):
+		office.cancel_sleep()
+
+
 ## Somebody pulled the chapel's rope: the bell over the village, a few strokes.
 func _ring_bell_now() -> void:
 	if _town == null:
@@ -1012,6 +1113,22 @@ func _ring_bell_now() -> void:
 ## The other wardens' doings in Liblice's places (Coop.send_place "town", through
 ## town_places.gd): the chapel's candles burning.
 func coop_town_place(key: String, op: String, data: Array) -> void:
+	if key == "motel" and op == "wake" and not data.is_empty():
+		# The host's night in four stopped: what woke them wakes you too.
+		var kind := str(data[0])
+		if kind == "bell":
+			_ring_bell_now()
+		if _sleeping and _in_four():
+			# Up off the pillow here too, now (this machine may not have seen the night
+			# begin yet: the host's clock stopped at its first step).
+			_wake_kind = kind
+			var office = _main().get("camp_office") if _main() != null else null
+			if office != null and office.has_method("cancel_sleep"):
+				office.cancel_sleep()
+			_sleep_fade = 1.0
+		elif _in_four():
+			_room.woken_now(kind)
+		return
 	if key == "chapel" and op == "candles" and not data.is_empty():
 		var n := int(data[0])
 		if _room == null:
@@ -1051,13 +1168,23 @@ func _update_sleep(delta: float) -> void:
 			# Eyes shut: the room's windows need not draw the village.
 			if _sleep_fade >= 1.0 and _room != null and _room.is_open():
 				_room.set_asleep(true)
+		# Number four's night, weighed as it passes: something may wake you (the eyes shut
+		# all the same before they open on it).
+		if office != null and office.is_fast_forwarding() and _in_four():
+			_motel_night(office, delta)
 		if office != null and not office.is_sleeping_through() and _sleep_fade >= 1.0:
 			_sleeping = false
-			if _room != null and _room.is_open() and str(_room.place) == "motel_room":
+			if _in_four():
+				_room.set_asleep(false)
+				var h := hour()
+				if h >= 12.0 or h < CAMP_OFFICE.WAKE_HOUR - 0.3:
+					# Still the night: something woke you (or the other warden got up).
+					_room.woken_now(_wake_kind)
+					_wake_kind = ""
+					return
 				# The morning in number four, in the bed you went to sleep in.
 				_motel_slept = true
-				_room.set_asleep(false)
-				_room.morning_now(hour())
+				_room.morning_now(h)
 				return
 			if _town != null:
 				_put_player(Transform3D(Basis.looking_at(Vector3(0, 0, -1), Vector3.UP), _town.w(Vector3(-27.0, 0.15, 8.0))))
