@@ -274,7 +274,8 @@ func _ready() -> void:
 			caught_at = float(i) / 30.0
 	print("ENEMY CHECK: granny, standing still: dmg %d at %.1f s, limp %.2f" % [_damage, caught_at, (_player as FakePlayer).held_speed_mult])
 	_expect(_damage > 0, "granny: standing still in the dark she gets you")
-	_expect((_player as FakePlayer).held_speed_mult < 1.0, "granny: her catch leaves you limping")
+	# (No limp after her any more, the user 4. 11., W29.)
+	_expect(is_equal_approx((_player as FakePlayer).held_speed_mult, 1.0), "granny: her catch leaves you limping (W29: it must not)")
 	bk.stop_night()
 	(_player as FakePlayer).held_speed_mult = 1.0
 	# Walk away from her, and freeze while she stands up and looks: she never gets you.
