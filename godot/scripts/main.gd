@@ -209,6 +209,7 @@ var _director = preload("res://scripts/night/night_director.gd").new()
 var _director_fx: Node
 ## The camp's own music, not the radio's (scripts/audio/music_director.gd).
 var _music_director: Node
+var _caretaker: Node
 var _pending_director: Dictionary = {}
 ## The lost and found and its classifieds (scripts/bazaar.gd).
 var _bazaar = preload("res://scripts/bazaar.gd").new()
@@ -735,6 +736,26 @@ func _director_place() -> String:
 		return "room"
 	var pos: Vector3 = _player.global_position if _player != null else Vector3.ZERO
 	return "out_lit" if building_manager != null and float(building_manager.get_light_level_at(pos)) > 0.2 else "out_dark"
+
+
+## What the song at the end of the world asks (scripts/audio/caretaker.gd): not the
+## director's context, which is its own to read (it notices you coming in).
+func caretaker_context() -> Dictionary:
+	var hour := _time_of_day_hours
+	var place := _director_place()
+	var bi = _interior_manager.get("_building_interior") if _interior_manager != null else null
+	var set_dread = bi.get("_dread") if bi != null else null
+	var vel: Vector3 = _player.velocity if _player != null else Vector3.ZERO
+	return {
+		"night": (hour >= 21.0 or hour < 5.5) and _gameplay_started and not _game_over_active,
+		"quiet": _day_index <= QUIET_NIGHTS,
+		"place": place,
+		"dread": float(set_dread.get("dread")) if set_dread != null else 0.0,
+		"tension": float(_director.tension),
+		"near_m": float(_senses.nearest),
+		"walking": Vector2(vel.x, vel.z).length() > 0.8,
+		"set_beside": (place == "office" or place == "back_room") and bi != null and bi.get("_radio_power_on") == true and bi.get("_grid_power_available") == true,
+	}
 
 
 ## What the night presses on the camp with, for scripts/omens.gd.
@@ -1350,6 +1371,8 @@ func _process(delta: float) -> void:
 	_update_threat_senses(delta)
 	if _music_director != null:
 		_music_director.tick(delta)
+	if _caretaker != null:
+		_caretaker.tick(delta)
 	_sync_hud_player_meters()
 	# Who is coming, at the gate, the day's and the night's jobs: on the HUD of both machines
 	# (the other's from the host's pulse).
@@ -3919,6 +3942,11 @@ func _setup_audio() -> void:
 		_music_director.name = "MusicDirector"
 		_music_director.main = self
 		add_child(_music_director)
+	if _caretaker == null or not is_instance_valid(_caretaker):
+		_caretaker = preload("res://scripts/audio/caretaker.gd").new()
+		_caretaker.name = "Caretaker"
+		_caretaker.main = self
+		add_child(_caretaker)
 
 
 func _try_interact() -> void:

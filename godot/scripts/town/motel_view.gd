@@ -112,6 +112,7 @@ var _look_back := {}
 var _players: Array = []
 var _amb: AudioStreamPlayer
 var _amb2: AudioStreamPlayer
+var _wall_snd: AudioStreamPlayer
 var _tap_snd: AudioStreamPlayer
 var _fan_snd: AudioStreamPlayer
 var _fx: AudioStreamPlayer
@@ -641,6 +642,10 @@ func _sounds(hour: float) -> void:
 	if _night(hour):
 		_loop_on(_amb, "motel/room_night.ogg", -21.0)
 		_loop_on(_amb2, "motel/neon_buzz.ogg", -31.0)
+		# Somebody's music through the wall (the user, 4. 11.): next door when next door is
+		# taken tonight, else from further along the floor.
+		_wall_snd = _player(-40.0)
+		_loop_on(_wall_snd, "motel/wall_music.ogg", -19.0 if _neighbours() else -27.0)
 	else:
 		_loop_on(_amb, "motel/flies.ogg", -26.0)
 	_tap_mix()
@@ -1288,6 +1293,8 @@ func _do(id: String) -> void:
 		"wall":
 			# Knock on it: the scratching stops; the neighbour's set goes quieter.
 			_play("motel/radiator_knock.mp3", -12.0)
+			if _wall_snd != null and _neighbours():
+				_wall_snd.volume_db = -25.0
 			if event == "wall":
 				_ev_n = 9
 				if _neighbours():

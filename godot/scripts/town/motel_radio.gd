@@ -15,9 +15,9 @@ const SFX := "res://assets/sfx/"
 const SONGS := ["autobusnula_song", "cervenydest_song", "chladnicka_song", "jahody_song", "lekar_song",
 	"letnikupon_song", "mysizavod_song", "nechodven_song", "prostri_song", "regaly_song",
 	"sedmynemastin_song", "song_automat", "song_infravrany", "song_radiovomitce", "vodadoma_song",
-	"zenasadra_song"]
+	"zenasadra_song", "goodvibes_song"]
 const ADS := ["reklamadechovka", "reklamajar", "reklamakomar", "reklamalimo", "rodinnyreset_jingle"]
-const NIGHT := ["night_babicka", "night_tatinek", "night_vypinac"]
+const NIGHT := ["night_babicka", "night_tatinek", "night_vypinac", "night_motif", "night_tancovacka2"]
 const LOW := ["vodadoma_eerie", "song_cursedinfravrany"]
 const JINGLE := "signalplus_jingle"
 ## What each set sounds like: its level, how slow its tape of the world runs, how long it

@@ -53,6 +53,7 @@ var _six_light: OmniLight3D
 var _players: Array = []
 var _amb: AudioStreamPlayer
 var _behind: AudioStreamPlayer
+var _wall_snd: AudioStreamPlayer
 var _fx: AudioStreamPlayer
 var _busy_door := false
 ## The other wardens here: id -> {"fig", "at": feet, "path": [feet...], "gone": bool}.
@@ -436,6 +437,10 @@ func _sounds() -> void:
 	_fx = _player(-8.0)
 	_loop(_amb, "motel/room_night.ogg", -24.0)
 	_loop(_behind, "motel/neighbour_tv.ogg", -60.0)
+	# Somebody's music, faint along the corridor at night (motel_view: through the wall).
+	if room.hour >= 19.0 or room.hour < 6.0:
+		_wall_snd = _player(-30.0)
+		_loop(_wall_snd, "motel/wall_music.ogg", -30.0)
 
 
 func _fx_play(path: String, db: float) -> void:
@@ -475,6 +480,8 @@ func _tick_behind() -> void:
 			continue
 		near = minf(near, absf(d.x - eye.x))
 	_behind.volume_db = lerpf(-22.0, -60.0, clampf(near / 3.0, 0.0, 1.0))
+	if _wall_snd != null:
+		_wall_snd.volume_db = lerpf(-23.0, -32.0, clampf(near / 7.0, 0.0, 1.0))
 
 
 # ── clicks ───────────────────────────────────────────────────────────────────

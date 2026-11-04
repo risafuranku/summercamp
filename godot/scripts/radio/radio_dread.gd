@@ -17,7 +17,15 @@ extends Node
 ## the effects of the song bus, and tells the interior how to bend the song: its volume
 ## (`music_gain`), its pitch (`pitch_offset`, `wobble_scale`), its dropouts and skips.
 ## Sounds: res://assets/sfx/radio_dread/ (tools/gen_radio_dread.py).
+##
+## And past a raised night the song goes the way of a memory (the user, 4. 11.: "not only
+## the pitch, reverb and echo too, The Caretaker"; `_care`, from the dread and from how far
+## you have hidden, scripts/audio/caretaker.gd): a hall opens round it and the dry song
+## goes, the echo stays longer, the tape runs slow for good, the surface of the record comes
+## up, the needle sticks on a phrase turn after turn (Ev.NEEDLE), and the ghost under the
+## song is the song itself, slower, from somewhere else in it.
 
+const CARETAKER = preload("res://scripts/audio/caretaker.gd")
 const DIR := "res://assets/sfx/radio_dread/"
 ## The songs (and the interludes) play on their own bus, sent into the radio bus, so
 ## the set can be ruined without touching the static and the buzz on top.
@@ -48,7 +56,7 @@ const LOWPASS_CLEAN_HZ := 4200.0
 const LOWPASS_RUINED_HZ := 1500.0
 const LOWPASS_DRIFT_HZ := 850.0
 
-enum Ev { NONE, STUTTER, SAG, GHOST, DRIFT, CREATURE, TERROR }
+enum Ev { NONE, STUTTER, SAG, GHOST, DRIFT, CREATURE, TERROR, NEEDLE }
 ## On a bad night, with you in the office to hear it (the user 4. 11.: "when a song breaks
 ## off, put something morbid there"): the song cut, a breath of dead air with nothing in
 ## it, then something close on the frequency (t_*.mp3: breathing at the microphone, a meal,
@@ -127,6 +135,11 @@ var _off_seconds: float = 0.0
 var _fx_lowpass: AudioEffectLowPassFilter
 var _fx_crush: AudioEffectDistortion
 var _fx_echo: AudioEffectDelay
+var _fx_hall: AudioEffectReverb
+## How far the song has gone the way of a memory, 0-1; the needle's groove.
+var _care := 0.0
+var _needle_at := 0.0
+var _needle_turns := 1
 
 
 class Layer:
@@ -146,10 +159,10 @@ class Layer:
 func _ready() -> void:
 	_rng.randomize()
 	ensure_music_bus()
-	for id in ["static", "carrier", "buzz", "ghost", "voice", "fx", "relay"]:
+	for id in ["static", "carrier", "buzz", "ghost", "voice", "fx", "relay", "crackle"]:
 		var l := Layer.new()
 		l.bus = MUSIC_BUS if id == "ghost" else LAYER_BUS
-		l.looped = id in ["static", "carrier", "buzz"]
+		l.looped = id in ["static", "carrier", "buzz", "crackle"]
 		l.p2 = AudioStreamPlayer.new()
 		l.p2.name = "Dread_" + id
 		l.p2.bus = l.bus
@@ -163,6 +176,7 @@ func _ready() -> void:
 	(_layers["fx"] as Layer).rate = 8.0
 	(_layers["ghost"] as Layer).rate = 0.25
 	(_layers["relay"] as Layer).rate = 3.0
+	(_layers["crackle"] as Layer).rate = 0.3
 
 
 ## Somewhere in the camp, on the frequency as it happens (the granny eating in a lodging:
@@ -214,6 +228,13 @@ static func ensure_music_bus() -> void:
 		echo.feedback_level_db = -60.0
 		echo.feedback_lowpass = 1800.0
 		AudioServer.add_bus_effect(idx, echo)
+	if not has.has("AudioEffectReverb"):
+		var hall := AudioEffectReverb.new()
+		hall.wet = 0.0
+		hall.dry = 1.0
+		hall.spread = 1.0
+		hall.hipass = 0.1
+		AudioServer.add_bus_effect(idx, hall)
 
 
 func _bind_bus_effects() -> void:
@@ -228,6 +249,8 @@ func _bind_bus_effects() -> void:
 			_fx_crush = fx
 		elif fx is AudioEffectDelay:
 			_fx_echo = fx
+		elif fx is AudioEffectReverb:
+			_fx_hall = fx
 
 
 func bind_music(player: AudioStreamPlayer) -> void:
@@ -312,8 +335,10 @@ func update(delta: float, ctx: Dictionary, inside_db: float, outside_db: float, 
 	else:
 		dread = move_toward(dread, target, (DREAD_RISE_PER_SEC if target > dread else DREAD_FALL_PER_SEC) * dt)
 
-	_music_target = 1.0
-	_pitch_target = 0.0
+	_care = maxf(clampf((dread - 0.3) / 0.6, 0.0, 1.0), CARETAKER.level)
+	# Further off the further gone (the hall and the echo would only make it louder).
+	_music_target = lerpf(1.0, 0.5, _care)
+	_pitch_target = -0.1 * _care * _care
 	_set_base_layers()
 	_update_phantom(dt, power_on)
 	if is_interlude_playing():
@@ -357,6 +382,7 @@ func _set_base_layers() -> void:
 	(_layers["static"] as Layer).target = 0.012 + 0.2 * pow(dread, 1.3)
 	(_layers["carrier"] as Layer).target = 0.0
 	(_layers["buzz"] as Layer).target = 0.0
+	(_layers["crackle"] as Layer).target = 0.3 * _care
 
 
 func _mix_layers(dt: float, inside_db: float, outside_db: float) -> void:
@@ -440,6 +466,10 @@ func _clip(id: String) -> AudioStream:
 	if not ResourceLoader.exists(path) and ResourceLoader.exists(DIR + id + ".mp3"):
 		path = DIR + id + ".mp3"
 	var s: AudioStream = load(path) as AudioStream if ResourceLoader.exists(path) else null
+	if id == "crackle" and ResourceLoader.exists(CARETAKER.CRACKLE):
+		s = (load(CARETAKER.CRACKLE) as AudioStream).duplicate()
+		if s is AudioStreamOggVorbis:
+			(s as AudioStreamOggVorbis).loop = true
 	if s is AudioStreamWAV and id in ["static", "carrier", "buzzer"]:
 		var w := (s as AudioStreamWAV).duplicate() as AudioStreamWAV
 		w.loop_mode = AudioStreamWAV.LOOP_FORWARD
@@ -477,9 +507,16 @@ func _apply_bus(_dt: float) -> void:
 	if _fx_crush != null:
 		_fx_crush.drive = 0.42 * pow(dread, 1.6)
 	if _fx_echo != null:
-		var echo_db := lerpf(-60.0, -15.0, clampf((dread - 0.45) / 0.55, 0.0, 1.0))
+		var echo_db := maxf(lerpf(-60.0, -15.0, clampf((dread - 0.45) / 0.55, 0.0, 1.0)), lerpf(-60.0, -11.0, _care))
 		_fx_echo.tap1_level_db = echo_db
-		_fx_echo.feedback_level_db = echo_db - 6.0
+		_fx_echo.feedback_level_db = echo_db - 4.0
+	if _fx_hall != null:
+		_fx_hall.wet = 0.72 * pow(_care, 1.2)
+		_fx_hall.dry = lerpf(1.0, 0.38, pow(_care, 1.4))
+		_fx_hall.room_size = lerpf(0.4, 0.96, _care)
+		_fx_hall.damping = lerpf(0.4, 0.82, _care)
+		_fx_hall.predelay_msec = lerpf(20.0, 150.0, _care)
+		_fx_hall.predelay_feedback = lerpf(0.1, 0.45, _care)
 
 
 # ── what happens to the song ─────────────────────────────────────────────────────
@@ -506,8 +543,21 @@ func _update_events(dt: float) -> void:
 				_end_event()
 		Ev.SAG:
 			if _event_t < _event_len:
-				_pitch_target = -_event_value
+				_pitch_target = minf(_pitch_target, -_event_value)
 			else:
+				_end_event()
+		Ev.NEEDLE:
+			if _music == null or not _music.playing or _music.stream is AudioStreamPlaylist:
+				_end_event()
+				return
+			# Each turn of the groove a little further off.
+			_music_target *= lerpf(0.6, 1.0, float(_event_count) / float(_needle_turns))
+			_event_step -= dt
+			if _event_step <= 0.0:
+				_event_step = _event_value
+				_music.seek(_needle_at)
+				_event_count -= 1
+			if _event_count <= 0:
 				_end_event()
 		Ev.GHOST:
 			var g: Layer = _layers["ghost"]
@@ -556,6 +606,9 @@ func _pick_event() -> int:
 		bag.append([Ev.SAG, 1.0])
 	if dread > 0.25 and _tracks.size() > 1:
 		bag.append([Ev.GHOST, 1.2])
+	# (Only on the machine whose set it is: the other follows it, building_interior.)
+	if _care > 0.2 and not bool(_ctx.get("client", false)):
+		bag.append([Ev.NEEDLE, 3.0 * _care])
 	if dread > 0.35 and night:
 		bag.append([Ev.CREATURE, 0.8])
 	if dread > 0.4 and night:
@@ -589,6 +642,9 @@ func _begin_event(ev: int) -> void:
 			var pick: AudioStream = _tracks[_rng.randi() % _tracks.size()]
 			if _music != null and pick == _music.stream and _tracks.size() > 1:
 				pick = _tracks[(_tracks.find(pick) + 1) % _tracks.size()]
+			# Far gone, it is the song itself, remembered from somewhere else in it.
+			if _care > 0.4 and _rng.randf() < 0.6 and _music != null and _music.stream is AudioStreamMP3:
+				pick = _music.stream
 			_start(g, pick, true, _rng.randf_range(0.72, 0.88))
 			_event_value = lerpf(0.12, 0.32, dread)
 			_event_len = _rng.randf_range(6.0, 12.0 + 10.0 * dread)
@@ -599,6 +655,16 @@ func _begin_event(ev: int) -> void:
 			_one_shot("fx", TUNES[_rng.randi() % TUNES.size()], 0.7)
 		Ev.CREATURE:
 			_one_shot("voice", _pick_creature(), _rng.randf_range(0.35, 0.6))
+		Ev.NEEDLE:
+			# The needle stuck in the groove: a phrase, turn after turn; shorter the further gone.
+			if _music == null:
+				_event = Ev.NONE
+				return
+			_needle_at = _music.get_playback_position()
+			_event_value = lerpf(_rng.randf_range(3.5, 6.0), _rng.randf_range(1.2, 2.6), _care)
+			_needle_turns = _rng.randi_range(3, 5) + int(_care * 6.0)
+			_event_count = _needle_turns
+			_event_step = _event_value
 		Ev.TERROR:
 			var left: Array = TERRORS.filter(func(t): return t != _terror_last)
 			_terror_clip = str(left[_rng.randi() % left.size()])

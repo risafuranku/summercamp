@@ -211,6 +211,7 @@ you look over your shoulder: one guest too many on the map, staff procedures tha
 | --- | --- | --- |
 | Ambience bed: day, dusk birds, crickets, lake insects, owl, weather | ✅ | |
 | Reception radio audible across the camp | ✅ | positional source in the office, muffled with distance |
+| The song at the end of the world | ✅ | past a raised night the radio's song goes the way of a memory: a hall opens round it, the echo stays, the tape runs slow, the surface of a record comes up, the needle sticks on a phrase, the song remembered under itself; hidden indoors at night, the longer and the worse, a phrase of an old song comes from nowhere in an enormous hall, turn after turn, slower and further off (`scripts/audio/caretaker.gd`, `scripts/radio/radio_dread.gd`); each warden hears their own |
 | The radio going wrong with the night | ✅ | dread from NIGHT RISK, hour, tonight's enemies, proximity: static, skips, tape sag, ghost station, drift onto the OK 76 buzz, birds/dog/knock on the frequency, Czech numbers-station broadcasts (tonight's code word, the guest count plus one, an open-mic leak), dead carrier when something is close, the switched-off set murmuring once; ElevenLabs voices + synth (`tools/gen_radio_dread.py`) |
 | The station that does not exist | ✅ | late at night, at most once, from day 2: a music-box phrase and one pip per guest, plus one |
 | The night log stamped tomorrow | ✅ | one mail delivered at 03:00 dated the next day |
