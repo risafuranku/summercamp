@@ -3,24 +3,32 @@ extends RefCounted
 ## Restricted look-around for interiors (DESIGN §10): you stay where you entered and only
 ## turn your head, within limits, like the office in Five Nights at Freddy's.
 ##
-## The cursor stays visible for clicking things in the room, and it is a stick (the user,
-## 4. 11.: "jako bych hejbal joystickem na konzoli, akorát ten joystick je můj kurzor"): out
-## of a dead middle, its way from the middle of the screen turns the head that way, any
-## way round at once, gently at first and hard at the edge. W A S D and the arrows turn it
-## too. In the dead middle the view only sways a little with the cursor, so the room stays
-## still under the mouse while you aim at something. Limits are soft: the turn slows down
-## before it stops.
+## Point and click (the user 4. 11. afternoon: "the view inside is still odd, I feel I am
+## steering a camera on a joint; keep point and click, the cursor turning the camera at the
+## edges", one look everywhere: the reception, the desk, the games, the rooms, the sewer,
+## the bus): over the screen the cursor only points, the room stays put under it (a hair
+## of parallax for depth); in the outer EDGE_TURN of the left and the right side the head
+## turns that way, picking up toward the very edge (EDGE_POWER) and stopping as soon as the
+## cursor comes back in. A and D (and the arrows) turn it too, W and S tip it up and down.
+## Limits are soft: the turn slows down before it stops. (Till 4. 11. the cursor was a
+## stick from the middle: the whole screen turned.)
 
 ## Outer share of the screen width that holds a turn at its end (the tent's old dwell).
 const EDGE_BAND := 0.20
+## The bands along the screen's sides that turn the head (a share of the width / height),
+## and how the turn rises across one (a power: gentle where it starts, all of it at the
+## edge). A button held (something dragged) narrows them to the outermost part.
+const EDGE_TURN := 0.12
+const EDGE_POWER := 1.4
+const EDGE_HELD := 0.4
 ## The stick: the dead middle (a share of the way from the middle to the edge) and how the
 ## turn rises past it (a power: gentle near the middle, all of it at the edge). A held
 ## button is work under the pointer: the dead middle grows most of the way to the edge.
 const STICK_DEAD := 0.26
 const STICK_POWER := 1.6
 const STICK_HELD := 0.6
-const MAX_YAW_SPEED_DEG := 190.0
-const MAX_PITCH_SPEED_DEG := 125.0
+const MAX_YAW_SPEED_DEG := 150.0
+const MAX_PITCH_SPEED_DEG := 95.0
 const KEY_YAW_SPEED_DEG := 130.0
 const KEY_PITCH_SPEED_DEG := 90.0
 ## How quickly the turn picks up, and how quickly it stops once the cursor leaves the
@@ -90,12 +98,16 @@ func update(delta: float, cursor: Vector2, key_axis: float = 0.0) -> Vector3:
 	var want_yaw := 0.0
 	var want_pitch := 0.0
 	if steer:
-		var d := dead
+		# A look with a wider calm middle (a station's work fills the picture) has narrower
+		# bands; something held, narrower still.
+		var band := EDGE_TURN * clampf((1.0 - dead) / (1.0 - STICK_DEAD), 0.45, 1.0)
 		if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
-			d = lerpf(d, 1.0, STICK_HELD)
-		var stick := _stick((cursor - Vector2(0.5, 0.5)) * 2.0, d)
-		want_yaw = -stick.x * MAX_YAW_SPEED_DEG
-		want_pitch = -stick.y * MAX_PITCH_SPEED_DEG
+			band *= EDGE_HELD
+		# Round by the left and right edges only: along the bottom lies the way out (the
+		# exit band, a click), along the top what hangs there (the rail of orders); up and
+		# down is W and S.
+		var edge := _edges(Vector2(cursor.x, 0.5), band)
+		want_yaw = -edge.x * MAX_YAW_SPEED_DEG
 	want_yaw -= clampf(key_axis, -1.0, 1.0) * KEY_YAW_SPEED_DEG
 	if keys_tilt:
 		want_pitch += tilt_axis() * KEY_PITCH_SPEED_DEG
@@ -171,6 +183,23 @@ static func _follow(speed: float, want: float, dt: float) -> float:
 	var braking := absf(want) < absf(speed) or signf(want) != signf(speed)
 	var k := 1.0 - exp(-(BRAKE if braking else ACCEL) * dt)
 	return lerpf(speed, want, k)
+
+
+## The edges' push for the cursor at `c` (0..1 over the screen): nothing over the middle,
+## then across the outer `band` of a side up to 1 at the edge, that way (-1 left / up).
+static func _edges(c: Vector2, band: float) -> Vector2:
+	var v := Vector2.ZERO
+	if band <= 0.0:
+		return v
+	if c.x < band:
+		v.x = -pow(clampf(1.0 - c.x / band, 0.0, 1.0), EDGE_POWER)
+	elif c.x > 1.0 - band:
+		v.x = pow(clampf((c.x - (1.0 - band)) / band, 0.0, 1.0), EDGE_POWER)
+	if c.y < band:
+		v.y = -pow(clampf(1.0 - c.y / band, 0.0, 1.0), EDGE_POWER)
+	elif c.y > 1.0 - band:
+		v.y = pow(clampf((c.y - (1.0 - band)) / band, 0.0, 1.0), EDGE_POWER)
+	return v
 
 
 ## The stick's push for a way `v` from the middle (-1..1 to the edges, corners further):
