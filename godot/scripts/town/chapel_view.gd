@@ -193,6 +193,7 @@ var _draft_wait := 0.0
 var _night := false
 var _night_lights: Array = []
 static var _halo_tex: ImageTexture
+static var _soft_tex: ImageTexture
 ## The moon: its patches on the floor ({light, mat, base}), the dust in its rays, how
 ## bright it is through the clouds now; the glow of the stand's flames in the haze.
 var _moon_pools: Array = []
@@ -615,8 +616,8 @@ func _moon_ray(root: Node3D, from: Vector3, floor_y: float) -> void:
 	root.add_child(l)
 	_moon_pools.append({"light": l, "mat": patch.material_override, "base": 0.7, "alpha": 0.5})
 	# The haze lit round the window it comes in by.
-	var glow := _halo(root, from + Vector3(0.25, 0, 0), 2.0, Color(0.42, 0.52, 0.78))
-	_moon_pools.append({"mat": glow.material_override, "alpha": 0.16})
+	var glow := _halo(root, from + Vector3(0.25, 0, 0), 2.2, Color(0.42, 0.52, 0.78), true)
+	_moon_pools.append({"mat": glow.material_override, "alpha": 0.12})
 	_moon_motes(root, from, down, t)
 
 
@@ -1079,6 +1080,7 @@ func add_flame(cup := -1) -> bool:
 	var f := K.cutout(root, tex if _exists(tex) else "candles_rack", Vector2(0.045, 0.1), at, 0.0, true, "Flame")
 	var m := f.material_override as StandardMaterial3D
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.disable_fog = _night
 	f.set_meta("retro_skip", true)
 	var l := OmniLight3D.new()
 	l.light_color = Color(1.0, 0.68, 0.34)
@@ -1174,8 +1176,8 @@ func _night_lights_build(root: Node3D) -> void:
 			var tip := at + Vector3((wick.x - 0.5) * cs.x, (1.0 - wick.y) * cs.y - 0.02, 0.012)
 			_night_flame(root, tip, Vector2(0.05, 0.11), warm, 0.5, 4.2, 0.42)
 		# Their light in the haze round the altar.
-		_night_lights.append({"kind": "glow", "phase": 0.0, "col": warm, "alpha": 0.13,
-			"halo": _halo(root, Vector3(0, top + 0.42, zb + 0.55), 2.4, warm)})
+		_night_lights.append({"kind": "glow", "phase": 0.0, "col": warm, "alpha": 0.1,
+			"halo": _halo(root, Vector3(0, top + 0.42, zb + 0.55), 3.0, warm, true)})
 	if _exists("sanctuary_lamp"):
 		var ls := _size("sanctuary_lamp", 0.86)
 		var x := 1.3
@@ -1197,8 +1199,8 @@ func _night_lights_build(root: Node3D) -> void:
 		_night_lights.append({"kind": "lamp", "phase": _rng.randf() * 6.0, "base": 0.32, "col": red, "mat": m, "tint": tint,
 			"light": _night_light(root, glass + Vector3(0, -0.2, 0.5), red, 0.32, 4.0),
 			"halo": _halo(root, glass + Vector3(0, 0, 0.04), 0.36, red)})
-		_night_lights.append({"kind": "glow", "phase": 1.0, "col": red, "alpha": 0.1,
-			"halo": _halo(root, glass + Vector3(0, 0, 0.06), 1.2, red)})
+		_night_lights.append({"kind": "glow", "phase": 1.0, "col": red, "alpha": 0.14,
+			"halo": _halo(root, glass + Vector3(0, 0, 0.06), 1.5, red, true)})
 	if _exists("grave_lantern"):
 		var gs := _size("grave_lantern", 0.21)
 		var red := Color(1.0, 0.3, 0.14)
@@ -1222,7 +1224,7 @@ func _night_lights_build(root: Node3D) -> void:
 	# The stand's flames in the haze by the door, as bright as there are flames (_tick_night).
 	var st: Dictionary = parts.get("stand", {})
 	if not st.is_empty():
-		_stand_glow = _halo(root, (st["at"] as Vector3) + Vector3(0, 1.15, -0.12), 1.7, Color(1.0, 0.6, 0.28))
+		_stand_glow = _halo(root, (st["at"] as Vector3) + Vector3(0, 1.15, -0.12), 2.2, Color(1.0, 0.6, 0.28), true)
 	if _exists("candle_stubs"):
 		var ss := _size("candle_stubs", 0.17)
 		var wick := _wick("candle_stubs")
@@ -1238,6 +1240,8 @@ func _night_flame(root: Node3D, tip: Vector3, size: Vector2, col: Color, energy:
 	var tex := "candle_flame_2" if _exists("candle_flame_2") else "votive_flame_0"
 	var f := K.cutout(root, tex, size, tip, 0.0, true, "NightFlame")
 	(f.material_override as StandardMaterial3D).shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	# A flame stays a point of light through the haze from the far end of the nave.
+	(f.material_override as StandardMaterial3D).disable_fog = true
 	f.set_meta("retro_skip", true)
 	_night_lights.append({"kind": "candle", "phase": _rng.randf() * 4.0, "base": energy, "flame": f, "col": col,
 		"light": _night_light(root, tip + Vector3(0, size.y * 0.7, 0.4), col, energy, reach),
@@ -1255,8 +1259,16 @@ func _night_light(root: Node3D, at: Vector3, col: Color, energy: float, reach: f
 
 
 ## A glow round a light in the dark: a flat disc turned to you, in a few hard rings (the
-## Build way, no soft bloom), added on.
-func _halo(root: Node3D, at: Vector3, size: float, col: Color) -> MeshInstance3D:
+## Build way, no soft bloom), added on; `soft`: light in the haze, big and faint, its many
+## steps going off into nothing, no disc to see.
+func _halo(root: Node3D, at: Vector3, size: float, col: Color, soft := false) -> MeshInstance3D:
+	if soft and _soft_tex == null:
+		var si := Image.create(48, 48, false, Image.FORMAT_RGBA8)
+		for yy in 48:
+			for xx in 48:
+				var e := clampf(1.0 - Vector2(float(xx) - 23.5, float(yy) - 23.5).length() / 24.0, 0.0, 1.0)
+				si.set_pixel(xx, yy, Color(1, 1, 1, floorf(e * e * (3.0 - 2.0 * e) * 10.0) / 10.0))
+		_soft_tex = ImageTexture.create_from_image(si)
 	if _halo_tex == null:
 		var img := Image.create(32, 32, false, Image.FORMAT_RGBA8)
 		for yy in 32:
@@ -1271,7 +1283,7 @@ func _halo(root: Node3D, at: Vector3, size: float, col: Color) -> MeshInstance3D
 	m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	m.disable_fog = true
-	m.albedo_texture = _halo_tex
+	m.albedo_texture = _soft_tex if soft else _halo_tex
 	m.albedo_color = Color(col.r, col.g, col.b, 0.55)
 	m.set_meta("retro_skip", true)
 	var mi := MeshInstance3D.new()
@@ -1335,7 +1347,7 @@ func _tick_night(step: float, gust: float) -> void:
 			((dust as CPUParticles3D).material_override as StandardMaterial3D).albedo_color = Color(0.72, 0.8, 1.0, _moon)
 	if _stand_glow != null and is_instance_valid(_stand_glow):
 		var lit := mini(flames.size(), 6)
-		(_stand_glow.material_override as StandardMaterial3D).albedo_color = Color(1.0, 0.6, 0.28, 0.022 * float(lit) * (1.0 - 0.6 * gust))
+		(_stand_glow.material_override as StandardMaterial3D).albedo_color = Color(1.0, 0.6, 0.28, 0.03 * float(lit) * (1.0 - 0.6 * gust))
 	for nl in _night_lights:
 		var ph := float(nl["phase"])
 		var k := 1.0
