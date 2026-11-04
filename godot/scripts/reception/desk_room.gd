@@ -75,6 +75,8 @@ var _audio: AudioStreamPlayer
 var _queue: Array = []
 var _poll := 0.0
 var _front_id := -999
+## Going over to the PC from the counter: its screen (-1 not).
+var _to_pc := -1
 var _ring_t := 0.0
 var _stranger: Dictionary = {}
 var _stranger_night := -1
@@ -272,6 +274,13 @@ func _step_down() -> void:
 	if book != null:
 		book.visible = true
 	_say("")
+	if _to_pc >= 0:
+		# Straight over to the PC from where you are.
+		var screen := _to_pc
+		_to_pc = -1
+		_cam_from = []
+		host.go_to_pc(screen)
+		return
 	if not _cam_from.is_empty():
 		_glide(_cam_from[0], _cam_from[1])
 		_cam_from = []
@@ -357,6 +366,9 @@ func _point() -> void:
 	px = _carry_over(o, d, px, wall)
 	desk.pointer = px
 	desk.pointer_on_wall = wall
+	# The PC across the room takes a click (input).
+	if px.x < 0.0 and desk.holding_nothing() and host.crt_under(host.get_viewport().get_mouse_position()) >= 0:
+		HandCursor.want(HandCursor.POINT)
 
 
 ## A paper or a key in hand, the pointer past the counter's far edge: it comes up off the
@@ -473,6 +485,13 @@ func input(event: InputEvent) -> void:
 		if desk.holding_nothing() and INTERIOR_LOOK.in_exit_zone(host.get_viewport()):
 			desk.close_desk()
 			return
+		# Turned to the PC, its screen clicked: over to it (the user 4. 11.).
+		if desk.holding_nothing() and desk.pointer.x < 0.0:
+			var screen: int = host.crt_under(mb.position)
+			if screen >= 0:
+				_to_pc = screen
+				desk.close_desk()
+				return
 		desk.press_at()
 	else:
 		_hand_over()
@@ -542,6 +561,13 @@ func _say(text: String) -> void:
 
 
 func _front_info() -> Dictionary:
+	# Whoever you are serving stays at the counter: someone coming in with an earlier place
+	# in the line took their sprite (the user 4. 11.).
+	if is_open():
+		var serving: int = desk.current_guest_id()
+		for q in _queue:
+			if int((q as Dictionary).get("id", -1)) == serving:
+				return q
 	if not _queue.is_empty():
 		return _queue[0]
 	return _stranger
@@ -572,7 +598,12 @@ func _place_people() -> void:
 		elif was != -999:
 			pass
 	_show(_front, front, COUNTER_SPOT)
-	_show(_second, _queue[1] if _queue.size() > 1 else {}, BENCH_SPOT)
+	var second: Dictionary = {}
+	for q in _queue:
+		if int((q as Dictionary).get("id", -1)) != id:
+			second = q
+			break
+	_show(_second, second, BENCH_SPOT)
 	# Nobody at the counter: the empty spot takes no clicks (it stood in front of the door).
 	var hb = extras.hot.get("guest", {}).get("body", null) if extras != null else null
 	if hb is CollisionObject3D:

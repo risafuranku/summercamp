@@ -161,8 +161,8 @@ func tickets(key: String) -> Array:
 		# A hand behind the bar served the lot (business_runtime._hand_serves).
 		if int(ORDERS._served.get(visit, 0)) > 0 and not _any_served(served, visit):
 			continue
-		# Asking for the bill: no more rounds.
-		if served.has(visit + "#bill") or now >= int(v.get("arrive", now)) + RULES.stay(str(v["archetype"])) - RULES.BILL_LEAD:
+		# Paid: no more rounds. (Time nearly up, nothing new: pub_rules.tickets_for.)
+		if served.has(visit + "#bill"):
 			continue
 		for t in RULES.tickets_for(visit, str(v["archetype"]), int(v.get("figures", 1)), int(v.get("arrive", now)), served, now):
 			# Nothing new after last orders (the brief of 21. 10.).

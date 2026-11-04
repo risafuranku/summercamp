@@ -882,17 +882,30 @@ func _try_click_crt(event: InputEventMouseButton) -> void:
 		return
 	# Strict hit test: only the real CRT screen quads are clickable; the second monitor's
 	# sits you down turned to it.
-	var look := 1 if _dual and _map_mouse_to_screen(event.position, _crt2_screen, false) != Vector2.INF else 0
-	var vp_pos = _map_mouse_to_screen(event.position, _crt_screen, false) if look == 0 else Vector2.ZERO
-	if vp_pos != Vector2.INF:
-		# Co-op: one at the PC at a time (the others look over their shoulder).
-		for id in Coop.others():
-			var theirs: Dictionary = Coop.state_of(id).get("room", {})
-			if str(theirs.get("t", "")) == "office" and str(theirs.get("w", "")) == "pc":
-				if _extras != null:
-					_extras.coop_refuse("pc")
-				return
-		enter_crt_view(false, look)
+	var look := crt_under(event.position)
+	if look >= 0:
+		go_to_pc(look)
+
+
+## Which of the PC's screens is under `at` (the window's pixel): 0, 1 the second, -1 none.
+func crt_under(at: Vector2) -> int:
+	if _interior_camera == null or _crt_screen == null or _crt_viewport == null:
+		return -1
+	if _dual and _map_mouse_to_screen(at, _crt2_screen, false) != Vector2.INF:
+		return 1
+	return 0 if _map_mouse_to_screen(at, _crt_screen, false) != Vector2.INF else -1
+
+
+## Sat down at the PC, turned to screen `look`. Co-op: one at it at a time (the others look
+## over their shoulder).
+func go_to_pc(look := 0) -> void:
+	for id in Coop.others():
+		var theirs: Dictionary = Coop.state_of(id).get("room", {})
+		if str(theirs.get("t", "")) == "office" and str(theirs.get("w", "")) == "pc":
+			if _extras != null:
+				_extras.coop_refuse("pc")
+			return
+	enter_crt_view(false, look)
 
 
 func _build_viewport() -> void:
@@ -1348,7 +1361,6 @@ func _build_room() -> void:
 	# ── DOOR (left wall) ──────────────────────────────────────────────────────
 	_add_box(_room_root, "DoorFrame",  Vector3(-2.48, 1.10, 1.28), Vector3(0.06, 2.20, 1.12), Color(0.20, 0.14, 0.10))
 	_add_box(_room_root, "DoorLeaf",   Vector3(-2.43, 1.05, 1.28), Vector3(0.06, 2.02, 0.98), Color(0.32, 0.22, 0.14))
-	_add_box(_room_root, "DoorHandle", Vector3(-2.36, 0.92, 0.84), Vector3(0.04, 0.06, 0.08), Color(0.74, 0.62, 0.40))
 
 	# ── PROPS AND PICTURES (tools/blender, assets/textury/camp) ───────────────
 	K.prop(_room_root, "filing_cabinet", Vector3(2.2, 0.05, -1.1), -90.0)
@@ -1958,6 +1970,14 @@ const WEATHER_DAY_K := {1: 0.94, 2: 0.76, 3: 0.68, 4: 0.54, 5: 0.36}
 
 
 func _apply_room_time_profile(animated: bool = false) -> void:
+	# What is lit now: a change goes on from it. (The numbers worked out on the way down
+	# stood as the room's light for a frame: with the tube off the whole room flashed at a
+	# click of the desk lamp, the user 4. 11.)
+	var was := [
+		_room_environment.ambient_light_energy if _room_environment != null else 0.0,
+		_ceiling_light.light_energy if _ceiling_light != null else 0.0,
+		_desk_lamp.light_energy if _desk_lamp != null else 0.0,
+		_window_light.light_energy if _window_light != null else 0.0]
 	var d := clampf(_daylight_factor / OFFICE_DAY_AT, 0.0, 1.0)
 	if _room_environment != null:
 		_room_environment.background_color = _tri(d, Color(0.08, 0.10, 0.14), Color(0.24, 0.20, 0.22), Color(0.66, 0.70, 0.74))
@@ -2021,7 +2041,7 @@ func _apply_room_time_profile(animated: bool = false) -> void:
 		_room_environment.ambient_light_color = _room_environment.ambient_light_color.lerp(Color(0.82, 0.88, 0.96), lerpf(0.6, 0.1, daylight))
 		_room_environment.ambient_light_energy = maxf(_room_environment.ambient_light_energy, fill)
 	_sync_reception_glass()
-	_apply_manual_office_light_profile(animated)
+	_apply_manual_office_light_profile(animated, was)
 	_sync_desk_lamp_look()
 	_update_window_texture()
 
@@ -3315,7 +3335,7 @@ func _toggle_radio_power() -> void:
 	_radio_power_transition_time_left = RADIO_POWER_TOGGLE_FADE_SEC
 
 
-func _apply_manual_office_light_profile(animated: bool) -> void:
+func _apply_manual_office_light_profile(animated: bool, was: Array = []) -> void:
 	var ambient_target = _room_environment.ambient_light_energy if _room_environment != null else 0.0
 	var ceiling_target = _ceiling_light.light_energy if _ceiling_light != null else 0.0
 	var desk_target = _desk_lamp.light_energy if _desk_lamp != null else 0.0
@@ -3342,6 +3362,15 @@ func _apply_manual_office_light_profile(animated: bool) -> void:
 	if animated:
 		if _office_light_tween != null and is_instance_valid(_office_light_tween):
 			_office_light_tween.kill()
+		if was.size() == 4:
+			if _room_environment != null:
+				_room_environment.ambient_light_energy = was[0]
+			if _ceiling_light != null and ceiling_target >= 0.0:
+				_ceiling_light.light_energy = was[1]
+			if _desk_lamp != null:
+				_desk_lamp.light_energy = was[2]
+			if _window_light != null:
+				_window_light.light_energy = was[3]
 		_office_light_tween = create_tween()
 		_office_light_tween.set_parallel(true)
 		_office_light_tween.set_ease(Tween.EASE_IN_OUT)

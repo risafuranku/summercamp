@@ -225,8 +225,9 @@ func alert() -> int:
 
 ## A mug in the hand at the brushes, the bare glove for the pile.
 func hand_tool() -> String:
-	var id := _held if _held != "" else _hover
-	return "wash" if id == "mug" else "open"
+	# The bare hand: the mug is under your pointer already (one in the hand as well doubled
+	# it, the user 4. 11.).
+	return "open"
 
 # ── debug (tools/pub_shots.gd) ───────────────────────────────────────────────
 

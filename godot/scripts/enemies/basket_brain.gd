@@ -17,7 +17,7 @@ extends "res://scripts/enemies/enemy_base.gd"
 ##           she stands over you a while, looking, then turns away a few steps and comes
 ##           on again.
 ##   strike  in reach: the knife at your ankles, you go down in the grass, she leans over
-##           you and goes off to eat (FED_SEC). You limp a while (slower, no sprint). Two
+##           you and goes off to eat (FED_SEC). Two
 ##           or three of them and you are dead.
 ##   lamps   she never steps into a lamp's light. A lamp in her way she puts out: at the
 ##           edge of its light she straightens and her arm reaches up to the bulb, far too
@@ -90,7 +90,9 @@ const STAGE_AT := [1, 3]
 ## Your walk is 3.9 m/s, a sprint 5.2 for ~7 s: a little under the walk at first, over it
 ## fed. Quicker still the nearer dawn.
 const HUNT_SPEED := [3.3, 3.7, 4.15]
-const LUNGE_SPEED := 7.2
+## (No sprint: at 7.2 she could not be got away from, the user 4. 11. A quick hobble: over
+## your walk, under your run.)
+const LUNGE_SPEED := 4.5
 const LUNGE_SEC := 2.4
 const GO_SPEED := [2.8, 3.1, 3.4]
 ## The stop: every LOOK_EVERY seconds (nearer, more often) she straightens for LOOK_SEC.
@@ -110,8 +112,6 @@ const REACH_M := 1.45
 ## A catch, by the night's difficulty 1..5 (100 health: two or three of them).
 const HIT := Vector2i(38, 52)
 const STRIKE_SEC := 2.3
-const LIMP_SEC := 26.0
-const LIMP_MULT := 0.55
 const FED_SEC := 16.0
 ## Light at you at which she will not come on (a lamp), and the light she will not step in.
 const LAMP_SAFE := 0.35
@@ -148,8 +148,6 @@ var _cut_ids: Array = []
 var _ate_in: Dictionary = {}
 var _fed_until := -1.0
 var _hidden_t := 0.0
-var _limp_until := -1.0
-var _limping := false
 var _strike_t := -1.0
 var _speed := 0.0
 var _last_pos := Vector3.INF
@@ -303,7 +301,6 @@ func tick(delta: float) -> void:
 		_arrive()
 	var out := _is_ready()
 	_track_speed(dt)
-	_tick_limp()
 	if _strike_t >= 0.0:
 		if out:
 			_tick_strike(dt)
@@ -643,7 +640,6 @@ func _tick_strike(dt: float) -> void:
 		_sound_quarry(SFX["sniff"], _player_pos() + Vector3(0, 1.0, 0), 2.0, 0.95, 8.0)
 	if t >= STRIKE_SEC:
 		_end_strike()
-		_limp_until = _elapsed + LIMP_SEC
 		# Off to eat, with you lying there: she has had her taste.
 		_fed_until = _elapsed + FED_SEC
 		_hidden_t = HIDDEN_SEC
@@ -668,24 +664,6 @@ func _end_strike() -> void:
 	_view_end()
 	if _quarry_peer() == 0 and _player != null and is_instance_valid(_player) and _player.has_method("set_controls_enabled"):
 		_player.call("set_controls_enabled", true)
-
-
-## The ankle she cut: slower, no running, till it goes.
-func _tick_limp() -> void:
-	var on := _elapsed < _limp_until
-	if on == _limping and not on:
-		return
-	if _player == null or not is_instance_valid(_player):
-		return
-	if on:
-		if "held_speed_mult" in _player:
-			_player.set("held_speed_mult", LIMP_MULT)
-		if _quarry_peer() == 0 and "stamina" in _player:
-			_player.set("stamina", 0.0)
-			_player.set("_stamina_locked", true)
-	elif _limping and "held_speed_mult" in _player:
-		_player.set("held_speed_mult", 1.0)
-	_limping = on
 
 
 # ── hidden: the guests ───────────────────────────────────────────────────────
@@ -1560,14 +1538,11 @@ func _on_stop() -> void:
 	_relay(false)
 	if _target.has("key"):
 		_force_window(str(_target["key"]), "")
-	if _limping and _player != null and is_instance_valid(_player) and "held_speed_mult" in _player:
-		_player.set("held_speed_mult", 1.0)
-	_limping = false
 	_end_strike()
 	_clear_rings()
 
 
 func get_debug_snapshot() -> Dictionary:
 	return {"phase": _phase, "stage": _stage, "eaten": _eaten, "target": str(_target.get("key", "")), "mark": _mark,
-		"bulbs": bulbs.size(), "rings": rings.size(), "cut": _cut_ids.size(), "limp": _elapsed < _limp_until,
+		"bulbs": bulbs.size(), "rings": rings.size(), "cut": _cut_ids.size(),
 		"dist": snappedf(_distance_to_player(_body.global_position), 0.1) if _body != null else -1.0}

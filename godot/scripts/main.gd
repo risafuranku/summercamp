@@ -2787,11 +2787,8 @@ func _on_day_phase_started() -> void:
 		_night_jobs.on_dawn()
 	if _player != null and _player.has_method("recharge_flashlight"):
 		_player.recharge_flashlight()
-	# A night survived: you slept it off (or didn't sleep at all). Wounds mend by morning.
-	if _player_health < PLAYER_MAX_HEALTH and not _game_over_active:
-		_set_player_health(PLAYER_MAX_HEALTH, false)
-		if _hud_manager != null:
-			_hud_manager.push_status("Morning. You patched yourself up with Vera's first-aid box.", 1)
+	# (Wounds do not mend by the morning any more: they mend slowly through the day
+	# (_tick_day_regen), or with a first-aid box. The user 4. 11.)
 	var removed_scene_enemies = _despawn_all_runtime_enemies()
 	var removed_virtual = _liminal_virtual_enemy_count
 	_liminal_virtual_enemy_count = 0

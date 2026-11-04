@@ -152,8 +152,8 @@ func hit(amount: int, tier: int, fatal: bool) -> void:
 	tier = clampi(tier, 0, 4)
 	_flash = maxf(_flash, float(FLASH[tier]))
 	_flash_fall = float(FLASH_FALL[tier])
-	for i in int(SPLAT_N[tier]):
-		_add_splat(tier)
+	# (No round splats on the lens: a hard hit laid a red pancake over the screen. The
+	# blood running down from your head tells it: the user 4. 11.)
 	_play(D + "hit_%d.mp3" % _rng.randi_range(1, 3), -2.0 + float(tier), _rng.randf_range(0.92, 1.05))
 	# The meat of it: flesh tearing, and on a hard one a bone and the gore hitting the lens.
 	if tier >= 1:
@@ -270,9 +270,6 @@ func _process(delta: float) -> void:
 		_mat.set_shader_parameter("dark", _dark)
 		_mat.set_shader_parameter("px_size", float(RETRO_RENDER.internal_scale(get_viewport().get_visible_rect().size.y)))
 		NIGHTMARE_FX.update_retro(get_viewport().get_visible_rect().size.y)
-	# Low: a drop of blood stays at the edge of the view.
-	if _hurt > 0.55 and _splats.size() < 1:
-		_add_splat(0)
 
 
 func _tick_splats(step: float) -> void:

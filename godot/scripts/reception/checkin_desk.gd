@@ -219,7 +219,8 @@ var _last_ok := Vector2(-1, -1)
 ## What the guest says, for the room to show (3D: no bubble in the picture).
 var on_say: Callable
 const RACK_3D := Vector2(0, 162)
-const H_3D := 384
+## (The rows from 384 are shown nowhere: the thing in hand goes there off the counter.)
+const H_3D := 512
 
 
 func _init() -> void:
@@ -717,9 +718,10 @@ func carrying() -> bool:
 
 
 ## Carried up off the counter (desk_room shows it there in the air): drawn in the rows of the
-## picture the counter does not show, whole, under the pointer's x.
+## picture nothing shows, whole, under the pointer's x. (Over the counter's rows a piece of
+## the tall slip stayed on the table under it: the user 4. 11.)
 var in_air := false
-const AIR_TOP := 4.0
+const AIR_TOP := 388.0
 
 
 ## Where the thing in hand is in this picture, for desk_room's picture of it in the air.

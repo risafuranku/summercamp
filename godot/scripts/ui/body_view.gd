@@ -137,6 +137,10 @@ func _showing() -> bool:
 		return false
 	if bool(player.get("seated")) or bool(player.get("_death_fall_active")):
 		return false
+	# Walked in by a door: on your knees into a tent the crawl's two hands came up beside the
+	# torch's (the user 4. 11.: "three hands").
+	if (player as CharacterBody3D).collision_mask == 0:
+		return false
 	var cam := player.get("_camera") as Camera3D
 	if cam == null or not cam.current:
 		return false

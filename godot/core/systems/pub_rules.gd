@@ -132,9 +132,10 @@ static func rounds(archetype: String) -> int:
 ##   returns [{id, member, round, drink, price, since, age}]
 static func tickets_for(visit: String, archetype: String, figures: int, arrive: int, served: Dictionary, now: int) -> Array:
 	var out: Array = []
-	# Their time is nearly up: they ask for the bill instead (bill_for).
-	if now >= arrive + stay(archetype) - BILL_LEAD:
-		return out
+	# Their time nearly up they order nothing new and ask for the bill (bill_for). What
+	# they have already asked for stands till it is poured or they give up on it: it went
+	# from under the tap and the bill came instead (the user 4. 11.).
+	var last_call := arrive + stay(archetype) - BILL_LEAD
 	for m in maxi(1, figures):
 		var since := arrive + ORDER_DELAY + m
 		for r in rounds(archetype):
@@ -142,7 +143,7 @@ static func tickets_for(visit: String, archetype: String, figures: int, arrive: 
 			if served.has(tid):
 				since = int((served[tid] as Dictionary).get("at", now)) + DRINK_MINUTES
 				continue
-			if now < since or now - since >= PATIENCE_GONE:
+			if now < since or now - since >= PATIENCE_GONE or since >= last_call:
 				break
 			var d := drink_for(visit, archetype, m, r)
 			out.append({"id": tid, "member": m, "round": r, "drink": d, "price": int(DRINKS[d]["price"]), "since": since, "age": now - since})
@@ -267,6 +268,9 @@ static func bill_for(visit: String, archetype: String, figures: int, arrive: int
 		return {}
 	var tab := tab_of(visit, served)
 	if int(tab["n"]) <= 0:
+		return {}
+	# Not with a drink still on order: first that.
+	if not tickets_for(visit, archetype, figures, arrive, served, now).is_empty():
 		return {}
 	var due := arrive + stay(archetype) - BILL_LEAD
 	if not more_rounds(visit, archetype, figures, arrive, served, now):

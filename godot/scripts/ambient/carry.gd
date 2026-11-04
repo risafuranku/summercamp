@@ -387,6 +387,9 @@ func _process(delta: float) -> void:
 	var px := x - size.x * 0.5
 	if bool(held.get("work", false)):
 		y = vp.y - bar - size.y * 0.72 * _up + size.y * 0.3 * (1.0 - _up)
+		# The sleeves go off the bottom of the screen: they stopped in the air over the bar,
+		# cut off (the user 4. 11.).
+		y = maxf(y, vp.y - size.y + 2.0)
 	_hand.texture = tex
 	_hand.size = size
 	_hand.material = mat

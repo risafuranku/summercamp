@@ -708,7 +708,8 @@ func _tick_door(delta: float) -> void:
 	if _door_portal == null:
 		return
 	# (Not while you come in through it: the eye is out in front of it, the view behind you.)
-	_door_portal.quad.visible = _door_open and not door_walking
+	# (Not while your eye is still on its far side, coming in: it filled the view, grey.)
+	_door_portal.quad.visible = _door_open and not door_walking and _tent_root.to_local(_interior_camera.global_position).z < 1.05
 	var im := get_parent()
 	var a = im.get("_active_tent_node") if im != null else null
 	var anchor := a as Node3D if a != null and is_instance_valid(a) and (a as Node3D).is_inside_tree() else null
