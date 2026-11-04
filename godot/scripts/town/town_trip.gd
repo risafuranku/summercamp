@@ -79,11 +79,6 @@ const LOJZA_LINES := [
 const LOJZA_NIGHT := "Closed. Go to bed."
 const MEMORIAL := "1914 - 1918, nine names. 1939 - 1945, four. Under them a newer brass plate, screwed on crooked: CERNE JEZERO 1994. No names. Somebody keeps it polished."
 const CHAPEL := "Locked. A card in the window: mass at nine on Sundays, the bell at noon and at six. Under it, in pencil: and at three in the morning, but that is not us."
-## How long a bus takes to come in to a stop and to go (game hours).
-const IN_HOURS := 0.22
-const OUT_HOURS := 0.3
-## The Lstibor bus stops in Liblice this long.
-const THROUGH_STAND := 0.08
 ## Out of the camp: this far from its middle (m) the night leaves you alone (the stop is
 ## ~200 m off, Pristoupim 2 km, Liblice 2.9 km: scripts/geo/).
 const AWAY_DIST := 420.0
@@ -99,14 +94,9 @@ var _town
 var _masts
 ## Pristoupim's stop and Vondra's farm (hamlet_trip.gd): its place, bus and the Skoda.
 var _hamlet
-var _camp_bus
-var _town_bus
 ## The works bus after midnight (one for the camp's road, one for Lesna's).
 var _works_camp
 var _works_town
-## A bus kept standing past its time (you are on it) or put on just for you (you got off
-## it): stop -> {"mode": "hold"|"drop", "t": seconds, "pose", "leave"}.
-var _special: Dictionary = {}
 var _boarding_stop := ""
 var _driver_line := 0
 var _lojza_line := 0
@@ -149,8 +139,44 @@ var debug_force_wake := ""
 var debug_quiet := false
 var _night := false
 var _night_poll := 0.0
-## Each stop's runs for the day (paths and poses), made once per road / town.
-var _runs: Dictionary = {}
+## Line 380 (bus_line.gd, the user 4. 11., V14: one real bus in the one world, no ride in
+## a bus of its own off the map): one bus a round where the clock puts it, the whole of
+## its way; the ones near you (or carrying anybody) drawn, the spare ones built with the
+## land (none is built on the road: no hitch as one comes round the bend).
+const BUS_LINE = preload("res://scripts/town/bus_line.gd")
+var line = BUS_LINE.new()
+var _line_buses: Dictionary = {}
+var _spare_buses: Array = []
+var _spares_for := 0
+## Each drawn round's stop last frame ("" going): to hear it pull in and away.
+var _line_was: Dictionary = {}
+## The round you ride: its key, day and round, the line's stop you got on at.
+var _ride_key := ""
+var _ride_day := 0
+var _ride_round: Dictionary = {}
+var _ride_from := ""
+## The other wardens on a round's bus seen from outside it: peer id -> figure.
+var _rider_figs: Dictionary = {}
+var _rider_poses: Dictionary = {}
+## A round's bus is drawn this near you (m), or whenever somebody rides it.
+const LINE_SEE_M := 1300.0
+## Who it waits for: somebody this near its door (m) and coming at it (m/s), at most this
+## much longer (game hours; for somebody on board not yet sat, as long as it takes).
+## Standing about by it (or just off it) keeps nobody.
+const HURRY_M := 40.0
+const HURRY_SPEED := 0.9
+const HURRY_MAX := 0.4
+## How far each warden was from each standing bus's door, and when (to tell coming at it).
+var _door_dist: Dictionary = {}
+## How near the spot by Pristoupim's pole (where its door stops) somebody waits for it to
+## pull in (m): the poles stand on either side of the road, a round stops only for its own.
+const POLE_WAIT_M := 8.0
+## The stops' names on the buses' meta and the timetables, and the line's.
+const UI_OF := {"camp": "camp", "l_down": "town", "l_up": "town_through", "p_up": "hamlet_town", "p_down": "hamlet_camp"}
+const LINE_OF := {"camp": "camp", "town": "l_down", "town_through": "l_up", "hamlet_town": "p_up", "hamlet_camp": "p_down"}
+## Where a ride from each stop gets you off: Liblice from the camp side, the camp from
+## Liblice's.
+const RIDE_TO := {"camp": "l_up", "l_down": "camp", "p_up": "l_up", "p_down": "camp"}
 
 
 func setup(interior_manager: Node) -> void:
@@ -232,7 +258,9 @@ func away() -> bool:
 	var p := _player()
 	if p == null:
 		return false
-	return Vector2(p.global_position.x, p.global_position.z).length() > AWAY_DIST
+	# On the bus you are where the bus is.
+	var at: Vector3 = _ride_bus.global_position if _riding_now() else p.global_position
+	return Vector2(at.x, at.z).length() > AWAY_DIST
 
 
 # ── clicking things out there ────────────────────────────────────────────────
@@ -937,7 +965,7 @@ func _process(delta: float) -> void:
 		_geo.update(eye)
 		# The village, the farm and the request stop come when you get near, or when
 		# Builder's 3D view goes to look at them.
-		var near_eye := me.global_position if _builder_eye() == Vector3.INF else eye
+		var near_eye := me.global_position if _builder_eye() == Vector3.INF and not _riding_now() else eye
 		if _town == null and near_eye.distance_to(TOWN.ORIGIN) < TOWN_NEAR:
 			_ensure_town()
 		if near_eye.distance_to(HAMLET_PLACE.HAMLET_ORIGIN) < HAMLET_NEAR or near_eye.distance_to(HAMLET_PLACE.STOP_ORIGIN) < HAMLET_NEAR:
@@ -947,15 +975,6 @@ func _process(delta: float) -> void:
 		var eye := _player()
 		if eye != null:
 			_masts.update_view(_eye_for_geo(eye) + Vector3(0, 1.6, 0))
-	if _camp_bus == null or not is_instance_valid(_camp_bus):
-		# A new game builds a new road (and the old bus went with the old one).
-		_runs.erase("camp")
-		_special.erase("camp")
-		_camp_bus = BUS_MODEL.new()
-		_camp_bus.name = "Bus380Camp"
-		road.add_child(_camp_bus)
-		_camp_bus.set_stop("camp")
-		_camp_bus.set_running(false)
 	var h := hour()
 	_night_poll -= delta
 	if _night_poll <= 0.0:
@@ -975,15 +994,10 @@ func _process(delta: float) -> void:
 			_town.set_night(_night)
 			_town.set_hour(h)
 			_update_motel(h)
-	_coop_hold("camp", _camp_bus)
-	_coop_hold_hamlet()
-	_run_stop("camp", _camp_bus, delta, h)
-	_update_mate_bus(delta)
+	_run_line()
 	_hamlet.update(h, delta)
 	_run_works(h, delta)
 	if _town != null:
-		_coop_hold("town", _town_bus)
-		_run_stop("town", _town_bus, delta, h)
 		_town.spots["people"].update(h, delta)
 		_town.spots["station_cars"].traffic = _open("kiosk")
 	_watch_job(h)
@@ -1292,54 +1306,6 @@ func _update_sleep(delta: float) -> void:
 
 
 ## What the bus at `stop` does at hour `h`: where it is, its door, its speed.
-func _run_stop(stop: String, bus: Node3D, delta: float, h: float) -> void:
-	var sp: Dictionary = _special.get(stop, {})
-	if not sp.is_empty():
-		_run_special(stop, bus, sp, delta)
-		return
-	if _coop_gone.has(stop):
-		if h < float(_coop_gone[stop]) and h > float(_coop_gone[stop]) - 3.0:
-			bus.set_running(false)
-			return
-		_coop_gone.erase(stop)
-	var plan := _plan(stop, h)
-	if plan.is_empty():
-		if bus.visible:
-			bus.set_running(false)
-			bus.open_door(false)
-		return
-	var path: PackedVector3Array = plan["path"]
-	var k: float = plan["k"]
-	var arriving: bool = plan["mode"] == "in"
-	var standing: bool = plan["mode"] == "stand"
-	if not bus.visible:
-		bus.set_running(true)
-		bus.destination = plan["dest"]
-		bus.set_stop(plan["stop_id"])
-		if arriving:
-			bus.play("res://assets/sfx/bus/arrive.mp3", -10.0)
-	elif str(bus.destination) != str(plan["dest"]):
-		# The clock put on (a save loaded): the run it is now, the hands' or the line's.
-		bus.destination = plan["dest"]
-	# The driver smokes outside while it stands at the end of the line (the camp) or in
-	# Lesna before going up to the camp.
-	bus.set_driver_out(standing and plan["stop_id"] != "town_through")
-	if standing:
-		bus.global_transform = plan["pose"]
-		bus.set_speed(0.0)
-		bus.open_door(true)
-		return
-	# In: slowing to the stop; out: picking up speed.
-	var e := 1.0 - (1.0 - k) * (1.0 - k) if arriving else k * k
-	var was: Vector3 = bus.global_position
-	_place_on(bus, path, e)
-	bus.set_speed(was.distance_to(bus.global_position) / maxf(delta, 0.001))
-	if not arriving:
-		if bus.is_door_open():
-			bus.open_door(false)
-			bus.play("res://assets/sfx/bus/depart.mp3", -5.0)
-
-
 ## The works bus (the timetable's "+"): lit inside, SLUZEBNI on its board, past the camp
 ## stop a little after midnight without slowing, on up the road towards the camp and
 ## round the bend, and through Lesna at 23:46 towards the dam. It stops for nobody.
@@ -1383,87 +1349,6 @@ func _pass(bus: Node3D, path: PackedVector3Array, k: float, delta: float) -> voi
 	bus.set_speed(was.distance_to(bus.global_position) / maxf(delta, 0.001))
 
 
-## {} or {mode: "in"|"stand"|"out", k (0..1 along the path), path, pose, dest, stop_id}.
-func _plan(stop: String, h: float) -> Dictionary:
-	if not _runs.has(stop):
-		_runs[stop] = _make_runs(stop)
-	for r in _runs[stop]:
-		var a: float = r["arrive"]
-		var l: float = r["leave"]
-		if h >= a - IN_HOURS and h < a:
-			var o: Dictionary = r.duplicate()
-			o["mode"] = "in"
-			o["k"] = (h - (a - IN_HOURS)) / IN_HOURS
-			o["path"] = r["in"]
-			return o
-		if h >= a and h < l:
-			var o2: Dictionary = r.duplicate()
-			o2["mode"] = "stand"
-			o2["k"] = 0.0
-			o2["path"] = r["in"]
-			return o2
-		if h >= l and h < l + OUT_HOURS:
-			var o3: Dictionary = r.duplicate()
-			o3["mode"] = "out"
-			o3["k"] = (h - l) / OUT_HOURS
-			o3["path"] = r["out"]
-			return o3
-	return {}
-
-
-func _make_runs(stop: String) -> Array:
-	var runs: Array = []
-	if stop == "camp":
-		var road := _road()
-		for i in TIMES.CAMP_ARRIVE.size():
-			runs.append({"arrive": TIMES.CAMP_ARRIVE[i], "leave": TIMES.CAMP_LEAVE[i], "in": road.bus_arrive_path(), "out": road.bus_leave_path(), "pose": road.bus_stop_pose(), "dest": "LIBLICE", "stop_id": "camp"})
-		# The hands' works runs (bus_timetable.STAFF_ARRIVE).
-		for i in TIMES.STAFF_ARRIVE.size():
-			runs.append({"arrive": TIMES.STAFF_ARRIVE[i], "leave": TIMES.STAFF_LEAVE[i], "in": road.bus_arrive_path(), "out": road.bus_leave_path(), "pose": road.bus_stop_pose(), "dest": "SLUZEBNI", "stop_id": "camp"})
-	else:
-		for i in TIMES.TOWN_ARRIVE.size():
-			runs.append({"arrive": TIMES.TOWN_ARRIVE[i], "leave": TIMES.TOWN_LEAVE[i], "in": _town.bus_arrive_path("to_camp"), "out": _town.bus_leave_path("to_camp"), "pose": _town.bus_pose("to_camp"), "dest": "KEMP", "stop_id": "town"})
-		for t in TIMES.TOWN_THROUGH:
-			runs.append({"arrive": t, "leave": float(t) + THROUGH_STAND, "in": _town.bus_arrive_path("to_hlub"), "out": _town.bus_leave_path("to_hlub"), "pose": _town.bus_pose("to_hlub"), "dest": "LSTIBOR", "stop_id": "town_through"})
-	return runs
-
-
-## A bus held at the stop for you, or let off for you: by real seconds, not the clock.
-func _run_special(stop: String, bus: Node3D, sp: Dictionary, delta: float) -> void:
-	sp["t"] = float(sp.get("t", 0.0)) + delta
-	bus.set_driver_out(false)
-	if not bus.visible:
-		bus.set_running(true)
-		bus.destination = str(sp.get("dest", "LIBLICE"))
-		bus.set_stop(str(sp.get("stop_id", stop)))
-	match str(sp["mode"]):
-		"ride":
-			bus.set_running(false)
-			return
-		"hold":
-			bus.global_transform = sp["pose"]
-			bus.set_speed(0.0)
-			bus.open_door(true)
-		"drop":
-			# You have just got off: it stands a moment, then goes.
-			var t := float(sp["t"])
-			if t < 2.6:
-				bus.global_transform = sp["pose"]
-				bus.set_speed(0.0)
-				bus.open_door(true)
-			else:
-				var k := clampf((t - 2.6) / 9.0, 0.0, 1.0)
-				if bus.is_door_open():
-					bus.open_door(false)
-					bus.play("res://assets/sfx/bus/depart.mp3", -5.0)
-				var was: Vector3 = bus.global_position
-				_place_on(bus, sp["leave"], k * k)
-				bus.set_speed(was.distance_to(bus.global_position) / maxf(delta, 0.001))
-				if k >= 1.0:
-					_special.erase(stop)
-					bus.set_running(false)
-
-
 ## Puts the bus at fraction `e` of the way along `path`, facing along it.
 func _place_on(bus: Node3D, path: PackedVector3Array, e: float) -> void:
 	var total := 0.0
@@ -1482,116 +1367,322 @@ func _place_on(bus: Node3D, path: PackedVector3Array, e: float) -> void:
 		want -= seg
 
 
-# ── co-op: one bus for two wardens ───────────────────────────────────────────
+# ── line 380: the rounds on the road ─────────────────────────────────────────
 
-## Another warden on the bus at `stop_id` (not yet gone): it stands for them here too.
-## When it goes with them and not you, it goes from here as well.
-func _coop_hold(stop_id: String, bus: Node3D) -> void:
-	if bus == null or not Coop.has_partner():
+## Game hours since the first day began (the line's clock).
+func abs_hour() -> float:
+	return float(CoreRoot.get_day()) * 24.0 + hour()
+
+
+## Puts every round near you where the clock has it: on the road, standing at a stop
+## with its door open (clickable), the driver out for a smoke at the end of the line; the
+## one you ride carries your cabin. Who the rounds wait and pull in for (_line_keep).
+func _run_line() -> void:
+	var road := _road()
+	if road == null or not line.build(road):
 		return
-	var theirs := false
-	var aboard := false
-	for id in Coop.others():
-		var mate = Coop.state_of(id).get("bus", {})
-		var m: Dictionary = mate if mate is Dictionary else {}
-		if not m.is_empty() and str(m.get("st", "")) == stop_id:
-			theirs = true
-			aboard = aboard or not bool(m.get("go", false))
-	var mine: bool = _ride != null and _ride.is_open() and _boarding_stop == stop_id
-	var sp: Dictionary = _special.get(stop_id, {})
-	if aboard and sp.is_empty() and bus.visible and bus.is_door_open():
-		_special[stop_id] = {"mode": "hold", "t": 0.0, "pose": bus.global_transform, "dest": bus.destination, "stop_id": stop_id, "coop": true}
-	elif not aboard and bool(sp.get("coop", false)) and not mine:
-		if theirs:
-			# Gone with them: it pulls away from the stop, and that run is over here too.
-			var out: PackedVector3Array = _road().bus_leave_path() if stop_id == "camp" else _town.bus_leave_path("to_camp")
-			var run := _plan(stop_id, hour())
-			_coop_gone[stop_id] = float(run.get("leave", hour())) + OUT_HOURS
-			_special[stop_id] = {"mode": "drop", "t": 2.6, "pose": sp["pose"], "leave": out, "dest": sp["dest"], "stop_id": stop_id, "mate": true}
-		else:
-			_special.erase(stop_id)
+	_prewarm_buses()
+	_take_host_line()
+	var at := abs_hour()
+	var eye := _eye_for_geo(_player()) if _player() != null else Vector3.ZERO
+	var entries: Array = line.on_road(at)
+	var seen := {}
+	for e in entries:
+		var st: Dictionary = e["st"]
+		var key := str(st["key"])
+		var xf: Transform3D = line.pose_at(float(st["s"]))
+		var mine := key == _ride_key and _ride_bus != null
+		if not mine and not _anyone_on(key) and xf.origin.distance_to(eye) > LINE_SEE_M:
+			continue
+		seen[key] = true
+		var bus = _line_bus(key)
+		_show_round(bus, key, e, xf)
+		if mine and _ride != null and _ride.is_open():
+			_ride.feed_line(_line_feed(st))
+	for key in _line_buses.keys():
+		if not seen.has(key):
+			_park_bus(str(key))
+	# The round you were on is off the road (the clock jumped): off where you are going.
+	if _ride_key != "" and _ride != null and _ride.is_open() and not seen.has(_ride_key):
+		_ride._shut()
+		_on_ride_arrived()
+	_line_keep(entries, at)
+	_update_rider_figs()
+	line.forget_before(int(floor(at / 24.0)))
 
 
-## Co-op: another warden aboard at Pristoupim's pole and not gone: the bus there stands for
-## them here too; gone with them (and not you), it pulls away.
-var _hamlet_mate_hold := ""
+func _line_feed(st: Dictionary) -> Dictionary:
+	var out := st.duplicate()
+	out["to_s"] = float(line.stop_at.get(str(st.get("to", "")), -1.0))
+	return out
 
 
-func _coop_hold_hamlet() -> void:
-	if _hamlet == null or not Coop.has_partner() or not _hamlet.is_built():
+## Spare buses built with the land, so none is built where it is seen.
+func _prewarm_buses() -> void:
+	if _geo == null or not is_instance_valid(_geo) or _spares_for == _geo.get_instance_id():
 		return
-	var aboard := ""
-	var gone := ""
+	_spares_for = _geo.get_instance_id()
+	_line_buses.clear()
+	_spare_buses.clear()
+	_line_was.clear()
+	for i in 3:
+		_spare_buses.append(_new_bus())
+
+
+func _new_bus() -> Node3D:
+	var bus = BUS_MODEL.new()
+	bus.name = "Bus380"
+	(_geo if _geo != null and is_instance_valid(_geo) else self).add_child(bus)
+	bus.set_running(false)
+	return bus
+
+
+func _line_bus(key: String) -> Node3D:
+	var bus = _line_buses.get(key)
+	if bus != null and is_instance_valid(bus):
+		return bus
+	while not _spare_buses.is_empty() and (bus == null or not is_instance_valid(bus)):
+		bus = _spare_buses.pop_back()
+	if bus == null or not is_instance_valid(bus):
+		bus = _new_bus()
+	_line_buses[key] = bus
+	_line_was.erase(key)
+	return bus
+
+
+func _park_bus(key: String) -> void:
+	var bus = _line_buses.get(key)
+	_line_buses.erase(key)
+	_line_was.erase(key)
+	if bus != null and is_instance_valid(bus):
+		bus.set_running(false)
+		bus.open_door(false, true)
+		bus.set_driver_out(false)
+		bus.set_inside_visible(true)
+		_spare_buses.append(bus)
+
+
+## The bus standing at a stop now (the timetables' name for it: "camp", "town"...), or null.
+func bus_at(ui_stop: String) -> Node3D:
+	var e := _round_at(str(LINE_OF.get(ui_stop, ui_stop)))
+	return _line_buses.get(str(e["st"]["key"])) if not e.is_empty() else null
+
+
+func _round_at(stop: String) -> Dictionary:
+	for e in line.on_road(abs_hour()):
+		if str((e["st"] as Dictionary).get("stand", "")) == stop:
+			return e
+	return {}
+
+
+func _show_round(bus: Node3D, key: String, e: Dictionary, xf: Transform3D) -> void:
+	var st: Dictionary = e["st"]
+	var r: Dictionary = e["r"]
+	var stand := str(st.get("stand", ""))
+	var was := str(_line_was.get(key, "?"))
+	if not bus.visible:
+		bus.set_running(true)
+		bus.set_night(_bus_lights(hour()))
+	bus.set_inside_visible(key != _ride_key)
+	var board := "SLUZEBNI" if bool(r.get("staff", false)) else _board_text(float(st["s"]), stand)
+	if str(bus.destination) != board:
+		bus.destination = board
+	bus.global_transform = xf
+	bus.set_speed(float(st.get("v", 0.0)))
+	if stand != "":
+		bus.set_stop(str(UI_OF.get(stand, stand)))
+		# The doors open once it stands, shut a moment before it goes.
+		bus.open_door(float(st.get("since", 0.0)) > 0.4 / 60.0 and float(st.get("left", 0.0)) > 1.5 / 60.0)
+		# The driver smokes at the end of the line while there is time for it.
+		bus.set_driver_out(stand == "camp" and key != _ride_key and float(st.get("since", 0.0)) > 3.0 / 60.0 and float(st.get("left", 0.0)) > 5.0 / 60.0)
+		if was == "":
+			bus.play("res://assets/sfx/bus/arrive.mp3", -10.0)
+	else:
+		bus.set_driver_out(false)
+		bus.open_door(false, true)
+		if was != "" and was != "?":
+			bus.play("res://assets/sfx/bus/depart.mp3", -5.0)
+	_line_was[key] = stand
+
+
+## The destination board: coming down KEMP, at the camp and up to Liblice LIBLICE, on
+## from there LSTIBOR.
+func _board_text(s: float, stand: String) -> String:
+	if stand == "camp" or (s > float(line.stop_at["camp"]) and s < float(line.stop_at["l_up"])):
+		return GEO.TOWN.to_upper()
+	if s >= float(line.stop_at["l_up"]):
+		return "LSTIBOR"
+	return "KEMP"
+
+
+## Anybody (another warden) on that round's bus.
+func _anyone_on(key: String) -> bool:
 	for id in Coop.others():
 		var b = Coop.state_of(id).get("bus", {})
-		var m: Dictionary = b if b is Dictionary else {}
-		var st := str(m.get("st", ""))
-		if st.begins_with("hamlet"):
-			if bool(m.get("go", false)):
-				gone = st
-			else:
-				aboard = st
-	var mine: bool = _ride != null and _ride.is_open() and _boarding_stop.begins_with("hamlet")
-	if aboard != "" and not mine:
-		_hamlet.hold(aboard)
-		_hamlet_mate_hold = aboard
-	elif _hamlet_mate_hold != "" and not mine:
-		_hamlet.release()
-		if gone != "":
-			_hamlet.drop(gone == "hamlet_town")
-		_hamlet_mate_hold = ""
+		if b is Dictionary and str((b as Dictionary).get("rk", "")) == key:
+			return true
+	return false
 
 
-## Co-op: the other warden's bus on the road, where their ride says it is (15 times a
-## second, eased between). It takes over from the stop's bus pulling away with them; not
-## while you ride (you are on it, or on your own).
-func _update_mate_bus(delta: float) -> void:
-	var want: Dictionary = {}
-	if Coop.has_partner() and not _riding_now():
+## Who the rounds wait and pull in for: you (or the other warden) on board and not yet
+## sat down, or getting off; somebody hurrying for a bus standing at a stop (a while);
+## somebody waiting by Pristoupim's pole as a round comes up to it. The host decides for
+## everybody in co-op (its rounds go to the other machine: coop_line), the other machine
+## for itself till the host's word comes back (_take_host_line).
+func _line_keep(entries: Array, at: float) -> void:
+	var wardens: Array = []
+	var me := _player()
+	var now := Time.get_ticks_msec()
+	if me != null:
+		var mine: Dictionary = _ride.coop_state() if _ride != null and _ride.is_open() else {}
+		wardens.append({"id": 0, "p": me.global_position, "in": _ride != null and _ride.is_open(), "bus": mine})
+	if not Coop.is_client():
 		for id in Coop.others():
-			var b = Coop.state_of(id).get("bus", {})
-			if b is Dictionary and (b as Dictionary).has("bt"):
-				want = b
-				break
-	if want.is_empty() and not debug_mate.is_empty():
-		want = debug_mate
-	if want.is_empty():
-		if _mate_bus != null and is_instance_valid(_mate_bus) and _mate_bus.visible:
-			_mate_bus.set_running(false)
+			var st: Dictionary = Coop.state_of(id)
+			var b = st.get("bus", {})
+			wardens.append({"id": int(id), "p": st.get("p", Vector3.INF), "in": bool(st.get("in", false)), "bus": b if b is Dictionary else {}})
+	for e in entries:
+		var st2: Dictionary = e["st"]
+		var key := str(st2["key"])
+		var day := int(e["day"])
+		var r: Dictionary = e["r"]
+		var stand := str(st2.get("stand", ""))
+		if stand != "":
+			if float(st2.get("left", 1.0)) > 3.0 / 60.0:
+				continue
+			var keep := false
+			var hurry := false
+			var door: Vector3 = (_door_out(line.pose_at(float(st2["s"])))).origin
+			for w in wardens:
+				var b2: Dictionary = w["bus"]
+				if str(b2.get("rk", "")) == key and (int(b2.get("s", -1)) < 0 or str(b2.get("off", "")) != ""):
+					keep = true
+				var p: Vector3 = w["p"]
+				if b2.is_empty() and not bool(w["in"]) and p != Vector3.INF:
+					var dk := "%d|%s" % [int(w["id"]), key]
+					var dist := Vector2(p.x - door.x, p.z - door.z).length()
+					var prev: Array = _door_dist.get(dk, [dist, now])
+					_door_dist[dk] = [dist, now]
+					var secs := float(now - int(prev[1])) / 1000.0
+					if dist < HURRY_M and secs > 0.0 and secs < 1.0 and (float(prev[0]) - dist) / secs > HURRY_SPEED:
+						hurry = true
+			var held: float = float((line.live.get(key, {}) as Dictionary).get("h", {}).get(stand, 0.0))
+			if keep or (hurry and held < HURRY_MAX):
+				line.hold(day, r, stand, at)
+			continue
+		# Coming up to Pristoupim: somebody waiting by its pole, or asked for on board.
+		var to := str(st2.get("to", ""))
+		for pole in ["p_up", "p_down"]:
+			var ahead := float(line.stop_at[pole]) - float(st2["s"])
+			if ahead < 0.0 or ahead > 900.0 or line.serves(day, r, pole):
+				continue
+			var pole_at: Vector3 = _door_out(line.pose_at(float(line.stop_at[pole]))).origin
+			for w in wardens:
+				var b3: Dictionary = w["bus"]
+				if str(b3.get("rk", "")) == key and str(b3.get("rq", "")) == pole:
+					line.request(day, r, pole, "mate", at)
+					break
+				var p2: Vector3 = w["p"]
+				if b3.is_empty() and not bool(w["in"]) and p2 != Vector3.INF and Vector2(p2.x - pole_at.x, p2.z - pole_at.z).length() < POLE_WAIT_M:
+					line.request(day, r, pole, "wait", at)
+					break
+		if to == "":
+			pass
+
+
+## The ride asks the round you are on to pull in at Pristoupim (bus_ride._line_ask).
+func line_ask(pole: String, who: String) -> String:
+	if _ride_key == "":
+		return "past"
+	return line.request(_ride_day, _ride_round, pole, who, abs_hour())
+
+
+## Co-op: the host's rounds (what they wait and pull in for), for the other machine.
+func coop_line() -> Dictionary:
+	if not Coop.has_partner() or Coop.is_client():
+		return {}
+	return line.live
+
+
+## The other machine: the host's rounds, with what this one asked for itself and the
+## host has not taken in yet (it only ever adds: longer waits, more stops).
+func _take_host_line() -> void:
+	if not Coop.is_client():
 		return
-	if _mate_bus == null or not is_instance_valid(_mate_bus):
-		_mate_bus = BUS_MODEL.new()
-		_mate_bus.name = "Bus380Mate"
-		(_geo if _geo != null and is_instance_valid(_geo) else self).add_child(_mate_bus)
-		_mate_bus.set_running(false)
-	var t: Array = want["bt"]
-	var target := Transform3D(Basis(Vector3.UP, float(t[3])), Vector3(float(t[0]), float(t[1]), float(t[2])))
-	if not _mate_bus.visible:
-		_mate_bus.set_running(true)
-		_mate_bus.global_transform = target
-		_mate_bus.destination = str(want.get("d", GEO.TOWN.to_upper()))
-		_mate_bus.set_night(_bus_lights(hour()))
-		_mate_bus_night = _night
-		# The stop's bus that pulled away with them: this one is it now.
-		var st := str(want.get("st", ""))
-		var sp: Dictionary = _special.get(st, {})
-		if bool(sp.get("mate", false)):
-			_special.erase(st)
-			var stop_bus = _camp_bus if st == "camp" else (_town_bus if st == "town" else null)
-			if stop_bus != null and is_instance_valid(stop_bus):
-				stop_bus.set_running(false)
-	else:
-		var k := clampf(delta * 10.0, 0.0, 1.0)
-		var cur: Transform3D = _mate_bus.global_transform
-		_mate_bus.global_transform = Transform3D(cur.basis.orthonormalized().slerp(target.basis, k), cur.origin.lerp(target.origin, k))
-	_mate_bus.set_speed(float(want.get("v", 0.0)))
-	if _mate_bus_night != _night:
-		_mate_bus_night = _night
-		_mate_bus.set_night(_bus_lights(hour()))
+	for id in Coop.others():
+		var ln = Coop.state_of(id).get("ln", null)
+		if not (ln is Dictionary):
+			continue
+		var merged: Dictionary = (ln as Dictionary).duplicate(true)
+		for k in line.live.keys():
+			var mine: Dictionary = line.live[k]
+			var theirs: Dictionary = merged.get(k, {})
+			for pole in ["p_up", "p_down"]:
+				if str(mine.get(pole, "")) != "" and str(theirs.get(pole, "")) == "":
+					theirs[pole] = mine[pole]
+			var hm: Dictionary = (theirs.get("h", {}) as Dictionary).duplicate()
+			var mh: Dictionary = mine.get("h", {})
+			for stp in mh.keys():
+				hm[stp] = maxf(float(hm.get(stp, 0.0)), float(mh[stp]))
+			theirs["h"] = hm
+			merged[k] = theirs
+		line.take_live(merged)
+		return
 
 
-## Runs that went early with the other warden: no bus at that stop till their time is up.
-var _coop_gone: Dictionary = {}
+## The other wardens on a round's bus, seen from outside it: in their seat (or standing
+## by the driver while they get their ticket) behind the windows.
+func _update_rider_figs() -> void:
+	var want := {}
+	for id in Coop.others():
+		var b = Coop.state_of(id).get("bus", {})
+		if not (b is Dictionary) or str((b as Dictionary).get("rk", "")) == "":
+			continue
+		var key := str(b["rk"])
+		# (On it with them, your cabin shows them.)
+		if key == _ride_key and _ride != null and _ride.is_open():
+			continue
+		var bus = _line_buses.get(key)
+		if bus == null or not is_instance_valid(bus) or not bus.visible:
+			continue
+		want[int(id)] = [bus, b]
+	for id in _rider_figs.keys():
+		if not want.has(id) and is_instance_valid(_rider_figs[id]):
+			(_rider_figs[id] as Node3D).visible = false
+	for id in want.keys():
+		var bus: Node3D = want[id][0]
+		var b: Dictionary = want[id][1]
+		var fig: Sprite3D = _rider_figs.get(id)
+		if fig == null or not is_instance_valid(fig):
+			fig = Sprite3D.new()
+			fig.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+			fig.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+			fig.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+			fig.shaded = true
+			_rider_figs[id] = fig
+			_rider_poses[id] = ""
+		if fig.get_parent() != bus:
+			if fig.get_parent() != null:
+				fig.get_parent().remove_child(fig)
+			bus.add_child(fig)
+		var seat := int(b.get("s", -1))
+		var pose := "sit" if seat >= 0 and seat < BUS_RIDE.SEATS.size() else "stand"
+		var look: Dictionary = Coop.look_of(id)
+		var pk := "%s|%d|%d" % [pose, int(look.get("m", 1)), int(look.get("c", 0))]
+		if pk != str(_rider_poses.get(id, "")):
+			_rider_poses[id] = pk
+			fig.texture = BUS_RIDE.LOOKS.texture(int(look.get("m", 1)), int(look.get("c", 0)), pose)
+		var h := float(fig.texture.get_height()) if fig.texture != null else 96.0
+		if pose == "sit":
+			var sv: Vector2 = BUS_RIDE.SEATS[seat]
+			fig.pixel_size = BUS_RIDE.SIT_TALL / h
+			fig.offset = Vector2(0.0, h * 0.5)
+			fig.position = Vector3(sv.x, BUS_MODEL.FLOOR_Y + BUS_RIDE.SEAT_TOP - BUS_RIDE.SIT_LINE * BUS_RIDE.SIT_TALL, sv.y - BUS_RIDE.SIT_FORWARD)
+		else:
+			fig.pixel_size = 1.62 / h
+			fig.offset = Vector2(0.0, h * 0.5)
+			fig.position = Vector3(0.25, BUS_MODEL.FLOOR_Y, -3.5)
+		fig.visible = true
 
 
 ## Co-op: where you are on a bus, for the other machine.
@@ -1623,22 +1714,26 @@ func coop_place() -> String:
 func _board(stop_id: String) -> void:
 	if stop_id == "town_through":
 		_say("Driver: \"Lstibor. Yours is the other side, to the camp.\"")
-		_driver_voice("d_lstibor", _town_bus)
+		_driver_voice("d_lstibor", bus_at("town_through"))
 		return
-	var at_hamlet := stop_id.begins_with("hamlet")
-	var bus = _hamlet.bus_for(stop_id) if at_hamlet else (_camp_bus if stop_id == "camp" else _town_bus)
-	if bus == null or not bus.is_door_open():
+	var at_stop := str(LINE_OF.get(stop_id, ""))
+	var e := _round_at(at_stop)
+	if e.is_empty():
 		return
+	var key := str(e["st"]["key"])
+	var bus = _line_buses.get(key)
+	if bus == null or not is_instance_valid(bus) or not bus.is_door_open():
+		return
+	var r: Dictionary = e["r"]
 	# The hands' works run takes nobody but them.
-	if str(bus.destination) == "SLUZEBNI":
+	if bool(r.get("staff", false)):
 		_say(tr("Driver: \"Staff only. Yours is the 380.\""))
 		return
 	_boarding_stop = stop_id
-	# The bus waits while you are on it.
-	if at_hamlet:
-		_hamlet.hold(stop_id)
-	else:
-		_special[stop_id] = {"mode": "hold", "t": 0.0, "pose": bus.global_transform, "dest": bus.destination, "stop_id": stop_id}
+	_ride_key = key
+	_ride_day = int(e["day"])
+	_ride_round = r
+	_ride_from = at_stop
 	if _ride == null:
 		_ride = BUS_RIDE.new()
 		add_child(_ride)
@@ -1647,9 +1742,26 @@ func _board(stop_id: String) -> void:
 	_ride.worldgen = _worldgen()
 	_ride.stop_pos = bus.global_position
 	_ride.bought_to = _bought_to
-	_ride_road(stop_id, bus)
+	# The round's own bus carries the cabin (bus_line.gd): it goes when its time comes.
+	_ride.line_mode = true
+	_ride.line_to = str(RIDE_TO.get(at_stop, "l_up"))
+	_ride.run_key = key
+	_ride.line_request = line_ask
+	_ride.line_why = func(pole: String) -> String: return line.why(_ride_day, _ride_round, pole)
+	_ride.path = line.pts
+	_ride.path_limits = line.lim
+	_ride.path_hamlet = float(line.stop_at.get("p_up" if _ride.line_to == "l_up" else "p_down", -1.0))
+	_ride.ride_bus = bus
+	_ride_bus = bus
+	bus.set_inside_visible(false)
+	bus.set_driver_out(false)
+	_ride.feed_line(_line_feed(e["st"]))
 	if _im != null and _im.has_method("_door_transition"):
 		_im._door_transition(true)
+	# What it goes past and to is built now, under the step in (not with a jolt on the way).
+	_hamlet.ensure()
+	if _ride.line_to == "l_up":
+		_ensure_town()
 	_set_player_controls(false)
 	var ws = _main().get("weather_system") if _main() != null else null
 	var fog := 1.0 if ws != null and int(ws.get("current_weather")) == 2 else 0.0
@@ -1657,121 +1769,25 @@ func _board(stop_id: String) -> void:
 	_ride.open_ride(stop_id, hour(), fog, rain)
 
 
-## The road this ride takes (scripts/geo/): from the bus where it stands to where you
-## will get off, in its lane, the speed the road allows at each point; the ride bus
-## put where the stop's bus stood, which steps out of the way.
-const RIDE_SPEED := {"road12": 24.0, "village": 13.5, "open": 19.0, "camp": 10.0}
-
-
-func _ride_road(stop_id: String, bus: Node3D) -> void:
-	var road := _road()
-	var s_p := GEO.stop_s("pristoupim")
-	var s_l := GEO.stop_s("liblice")
-	var pts := PackedVector3Array()
-	var lim := PackedFloat32Array()
-	var hamlet_at := Vector3.INF
-	match stop_id:
-		"camp":
-			_append(pts, lim, road.bus_leave_path(), -1.0)
-			_append_line(pts, lim, 60.0, s_l + 4.0)
-			hamlet_at = GEO.at(s_p + 5.0, 1.6)["p"]
-		"hamlet_town":
-			_append_line(pts, lim, s_p + 5.0, s_l + 4.0)
-		"town":
-			_append_line(pts, lim, s_l - 4.0, 60.0)
-			_append(pts, lim, road.bus_arrive_path(), -1.0)
-			hamlet_at = GEO.at(s_p - 5.0, -1.6)["p"]
-		"hamlet_camp":
-			_append_line(pts, lim, s_p - 5.0, 60.0)
-			_append(pts, lim, road.bus_arrive_path(), -1.0)
-	# Slower in the bends: what a bus can take round a curve of that radius.
-	for i in range(1, pts.size() - 1):
-		var a := pts[maxi(0, i - 3)]
-		var b := pts[i]
-		var c := pts[mini(pts.size() - 1, i + 3)]
-		var ang := (b - a).normalized().angle_to((c - b).normalized())
-		if ang > 0.02:
-			var radius := (a.distance_to(b) + b.distance_to(c)) / ang
-			lim[i] = minf(lim[i], maxf(4.0, sqrt(1.7 * radius)))
-	_ride.path = pts
-	_ride.path_limits = lim
-	_ride.path_hamlet = -1.0
-	if hamlet_at != Vector3.INF:
-		var acc := 0.0
-		var best := 1e9
-		for i in pts.size():
-			if i > 0:
-				acc += pts[i].distance_to(pts[i - 1])
-			var d := pts[i].distance_to(hamlet_at)
-			if d < best:
-				best = d
-				_ride.path_hamlet = acc
-	if _ride_bus == null or not is_instance_valid(_ride_bus):
-		_ride_bus = BUS_MODEL.new()
-		_ride_bus.name = "Bus380Ride"
-		_geo.add_child(_ride_bus)
-	_ride_bus.set_running(true)
-	_ride_bus.set_inside_visible(false)
-	_ride_bus.destination = bus.destination
-	_ride_bus.set_night(_bus_lights(hour()))
-	_ride_bus.set_driver_out(false)
-	_ride_bus.global_transform = bus.global_transform
-	_ride_bus.open_door(true, true)
-	_ride.ride_bus = _ride_bus
-	# The stop's own bus steps out (the ride's stands where it stood).
-	if stop_id.begins_with("hamlet"):
-		_hamlet.riding = true
-	else:
-		_special[stop_id]["mode"] = "ride"
-
-
-func _append(pts: PackedVector3Array, lim: PackedFloat32Array, more: PackedVector3Array, speed: float) -> void:
-	for p in more:
-		if pts.size() > 0 and pts[pts.size() - 1].distance_to(p) < 0.5:
-			continue
-		pts.append(p)
-		lim.append(speed if speed > 0.0 else float(RIDE_SPEED["camp"]))
-
-
-## The real route from `s0` to `s1` in the bus's lane, with the speed each stretch
-## allows: road 12 between the camp's junction and Pristoupim's, the villages, the open
-## road between.
-func _append_line(pts: PackedVector3Array, lim: PackedFloat32Array, s0: float, s1: float) -> void:
-	var r12a := GEO.mark_s("main_from")
-	var r12b := GEO.mark_s("main_to")
-	var s_p := GEO.stop_s("pristoupim")
-	var s_l := GEO.stop_s("liblice")
-	var line := GEO.line_path(s0, s1, 1.6)
-	for k in line.size():
-		var s := lerpf(s0, s1, float(k) / float(maxi(1, line.size() - 1)))
-		var v: float = RIDE_SPEED["open"]
-		if s > r12a + 15.0 and s < r12b - 25.0:
-			v = RIDE_SPEED["road12"]
-		elif absf(s - s_p) < 140.0 or s > s_l - 120.0:
-			v = RIDE_SPEED["village"]
-		if pts.size() > 0 and pts[pts.size() - 1].distance_to(line[k]) < 0.5:
-			continue
-		pts.append(line[k])
-		lim.append(v)
-
-
 func _on_left_bus() -> void:
-	# Back out at the door: the bus goes on with its own time.
-	_special.erase(_boarding_stop)
+	# Back out of its door before it went: beside it at the stop.
+	var bus = _ride_bus
 	_end_ride_bus()
-	if _boarding_stop.begins_with("hamlet"):
-		_hamlet.release()
+	if bus != null and is_instance_valid(bus):
+		_put_player(_door_out(bus.global_transform))
 	if _im != null and _im.has_method("_door_transition"):
 		_im._door_transition(false)
 	_set_player_controls(true)
 
 
-## The ride's bus goes; the stop's buses are themselves again, the clock its pace.
+## Off the round's bus: its inside shows again (the cabin is gone), the clock as ever.
 func _end_ride_bus() -> void:
 	if _ride_bus != null and is_instance_valid(_ride_bus):
-		_ride_bus.set_running(false)
-	if _hamlet != null:
-		_hamlet.riding = false
+		_ride_bus.set_inside_visible(true)
+	_ride_bus = null
+	_ride_key = ""
+	_ride_round = {}
+	_ride_from = ""
 	var main := _main()
 	if main != null:
 		main.set("clock_scale", 1.0)
@@ -1779,43 +1795,48 @@ func _end_ride_bus() -> void:
 		_ride.clock_scale = 1.0
 
 
+## Off where the bus stands (the user 4. 11.: "I see them get off"): down its steps and
+## out of its door, beside it, the bus there as it is; it goes on by the clock. The
+## village (or Vondra's farm and the pole) are there already (built as it came near).
 func _on_ride_arrived() -> void:
-	var from := _boarding_stop
-	var towards_town := from == "camp" or from == "hamlet_town"
-	_special.erase(from)
-	# The run you rode is gone from where you got on (it left with you, early).
-	if from == "camp" or from == "town":
-		var run := _plan(from, hour())
-		if not run.is_empty():
-			_coop_gone[from] = float(run.get("leave", hour())) + OUT_HOURS
+	var bus = _ride_bus
+	var to := str(_ride.line_to) if _ride != null else ""
+	var where := str(_ride.arrived_where) if _ride != null else ""
+	var spot := Transform3D()
+	var have_spot := false
+	if bus != null and is_instance_valid(bus) and bus.visible:
+		spot = _door_out(bus.global_transform)
+		have_spot = true
 	_end_ride_bus()
-	if from.begins_with("hamlet"):
-		_hamlet.release()
-	else:
-		var bus = _camp_bus if from == "camp" else _town_bus
-		if bus != null:
-			bus.set_running(false)
-			bus.set_driver_out(false)
-	# Co-op: off the same bus, the other warden steps down beside the first.
-	var beside := Vector3(1.1, 0.0, 0.0) if Coop.is_client() else Vector3.ZERO
-	if _ride != null and str(_ride.arrived_where) == "hamlet":
-		# Off at Pristoupim's request stop: the bus stands a moment and goes on its way.
+	if where == "hamlet":
 		_hamlet.ensure()
-		_put_player(_hamlet.arrive_spot(towards_town).translated(beside))
-		_hamlet.drop(towards_town)
-	elif towards_town:
+	elif to == "l_up" or where == "l_up" or where == "l_down":
 		_ensure_town()
-		_put_player(_town.arrive_spot().translated(beside))
-		# The bus you came on stands a moment by the square and goes on to Hlubocany.
-		_special["town"] = {"mode": "drop", "t": 0.0, "pose": _town.bus_pose("to_hlub"), "leave": _town.bus_leave_path("to_hlub"), "dest": "LSTIBOR", "stop_id": "town_through"}
-	else:
-		var road := _road()
-		_put_player(road.wait_spot().translated(beside))
-		# The end of the line: it stands, then turns in the loop and goes back.
-		_special["camp"] = {"mode": "drop", "t": -14.0, "pose": road.bus_stop_pose(), "leave": road.bus_leave_path(), "dest": "LIBLICE", "stop_id": "camp"}
+	if not have_spot:
+		# (Off the road altogether, the clock jumped: at the stop it was going to.)
+		if where == "hamlet":
+			spot = _hamlet.arrive_spot(to == "l_up")
+		elif to == "camp":
+			spot = _road().wait_spot()
+		else:
+			spot = _town.arrive_spot()
+	# Co-op: the other warden steps down a pace further along.
+	if Coop.is_client():
+		spot.origin += spot.basis.x * 0.9
+	_put_player(spot)
 	if _im != null and _im.has_method("_door_transition"):
 		_im._door_transition(false)
 	_set_player_controls(true)
+
+
+## Just outside a bus's front door (on its right, bus_model.gd), turned out and a little
+## forward, the way you step down.
+func _door_out(bus_xf: Transform3D) -> Transform3D:
+	var mid: float = (BUS_MODEL.DOOR_Z.x + BUS_MODEL.DOOR_Z.y) * 0.5
+	var p: Vector3 = bus_xf * Vector3(BUS_MODEL.WIDTH * 0.5 + 0.85, 0.15, mid)
+	var face: Vector3 = bus_xf.basis * Vector3(1.0, 0.0, -0.35)
+	face.y = 0.0
+	return Transform3D(Basis.looking_at(face.normalized(), Vector3.UP), p)
 
 
 ## The stop's machine: a ticket for the 380 into the bag (punch it on the bus).
@@ -1891,14 +1912,8 @@ func _put_player(xf: Transform3D) -> void:
 ## road; it says where the two places stand.
 var _geo
 var _country_road_id := 0
-## The bus you ride (bus_model.gd): it carries bus_ride.gd's cabin along the real road;
-## the stops' own buses step out of the way for it and take over where you get off.
+## The bus you ride: the round's own (bus_line.gd), carrying bus_ride.gd's cabin.
 var _ride_bus
-## Co-op: the bus the other warden rides, on this machine (their ride's "bt").
-var _mate_bus
-var _mate_bus_night := false
-## Tests only (tools): a ride state as if from the other machine, for the mate bus.
-var debug_mate := {}
 
 
 ## The real land round the camp (scripts/geo/): built once per camp (a new game makes a
@@ -1923,27 +1938,15 @@ func _ensure_country() -> void:
 		_masts.position = Vector3.ZERO
 
 
-## While you (or the other warden) ride, the clock runs so the ride takes the
-## timetable's minutes: seven of them for the two or so the road takes.
+## The clock runs as ever on the bus (the user, 4. 11.); only old Vondra's Skoda still
+## has its own (hamlet_trip.gd).
 func _update_ride_clock() -> void:
 	var main := _main()
 	if main == null:
 		return
 	var scale := 1.0
-	if _ride != null and _ride.is_open() and _ride.is_riding():
-		if _ride.clock_scale >= 0.999:
-			var minutes := TIMES.RIDE_HOURS * 60.0
-			if _boarding_stop.begins_with("hamlet"):
-				minutes = (TIMES.RIDE_HOURS - TIMES.TO_PRISTOUPIM) * 60.0 if _boarding_stop == "hamlet_town" else TIMES.TO_PRISTOUPIM * 60.0
-			_ride.clock_scale = clampf(minutes / maxf(30.0, _ride.expected_seconds()) / BALANCE.GAME_MINUTES_PER_SECOND, 0.01, 1.0)
-		scale = _ride.clock_scale
-	elif _hamlet != null and _hamlet.driving():
+	if _hamlet != null and _hamlet.driving():
 		scale = _hamlet.drive_clock()
-	elif Coop.has_partner() and Coop.is_host():
-		for id in Coop.others():
-			var b = Coop.state_of(id).get("bus", {})
-			if b is Dictionary and bool((b as Dictionary).get("go", false)):
-				scale = minf(scale, float((b as Dictionary).get("cs", 1.0)))
 	main.set("clock_scale", scale)
 
 
@@ -2024,11 +2027,6 @@ func _ensure_town() -> void:
 	world.add_child(_town)
 	_town.build(_worldgen())
 	_town.set_night(_night)
-	_town_bus = BUS_MODEL.new()
-	_town_bus.name = "Bus380Lesna"
-	_town.add_child(_town_bus)
-	_town_bus.set_running(false)
-	_town_bus.set_night(_bus_lights(hour()))
 
 
 # ── saved with the game ──────────────────────────────────────────────────────

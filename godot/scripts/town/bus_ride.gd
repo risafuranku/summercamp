@@ -183,6 +183,22 @@ var path_hamlet := -1.0
 var path_limits := PackedFloat32Array()
 var ride_bus: Node3D
 var _path_s := PackedFloat32Array()
+## Line 380 (bus_line.gd, the user 4. 11.: one real bus in the one world): the bus is the
+## round's own on the road, put where it is by the clock (town_trip.gd feeds it in every
+## frame: feed_line); the ride no longer drives it, it rides in it. Where you get off
+## ("l_up" Liblice, "camp", or Pristoupim's pole when asked), the round's key (the people
+## on board and the life among them seeded by it: the same for everyone on that round),
+## and town_trip's calls to ask the round to pull in at Pristoupim ("ok", "already",
+## "late", "past") and why it does there ("rider", "board", "you", "mate", "wait", "").
+var line_mode := false
+var line_to := ""
+var run_key := ""
+var line_request: Callable
+var line_why: Callable
+var _line_stand := ""
+var _line_next := ""
+var _line_next_s := -1.0
+var _board_s := 0.0
 var _travelled := 0.0
 ## The cabin's frame: it rides in ride_bus, its floor on the bus's (bus_model.FLOOR_Y).
 var _rig: Node3D
@@ -298,7 +314,9 @@ func is_riding() -> bool:
 func coop_state() -> Dictionary:
 	if _state == CLOSED:
 		return {}
-	var out := {"st": stop, "s": _seat, "go": _state in [RIDING, STOPPING, DONE], "cs": clock_scale,
+	var out := {"st": stop, "s": _seat, "go": _state in [RIDING, STOPPING, DONE, PAUSED], "cs": clock_scale, "rk": run_key, "lt": line_to,
+		"rq": ("p_up" if line_to == "l_up" else "p_down") if line_mode and _stop_who == "you" else "",
+		"off": _line_stand if line_mode and _state == DONE else "",
 		"rt": snappedf(_ride_t, 0.01), "tr": snappedf(_travelled, 0.05), "sa": snappedf(_stop_at, 0.1), "sw": _stop_who,
 		"bs": int(_boarder.get("seat", -1))}
 	# Up and walking down the aisle to another seat: where along it.
@@ -306,7 +324,7 @@ func coop_state() -> Dictionary:
 		out["wz"] = snappedf(_cam.position.z, 0.05)
 	# Where the bus is on the road, for the other machine to show it going (town_trip's
 	# mate bus): its place, heading, speed and board.
-	if _state in [RIDING, STOPPING] and ride_bus != null and is_instance_valid(ride_bus):
+	if not line_mode and _state in [RIDING, STOPPING] and ride_bus != null and is_instance_valid(ride_bus):
 		var t: Transform3D = ride_bus.global_transform
 		var f := -t.basis.z
 		out["bt"] = [snappedf(t.origin.x, 0.01), snappedf(t.origin.y, 0.01), snappedf(t.origin.z, 0.01), snappedf(atan2(-f.x, -f.z), 0.001)]
@@ -366,7 +384,9 @@ func open_ride(at_stop: String, hour: float, fog: float, raining: bool) -> void:
 	_mate_said = false
 	_speed = 0.0
 	set_time(hour, fog, raining)
-	_travelled = 0.0
+	if not line_mode:
+		_travelled = 0.0
+	_board_s = _travelled
 	_place_rig()
 	arrived_where = ""
 	_stop_at = -1.0
@@ -391,11 +411,11 @@ func open_ride(at_stop: String, hour: float, fog: float, raining: bool) -> void:
 	# Somebody on board wants Pristoupim now and then (by day, when it is still ahead);
 	# old Vacek waits there for it now and then. The run's dice (_life_rng): the same in
 	# co-op on every machine.
-	if path_hamlet > 0.0 and not _passengers.is_empty() and not _night and _life_rng.randf() < 0.3:
+	if not line_mode and path_hamlet > 0.0 and not _passengers.is_empty() and not _night and _life_rng.randf() < 0.3:
 		_stop_at = path_hamlet
 		_stop_who = "rider"
 		_stop_rider = true
-	if path_hamlet > 0.0 and not _night and _vacek_ready() and _life_rng.randf() < 0.6:
+	if not line_mode and path_hamlet > 0.0 and not _night and _vacek_ready() and _life_rng.randf() < 0.6:
 		_board_plan = true
 		_board_pick = _life_rng.randi()
 		_board_story = "v2" if stop == "town" else ("v1" if _life_rng.randf() < 0.55 else "v3")
@@ -408,14 +428,36 @@ func open_ride(at_stop: String, hour: float, fog: float, raining: bool) -> void:
 
 ## Off the bus before it goes (S, the door, the bottom of the screen, the pause menu).
 func leave() -> void:
+	if line_mode and _state == PAUSED and _line_stand != "":
+		_get_off_here()
+		return
+	if line_mode and _state in [SITTING, HELD] and _line_stand != "":
+		_shut()
+		left_bus.emit()
+		return
 	if _state != BOARDING:
 		return
 	_shut()
 	left_bus.emit()
 
 
+## (Line) off where it stands now for somebody else: Pristoupim's pole, or Liblice.
+func _get_off_here() -> void:
+	arrived_where = "hamlet" if _line_stand.begins_with("p_") else _line_stand
+	_state = DONE
+	_done_t = 0.9
+
+
 ## The pause menu's way out while riding: there at once.
 func close_interior() -> void:
+	if line_mode:
+		# One bus in the one world: off where it stands, else you ride on.
+		match _state:
+			BOARDING, SITTING, HELD:
+				leave()
+			PAUSED:
+				_get_off_here()
+		return
 	match _state:
 		BOARDING:
 			leave()
@@ -558,6 +600,10 @@ func _cruise_now() -> float:
 
 ## The bus and the cabin in it where the ride is.
 func _place_rig() -> void:
+	if line_mode:
+		if _rig != null and ride_bus != null and is_instance_valid(ride_bus):
+			_rig.global_transform = ride_bus.global_transform.translated_local(Vector3(0, CABIN_Y, 0))
+		return
 	var t := _pose_at(_travelled)
 	if ride_bus != null and is_instance_valid(ride_bus):
 		ride_bus.global_transform = t
@@ -580,15 +626,18 @@ func _process(delta: float) -> void:
 	if _state == CLOSED:
 		return
 	_update_mate()
-	if _state == HELD and (_mate_ready(delta) or _leader_went()):
+	if line_mode:
+		_line_states(delta)
+	elif _state == HELD and (_mate_ready(delta) or _leader_went()):
 		_depart()
 	if _state in [RIDING, STOPPING, PAUSED]:
 		_follow(delta)
-		_merge_stops()
+		if not line_mode:
+			_merge_stops()
 	_say_t -= delta
 	if _say_label != null:
 		_say_label.modulate.a = clampf(_say_t / 0.4, 0.0, 1.0)
-	match _state:
+	match (-1 if line_mode else _state):
 		RIDING:
 			var left: float = _target() - _travelled
 			if left <= _speed * _speed / (2.0 * BRAKE) + 2.0:
@@ -653,7 +702,8 @@ func _process(delta: float) -> void:
 				arrived.emit()
 				return
 	if _speed > 0.0:
-		_travelled += _speed * delta * clock_speed_fix
+		if not line_mode:
+			_travelled += _speed * delta * clock_speed_fix
 		_update_traffic(delta)
 	if _state != CLOSED:
 		_place_rig()
@@ -689,7 +739,7 @@ func _process(delta: float) -> void:
 	_update_hover()
 	if _exit_hint == null:
 		_exit_hint = INTERIOR_LOOK.make_exit_hint(self, "Get off   [Esc]")
-	INTERIOR_LOOK.update_exit_hint(_exit_hint, get_viewport(), delta, _state == BOARDING)
+	INTERIOR_LOOK.update_exit_hint(_exit_hint, get_viewport(), delta, _state == BOARDING or (line_mode and _state == PAUSED))
 
 
 ## The road under the wheels: now and then a pothole jolts the view, in steps.
@@ -734,7 +784,7 @@ func _update_hover() -> void:
 				_glint.show_on(h["meshes"])
 	else:
 		_glint.clear()
-		if _state == BOARDING and INTERIOR_LOOK.in_exit_zone(get_viewport()):
+		if (_state == BOARDING or (line_mode and _state == PAUSED)) and INTERIOR_LOOK.in_exit_zone(get_viewport()):
 			HandCursor.want(HandCursor.WALK)
 
 
@@ -742,6 +792,8 @@ func _hot_allowed(id: String) -> bool:
 	if _walking:
 		return false
 	if _state != BOARDING:
+		if id == "door" and line_mode and _state == PAUSED:
+			return true
 		if id.begins_with("stop:"):
 			return _state == RIDING
 		# Sat down: another free seat (get up and go and sit there).
@@ -771,7 +823,7 @@ func _raycast(mouse_pos: Vector2) -> Dictionary:
 func _input(event: InputEvent) -> void:
 	if _state == CLOSED or get_tree().paused or _punching():
 		return
-	if _state == BOARDING and INTERIOR_LOOK.is_exit_event(event, get_viewport()) and _hover == "":
+	if (_state == BOARDING or (line_mode and _state == PAUSED)) and INTERIOR_LOOK.is_exit_event(event, get_viewport()) and _hover == "":
 		leave()
 		get_viewport().set_input_as_handled()
 		return
@@ -958,6 +1010,10 @@ func _depart() -> void:
 			_radio.stream = _loop(polka)
 			_radio.volume_db = -21.0
 			_radio.play()
+	if line_mode:
+		if str(_ticket.get("to", "")) == "PRISTOUPIM":
+			_line_ask("you", true)
+		return
 	if str(_ticket.get("to", "")) == "PRISTOUPIM" and _stop_at < 0.0:
 		var at: float = path_hamlet
 		if at > _travelled + 10.0:
@@ -981,6 +1037,9 @@ func _at_request() -> bool:
 ## Podlesi, if it is still ahead and far enough to stop for.
 func _press_stop() -> void:
 	_play_two("karosa_stop_bell.mp3", -4.0)
+	if line_mode:
+		_line_ask("you")
+		return
 	var at: float = path_hamlet
 	var room := _speed * _speed / (2.0 * BRAKE) + 6.0
 	if at < 0.0 or at < _travelled:
@@ -1027,7 +1086,7 @@ func _update_engine() -> void:
 	if _state != RIDING:
 		return
 	# Labouring away from a stop and up to speed, droning once it is there.
-	var want := "climb" if _speed < 9.0 and _travelled < 200.0 else "cruise"
+	var want := "climb" if _speed < 9.0 and _travelled - _board_s < 200.0 else "cruise"
 	if want == _engine:
 		return
 	var st := _sfx("karosa_%s.mp3" % want, "ride.mp3")
@@ -1376,6 +1435,8 @@ func _update_mate() -> void:
 		var m: Dictionary = all.get(id, {})
 		# On the same run: both still at the stop, or both gone.
 		var here := not m.is_empty() and str(m.get("st", "")) == stop and bool(m.get("go", false)) == (_state in [RIDING, STOPPING, DONE])
+		if line_mode:
+			here = not m.is_empty() and run_key != "" and str(m.get("rk", "")) == run_key
 		var fig: Sprite3D = _mates.get(id)
 		if not here:
 			if fig != null and is_instance_valid(fig):
@@ -1465,7 +1526,7 @@ func _seat_passengers() -> void:
 	_passengers.clear()
 	_taken.clear()
 	var day := int(CoreRoot.get_day()) if CoreRoot != null else 1
-	var run := "%s|%d|%d" % [stop, day, int(floorf(_hour_now * 2.0))]
+	var run := run_key if run_key != "" else "%s|%d|%d" % [stop, day, int(floorf(_hour_now * 2.0))]
 	_rng.seed = hash(run)
 	_life_rng.seed = hash(run + "|life")
 	var sprites := ["host1_sit.png", "host2_sit.png", "host3_sit.png", "host_family_sit.png"]
@@ -1543,7 +1604,8 @@ func _driver(key: String, fallback := "") -> void:
 ## Somebody else (the other warden) sits in seat k on this bus.
 func _mate_in_seat(k: int) -> bool:
 	for m in _mates_info().values():
-		if str((m as Dictionary).get("st", "")) == stop and int((m as Dictionary).get("s", -1)) == k:
+		var same := str((m as Dictionary).get("rk", "")) == run_key if line_mode else str((m as Dictionary).get("st", "")) == stop
+		if same and int((m as Dictionary).get("s", -1)) == k:
 			return true
 	return false
 
@@ -1721,6 +1783,130 @@ func _drop_boarder() -> void:
 	_boarder.clear()
 
 
+# ── line 380: riding the round's bus ────────────────────────────────────────
+
+## Where the round is now (town_trip.gd, every frame and once before open_ride): how far
+## along its way, how fast, the stop it stands at ("" going), where it goes next and how
+## far along that is.
+func feed_line(st: Dictionary) -> void:
+	if st.is_empty():
+		return
+	_travelled = float(st.get("s", _travelled))
+	_speed = float(st.get("v", 0.0))
+	_line_stand = str(st.get("stand", ""))
+	_line_next = str(st.get("to", ""))
+	_line_next_s = float(st.get("to_s", -1.0))
+
+
+## The cabin answers what the round's bus does: the doors when it stands, the sounds
+## pulling in and away, off where you are going; seated while it stands at your stop, it
+## goes when its time comes (town_trip.gd holds it while you are not yet sat down).
+func _line_states(delta: float) -> void:
+	match _state:
+		HELD:
+			if _line_stand == "" and _speed > 0.05:
+				_depart()
+		RIDING:
+			if _line_stand != "":
+				_line_arrive()
+			elif _line_next != "" and _line_next != "end" and _line_next_s >= 0.0 \
+					and _line_next_s - _travelled <= _speed * _speed / (2.0 * BRAKE) + 4.0:
+				_state = STOPPING
+				_line_pull_in()
+		STOPPING:
+			_set_door(false)
+			if _line_stand != "":
+				_line_arrive()
+		PAUSED:
+			_pause_t += delta
+			# Old Vacek gets on (in co-op where the leader's machine seats him, given a
+			# moment to say so).
+			if _board_plan and _boarder.is_empty():
+				var lead := _leader_state()
+				if lead.is_empty() or int(lead.get("bs", -1)) >= 0 or _pause_t > 1.6:
+					_board_start(int(lead.get("bs", -1)))
+			if _line_stand == "" and _speed > 0.05:
+				_stop_at = -1.0
+				_stop_who = ""
+				_stop_rider = false
+				_board_plan = false
+				_set_stojime(false)
+				_gear_at = 0
+				_depart()
+		DONE:
+			_done_t += delta
+			if _done_t > 1.1:
+				_shut()
+				arrived.emit()
+
+
+## Slowing for the next stop: the gravel and the indicator at Pristoupim's pole, the
+## brakes elsewhere; who it pulls in for at the pole (the round's: town_trip.line_why).
+func _line_pull_in() -> void:
+	if _line_next.begins_with("p_"):
+		var why := str(line_why.call(_line_next)) if line_why.is_valid() else ""
+		_stop_at = _line_next_s
+		if _stop_who != "you":
+			_stop_who = why if why != "" else "rider"
+		_stop_rider = why == "rider" and not _passengers.is_empty()
+		_board_plan = why == "board" and not _night and _vacek_ready()
+		if _board_plan:
+			_board_pick = _life_rng.randi()
+			_board_story = "v2" if line_to == "camp" else ("v1" if _life_rng.randf() < 0.55 else "v3")
+		_set_stojime(true)
+		_play_two("karosa_gravel.mp3", -6.0)
+		_play("karosa_indicator.mp3", -14.0)
+	else:
+		_play("brake_inside.mp3", -15.0)
+		# Old Vacek's goodbye as it pulls in at the end of the line.
+		if _line_next == line_to and str(_boarder.get("phase", "")) == "sat":
+			_start_talk("vo")
+
+
+## It stands: the doors open; off if this is where you are going, else it waits.
+func _line_arrive() -> void:
+	_speed = 0.0
+	_set_door(true)
+	_play("door_open.mp3", -2.0)
+	_ride.stream = _loop(load(SFX + "idle.mp3"))
+	_ride.volume_db = -14.0
+	_ride.play()
+	var here := _line_stand
+	var pole := here.begins_with("p_")
+	if here == line_to or (pole and _stop_who == "you"):
+		if pole:
+			arrived_where = "hamlet"
+			_driver("d_pristoupim")
+		_state = DONE
+		_done_t = 0.0
+		return
+	_state = PAUSED
+	_pause_t = 0.0
+	if pole:
+		_driver("d_pristoupim")
+		if _stop_rider:
+			_rider_off()
+
+
+## Asks the round to pull in at Pristoupim for you (STOP, or a ticket there: `quiet`).
+func _line_ask(who: String, quiet := false) -> void:
+	if not line_request.is_valid():
+		return
+	var pole := "p_up" if line_to == "l_up" else "p_down"
+	match str(line_request.call(pole, who)):
+		"ok", "already":
+			_stop_who = "you"
+			_set_stojime(true)
+			if not quiet:
+				_driver("d_request")
+		"late":
+			if not quiet:
+				_driver("d_too_late")
+		_:
+			if not quiet:
+				_driver("d_end")
+
+
 # ── co-op: one ride for everyone on the bus ─────────────────────────────────
 
 ## The machine that leads this ride: of the wardens on it, the lowest id. {} when it is
@@ -1761,7 +1947,7 @@ func _follow(delta: float) -> void:
 	var lead := _leader_state()
 	if lead.is_empty():
 		return
-	if lead.has("tr"):
+	if lead.has("tr") and not line_mode:
 		var want := float(lead["tr"]) + float(lead.get("v", _speed)) * 0.08
 		var d := want - _travelled
 		if absf(d) > 12.0:

@@ -337,7 +337,8 @@ func _run_step(step: Array) -> void:
 			_main.call("_on_menu_coop_join", "%s:%d" % [str(step[1]), PORT])
 		"coop_wait":
 			_waiting_for = str(step[1])
-			_coop_wait_deadline = Time.get_ticks_msec() + WAIT_MS
+			# (The 380 drives the real road on the game's clock: a ride is two minutes and more.)
+			_coop_wait_deadline = Time.get_ticks_msec() + (WAIT_MS + 120000 if _waiting_for == "in_town" else WAIT_MS)
 		"coop_wait_file":
 			_wait_file = str(step[1])
 			_waiting_for = "file"

@@ -5,9 +5,9 @@ extends Node
 ## it the "ham_*" clicks, its ride's arrivals and the buses' clock:
 ##   - built when you come near the farm or the stop (in Liblice, or off the 380 at the
 ##     request stop: STOP in the bus, or a ticket to Pristoupim);
-##   - the stop's bus: the 380 passing both ways by the timetable (bus_timetable.hamlet_*),
-##     pulling in only for somebody waiting by the pole, else straight through; it
-##     stands for you while you are on it; it lets you off and goes on;
+##   - the stop's bus: line 380's rounds passing both ways (bus_line.gd, put on the road
+##     by town_trip.gd), pulling in only for somebody: waiting by the pole, asked for on
+##     board; it stands for you while you get on; it lets you off and goes on;
 ##   - old Vondra and his Skoda (car_closeup.gd): the petrol can in the garage, the
 ##     Babetta's tank by the ruin to siphon, the Trabant's battery, the stockings on the
 ##     line for a fan belt, the hammer in the chopping block for the starter; get it
@@ -15,7 +15,7 @@ extends Node
 ## Saved with the game (export_state / import_state). Co-op: one job for everyone
 ## (`shared` / `take_shared`, main's sync "hamlet": what is taken, fitted, poured, paid,
 ## merged so nothing goes backwards); the bus pulls in for whichever warden waits by the
-## pole and stands for one aboard (town_trip._coop_hold_hamlet).
+## pole and stands for one getting on (town_trip._line_keep).
 
 const PLACE = preload("res://scripts/town/hamlet_podlesi.gd")
 const BUS_MODEL = preload("res://scripts/town/bus_model.gd")
@@ -25,34 +25,21 @@ const RUIN = preload("res://scripts/town/ruin_closeup.gd")
 const SKODA_RIDE = preload("res://scripts/town/skoda_ride.gd")
 const TALK := "res://assets/sfx/bus/talk/"
 const SFX := "res://assets/sfx/hamlet/"
-## The bus coming in to the pole, standing, going (game hours).
-const IN_HOURS := 0.16
-const STAND := 0.06
-const OUT_HOURS := 0.2
-## How near the pole you must stand for the bus to pull in (m).
-const WAIT_DIST := 14.0
 const PAY := 50
 const AWAY_DIST := 1500.0
 
 ## town_trip.gd
 var trip
 var place
-var bus
 var state := {
 	"has": {"battery": false, "stockings": false, "hammer": false, "canister": ""},
 	"car": {"battery": false, "red": false, "black": false, "belt": [], "fuel": 0.0, "unstuck": false, "clicks": 0, "running": false},
 	"taken": [], "talked": false, "paid": false,
 }
 var _closeup
-var _hold := ""
-var _drop: Dictionary = {}
-var _decided: Dictionary = {}
 var _amb: AudioStreamPlayer
 var _idle: AudioStreamPlayer3D
 var _night := false
-## The bus you board here is the ride's (town_trip.gd) while you are on it: this one
-## keeps out of the way.
-var riding := false
 
 
 func is_built() -> bool:
@@ -69,11 +56,6 @@ func ensure() -> void:
 	world.add_child(place)
 	place.build(trip._worldgen())
 	place.set_night(_night)
-	bus = BUS_MODEL.new()
-	bus.name = "Bus380Podlesi"
-	place.add_child(bus)
-	bus.set_running(false)
-	bus.set_night(_night)
 	for what in state.get("taken", []):
 		place.take(str(what))
 	if bool(state["car"].get("running", false)):
@@ -88,32 +70,16 @@ func arrive_spot(towards_town: bool) -> Transform3D:
 	return place.hamlet_arrive_spot(towards_town)
 
 
+## The round's bus standing at the pole that way now (town_trip.gd's line), or null.
 func bus_for(stop_id: String):
-	return bus if is_built() and stop_id.begins_with("hamlet") else null
-
-
-## You are on the bus at the pole: it stands for you.
-func hold(stop_id: String) -> void:
-	_hold = stop_id
-
-
-func release() -> void:
-	_hold = ""
-	if bus != null:
-		bus.set_running(false)
-
-
-## You have just got off here: it stands a moment, then goes on its way.
-func drop(towards_town: bool) -> void:
-	_drop = {"towards": towards_town, "t": 0.0}
+	return trip.bus_at(stop_id) if stop_id.begins_with("hamlet") else null
 
 
 # ── every frame, every second ───────────────────────────────────────────────
 
-func update(h: float, delta: float) -> void:
+func update(_h: float, _delta: float) -> void:
 	if not is_built():
 		return
-	_update_bus(h, delta)
 	_update_sound()
 
 
@@ -123,108 +89,6 @@ func tick_hour(h: float, night: bool) -> void:
 		return
 	place.set_night(night)
 	place.set_hour(h)
-	bus.set_night(night)
-
-
-func _update_bus(h: float, delta: float) -> void:
-	if riding:
-		bus.set_running(false)
-		return
-	if _hold != "":
-		var towards := _hold == "hamlet_town"
-		_show(towards, _hold)
-		bus.global_transform = place.hamlet_bus_pose(towards)
-		bus.set_speed(0.0)
-		bus.open_door(true)
-		return
-	if not _drop.is_empty():
-		_drop["t"] = float(_drop["t"]) + delta
-		var towards2: bool = _drop["towards"]
-		_show(towards2, "hamlet_town" if towards2 else "hamlet_camp")
-		var t := float(_drop["t"])
-		if t < 2.6:
-			bus.global_transform = place.hamlet_bus_pose(towards2)
-			bus.set_speed(0.0)
-			bus.open_door(true)
-		else:
-			var k := clampf((t - 2.6) / 9.0, 0.0, 1.0)
-			if bus.is_door_open():
-				bus.open_door(false)
-				bus.play("res://assets/sfx/bus/depart.mp3", -5.0)
-			var was: Vector3 = bus.global_position
-			trip._place_on(bus, place.hamlet_out_path(towards2), k * k)
-			bus.set_speed(was.distance_to(bus.global_position) / maxf(delta, 0.001))
-			if k >= 1.0:
-				_drop = {}
-				bus.set_running(false)
-		return
-	var day := int(CoreRoot.get_day()) if CoreRoot != null else 1
-	for stop_id in ["hamlet_town", "hamlet_camp"]:
-		var towards3: bool = stop_id == "hamlet_town"
-		var times: Array = TIMES.hamlet_to_town() if towards3 else TIMES.hamlet_to_camp()
-		for i in times.size():
-			var tt: float = times[i]
-			if h < tt - IN_HOURS or h > tt + STAND + OUT_HOURS:
-				continue
-			var key := "%s|%d|%d" % [stop_id, day, i]
-			if not _decided.has(key):
-				_decided[key] = _waiting(towards3)
-			_run(towards3, stop_id, tt, h, bool(_decided[key]), delta)
-			return
-	if bus.visible:
-		bus.set_running(false)
-		bus.open_door(false)
-
-
-func _show(towards: bool, stop_id: String) -> void:
-	if not bus.visible:
-		bus.set_running(true)
-		bus.destination = "LIBLICE" if towards else "KEMP"
-		bus.set_stop(stop_id)
-		bus.set_night(_night)
-
-
-## One run past the turn: in to the pole for somebody waiting, or straight through.
-func _run(towards: bool, stop_id: String, t: float, h: float, stops: bool, delta: float) -> void:
-	var fresh: bool = not bus.visible
-	_show(towards, stop_id)
-	var was: Vector3 = bus.global_position
-	if stops:
-		if h < t:
-			if fresh:
-				bus.play("res://assets/sfx/bus/arrive.mp3", -10.0)
-			var k := (h - (t - IN_HOURS)) / IN_HOURS
-			trip._place_on(bus, place.hamlet_in_path(towards), 1.0 - (1.0 - k) * (1.0 - k))
-		elif h < t + STAND:
-			bus.global_transform = place.hamlet_bus_pose(towards)
-			bus.set_speed(0.0)
-			bus.open_door(true)
-			return
-		else:
-			var k2 := (h - t - STAND) / OUT_HOURS
-			if bus.is_door_open():
-				bus.open_door(false)
-				bus.play("res://assets/sfx/bus/depart.mp3", -5.0)
-			trip._place_on(bus, place.hamlet_out_path(towards), k2 * k2)
-	else:
-		var path: PackedVector3Array = place.hamlet_in_path(towards)
-		path.append_array(place.hamlet_out_path(towards))
-		trip._place_on(bus, path, (h - (t - IN_HOURS)) / (IN_HOURS + STAND + OUT_HOURS))
-	bus.set_speed(was.distance_to(bus.global_position) / maxf(delta, 0.001))
-
-
-## Somebody (you, or the other warden) by the pole on that side as the bus comes.
-func _waiting(towards: bool) -> bool:
-	var pole: Vector3 = place.stop_w(PLACE.POLE_TOWN if towards else PLACE.POLE_CAMP)
-	var p: Node3D = trip._player()
-	if p != null and p.global_position.distance_to(pole) < WAIT_DIST:
-		return true
-	for id in Coop.others():
-		var st: Dictionary = Coop.state_of(id)
-		var at: Vector3 = st.get("p", Vector3.INF)
-		if at != Vector3.INF and not bool(st.get("in", false)) and at.distance_to(pole) < WAIT_DIST:
-			return true
-	return false
 
 
 ## The farmyard's day or night round you (over the village's own, town_trip.gd), and the

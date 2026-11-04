@@ -61,6 +61,7 @@ func _sheet() -> Dictionary:
 	var to_prist := roundi(TIMES.TO_PRISTOUPIM * 60.0)
 	var down_prist := roundi(TIMES.FROM_LIBLICE_PRISTOUPIM * 60.0)
 	var ride := roundi(TIMES.RIDE_HOURS * 60.0)
+	var ride_down := roundi(TIMES.RIDE_DOWN_HOURS * 60.0)
 	var on := roundi(TIMES.ON_TO_LSTIBOR * 60.0)
 	var small := ["x - na znamení", "Jízdenku z automatu", "označte po nástupu.", "Doplňkový prodej", "u řidiče s přirážkou."]
 	match stop:
@@ -68,7 +69,7 @@ func _sheet() -> Dictionary:
 			return {"name": "Přistoupim, rozc.", "towards": "oba směry",
 				"cols": [{"head": ["směr", "Liblice"], "en": "to Liblice", "times": TIMES.hamlet_to_town()},
 					{"head": ["směr", "kemp"], "en": "to the camp", "times": TIMES.hamlet_to_camp()}],
-				"stops": [[ride - down_prist, "Černé jezero,kemp", false], [0, "Přistoupim,rozc.", true], [ride - to_prist, "Liblice", false],
+				"stops": [[ride_down - down_prist, "Černé jezero,kemp", false], [0, "Přistoupim,rozc.", true], [ride - to_prist, "Liblice", false],
 					[ride - to_prist + on, "Lstiboř", false]],
 				"notes": ["Zastavuje jen na", "znamení. Stůjte u", "sloupku, ať vás řidič", "vidí."]}
 		"town":
@@ -79,7 +80,7 @@ func _sheet() -> Dictionary:
 			return {"name": "Liblice", "towards": "oba směry",
 				"cols": [{"head": ["směr", "kemp"], "en": "to the camp", "times": TIMES.TOWN_LEAVE},
 					{"head": ["směr", "Lstiboř"], "en": "to Lstibor", "times": TIMES.TOWN_THROUGH}],
-				"stops": [[ride, "Černé jezero,kemp", false], [down_prist, "Přistoupim,rozc.", true], [0, "Liblice", false],
+				"stops": [[ride_down, "Černé jezero,kemp", false], [down_prist, "Přistoupim,rozc.", true], [0, "Liblice", false],
 					[on, "Lstiboř", false]],
 				"notes": small + ["Do kempu od čekárny,", "z kempu staví u návsi."]}
 	return {"name": "Černé jezero, kemp", "towards": "Přistoupim, Liblice",
@@ -164,11 +165,18 @@ func _paint(c: Control) -> void:
 			last = maxi(last, int(floorf(float(t))))
 	var ring_at := Vector2(-1, -1)
 	var ry := y0 + 38.0
+	# Every hour from the first bus to the last; when that is more than the paper holds
+	# (Liblice's: the night bus down to the camp and the late one on, 4. 11.), the hours
+	# with a bus only, as the small stops' sheets do.
+	var hours: Array = range(first, last + 1)
+	if float(hours.size() - 1) * ROW > PAPER.end.y - 3.0 - ry:
+		hours = hours.filter(func(hr): return cols.any(func(col): return (col["times"] as Array).any(func(t): return int(floorf(float(t))) == hr)))
 	# As roomy as the paper lets the rows be.
-	var row := clampf(floorf((PAPER.end.y - 3.0 - ry) / float(maxi(1, last - first))), ROW, 7.0)
+	var row := clampf(floorf((PAPER.end.y - 3.0 - ry) / float(maxi(1, hours.size() - 1))), ROW, 7.0)
 	c.draw_rect(Rect2(xt, ry - row - 1.0, right - xt, 1.0), INK)
-	for hr in range(first, last + 1):
-		if (hr - first) % 2 == 1:
+	for hi in hours.size():
+		var hr: int = hours[hi]
+		if hi % 2 == 1:
 			c.draw_rect(Rect2(xt + 11.0, ry - row, right - xt - 11.0, row), Color(INK, 0.07))
 		c.draw_rect(Rect2(xt, ry - row, 10.0, row), Color(INK, 0.86))
 		_ink_right(c, f, xt + 9.0, ry, str(hr), PAPER_COL)

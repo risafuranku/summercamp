@@ -6033,6 +6033,11 @@ func coop_local_warden() -> Dictionary:
 	var bus: Dictionary = trip.coop_state() if trip != null and trip.has_method("coop_state") else {}
 	if not bus.is_empty():
 		s["bus"] = bus
+	# Line 380's rounds (scripts/town/bus_line.gd): the host's word on what they wait and
+	# pull in for, so the bus is in the same place on every machine.
+	var ln: Dictionary = trip.coop_line() if trip != null and trip.has_method("coop_line") else {}
+	if not ln.is_empty():
+		s["ln"] = ln
 	# In a place in Lesna (the pub, the Jednota...): the other sees you there with them.
 	var town_place: String = trip.coop_place() if trip != null and trip.has_method("coop_place") else ""
 	if town_place != "":
