@@ -13,6 +13,7 @@ extends RefCounted
 
 const K = preload("res://scripts/interior_kit.gd")
 const WINDOW_PORTAL = preload("res://scripts/ui/window_portal.gd")
+const WALL_CLOCK = preload("res://scripts/town/wall_clock.gd")
 const CAMP := "res://assets/textury/camp/"
 const W := 11.5
 const H := 5.344
@@ -132,8 +133,18 @@ static func build(root: Node3D, room = null, lit := false) -> Dictionary:
 	_cut(root, "antlers", Vector2(0.5, 0.5), Vector3(-w * 0.5 + 0.03, 1.75, -0.3), 90.0, false, l, "Antlers")
 	_quad(root, "pub_sign", Vector2(0.8, 0.6), Vector3(-w * 0.5 + 0.025, 1.75, -1.8), 90.0, l, "BrewerySign")
 	_cut(root, "dartboard", Vector2(0.5, 0.5), Vector3(w * 0.5 - 0.03, 1.45, 1.4), -90.0, false, l, "Dartboard")
-	_cut(root, "wall_clock", Vector2(0.32, 0.32), Vector3(-1.9, 2.1, -d * 0.5 + 0.02), 0.0, false, l, "Clock")
+	if inside:
+		# Inside it keeps the time (wall_clock.gd).
+		var clock = WALL_CLOCK.new()
+		clock.make(root, Vector3(-1.9, 2.26, -d * 0.5 + 0.02), 0.0, 0.32)
+		out["clock"] = clock
+	else:
+		_cut(root, "wall_clock", Vector2(0.32, 0.32), Vector3(-1.9, 2.1, -d * 0.5 + 0.02), 0.0, false, l, "Clock")
 	var door := _quad(root, "door_interior", Vector2(1.6, 2.2), Vector3(0.0, 1.1, d * 0.5 - 0.005), 180.0, false, "Door")
+	# By the door the coat stand and a jacket and cap on a hook; fly paper over a table.
+	_cut(root, "bistro_coatstand", Vector2(0.65, 1.7), Vector3(1.25, 0.0, d * 0.5 - 0.35), 180.0, true, l, "CoatStand")
+	_cut(root, "coat_hook", Vector2(0.45, 0.67), Vector3(-1.25, 1.0, d * 0.5 - 0.03), 180.0, false, l, "Coat")
+	_cut(root, "flypaper", Vector2(0.09, 0.24), Vector3(TABLES[2].x, h - 0.25, TABLES[2].z), 0.0, true, l, "FlyPaper")
 	if not inside:
 		if l:
 			for lp in lamps:
@@ -194,6 +205,7 @@ var room
 var anchor: Node3D
 var shell: Node3D
 var windows: Array = []
+var _clock
 
 
 func _init(p_room = null, p_anchor: Node3D = null, p_shell: Node3D = null) -> void:
@@ -202,8 +214,11 @@ func _init(p_room = null, p_anchor: Node3D = null, p_shell: Node3D = null) -> vo
 	shell = p_shell
 
 
-func build_inside(_hour: float) -> void:
-	build(room._root, room, false)
+func build_inside(hour: float) -> void:
+	var built := build(room._root, room, false)
+	_clock = built.get("clock")
+	if _clock != null:
+		_clock.show_time(hour)
 	var i := 0
 	for r in PANES:
 		var p := pane(r)
@@ -216,6 +231,9 @@ func build_inside(_hour: float) -> void:
 
 
 func tick(delta: float) -> void:
+	var trip = room.get_parent() if room != null else null
+	if _clock != null and trip != null and trip.has_method("hour"):
+		_clock.show_time(float(trip.hour()))
 	if anchor == null or not is_instance_valid(anchor) or not anchor.is_inside_tree():
 		return
 	var xf := anchor.global_transform * Transform3D(Basis(), origin())

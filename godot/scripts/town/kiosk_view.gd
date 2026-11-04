@@ -18,6 +18,8 @@ extends RefCounted
 const K = preload("res://scripts/interior_kit.gd")
 const WINDOW_PORTAL = preload("res://scripts/ui/window_portal.gd")
 const GOODS = preload("res://scripts/town/counter_goods.gd")
+const WALL_CLOCK = preload("res://scripts/town/wall_clock.gd")
+const SFX_TICK := "res://assets/sfx/rooms/clock_tick_wall.mp3"
 const CAMP := "res://assets/textury/camp/"
 ## The front's picture: metres, pixels a metre; the box it is on.
 const W := 5.7
@@ -146,6 +148,14 @@ static func build(root: Node3D, room = null, lit := false) -> Dictionary:
 	var shelves := K.picture(root, "kiosk_shelves", Vector2(3.7, 1.55), Vector3(-0.4, 1.4, -d * 0.5 + 0.305), 0.0, "ShelvesFace")
 	shelves.material_override = _lit(shelves.material_override, l)
 	K.cutout(root, "kiosk_calendar", Vector2(0.4, 0.55), Vector3(w * 0.5 - 0.02, 1.3, 0.2), -90.0, false, "Calendar")
+	# Fly paper over the counter, the extinguisher by the door, the safety poster on the
+	# west wall (the camp's own pictures).
+	var fly := K.cutout(root, "flypaper", Vector2(0.09, 0.22), Vector3(-1.4, h - 0.23, -0.2), 0.0, true, "FlyPaper")
+	fly.material_override = _lit(fly.material_override, l)
+	var ext := K.cutout(root, "fire_extinguisher", Vector2(0.24, 0.46), Vector3(w * 0.5 - 0.06, 0.55, 1.5), -90.0, false, "Extinguisher")
+	ext.material_override = _lit(ext.material_override, l)
+	var poster := K.cutout(root, "bozp_poster", Vector2(0.42, 0.56), Vector3(-w * 0.5 + 0.02, 1.25, 0.9), 90.0, false, "Poster")
+	poster.material_override = _lit(poster.material_override, l)
 	if not inside:
 		if l:
 			var tm := K._base(Color(0.95, 0.97, 0.98))
@@ -169,6 +179,10 @@ static func build(root: Node3D, room = null, lit := false) -> Dictionary:
 			(g as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		return out
 	room._tube(Vector3(-0.4, h - 0.06, -0.4))
+	# The clock over the shelves keeps the time (wall_clock.gd).
+	var clock = WALL_CLOCK.new()
+	clock.make(root, Vector3(0.9, 2.44, -d * 0.5 + 0.03), 0.0, 0.3)
+	out["clock"] = clock
 	room._hot_box("cigs", Vector3(-0.15, top + 0.17, -0.68), Vector3(0.3, 0.36, 0.3), [rack])
 	room._hot_box("till", Vector3(0.45, top + 0.2, -0.66), Vector3(0.5, 0.44, 0.34), [till])
 	room._hot_box("newspaper", Vector3(-0.75, top + 0.08, -0.66), Vector3(0.44, 0.2, 0.34), [papers])
@@ -197,6 +211,7 @@ var room
 var anchor: Node3D
 var shell: Node3D
 var windows: Array = []
+var _clock
 
 
 func _init(p_room = null, p_anchor: Node3D = null, p_shell: Node3D = null) -> void:
@@ -207,6 +222,11 @@ func _init(p_room = null, p_anchor: Node3D = null, p_shell: Node3D = null) -> vo
 
 func build_inside(hour: float) -> void:
 	var built := build(room._root, room, false)
+	_clock = built.get("clock")
+	if _clock != null:
+		_clock.show_time(hour)
+	# Quiet in here: the clock is what you hear.
+	room._loop(SFX_TICK, -28.0)
 	room.counter().begin("kiosk", {"slots": SLOTS, "mate_slots": MATE_SLOTS, "till": built["till"], "window": TILL_WINDOW, "billboard": true})
 	for r in PANES + DOOR_GLASS:
 		var p := pane(r)
@@ -216,12 +236,19 @@ func build_inside(hour: float) -> void:
 
 
 func tick(delta: float) -> void:
+	_show_time()
 	if anchor == null or not is_instance_valid(anchor) or not anchor.is_inside_tree():
 		return
 	var xf := anchor.global_transform * Transform3D(basis(), origin())
 	var world := anchor.get_world_3d()
 	for w in windows:
 		w.update(room._root, room._cam, xf, true, world, delta, shell)
+
+
+func _show_time() -> void:
+	var trip = room.get_parent() if room != null else null
+	if _clock != null and trip != null and trip.has_method("hour"):
+		_clock.show_time(float(trip.hour()))
 
 
 func click(_id: String, _hour: float) -> bool:
