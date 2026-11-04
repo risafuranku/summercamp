@@ -57,7 +57,15 @@ const ENTRY := "tap"
 ## the middle of the double door on the front's picture, 44-86 of its 271 px across 6 m;
 ## it was -1.88 for the old picture, 0.3 m off the new one's door, 4. 11.).
 const FRONT_DOOR := Vector3(-1.56, 0.0, 2.3)
-const FRONT_DOOR_SIZE := Vector2(1.1, 2.02)
+## As wide as the building's (42 of the picture's 271 px across 6 m), its two leaves.
+const FRONT_DOOR_SIZE := Vector2(0.93, 1.95)
+## The building's double door on its front picture (building_models._pub: Door0, Door1 of 21 px
+## each), the leaves' faces cut from it.
+const DOOR_PIC := "res://assets/textury/camp/camp_pub_front_glass.png"
+const DOOR_PIC_PX := Vector2(271, 126)
+const DOOR_PX := Rect2(44, 30, 42, 75)
+## How far a leaf swings open into the room (door_through on the way out), as the camp's.
+const DOOR_SWING := 82.0
 const STATIONS := {
 	"keg": {"room": "cellar", "at": Vector3(-1.0, 0.55, -1.85), "size": Vector3(1.0, 1.1, 0.8), "stand": Vector3(-1.0, 0.05, -1.15), "pose": "fix", "mark": Vector3(-1.0, 1.45, -1.85), "label": "the keg", "tab_label": "KEG", "icon": "res://assets/textury/ui/mark_keg.png"},
 	"tap": {"room": "bar", "at": Vector3(1.335, 0.8, -1.25), "size": Vector3(0.75, 1.5, 0.72), "stand": Vector3(1.3, 0.05, -1.99), "pose": "tap", "mark": Vector3(1.3, 1.78, -1.3), "label": "the tap", "tab_label": "TAP", "icon": "res://assets/textury/ui/mark_tap.png"},
@@ -284,17 +292,56 @@ static func bar(parent: Node3D, si) -> void:
 			station_body(parent, str(id))
 
 
-## The front door as it is from inside, where the building has it (building_models._pub:
-## its front picture's door, 20-63 of 224 px across a 6 m front): the boards of its leaf,
-## a frame round it.
+## The front door as it is from inside, where the building has it: the building's own old
+## double door (the user 4. 11.: "outside it is halved down the middle, inside one plain
+## leaf; leaving it did not open, it vanished: one pub door"), each leaf's face cut from the
+## front's picture and seen from behind, on its hinges at its outer edge (door_through
+## swings them open into the room on the way out, meta swing_deg), a frame round it. A click
+## on it is the way out (service_interior "service_front_door").
 static func _front_door(parent: Node3D) -> void:
 	var at := Vector3(FRONT_DOOR.x, 0.0, SIZE.z * 0.5)
-	K.picture(parent, "door_wood", FRONT_DOOR_SIZE, at + Vector3(0, FRONT_DOOR_SIZE.y * 0.5, -0.012), 180.0, "FrontDoor")
+	var half := FRONT_DOOR_SIZE.x * 0.5
+	var pic: Texture2D = load(DOOR_PIC) if ResourceLoader.exists(DOOR_PIC) else null
+	var leaf_px := DOOR_PX.size.x * 0.5
+	for side: float in [-1.0, 1.0]:
+		var hinge := Node3D.new()
+		hinge.name = "FrontDoorHinge%s" % ("W" if side < 0.0 else "E")
+		hinge.position = at + Vector3(side * half, 0.0, -0.014)
+		hinge.set_meta("door_leaf", true)
+		hinge.set_meta("swing_deg", -side * DOOR_SWING)
+		parent.add_child(hinge)
+		var leaf := MeshInstance3D.new()
+		leaf.name = "FrontDoor%s" % ("W" if side < 0.0 else "E")
+		var q := QuadMesh.new()
+		q.size = Vector2(half, FRONT_DOOR_SIZE.y)
+		leaf.mesh = q
+		var m := K._base(Color(1, 1, 1))
+		if pic != null:
+			m.albedo_texture = pic
+			# Its own leaf of the picture seen from behind (turned round, u 0 on its east edge):
+			# the outer edge where it is outside.
+			var u0 := DOOR_PX.position.x + leaf_px * (1.0 if side < 0.0 else 2.0)
+			m.uv1_offset = Vector3(u0 / DOOR_PIC_PX.x, DOOR_PX.position.y / DOOR_PIC_PX.y, 0.0)
+			m.uv1_scale = Vector3(-leaf_px / DOOR_PIC_PX.x, DOOR_PX.size.y / DOOR_PIC_PX.y, 1.0)
+		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		leaf.material_override = m
+		leaf.rotation_degrees.y = 180.0
+		leaf.position = Vector3(-side * half * 0.5, FRONT_DOOR_SIZE.y * 0.5, 0.0)
+		hinge.add_child(leaf)
 	var fm := K.surface("planks_dark", 0.6)
 	for side: float in [-1.0, 1.0]:
 		K.slab(parent, Vector3(0.08, FRONT_DOOR_SIZE.y + 0.08, 0.06), at + Vector3(side * (FRONT_DOOR_SIZE.x * 0.5 + 0.04), (FRONT_DOOR_SIZE.y + 0.08) * 0.5, -0.03), fm, "FrontDoorJamb")
 	K.slab(parent, Vector3(FRONT_DOOR_SIZE.x + 0.16, 0.08, 0.06), at + Vector3(0, FRONT_DOOR_SIZE.y + 0.04, -0.03), fm, "FrontDoorLintel")
-	look(parent, "door", "The way out to the camp. The bell over it rings a moment after the door has shut.", at + Vector3(0, 1.0, -0.06), Vector3(FRONT_DOOR_SIZE.x, 2.0, 0.1))
+	var body := StaticBody3D.new()
+	body.name = "FrontDoorClick"
+	body.set_meta("interior_click_type", "service_front_door")
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(FRONT_DOOR_SIZE.x, FRONT_DOOR_SIZE.y, 0.1)
+	shape.shape = box
+	body.add_child(shape)
+	body.position = at + Vector3(0, FRONT_DOOR_SIZE.y * 0.5, -0.06)
+	parent.add_child(body)
 
 
 ## A window of WINDOWS: its view (a picture the service interior makes a real one of:

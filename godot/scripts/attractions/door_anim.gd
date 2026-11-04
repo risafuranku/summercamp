@@ -192,13 +192,20 @@ static func _hang(door: MeshInstance3D) -> bool:
 		hole.name = door.name + "Way"
 		var q := QuadMesh.new()
 		q.size = Vector2(box.size.x * 0.96, box.size.y * 0.98)
+		# One of a pair (the pub's double door): its doorway reaches across the middle into
+		# the other's, no strip of the front left standing between the two (the user 4. 11.:
+		# "a post inside the frame as you go in").
+		var shift := 0.0
+		if door.has_meta("door_pair"):
+			q.size.x = box.size.x * 0.98 + 0.012
+			shift = (1.0 if not right else -1.0) * (box.size.x * 0.02 + 0.012) * 0.5
 		hole.mesh = q
 		var m := StandardMaterial3D.new()
 		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 		m.albedo_color = Color(0.035, 0.03, 0.025)
 		hole.material_override = m
 		# In the leaf's plane, a hair out: in front of the frame the models put behind it.
-		hole.transform = Transform3D(door.basis, door.position + door.basis.z * 0.004)
+		hole.transform = Transform3D(door.basis, door.position + door.basis.z * 0.004 + door.basis.x * shift)
 		hole.visible = false
 		parent.add_child(hole)
 	# What is fixed on the leaf (the handle, the wired glass, the heart, the M / Z plaque)

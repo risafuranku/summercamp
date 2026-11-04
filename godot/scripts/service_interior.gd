@@ -313,8 +313,13 @@ func door_spec(structure: Node3D) -> Dictionary:
 ## (building_models._room_inside: `room_name`), the camp's leaf in front of the wall.
 func _laid_door(structure: Node3D, room_name: String, wall_out: Vector3, size: Vector2, wall: float) -> Dictionary:
 	var leaf: Array = []
-	for n in ["FrontDoor"]:
-		var fd := _room_root.find_child(n, true, false)
+	# A door on hinges (the pub's two leaves: they swing open on the way out), else its
+	# picture (hidden as the camp's door opens).
+	for h in _room_root.find_children("FrontDoorHinge*", "Node3D", true, false):
+		if (h as Node).has_meta("door_leaf"):
+			leaf.append(h)
+	if leaf.is_empty():
+		var fd := _room_root.find_child("FrontDoor", true, false)
 		if fd != null:
 			leaf.append(fd)
 	var spec := {"root": _room_root, "at": wall_out + Vector3(0.0, 0.0, 0.03), "out": Vector3(0, 0, 1), "size": size, "inner": wall + 0.03, "leaf": leaf}
@@ -521,6 +526,10 @@ func _process(delta: float) -> void:
 			if _hover_click_type() == "bistro_look":
 				HandCursor.want(HandCursor.LOOK)
 				_hover_things(null)
+			elif _hover_click_type() == "service_front_door":
+				# The way out: the walking hand, nothing glinting.
+				HandCursor.want(HandCursor.WALK)
+				_hover_things(null)
 			else:
 				HandCursor.want(HandCursor.POINT)
 				_hover_things(collider)
@@ -647,6 +656,12 @@ func _try_click_world(event: InputEventMouseButton) -> bool:
 		return true
 	if not (collider is Node3D and (collider as Node3D).is_visible_in_tree()):
 		return false
+	if _node_has_click_type(collider, "service_front_door"):
+		# Out through the front door (the user 4. 11.: "from inside you cannot click the door
+		# to leave"), on foot as by Esc.
+		if not _leave_on_foot():
+			close_service()
+		return true
 	var station := _meta_up(collider, "bistro_station")
 	if station != "":
 		_open_station(station)
@@ -686,7 +701,7 @@ func _hover_click_type() -> String:
 	var collider = hit.get("collider", null) as Node
 	if collider == null or not (collider is Node3D and (collider as Node3D).is_visible_in_tree()):
 		return ""
-	for t in ["service_light_switch", "service_counter_game", "service_ledger", "service_stock", "sewer_enter", "sewer_terminal", "bistro_station", "bistro_look", "window_curtain"]:
+	for t in ["service_light_switch", "service_counter_game", "service_ledger", "service_stock", "sewer_enter", "sewer_terminal", "bistro_station", "bistro_look", "window_curtain", "service_front_door"]:
 		if _node_has_click_type(collider, t):
 			return t
 	var n := collider as Node

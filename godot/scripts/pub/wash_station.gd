@@ -20,6 +20,15 @@ const K_SURF := preload("res://scripts/interior_kit.gd")
 const STROKES := 700.0
 const MUG_M := 0.16
 const DRAG_FAR := 8.0
+## The glass brush in the sink (the user 4. 11.: "model the brush the mugs are pushed onto
+## and washed on better"): the tall bristle brush on its post in its bowl, standing in the
+## water (pub/glass_brush, Grok); a dirty mug goes onto it upside down and is scrubbed up and
+## down along it. Its height; how high its mug's rim sits (over the bristles) and how far a
+## stroke pushes it down.
+const BRUSH_M := 0.34
+const ON_BRUSH := 0.13
+const STROKE_DOWN := 0.035
+var _brush: Sprite3D
 
 var _in_water := false
 var _dirt := 1.0
@@ -39,6 +48,7 @@ var _shine: Sprite3D
 func _build() -> void:
 	super._build()
 	_build_sink()
+	_brush = psprite("glass_brush", BRUSH_M)
 	for i in PILE_SPOTS.size():
 		_pile.append(psprite("mug_dirty", MUG_M))
 	_mug = psprite("mug_clean", MUG_M)
@@ -91,13 +101,17 @@ func _show() -> void:
 		_mug.position = held_at(0.06)
 		_mug_dirt.position = held_at(0.06) + Vector3(0, 0, 0.003)
 	else:
-		# Pressed down in the water as you scrub: in steps, up and down.
+		# On the brush upside down, pushed down along it in steps as you scrub.
 		var down := 0.0
 		if _scrubbing and _last.y >= 0.0:
-			down = -0.03 * (float(int(_t * 10.0) % 2))
-		put(_mug, WATER_AT, -0.05 + down)
-		put(_mug_dirt, WATER_AT, -0.05 + down)
-		_mug_dirt.position.z += 0.003
+			down = -STROKE_DOWN * (float(int(_t * 10.0) % 2))
+		put(_mug, WATER_AT, ON_BRUSH + down)
+		put(_mug_dirt, WATER_AT, ON_BRUSH + down)
+		_mug.position.z += 0.02
+		_mug_dirt.position.z += 0.023
+	_mug.flip_v = _in_water and not in_hand
+	_mug_dirt.flip_v = _mug.flip_v
+	put(_brush, WATER_AT, -0.04)
 	_mug_dirt.modulate.a = 1.0 if _hand_what == "pile" else ceilf(_dirt * 4.0) / 4.0
 	for i in _bubble_spr.size():
 		var spr: Sprite3D = _bubble_spr[i]

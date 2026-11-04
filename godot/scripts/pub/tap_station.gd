@@ -93,7 +93,7 @@ func _build() -> void:
 	_stream.region_enabled = true
 	_knife = psprite("knife", 0.16, true)
 	put(_knife, KNIFE_AT, 0.006)
-	_level_meter = meter(5, 18)
+	_level_meter = meter(7, 22)
 	_level_meter.position = local_at(MUG_FOOT + Vector2(-46, 0), 0.1)
 	_pour_loop = AudioStreamPlayer.new()
 	var path := "res://assets/sfx/pub/tap_pour.mp3"
@@ -244,7 +244,7 @@ func _show() -> void:
 			var foam_m := MUG_M * inside * clampf(_foam, 0.0, 1.0 - _beer)
 			_foam_spr.scale = Vector3(1.0, maxf(0.15, foam_m / 0.05), 1.0)
 			_foam_spr.position = local_at(foot, 0.004) + Vector3(0, level_m, 0.005)
-		set_meter(_level_meter, _beer + _foam, Vector2(PUB.LINE - 0.04, 1.0), RETRO_UI.C_AMBER if _beer + _foam < 1.0 else RETRO_UI.C_RED)
+		_pour_meter(_level_meter, _beer, _foam, _want_now())
 	# The stream from the spout down into the mug while it runs.
 	var running: bool = _mug and absf(_lever) > 0.5 and _slide < 0.0 and taproom.tap_trouble(building_key) == ""
 	_stream.visible = running
@@ -447,6 +447,54 @@ func _pour(delta: float, pouring: bool, flat: bool) -> void:
 		_beer -= over - off_foam
 		_spilled += over
 		_puddle = minf(1.0, _puddle + over * 2.5)
+
+
+## The mug's gauge beside it (the user 4. 11.: "when someone wants a snyt, show how the
+## glass fills: a helper bar, up to where the beer, from where the foam"): the beer of the
+## pour they asked for dim gold from the bottom, its head above it to the rim dim white, a
+## notch at the line between; over them what is in the mug, the beer gold, the head white,
+## red at the top when it runs over.
+const GAUGE_BEER := Color(0.96, 0.68, 0.16)
+const GAUGE_FOAM := Color(0.97, 0.94, 0.84)
+const GAUGE_BEER_DIM := Color(0.32, 0.21, 0.06)
+const GAUGE_FOAM_DIM := Color(0.27, 0.26, 0.23)
+const GAUGE_NOTCH := Color(1.0, 0.96, 0.78)
+
+
+func _pour_meter(s: Sprite3D, beer: float, foam: float, want: float) -> void:
+	if s == null:
+		return
+	var img: Image = s.get_meta("meter_img")
+	var w := img.get_width()
+	var h := img.get_height()
+	var n := h - 2
+	var over := beer + foam > 1.0
+	var sig := "%d|%d|%d|%s" % [int(beer * n), int((beer + foam) * n), int(want * n), str(over)]
+	if sig == str(s.get_meta("meter_sig")):
+		return
+	s.set_meta("meter_sig", sig)
+	img.fill(Color(0.03, 0.025, 0.02, 1.0))
+	for i in n:
+		var mid := (float(i) + 0.5) / float(n)
+		var c := GAUGE_BEER_DIM if mid <= want else GAUGE_FOAM_DIM
+		if mid <= beer:
+			c = GAUGE_BEER
+		elif mid <= beer + foam:
+			c = GAUGE_FOAM
+		img.fill_rect(Rect2i(1, h - 2 - i, w - 2, 1), c)
+	# The notch: where the beer ends and its head begins, across the column's edges too.
+	img.fill_rect(Rect2i(0, h - 2 - int(round(want * float(n))), w, 1), GAUGE_NOTCH)
+	if over:
+		img.fill_rect(Rect2i(1, 1, w - 2, 2), RETRO_UI.C_RED)
+	(s.texture as ImageTexture).update(img)
+
+
+## The pour the mug is for: the picked order's, else the oldest beer ordered (a hladinka's
+## when nobody has asked).
+func _want_now() -> float:
+	var orders := orders_here("tap")
+	var drink := str(orders[0]["drink"]) if not orders.is_empty() else "hladinka"
+	return float((PUB.DRINKS.get(drink, {}) as Dictionary).get("beer", PUB.LINE))
 
 
 ## Over the bar with it: the mat it goes to, judged; sent back if it is not what they

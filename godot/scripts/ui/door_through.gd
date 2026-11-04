@@ -75,6 +75,8 @@ var _out_pane: MeshInstance3D
 var _out_open := false
 var _plane: Array = []
 var _leaf_shown: Array = []
+## The room's leaves swung open on the way out (meta swing_deg: the pub's), shut again after.
+var _leaf_swung: Array = []
 var _walk: Tween
 var _state := ""
 var _done: Callable
@@ -269,6 +271,10 @@ func finish() -> void:
 		if is_instance_valid(n):
 			(n as Node3D).visible = true
 	_leaf_shown.clear()
+	for n in _leaf_swung:
+		if is_instance_valid(n):
+			(n as Node3D).rotation_degrees.y = 0.0
+	_leaf_swung.clear()
 	if _out_pane != null and is_instance_valid(_out_pane):
 		_out_pane.queue_free()
 	_out_pane = null
@@ -472,9 +478,17 @@ func _tick_out() -> void:
 		if _room.has_method("door_opening"):
 			_room.call("door_opening")
 		for n in _spec.get("leaf", []):
-			if is_instance_valid(n) and (n as Node3D).visible:
-				(n as Node3D).visible = false
-				_leaf_shown.append(n)
+			if not is_instance_valid(n) or not (n as Node3D).visible:
+				continue
+			if (n as Node).has_meta("swing_deg"):
+				# A leaf on its hinges opens into the room as the camp's does (it vanished, the
+				# user 4. 11.), shut again once you are out (finish).
+				var sw := (n as Node3D).create_tween()
+				sw.tween_property(n, "rotation_degrees:y", float((n as Node).get_meta("swing_deg")), 0.75).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+				_leaf_swung.append(n)
+				continue
+			(n as Node3D).visible = false
+			_leaf_shown.append(n)
 		_out_pane.visible = true
 	if not _out_open:
 		return
