@@ -167,7 +167,7 @@ func _ready() -> void:
 			# The 13:20 bus at the camp stop, for both.
 			["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0], ["coop_to_bus_stop"],
 			["eval", "debug_jump_to(2, 13.42)"], ["wait", 3.0], ["coop_signal", "host_bus_here"], ["coop_wait_file", "client_aboard"],
-			["eval", "_interior_manager._town_trip._board('camp')"], ["wait", 1.0], ["coop_ticket"], ["eval", "_interior_manager._town_trip._ride._try_sit(1)"], ["wait", 3.0],
+			["eval", "_interior_manager._town_trip._board('camp')"], ["wait", 1.0], ["coop_ticket"], ["eval", "_interior_manager._town_trip._ride._try_sit(_interior_manager._town_trip._ride.first_free_seat(1))"], ["wait", 3.0],
 			["shot", "h10_bus_waits"], ["coop_fingerprint", "host_bus_wait"], ["coop_signal", "host_sat"],
 			["coop_wait_file", "client_sat"], ["wait", 3.0], ["coop_fingerprint", "host_bus_ride"],
 			["coop_wait", "in_town"], ["wait", 2.0], ["coop_fingerprint", "host_town"],
@@ -262,8 +262,9 @@ func _ready() -> void:
 			["coop_wait_file", "host_day2"], ["wait", 2.5], ["coop_fingerprint", "client_day2"], ["coop_signal", "client_day2_seen"],
 			["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0], ["coop_to_bus_stop"],
 			["coop_wait_file", "host_bus_here"], ["wait", 1.0], ["shot", "c9b_at_the_stop"], ["eval", "_interior_manager._town_trip._board('camp')"], ["wait", 1.0], ["coop_signal", "client_aboard"],
-			["coop_wait_file", "host_sat"], ["wait", 1.0], ["shot", "c10_host_sat_waiting"], ["coop_ticket"], ["eval", "_interior_manager._town_trip._ride._try_sit(6)"],
-			["wait", 3.0], ["coop_fingerprint", "client_bus_ride"], ["shot", "c11_riding_with_host"], ["coop_signal", "client_sat"],
+			["coop_wait_file", "host_sat"], ["wait", 1.0], ["shot", "c10_host_sat_waiting"], ["coop_ticket"], ["eval", "_interior_manager._town_trip._ride._try_sit(_interior_manager._town_trip._ride.first_free_seat(6))"],
+			# (Down the aisle to a free seat, then the round's bus goes at its time: bus_line.gd.)
+			["until", "_interior_manager._town_trip._ride._state >= 3 and _interior_manager._town_trip._ride._state <= 5", 40.0], ["coop_fingerprint", "client_bus_ride"], ["shot", "c11_riding_with_host"], ["coop_signal", "client_sat"],
 			["coop_wait", "in_town"], ["wait", 2.0], ["coop_fingerprint", "client_town"], ["coop_signal", "client_town_seen"],
 			["coop_wait_file", "host_in_pub"], ["eval", "_interior_manager._town_trip._open_room('pub')"], ["wait", 1.5], ["coop_signal", "client_in_pub"],
 			["wait", 1.5], ["shot", "c14_pub_host"], ["coop_fingerprint", "client_pub"], ["coop_signal", "client_pub_seen"], ["coop_wait_file", "host_pub_seen"],

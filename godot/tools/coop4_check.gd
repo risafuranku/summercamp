@@ -153,7 +153,7 @@ func _to_lesna() -> Array:
 	var out: Array = [["eval", "_interior_manager._building_interior.close_interior()"], ["eval", "_interior_manager._tent_interior.close_tent()"],
 		["wait", 1.0], ["coop4_to_stop"], ["wait", 1.0]]
 	var board := [["eval", "_interior_manager._town_trip._board('camp')"], ["wait", 1.0]]
-	var sit := [["coop_ticket"], ["eval", "_interior_manager._town_trip._ride._try_sit(%d)" % int(seat[r])], ["wait", 1.0]]
+	var sit := [["coop_ticket"], ["eval", "_interior_manager._town_trip._ride._try_sit(_interior_manager._town_trip._ride.first_free_seat(%d))" % int(seat[r])], ["wait", 1.0]]
 	match r:
 		"host":
 			out.append_array([["eval", "debug_jump_to(2, 13.42)"], ["wait", 3.0], ["coop_signal", "host_bus_here"], ["coop_wait_file", "c3_aboard"]])
