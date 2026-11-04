@@ -325,6 +325,15 @@ func biz_lost(key: String) -> void:
 		_biz_tell("lost", [key])
 
 
+## The van's fee for an order on the van of `due_day`: nothing when that van carries an
+## order already (one van, one fee: the user 4. 11., "merge them all into one delivery").
+func van_fee(due_day: int) -> int:
+	for o in _biz()["orders"]:
+		if int((o as Dictionary).get("due_day", 0)) == due_day:
+			return 0
+	return BIZ_RULES.DELIVERY_FEE
+
+
 ## An order for the van (goods: {good: packs}), paid now, delivered on `due_day`.
 func biz_order(key: String, order: Dictionary, due_day: int) -> bool:
 	var site: Dictionary = (_biz()["sites"] as Dictionary).get(key, {})
@@ -336,7 +345,7 @@ func biz_order(key: String, order: Dictionary, due_day: int) -> bool:
 			clean[g] = int(order[g])
 	if clean.is_empty():
 		return false
-	var cost := BIZ_RULES.order_cost(str(site["kind"]), clean)
+	var cost := BIZ_RULES.goods_cost(str(site["kind"]), clean) + van_fee(due_day)
 	if not spend_money(cost):
 		return false
 	_biz()["orders"].append({"key": key, "goods": clean, "cost": cost, "due_day": due_day})
@@ -365,11 +374,12 @@ func biz_order_all(orders: Dictionary, due_day: int) -> bool:
 		total += cost
 	if lines.is_empty():
 		return false
-	total += BIZ_RULES.DELIVERY_FEE
+	var fee := van_fee(due_day)
+	total += fee
 	if not spend_money(total):
 		return false
 	# The van's fee goes on the first line (one van).
-	lines[0][2] = int(lines[0][2]) + BIZ_RULES.DELIVERY_FEE
+	lines[0][2] = int(lines[0][2]) + fee
 	for l in lines:
 		_biz()["orders"].append({"key": str(l[0]), "goods": l[1], "cost": int(l[2]), "due_day": due_day})
 		_biz_tell("order", [str(l[0]), l[1], int(l[2]), due_day])

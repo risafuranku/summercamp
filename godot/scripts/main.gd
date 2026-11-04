@@ -1664,6 +1664,10 @@ func _poll_arrivals(delta: float) -> void:
 	var post_p = bi_p.get("_post") if bi_p != null else null
 	if _hud_manager.has_method("set_post"):
 		_hud_manager.set_post(post_p.hud_row() if post_p != null and post_p.has_method("hud_row") else {})
+	# The wholesaler's van on its way with the businesses' orders, likewise.
+	if _hud_manager.has_method("set_van"):
+		var abs_now := (maxi(1, _day_index) - 1) * 1440 + _clock_minutes_from_hours(_time_of_day_hours)
+		_hud_manager.set_van(_day_events.van_hud_row(abs_now) if _day_events != null and camp_rule("events") else {})
 	var day_rows: Array = _day_events.hud_rows() if _day_events != null else []
 	var biz = _interior_manager.get("business") if _interior_manager != null else null
 	var serve_rows: Array = []
@@ -1692,6 +1696,9 @@ func _trouble_rows(biz) -> Array:
 	var abs_minute := (maxi(1, _day_index) - 1) * 1440 + _clock_minutes_from_hours(_time_of_day_hours)
 	if _day_events != null and camp_rule("events"):
 		for ev in _day_events.open_events():
+			# (The van has its own plate over these: set_van.)
+			if str(ev.get("kind", "")) == "delivery":
+				continue
 			var span := float(int(ev.get("deadline", 0)) - int(ev.get("at", 0)))
 			var left := clampf(float(int(ev.get("deadline", 0)) - abs_minute) / span, 0.0, 1.0) if span > 0.0 else -1.0
 			rows.append({"id": "d%s" % str(ev.get("id", "")), "kind": str(ev.get("kind", "")), "word": str(ev.get("short", "")), "cat": "day", "left": left})
@@ -1702,7 +1709,50 @@ func _trouble_rows(biz) -> Array:
 		for site in biz.waiting_sites():
 			var kind := str(biz.site(str(site["key"])).get("kind", ""))
 			rows.append({"id": "b%s" % str(site["key"]), "kind": str(TROUBLE_KIND.get(kind, "pub")), "word": str(TROUBLE_WORD.get(kind, "Guests")), "cat": "biz", "left": -1.0, "n": int(site["n"])})
+	if biz != null and biz.has_method("_live_sites"):
+		rows.append_array(_stock_rows(biz))
 	rows.append_array(_work_rows())
+	return rows
+
+
+## What is running out at the businesses (the user 4. 11.: "the game does not tell me in
+## any way that the goods at the businesses are running out or gone. What about a
+## notification on the right?"): a plate for each place with something low on its shelves
+## (BusinessRules.is_low: red on its desk and in its program) and not on the van: the
+## place's picture, the worst of it named, the bar what is left of it (empty and blinking:
+## none).
+const BIZ_RULES_M = preload("res://core/systems/business_rules.gd")
+const BIZ_RUNTIME_M = preload("res://scripts/business/business_runtime.gd")
+
+
+func _stock_rows(biz) -> Array:
+	var rows: Array = []
+	var state = CoreRoot.get_state() if CoreRoot != null else null
+	if state == null or not (state.biz is Dictionary):
+		return rows
+	var sites: Dictionary = (state.biz as Dictionary).get("sites", {})
+	var live: Dictionary = biz._live_sites()
+	for key in live:
+		var s: Dictionary = sites.get(key, {})
+		if s.is_empty():
+			continue
+		var kind := str(s.get("kind", ""))
+		var gd: Dictionary = BIZ_RULES_M.goods(kind)
+		var worst := ""
+		var worst_k := 2.0
+		for g in gd:
+			# (The ready-made extras nobody has to keep: none on the shelf to start with.)
+			if int((gd[g] as Dictionary).get("start", 0)) <= 0:
+				continue
+			var n := int((s.get("stock", {}) as Dictionary).get(g, 0))
+			if not BIZ_RULES_M.is_low(kind, g, n) or BIZ_RUNTIME_M.on_order(str(key), g) > 0:
+				continue
+			var k := float(n) / maxf(1.0, float(int((gd[g] as Dictionary).get("pack", 1)) / 2))
+			if k < worst_k:
+				worst_k = k
+				worst = g
+		if worst != "":
+			rows.append({"id": "s%s" % str(key), "kind": str(TROUBLE_KIND.get(kind, "pub")), "word": str((gd[worst] as Dictionary).get("label", "")), "cat": "biz", "left": clampf(worst_k, 0.0, 1.0)})
 	return rows
 
 

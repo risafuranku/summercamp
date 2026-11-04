@@ -205,13 +205,14 @@ func _click(id: String) -> void:
 			_order.clear()
 		"send":
 			var cost := _order_total()
-			if cost <= RULES.DELIVERY_FEE:
+			if cost <= _van_fee():
 				return
-			if not CoreRoot.actions.biz_order_all(_order, CoreRoot.get_day() + 1):
+			var van_day: int = BUSINESS.van_day()
+			if not CoreRoot.actions.biz_order_all(_order, van_day):
 				_shell.message_box("SoftSklad", "The order of $%d could not be sent.\n\nThe camp has $%d." % [cost, CoreRoot.get_money()], "error")
 				return
 			_order.clear()
-			_say(LANG.f("Order sent: $%d. One van in the morning.", cost), GREEN)
+			_say(LANG.f("Order sent: $%d. It goes on today's van." if van_day <= CoreRoot.get_day() else "Order sent: $%d. The van comes tomorrow.", cost), GREEN)
 			_shell.play("ding", -10.0)
 		"hire":
 			var ap := BUSINESS.applicants(_site)
@@ -272,13 +273,18 @@ func _room(key: String, g: String) -> int:
 	return maxi(0, (RULES.cap_of(kind, g, s) - int(s["stock"].get(g, 0)) - BUSINESS.on_order(key, g)) / maxi(1, int(d.get("pack", 1))))
 
 
-## The whole order across the places: the goods and one van.
+## The whole order across the places: the goods and one van (nothing for the van when the
+## order joins one already coming: actions.van_fee).
 func _order_total() -> int:
 	var total := 0
 	for key in _order:
 		var kind := str(BUSINESS.site(str(key)).get("kind", ""))
 		total += RULES.goods_cost(kind, _order[key])
-	return total + (RULES.DELIVERY_FEE if total > 0 else 0)
+	return total + (_van_fee() if total > 0 else 0)
+
+
+func _van_fee() -> int:
+	return CoreRoot.actions.van_fee(BUSINESS.van_day())
 
 
 func _say(text: String, col: Color) -> void:
@@ -554,9 +560,10 @@ func _draw_order(m: Rect2, site: Dictionary) -> void:
 		if c2 > 0:
 			parts.append(LANG.money("%s $%d" % [_site_label(str(key)), c2]))
 	_t(foot.position + Vector2(12, 22), ", ".join(parts) if not parts.is_empty() else tr("Nothing yet"), T.SHADOW)
-	_t(foot.position + Vector2(12, 38), LANG.f("One van $%d   Total $%d", [RULES.DELIVERY_FEE if cost > 0 else 0, cost]), RED if cost > CoreRoot.get_money() else T.TEXT, true)
+	var fee := _van_fee()
+	_t(foot.position + Vector2(12, 38), LANG.f("One van $%d   Total $%d", [fee if cost > 0 else 0, cost]), RED if cost > CoreRoot.get_money() else T.TEXT, true)
 	_button(Rect2(foot.end.x - 186, foot.position.y + 14, 84, 24), tr("Clear"), "clear", cost > 0)
-	_button(Rect2(foot.end.x - 96, foot.position.y + 14, 88, 24), tr("Send order"), "send", cost > RULES.DELIVERY_FEE)
+	_button(Rect2(foot.end.x - 96, foot.position.y + 14, 88, 24), tr("Send order"), "send", cost > fee)
 
 
 ## An ID photo in its sunken frame.

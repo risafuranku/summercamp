@@ -717,6 +717,16 @@ static func on_order(key: String, good: String) -> int:
 	return n
 
 
+## The day of the van a new order goes on: the nearest that has not come yet
+## (day_events.next_van_day).
+static func van_day() -> int:
+	var tree := Engine.get_main_loop() as SceneTree
+	var main := tree.current_scene if tree != null else null
+	var de = main.get("_day_events") if main != null else null
+	var day := CoreRoot.get_day() if CoreRoot != null else 1
+	return de.next_van_day(day) if de != null and de.has_method("next_van_day") else day + 1
+
+
 ## Orders the van brings today (the day events make the van come for them).
 static func due_today() -> bool:
 	if CoreRoot == null or CoreRoot.get_state() == null:

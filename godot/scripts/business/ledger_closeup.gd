@@ -277,16 +277,17 @@ func _clicked(id: String) -> void:
 		return
 	match id:
 		"send", "stamp":
-			var cost: int = RULES.order_cost(kind, _order)
-			if cost <= RULES.DELIVERY_FEE:
+			var van_day: int = BUSINESS.van_day()
+			if RULES.goods_cost(kind, _order) <= 0:
 				say("", "Nothing written on the order.")
 				return
-			if not CoreRoot.actions.biz_order(building_key, _order, CoreRoot.get_day() + 1):
+			var cost: int = RULES.goods_cost(kind, _order) + CoreRoot.actions.van_fee(van_day)
+			if not CoreRoot.actions.biz_order(building_key, _order, van_day):
 				say("", LANG.f("That is $%d. The camp has not got it.", cost))
 				return
 			_order = {}
 			_stamp("ORDERED")
-			say("", "The van comes in the morning.")
+			say("", "It goes on today's van." if van_day <= CoreRoot.get_day() else "The van comes tomorrow.")
 		"bin":
 			var n2: int = CoreRoot.actions.biz_bin(building_key)
 			if n2 > 0:
@@ -571,7 +572,8 @@ func _paint_order(c: Control, site: Dictionary, kind: String) -> void:
 	var gd: Dictionary = RULES.goods(kind)
 	var keys: Array = _goods_keys()
 	_text(c, LEFT.position + Vector2(0, 21), tr("Wholesaler"), PENCIL)
-	_right(c, LEFT.end.x, LEFT.position.y + 21, LANG.f("van $%d", RULES.DELIVERY_FEE), PENCIL)
+	var van_fee: int = CoreRoot.actions.van_fee(BUSINESS.van_day())
+	_right(c, LEFT.end.x, LEFT.position.y + 21, LANG.f("van $%d", van_fee), PENCIL)
 	for i in keys.size():
 		var g: String = keys[i]
 		var d: Dictionary = gd[g]
@@ -589,7 +591,8 @@ func _paint_order(c: Control, site: Dictionary, kind: String) -> void:
 		var on_units: int = BUSINESS.on_order(building_key, g)
 		if on_units > 0:
 			_text(c, Vector2(pr.end.x + 3, y), "+%d" % on_units, PENCIL)
-	var cost: int = RULES.order_cost(kind, _order)
+	var goods_cost: int = RULES.goods_cost(kind, _order)
+	var cost: int = goods_cost + (van_fee if goods_cost > 0 else 0)
 	_text(c, RIGHT.position + Vector2(0, 10), LANG.f("Total $%d", cost), INK, 10, RETRO_UI.FONT_BIG)
 	_text(c, RIGHT.position + Vector2(0, 21), LANG.f("Cash $%d", CoreRoot.get_money()), PENCIL)
 	_pencil_button(c, _rbutton(0), "SEND ORDER", RED, "send")

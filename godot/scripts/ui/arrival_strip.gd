@@ -37,6 +37,13 @@ const POST_VAN_TEX := "res://assets/textury/ui/post_van.png"
 const POST_PARCEL_TEX := "res://assets/textury/ui/post_parcel.png"
 const POST_YELLOW := Color(0.98, 0.78, 0.12)
 var post: Dictionary = {}
+## The wholesaler's plate (scripts/day_events.gd van_hud_row: the user 4. 11., "the same as
+## the post"): its white Avia on the way, the delivery note while its driver waits at the
+## counter; the stripe the van's white.
+const WS_VAN_TEX := "res://assets/textury/ui/ws_van.png"
+const WS_NOTE_TEX := "res://assets/textury/ui/ws_note.png"
+const WS_WHITE := Color(0.88, 0.86, 0.8)
+var van: Dictionary = {}
 const ICON_BOX := Vector2(13, 9)
 
 var font: Font
@@ -78,25 +85,44 @@ func set_post(row: Dictionary) -> void:
 	queue_redraw()
 
 
+func set_van(row: Dictionary) -> void:
+	if row == van:
+		return
+	van = row.duplicate()
+	queue_redraw()
+
+
+## The service plates over the parties': [row, stripe, picture on the way, at the desk,
+## the row's icon at the desk].
+func _services() -> Array:
+	var out: Array = []
+	if not post.is_empty():
+		out.append([post, POST_YELLOW, POST_VAN_TEX, POST_PARCEL_TEX, "parcel"])
+	if not van.is_empty():
+		out.append([van, WS_WHITE, WS_VAN_TEX, WS_NOTE_TEX, "note"])
+	return out
+
+
 func _process(delta: float) -> void:
 	_t += delta
-	if not _rows.is_empty() or not post.is_empty():
+	if not _rows.is_empty() or not post.is_empty() or not van.is_empty():
 		queue_redraw()
 
 
 func _draw() -> void:
-	if _rows.is_empty() and post.is_empty():
+	if _rows.is_empty() and post.is_empty() and van.is_empty():
 		return
 	var u := float(maxi(1, ui_scale))
-	var extra := 0 if post.is_empty() else 1
+	var services := _services()
+	var extra := services.size()
 	var n := mini(_rows.size(), MAX_ROWS - extra)
 	var step := (PLATE.y + GAP) * u
 	var x := floorf(size.x - (PLATE.x + 4.0) * u)
 	var y0 := floorf(size.y * 0.42 - step * float(n + extra) * 0.5)
 	var f: Font = font if font != null else get_theme_default_font()
 	var fs := int(8.0 * u)
-	if extra > 0:
-		_post_plate(Vector2(x, y0), u)
+	for s in services:
+		_post_plate(s, Vector2(x, y0), u)
 		y0 += step
 	for i in n:
 		_plate(_rows[i], Vector2(x, y0 + step * float(i)), u, f, fs)
@@ -148,19 +174,20 @@ func _plate(row: Dictionary, at: Vector2, u: float, f: Font, fs: int) -> void:
 	_text(f, txt, at + Vector2((PLATE.x - 2.0) * u - tw, 10.0 * u), fs, u, BONE)
 
 
-## The post's plate: the van (driving) or the parcel (shaking a pixel now and then while
-## the postman waits), the bar filling as he comes, then running down, red and blinking at
-## the end.
-func _post_plate(at: Vector2, u: float) -> void:
+## A service's plate (the post's, the wholesaler's: _services): the van (driving) or what
+## waits at the desk (shaking a pixel now and then while the man waits), the bar filling as
+## he comes, then running down, red and blinking at the end.
+func _post_plate(s: Array, at: Vector2, u: float) -> void:
+	var row: Dictionary = s[0]
 	var box := Rect2(at, PLATE * u)
 	draw_rect(box, FILL)
 	draw_rect(Rect2(box.position, Vector2(box.size.x, u)), LIGHT)
 	draw_rect(Rect2(box.position, Vector2(u, box.size.y)), LIGHT)
 	draw_rect(Rect2(box.position + Vector2(0, box.size.y - u), Vector2(box.size.x, u)), DARK)
 	draw_rect(Rect2(box.position + Vector2(box.size.x - u, 0), Vector2(u, box.size.y)), DARK)
-	draw_rect(Rect2(box.position + Vector2(u, u), Vector2(u, box.size.y - 2.0 * u)), POST_YELLOW)
-	var waiting := str(post.get("icon", "")) == "parcel"
-	var left := clampf(float(post.get("left", 0.0)), 0.0, 1.0)
+	draw_rect(Rect2(box.position + Vector2(u, u), Vector2(u, box.size.y - 2.0 * u)), s[1])
+	var waiting := str(row.get("icon", "")) == str(s[4])
+	var left := clampf(float(row.get("left", 0.0)), 0.0, 1.0)
 	var col := AMBER
 	var wiggle := 0.0
 	if waiting:
@@ -168,7 +195,7 @@ func _post_plate(at: Vector2, u: float) -> void:
 		wiggle = (1.0 if int(_t * 4.0) % 2 == 0 else -1.0) if int(_t * 0.5) % 3 == 0 else 0.0
 	else:
 		wiggle = 0.0 if int(_t * 3.0) % 2 == 0 else -1.0
-	_icon(POST_PARCEL_TEX if waiting else POST_VAN_TEX, at + (ICON_AT + Vector2(wiggle if waiting else 0.0, wiggle if not waiting else 0.0)) * u, u)
+	_icon(str(s[3]) if waiting else str(s[2]), at + (ICON_AT + Vector2(wiggle if waiting else 0.0, wiggle if not waiting else 0.0)) * u, u)
 	var bar := Rect2(at + BAR.position * u, BAR.size * u)
 	draw_rect(bar.grow(u), SLOT)
 	var seg_w := floorf((BAR.size.x + 1.0) / float(SEGMENTS)) - 1.0

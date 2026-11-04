@@ -912,6 +912,22 @@ func set_troubles(rows: Array) -> void:
 func set_post(row: Dictionary) -> void:
 	if _arrival_rings != null and is_instance_valid(_arrival_rings) and _arrival_rings.has_method("set_post"):
 		_arrival_rings.set_post(row)
+	_stack_plates()
+
+
+## The wholesaler's van's plate under the post's (day_events.van_hud_row(); {} none).
+func set_van(row: Dictionary) -> void:
+	if _arrival_rings != null and is_instance_valid(_arrival_rings) and _arrival_rings.has_method("set_van"):
+		_arrival_rings.set_van(row)
+	_stack_plates()
+
+
+## The troubles' plates go on under the arrivals', the post's and the van's.
+func _stack_plates() -> void:
+	if _trouble_strip == null or not is_instance_valid(_trouble_strip) or _arrival_rings == null or not is_instance_valid(_arrival_rings):
+		return
+	var extra := (0 if (_arrival_rings.get("post") as Dictionary).is_empty() else 1) + (0 if (_arrival_rings.get("van") as Dictionary).is_empty() else 1)
+	_trouble_strip.set("arrivals", mini(_arrivals.size() + extra, 6))
 
 
 ## Rows from GuestManager.get_arrivals(): who is coming, when, to which room, ready?
@@ -923,6 +939,7 @@ func set_arrivals(rows: Array) -> void:
 		_arrival_rings.set_rows(_arrivals)
 	if _trouble_strip != null and is_instance_valid(_trouble_strip):
 		_trouble_strip.set("arrivals", mini(_arrivals.size(), 6))
+	_stack_plates()
 	_refresh_arrivals()
 
 

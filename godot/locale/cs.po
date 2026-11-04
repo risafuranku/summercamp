@@ -30746,3 +30746,15 @@ msgstr "Esc  nebo  mezerník"
 
 msgid "Leave the PC"
 msgstr "Odejít od počítače"
+
+msgid "It goes on today's van."
+msgstr "Pojede dnešní dodávkou."
+
+msgid "The van comes tomorrow."
+msgstr "Dodávka přijede zítra."
+
+msgid "Order sent: $%d. It goes on today's van."
+msgstr "Objednávka odeslána: $%d. Pojede dnešní dodávkou."
+
+msgid "Order sent: $%d. The van comes tomorrow."
+msgstr "Objednávka odeslána: $%d. Dodávka přijede zítra."

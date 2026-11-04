@@ -82,6 +82,9 @@ var _life_t := 2.0
 var _log: Array = []
 var _log_seen: Dictionary = {}
 var _imported_once := false
+## When the first of the orders still to come was seen (game minute; -1 none): the van's
+## plate fills from it.
+var _van_t0 := -1
 var _oneshot_t := 30.0
 var _anim_t := 0.0
 var _last_abs := 0
@@ -121,6 +124,11 @@ func reset() -> void:
 func tick(delta: float, abs_minute: int, is_day: bool, day_index: int, can_act: bool) -> void:
 	_anim_t += delta
 	_last_abs = abs_minute
+	if _orders_waiting():
+		if _van_t0 < 0:
+			_van_t0 = abs_minute
+	else:
+		_van_t0 = -1
 	_flag_guests()
 	var hour := float(posmod(abs_minute, 1440)) / 60.0
 	if not coop_follow and is_day and hour >= 7.0 and _planned_day != day_index:
@@ -236,6 +244,56 @@ func delivery_event() -> Dictionary:
 		if str(ev["state"]) == "open" and str(ev["kind"]) == "delivery":
 			return ev.duplicate()
 	return {}
+
+
+## The day of the van a new order goes on (the user 4. 11.: "when I order several
+## deliveries, merge them all into one van, the nearest one to come"): today's while it is
+## still on its way, or before this morning's plan (7:00, FIRST_HOUR) when anything is due
+## today (one is sent for it then); else tomorrow's.
+func next_van_day(day: int) -> int:
+	for ev in _events:
+		if str(ev["kind"]) == "delivery" and str(ev["state"]) == "pending":
+			return day
+	var hour := float(posmod(_last_abs, 1440)) / 60.0
+	if _planned_day != day and hour < 7.0:
+		return day
+	return day + 1
+
+
+func _orders_waiting() -> bool:
+	var st = CoreRoot.get_state() if CoreRoot != null else null
+	return st != null and st.biz is Dictionary and not ((st.biz as Dictionary).get("orders", []) as Array).is_empty()
+
+
+## The wholesaler's van as a plate on the right like the post's (the user 4. 11.: "make a
+## notification on the right that the delivery is on its way, the same as the post"), from
+## the order till it is signed for: {icon: "van" (on its way, the bar filling as it comes)
+## or "note" (its driver at the counter, the bar his patience running down), left: 0..1},
+## or {} when nothing is coming.
+func van_hud_row(abs_minute: int) -> Dictionary:
+	for ev in _events:
+		if str(ev["kind"]) != "delivery":
+			continue
+		match str(ev["state"]):
+			"open":
+				var at_desk := int(ev.get("started", ev["at"])) + DRIVER_WAY_MIN
+				if abs_minute < at_desk:
+					return {"icon": "van", "left": 1.0}
+				var span := maxf(1.0, float(int(ev["deadline"]) - at_desk))
+				return {"icon": "note", "left": clampf(float(int(ev["deadline"]) - abs_minute) / span, 0.0, 1.0)}
+			"pending":
+				var from := float(_van_t0) if _van_t0 >= 0 and _van_t0 < int(ev["at"]) else float(int(ev["at"]) - 240)
+				return {"icon": "van", "left": clampf((float(abs_minute) - from) / maxf(1.0, float(int(ev["at"])) - from), 0.0, 1.0)}
+	if not _orders_waiting():
+		return {}
+	# Ordered, the van not sent yet (tomorrow's, or this morning's before its plan): the bar
+	# against the latest it can come.
+	var due := 1 << 30
+	for o in CoreRoot.get_state().biz.get("orders", []):
+		due = mini(due, int((o as Dictionary).get("due_day", 0)))
+	var t0 := float(_van_t0) if _van_t0 >= 0 else float(abs_minute)
+	var latest := float((due - 1) * 1440) + LAST_HOUR * 60.0
+	return {"icon": "van", "left": clampf((float(abs_minute) - t0) / maxf(1.0, latest - t0), 0.0, 0.95)}
 
 
 ## How many orders the van has brought (due today or before), for the driver's word.
