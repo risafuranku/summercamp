@@ -254,8 +254,14 @@ void fragment() {
 		if (d < 0.09 && abs(f.y - y) < 0.12) { drop = 1.0; }
 		else if (d < 0.05 && f.y < y) { drop = 0.35; }
 	}
-	ALBEDO = mix(vec3(0.7, 0.75, 0.76), vec3(0.88, 0.92, 0.95), drop) * mix(1.0, 0.3, night);
-	ALPHA = mix(0.08, 0.03, night) + drop * 0.45;
+	// Clear glass: a pale film over all of it (with the screen's dither) turned the whole
+	// country grey through the side windows (the user 4. 11.). The dirt only along the
+	// bottom by the rubber, where the wipe never reaches, and a little under the top.
+	vec2 g = floor(UV * vec2(64.0, 8.0));
+	float edge = smoothstep(0.8, 1.0, UV.y) + smoothstep(0.1, 0.0, UV.y) * 0.4;
+	float grime = edge * (0.55 + 0.45 * h(g + 5.3));
+	ALBEDO = mix(vec3(0.36, 0.33, 0.28), vec3(0.88, 0.92, 0.95), drop) * mix(1.0, 0.3, night);
+	ALPHA = clamp(grime * 0.22 + drop * 0.45, 0.0, 1.0);
 }
 """
 
@@ -449,16 +455,19 @@ func _shut() -> void:
 ## sky, sun and fog: the cabin rides in it.
 func set_time(hour: float, _fog: float, raining: bool) -> void:
 	_night = hour >= 20.3 or hour < 5.8
+	# The strip lights come on with the bus's lamps, at dusk (town_trip._bus_lights; called
+	# again every second on the way, the evening comes on while you ride).
+	var lit := hour >= 18.25 or hour < 6.75
 	if _glass != null:
 		_glass.set_shader_parameter("rain", 1.0 if raining else 0.0)
 		_glass.set_shader_parameter("night", 1.0 if _night else 0.0)
 	var fill := _rig.get_node_or_null("CabinFill") as DirectionalLight3D if _rig != null else null
 	if fill != null:
-		fill.light_energy = 0.08 if _night else 0.35
+		fill.light_energy = 0.08 if _night else (0.2 if lit else 0.35)
 	if _strip_mat != null:
-		_strip_mat.emission = Color(1.0, 0.9, 0.7) * (1.6 if _night else 0.15)
+		_strip_mat.emission = Color(1.0, 0.9, 0.7) * (1.6 if lit else 0.15)
 	for l in _strip_lights:
-		l.visible = _night
+		l.visible = lit
 
 
 ## Into the game's world: this view shows it from the cabin's camera, and the game's own
@@ -844,7 +853,7 @@ func _punched() -> void:
 		to = bought_to
 	bought_to = ""
 	_ticket = {"punched": true, "to": to, "kind": "adult", "price": 2, "at": TIMES_HM.hm(_hour_now)}
-	_play_two("thump.mp3", -12.0)
+	# (The close-up's punch is the sound: the fist on a ticket machine went with it.)
 	if bag != null:
 		bag.add_item("ticket_used")
 	_ticket_card.visible = true
@@ -899,11 +908,25 @@ func _try_sit(i: int) -> void:
 	var pos := _seat_pos()
 	var face := pos + Vector3(1.3 if SEATS[i].x > 0.0 else -1.3, -0.1, -1.3)
 	var rot := Transform3D(Basis(), pos).looking_at(face, Vector3.UP).basis.get_euler()
-	CAM_MOVE.move(self, _cam, {"position": pos, "rotation": rot}, 0.7, Tween.TRANS_SINE, Tween.EASE_IN_OUT)
+	# From the driver down the aisle to the row, then into the seat, as changing seats
+	# goes (_move_seat; the user 4. 11.: "clicking the back seat I just flew there instead
+	# of walking down the middle and sitting down").
+	var row: float = (SEATS[i] as Vector2).y
+	var from := _cam.position
+	var keys: Array = [{"pos": from, "rot": _cam.rotation},
+		{"pos": Vector3(0.1, 1.6, from.z + 0.35), "rot": Vector3(-0.08, PI, 0.0)}]
+	if row + 0.1 > from.z + 0.6:
+		keys.append({"pos": Vector3(0.1, 1.6, row + 0.1), "rot": Vector3(-0.08, PI, 0.0)})
+	keys.append({"pos": pos, "rot": rot})
+	_walking = true
+	_play_steps()
 	_play("door_close.mp3", -2.0)
-	get_tree().create_timer(0.75).timeout.connect(func():
+	_walk_tw = WALK_PATH.play(self, _cam, keys, 1.1 + 0.55 * absf(row - from.z))
+	_walk_tw.tween_callback(func():
+		_walking = false
 		if _state != SITTING:
 			return
+		_cam.rotation = rot
 		_cam_base = rot
 		_look = INTERIOR_LOOK.new(120.0, 24.0, 30.0)
 		# Co-op: sat down, the bus waits for the other warden (_mate_ready).

@@ -361,11 +361,26 @@ func _bags_to(parent: Node3D, bags: Dictionary, range_end := 0.0) -> void:
 		if bag.v.is_empty():
 			continue
 		var mi := MeshInstance3D.new()
-		mi.mesh = bag.mesh()
+		# (The wires' bag holds their pieces, not triangles: _power.)
+		mi.mesh = WIRES.mesh(bag.v) if key == WIRE_KEY else bag.mesh()
+		if key == WIRE_KEY:
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		mi.material_override = bags[key][1]
 		if range_end > 0.0:
 			mi.visibility_range_end = range_end
 		parent.add_child(mi)
+
+
+const WIRES = preload("res://scripts/ambient/wire_ribbons.gd")
+const WIRE_KEY := "wires"
+var _wire_material: ShaderMaterial
+
+
+## The power lines' wires (_power): dark steel, 2 cm, in the world's fog.
+func _wire_mat() -> ShaderMaterial:
+	if _wire_material == null:
+		_wire_material = WIRES.material(Color(0.16, 0.16, 0.17), 0.01)
+	return _wire_material
 
 
 func _bag(bags: Dictionary, key: String, mat: Material) -> Bag:
@@ -1352,13 +1367,17 @@ func _power(bags: Dictionary, key: Vector2i, d: Dictionary) -> void:
 				pole_mat.box(Vector3(p.x, h * 0.5, p.y), Vector3(0.24, h, 0.24), 0.0, Color.WHITE)
 				wire.box(Vector3(p.x, h - 0.3, p.y), Vector3(1.6, 0.1, 0.1), 0.0, Color.WHITE)
 			if k + 1 < poles.size():
+				# The wires sag between the poles, solid ribbons at least a pixel and a bit
+				# wide (scripts/ambient/wire_ribbons.gd): 3.5 cm boxes went under a pixel a
+				# few metres off and broke up past the bus (the user 4. 11.).
 				var q: Vector2 = poles[k + 1]
 				var len := p.distance_to(q)
-				var yaw := -atan2(q.y - p.y, q.x - p.x)
-				var mid := (p + q) * 0.5
+				var top := h - (0.3 if not big else 1.0)
+				var nrm: Vector2 = Vector2(-(q - p).normalized().y, (q - p).normalized().x)
+				var spans := _bag(bags, WIRE_KEY, _wire_mat())
 				for off: float in ([-0.7, 0.0, 0.7] if not big else [-4.5, 0.0, 4.5]):
-					var side: Vector2 = Vector2(-(q - p).normalized().y, (q - p).normalized().x) * off
-					wire.box(Vector3(mid.x + side.x, h - (0.3 if not big else 1.0) - len * 0.012, mid.y + side.y), Vector3(len, 0.035 if not big else 0.06, 0.035 if not big else 0.06), yaw, Color.WHITE)
+					var sd: Vector2 = nrm * off
+					spans.v.append_array(WIRES.hang(Vector3(p.x + sd.x, top, p.y + sd.y), Vector3(q.x + sd.x, top, q.y + sd.y), len * 0.024, 4 if not big else 8))
 
 
 ## The villages' fences and walls along their gardens.

@@ -961,7 +961,12 @@ func _process(delta: float) -> void:
 	if _night_poll <= 0.0:
 		_night_poll = 1.0
 		_night = h >= 19.0 or h < 6.0
-		_camp_bus.set_night(_night)
+		# Every 380 on the road lights up at dusk and stays lit till the morning: the
+		# stop's, the ones passing, the other warden's, the one you ride (the user 4. 11.:
+		# "the bus has no lights, in the evening you cannot see it going along the road").
+		get_tree().call_group("bus_380", "set_night", _bus_lights(h))
+		if _riding_now():
+			_ride.set_time(h, 0.0, _raining_now())
 		if _geo != null and is_instance_valid(_geo):
 			_geo.set_hour(h)
 		_update_masts()
@@ -969,8 +974,6 @@ func _process(delta: float) -> void:
 		if _town != null:
 			_town.set_night(_night)
 			_town.set_hour(h)
-			if _town_bus != null:
-				_town_bus.set_night(_night)
 			_update_motel(h)
 	_coop_hold("camp", _camp_bus)
 	_coop_hold_hamlet()
@@ -1010,7 +1013,15 @@ func _update_masts() -> void:
 	var env_node = main.get("world_environment")
 	var p := _player()
 	if env_node != null and p != null:
-		_masts.update_haze((env_node as WorldEnvironment).environment, p.global_position)
+		# From the eye that sees them: on the bus the bus, not the body left at the stop
+		# (the guys went all but clear passing right by them, the user 4. 11.).
+		_masts.update_haze((env_node as WorldEnvironment).environment, _eye_for_geo(p))
+
+
+## The 380's lamps: on from a little before sunset (weather_visuals.SUNSET_HOUR 18.5) to
+## a little after sunrise (6.5).
+static func _bus_lights(h: float) -> bool:
+	return h >= 18.25 or h < 6.75
 
 
 ## The shift ends when you walk off from the station or at nine.
@@ -1559,7 +1570,7 @@ func _update_mate_bus(delta: float) -> void:
 		_mate_bus.set_running(true)
 		_mate_bus.global_transform = target
 		_mate_bus.destination = str(want.get("d", GEO.TOWN.to_upper()))
-		_mate_bus.set_night(_night)
+		_mate_bus.set_night(_bus_lights(hour()))
 		_mate_bus_night = _night
 		# The stop's bus that pulled away with them: this one is it now.
 		var st := str(want.get("st", ""))
@@ -1576,7 +1587,7 @@ func _update_mate_bus(delta: float) -> void:
 	_mate_bus.set_speed(float(want.get("v", 0.0)))
 	if _mate_bus_night != _night:
 		_mate_bus_night = _night
-		_mate_bus.set_night(_night)
+		_mate_bus.set_night(_bus_lights(hour()))
 
 
 ## Runs that went early with the other warden: no bus at that stop till their time is up.
@@ -1702,7 +1713,7 @@ func _ride_road(stop_id: String, bus: Node3D) -> void:
 	_ride_bus.set_running(true)
 	_ride_bus.set_inside_visible(false)
 	_ride_bus.destination = bus.destination
-	_ride_bus.set_night(_night)
+	_ride_bus.set_night(_bus_lights(hour()))
 	_ride_bus.set_driver_out(false)
 	_ride_bus.global_transform = bus.global_transform
 	_ride_bus.open_door(true, true)
@@ -2017,7 +2028,7 @@ func _ensure_town() -> void:
 	_town_bus.name = "Bus380Lesna"
 	_town.add_child(_town_bus)
 	_town_bus.set_running(false)
-	_town_bus.set_night(_night)
+	_town_bus.set_night(_bus_lights(hour()))
 
 
 # ── saved with the game ──────────────────────────────────────────────────────

@@ -59,6 +59,10 @@ var _door_open := 0.0          # 0 shut .. 1 open (time, eased into the angle)
 var _door_target := 0.0
 var _board: Label3D
 var _lamps: Array[StandardMaterial3D] = []
+var _tails: Array[StandardMaterial3D] = []
+## The lamps seen from off: a dot a few pixels at least, at night (the user 4. 11.: "the
+## bus has no lights, in the evening you cannot even see it going along the road").
+var _dots: Array[MeshInstance3D] = []
 var _beam: SpotLight3D
 var _click: StaticBody3D
 var _body: Node3D
@@ -83,6 +87,8 @@ var _glass: StandardMaterial3D
 
 
 func _ready() -> void:
+	# (town_trip lights every bus at once by the hour: "bus_380".)
+	add_to_group("bus_380")
 	_body = Node3D.new()
 	_body.name = "Body"
 	add_child(_body)
@@ -167,6 +173,10 @@ func set_night(night: bool) -> void:
 		m.emission = Color(1.0, 0.82, 0.5) * (0.9 if night else 0.0)
 	for m in _lamps:
 		m.emission = Color(1.0, 0.92, 0.7) * (2.4 if night else 0.2)
+	for m in _tails:
+		m.emission = Color(0.95, 0.08, 0.04) * (2.0 if night else 0.15)
+	for d in _dots:
+		d.visible = night
 	for m in _inside_mats.values():
 		(m as StandardMaterial3D).emission = Color(1.0, 0.86, 0.6) * (0.22 if night else 0.0)
 	if _lamp_in != null:
@@ -312,12 +322,18 @@ func _build() -> void:
 			tail.albedo_color = Color(0.62, 0.08, 0.05) if k != 1 else Color(0.7, 0.4, 0.08)
 			tail.emission_enabled = true
 			tail.emission = (Color(0.9, 0.08, 0.04) if k != 1 else Color(0.5, 0.25, 0.02)) * 0.6
+			if k != 1:
+				tail.emission = Color(0.95, 0.08, 0.04) * 0.15
+				_tails.append(tail)
 			_cyl(_body, Vector3(x * (WIDTH * 0.5 - 0.17), 0.9 + k * 0.22, LENGTH * 0.5 + 0.012), 0.06, 0.02, tail, Vector3(PI * 0.5, 0, 0))
+		_dot(Vector3(x * (WIDTH * 0.5 - 0.34), 0.83, -LENGTH * 0.5 - 0.06), Color(1.0, 0.95, 0.78), Vector3(0, 0, -1), 0.26)
+		_dot(Vector3(x * (WIDTH * 0.5 - 0.17), 0.9, LENGTH * 0.5 + 0.05), Color(1.0, 0.12, 0.06), Vector3(0, 0, 1), 0.18)
+	# The headlights' light on the road ahead (dipped, as a Karosa drove at night).
 	_beam = SpotLight3D.new()
 	_beam.light_color = Color(1.0, 0.9, 0.7)
-	_beam.light_energy = 2.2
-	_beam.spot_range = 26.0
-	_beam.spot_angle = 30.0
+	_beam.light_energy = 3.6
+	_beam.spot_range = 42.0
+	_beam.spot_angle = 34.0
 	_beam.position = Vector3(0, 0.85, -LENGTH * 0.5 - 0.2)
 	_beam.rotation.x = deg_to_rad(-6.0)
 	_beam.visible = false
@@ -346,6 +362,64 @@ func _build() -> void:
 	shape.position = Vector3(0, BODY_HIGH * 0.5, 0)
 	_click.add_child(shape)
 	add_child(_click)
+
+
+## A lamp seen from off: a round dot turned to the eye, its real size near and a few
+## pixels at least far off (the low-resolution screen ate the 15 cm lens), and only from
+## the side it shines to (`facing`, the bus's own axes).
+const DOT_SHADER := """
+shader_type spatial;
+render_mode unshaded, fog_disabled, cull_disabled, shadows_disabled;
+uniform vec4 color : source_color = vec4(1.0);
+uniform vec3 facing = vec3(0.0, 0.0, -1.0);
+uniform float real_size = 0.26;
+uniform float min_px = 3.0;
+void vertex() {
+	vec4 c = MODELVIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0);
+	vec3 n = normalize((MODELVIEW_MATRIX * vec4(facing, 0.0)).xyz);
+	float d = max(-c.z, 0.05);
+	// (Its y scale is negative: the renderer's clip space has y down.)
+	float per_px = 2.0 * d / (abs(PROJECTION_MATRIX[1][1]) * VIEWPORT_SIZE.y);
+	float s = max(real_size, min_px * per_px);
+	// From behind it the lamp is not there.
+	if (dot(n, -c.xyz) <= 0.0) {
+		s = 0.0;
+	}
+	POSITION = PROJECTION_MATRIX * (c + vec4(VERTEX.xy * s, 0.0, 0.0));
+}
+void fragment() {
+	float r = length(UV - vec2(0.5)) * 2.0;
+	if (r > 1.0) {
+		discard;
+	}
+	ALBEDO = color.rgb * (1.15 - r * 0.4);
+}
+"""
+static var _dot_shader: Shader
+
+
+func _dot(at: Vector3, col: Color, facing: Vector3, size: float) -> void:
+	if _dot_shader == null:
+		_dot_shader = Shader.new()
+		_dot_shader.code = DOT_SHADER
+	var m := ShaderMaterial.new()
+	m.shader = _dot_shader
+	m.set_shader_parameter("color", col)
+	m.set_shader_parameter("facing", facing)
+	m.set_shader_parameter("real_size", size)
+	var q := QuadMesh.new()
+	q.size = Vector2.ONE
+	var mi := MeshInstance3D.new()
+	mi.name = "LampDot"
+	mi.mesh = q
+	mi.material_override = m
+	mi.position = at
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# (Its quad is drawn wherever the eye is: never culled by its own small box.)
+	mi.extra_cull_margin = 4.0
+	mi.visible = false
+	_body.add_child(mi)
+	_dots.append(mi)
 
 
 ## The windscreen's two panes on their pillar, the wipers parked under them.

@@ -73,18 +73,13 @@ void fragment() {
 }
 """
 
-const WIRE_SHADER := """
-shader_type spatial;
-render_mode unshaded, fog_disabled, cull_disabled;
-uniform vec4 haze_color : source_color = vec4(0.7, 0.76, 0.82, 1.0);
-uniform float haze = 0.5;
-uniform float light = 1.0;
-void fragment() {
-	// The guys barely show against the sky, as in the photographs.
-	ALBEDO = mix(vec3(0.3, 0.3, 0.32) * light, haze_color.rgb, haze);
-	ALPHA = 0.3 * (1.0 - haze);
-}
-"""
+## The guys and the frames: solid ribbons at least a pixel and a bit wide (a 1-px line
+## flickered in and out and they were drawn see-through: the user 4. 11., "the masts'
+## cables close to them clip weirdly, half transparent, from the bus"). Far off they go
+## into the haze by colour. Real steel: guys 4 cm, the frames' girders 0.3 m.
+const WIRES = preload("res://scripts/ambient/wire_ribbons.gd")
+const GUY_RADIUS := 0.02
+const FRAME_RADIUS := 0.15
 
 var _ring: ShaderMaterial
 var _body: ShaderMaterial
@@ -103,10 +98,8 @@ func build() -> void:
 	_body = _shader_mat(BODY_SHADER)
 	_body.set_shader_parameter("height", HEIGHT)
 	_body.set_shader_parameter("bands", float(BANDS))
-	_wire = _shader_mat(WIRE_SHADER)
-	_ring = _shader_mat(BODY_SHADER)
-	_ring.set_shader_parameter("height", 1.0)
-	_ring.set_shader_parameter("bands", 1.0)
+	_wire = WIRES.material(Color(0.24, 0.24, 0.25), GUY_RADIUS, true)
+	_ring = WIRES.material(Color(0.62, 0.12, 0.08), FRAME_RADIUS, true)
 	_lamp = _shader_mat(LAMP_SHADER)
 	for spot in spots:
 		_mast(spot)
@@ -149,20 +142,18 @@ func _mast(at: Vector3) -> void:
 	base.material_override = _ring
 	root.add_child(base)
 	# Guy wires: three ways round from each frame, two to each anchor field.
-	var im := ImmediateMesh.new()
-	im.surface_begin(Mesh.PRIMITIVE_LINES)
+	var guys := PackedVector3Array()
 	for k in 3:
 		var ang := TAU * float(k) / 3.0 + 0.4
 		for level in GUY_LEVELS:
 			var hgt: float = HEIGHT * float(level)
 			for spread in [-0.05, 0.05]:
 				var dir := Vector3(cos(ang + spread), 0.0, sin(ang + spread))
-				im.surface_add_vertex(Vector3(0.0, hgt, 0.0) + dir * 5.0)
-				im.surface_add_vertex(dir * (60.0 + hgt * 0.42))
-	im.surface_end()
-	# The eight-sided frames at the guys' levels and the cage at the top, red, as lines.
-	var rings := ImmediateMesh.new()
-	rings.surface_begin(Mesh.PRIMITIVE_LINES)
+				guys.append(Vector3(0.0, hgt, 0.0) + dir * 5.0)
+				guys.append(dir * (60.0 + hgt * 0.42))
+	var im := WIRES.mesh(guys)
+	# The eight-sided frames at the guys' levels and the cage at the top, red.
+	var rings := PackedVector3Array()
 	var levels: Array = GUY_LEVELS.duplicate()
 	levels.append(1.0)
 	for level in levels:
@@ -171,13 +162,12 @@ func _mast(at: Vector3) -> void:
 		for k in 8:
 			var a0 := TAU * float(k) / 8.0
 			var a1 := TAU * float(k + 1) / 8.0
-			rings.surface_add_vertex(Vector3(cos(a0) * r, hy, sin(a0) * r))
-			rings.surface_add_vertex(Vector3(cos(a1) * r, hy, sin(a1) * r))
-			rings.surface_add_vertex(Vector3(cos(a0) * r, hy, sin(a0) * r))
-			rings.surface_add_vertex(Vector3(cos(a0) * WIDTH * 0.4, hy, sin(a0) * WIDTH * 0.4))
-	rings.surface_end()
+			rings.append(Vector3(cos(a0) * r, hy, sin(a0) * r))
+			rings.append(Vector3(cos(a1) * r, hy, sin(a1) * r))
+			rings.append(Vector3(cos(a0) * r, hy, sin(a0) * r))
+			rings.append(Vector3(cos(a0) * WIDTH * 0.4, hy, sin(a0) * WIDTH * 0.4))
 	var ring_mi := MeshInstance3D.new()
-	ring_mi.mesh = rings
+	ring_mi.mesh = WIRES.mesh(rings)
 	ring_mi.material_override = _ring
 	ring_mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(ring_mi)

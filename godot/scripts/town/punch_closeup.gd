@@ -33,7 +33,9 @@ func _ready() -> void:
 func _opened() -> void:
 	_state = ""
 	_t = 0.0
-	say("", "The orange box. Your ticket in your hand: put it in the slot.", false)
+	# (No line saying what to do or what happened: the box, the ticket in your hand and
+	# the cvak say it. CLAUDE.md: no explaining texts.)
+	say("", "", false)
 
 
 func _hotspots() -> Array:
@@ -62,14 +64,12 @@ func _tick(delta: float) -> void:
 			if _t >= 0.5:
 				_state = "cvak"
 				_t = 0.0
+				# The box's spring punch, ka-chunk (tools/audiogen/prompts_bus.tsv: the user
+				# 4. 11. found the synthesised cvak and a fist's thump on it "AI-sloppy").
 				if ResourceLoader.exists(SFX + "ticket_punch.mp3"):
 					play(SFX + "ticket_punch.mp3", -2.0)
-				elif ResourceLoader.exists(SFX + "ticket_punch.wav"):
-					# tools/audiogen/synth_sfx.py's cvak.
-					play(SFX + "ticket_punch.wav", -1.0)
 				else:
 					play(SFX + "button.mp3", 0.0)
-				say("", "Cvak.", false)
 				punched.emit()
 		"cvak":
 			if _t >= 0.55:
@@ -78,7 +78,6 @@ func _tick(delta: float) -> void:
 		"out":
 			if _t >= 0.5:
 				_state = "done"
-				say("", "Punched: the holes through it, %s printed along the edge. Click it to put it away." % stamp, false)
 
 
 ## Where the ticket is: in the hand, going up into the slot, in it, coming back.
