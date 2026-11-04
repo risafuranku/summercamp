@@ -100,6 +100,98 @@ func _physics_process(_delta: float) -> void:
 	_last = p
 
 
+## Does the hold-off shut anything? The camp on a half-metre grid, walked from where the
+## warden stands with only trunks in the way and then with the branches: what no longer
+## can be reached standing up (crouched you still pass).
+func reach_map() -> void:
+	var step := 0.5
+	var eye_h := 1.45
+	var trunks: Array = []
+	var skirts: Array = []
+	var lo := Vector2(1e9, 1e9)
+	var hi := Vector2(-1e9, -1e9)
+	for t in get_tree().get_nodes_in_group("trees"):
+		if not (t is StaticBody3D):
+			continue
+		var at: Vector3 = (t as Node3D).global_position
+		var b: Basis = (t as Node3D).global_transform.basis
+		var c := Vector2(at.x, at.z)
+		lo = Vector2(minf(lo.x, c.x), minf(lo.y, c.y))
+		hi = Vector2(maxf(hi.x, c.x), maxf(hi.y, c.y))
+		trunks.append([c, 0.24 * b.x.length() + 0.35])
+		if int(t.get_meta("tree_kind", -1)) == WG.TREE_KIND_SPRUCE:
+			var ly := eye_h / b.y.length()
+			var r := 0.0
+			for dy in [0.0, -0.18 / b.y.length()]:
+				for tier in WG.SPRUCE_TIERS:
+					if ly + dy >= float(tier[2]) and ly + dy <= float(tier[2]) + float(tier[1]):
+						r = maxf(r, lerpf(float(tier[0]), 0.04, (ly + dy - float(tier[2])) / float(tier[1])))
+			if r > 0.0:
+				skirts.append([c, r * b.x.length() + 0.14])
+	lo -= Vector2(4, 4)
+	hi += Vector2(4, 4)
+	var w := int((hi.x - lo.x) / step) + 1
+	var h := int((hi.y - lo.y) / step) + 1
+	var solid := PackedByteArray()
+	solid.resize(w * h)
+	var branch := PackedByteArray()
+	branch.resize(w * h)
+	for pair in [[trunks, solid], [skirts, branch]]:
+		for e in pair[0]:
+			var c: Vector2 = e[0]
+			var r: float = e[1]
+			var gx0 := int((c.x - r - lo.x) / step)
+			var gy0 := int((c.y - r - lo.y) / step)
+			for gy in range(gy0, gy0 + int(2.0 * r / step) + 2):
+				for gx in range(gx0, gx0 + int(2.0 * r / step) + 2):
+					if gx < 0 or gy < 0 or gx >= w or gy >= h:
+						continue
+					if Vector2(lo.x + gx * step, lo.y + gy * step).distance_to(c) <= r:
+						pair[1][gy * w + gx] = 1
+	var start := pl().global_position
+	var sx := clampi(int((start.x - lo.x) / step), 0, w - 1)
+	var sy := clampi(int((start.z - lo.y) / step), 0, h - 1)
+	var a := _flood(w, h, sx, sy, solid, PackedByteArray())
+	var b2 := _flood(w, h, sx, sy, solid, branch)
+	var free_cells := 0
+	var shut := 0
+	var in_branches := 0
+	for i in w * h:
+		if a[i] == 1:
+			free_cells += 1
+			if b2[i] == 0:
+				if branch[i] == 1:
+					in_branches += 1
+				else:
+					shut += 1
+	print("SMRK map %d x %d m: %d trees, %d spruces; open ground %.0f m2, under the branches %.0f m2, cut off by them %.0f m2 (%.2f %%)" % [
+		int(hi.x - lo.x), int(hi.y - lo.y), trunks.size(), skirts.size(), free_cells * step * step, in_branches * step * step, shut * step * step, 100.0 * float(shut) / float(maxi(1, free_cells))])
+
+
+func _flood(w: int, h: int, sx: int, sy: int, solid: PackedByteArray, branch: PackedByteArray) -> PackedByteArray:
+	var seen := PackedByteArray()
+	seen.resize(w * h)
+	var todo := PackedInt32Array([sy * w + sx])
+	seen[sy * w + sx] = 1
+	var head := 0
+	while head < todo.size():
+		var i := todo[head]
+		head += 1
+		var x := i % w
+		var y := i / w
+		for d in [[1, 0], [-1, 0], [0, 1], [0, -1]]:
+			var nx: int = x + int(d[0])
+			var ny: int = y + int(d[1])
+			if nx < 0 or ny < 0 or nx >= w or ny >= h:
+				continue
+			var j := ny * w + nx
+			if seen[j] == 1 or solid[j] == 1 or (not branch.is_empty() and branch[j] == 1):
+				continue
+			seen[j] = 1
+			todo.append(j)
+	return seen
+
+
 func verdict() -> void:
 	print("SMRK: %s" % ("PASS" if fails == 0 else "%d FAILURE(S)" % fails))
 
@@ -109,6 +201,7 @@ func _ready() -> void:
 	_steps = [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
 		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.5],
+		["eval", C + ".reach_map()"],
 		["eval", C + ".pick()"], ["eval", C + ".stand_off()"], ["wait", 1.0], ["shot", "s0_facing"],
 		["keyhold", "W", true], ["wait", 2.5], ["shot", "s1_at_the_branches"], ["keyhold", "W", false], ["wait", 0.4],
 		["eval", C + ".walked('walked in', false)"],

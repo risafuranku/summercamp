@@ -1769,6 +1769,8 @@ func _label(r: Node3D, text: String, pos: Vector3, height_m: float, color: Color
 	l.pixel_size = height_m / 16.0
 	l.modulate = color
 	l.outline_size = 0
+	# Paint on the building: as dark as the wall at night, no letters on the air.
+	l.shaded = true
 	l.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
 	l.double_sided = false
 	l.position = pos

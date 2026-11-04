@@ -108,6 +108,7 @@ func _build_set_room() -> void:
 	sign.pixel_size = 0.004
 	sign.modulate = Color(0.85, 0.2, 0.15)
 	sign.outline_size = 0
+	sign.shaded = true
 	sign.position = Vector3(0.45, 1.75, 0.03)
 	sign.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	_door_pivot.add_child(sign)

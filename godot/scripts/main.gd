@@ -3328,8 +3328,13 @@ func _clear_game_over_screen() -> void:
 func _on_game_over_load_save_pressed() -> void:
 	_game_over_active = false
 	_clear_game_over_screen()
+	var shared := Coop.is_active()
 	_enter_main_menu()
-	_main_menu.show_page("load")
+	if shared:
+		_main_menu.show_page("load")
+		return
+	# The button says the last save: straight back into it, not the list of them.
+	await _on_menu_continue_pressed()
 
 
 func _on_game_over_main_menu_pressed() -> void:

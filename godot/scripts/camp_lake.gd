@@ -505,6 +505,8 @@ func _build_far_shore(shore: Vector3) -> void:
 	board.pixel_size = 0.006
 	board.modulate = Color(0.85, 0.82, 0.7)
 	board.outline_size = 0
+	# Paint on a board: dark with it at night (it stood on the air, lit by nothing).
+	board.shaded = true
 	board.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	board.position = shore + Vector3(-3.4, 1.4, 1.2)
 	board.rotation_degrees.y = 180.0
