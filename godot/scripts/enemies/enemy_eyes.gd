@@ -28,9 +28,10 @@ const STYLES := {
 	"girl": {"near": "eye_dot", "mid": "eye_dot", "far": "eye_dot", "near_m": 99.0, "mid_m": 99.0,
 		"size": 0.025, "gap": 0.035, "color": Color(0.88, 0.87, 0.8), "blink": 5.0, "blink_len": 0.22,
 		"flare_color": Color(1.0, 1.0, 0.96)},
-	# (Smaller from 25. 10.: "make the Silent Guy's eyes in the dark smaller".)
-	"silent_man": {"near": "eye_ring5", "mid": "eye_ring3", "far": "eye_dot2", "near_m": 9.0, "mid_m": 22.0,
-		"size": 0.045, "gap": 0.052, "color": Color(0.96, 0.76, 0.22), "blink": 0.0, "glint": 4.0,
+	# (Smaller from 25. 10., and 4. 11. no rings at all: "huge squares; something minimal,
+	# eerie, that hunts you": two small dull points, still, a little too far apart.)
+	"silent_man": {"near": "eye_dot2", "mid": "eye_dot", "far": "eye_dot", "near_m": 3.0, "mid_m": 99.0,
+		"size": 0.02, "gap": 0.05, "color": Color(0.82, 0.66, 0.24), "blink": 0.0, "glint": 6.0,
 		"flare_color": Color(1.0, 0.97, 0.82)},
 	# The mushroom granny (reworked 2. 11.): where her eyes were, the pale stalks under the
 	# caps catch what light there is, two dull points, small, close together; low while she

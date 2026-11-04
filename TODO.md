@@ -7,53 +7,53 @@
 ## PLAYTEST 2026-11-04 (2) — the user's notes, afternoon (verbatim, then the note in brackets; tick with the commit)
 
 - [ ] W1  „udělej vpravo notifikaci že je závoz na cestě, stejně jako pošta. když objednám několik závozů, všechny je slučuj do jedné dodávky, té nejbližší co přijede.“ (the wholesaler's van: a card on the right like the post; orders merged into the next van)
-- [ ] W2  „když vejdu do stanu, vidím tři ruce, pohled do interiéru nějak buguje, prosím pořádně zkontrolovat“ (the tent's inside: hands drawn more than once)
+- [x] W2  (9ec2b2b4) „když vejdu do stanu, vidím tři ruce, pohled do interiéru nějak buguje, prosím pořádně zkontrolovat“ (the tent's inside: hands drawn more than once)
 - [ ] W3  „potřebujeme pořádně dotáhnout ty zaměstnance, jejich UI na počítači a tak. když ho přijmu tak se hned spawne v práci? měl by až druhej den přijet ne? a rozdělení zaměstnanců dle stánku na pc je hrozně komplexní složitý zbytečně... zkus celej ten program nějak jednoduše předělat, ať je fun managovat zaměstnance. jsou zaměstnanci do podniků, a pak ti do staff roomu, kteří uklízej a nebo příjmaj hosty na recepci. naposled byl problém že se mi hlásilo hrozně málo staffu na všechny pozice, a pokojský pořádně neuklízeli sprchy a hajzly“ (the staff program redone simply: two kinds, the hired come the next morning, more applicants, cleaners really clean the showers and toilets)
-- [ ] W4  „jízdní řád na nástěnce overlapuje věci pod tim. pořádně propracovat předělat nástěnku na recepci, diplomy se momentálně dokonce umistuji pod ni a tak.“ (the office's cork board redone; the diplomas a place of their own)
-- [ ] W5  „kdykoliv jdu kolem sprch a záchodů, tooltip píše že je potba je uklidit. někdy je to pravda, někdy je to lež. notifikace se ukáže jen někdy. prosím pořádně opravit špinění sprch a záchodů“ (the dirt of the showers and toilets: the hint, the truth and the notice the same)
-- [ ] W6  „louže nějak divně mizí a objevují se mi zase před nohama“ (puddles)
-- [ ] W7  „když nesu odpadky, sprite rukou s pytlem lítá uprostřed obrazovky, ruce jsou uřízlé. posunout více dospodu“ (the carried sack's hands lower)
-- [ ] W8  „zamez vcházení do budov odkudkoliv. E by mělo jít kliknout pouze na dveřích“ (E only at the doors)
-- [ ] W9  „listy ze stromů a kapajcí kapky po dešti z budov ve tmě svítěj, kbelík na zemi taky“ (lit in the dark: leaves, drips, the bucket)
+- [x] W4  (5e87c144) „jízdní řád na nástěnce overlapuje věci pod tim. pořádně propracovat předělat nástěnku na recepci, diplomy se momentálně dokonce umistuji pod ni a tak.“ (the office's cork board redone; the diplomas a place of their own)
+- [x] W5  (569497fd) „kdykoliv jdu kolem sprch a záchodů, tooltip píše že je potba je uklidit. někdy je to pravda, někdy je to lež. notifikace se ukáže jen někdy. prosím pořádně opravit špinění sprch a záchodů“ (the dirt of the showers and toilets: the hint, the truth and the notice the same)
+- [x] W6  (b6e3d8e0) „louže nějak divně mizí a objevují se mi zase před nohama“ (puddles)
+- [x] W7  (9ec2b2b4) „když nesu odpadky, sprite rukou s pytlem lítá uprostřed obrazovky, ruce jsou uřízlé. posunout více dospodu“ (the carried sack's hands lower)
+- [x] W8  (b6e3d8e0) „zamez vcházení do budov odkudkoliv. E by mělo jít kliknout pouze na dveřích“ (E only at the doors)
+- [x] W9  (b6e3d8e0) „listy ze stromů a kapajcí kapky po dešti z budov ve tmě svítěj, kbelík na zemi taky“ (lit in the dark: leaves, drips, the bucket)
 - [ ] W10 „v moment co dám F na quiet guye abych ho zhasnul, už vytáhnu baterku zhaslou. dej tam trochu prodlevu, musim ho fakt jakoby vysvítit, lépe to načasuj. taky uprav ty jeho oči ve tmě, jsou to hrozně obrovský čtverce. chceme něco minimal, eerie, něco co tě huntí.“ (Quiet Guy: the torch on him a moment before it dies; his eyes small)
-- [ ] W11 „když stojím v recepci u okna, nemůžu zatáhnout závěs. nech hráče takhle k oknu si stoupnout i v pokojíčku, někam ke skříni, nezapoměn na hover na tu areu na zemi“ (the curtain from the window spot; a spot by the back room's window; their floor glints)
-- [ ] W12 „nech mě z check inu kliknutím přepnout k PC“
+- [x] W11 (5e87c144) „když stojím v recepci u okna, nemůžu zatáhnout závěs. nech hráče takhle k oknu si stoupnout i v pokojíčku, někam ke skříni, nezapoměn na hover na tu areu na zemi“ (the curtain from the window spot; a spot by the back room's window; their floor glints)
+- [x] W12 (9ec2b2b4) „nech mě z check inu kliknutím přepnout k PC“
 - [ ] W13 „ten pohled v interiérech je furt divnej. nech mě prostě jakoby tahat myší a pohled jezdí za tou myší, takhle mám furt pocit že ovládám nějakou kameru na kloubu a je to nepohodlný a divný 😃 udělej to víc přirozený, víc příjemný. jak na recepci, tak v check inu, při minihrách, v interiérech, v sewage, v busu... všude udělej naprostej rework interiérový kamery, udělej to konzistentní, ať to všude funguje stejně.“ (one look everywhere inside)
-- [ ] W14 „když dávám papíry při check inu hostům, vždy ho mám celý pod kurzorem, což je správně, ale na stole vždy taky zůstane ještě vidět kus, že jakoby nesjede z toho stolu celý, takže je na chvíli vidět dvojmo. žařiď aby přetáhnutím na hosta ten papír ze stolu zmizel celý“
-- [ ] W15 „lavička na recepci je neotexturovaná“
-- [ ] W16 „dej na recepci stropu jinou texturu než zdem“
-- [ ] W17 „knížky jsou neotexturované polička na recepci. to samé telefon, jeho čudlíky. vše bude otexturované, projdi i pokojíček, a tak.“
+- [x] W14 (9ec2b2b4) „když dávám papíry při check inu hostům, vždy ho mám celý pod kurzorem, což je správně, ale na stole vždy taky zůstane ještě vidět kus, že jakoby nesjede z toho stolu celý, takže je na chvíli vidět dvojmo. žařiď aby přetáhnutím na hosta ten papír ze stolu zmizel celý“
+- [x] W15 (5e87c144) „lavička na recepci je neotexturovaná“
+- [x] W16 (5e87c144) „dej na recepci stropu jinou texturu než zdem“
+- [x] W17 (5e87c144) „knížky jsou neotexturované polička na recepci. to samé telefon, jeho čudlíky. vše bude otexturované, projdi i pokojíček, a tak.“
 - [ ] W18 „při vstupu do checkinu a i při výstupu naanimuj tranzici, jak se rozervře kniha a přijedou razítka 😃 když odcházíš tak se zase zavře. smooth hustá first person animace (bez rukou), jak v nějaký adventuře nebo old 90S cgi“
 - [ ] W19 „používej i chvíle ticha jako hudbu. čim víc se stupňuje tlak noci, tak tim víc bude i večer před tim divnej. přidám pak přes suno ještě nějakou ambienci, ale chceme v hráčovi vyvolávat eerie divnej pocit že je tentokrát něco jinak“
-- [ ] W20 „světlo u závory musí svítit když už je tma, ne až když začíná herní state noc“
-- [ ] W21 „staff si musí zvedat závoru stejně jako hosté, všechny postavy musí!“
-- [ ] W22 „nemá staff odcházet tak že jde na bus a odjedou domu? kukuřičáři se mi despawnujou za závorou“
-- [ ] W23 „písnička vypínač v rádiu hraje dost potichu“
-- [ ] W24 „když v recepci zapnu nebo vypnu lampičku u PC, problikne celá místnost“
-- [ ] W25 „na klice dveří mezi pokojíčkem a recepcí je nějaká krychle, odmazat“
+- [x] W20 (b6e3d8e0) „světlo u závory musí svítit když už je tma, ne až když začíná herní state noc“
+- [x] W21 (b6e3d8e0) „staff si musí zvedat závoru stejně jako hosté, všechny postavy musí!“
+- [x] W22 (b6e3d8e0) „nemá staff odcházet tak že jde na bus a odjedou domu? kukuřičáři se mi despawnujou za závorou“
+- [x] W23 (569497fd) „písnička vypínač v rádiu hraje dost potichu“
+- [x] W24 (9ec2b2b4) „když v recepci zapnu nebo vypnu lampičku u PC, problikne celá místnost“
+- [x] W25 (9ec2b2b4) „na klice dveří mezi pokojíčkem a recepcí je nějaká krychle, odmazat“
 - [ ] W26 „světlo v recepci chci aby šlo fakt z venčí, aby tam byl takovej ten čtverec vysvícenej na podlaze jak jde světlo oknem podle toho jak se slunce hejbe, prosím udělej to fakt realistický, dokonalý, atmosferický. přijde mi že to světlo funguje prostě nějak fejk, že se rozsvěcej orby v místnosti podle toho co se děje venku, ale já chci aby to světlo FAKT bylo z venku 😃 hele nevim, celý ty interiéry jsou nějak zkurvený, potřebujou asi od základu předělat. když jsme začínali tuhle hru dělat, nebyl jsem si jistej jestli AI dokáže plynulej přechod do interiérů, takže interér a exteriér byly dva naprosto oddělený světy. pak jsme to iluzema čim dál tim víc se snažili propojit, až je z toho nějakej totální frankenstein. Chci to mít technicky kódově co nejjednodušší, UX hratelnostně to funguje tak, že při přechodu do interiéru se už nehejbeš WASD a rozhlíšíš myší jak v klasický FPS hře, ale je to spíš point and click retro klaustrofobickej zážitek. Chci ale prostě aby z venčí působily ty interiéry real, a zase zevnitř působil ten exteriér real, že jsi furt v jendom a totéž světě.“ (the interiors from the ground up: one world)
 - [ ] W27 „dej mi na plochu prompt na ambience a zvukový anomálie do rádia na noc. když se přeruší skladba, tak tam pak dát nějakej morbidní terror. nebo to vygeneruj přes elevenlabs, přes suno udělám jen ambienci. chci aby jsi dal do hry víc napětí budujcích momentů a zvuků, jak jsem psal o tom tichu, tak čim větší bude tlak tak tim víc stresovat hráče, dělat divný věci, ale musí to bejt fakt prostě geniálně tak akorát, když budeš tlačit moc bude to trapný. když bude to málo, hráč vychladne. když to bude špatně načasovaný nebo to špatně uvidí, nebude to mít efekt. musíš to udělat jak totální spook genius, vzít v potaz všechny proměnný. co všechno hráč může dělat. co všechno má mít zrovna za úkol. čemu se věnuje. co se zrovna dělo. jakou má náladu. jaký má očekávání. kolik má enemáků. bude se schovávat nebo má v plánu někam jít. musíme ho mít přečtenýho 😃“
-- [ ] W28 „počítej úklid záchodů zvlášť. dámskej je čistej, ale počítá se jako špinavej dokud neudělám i mužskej“
-- [ ] W29 „odstraň kulhání po tom co mě bába bodla“
-- [ ] W30 „nedávěj bábě ten sprint. nedá se jí pak moc utýct“
+- [x] W28 (569497fd) „počítej úklid záchodů zvlášť. dámskej je čistej, ale počítá se jako špinavej dokud neudělám i mužskej“
+- [x] W29 (9ec2b2b4) „odstraň kulhání po tom co mě bába bodla“
+- [x] W30 (9ec2b2b4) „nedávěj bábě ten sprint. nedá se jí pak moc utýct“
 - [ ] W31 „dej do kumbálu jednorázovou lékárničku, do staffroomu taky. každé ráno se obnoví. dá ti +50hp. po použití zůstane skříňka otevřená ať je vidět že je used. mysli na coop sync“
 - [ ] W32 „na recepci bába žere hosty, a vůbec o tom nevim. chtělo by to víc zvukový indície 😃 jak se jim vkrádá do ubikace (zvuky dle stanu či chatky, karvavnu), zvuk jak útočí a host křičí, zvuk jak je žere. morbidní zvuky“
-- [ ] W33 „dostal sem velkej hit a mám přes obrazovku červenej lívanec. krev tekoucí zezhora je dobrá, ale ty kulatý fleky ať mizej“
-- [ ] W34 „odstraň ranní instaheal, přes den by měla být pomalá regenerace“
-- [ ] W35 „díra ve stanu po bábě má prodlevu než jde skrz ní vidět ven, zvenčí nejde skrz ní vidět dovnitř“
-- [ ] W36 „při každym kroku slyšim chrastění jakoby klíčů? dát pryč“
-- [ ] W37 „když někdo přijde na recepci během checkinu, prohodí se se spritem toho koho zrovna obsluhuji“
-- [ ] W38 „builder 98 UI okno "odemčeny nové věci" zobraz hráčům ať jsou kdekoliv a dělají cokoliv 😃 počítání hostů je divné. počítej je dolu do ukazatele fakt až po checkinu, do té doby to není host“
-- [ ] W39 „staffroom má v builderu špatně otočený sprite“
+- [x] W33 (9ec2b2b4) „dostal sem velkej hit a mám přes obrazovku červenej lívanec. krev tekoucí zezhora je dobrá, ale ty kulatý fleky ať mizej“
+- [x] W34 (9ec2b2b4) „odstraň ranní instaheal, přes den by měla být pomalá regenerace“
+- [x] W35 (72607355) „díra ve stanu po bábě má prodlevu než jde skrz ní vidět ven, zvenčí nejde skrz ní vidět dovnitř“
+- [x] W36 (9ec2b2b4) „při každym kroku slyšim chrastění jakoby klíčů? dát pryč“
+- [x] W37 (9ec2b2b4) „když někdo přijde na recepci během checkinu, prohodí se se spritem toho koho zrovna obsluhuji“
+- [x] W38 (7fb0849a) „builder 98 UI okno "odemčeny nové věci" zobraz hráčům ať jsou kdekoliv a dělají cokoliv 😃 počítání hostů je divné. počítej je dolu do ukazatele fakt až po checkinu, do té doby to není host“
+- [x] W39 (faa203be) „staffroom má v builderu špatně otočený sprite“
 - [ ] W40 „přechod počasí (např mrholení do deště) není plynulý“
-- [ ] W41 „prohodit panty dveří od staffroomu“
+- [x] W41 (faa203be) „prohodit panty dveří od staffroomu“
 - [ ] W42 „v hospodě "sud" nedávej jako stanici společnou s výčepem. musíš opustit výčep minihru, kliknout na dveře sklepa, a tam kliknout na minihru sudu. rozdělit to prosím. to samé rozdělit sklep v bistru. všechny ty místnosti jakoby oddělit od sebe do jednotlivých miniher. jednota taktéž“
-- [ ] W43 „v hospodě si občas hosti objednaj pivo, a když ho čepuju tak zmizí a daj mi účet. co to kurva je!? 😃“
+- [x] W43 (9ec2b2b4) „v hospodě si občas hosti objednaj pivo, a když ho čepuju tak zmizí a daj mi účet. co to kurva je!? 😃“
 - [ ] W44 „když chce někdo šnyt, dej do UI ukazatele jak se plní sklenice pomocnej bar kam až pivo, odkud pěnu jakoby.“
-- [ ] W45 „při mytí sklenic odstraň sprite ruky s půllitrem. půlitrem mám pod kurzorem a hejbu s nim, tak ten v ruce je jakoby zdvojenej. ne, při mytí prázdná ruka, nebo třeba jen mokrá od pěny.“
+- [x] W45 (9ec2b2b4) „při mytí sklenic odstraň sprite ruky s půllitrem. půlitrem mám pod kurzorem a hejbu s nim, tak ten v ruce je jakoby zdvojenej. ne, při mytí prázdná ruka, nebo třeba jen mokrá od pěny.“
 - [ ] W46 „lépe vymodeluj ten kartáč na který se skleničky napichují a myjí se na něm“
 - [ ] W47 „nějak lépe udělat UI těch hostů v hospodě. když přijde host, objeví se mu nahoře tab a hlava. vždy když něco chce tak je tam ikona, když mu to dáš připíše se čárka. když odchází tab je zvýrazněn, a pak odchází když ho odklikneš na stole 😃 nějak hezčí UI prostě udělat, ať je obsluhování přehlednější, máš větší přehled o zákaznících. z hospody to pak převezmeme do ostatních podniků“
-- [ ] W48 „vykřičníky nad nefunkčními lampami jsou moc vysoko. vygeneruj jim speciál ikonku s nějakou žárovkou“
+- [x] W48 (b6e3d8e0) „vykřičníky nad nefunkčními lampami jsou moc vysoko. vygeneruj jim speciál ikonku s nějakou žárovkou“
 - [ ] W49 „zvenčí jsou dveře hospody ropůlené uprostřed, při vcházení je uvnitř rámu nějaký sloup. zevnitř nejde na dveře klikout a tím odejít, a když odejdu přes tlačítko tak dveře najednou nejsou půlené uprostřed, ani dle textury nejsou, ale neotevřou se ani normálně, prostě zmizí 😃 sjednotit dveře hospody!“
 - [ ] W50 „mám stánek s kukuřicí, mám dva zaměstnance, a prostě je tam furt fronta a lidé odchází hladový.. prosím tweakni to, jeden zaměstnanec ve stánku by měl v pohodě zvládat, druhej by měl bejt třeba až na velkej nápor 😃 takhle ten stánek samostatně vůbec nefunguje“
 - [ ] W51 „hra mi vůbec žádným způsobem neříká že dochází nebo došlo zboží v podnicích. co notifikace napravo?“

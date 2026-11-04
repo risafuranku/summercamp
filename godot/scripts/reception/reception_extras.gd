@@ -648,6 +648,9 @@ func _hover_under_mouse() -> String:
 				return id if where in ["office", "bench"] else ""
 			if id == "door":
 				return id if where != "store" else ""
+			# The first-aid cabinet only while it has something in it and you need it.
+			if id == "store_aid" and (store.aid.used() or not bool(host.get_tree().current_scene.call("player_hurt"))):
+				return ""
 			var room := "back" if back.hot.has(id) else ("store" if store.hot.has(id) else "office")
 			# (The bench is under the office's window: from it the office's things are there
 			# to use, its curtains first; nothing glinted from it, the user 4. 11.)
@@ -686,6 +689,9 @@ func click() -> bool:
 			go_store()
 		"store_bulb":
 			store.toggle_bulb()
+		"store_aid":
+			glint.clear()
+			store.aid.use()
 		"lost_found":
 			_office_call("say", ["Lost property, summer '97. Nobody came back for the bear."], null)
 		"front_door":

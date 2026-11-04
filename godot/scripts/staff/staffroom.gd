@@ -10,7 +10,8 @@ extends RefCounted
 ##                the TV (its programmes, round and off), the windows and their curtains;
 ##   the boiler   the lockers (one to a hand: their name on the tape, their coat inside),
 ##                the mattress (yours: from the evening a click lies you down to sleep,
-##                scripts/lodge_bed.gd's "staff" bed), the boiler.
+##                scripts/lodge_bed.gd's "staff" bed), the first-aid cabinet over its
+##                head (scripts/aid_cabinet.gd), the boiler.
 ## The hands resting in here are the runtime's (scripts/staff/staff_runtime.gd): on the
 ## sofa and in the armchairs. Another warden at the laptop
 ## sits on its chair with their back to you (service_interior.coop_job_spot).
@@ -48,6 +49,11 @@ var _figs: Dictionary = {}     # slug -> Sprite3D
 var _figs_t := 0.0
 var _open_locker := -1
 var _laptop_mat: StandardMaterial3D
+const AID_CABINET = preload("res://scripts/aid_cabinet.gd")
+var aid = AID_CABINET.new()
+## On the boiler room's right wall between the boiler and the window, over the mattress's
+## head (W31, 4. 11.).
+const AID_WALL := Vector3(PLAN.B_MAX.x, PLAN.FLOOR + 1.45, -0.8)
 
 
 func build(host_node, parent: Node3D) -> void:
@@ -68,6 +74,8 @@ func build(host_node, parent: Node3D) -> void:
 		var t := str(PLAN.tex(s, str(SHOW_FALLBACK[s])))
 		_tv_tex.append(load(PLAN.CAMP + t + ".png") if ResourceLoader.exists(PLAN.CAMP + t + ".png") else null)
 	_laptop_mat = (refs["laptop_screen"] as MeshInstance3D).material_override as StandardMaterial3D
+	aid.build(root, "staff", AID_WALL, -90.0)
+	_body("aid", aid.centre(), aid.click_size())
 	apply_gear()
 
 
@@ -163,6 +171,9 @@ func update_hover(mouse: Vector2) -> String:
 		id = ""
 	if id == "to_boiler" and room != "lounge" or id == "to_lounge" and room != "boiler":
 		id = ""
+	# The first-aid cabinet only while it has something in it and you need it.
+	if id == "aid" and (room != "boiler" or aid.used() or not bool(host.get_tree().current_scene.call("player_hurt"))):
+		id = ""
 	_hover = id
 	if id == "":
 		glint.clear()
@@ -215,6 +226,8 @@ func _meshes_of(id: String) -> Array:
 			return [root.find_child("Tv", true, false)]
 		"to_boiler", "to_lounge":
 			return [root.find_child("InnerDoorHinge", true, false)]
+		"aid":
+			return aid.meshes
 	if id.begins_with("locker"):
 		var i := int(id.substr(6))
 		return [refs["lockers"][i]] if i < (refs["lockers"] as Array).size() else []
@@ -251,6 +264,9 @@ func click() -> bool:
 			_say(_fridge_line())
 		"tv":
 			_tv_click()
+		"aid":
+			glint.clear()
+			aid.use()
 		_:
 			if id.begins_with("locker"):
 				_locker_click(int(id.substr(6)))
@@ -351,6 +367,7 @@ func tv_on() -> bool:
 
 func tick(delta: float) -> void:
 	_tv_t += delta
+	aid.tick()
 	if _tv >= 0:
 		_apply_tv()
 	_update_laptop()

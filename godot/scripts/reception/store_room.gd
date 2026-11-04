@@ -12,7 +12,8 @@ extends RefCounted
 ## in, the office stays behind you through the doorway).
 ##
 ## Things to use: the bulb's cord (on/off; it comes on as you walk in), the lost
-## property, the doorway back.
+## property, the first-aid cabinet between the fuses and the boiler (scripts/aid_cabinet.gd),
+## the doorway back.
 
 const K = preload("res://scripts/interior_kit.gd")
 const RL = preload("res://scripts/reception/reception_layout.gd")
@@ -37,6 +38,8 @@ var _swing_v := 0.0
 var _t := 0.0
 var _flicker := 0.0
 var _one: AudioStreamPlayer
+const AID_CABINET = preload("res://scripts/aid_cabinet.gd")
+var aid = AID_CABINET.new()
 
 
 func build(parent: Node3D, audio_parent: Node) -> void:
@@ -78,8 +81,11 @@ func build(parent: Node3D, audio_parent: Node) -> void:
 	K.picture(root, "shelf_stuff", Vector2(sl - 0.04, 1.94), Vector3(x1 - 0.425, 0.98, sz), -90.0, "ShelfStuff")
 
 	# The back wall: the meter and the fuses on their board, the boiler and its pipes.
-	K.slab(root, Vector3(0.5, 0.64, 0.03), Vector3(-0.42, 1.52, z1 - 0.015), K.surface("planks_dark", 0.5), "FuseBoard")
-	K.picture(root, "fusebox", Vector2(0.44, 0.58), Vector3(-0.42, 1.52, z1 - 0.032), 180.0, "FuseBox")
+	K.slab(root, Vector3(0.5, 0.64, 0.03), Vector3(-0.56, 1.52, z1 - 0.015), K.surface("planks_dark", 0.5), "FuseBoard")
+	K.picture(root, "fusebox", Vector2(0.44, 0.58), Vector3(-0.56, 1.52, z1 - 0.032), 180.0, "FuseBox")
+	# Between the fuses and the boiler, the first-aid cabinet (W31, 4. 11.).
+	aid.build(root, "store", Vector3(-0.06, 1.5, z1), 180.0)
+	_hot("store_aid", aid.centre(), aid.click_size(), aid.meshes)
 	var enamel := K.surface("enamel_white", 0.5, Color(0.74, 0.7, 0.6))
 	K.slab(root, Vector3(0.44, 0.88, 0.4), Vector3(0.42, 1.74, z1 - 0.2), enamel, "Boiler")
 	K.picture(root, "boiler", Vector2(0.44, 0.88), Vector3(0.42, 1.74, z1 - 0.402), 180.0, "BoilerFace")
@@ -177,6 +183,7 @@ func _hot(id: String, pos: Vector3, size: Vector3, meshes: Array) -> void:
 ## Every frame: the bulb swinging on its cord (in steps), the day through the blocks.
 func update(delta: float, daylight: float, power: bool) -> void:
 	_t += delta
+	aid.tick()
 	# A pendulum that is pushed when the cord is pulled and dies away.
 	_swing_v += (-_swing * 9.0 - _swing_v * 0.9) * delta
 	_swing += _swing_v * delta

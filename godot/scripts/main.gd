@@ -3032,7 +3032,8 @@ func _set_player_health(value: int, allow_game_over: bool = true) -> void:
 
 ## By day the wounds mend slowly (playtest 25. 10.: "a slow regeneration of HP by day"):
 ## DAY_REGEN_PER_SEC health a second, once DAY_REGEN_WAIT seconds have gone by without a
-## hurt; at night only the morning mends them (the first-aid box at dawn).
+## hurt; at night only the first-aid cabinets (scripts/aid_cabinet.gd: the store's, the
+## staffroom's, one go each a morning).
 const DAY_REGEN_PER_SEC := 0.12
 const DAY_REGEN_WAIT := 25.0
 var _regen_wait := 0.0
@@ -3053,6 +3054,18 @@ func _tick_day_regen(delta: float) -> void:
 		var n := int(_regen_acc)
 		_regen_acc -= float(n)
 		_set_player_health(_player_health + n, false)
+
+
+## A first-aid cabinet's lot taken (scripts/aid_cabinet.gd).
+func heal_player(amount: int) -> void:
+	if amount <= 0 or _game_over_active:
+		return
+	_set_player_health(_player_health + amount, false)
+
+
+## Something to mend (a cabinet invites a click only then).
+func player_hurt() -> bool:
+	return _player_health < PLAYER_MAX_HEALTH and _player_health > 0 and not _coop_down
 
 
 func damage_player(amount: int) -> void:
@@ -5162,6 +5175,10 @@ func _coop_biz_change(kind: String, a: Array) -> void:
 			act.biz_add_gear(str(a[0]), str(a[1]))
 		"licence":
 			act.biz_grant_licence(str(a[0]))
+		"aid":
+			# A first-aid cabinet the other warden emptied (scripts/aid_cabinet.gd).
+			if a.size() > 1:
+				act.aid_used(str(a[0]), int(a[1]))
 		"job":
 			act.biz_set_job(str(a[0]), str(a[1]), str(a[2]), str(a[3]))
 		"late":

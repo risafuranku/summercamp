@@ -922,6 +922,18 @@ func biz_has_licence(kind: String) -> bool:
 	return (_biz()["licences"] as Array).has(kind)
 
 
+## A first-aid cabinet emptied (scripts/aid_cabinet.gd: the store's, the staffroom's):
+## `morning` the camp's day whose morning stocked it; it stays empty till the next.
+func aid_used(id: String, morning: int) -> void:
+	var aid = _biz().get("aid", {})
+	if not (aid is Dictionary):
+		aid = {}
+	(aid as Dictionary)[id] = morning
+	_biz()["aid"] = aid
+	EventBus.state_changed.emit({"biz": "aid"})
+	_biz_tell("aid", [id, morning])
+
+
 func end_day(income: int) -> void:
 	if not _warned_legacy_end_day:
 		_warned_legacy_end_day = true

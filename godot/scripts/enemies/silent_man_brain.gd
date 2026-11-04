@@ -246,6 +246,8 @@ var _phantom_next := 3.0
 const STARE_CHANCE := 0.5
 ## Your torch dead after it drives him off (s), and its flicker back on.
 const TORCH_DARK_SEC := 3.0
+## How long your torch has him before the bulb goes (s).
+const TORCH_FIND_SEC := 0.65
 const TORCH_BACK_SEC := 1.1
 ## The one of them at your neck now (only one at a time).
 static var _striker: Object = null
@@ -911,11 +913,16 @@ func _driven_off() -> void:
 	_back_dir = away.normalized() if away.length_squared() > 0.01 else -_forward_flat()
 	_walk_from = _body.global_position
 	_vanish_at = _elapsed + LIT_SECONDS
-	_player.set("flashlight_stutter", 1.0)
+	_player.set("flashlight_stutter", 0.35)
 	# Your own torch did it: his glasses throw it back and the bulb goes (not a lamp's
-	# light, not the other warden's torch).
+	# light, not the other warden's torch). A beat after it finds him: you see him in it
+	# first (it was dead the moment you put it on him, the user 4. 11.).
 	if _in_flashlight(head) and _player.has_method("torch_blackout"):
-		_player.call("torch_blackout", TORCH_DARK_SEC, TORCH_BACK_SEC)
+		var p := _player
+		p.get_tree().create_timer(TORCH_FIND_SEC).timeout.connect(func():
+			if is_instance_valid(p):
+				p.set("flashlight_stutter", 1.0)
+				p.call("torch_blackout", TORCH_DARK_SEC, TORCH_BACK_SEC))
 	_neck_until = -1.0
 	_dissolve_base = _body.texture
 	_puff_ash()

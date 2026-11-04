@@ -1978,6 +1978,13 @@ func _rain_tilt_strength_bounds() -> Vector2:
 		_: return Vector2.ZERO
 
 
+## The rain as it is now, going over to what the weather wants in RAIN_EASE_SEC (a drizzle
+## turning to rain came down all at once, the user 4. 11.): how much, how fast, how clear,
+## how long the drops; 0 much is none.
+const RAIN_EASE_SEC := 25.0
+var _rain_now := {"i": 0.0, "speed": 7.0, "alpha": 0.0, "drop": 0.38}
+
+
 func _update_weather_particles(_delta: float) -> void:
 	if _rain_particles == null: return
 	var center_node: Node3D = null
@@ -1996,10 +2003,14 @@ func _update_weather_particles(_delta: float) -> void:
 	# When it comes down as snow, scripts/season_look.gd lets it snow instead.
 	if is_raining and Season.precip_is_snow(season_day, _time_of_day_hours):
 		is_raining = false
+	var rain_on := is_raining or float(_rain_now["i"]) > 0.02
 	for layer in [_rain_particles, _rain_far, _rain_splash]:
 		if layer != null:
-			layer.emitting = is_raining
-	if not is_raining: return
+			layer.emitting = rain_on
+	if not rain_on:
+		_rain_now["i"] = 0.0
+		_rain_now["alpha"] = 0.0
+		return
 
 	# How much of it, how fast, how long the drops, how clear: a drizzle (fine short drops
 	# drifting down slowly: at full length and slow they stood in the grass like sticks),
@@ -2016,6 +2027,16 @@ func _update_weather_particles(_delta: float) -> void:
 		var swell := maxf(0.0, sin(_sky_anim_time * 0.7) * sin(_sky_anim_time * 0.23 + 1.0))
 		var gust := maxf(wind_gust, swell * 0.6)
 		intensity = 0.8 + 0.2 * gust; rain_speed = 30.0 + 8.0 * gust; alpha = 0.6; drop = 1.3
+	if not is_raining:
+		intensity = 0.0; alpha = 0.0
+	# Over to it slowly (a storm's gusts come at once: they are the storm's own).
+	var ease := clampf(maxf(_delta, 0.0) / RAIN_EASE_SEC, 0.0, 1.0)
+	var gusting := _weather_state == WEATHER_STORM and absf(float(_rain_now["i"]) - intensity) < 0.25
+	for pair in [["i", intensity, 1.0], ["speed", rain_speed, 30.0], ["alpha", alpha, 0.6], ["drop", drop, 1.0]]:
+		var key: String = pair[0]
+		var want: float = pair[1]
+		_rain_now[key] = want if gusting else move_toward(float(_rain_now[key]), want, ease * float(pair[2]))
+	intensity = float(_rain_now["i"]); rain_speed = float(_rain_now["speed"]); alpha = float(_rain_now["alpha"]); drop = float(_rain_now["drop"])
 
 	var daylight = clampf(compute_daylight_factor(), 0.0, 1.0)
 	# Grey water, as grey as the wet fog (both a little blue, the palette made it blue); in
