@@ -31,8 +31,11 @@ extends RefCounted
 ## draught from the door, the flames and the light through the dust flickering together.
 ## Nobody narrates.
 ##
-## At night (seven in the evening till six; the user, 4. 11.: open through the night, a
-## night to it, just enough light to see by, candles burning) the door gives all the same:
+## The light follows the clock while you stand there (`_set_dusk`, `_follow_hour`): the
+## sun's shafts sink and warm through the afternoon and go at dusk, the moon's come; the
+## candles are lit from six on, never while you look (Mrs Hruba is gone when you turn
+## round, and they burn). At night (the user, 4. 11.: open through the night, a night to
+## it, just enough light to see by, candles burning) the door gives all the same:
 ## the moon in rays through the west windows down to the aisle's floor, dust turning in
 ## them, clouds going over it (behind rain hardly any), the day's damp haze gone grey-blue
 ## and lit round the windows and the candles (the user, 4. 11.: "the haze it has by day,
@@ -40,7 +43,8 @@ extends RefCounted
 ## two candles lit, the eternal light red on its chain in the presbytery, grave lanterns on
 ## the step before the rail and under St Prokop, stubs burning down before the first pew,
 ## more flames on the stand than anybody left (somebody came in the evening); no pigeons,
-## an owl up in the roof; and the worse things come a little easier.
+## an owl up in the roof, the candles' small crackle (louder near them), a beam ticking,
+## wax, a moth at the red glass; and the worse things come a little easier.
 
 const K = preload("res://scripts/interior_kit.gd")
 const WALK = preload("res://scripts/town/room_walk.gd")
@@ -85,9 +89,18 @@ const DAMP_H := 2.3
 const BUCKET := Vector3(0.36, 0.0, 0.62)
 ## How long a cold draught lasts.
 const DRAFT_SEC := 5.0
-## Night here as in the village (town_trip._night): seven in the evening till six.
-const NIGHT_FROM := 19.0
-const NIGHT_TO := 6.0
+## The dusk and the dawn: from the day's light to the night's between these hours (the
+## village's night, town_trip._night, begins at seven); the afternoon warming.
+const DUSK_FROM := 18.4
+const DUSK_TO := 19.2
+const DAWN_FROM := 5.0
+const DAWN_TO := 6.0
+const LATE_FROM := 15.5
+const LATE_TO := 16.5
+## The candles burn from Mrs Hruba's going at six till the morning.
+const LIT_FROM := 18.0
+const LIT_TO := 6.5
+const WARM := Color(1.0, 0.64, 0.3)
 ## The moon's light at night: steep through the west windows down to the aisle.
 const MOON_DIR := Vector3(1.0, -1.25, -0.12)
 ## The wicks in the rack's picture (candle_stand.png), as shares of it, top tier first.
@@ -188,10 +201,25 @@ var _organ_n := 0
 var _draft_t := -1.0
 var _draft_roll := 7.0
 var _draft_wait := 0.0
-## Night: built so; its own lights, each what flickers of it ({kind, phase, base, light,
-## halo, col, flame, mat, glow}).
-var _night := false
+## The hour's light now: 0 day .. 1 night, 0 morning .. 1 late afternoon; the windows it
+## goes through ({mat, light, west}); when to ask the clock again.
+var _k := 0.0
+var _late := 0.0
+var _wins: Array = []
+var _hour_t := 0.5
+## The lights that are not on the stand, each what flickers of it ({kind, phase, base,
+## light, halo, col, flame, mat, glow}); where the altar's and the stubs' wicks are, lit or
+## not yet; the evening's flames on the stand seen to.
 var _night_lights: Array = []
+var _altar_tips: Array = []
+var _altar_mid := Vector3.ZERO
+var _altar_lit := false
+var _stub_tips: Array = []
+var _stubs_lit := false
+var _stand_done := false
+## The candles' crackle, the next of the night's small sounds.
+var _candle_amb: AudioStreamPlayer
+var _night_t := 20.0
 static var _halo_tex: ImageTexture
 static var _soft_tex: ImageTexture
 ## The moon: its patches on the floor ({light, mat, base}), the dust in its rays, how
@@ -235,11 +263,25 @@ func _read_sanity() -> float:
 ## 0 calm .. 1 at the end of the tether.
 func _low() -> float:
 	# At night the chapel is worse for anybody.
-	return clampf((100.0 - _sanity) / 100.0 + (0.15 if _night else 0.0), 0.0, 1.0)
+	return clampf((100.0 - _sanity) / 100.0 + 0.15 * _k, 0.0, 1.0)
 
 
-static func is_night(hour: float) -> bool:
-	return hour >= NIGHT_FROM or hour < NIGHT_TO
+## 0 day .. 1 night at this hour.
+static func night_k(hour: float) -> float:
+	if hour >= 12.0:
+		return clampf((hour - DUSK_FROM) / (DUSK_TO - DUSK_FROM), 0.0, 1.0)
+	return clampf((DAWN_TO - hour) / (DAWN_TO - DAWN_FROM), 0.0, 1.0)
+
+
+## 0 till the afternoon .. 1 the sun low.
+static func late_k(hour: float) -> float:
+	if hour < 12.0:
+		return 0.0
+	return clampf((hour - LATE_FROM) / (LATE_TO - LATE_FROM), 0.0, 1.0)
+
+
+static func lit_time(hour: float) -> bool:
+	return hour >= LIT_FROM or hour < LIT_TO
 
 
 ## The vault's height over the nave at `x` (its walls' top to the crown, a flat arch).
@@ -253,7 +295,8 @@ static func vault_y(x: float) -> float:
 func build(hour: float, candles: int) -> void:
 	_rng.randomize()
 	_sanity = _read_sanity()
-	_night = is_night(hour)
+	_k = night_k(hour)
+	_late = late_k(hour)
 	var root: Node3D = room._root
 	_nave(root)
 	_presbytery(root)
@@ -270,8 +313,11 @@ func build(hour: float, candles: int) -> void:
 	_make_watcher(root)
 	_air(root, hour)
 	_light(hour, candles)
-	if _night:
-		_night_lights_build(root)
+	_lamps_and_candles(root)
+	_set_dusk(_k, _late)
+	if lit_time(hour):
+		_light_altar(root)
+		_light_stubs(root)
 	if hour >= 16.0 and hour < 18.0:
 		_mrs_hruba()
 	_walker = WALK.new(room, _spots(), WAYS, "door", SFX + "rooms/steps_wood.mp3", -13.0)
@@ -502,8 +548,7 @@ func _pews(root: Node3D) -> void:
 
 ## The oval windows, grey with the dirt on the glass, their cold light; the shafts of it
 ## slanting down through the dust from the east side.
-func _windows(root: Node3D, hour: float) -> void:
-	var late := hour >= 16.0
+func _windows(root: Node3D, _hour: float) -> void:
 	var tex := "chapel_oval" if _exists("chapel_oval") else "stained_window"
 	var size := _size(tex, 1.35) if _exists(tex) else Vector2(0.85, 1.35)
 	var spots: Array = []
@@ -519,32 +564,16 @@ func _windows(root: Node3D, hour: float) -> void:
 		m.emission_enabled = true
 		m.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
 		m.emission_texture = m.albedo_texture
-		m.emission = Color(0.86, 0.9, 0.84) if not late else Color(1.0, 0.8, 0.58)
-		m.emission_energy_multiplier = 1.15
-		m.albedo_color = Color(0.82, 0.84, 0.8)
 		var l := OmniLight3D.new()
-		l.light_color = Color(0.86, 0.9, 0.88) if not late else Color(1.0, 0.78, 0.55)
-		l.light_energy = 0.3
-		l.omni_range = 5.0
-		if _night:
-			# The moon through the dirt on the glass: full on the west side, only the sky's
-			# glow on the east.
-			m.emission = Color(0.36, 0.44, 0.66)
-			m.emission_energy_multiplier = 0.85 if side < 0.0 else 0.42
-			m.albedo_color = Color(0.3, 0.33, 0.4)
-			l.light_color = Color(0.5, 0.6, 0.86)
-			l.light_energy = 0.15 if side < 0.0 else 0.08
-			l.omni_range = 6.0
 		l.position = at + Vector3(-side * 1.2, -0.6, 0)
 		root.add_child(l)
-		# The shafts come in through the east side (the sun's), lower and warmer late; at
-		# night the moon's through the west side, steep, thin and cold.
-		if _night:
-			if side < 0.0:
-				_moon_ray(root, at + Vector3(0.05, 0, 0), PRES_Y if at.z < -D * 0.5 else 0.0)
-		elif side > 0.0:
-			var dir := Vector3(-1.0, -0.72 if not late else -0.42, 0.18).normalized()
-			_shaft(root, at + Vector3(-0.05, 0, 0), dir, 6.5, Color(0.17, 0.18, 0.16) if not late else Color(0.26, 0.19, 0.12))
+		_wins.append({"mat": m, "light": l, "west": side < 0.0})
+		# The sun's shafts come in through the east side, the moon's through the west side,
+		# steep, thin and cold; how much of each is the hour's (_set_dusk, _tick_lights).
+		if side < 0.0:
+			_moon_ray(root, at + Vector3(0.05, 0, 0), PRES_Y if at.z < -D * 0.5 else 0.0)
+		else:
+			_shaft(root, at + Vector3(-0.05, 0, 0), Vector3(-1.0, -0.72, 0.18).normalized(), 6.5, Color(0.17, 0.18, 0.16))
 	room._hot_box("window", Vector3(-W * 0.5 + 0.1, NAVE_WINDOW_Y, float(NAVE_WINDOWS_Z[1])), Vector3(0.2, 1.3, 0.9), [])
 
 
@@ -553,7 +582,7 @@ static var _shaft_tex: ImageTexture
 
 ## A shaft of light: two crossed quads along `dir` from the window, added on, fading along
 ## and across in a few steps (the Build way, banded, no soft glow).
-func _shaft(root: Node3D, from: Vector3, dir: Vector3, length: float, col: Color, width := 0.6, tex: Texture2D = null) -> void:
+func _shaft(root: Node3D, from: Vector3, dir: Vector3, length: float, col: Color, width := 0.6, tex: Texture2D = null, kind := "sun") -> void:
 	if _shaft_tex == null:
 		var img := Image.create(16, 48, false, Image.FORMAT_RGBA8)
 		for yy in 48:
@@ -583,7 +612,7 @@ func _shaft(root: Node3D, from: Vector3, dir: Vector3, length: float, col: Color
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.set_meta("retro_skip", true)
 	root.add_child(mi)
-	_shafts.append({"node": mi, "axis": y, "col": col})
+	_shafts.append({"node": mi, "axis": y, "col": col, "kind": kind, "from": from, "len": length})
 	_face_shaft(_shafts.back())
 
 
@@ -603,9 +632,9 @@ func _moon_ray(root: Node3D, from: Vector3, floor_y: float) -> void:
 	var down := MOON_DIR.normalized()
 	var t := (from.y - floor_y) / -down.y
 	var hit := from + down * t
-	_shaft(root, from, down, t, Color(0.06, 0.07, 0.11), 1.7, _moon_tex)
-	_shaft(root, from, down, t, Color(0.15, 0.18, 0.28), 0.95, _moon_tex)
-	_shaft(root, from + down * 0.04, down, t, Color(0.12, 0.15, 0.23), 0.4, _moon_tex)
+	_shaft(root, from, down, t, Color(0.06, 0.07, 0.11), 1.7, _moon_tex, "moon")
+	_shaft(root, from, down, t, Color(0.15, 0.18, 0.28), 0.95, _moon_tex, "moon")
+	_shaft(root, from + down * 0.04, down, t, Color(0.12, 0.15, 0.23), 0.4, _moon_tex, "moon")
 	# The patch on the floor, longer the way the ray leans.
 	var patch := _flat_glow(root, hit + Vector3(0, 0.012, 0), Vector2(1.25, 0.8), Color(0.28, 0.33, 0.5), 0.5)
 	var l := OmniLight3D.new()
@@ -975,21 +1004,14 @@ func _make_watcher(root: Node3D) -> void:
 
 
 ## The haze of the damp air, the dust turning in it.
-func _air(root: Node3D, hour: float) -> void:
+func _air(root: Node3D, _hour: float) -> void:
 	var env: Environment = room._env
 	env.fog_enabled = true
-	env.fog_light_color = Color(0.46, 0.49, 0.44) if hour < 16.0 else Color(0.5, 0.44, 0.36)
 	env.fog_light_energy = 1.0
-	env.fog_density = 0.042
 	env.fog_sky_affect = 0.0
-	if _night:
-		# The same damp haze as by day, grey-blue with the moon in it: the far end of the
-		# nave goes into it, the candles glow through it.
-		env.fog_light_color = Color(0.1, 0.115, 0.165)
-		env.fog_density = 0.046
 	var p := CPUParticles3D.new()
 	p.name = "Dust"
-	p.amount = 260 if not _night else 220
+	p.amount = 260
 	p.lifetime = 16.0
 	p.preprocess = 8.0
 	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
@@ -1004,8 +1026,7 @@ func _air(root: Node3D, hour: float) -> void:
 	q.size = Vector2(0.014, 0.014)
 	p.mesh = q
 	var m := StandardMaterial3D.new()
-	# At night only where a light is do the specks show (the moon's own are in its rays).
-	m.albedo_color = Color(1.0, 0.96, 0.84) if not _night else Color(0.55, 0.56, 0.62)
+	m.albedo_color = Color(1.0, 0.96, 0.84)
 	m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	m.vertex_color_use_as_albedo = true
@@ -1025,14 +1046,9 @@ func _air(root: Node3D, hour: float) -> void:
 # ── light ────────────────────────────────────────────────────────────────────
 
 func _light(hour: float, candles: int) -> void:
-	var env: Environment = room._env
-	env.ambient_light_color = Color(0.76, 0.8, 0.76) if hour < 16.0 else Color(0.8, 0.74, 0.66)
-	env.ambient_light_energy = 0.24 if hour < 16.0 else 0.19
-	if _night:
-		# Just enough to find the pews by.
-		env.ambient_light_color = Color(0.46, 0.52, 0.72)
-		env.ambient_light_energy = 0.16
-		# Somebody lit candles on the stand in the evening: as many on every warden's.
+	# Somebody lit candles on the stand in the evening: as many on every warden's.
+	if lit_time(hour):
+		_stand_done = true
 		var lit := _night_lit(hour)
 		if candles < lit:
 			candles = lit
@@ -1040,6 +1056,90 @@ func _light(hour: float, candles: int) -> void:
 	var kept: Array = room.get_meta("candle_cups", [])
 	for i in candles:
 		add_flame(int(kept[i]) if i < kept.size() else -1)
+
+
+## The light of the hour, the morning's, the late afternoon's (`late`) and the night's (`k`)
+## blended, also while you stand there. At night the same damp haze as by day, grey-blue
+## with the moon in it: the far end of the nave goes into it, the candles glow through it;
+## just enough light to find the pews by; the moon through the dirt on the glass, full on
+## the west side, only the sky's glow on the east; the dust seen only where a light is (the
+## moon's own is in its rays).
+func _set_dusk(k: float, late: float) -> void:
+	_k = k
+	_late = late
+	var env: Environment = room._env
+	env.fog_light_color = Color(0.46, 0.49, 0.44).lerp(Color(0.5, 0.44, 0.36), late).lerp(Color(0.1, 0.115, 0.165), k)
+	env.fog_density = lerpf(0.042, 0.046, k)
+	env.ambient_light_color = Color(0.76, 0.8, 0.76).lerp(Color(0.8, 0.74, 0.66), late).lerp(Color(0.46, 0.52, 0.72), k)
+	env.ambient_light_energy = lerpf(lerpf(0.24, 0.19, late), 0.16, k)
+	var glass := Color(0.86, 0.9, 0.84).lerp(Color(1.0, 0.8, 0.58), late).lerp(Color(0.36, 0.44, 0.66), k)
+	var beam := Color(0.86, 0.9, 0.88).lerp(Color(1.0, 0.78, 0.55), late).lerp(Color(0.5, 0.6, 0.86), k)
+	for w in _wins:
+		var m: StandardMaterial3D = w["mat"]
+		var l: OmniLight3D = w["light"]
+		var west: bool = w["west"]
+		m.emission = glass
+		m.emission_energy_multiplier = lerpf(1.15, 0.85 if west else 0.42, k)
+		m.albedo_color = Color(0.82, 0.84, 0.8).lerp(Color(0.3, 0.33, 0.4), k)
+		l.light_color = beam
+		l.light_energy = lerpf(0.3, 0.15 if west else 0.08, k)
+		l.omni_range = lerpf(5.0, 6.0, k)
+	# The sun's shafts lower and warmer as it goes.
+	var y := -Vector3(-1.0, lerpf(-0.72, -0.42, late), 0.18).normalized()
+	var col := Color(0.17, 0.18, 0.16).lerp(Color(0.26, 0.19, 0.12), late)
+	for sh in _shafts:
+		if str(sh["kind"]) == "sun":
+			sh["axis"] = y
+			sh["col"] = col
+			(sh["node"] as MeshInstance3D).position = (sh["from"] as Vector3) - y * float(sh["len"]) * 0.5
+	if _dust != null:
+		(_dust.material_override as StandardMaterial3D).albedo_color = Color(1.0, 0.96, 0.84).lerp(Color(0.55, 0.56, 0.62), k)
+	for d in _moon_dust:
+		if is_instance_valid(d):
+			(d as CPUParticles3D).emitting = k > 0.02
+
+
+## The clock while you stand there: the light goes with it, and from six on what is to
+## burn is lit.
+func _follow_hour() -> void:
+	var trip = room.get_parent()
+	if trip == null or not trip.has_method("hour"):
+		return
+	var h := float(trip.hour())
+	var k := night_k(h)
+	var late := late_k(h)
+	if absf(k - _k) > 0.002 or absf(late - _late) > 0.002:
+		_set_dusk(k, late)
+	if lit_time(h):
+		_evening(h)
+
+
+## Never while you look: Mrs Hruba is gone when you turn round, the altar's candles burn,
+## the stubs, the stand has its evening's flames.
+func _evening(h: float) -> void:
+	var root: Node3D = room._root
+	if _hruba != null and h >= LIT_FROM and _looking == "" and not _seen(_hruba.position + Vector3(0, 0.6, 0)):
+		_hruba.queue_free()
+		_hruba = null
+		var hot: Dictionary = room._hot.get("her", {})
+		if hot.get("body") != null:
+			(hot["body"] as Node).queue_free()
+		room._hot.erase("her")
+	if not _altar_lit and not _altar_tips.is_empty() and not _seen(_altar_mid):
+		_light_altar(root)
+	if not _stubs_lit and not _stub_tips.is_empty():
+		var seen := false
+		for tip in _stub_tips:
+			seen = seen or _seen(tip)
+		if not seen:
+			_light_stubs(root)
+	if not _stand_done and (_candle_cu == null or not _candle_cu.visible):
+		var at: Vector3 = (parts.get("stand", {}) as Dictionary).get("at", Vector3(1.55, 0.0, 5.05))
+		if not _seen(at + Vector3(0, 1.1, 0)):
+			_stand_done = true
+			for i in maxi(0, _night_lit(h) - flames.size()):
+				add_flame()
+			room._candles = flames.size()
 
 
 ## How many burn on the stand at night before you come: the night's own number
@@ -1080,16 +1180,17 @@ func add_flame(cup := -1) -> bool:
 	var f := K.cutout(root, tex if _exists(tex) else "candles_rack", Vector2(0.045, 0.1), at, 0.0, true, "Flame")
 	var m := f.material_override as StandardMaterial3D
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	m.disable_fog = _night
+	m.disable_fog = true
 	f.set_meta("retro_skip", true)
 	var l := OmniLight3D.new()
 	l.light_color = Color(1.0, 0.68, 0.34)
 	l.light_energy = 0.22
-	l.omni_range = 2.2 if not _night else 2.6
+	l.omni_range = lerpf(2.2, 2.6, _k)
 	l.position = at + Vector3(0, 0.1, -0.15)
 	root.add_child(l)
 	# In the dark each flame has its glow round it.
-	var halo: MeshInstance3D = _halo(root, at + Vector3(0, 0.05, -0.02), 0.24, Color(1.0, 0.6, 0.28)) if _night else null
+	var halo := _halo(root, at + Vector3(0, 0.05, -0.02), 0.24, Color(1.0, 0.6, 0.28))
+	halo.visible = _k > 0.01
 	flames.append({"node": f, "light": l, "phase": randf() * 4.0, "cup": i, "halo": halo})
 	_keep_cups()
 	return true
@@ -1159,25 +1260,22 @@ func _mrs_hruba() -> void:
 
 # ── night ────────────────────────────────────────────────────────────────────
 
-## The altar's two candles lit, the eternal light on its chain in the presbytery, grave
+## The altar's two candlesticks, the eternal light on its chain in the presbytery, grave
 ## lanterns on the step before the rail, under St Prokop and under a Station, two plates
-## of stubs burning down (before the rail, before the first pew).
-func _night_lights_build(root: Node3D) -> void:
+## of stubs (before the rail, before the first pew). All there by day too: the lamp and the
+## lanterns burn day and night, the candles from the evening (_light_altar, _light_stubs).
+func _lamps_and_candles(root: Node3D) -> void:
 	var z0 := -D * 0.5 - ARCH_T
 	var zb := z0 - PRES_D
 	var top := PRES_Y + 0.98 + 0.03
-	var warm := Color(1.0, 0.64, 0.3)
+	_altar_mid = Vector3(0, top + 0.4, zb + 0.3)
 	if _exists("altar_candlestick"):
 		var cs := _size("altar_candlestick", 0.62)
 		var wick := _wick("altar_candlestick")
 		for sx in [-0.52, 0.52]:
 			var at := Vector3(float(sx), top, zb + 0.3)
 			K.cutout(root, "altar_candlestick", cs, at, 0.0, false, "AltarCandle")
-			var tip := at + Vector3((wick.x - 0.5) * cs.x, (1.0 - wick.y) * cs.y - 0.02, 0.012)
-			_night_flame(root, tip, Vector2(0.05, 0.11), warm, 0.5, 4.2, 0.42)
-		# Their light in the haze round the altar.
-		_night_lights.append({"kind": "glow", "phase": 0.0, "col": warm, "alpha": 0.1,
-			"halo": _halo(root, Vector3(0, top + 0.42, zb + 0.55), 3.0, warm, true)})
+			_altar_tips.append(at + Vector3((wick.x - 0.5) * cs.x, (1.0 - wick.y) * cs.y - 0.02, 0.012))
 	if _exists("sanctuary_lamp"):
 		var ls := _size("sanctuary_lamp", 0.86)
 		var x := 1.3
@@ -1230,8 +1328,22 @@ func _night_lights_build(root: Node3D) -> void:
 		var wick := _wick("candle_stubs")
 		for at in [Vector3(0.95, STEP, -D * 0.5 + 0.34), Vector3(-0.38, 0.0, float(ROWS[0]) - 0.5)]:
 			K.cutout(root, "candle_stubs", ss, at, 0.0, true, "Stubs")
-			var tip: Vector3 = at + Vector3((wick.x - 0.5) * ss.x, (1.0 - wick.y) * ss.y - 0.008, 0.01)
-			_night_flame(root, tip, Vector2(0.03, 0.065), warm, 0.28, 2.6, 0.3)
+			_stub_tips.append(at + Vector3((wick.x - 0.5) * ss.x, (1.0 - wick.y) * ss.y - 0.008, 0.01))
+
+
+## The altar's candles burning, and their light in the haze round the altar.
+func _light_altar(root: Node3D) -> void:
+	_altar_lit = true
+	for tip in _altar_tips:
+		_night_flame(root, tip, Vector2(0.05, 0.11), WARM, 0.5, 4.2, 0.42)
+	_night_lights.append({"kind": "glow", "phase": 0.0, "col": WARM, "alpha": 0.1,
+		"halo": _halo(root, _altar_mid + Vector3(0, 0.02, 0.25), 3.0, WARM, true)})
+
+
+func _light_stubs(root: Node3D) -> void:
+	_stubs_lit = true
+	for tip in _stub_tips:
+		_night_flame(root, tip, Vector2(0.03, 0.065), WARM, 0.28, 2.6, 0.3)
 
 
 ## A candle's flame at `tip` (the pictures of the stand's, in their steps), its light and
@@ -1321,33 +1433,41 @@ func _wick(tex: String) -> Vector2:
 	return Vector2(0.5, 0.0)
 
 
-## The night's lights: the candles' flames in their steps (with the draught bent and low
-## like those on the stand), the eternal light slow and red, the lanterns breathing, the
-## glows in the haze with them; the moon behind the clouds.
-func _tick_night(step: float, gust: float) -> void:
+## The lights: the sun's shafts and the moon's as much as the hour has of them, the
+## candles' flames in their steps (with the draught bent and low like those on the stand),
+## the eternal light slow and red, the lanterns breathing, the glows in the haze with them
+## (their glows only in the dark); the moon behind the clouds.
+func _tick_lights(step: float, gust: float) -> void:
 	# Clouds going over the moon: its rays, their patches, their light and the dust in them
 	# with it, slowly and in steps; behind rain hardly any.
 	var ts := floorf(_t * 6.0) / 6.0
 	_moon = 0.7 + 0.3 * (0.5 + 0.5 * sin(ts * 0.21 + 1.3)) * (0.5 + 0.5 * sin(ts * 0.093 + 0.4))
 	if _rain:
 		_moon *= 0.3
-	for s in _shafts:
-		var sc: Color = s["col"]
-		((s["node"] as MeshInstance3D).material_override as StandardMaterial3D).albedo_color = sc * _moon * (1.0 - 0.8 * gust)
+	var moon := _moon * _k
+	for sh in _shafts:
+		var much: float = moon if str(sh["kind"]) == "moon" else 1.0 - _k
+		var node: MeshInstance3D = sh["node"]
+		node.visible = much > 0.004
+		var sc: Color = sh["col"]
+		(node.material_override as StandardMaterial3D).albedo_color = sc * much * (1.0 - 0.8 * gust)
 	for mp in _moon_pools:
 		var ml = mp.get("light")
 		if ml != null and is_instance_valid(ml):
-			(ml as OmniLight3D).light_energy = float(mp["base"]) * _moon
+			(ml as OmniLight3D).light_energy = float(mp["base"]) * moon
 		var mm = mp.get("mat")
 		if mm != null:
 			var mc: Color = (mm as StandardMaterial3D).albedo_color
-			(mm as StandardMaterial3D).albedo_color = Color(mc.r, mc.g, mc.b, float(mp["alpha"]) * _moon)
+			(mm as StandardMaterial3D).albedo_color = Color(mc.r, mc.g, mc.b, float(mp["alpha"]) * moon)
 	for dust in _moon_dust:
 		if is_instance_valid(dust):
-			((dust as CPUParticles3D).material_override as StandardMaterial3D).albedo_color = Color(0.72, 0.8, 1.0, _moon)
+			((dust as CPUParticles3D).material_override as StandardMaterial3D).albedo_color = Color(0.72, 0.8, 1.0, moon)
 	if _stand_glow != null and is_instance_valid(_stand_glow):
 		var lit := mini(flames.size(), 6)
-		(_stand_glow.material_override as StandardMaterial3D).albedo_color = Color(1.0, 0.6, 0.28, 0.03 * float(lit) * (1.0 - 0.6 * gust))
+		_stand_glow.visible = _k > 0.01 and lit > 0
+		(_stand_glow.material_override as StandardMaterial3D).albedo_color = Color(1.0, 0.6, 0.28, 0.03 * float(lit) * _k * (1.0 - 0.6 * gust))
+	# By day what burns throws little of a light you could see.
+	var day_low := lerpf(0.3, 1.0, _k)
 	for nl in _night_lights:
 		var ph := float(nl["phase"])
 		var k := 1.0
@@ -1371,18 +1491,19 @@ func _tick_night(step: float, gust: float) -> void:
 				k = (0.82 + 0.18 * absf(sin(s2 * 1.3 + ph))) * (1.0 - 0.4 * gust)
 		var l = nl.get("light")
 		if l != null and is_instance_valid(l):
-			(l as OmniLight3D).light_energy = float(nl["base"]) * k
+			(l as OmniLight3D).light_energy = float(nl["base"]) * k * day_low
 		var h = nl.get("halo")
 		if h != null and is_instance_valid(h):
 			var c: Color = nl["col"]
-			((h as MeshInstance3D).material_override as StandardMaterial3D).albedo_color = Color(c.r, c.g, c.b, float(nl.get("alpha", 0.55)) * k)
+			(h as MeshInstance3D).visible = _k > 0.01
+			((h as MeshInstance3D).material_override as StandardMaterial3D).albedo_color = Color(c.r, c.g, c.b, float(nl.get("alpha", 0.55)) * k * _k)
 		var m = nl.get("mat")
 		if m != null:
 			if nl.has("tint"):
 				var t: Color = nl["tint"]
 				(m as StandardMaterial3D).albedo_color = Color(t.r * (0.8 + 0.2 * k), t.g * (0.8 + 0.2 * k), t.b * (0.8 + 0.2 * k))
 			else:
-				(m as StandardMaterial3D).emission_energy_multiplier = float(nl.get("glow", 1.0)) * k
+				(m as StandardMaterial3D).emission_energy_multiplier = float(nl.get("glow", 1.0)) * k * lerpf(0.45, 1.0, _k)
 
 
 # ── sound ────────────────────────────────────────────────────────────────────
@@ -1407,6 +1528,44 @@ func _sounds() -> void:
 		_loop(_rain_snd, "weather/raininside.mp3", -24.0)
 	_pigeons_t = _rng.randf_range(12.0, 40.0)
 	_organ = _player(-17.0)
+	_candle_amb = _player(-60.0)
+	_loop(_candle_amb, "chapel/night_candles.ogg", -60.0)
+	_night_t = _rng.randf_range(12.0, 34.0)
+
+
+## How near you are to what burns, 0 far .. 1 beside it.
+func _by_candles() -> float:
+	var eye: Vector3 = room._cam.position
+	var d := 99.0
+	if _altar_lit:
+		d = minf(d, eye.distance_to(_altar_mid))
+	if not flames.is_empty():
+		var at: Vector3 = (parts.get("stand", {}) as Dictionary).get("at", Vector3(1.55, 0.0, 5.05))
+		d = minf(d, eye.distance_to(at + Vector3(0, 1.1, 0)))
+	return clampf(1.0 - d / 7.0, 0.0, 1.0)
+
+
+## In the quiet of the dark: the candles' crackle (louder beside them), now and then a beam
+## ticking in the cold, wax beside the candles, a moth at the red glass under it.
+func _tick_night_sound(delta: float) -> void:
+	if _candle_amb == null:
+		return
+	var near := _by_candles()
+	var want := -60.0 if _k < 0.05 or (flames.is_empty() and not _altar_lit) else lerpf(lerpf(-44.0, -25.0, _k), lerpf(-34.0, -16.0, _k), near)
+	_candle_amb.volume_db = move_toward(_candle_amb.volume_db, want, 10.0 * delta)
+	if _k < 0.5:
+		return
+	_night_t -= delta
+	if _night_t > 0.0:
+		return
+	_night_t = _rng.randf_range(16.0, 48.0)
+	var eye: Vector3 = room._cam.position
+	if eye.z < -3.5 and _rng.randf() < 0.5:
+		_fx_play("chapel/night_moth.mp3", -15.0)
+	elif near > 0.35 and _rng.randf() < 0.6:
+		_fx_play("chapel/night_wax.mp3", -14.0)
+	else:
+		_fx_play("chapel/night_beam.mp3", -16.0)
 
 
 func _loop(p: AudioStreamPlayer, path: String, db: float) -> void:
@@ -1452,9 +1611,14 @@ func tick(delta: float) -> void:
 		(f["light"] as OmniLight3D).light_energy = e
 		var h = f.get("halo")
 		if h != null and is_instance_valid(h):
-			((h as MeshInstance3D).material_override as StandardMaterial3D).albedo_color = Color(1.0, 0.6, 0.28, e * 2.0)
-	if _night:
-		_tick_night(step, gust)
+			(h as MeshInstance3D).visible = _k > 0.01
+			((h as MeshInstance3D).material_override as StandardMaterial3D).albedo_color = Color(1.0, 0.6, 0.28, e * 2.0 * _k)
+	_tick_lights(step, gust)
+	_tick_night_sound(delta)
+	_hour_t -= delta
+	if _hour_t <= 0.0:
+		_hour_t = 0.5
+		_follow_hour()
 	if _rope != null and _rope_t > 0.0:
 		_rope_t -= delta
 		# The rope jerks up and down with the strokes, in steps.
@@ -1476,7 +1640,7 @@ func tick(delta: float) -> void:
 	_pigeons_t -= delta
 	if _pigeons_t <= 0.0:
 		_pigeons_t = _rng.randf_range(28.0, 75.0)
-		if _night:
+		if _k > 0.5:
 			# The pigeons asleep; an owl up in the roof.
 			_pigeons_t += 30.0
 			_fx_play("life/owl_hoot.mp3", -21.0)
@@ -1730,10 +1894,6 @@ func _tick_draft(delta: float) -> void:
 			_end_draft()
 			return
 		var g := _gust()
-		if not _night:
-			for s in _shafts:
-				var c: Color = s["col"]
-				((s["node"] as MeshInstance3D).material_override as StandardMaterial3D).albedo_color = c * (1.0 - 0.8 * g)
 		if _wind != null:
 			_wind.volume_db = -27.0 + 8.0 * g
 		if _rope != null and _rope_t <= 0.0:
@@ -1761,9 +1921,6 @@ func _start_draft() -> void:
 
 func _end_draft() -> void:
 	_draft_t = -1.0
-	if not _night:
-		for s in _shafts:
-			((s["node"] as MeshInstance3D).material_override as StandardMaterial3D).albedo_color = s["col"]
 	if _wind != null:
 		_wind.volume_db = -27.0
 	if _dust != null:

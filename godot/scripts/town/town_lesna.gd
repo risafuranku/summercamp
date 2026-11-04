@@ -471,8 +471,56 @@ func _update_jednota(h: float) -> void:
 	sales.name = "SalesRoom"
 	sales.position = JEDNOTA_VIEW.origin()
 	root.add_child(sales)
-	JEDNOTA_VIEW.build(sales, null, lit == 1)
+	var built: Dictionary = JEDNOTA_VIEW.build(sales, null, lit == 1)
 	spots["jednota_shell"] = sales
+	_jednota_tube = {}
+	if lit == 0:
+		_jednota_night_tube(sales, built)
+
+
+## The closed shop after dark: the one tube they leave on, the dying one, the shelves cold
+## in its light behind the glass and a little of it out on the pavement.
+var _jednota_tube: Dictionary = {}
+var _jtube_t := 1.0
+var _jtube_out := 0.0
+
+
+func _jednota_night_tube(sales: Node3D, built: Dictionary) -> void:
+	var tubes: Array = built.get("tubes", [])
+	if tubes.size() < 2:
+		return
+	var tube := tubes[1] as MeshInstance3D
+	var m := tube.material_override as StandardMaterial3D
+	m.emission_enabled = true
+	m.emission = Color(0.9, 0.96, 1.0)
+	var l := OmniLight3D.new()
+	l.light_color = Color(0.82, 0.9, 1.0)
+	l.light_energy = 1.1
+	l.omni_range = 7.0
+	l.position = tube.position + Vector3(0, -0.3, 0)
+	sales.add_child(l)
+	_jednota_tube = {"light": l, "mat": m}
+	_show_jednota_tube(_station_night)
+
+
+func _show_jednota_tube(on: bool) -> void:
+	if _jednota_tube.is_empty():
+		return
+	(_jednota_tube["light"] as OmniLight3D).visible = on
+	(_jednota_tube["mat"] as StandardMaterial3D).emission_energy_multiplier = 1.5 if on else 0.0
+
+
+## Mostly on, now and then a stutter.
+func _tick_jednota_tube(delta: float) -> void:
+	if _jednota_tube.is_empty():
+		return
+	_jtube_t -= delta
+	if _jtube_t <= 0.0:
+		_jtube_t = _rng.randf_range(0.06, 0.3) if _jtube_out > 0.0 else _rng.randf_range(3.0, 14.0)
+		_jtube_out = 0.0 if _jtube_out > 0.0 else 1.0
+	var on := _jtube_out <= 0.0 or fmod(_smoke_t * 19.0, 1.0) < 0.3
+	(_jednota_tube["light"] as OmniLight3D).light_energy = 1.1 if on else 0.14
+	(_jednota_tube["mat"] as StandardMaterial3D).emission_energy_multiplier = 1.5 if on else 0.1
 
 
 ## The pub U Jezera: an old inn with its eaves to the street, the name painted on the
@@ -480,7 +528,9 @@ func _update_jednota(h: float) -> void:
 ## Since 3. 11. its windows are glass you see through (pub_view.gd): the inn hollow behind
 ## its front, the taproom built in it, lit while it is open (`_update_pub`).
 const PUB_VIEW = preload("res://scripts/town/pub_view.gd")
+const PUB_STREET = preload("res://scripts/town/pub_street.gd")
 var _pub_lit := -1
+var _pub_street
 
 
 func _pub(at: Vector3) -> void:
@@ -588,6 +638,13 @@ func _update_pub(h: float) -> void:
 	root.add_child(tap)
 	PUB_VIEW.build(tap, null, lit == 1)
 	spots["pub_shell"] = tap
+	# After dark, from the street: its smoke, its guests (pub_street.gd).
+	_pub_street = null
+	if lit == 1:
+		_pub_street = PUB_STREET.new()
+		tap.add_child(_pub_street)
+		_pub_street.build()
+		_pub_street.set_on(_station_night)
 
 
 ## The chapel of the Virgin Mary, set back from the street: its baroque front from the
@@ -1937,6 +1994,7 @@ func _process(delta: float) -> void:
 	if _station_night:
 		_tick_tubes(delta)
 		_tick_bulb(delta)
+		_tick_jednota_tube(delta)
 		if _chapel_oval != null:
 			# The candles inside the chapel: slow, uneven.
 			var cs := floorf(_smoke_t * 6.0)
@@ -2008,6 +2066,9 @@ func set_night(night: bool) -> void:
 		if gm.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA:
 			gm.albedo_color = Color(1, 1, 1, 1.0 if night else 0.0)
 	_station_night = night
+	_show_jednota_tube(night)
+	if _pub_street != null and is_instance_valid(_pub_street):
+		_pub_street.set_on(night)
 	if _chapel_oval != null:
 		_chapel_oval.emission_energy_multiplier = 0.5 if night else 0.0
 	for t in spots.get("station_tubes", []):

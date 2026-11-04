@@ -68,3 +68,7 @@ mr_suitcase	1.5	assets/sfx/motel/suitcase.mp3	The two metal latches of an old ca
 mr_newspaper	1.2	assets/sfx/motel/newspaper.mp3	An old yellowed newspaper page lifted and turned, dry paper rustle
 mr_slippers	1.6	assets/sfx/motel/slippers.mp3	Slippers shuffling slowly on a linoleum floor, three dragging steps, then they stop
 mr_tune	2.5	assets/sfx/motel/radio_tune.mp3	A small transistor radio's tuning wheel turned, whistles and static between stations, a voice that never comes clear
+ch_night_candles	14	../tools/audiogen/raw/chapel_night_candles_raw.mp3	The very quiet sound of a few wax candles burning in a large cold empty stone church at night: faint soft crackle and sputter of the wicks, now and then a tiny pop, a low still room behind it. No voices, no music, no wind, no footsteps.
+ch_night_beam	2.5	assets/sfx/chapel/night_beam.mp3	One old roof beam ticking and settling in the cold at night, heard from inside an empty stone church, far above, muffled, a single slow creak and a tick. Nothing else.
+ch_night_wax	1.6	assets/sfx/chapel/night_wax.mp3	A drop of hot wax hissing softly on a candle and one small pop of the wick, very close and very quiet, in a silent room.
+ch_night_moth	2.2	assets/sfx/chapel/night_moth.mp3	A moth fluttering against the red glass of a small lamp in a silent room at night: tiny dry wing taps on glass, very quiet, then still.
