@@ -14,29 +14,43 @@ extends RefCounted
 ## slug -> the station that hand works now ("" aside). `role_at`: role -> its station;
 ## `stations`: where a hand may be moved to, in the chain's order (the first wins a tie);
 ## `busy`: the stations wardens are at; `need`: station -> how much it wants doing (0 none).
-static func places(crew: Array, role_at: Dictionary, stations: Array, busy: Array, need: Callable) -> Dictionary:
+## `idle_helps`: a hand with nothing to do at their own station goes where something is
+## wanted, and back when nothing is (the corn stand: one hand husks while no cob can go in
+## the pot and serves when one is done, the user 4. 11.: "one hand should cope easily").
+static func places(crew: Array, role_at: Dictionary, stations: Array, busy: Array, need: Callable, idle_helps := false) -> Dictionary:
 	var out := {}
 	var taken := {}
 	var wanting: Array = []
+	var needs := {}
+	var need_of := func(st: String) -> float:
+		if not needs.has(st):
+			needs[st] = float(need.call(st))
+		return float(needs[st])
 	for p in crew:
 		var own := str(role_at.get(str(p.get("role", "")), ""))
 		if own != "" and not busy.has(own) and not taken.has(own):
+			if idle_helps and float(need_of.call(own)) <= 0.0:
+				wanting.append(p)
+				continue
 			taken[own] = true
 			out[str(p.get("slug", ""))] = own
 		else:
 			wanting.append(p)
-	var needs := {}
 	for p in wanting:
 		var best := ""
 		var best_need := 0.0
 		for st in stations:
 			if busy.has(st) or taken.has(st):
 				continue
-			if not needs.has(st):
-				needs[st] = float(need.call(str(st)))
-			if float(needs[st]) > best_need:
-				best_need = float(needs[st])
+			var nd := float(need_of.call(str(st)))
+			if nd > best_need:
+				best_need = nd
 				best = str(st)
+		if best == "" and idle_helps:
+			# Nothing wanted anywhere: at their own place, if it is free.
+			var own2 := str(role_at.get(str(p.get("role", "")), ""))
+			if own2 != "" and not busy.has(own2) and not taken.has(own2):
+				best = own2
 		if best != "":
 			taken[best] = true
 		out[str(p.get("slug", ""))] = best

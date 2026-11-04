@@ -25,6 +25,7 @@ const RULES := preload("res://core/systems/business_rules.gd")
 const BUSINESS := preload("res://scripts/business/business_runtime.gd")
 const CORNSTAND := preload("res://scripts/corn/cornstand.gd")
 const LAYOUT := preload("res://scripts/corn/stand_layout.gd")
+const CREW := preload("res://scripts/business/crew_places.gd")
 const KEY := "11:11"
 
 var _failures: Array[String] = []
@@ -102,11 +103,26 @@ func _ready() -> void:
 	_expect(BUSINESS.crew_now(KEY).size() == 2, "two hands in")
 	var cobs0 := BUSINESS.stock_of(KEY, "cobs")
 	var bowl0 := int(stand.bowl(KEY))
-	_expect(stand._crew_husk(KEY, false) and int(stand.bowl(KEY)) == bowl0 + 1 and BUSINESS.stock_of(KEY, "cobs") == cobs0 - 1, "the husk's hand: a cob from the crate into the bowl")
-	_expect(stand._crew_counter(KEY, false) and stand.pot(KEY).size() == 1, "the counter's hand: into the pot")
+	var at_once: int = CORNSTAND.HUSK_AT_ONCE
+	_expect(stand._crew_husk(KEY, false) and int(stand.bowl(KEY)) == bowl0 + at_once and BUSINESS.stock_of(KEY, "cobs") == cobs0 - at_once, "the husk's hand: cobs from the crate into the bowl, %d at a go" % at_once)
+	var bowl1 := int(stand.bowl(KEY))
+	var want := mini(stand.tickets(KEY, "cob").size() + 1, mini(bowl1, CORN.POT_PLACES))
+	_expect(stand._crew_counter(KEY, false) and stand.pot(KEY).size() == want, "the counter's hand: into the pot, as many as are wanted at a go (%d of %d)" % [stand.pot(KEY).size(), want])
 	stand.pot(KEY)[0]["t"] = CORN.DONE_AT + 0.5
 	var open0: int = stand.tickets(KEY).size()
-	_expect(stand._crew_counter(KEY, false) and stand.pot(KEY).is_empty() and stand.tickets(KEY).size() == open0 - 1, "the counter's hand: out done, over the counter")
+	var in_pot: int = stand.pot(KEY).size()
+	_expect(stand._crew_counter(KEY, false) and stand.pot(KEY).size() == in_pot - 1 and stand.tickets(KEY).size() == open0 - 1, "the counter's hand: out done, over the counter")
+	# Alone at the stand: with the bowl empty and nothing done in the pot the counter's hand
+	# husks (crew_places idle_helps), then puts them in.
+	for c in stand.pot(KEY).duplicate():
+		stand.act(KEY, "out", [str(c["id"])])
+	stand.act(KEY, "husked", [-int(stand.bowl(KEY))])
+	var counter_only: Array = BUSINESS.crew_now(KEY).filter(func(p): return str(p.get("role", "")) == "counter")
+	var alone: Dictionary = CREW.places(counter_only, CORNSTAND.ROLE_AT, CORNSTAND.STATIONS, [], func(st: String) -> float: return stand.station_need(KEY, st), true)
+	_expect(str(alone.values()[0]) in ["husk", "drinks"], "alone, nothing husked: the counter's hand goes to husk or pours the drinks meanwhile (%s)" % str(alone))
+	stand.act(KEY, "husked", [2])
+	var alone2: Dictionary = CREW.places(counter_only, CORNSTAND.ROLE_AT, CORNSTAND.STATIONS, [], func(st: String) -> float: return stand.station_need(KEY, st), true)
+	_expect(alone2.values() == ["counter"], "alone, cobs husked and orders up: back at the counter (%s)" % str(alone2))
 	_expect(int(site["shift"]["by_hands"]) >= 1, "the hands' cobs in the tally")
 	site["crew"] = []
 

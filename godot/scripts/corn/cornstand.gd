@@ -346,6 +346,13 @@ func _save(key: String) -> void:
 const CREW_PLACES := preload("res://scripts/business/crew_places.gd")
 const STATIONS := ["husk", "counter", "drinks"]
 const ROLE_AT := {"husk": "husk", "counter": "counter", "drinks": "drinks"}
+## The stand's work is quicker than a bar's or a kitchen's (the user 4. 11.: "two hands and
+## always a queue, people go away hungry; one hand should cope easily, the second only for
+## a big rush"): a hand's pace here (BusinessRules.SPEED_SEC times this), the cobs husked at
+## one go, and as many put in the pot at one go as are wanted (tools/stand_load: one hand of
+## any speed keeps up with six cobs a minute, a middling one eight, two with twelve).
+const STAND_PACE := 0.4
+const HUSK_AT_ONCE := 2
 
 
 ## slug -> the station that hand works now ("" aside), at `key`.
@@ -353,7 +360,7 @@ func crew_places(key: String) -> Dictionary:
 	var crew: Array = BUSINESS.crew_now(key)
 	if crew.is_empty():
 		return {}
-	return CREW_PLACES.places(crew, ROLE_AT, STATIONS, warden_stations(key), func(st: String) -> float: return station_need(key, st))
+	return CREW_PLACES.places(crew, ROLE_AT, STATIONS, warden_stations(key), func(st: String) -> float: return station_need(key, st), true)
 
 
 ## The stations wardens are at here: this machine's and the others'.
@@ -370,7 +377,10 @@ func station_need(key: String, st: String) -> float:
 			return maxf(0.0, float(8 - bowl(key)) / 8.0)
 		"counter":
 			var cobs := tickets(key, "cob").size()
-			return 0.0 if cobs == 0 else 0.5 + 0.25 * float(cobs) + (0.5 if not pot(key).is_empty() else 0.0)
+			# (Nothing to take out and nothing husked to put in: the husking first.)
+			if cobs == 0 or not _counter_can(key, cobs):
+				return 0.0
+			return 0.5 + 0.25 * float(cobs) + (0.5 if not pot(key).is_empty() else 0.0)
 		"drinks":
 			return 0.4 * float(tickets(key, "drink").size())
 	return 0.0
@@ -398,9 +408,9 @@ func _crew_work(key: String, crew: Array) -> void:
 					did = _crew_drink(key, slip)
 			"drinks":
 				did = _crew_drink(key, slip)
-		var k := 1.0
+		var k := STAND_PACE
 		if at == "husk" and BUSINESS.has_gear(key, "table"):
-			k = 0.6
+			k *= 0.6
 		_crew_t[id] = float(BIZ_RULES.SPEED_SEC[speed]) * k if did else 1.0
 
 
@@ -426,15 +436,27 @@ func _crew_drink(key: String, slip: bool) -> bool:
 
 
 func _crew_husk(key: String, slip: bool) -> bool:
-	if bowl(key) >= 8 or BUSINESS.stock_of(key, "cobs") <= 0:
+	var n := mini(HUSK_AT_ONCE, mini(8 - bowl(key), BUSINESS.stock_of(key, "cobs")))
+	if n <= 0:
 		return false
-	if CoreRoot == null or CoreRoot.actions == null or not CoreRoot.actions.biz_take(key, {"cobs": 1}):
+	if CoreRoot == null or CoreRoot.actions == null or not CoreRoot.actions.biz_take(key, {"cobs": n}):
 		return false
 	if slip and _rng.randf() < 0.3:
-		# Dropped in the dirt.
-		return true
-	act(key, "husked", [1])
+		# One dropped in the dirt.
+		n -= 1
+	if n > 0:
+		act(key, "husked", [n])
 	return true
+
+
+## Something the counter's hand can do now: a cob to take out (done for an order, or gone
+## soft), or husked ones to put in the pot for the orders.
+func _counter_can(key: String, open_cobs: int) -> bool:
+	for c in pot(key):
+		var stage := RULES.stage(float(c["t"]))
+		if stage == 2 or (stage == 1 and open_cobs > 0):
+			return true
+	return bowl(key) > 0 and free_slot(key) >= 0 and pot(key).size() < open_cobs + 1
 
 
 func _crew_counter(key: String, slip: bool) -> bool:
@@ -454,12 +476,13 @@ func _crew_counter(key: String, slip: bool) -> bool:
 			var butter := 0.9 if BUSINESS.stock_of(key, "butter") != 0 else 0.0
 			serve(key, t, RULES.cook_of(float(c["t"])), butter, salt, true)
 			return true
-	# Into the pot, as many as are wanted (and one ahead).
-	var in_pot := pot(key).size()
-	if bowl(key) > 0 and free_slot(key) >= 0 and in_pot < open.size() + 1:
+	# Into the pot, as many as are wanted (and one ahead), at one go.
+	var want := mini(open.size() + 1 - pot(key).size(), bowl(key))
+	var put := 0
+	while put < want and free_slot(key) >= 0:
 		act(key, "in", [new_id(), free_slot(key)])
-		return true
-	return false
+		put += 1
+	return put > 0
 
 
 # ── debug (tools/stand_check.gd, tools/stand_coop.gd) ────────────────────────
