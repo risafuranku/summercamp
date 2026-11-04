@@ -4029,7 +4029,9 @@ func _update_radio_mix(delta: float) -> void:
 	var target_db = _compute_radio_target_db()
 	var character_db = _compute_radio_character_volume_offset(delta)
 	character_db += linear_to_db(maxf(1.0 - _radio_sleep_k, 0.0001))
-	var night_track_db = RADIO_NIGHT_TRACK_VOLUME_OFFSET_DB if _radio_current_track_is_night else 0.0
+	# (The night's songs, "night_*", at the songs' level: 8 dB under the rest the Vypinac was
+	# hardly heard, the user 4. 11. The noises, "nightnoise", "nightbuzzer", are that loud.)
+	var night_track_db = RADIO_NIGHT_TRACK_VOLUME_OFFSET_DB if _radio_current_track_is_night and not _radio_last_played_path.get_file().begins_with("night_") else 0.0
 	if _dread != null:
 		var sleep_db := linear_to_db(maxf(1.0 - _radio_sleep_k, 0.0001))
 		_dread.update(

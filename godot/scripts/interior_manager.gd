@@ -625,7 +625,7 @@ func get_hint_for_structure(structure: Node3D) -> String:
 		# (Each piece in the warden's language: put together they are found by nothing.)
 		if condition < MAINT_RULES.FILTHY:
 			hint = tr(hint) + tr(" - filthy, clean it")
-		elif condition < 0.9:
+		elif condition < MAINT_RULES.DIRTY_AT:
 			hint = tr(hint) + tr(" - needs cleaning")
 	return hint
 

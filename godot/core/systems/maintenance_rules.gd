@@ -43,6 +43,18 @@ const SOILED_BY_USE := {"toilet_block": 0.03, "shower_block": 0.024}
 const STINK_FROM := 0.6
 ## Below this a guest who uses it says so and likes the camp less.
 const FILTHY := 0.35
+## Below this a block wants a clean: the one line for the hint by its door, its plate on the
+## right and the list inside (they each had their own and told different things, the user
+## 4. 11.: "sometimes it is true, sometimes a lie, the notice only now and then").
+const DIRTY_AT := 0.7
+## Its two halves are dirtied and cleaned apart (the ladies' and the gents', the two
+## showers: "the ladies' is clean but counts as dirty till I do the gents'", 4. 11.): the
+## cells' "maint_l" / "maint_r"; "maintenance" is the worse of them.
+const SIDES := ["l", "r"]
+
+
+static func side_condition(cell: Dictionary, side: String) -> float:
+	return float(cell.get("maint_" + side, cell.get("maintenance", 1.0)))
 
 
 static func soils(type: String) -> bool:

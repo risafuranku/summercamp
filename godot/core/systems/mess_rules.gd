@@ -200,7 +200,10 @@ static func room_tasks(kind: String, has_bathroom: bool, mess: Dictionary, bed_t
 
 ## The cleaning list inside a toilet ("toilet") or shower ("wash") block: the worse its
 ## condition, the more spots; a broken block also has its breakdown to fix.
-static func block_tasks(block: String, condition: float, broken: bool, seed: int) -> Array:
+## The jobs in a block: each half (its spots "_l" / "_r") that is dirty
+## (MaintenanceRules.DIRTY_AT) has its own, the more the dirtier; the middle's (no side)
+## when both are; a breakdown's always.
+static func block_tasks(block: String, cond_l: float, cond_r: float, broken: bool, seed: int) -> Array:
 	var out: Array = []
 	var spots: Array = (BLOCK_SPOTS.get(block, []) as Array).duplicate()
 	if spots.is_empty():
@@ -211,17 +214,23 @@ static func block_tasks(block: String, condition: float, broken: bool, seed: int
 	if broken and not brk.is_empty():
 		out.append(task_for(str(brk["spot"]), str(brk["kind"])))
 		spots.erase(str(brk["spot"]))
-	var dirt := clampf(0.9 - condition, 0.0, 0.9)
-	if dirt <= 0.0 and not broken:
-		return out
 	_shuffle(spots, rng)
-	var count := clampi(1 + int(ceil(dirt / 0.15)), 1, spots.size())
-	if broken:
-		count = maxi(count, 2)
-	for i in count:
-		var spot := str(spots[i])
-		var kinds: Array = BLOCK_KINDS.get(spot, ["puddle"])
-		out.append(task_for(spot, str(kinds[rng.randi_range(0, kinds.size() - 1)])))
+	var dirty_at := 0.7
+	for side in ["_l", "_r"]:
+		var c := cond_l if side == "_l" else cond_r
+		if c >= dirty_at:
+			continue
+		var mine: Array = spots.filter(func(s): return str(s).ends_with(side))
+		var dirt := clampf(0.9 - c, 0.0, 0.9)
+		var count := clampi(1 + int(ceil(dirt / 0.3)), 1, mine.size())
+		for i in count:
+			var spot := str(mine[i])
+			var kinds: Array = BLOCK_KINDS.get(spot, ["puddle"])
+			out.append(task_for(spot, str(kinds[rng.randi_range(0, kinds.size() - 1)])))
+	if cond_l < dirty_at and cond_r < dirty_at:
+		for spot in spots.filter(func(s): return not str(s).ends_with("_l") and not str(s).ends_with("_r")):
+			var kinds: Array = BLOCK_KINDS.get(str(spot), ["puddle"])
+			out.append(task_for(str(spot), str(kinds[rng.randi_range(0, kinds.size() - 1)])))
 	return out
 
 

@@ -1009,6 +1009,8 @@ func service_building(coord: Vector2i, cost: int) -> bool:
 		var cell_data = _state.grid.cells[c] as Dictionary
 		if str(cell_data.get("id", "")) == inst_id:
 			cell_data["maintenance"] = 1.0
+			cell_data.erase("maint_l")
+			cell_data.erase("maint_r")
 			_state.grid.cells[c] = cell_data
 	EventBus.money_changed.emit(_state.money)
 	EventBus.state_changed.emit({"maintenance": "serviced", "failures": "repaired" if was_broken else ""})
@@ -1026,12 +1028,45 @@ func soil_building(coord: Vector2i, amount: float) -> void:
 	var inst_id := str(_state.grid.cells.get(root, {}).get("id", ""))
 	if inst_id.is_empty():
 		return
+	# One half of it at a time, the one they used (MaintenanceRules.SIDES): twice the dirt
+	# there, so the block as a whole goes as it did.
+	var side := "l" if randi() % 2 == 0 else "r"
 	for c in _state.grid.cells:
 		var cell_data = _state.grid.cells[c] as Dictionary
 		if str(cell_data.get("id", "")) == inst_id:
-			cell_data["maintenance"] = maxf(0.0, float(cell_data.get("maintenance", 1.0)) - amount)
+			var whole := float(cell_data.get("maintenance", 1.0))
+			var l := float(cell_data.get("maint_l", whole))
+			var r := float(cell_data.get("maint_r", whole))
+			if side == "l":
+				l = maxf(0.0, l - amount * 2.0)
+			else:
+				r = maxf(0.0, r - amount * 2.0)
+			cell_data["maint_l"] = l
+			cell_data["maint_r"] = r
+			cell_data["maintenance"] = minf(l, r)
 			_state.grid.cells[c] = cell_data
 	EventBus.state_changed.emit({"maintenance": "soiled"})
+
+
+## One half of a toilet or shower block cleaned inside (its list done there): that half is
+## clean, the block as clean as its other half. Free (the supplies are paid with the whole).
+func service_side(coord: Vector2i, side: String) -> void:
+	if not _state.grid.cells.has(coord) or not side in ["l", "r"]:
+		return
+	var root: Vector2i = _state.grid.cells[coord].get("root_coord", coord)
+	var inst_id := str(_state.grid.cells.get(root, {}).get("id", ""))
+	if inst_id.is_empty():
+		return
+	for c in _state.grid.cells:
+		var cell_data = _state.grid.cells[c] as Dictionary
+		if str(cell_data.get("id", "")) == inst_id:
+			var whole := float(cell_data.get("maintenance", 1.0))
+			cell_data["maint_l"] = float(cell_data.get("maint_l", whole))
+			cell_data["maint_r"] = float(cell_data.get("maint_r", whole))
+			cell_data["maint_" + side] = 1.0
+			cell_data["maintenance"] = minf(float(cell_data["maint_l"]), float(cell_data["maint_r"]))
+			_state.grid.cells[c] = cell_data
+	EventBus.state_changed.emit({"maintenance": "serviced"})
 
 
 ## Takes the wear off a building that no longer wears (old saves, from before only the

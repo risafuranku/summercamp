@@ -1711,7 +1711,7 @@ func _trouble_rows(biz) -> Array:
 ## want cleaning"): each empty lodging that is dirty (the broom) or not made up (the
 ## linen), each toilet and shower block worn into wanting a clean (as its own room's list
 ## has it: mess_rules.block_tasks) or broken.
-const WORK_BLOCK_DIRTY := 0.7
+const WORK_BLOCK_DIRTY: float = preload("res://core/systems/maintenance_rules.gd").DIRTY_AT
 
 
 func _work_rows() -> Array:
@@ -5585,6 +5585,8 @@ func coop_request(kind: String, data: Array) -> void:
 					CoreRoot.actions.spend_money(mini(-delta, CoreRoot.get_money()))
 		"service":
 			CoreRoot.actions.service_building(data[0], int(data[1]))
+		"service_side":
+			CoreRoot.actions.service_side(data[0], str(data[1]))
 		"upgrade":
 			if _interior_manager != null and data[0] is Dictionary:
 				_interior_manager.coop_upgrade(data[0])

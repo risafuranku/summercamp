@@ -21,6 +21,7 @@ var lodge_sleeping := false
 var _laptop_view: CanvasLayer
 var _staff_ledger: CanvasLayer
 const MESS_RULES = preload("res://core/systems/mess_rules.gd")
+const MAINT_RULES_S = preload("res://core/systems/maintenance_rules.gd")
 const BUILDING_MODELS = preload("res://scripts/building_models.gd")
 const INTERIOR_KIT = preload("res://scripts/interior_kit.gd")
 const UPKEEP_RULES = preload("res://core/systems/maintenance_rules.gd")
@@ -2430,10 +2431,13 @@ func set_upkeep_target(coord: Vector2i, building_type: String) -> void:
 		EventBus.building_serviced.connect(_on_block_serviced)
 	var state = CoreRoot.get_state()
 	var cell: Dictionary = state.grid.cells.get(coord, {}) if state != null else {}
-	var condition := float(cell.get("maintenance", 1.0))
+	var cond_l := MAINT_RULES_S.side_condition(cell, "l")
+	var cond_r := MAINT_RULES_S.side_condition(cell, "r")
 	var broken: bool = state != null and state.failures.has(_upkeep_key)
 	var entry: Dictionary = _upkeep_cache.get(_upkeep_key, {})
-	if bool(entry.get("spent", false)):
+	# Spent, or found clean the last time (an empty list was kept for good: the hint by the
+	# door said dirty and in here nothing was, the user 4. 11.): a new look at it.
+	if bool(entry.get("spent", false)) or (entry.get("tasks", []) as Array).is_empty():
 		entry = {}
 	var spots: Array = MESS_RULES.BLOCK_SPOTS.get(block, [])
 	for t in entry.get("tasks", []):
@@ -2444,7 +2448,7 @@ func set_upkeep_target(coord: Vector2i, building_type: String) -> void:
 	if entry.is_empty() or (broken and not bool(entry.get("broken", false))):
 		var day := int(state.day) if state != null else 1
 		entry = {
-			"tasks": MESS_RULES.block_tasks(block, condition, broken, absi(("%s|%d" % [_upkeep_key, day]).hash())),
+			"tasks": MESS_RULES.block_tasks(block, cond_l, cond_r, broken, absi(("%s|%d" % [_upkeep_key, day]).hash())),
 			"done": (entry.get("done", []) as Array).duplicate() if not entry.is_empty() else [],
 			"broken": broken,
 		}
@@ -2518,7 +2522,33 @@ func _on_upkeep_task_done(task_id: String) -> void:
 	if _all_upkeep_done(entry):
 		_finish_upkeep()
 	else:
+		_side_done(entry)
 		_refresh_upkeep_room()
+
+
+## A half of the block with all its jobs done is clean now, the other still dirty (each
+## counted apart, the user 4. 11.).
+func _side_done(entry: Dictionary) -> void:
+	var sides: Array = entry.get("sides_done", [])
+	for side in ["l", "r"]:
+		if sides.has(side):
+			continue
+		var mine: Array = (entry.get("tasks", []) as Array).filter(func(t): return str((t as Dictionary).get("spot", "")).ends_with("_" + side))
+		if mine.is_empty():
+			continue
+		var all := true
+		for t in mine:
+			if not (entry.get("done", []) as Array).has(str(t["id"])):
+				all = false
+				break
+		if not all:
+			continue
+		sides.append(side)
+		if Coop.is_client():
+			Coop.send_request("service_side", [_upkeep_coord, side])
+		else:
+			CoreRoot.actions.service_side(_upkeep_coord, side)
+	entry["sides_done"] = sides
 
 
 ## The last job done: the block is back to 100%. Cleaning costs the supplies, a
