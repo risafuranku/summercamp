@@ -150,6 +150,8 @@ func _ready() -> void:
 			_steps = _curtains2()
 		"sound":
 			_steps = _sound_trail()
+		"call":
+			_steps = _call()
 
 
 ## R turns what you are about to build, with the pointer anywhere (Y14).
@@ -632,6 +634,26 @@ func _sound_trail() -> Array:
 		["door_front", "main_building", 2.0], ["wait", 2.0], ["eval", C + ".mark('door')"],
 		["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('main_building'))"], ["wait", 5.0],
 		["eval", BI + "._exit_crt_view()"], ["wait", 3.0], ["eval", "get_tree().quit()"]]
+	return s
+
+
+## His call from outside while you sit in the reception (Y24): called by hand, and left to it.
+func call_state(tag: String) -> void:
+	var brains: Array = _main.get("_enemy_brains")
+	if brains.is_empty():
+		say("CALL %s no brain" % tag)
+		return
+	var b = brains.back()
+	var w: AudioStreamPlayer = b.get("_wall2d")
+	say("CALL %s indoors=%s calls=%s next_in=%.1f playing=%s stream=%s db=%.1f" % [tag, str(b.get("_indoors")), str(b.get("_calls")), float(b.get("_call_next")) - float(Time.get_ticks_msec()) / 1000.0, str(w.playing) if w != null else "-", str(w.stream.resource_path).get_file() if w != null and w.stream != null else "-", float(w.volume_db) if w != null else 0.0])
+
+
+func _call() -> Array:
+	var s: Array = BOOT.duplicate(true)
+	s += [["wait", 2.0], ["eval", "debug_jump_to(2, 22.0)"], ["wait", 1.0], ["call", "debug_spawn_enemy", ["silent_man", 3]], ["wait", 2.0],
+		["eval", "['Y brains', _enemy_brains.size()]"], ["eval", C + ".call_state('started')"],
+		["eval", "_enemy_brains.back().set('_call_next', 0.0)"], ["wait", 0.5], ["eval", C + ".call_state('called')"], ["wait", 1.0], ["eval", C + ".call_state('a second on')"],
+		["eval", "_enemy_brains.back().set('_call_next', 0.0)"], ["wait", 0.5], ["eval", C + ".call_state('again')"], ["eval", "get_tree().quit()"]]
 	return s
 
 
