@@ -134,6 +134,9 @@ const SUN_SHADOW_FADE_START: float = 0.58
 const SUN_SHADOW_PANCAKE_SIZE: float = 28.0
 ## Two game minutes (~1.3 s at 1.5 game minutes a second, half a degree of the sun).
 const SUN_STEP_HOURS: float = 2.0 / 60.0
+## How high the sun is (its direction's y) when it has its whole strength: below, it goes out
+## as it comes down to the horizon, and under it it lights nothing.
+const SUN_FULL_HEIGHT: float = 0.04
 const CELESTIAL_PATH_ALTITUDE_FACTOR: float = 0.84
 const CELESTIAL_PATH_DEFAULT_HALF_SPAN: float = 56.0
 const CELESTIAL_SPRITE_REFERENCE_DISTANCE: float = 36.0
@@ -1054,11 +1057,15 @@ func apply_time_from_clock(force_sky_snap: bool = false) -> void:
 		if abs(light_forward.dot(look_up)) > 0.98:
 			look_up = Vector3.FORWARD
 		_sun.look_at(_sun.global_position + light_forward, look_up)
-		_sun.light_energy = sun_energy
+		# Set is set (the user 5. 11.: "about 18:50 the paths began flashing red"): it went on
+		# in deep red from under the world till 19:20, along every path and stalk, the shadow
+		# map's noise on all of them, more of it at each step of the sun.
+		var above := smoothstep(0.0, SUN_FULL_HEIGHT, direction_to_source_from_hour(_time_of_day_hours).y)
+		_sun.light_energy = sun_energy * above
 		_sun.light_color = sun_color
 		var h = _season_hour(_time_of_day_hours)
 		var shadows_time_window = _is_hour_in_window(h, DAY_SKY_FADE_START_HOUR, NIGHT_SKY_FADE_START_HOUR)
-		_sun.shadow_enabled = shadows_time_window and (sun_height > -0.20)
+		_sun.shadow_enabled = shadows_time_window and above > 0.0
 	if _psx_post_mat != null:
 		_psx_post_mat.set_shader_parameter("night_factor", night_factor)
 		_psx_post_mat.set_shader_parameter("virtual_height", lerpf(132.0, 164.0, 1.0 - night_factor))

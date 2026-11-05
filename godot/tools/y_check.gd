@@ -164,6 +164,8 @@ func _ready() -> void:
 			_steps = _lock()
 		"sun":
 			_steps = _sun_table()
+		"duskwalk":
+			_steps = _dusk_walk()
 
 
 ## R turns what you are about to build, with the pointer anywhere (Y14).
@@ -552,6 +554,16 @@ func sun_row(day: int) -> void:
 		var dir: Vector3 = w.call("direction_to_source_from_hour", h)
 		var p: Dictionary = w.call("sample_time_profile", h)
 		say("SUN day %d h=%.1f height=%.3f energy=%.2f color=%s" % [day, h, dir.y, float(p.get("sun_energy", -1.0)), str(p.get("sun_color", ""))])
+
+
+## The evening and the first light from in front of the reception: how the sun goes.
+func _dusk_walk() -> Array:
+	var s: Array = BOOT.duplicate(true)
+	s += [["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0], ["door_front", "main_building", 9.0], ["wait", 0.5]]
+	for h in [17.5, 18.0, 18.2, 18.35, 18.5, 18.75, 19.1, 5.8, 6.1, 6.5]:
+		s += [["eval", "debug_jump_to(%d, %s)" % [2 if h > 7.0 else 3, h]], ["wait", 0.9], ["shot", "h_%s" % str(h).replace(".", "_")]]
+	s += [["eval", "get_tree().quit()"]]
+	return s
 
 
 func _sun_table() -> Array:
