@@ -57,10 +57,12 @@ class_name SilentManBrain
 ## too (the counter for two: watch each other's backs).
 ##
 ## He calls you out (the user 5. 11.: "sounds to lure you out of the buildings, heard from
-## far off outside, nothing typically horror, that give you goosebumps"): now and then while
-## you sit inside, from out in the dark: the one call of the night (`SFX_CALLS`, each night
-## another), a man with no mouth humming, the same to the last wobble every time, a little
-## nearer each time you stay.
+## far off outside, nothing typically horror, that give you goosebumps"; and then: "he does
+## that far too often, he should really only do it now and then from far off, when you are
+## in a cabin, say, like Freddy Fazbear"): not every night, once or twice in one, while you
+## sit inside, from a long way out in the dark: a man with no mouth humming, the same to
+## the last wobble every time (`SFX_CALL`; tools/audiogen/fever_dream.py far_call). His
+## humming round his corner is as rare: a phrase, then nothing for minutes.
 ##
 ## Your own torch on him has its price (playtest 25. 10.): his glasses throw the light back
 ## and the bulb goes dead in your hand for three seconds, then catches again, flickering
@@ -94,14 +96,16 @@ const SFX_THROAT := "res://assets/sfx/npc/sm_throat.mp3"
 const SFX_STRETCH := "res://assets/sfx/npc/sm_stretch.mp3"
 const SFX_CEILING := "res://assets/sfx/npc/sm_ceiling.mp3"
 const SFX_SECOND := "res://assets/sfx/npc/sm_second_voice.mp3"
-const SFX_CALLS := ["res://assets/sfx/npc/sm_lure_a.mp3", "res://assets/sfx/npc/sm_lure_b.mp3", "res://assets/sfx/npc/sm_lure_c.mp3", "res://assets/sfx/npc/sm_lure_d.mp3"]
+const SFX_CALL := "res://assets/sfx/npc/sm_call_far.ogg"
 ## The wait between his calls (s), the first, how loud (-23 LUFS), and what each one more this
 ## stay adds, up to CALL_NEAR_MAX.
-const CALL_EVERY := Vector2(55.0, 120.0)
-const CALL_FIRST := Vector2(25.0, 60.0)
-const CALL_DB := -3.0
-const CALL_NEARER_DB := 1.5
-const CALL_NEAR_MAX := 6.0
+const CALL_NIGHTS := 0.6
+const CALLS_A_NIGHT := 2
+const CALL_WAIT := Vector2(45.0, 150.0)
+const CALL_DB := -7.0
+## His humming round his corner: this long, this long apart.
+const HUM_SEC := Vector2(4.0, 7.0)
+const HUM_EVERY := Vector2(70.0, 160.0)
 const SFX_STEPS := "res://assets/sfx/npc/silent_steps.mp3"
 const SFX_STEP := "res://assets/sfx/npc/sm_step.mp3"
 const SFX_WHISPER := "res://assets/sfx/npc/silent_whisper.mp3"
@@ -223,7 +227,11 @@ func _night_no() -> int:
 
 ## Indoors: when he next calls you out, and how many times this stay.
 var _call_next := 0.0
+## Calls left tonight, and the night they are for.
 var _calls := 0
+var _calls_night := -1
+var _hum_until := -1.0
+var _hum_next := -1.0
 ## Indoors: when the next moment of him, and how many there were.
 var _lure_next := -1.0
 var _lure_n := 0
@@ -905,8 +913,13 @@ func _update_audio(dt: float) -> void:
 	var d := _distance_to_player(_body.global_position)
 	if _hum != null:
 		_hum.global_position = _body.global_position + Vector3(0, 1.6, 0)
-		# He hums only while he waits for you in the dark round his corner.
-		var want := lerpf(-23.5, -5.5, clampf(1.0 - d / (LURK_DIST.y + 4.0), 0.0, 1.0)) if _lurking else -60.0
+		# He hums only while he waits for you in the dark round his corner, and seldom.
+		if _hum_next < 0.0:
+			_hum_next = _elapsed + _rng.randf_range(20.0, HUM_EVERY.x)
+		if _lurking and _elapsed >= _hum_next:
+			_hum_until = _elapsed + _rng.randf_range(HUM_SEC.x, HUM_SEC.y)
+			_hum_next = _hum_until + _rng.randf_range(HUM_EVERY.x, HUM_EVERY.y)
+		var want := lerpf(-30.0, -15.0, clampf(1.0 - d / (LURK_DIST.y + 4.0), 0.0, 1.0)) if _lurking and _elapsed < _hum_until else -60.0
 		_hum.volume_db = move_toward(_hum.volume_db, want, (60.0 if want < _hum.volume_db else 20.0) * dt)
 	if _breath != null:
 		_breath.global_position = _body.global_position + Vector3(0, 1.6, 0)
@@ -1570,10 +1583,9 @@ func _tick_indoors(delta: float) -> void:
 		# (_lure_n counts on over the night, every stay inside: "late in his night" is the
 		# night's, not this stay's; going in and out does not start him over.)
 		_lure_next = _wall_clock() + _rng.randf_range(12.0, 22.0)
-		_call_next = _wall_clock() + _rng.randf_range(CALL_FIRST.x, CALL_FIRST.y)
-		_calls = 0
-	if _wall_clock() >= _call_next and _fx() != null:
-		_call_next = _wall_clock() + _rng.randf_range(CALL_EVERY.x, CALL_EVERY.y)
+		_call_next = maxf(_call_next, _wall_clock() + _rng.randf_range(CALL_WAIT.x, CALL_WAIT.y))
+	if _wall_clock() >= _call_next and _call_due() and _fx() != null:
+		_call_next = _wall_clock() + 2.0 * _rng.randf_range(CALL_WAIT.x, CALL_WAIT.y)
 		_call_out()
 	if _ceil != null:
 		_tick_ceiling()
@@ -1597,8 +1609,18 @@ func _tick_indoors(delta: float) -> void:
 
 ## From out in the dark, through the walls: tonight's call.
 func _call_out() -> void:
-	_room_2d(str(SFX_CALLS[absi(_night_no()) % SFX_CALLS.size()]), CALL_DB + minf(float(_calls) * CALL_NEARER_DB, CALL_NEAR_MAX))
-	_calls += 1
+	_room_2d(SFX_CALL, CALL_DB)
+	_calls -= 1
+
+
+## Has he a call left tonight? Rolled once a night; the first of him only, a second Silent
+## Man is not a second voice.
+func _call_due() -> bool:
+	if _calls_night != _night_no():
+		_calls_night = _night_no()
+		var first := _fx_key == "silent_man"
+		_calls = CALLS_A_NIGHT if first and _rng.randf() < CALL_NIGHTS else 0
+	return _calls > 0
 
 
 ## Seconds while indoors (the base's _elapsed does not run while it cannot act).
@@ -1729,13 +1751,10 @@ func _indoor_sound() -> void:
 		return
 	if late and r < 0.32 and _at_glass(_im()):
 		return
-	match _rng.randi() % 3:
-		0:
-			_room_2d(SFX_SOFTSTEP, -29.5, 0.85)
-		1:
-			_room_2d(SFX_HUM, -14.0, 0.8)
-		_:
-			_room_2d(SFX_BREATH, -20.0, 0.9)
+	if _rng.randf() < 0.5:
+		_room_2d(SFX_SOFTSTEP, -29.5, 0.85)
+	else:
+		_room_2d(SFX_BREATH, -20.0, 0.9)
 
 
 ## The cabin you are in: he stands outside one of its windows, close to the glass, and
@@ -1778,9 +1797,6 @@ func _at_glass(im) -> bool:
 		_root.add_child(_glass_light)
 	_glass_light.global_position = (w["pos"] as Vector3) + (w["out"] as Vector3) * 0.15
 	_glass_light.visible = true
-	get_tree_timer(1.0, func():
-		if _indoors and _fx() != null:
-			_room_2d(SFX_HUM, -6.0, 0.85))
 	return true
 
 

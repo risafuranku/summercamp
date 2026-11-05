@@ -158,6 +158,8 @@ func _ready() -> void:
 			_steps = _girl_out()
 		"girlring":
 			_steps = _girl_ring()
+		"feverrec":
+			_steps = _fever_rec()
 
 
 ## R turns what you are about to build, with the pointer anywhere (Y14).
@@ -531,6 +533,18 @@ func _process(delta: float) -> void:
 		NIGHTMARE.get_for(_main).set_presence("y_check", _fever_presence)
 
 
+## The fever, for a recording (--write-movie): twenty seconds of it at its worst, then over.
+func _fever_rec() -> Array:
+	var s: Array = BOOT.duplicate(true)
+	s += [["wait", 2.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0], ["eval", "debug_jump_to(2, 22.0)"], ["wait", 2.0],
+		["eval", C + ".fever_try(0.95, 0.0)"], ["eval", C + ".fever_at(0.95, 22.0)"], ["wait", 22.0], ["eval", C + ".fever_state('at its worst')"], ["eval", C + ".fever_try(0.0, 0.0)"], ["wait", 8.0], ["eval", C + ".fever_state('over')"], ["eval", "get_tree().quit()"]]
+	return s
+
+
+func fever_at(level: float, seconds: float) -> void:
+	NIGHTMARE.get_for(_main).fever_pulse(level, seconds)
+
+
 func _silent() -> Array:
 	var s: Array = BOOT.duplicate(true)
 	s += [["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0], ["eval", "debug_jump_to(1, 22.0)"], ["eval", "_player.set('torch_carried', true)"], ["wait", 1.2],
@@ -654,12 +668,25 @@ func call_state(tag: String) -> void:
 	say("CALL %s indoors=%s calls=%s next_in=%.1f playing=%s stream=%s db=%.1f" % [tag, str(b.get("_indoors")), str(b.get("_calls")), float(b.get("_call_next")) - float(Time.get_ticks_msec()) / 1000.0, str(w.playing) if w != null else "-", str(w.stream.resource_path).get_file() if w != null and w.stream != null else "-", float(w.volume_db) if w != null else 0.0])
 
 
+## Of a hundred nights, how many he calls on.
+func call_odds() -> void:
+	var b = (_main.get("_enemy_brains") as Array).back()
+	var n := 0
+	for i in 1000:
+		b.set("_calls_night", -1)
+		if b.call("_call_due"):
+			n += 1
+	say("CALL nights with a call %.1f %%" % (float(n) / 10.0))
+
+
 func _call() -> Array:
 	var s: Array = BOOT.duplicate(true)
 	s += [["wait", 2.0], ["eval", "debug_jump_to(2, 22.0)"], ["wait", 1.0], ["call", "debug_spawn_enemy", ["silent_man", 3]], ["wait", 2.0],
 		["eval", "['Y brains', _enemy_brains.size()]"], ["eval", C + ".call_state('started')"],
+		["eval", C + ".call_odds()"], ["eval", "_enemy_brains.back().set('_calls', 2)"],
 		["eval", "_enemy_brains.back().set('_call_next', 0.0)"], ["wait", 0.5], ["eval", C + ".call_state('called')"], ["wait", 1.0], ["eval", C + ".call_state('a second on')"],
-		["eval", "_enemy_brains.back().set('_call_next', 0.0)"], ["wait", 0.5], ["eval", C + ".call_state('again')"], ["eval", "get_tree().quit()"]]
+		["eval", "_enemy_brains.back().set('_call_next', 0.0)"], ["wait", 0.5], ["eval", C + ".call_state('again')"],
+		["eval", "_enemy_brains.back().set('_call_next', 0.0)"], ["wait", 0.5], ["eval", C + ".call_state('and no more tonight')"], ["eval", "get_tree().quit()"]]
 	return s
 
 

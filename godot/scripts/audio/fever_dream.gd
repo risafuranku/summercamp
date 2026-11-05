@@ -5,8 +5,12 @@ extends Node
 ## ears, voices, bangs, a schizo fever dream that gets right into your brain"). No picture.
 ## The ears ring, louder the worse it is; splinters of the night's voices and blows you feel
 ## more than hear, a side at a time, quicker and quicker (tools/audiogen/fever_dream.py,
-## assets/sfx/fever/). nightmare_fx owns it and says how bad it is each frame: only the
-## hunted warden's machine. Heard over the muffled world (nightmare_fx._update_muffle).
+## assets/sfx/fever/). And they are heard, not played (the user 5. 11.: "more effects, reverbs,
+## it sounds too little like hearing things and too much like playback"): each comes up out
+## of nothing and stays in its own far hall, stretched, backwards, caught on a syllable, and
+## here over all of it a space with no walls you could find, more of it the worse it is, and
+## no pitch that holds still. nightmare_fx owns it and says how bad it is each frame: only
+## the hunted warden's machine. Heard over the muffled world (nightmare_fx._update_muffle).
 
 const DIR := "res://assets/sfx/fever/"
 const VOICES := 12
@@ -14,13 +18,20 @@ const THUDS := 6
 const BUS := "Fever"
 const LEFT := "FeverL"
 const RIGHT := "FeverR"
-## How hard a side is panned.
-const PAN := 0.85
+## How hard a side is panned (the sounds are in stereo themselves, their halls round you).
+const PAN := 0.55
 ## The ears at nothing and at the worst.
 const RING_DB := Vector2(-52.0, -13.0)
-const SHARD_DB := Vector2(-20.0, -7.0)
-## Seconds between splinters at the first of it and at the worst.
-const EVERY := Vector2(2.8, 0.42)
+const SHARD_DB := Vector2(-26.0, -11.0)
+## Seconds between splinters at the first of it and at the worst (they are long now, and
+## lie over each other).
+const EVERY := Vector2(3.4, 0.85)
+const SHARD_PLAYERS := 6
+## The space: how much of it at the first of it and at the worst.
+const WET := Vector2(0.28, 0.62)
+## No pitch holds still: how far a splinter wanders, how quickly.
+const WANDER := 0.035
+const WANDER_HZ := Vector2(0.15, 0.5)
 ## Below this nothing is said, the ears only.
 const SHARDS_FROM := 0.14
 ## How often a splinter is a blow.
@@ -30,6 +41,9 @@ var _level := 0.0
 var _next := 0.0
 var _ring: AudioStreamPlayer
 var _players: Array[AudioStreamPlayer] = []
+## Each player's pitch to wander round, how quickly, where it is in that.
+var _wander: Array = []
+var _verb: AudioEffectReverb
 var _voices: Array = []
 var _thuds: Array = []
 var _side := 0
@@ -46,12 +60,13 @@ func _ready() -> void:
 	if ResourceLoader.exists(DIR + "ring.ogg"):
 		_ring.stream = load(DIR + "ring.ogg")
 	add_child(_ring)
-	for i in 4:
+	for i in SHARD_PLAYERS:
 		var p := AudioStreamPlayer.new()
 		p.name = "FeverShard%d" % i
 		p.bus = LEFT if i % 2 == 0 else RIGHT
 		add_child(p)
 		_players.append(p)
+		_wander.append({"pitch": 1.0, "hz": 0.3, "at": 0.0})
 	# Loaded now: the first splinter must not wait on its file.
 	for i in VOICES:
 		var path := DIR + "voice_%02d.ogg" % (i + 1)
@@ -69,6 +84,26 @@ func _ensure_buses() -> void:
 		AudioServer.add_bus(i)
 		AudioServer.set_bus_name(i, BUS)
 		AudioServer.set_bus_send(i, "Master")
+		var phaser := AudioEffectPhaser.new()
+		phaser.range_min_hz = 220.0
+		phaser.range_max_hz = 1800.0
+		phaser.rate_hz = 0.13
+		phaser.feedback = 0.45
+		phaser.depth = 0.7
+		AudioServer.add_bus_effect(i, phaser)
+		var verb := AudioEffectReverb.new()
+		verb.predelay_msec = 45.0
+		verb.room_size = 0.92
+		verb.damping = 0.55
+		verb.spread = 1.0
+		verb.hipass = 0.12
+		verb.dry = 0.75
+		verb.wet = WET.x
+		AudioServer.add_bus_effect(i, verb)
+	var bus := AudioServer.get_bus_index(BUS)
+	for e in AudioServer.get_bus_effect_count(bus):
+		if AudioServer.get_bus_effect(bus, e) is AudioEffectReverb:
+			_verb = AudioServer.get_bus_effect(bus, e)
 	for side in [[LEFT, -PAN], [RIGHT, PAN]]:
 		if AudioServer.get_bus_index(str(side[0])) >= 0:
 			continue
@@ -95,6 +130,9 @@ func tick(delta: float, want: float) -> void:
 		elif _level <= 0.01 and _ring.playing:
 			_ring.stop()
 		_ring.volume_db = lerpf(RING_DB.x, RING_DB.y, sqrt(_level))
+	if _verb != null:
+		_verb.wet = lerpf(WET.x, WET.y, _level)
+	_tick_wander(delta)
 	if _level < SHARDS_FROM:
 		_next = minf(_next, 0.5)
 		return
@@ -103,6 +141,16 @@ func tick(delta: float, want: float) -> void:
 		return
 	_next = lerpf(EVERY.x, EVERY.y, _level) * _rng.randf_range(0.6, 1.5)
 	_shard()
+
+
+func _tick_wander(delta: float) -> void:
+	for i in _players.size():
+		var p := _players[i]
+		if not p.playing:
+			continue
+		var w: Dictionary = _wander[i]
+		w["at"] = float(w["at"]) + delta * float(w["hz"]) * TAU
+		p.pitch_scale = float(w["pitch"]) * (1.0 + WANDER * sin(float(w["at"])))
 
 
 func _shard() -> void:
@@ -117,7 +165,8 @@ func _shard() -> void:
 		if p.playing:
 			continue
 		p.stream = pool[_rng.randi() % pool.size()]
-		p.pitch_scale = _rng.randf_range(0.86, 1.14)
+		_wander[i] = {"pitch": _rng.randf_range(0.86, 1.14), "hz": _rng.randf_range(WANDER_HZ.x, WANDER_HZ.y), "at": _rng.randf_range(0.0, TAU)}
+		p.pitch_scale = float(_wander[i]["pitch"])
 		p.volume_db = lerpf(SHARD_DB.x, SHARD_DB.y, _level) + _rng.randf_range(-3.0, 1.0)
 		p.play()
 		return
