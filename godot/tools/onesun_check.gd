@@ -448,6 +448,25 @@ func dry_state(tag: String) -> void:
 	print("ONESUN %s cabin eye at %s" % [tag, str(cam.global_position.snapped(Vector3.ONE * 0.01))])
 
 
+## Everything drawn round a point of the reception's room space (a box `half` each way).
+func rec_probe(tag: String, at: Vector3, half: float) -> void:
+	var room: Node3D = _bi().get("_room_root")
+	var c := room.global_transform * at
+	var box := AABB(c - Vector3.ONE * half, Vector3.ONE * half * 2.0)
+	for n in get_tree().root.find_children("*", "GeometryInstance3D", true, false):
+		var g := n as GeometryInstance3D
+		if not g.is_inside_tree() or not g.is_visible_in_tree():
+			continue
+		var gb: AABB = g.global_transform * g.get_aabb()
+		if gb.size.length() > 60.0 or not gb.intersects(box):
+			continue
+		var mat = g.material_override
+		var tex := ""
+		if mat is StandardMaterial3D and (mat as StandardMaterial3D).albedo_texture != null:
+			tex = (mat as StandardMaterial3D).albedo_texture.resource_path.get_file()
+		print("ONESUN %s at %s %s L=%d tex=%s box=%s" % [tag, str(at), str(g.get_path()).right(64), g.layers, tex, str(gb)])
+
+
 ## Where the player is, what room is open (one line).
 func where(tag: String) -> void:
 	var p: Node3D = _main.get("_player")
@@ -910,6 +929,18 @@ func _ready() -> void:
 				["eval", "_interior_manager.close_main_interior_if_open()"], ["wait", 1.0],
 				["glass", "side_glass", 1.4], ["wait", 1.0], ["shot", "k3_from_outside"],
 				["eval", "get_tree().quit()"]]
+			return
+		if a == "--part=storein":
+			# The store behind the office from inside (its walls under the lean-to's roof, X2).
+			var BI := "_interior_manager._building_interior"
+			var st: Array = [["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 3.0],
+				["eval", BI + "._exit_crt_view()"], ["wait", 2.0], ["eval", "debug_jump_to(1, 12.0)"], ["wait", 1.0], ["mouse", 0.5, 0.5],
+				["eval", BI + "._extras.go_store()"], ["wait", 3.0]]
+			for v in [[0.0, 10.0, "s_ahead_up"], [60.0, 15.0, "s_left_up"], [-60.0, 15.0, "s_right_up"], [0.0, -10.0, "s_ahead"]]:
+				st += [["eval", BI + "._extras.look_store.set('yaw_deg', %s)" % v[0]], ["eval", BI + "._extras.look_store.set('pitch_deg', %s)" % v[1]], ["wait", 0.7], ["shot", v[2]]]
+			st += [["eval", C + ".rec_probe('wallL', Vector3(-1.3, 1.2, 3.4), 0.12)"], ["eval", C + ".rec_probe('wallR', Vector3(1.3, 1.2, 3.4), 0.12)"],
+				["eval", C + ".rec_probe('inL', Vector3(-1.15, 1.2, 3.4), 0.05)"], ["eval", "get_tree().quit()"]]
+			_steps = st
 			return
 		if a == "--part=cabdoor":
 			var st: Array = [

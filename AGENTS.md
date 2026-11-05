@@ -456,6 +456,29 @@ every night's sewer, toilets and frozen pipes the moment they broke).
  `van_shell`, left out of the room's eye and its shadow off while it does). One room
  serves every cabin, tent and van: it stands in the one you are in or look in at
  (`_host_panes`, `_host_way`, `_host_shell_of`); the others keep their cubes and darks.
+ **Doors in one world** (the user 5. 11.: "a broken portal into the endless" inside the
+ cabin's door, a tent crawled into from across the camp): a room built in its building says
+ `"one_world": true` in its `door_spec`; `door_through` then makes no panes, leaves the eye
+ where it is (`_to_room` identity), hides the doorway's dark (`<leaf>Way`) and the room's own
+ shut leaf while you come through, and `door_ready` binds the room into that building at
+ once. The room hides its host's darks while it stands there (`one_world_room.doorways` /
+ `hide_ways`, given back when it leaves). Every model's doorway must be a real hole: no
+ board behind the leaf (the cabin's `DoorFrame` is a ring, `_frame`), a painted front has its
+ door cut out (`_door_cut_face`), a solid box is a shell with the doorway through it
+ (`_hall_shell`: the bowling hall, the van's body), a picture skin in pieces round it
+ (`_skin_round`), and the room's own wall has the opening too (`bowling_layout._door_hole`).
+ The van is built round its room (`caravan_layout.gd`, one plan for both, as `cabin_layout`):
+ its walls stood inside the room's, the wallpaper seen from the camp. The reception is walked
+ into for real (the leaf opens, the camp's walk goes on into the doorway, no frozen frame).
+ A walk held a frame or two while a room is built (`CAM_MOVE.hold`) is still a walk: test
+ `_walk.is_valid()`, not `is_running()` (the look turned the eye out of the door for a frame).
+ Floors: the plinths are rings (`_plinth_ring`, top 0.13) and a tent's room is lifted
+ `TENT_LIFT` off the ground. Rain: a drop is born unseen for 75 ms and its streak is never
+ drawn inside a room (`materials/rain_streak.gdshader` cuts it by the rooms' dry boxes, group
+ `dry_box`, `weather_visuals._update_dry_boxes`): a dry box hides a drop only a step after it
+ went in, and a streak hangs half its length round its drop (the cabin's single drip from
+ the ceiling in heavy rain is its roof leak, room_weather). Check a converted room with
+ `tools/onesun_check.gd --part=walks` (in and out by every door, frame by frame).
  **Under the land nothing is drawn** (a room put below y 0 rendered as sky): bake a room's
  cubes far over the camp (`one_world_room.BAKE_UP`). Lamps without shadows in a room built in
  the camp light the grass outside its walls: `one_world_room.own_lights` (the room's own
