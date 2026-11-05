@@ -160,6 +160,10 @@ func _ready() -> void:
 			_steps = _girl_ring()
 		"feverrec":
 			_steps = _fever_rec()
+		"lock":
+			_steps = _lock()
+		"sun":
+			_steps = _sun_table()
 
 
 ## R turns what you are about to build, with the pointer anywhere (Y14).
@@ -531,6 +535,55 @@ func _process(delta: float) -> void:
 	super._process(delta)
 	if _fever_presence > 0.0:
 		NIGHTMARE.get_for(_main).set_presence("y_check", _fever_presence)
+
+
+## The low sun, hour by hour (Y17): how high, how strong, its shadows.
+func sun_row(day: int) -> void:
+	var w: Node = _main.get("_weather_visuals")
+	for i in 26:
+		var h := 17.4 + float(i) * 0.1
+		var dir: Vector3 = w.call("direction_to_source_from_hour", h)
+		var p: Dictionary = w.call("sample_time_profile", h)
+		say("SUN day %d h=%.1f height=%.3f energy=%.2f color=%s" % [day, h, dir.y, float(p.get("sun_energy", -1.0)), str(p.get("sun_color", ""))])
+
+
+func _sun_table() -> Array:
+	var s: Array = BOOT.duplicate(true)
+	s += [["wait", 1.0], ["eval", C + ".sun_row(1)"], ["eval", "get_tree().quit()"]]
+	return s
+
+
+## Your torch on the Silent Man (Y28): the world burnt out, him black in it, the two points
+## after it through the dead torch.
+func lock_try() -> void:
+	var b = (_main.get("_enemy_brains") as Array).back()
+	var p: Node3D = _main.get("_player")
+	var body: Sprite3D = b.get("_body")
+	var f := -p.global_transform.basis.z
+	f.y = 0.0
+	body.global_position = p.global_position + f.normalized() * 7.0
+	body.visible = true
+	var head: Vector3 = body.global_position + Vector3(0, 1.5, 0)
+	say("LOCK torch %s on him %s" % [str(b.call("_flashlight_on")), str(b.call("_in_flashlight", head))])
+	b.call("_driven_off")
+	var fx: Node = NIGHTMARE.get_for(_main)
+	say("LOCK t %.2f negative %s figure %s" % [float(fx.get("_lock_t")), str(fx.get("_lock_negative")), str((fx.get("_lock_fig") as TextureRect).texture != null)])
+
+
+func slow(v: float) -> void:
+	Engine.time_scale = v
+
+
+func lock_state(tag: String) -> void:
+	var fx: Node = NIGHTMARE.get_for(_main)
+	say("LOCK %s t %.3f white %s figure %s" % [tag, float(fx.get("_lock_t")), str((fx.get("_lock_black") as ColorRect).visible), str((fx.get("_lock_fig") as TextureRect).visible)])
+
+
+func _lock() -> Array:
+	var s: Array = BOOT.duplicate(true)
+	s += [["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0], ["eval", "debug_jump_to(2, 22.0)"], ["eval", "_player.set('torch_carried', true)"], ["wait", 1.0],
+		["call", "debug_spawn_enemy", ["silent_man", 3]], ["wait", 7.0], ["shot", "lock_before"], ["eval", C + ".slow(0.02)"], ["eval", C + ".lock_try()"], ["wait", 0.02], ["shot", "lock_0"], ["eval", C + ".lock_state('blink')"], ["wait", 0.09], ["shot", "lock_1"], ["eval", C + ".lock_state('after the blink')"], ["eval", C + ".slow(1.0)"], ["wait", 0.35], ["shot", "lock_2"], ["wait", 0.5], ["shot", "lock_3"], ["wait", 0.5], ["shot", "lock_4"], ["wait", 0.8], ["shot", "lock_5"], ["eval", "get_tree().quit()"]]
+	return s
 
 
 ## The fever, for a recording (--write-movie): twenty seconds of it at its worst, then over.

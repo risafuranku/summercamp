@@ -103,8 +103,8 @@ func jam_burst(strength: float) -> void:
 	_send("jam_burst", [snappedf(strength, 0.05)])
 
 
-func lock(strength: float, tex: Texture2D = null, foot: Vector3 = Vector3.INF, top: Vector3 = Vector3.INF, cam: Camera3D = null) -> void:
-	_send("lock", [snappedf(strength, 0.05), tex, foot, top, cam])
+func lock(strength: float, tex: Texture2D = null, foot: Vector3 = Vector3.INF, top: Vector3 = Vector3.INF, cam: Camera3D = null, negative := false) -> void:
+	_send("lock", [snappedf(strength, 0.05), tex, foot, top, cam, negative])
 
 
 func close_up(tex: Texture2D, scale: float, stretch_y: float = 1.0, shake: float = 0.0, rot: float = 0.0, off: Vector2 = Vector2.ZERO) -> void:

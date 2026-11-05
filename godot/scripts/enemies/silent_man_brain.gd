@@ -99,6 +99,8 @@ const SFX_SECOND := "res://assets/sfx/npc/sm_second_voice.mp3"
 const SFX_CALL := "res://assets/sfx/npc/sm_call_far.ogg"
 ## The wait between his calls (s), the first, how loud (-23 LUFS), and what each one more this
 ## stay adds, up to CALL_NEAR_MAX.
+## His burning out of the world (`_driven_off`): at most this often.
+const LOCK_EVERY := 6.0
 const CALL_NIGHTS := 0.6
 const CALLS_A_NIGHT := 2
 const CALL_WAIT := Vector2(45.0, 150.0)
@@ -232,6 +234,7 @@ var _calls := 0
 var _calls_night := -1
 var _hum_until := -1.0
 var _hum_next := -1.0
+var _lock_ok_at := 0.0
 ## Indoors: when the next moment of him, and how many there were.
 var _lure_next := -1.0
 var _lure_n := 0
@@ -933,9 +936,12 @@ func _update_audio(dt: float) -> void:
 
 ## Found by the light: the glasses flare, a sharp breath, and he comes apart into the dark:
 ## a dither of game pixels in six steps (twelve a second) going back a step, a little
-## dark ash going up. Then a new corner.
+## dark ash going up. Then a new corner. Your own torch on him: first the world burnt out
+## and him in it, black, the two points (nightmare_fx.lock, its negative).
 func _driven_off() -> void:
 	_drive_offs += 1
+	var stood: Texture2D = _body.texture
+	var tall := float(stood.get_height()) * _body.pixel_size * _body.scale.y if stood != null else HEIGHT
 	_end_hold()
 	_staring = false
 	_eyes_out = false
@@ -949,6 +955,10 @@ func _driven_off() -> void:
 		_set_tex(T_LIT)
 	var head := _body.global_position + Vector3(0, HEIGHT * 0.86, 0)
 	_sound(SFX_VANISH, head, 2.0, _rng.randf_range(0.95, 1.05), 30.0)
+	var fx := _fx()
+	if fx != null and _in_flashlight(head) and _elapsed >= _lock_ok_at:
+		_lock_ok_at = _elapsed + LOCK_EVERY
+		fx.lock(clampf(1.0 - _distance_to_player(_body.global_position) / 16.0, 0.4, 1.0), stood, _body.global_position, _body.global_position + Vector3(0, tall, 0), _camera(), true)
 	var away := _body.global_position - _player_pos()
 	away.y = 0.0
 	_back_dir = away.normalized() if away.length_squared() > 0.01 else -_forward_flat()
