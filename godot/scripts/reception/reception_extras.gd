@@ -154,6 +154,11 @@ func build(host_node, root: Node3D, cam: Camera3D) -> void:
 
 	if host.has_method("desk_lamp_meshes") and host.get("_desk_lamp_body") != null:
 		hot["desklamp"] = {"body": host.get("_desk_lamp_body"), "meshes": host.desk_lamp_meshes()}
+	# The light switch over the bench's end (building_interior): one of the office's things.
+	var bench_switch = host.get("_office_light_switch_bench")
+	if bench_switch != null:
+		(bench_switch as Node).get_parent().set_meta("extra_hot", "bench_switch")
+		hot["bench_switch"] = {"body": (bench_switch as Node).get_parent(), "meshes": [bench_switch]}
 	# The waiting bench under the window (building_interior's WaitBench boxes).
 	var bench_meshes: Array = []
 	for n in ["WaitBench", "WaitBenchLegL", "WaitBenchLegR"]:
@@ -692,6 +697,8 @@ func click() -> bool:
 			go_office()
 		"store_door":
 			go_store()
+		"bench_switch":
+			host._toggle_office_lights()
 		"store_bulb":
 			store.toggle_bulb()
 		"store_aid":
@@ -779,7 +786,8 @@ func handle_exit() -> bool:
 		return true
 	if is_modal():
 		return true
-	if where == "office" or where == "bench":
+	# (From the bench back behind the counter, as from the rooms: the user 5. 11.)
+	if where == "office":
 		go_out_front()
 	else:
 		go_office()

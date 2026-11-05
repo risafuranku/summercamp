@@ -136,6 +136,8 @@ func _ready() -> void:
 			_steps = _midge()
 		"letters":
 			_steps = _letters()
+		"bench":
+			_steps = _bench()
 
 
 ## R turns what you are about to build, with the pointer anywhere (Y14).
@@ -406,6 +408,36 @@ func _letters() -> Array:
 		["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('toilet_block'))"], ["wait", 4.0], ["eval", "_interior_manager._service_interior.close_service()"], ["wait", 2.0], ["eval", C + ".letters('used')"],
 		["player", 17, 14, 180.0], ["wait", 0.5], ["eval", C + ".letters('walked off')"], ["wait", 2.0], ["eval", C + ".letters('2 s')"], ["wait", 3.0], ["eval", C + ".letters('5 s')"], ["wait", 5.0], ["eval", C + ".letters('10 s')"], ["shot", "letters"],
 		["eval", "get_tree().quit()"]]
+	return s
+
+
+## The reception's bench (Y18): the light switch from there, Space back behind the counter.
+func bench_look(yaw: float, pitch: float) -> void:
+	var ex = _bi().get("_extras")
+	var look = ex.get("look_bench")
+	look.set("yaw_deg", yaw)
+	look.set("pitch_deg", pitch)
+
+
+func bench_state(tag: String) -> void:
+	var bi = _bi()
+	var ex = bi.get("_extras")
+	var vp: Viewport = bi.get("_viewport")
+	var m := vp.get_mouse_position()
+	var hit: Dictionary = bi.call("_raycast_room", m)
+	var c = hit.get("collider", null)
+	say("BENCH %s where=%s hover=%s hit=%s lights=%s cam=%s" % [tag, str(ex.get("where")), str(ex.get("_hover")), str((c as Node).name if c != null else "-"), str(bi.get("_office_lights_on")), str((bi.get("_interior_camera") as Camera3D).position.snapped(Vector3.ONE * 0.01))])
+
+
+func _bench() -> Array:
+	var s: Array = BOOT.duplicate(true)
+	s += [["wait", 2.0], ["eval", BI + "._exit_crt_view()"], ["wait", 2.0], ["eval", "debug_jump_to(1, 12.0)"], ["wait", 1.0], ["mouse", 0.5, 0.5],
+		["eval", C + ".bench_state('at the desk')"], ["eval", BI + "._extras.go_bench()"], ["wait", 3.0], ["eval", C + ".bench_state('at the bench')"]]
+	for yaw in [40.0, 50.0, 60.0, 70.0]:
+		s += [["eval", C + ".bench_look(%s, -14.0)" % yaw], ["wait", 0.6], ["eval", C + ".bench_state('yaw %s')" % yaw], ["shot", "bench_%d" % int(yaw + 100.0)]]
+	s += [["eval", C + ".bench_look(37.3, -8.4)"], ["wait", 0.8], ["eval", C + ".bench_state('on the switch')"], ["shot", "bench_switch"], ["lmb", true], ["wait", 0.08], ["lmb", false], ["wait", 0.6], ["eval", C + ".bench_state('clicked')"], ["shot", "bench_clicked"],
+		["lmb", true], ["wait", 0.08], ["lmb", false], ["wait", 0.6], ["eval", C + ".bench_state('clicked again')"]]
+	s += [["key", "SPACE"], ["wait", 3.0], ["eval", C + ".bench_state('after Space')"], ["eval", "get_tree().quit()"]]
 	return s
 
 

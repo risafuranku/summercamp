@@ -217,6 +217,7 @@ var _grid_power_available: bool = true
 var _office_light_tween: Tween
 var _office_light_switch_body: StaticBody3D
 var _office_light_switch_mesh: MeshInstance3D
+var _office_light_switch_bench: MeshInstance3D
 var _office_switch_tex_on: Texture2D
 var _office_switch_tex_off: Texture2D
 var _office_wall_tex_default: Texture2D
@@ -669,7 +670,7 @@ func _update_office_hover() -> void:
 		var hit := _raycast_room(m)
 		var collider = hit.get("collider", null) as Node
 		if collider != null and _node_has_click_type(collider, "office_light_switch") and _office_light_switch_mesh != null:
-			meshes.append(_office_light_switch_mesh)
+			meshes.append(collider.get_node("SwitchVisual"))
 		elif collider != null and _node_has_click_type(collider, "delivery_folder") and _delivery_note != null:
 			for n in _delivery_note.get_children():
 				if n is MeshInstance3D:
@@ -1022,6 +1023,7 @@ func _build_room() -> void:
 	_office_near_light_wall_meshes.clear()
 	_office_light_switch_body = null
 	_office_light_switch_mesh = null
+	_office_light_switch_bench = null
 	_office_lights_on = true
 	_fan_pivot = null
 	_window_quad = null
@@ -2871,13 +2873,20 @@ func _pick_office_texture(category: String, base_color: Color) -> Texture2D:
 	return _texture_style.pick_texture(category, base_color)
 
 
+## By the front door as you come in (between the window and the door), not by the PC; and
+## a second one over the bench's end, the other side of the window, on the same light: from
+## the bench the one by the door is behind the curtain (the user 5. 11.).
 func _create_office_light_switch() -> void:
 	if _room_root == null:
 		return
+	_add_office_switch("OfficeLightSwitch", Vector3(0.93, 1.22, -2.46))
+	_office_light_switch_bench = _add_office_switch("OfficeLightSwitchBench", Vector3(-1.82, 1.22, -2.46)).get_node("SwitchVisual") as MeshInstance3D
+
+
+func _add_office_switch(switch_name: String, at: Vector3) -> StaticBody3D:
 	var switch_body = StaticBody3D.new()
-	switch_body.name = "OfficeLightSwitch"
-	# By the front door as you come in (between the window and the door), not by the PC.
-	switch_body.position = Vector3(0.93, 1.22, -2.46)
+	switch_body.name = switch_name
+	switch_body.position = at
 	switch_body.rotation = Vector3(0.0, PI * 0.5, 0.0)
 	switch_body.set_meta("interior_click_type", "office_light_switch")
 	var switch_mesh = MeshInstance3D.new()
@@ -2903,23 +2912,24 @@ func _create_office_light_switch() -> void:
 	switch_shape.shape = box_shape
 	switch_body.add_child(switch_shape)
 	_room_root.add_child(switch_body)
-	_office_light_switch_body = switch_body
-	_office_light_switch_mesh = switch_mesh
+	if _office_light_switch_body == null:
+		_office_light_switch_body = switch_body
+		_office_light_switch_mesh = switch_mesh
+	return switch_body
 
 
 func _apply_office_switch_visual() -> void:
-	if _office_light_switch_mesh == null:
-		return
-	var switch_mat = _office_light_switch_mesh.material_override as StandardMaterial3D
-	if switch_mat == null:
-		return
 	var wanted_tex: Texture2D = _office_switch_tex_on if _office_lights_on else _office_switch_tex_off
-	if wanted_tex != null:
-		switch_mat.albedo_texture = wanted_tex
-		switch_mat.albedo_color = Color(1.0, 1.0, 1.0, 1.0)
-		return
-	switch_mat.albedo_texture = null
-	switch_mat.albedo_color = Color(0.84, 0.80, 0.66, 1.0) if _office_lights_on else Color(0.58, 0.56, 0.52, 1.0)
+	for mesh in [_office_light_switch_mesh, _office_light_switch_bench]:
+		var switch_mat = (mesh as MeshInstance3D).material_override as StandardMaterial3D if mesh != null else null
+		if switch_mat == null:
+			continue
+		if wanted_tex != null:
+			switch_mat.albedo_texture = wanted_tex
+			switch_mat.albedo_color = Color(1.0, 1.0, 1.0, 1.0)
+			continue
+		switch_mat.albedo_texture = null
+		switch_mat.albedo_color = Color(0.84, 0.80, 0.66, 1.0) if _office_lights_on else Color(0.58, 0.56, 0.52, 1.0)
 
 
 func _is_near_light_wall_node(node_name: String) -> bool:
