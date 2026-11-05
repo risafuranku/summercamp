@@ -4,6 +4,33 @@
 
 ---
 
+## PLAYTEST 2026-11-05 (afternoon) — the user's notes (verbatim, then the note in brackets; tick with the commit)
+
+- [x] Y1 „při skipnutí boot splash undo a godot se to actually neskipne, loading čeká až v pozadí dohraje celé intro (je slyšet zvuk)“ (the skip must really end the intro, its sound too) `8ff0d7b2`
+- [ ] Y2 „hrozně moc z clippingu textur. v pokoíčku na recepci za postelí, spodní lišty zdí v recepci..“ (behind the bed in the back room, the reception's skirting boards)
+- [x] Y3 „není slyšet zvuk dveří při vchodu do recepce, zvuk zapnutí a vypnutí baterky“ (the door on the way in, the torch on and off) `8ff0d7b2`
+- [x] Y4 „v přírodě jsou opět slyšet rychlé jednorázové swooshe a datlové nebo co to je? je to divné, je to moc nahlas, nikdy jsem to ve hře nechtěl, okamžitě to smaž“ (delete those one-off nature sounds) `8ff0d7b2`
+- [x] Y5 „často když chci jít obsluhovat ke kukuřici a stojí tam zákazníci, nemůžu kliknout na kukuřici kvuli "promluvit si s" okénku“ (the stand must win over a guest standing at it) `f462795e`
+- [x] Y6 „nech hráče za deště a bouře používat baterku“ (the torch in rain and storm) `8ff0d7b2`
+- [x] Y7 „ukázali se mi vpravo notifikace že jsou špinavé oba záchody, přitom byl špinavý jen jeden“ (each toilet its own, with Y21) `f462795e`
+- [ ] Y8 „v interiéru se dveře recepce otevírají dovnitř, zvenčí zase ven. sjednotit, zkontrolovat u všech interiérů“ (one way of opening per door, inside and out, every room)
+- [ ] Y9 „při checkinu, host má vícero ubikací, ale v hovoru mi řekne vždy jen tu první, a další musím dohledávat z papíru. je to divné, působí to broken“ (the guest says all their rooms)
+- [ ] Y10 „v kukuřičném bludišti chybí textury země, clippujcí cesta“ (the maze's ground, its path)
+- [x] Y11 „objevil se mi event "kukuřičné", a trvalo mi dost dlouho zjistit že to znamená že došlo zboží v kukuřičnym stánku. tyhle podnikový notifikace o zboží nějak vizuálně rozliš trošku“ (a business's stock notices told apart at a glance) `f462795e`
+- [ ] Y12 „odstraň event kdy musím jít kliknout na chatku nebo stan jakože hledat pod postel strašidlo. je to sračka“ (remove it)
+- [ ] Y13 „boky vchodu do stanu mají nějaké tyče co to propichují, určitě jsi špatně otočil osu“ (the poles at the tent's doorway)
+- [x] Y14 „v builderu nefunguje R na rotaci budovy. přidej taky možnost sázet oba druhy stromů“ (R in the Builder; both kinds of tree to plant) `8ff0d7b2`
+- [x] Y15 „mezerníkem nejde odejít od počítače“ (Space leaves the PC) `8ff0d7b2`
+- [ ] Y16 „už několikrát zmiňovaná chyba. všude po mapě mě pronásleduje písmeno M a Z, takové pixelaté černé, a letí mi do obličeje. jako mouchy nebo vosy, všude za mnou pomalu doletí. občas i takový jenom velký černý čtverec mi lítá do ksichtu“ (the black pixel M, Z and square that follow you about)
+- [ ] Y17 „zkontroluj světlo, kolem 18:50 začly červeně problikávat cesty“ (the paths flashing red about 18:50)
+- [ ] Y18 „mezerník od okna/lavičky v recepci mě musí vrátit za pult, ne ven. umožni od lavičky taky kliknout na vypínač, je schovanej za záclonou tak se to musí nějak vymyslet, ale musíš z té pozice být schopen zhasnout“ (Space from the bench back behind the counter; the switch reachable from the bench)
+- [ ] Y19 „zhasnutí baterky při nasvícení na silent guye působí jako když jí hráč vypne sám. musí to bejt jako nějakej výpadek světla, zkrat nebo tak něco“ (the torch failing, not switched off)
+- [ ] Y20 „ať si někteří hosté zatahují závěsy na noc. ne synchronně všichni všechny závěsy najednou, ale udělej to přirozený. někdo si je zatáhne, někdo ne že ho z dálky vidíš, když to dělaj ale tak je zatahujou nějak postupně v tý jedný chatce. když přijdeš poblíž abys špehoval tak si vždycky všichni zatáhnou, podobně jako prasata v dont starve zhasínaj když přijdeš blízko. když odejdeš tak si zase někdo roztáhne, ale je šance že už zůstanou zatažený. aby vznikla situace jako že třeba někdo bude chtít jít blíž tak zatáhne. hmm tak de dál a roztáhne. tak to zkusí znova a zase zatáhne. tak jde dál a roztáhne. řiká si hráč tvl, to musim dát. zkusí z jiný strany, zatáhne a už je zataženo až do rána :D taky bych naanimoval nějaký lehký život a pohyb v chatkách a karavanech. u stanů tohle chování udělej jen se světlem/zhasínáním. zblízka zhasnou a dělaj že spěj jakoby :D“ (curtains by night, drawn as you come near; life in cabins and vans; tents their light)
+- [x] Y21 „furt nejsou opravený ty hajzly a sere mě to. Chci každej záchod zvlášť, tak proč se hover tooltip ukazuje společnej? ukážu na oboje dveře, a maj dohromady "špinavé hajzly musí se uklidit", přitom je špinavá jenom jedna mísa. tohle je z hlediska hratelnosti hrozně napíču tyvole“ (each door's hint its own side's) `f462795e`
+- [x] Y22 „ikonky na úklid stanů pořád lítají pět metrů vysoko ve vzudchu nad stanem že si toho hráč pořádně nevšimne. srovnej výšku těch ikon !“ (the tents' cleaning marks at the right height) `f462795e`
+- [ ] Y23 „problikávání těch "scary" ksichtů bych dal uplně pryč, kazí to napětí. u silent guye to např uplně kazí vibe. nahradil bych to audiem, když už zdrháš piští ti v uších tak nějaký hlasy třeba, rány idk, udělat to jako schyzo fever dream že se ti dostává uplně do mozku. nechal bych jen jeden silent guyův ksicht, a to je ten jak má jenom ty bílé tečky v očích. ten je hustej. ale dát ho fakt rare“ (the flashing faces out, sound in their place, one rare face left)
+- [ ] Y24 „pojď udělat silent guyovi nějaký totálně zkurvený zvuky aby tě vylákal ven když jsi v budovách. něco co uslyšíš z dálky z venku, něco co nebude typický horrorový, něco prostě co sedne do toho greedu jak svině, něco jak ten sonic.exe yuuuchuuuchuuu zvuk, něco z čeho budeš mít uplně fakt zkurvenou husí kůži“ (a sound of his that calls you out of the buildings)
+
 ## PLAYTEST 2026-11-05 (morning) — the user's notes (verbatim, then the note in brackets; tick with the commit)
 
 - [x] X1 „prší i v interiéru 😃“ (W26 one world: a drop born inside a room, or just outside a wall with its streak hanging in, showed for a step before the room's dry box hid it; the streaks are now cut inside the rooms' dry boxes, materials/rain_streak.gdshader, and born unseen for 75 ms; verified in the cabin and the reception in rain, tools/onesun_check --part=rainin; the one drop from the cabin's ceiling in heavy rain is its roof leak, room_weather, left as it was) (1d073952)
