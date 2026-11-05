@@ -79,6 +79,9 @@ const STATION_CHANCE_PER_TRACK: float = 0.14
 ## The radio going wrong with the night (scripts/radio/radio_dread.gd): layers on top of
 ## the songs, the song bus, and how the songs bend.
 const RADIO_DREAD_SCRIPT = preload("res://scripts/radio/radio_dread.gd")
+## The four tiers by the file's prefix: any time, night_, teror_, peklo_ (radio_tiers.gd).
+const RADIO_TIERS = preload("res://scripts/radio/radio_tiers.gd")
+var _radio_tiers = RADIO_TIERS.new()
 ## How often the NIGHT RISK forecast is re-read for the radio (it walks every guest).
 const RADIO_DREAD_RISK_POLL_SEC: float = 3.0
 const RADIO_EXCLUDED_FILENAME := "pinknoise.mp3"
@@ -3696,6 +3699,7 @@ func _collect_radio_tracks() -> void:
 			if _is_radio_cursed_infravrany_path(path):
 				_radio_cursed_infravrany_path = path
 	print("Radio: loaded %d music tracks" % _radio_tracks_all.size())
+	_radio_tiers.setup(_radio_tracks_all_paths)
 	if _radio_tracks_all.is_empty():
 		push_warning("Radio: no music tracks loaded — check res://assets/sfx/radio/")
 		return
@@ -3764,6 +3768,10 @@ func _play_radio_next() -> void:
 		_radio_player.play()
 		_radio_on_air("interlude", _dread.interlude_desc())
 		return
+	# The night's worst has its own songs (radio_tiers.gd), drawn instead of the playlist's.
+	var tier_path: String = _radio_tiers.pick(_dread.context(), float(_dread.dread), _radio_rng) if _dread != null else ""
+	if tier_path != "" and _radio_play_path(tier_path, 0.0):
+		return
 	if _radio_tracks.is_empty():
 		_rebuild_radio_tracks_for_time(false)
 	if _radio_tracks.is_empty():
@@ -3786,7 +3794,33 @@ func _play_radio_next() -> void:
 	_radio_player.play()
 	_radio_last_played_path = resolved_path
 	_radio_on_air("song", resolved_path)
+	_radio_tiers.played(resolved_path)
 	_radio_index = (selected_index + 1) % track_count
+
+
+## A song by its file now (the dread tiers'), from `at` seconds into it.
+func _radio_play_path(path: String, at: float) -> bool:
+	var s: AudioStream = _radio_stream_by_path.get(path, null)
+	if s == null or _radio_player == null:
+		return false
+	_radio_current_track_is_night = _is_radio_night_path(path)
+	_radio_player.stream = s
+	_radio_player.play(at)
+	_radio_last_played_path = path
+	_radio_on_air("song", path)
+	return true
+
+
+## The worst of the night does not wait for the song to end (radio_dread's Ev.BREAK: the
+## song cut dead, a breath of dead air): the set comes back on a song of the dread tiers',
+## somewhere into it, as if it had been on all along.
+func _radio_break_in() -> void:
+	if Coop.is_client() or _radio_player == null or _dread == null:
+		return
+	var path: String = _radio_tiers.pick_break(float(_dread.dread), _radio_rng)
+	var s: AudioStream = _radio_stream_by_path.get(path, null)
+	if s != null:
+		_radio_play_path(path, s.get_length() * _radio_rng.randf_range(0.12, 0.4))
 
 
 ## In the reception the evening's music steps back for the radio (it played over it, the
@@ -3983,6 +4017,9 @@ func _rebuild_radio_tracks_for_time(restart_playback: bool) -> void:
 		var path = _radio_tracks_all_paths[i]
 		if _is_radio_cursed_infravrany_path(path) or path.get_file().to_lower() == RADIO_GREETINGS_FILENAME:
 			continue
+		# (teror_ and peklo_: radio_tiers.gd draws them, only when the night is that bad.)
+		if RADIO_TIERS.tier_of(path) >= 2:
+			continue
 		var is_night_track = _radio_tracks_all_is_night[i]
 		# Day: play only regular tracks. Night: play both, but NIGHT* tracks are weighted.
 		if not use_night_playlist and is_night_track:
@@ -4113,6 +4150,8 @@ func _update_radio_mix(delta: float) -> void:
 			_radio_power_on and _grid_power_available, _resolve_main_building_node()
 		)
 		character_db += linear_to_db(maxf(float(_dread.music_gain), 0.0001))
+		if _dread.take_break():
+			_radio_break_in()
 	var final_target_db = target_db + character_db + night_track_db
 	if not _radio_power_on:
 		final_target_db = RADIO_POWER_OFF_VOLUME_DB
@@ -4297,6 +4336,8 @@ func _radio_dread_context(delta: float) -> Dictionary:
 		# In the office to hear it (radio_dread's terror waits for an ear).
 		"listening": visible,
 		"client": Coop.is_client(),
+		# A song of the dread tiers' on air: the set leaves it raw (radio_dread._raw).
+		"raw": RADIO_TIERS.tier_of(_radio_last_played_path) >= 2 and _radio_player != null and _radio_player.playing,
 	}
 
 

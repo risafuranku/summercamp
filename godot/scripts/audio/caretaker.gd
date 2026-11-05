@@ -16,7 +16,12 @@ extends Node
 
 const BUS := "Caretaker"
 const DIR := "res://assets/sfx/radio/"
-const SONGS := ["night_motif", "night_tancovacka2", "goodvibes_song", "night_vypinac", "night_tatinek"]
+const SONGS := ["night_motif", "night_tancovacka2", "goodvibes_song", "night_vypinac", "night_tatinek",
+	"plesvalcik_song", "plesfoxtrot_song", "plestango_song", "plesvalcik_song", "plestango_song"]
+## Far gone, now and then the phrase is one of the hells instead (the user 4. 11.: "pieces of
+## them as illusions and hallucinations"): a scream, the plea, the lullaby, in the same hall.
+const HELLS := ["peklo_valcik", "peklo_kolena", "teror_spravce", "night_hajejdadej"]
+const HELL_FROM := 0.55
 const CRACKLE := "res://assets/sfx/motel/record_crackle.ogg"
 ## How long it takes to come all the way, and to go.
 const RISE_SEC := 70.0
@@ -186,6 +191,8 @@ func _tick_phrase(delta: float) -> void:
 ## Somewhere in one of the songs: longer the less far it has gone, slower the further.
 func _new_phrase() -> void:
 	var path := DIR + str(SONGS[_rng.randi() % SONGS.size()]) + ".mp3"
+	if level > HELL_FROM and _rng.randf() < 0.45 * (level - HELL_FROM) / (1.0 - HELL_FROM):
+		path = DIR + str(HELLS[_rng.randi() % HELLS.size()]) + ".mp3"
 	if not ResourceLoader.exists(path):
 		_gap = 2.0
 		return

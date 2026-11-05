@@ -24,8 +24,16 @@ extends Node
 ## goes, the echo stays longer, the tape runs slow for good, the surface of the record comes
 ## up, the needle sticks on a phrase turn after turn (Ev.NEEDLE), and the ghost under the
 ## song is the song itself, slower, from somewhere else in it.
+##
+## The hells (the user 5. 11.: "pieces of them as radio dropouts, audio illusions and
+## hallucinations, even when the pressure is lower"): from a raised night on, the song is
+## gone for a moment and a splinter of one is there in its place (Ev.FLASH, h_*.mp3 cut out
+## of Richard's songs), then the song is back as if nothing; each machine its own. Past the
+## worst the song is cut dead and the set comes back on one of them (Ev.BREAK, radio_tiers
+## .gd). A song of the dread tiers' on air is left raw: no memory hall, no slow tape.
 
 const CARETAKER = preload("res://scripts/audio/caretaker.gd")
+const RADIO_TIERS = preload("res://scripts/radio/radio_tiers.gd")
 const DIR := "res://assets/sfx/radio_dread/"
 ## The songs (and the interludes) play on their own bus, sent into the radio bus, so
 ## the set can be ruined without touching the static and the buzz on top.
@@ -56,7 +64,20 @@ const LOWPASS_CLEAN_HZ := 4200.0
 const LOWPASS_RUINED_HZ := 1500.0
 const LOWPASS_DRIFT_HZ := 850.0
 
-enum Ev { NONE, STUTTER, SAG, GHOST, DRIFT, CREATURE, TERROR, NEEDLE }
+enum Ev { NONE, STUTTER, SAG, GHOST, DRIFT, CREATURE, TERROR, NEEDLE, FLASH, BREAK }
+## The splinters (tools: _sc/mesto/tools/hell_shards.py): the waltz screamed, the brass band
+## screaming, the plea to the warden, the noise, a line of the granny's lullaby.
+const FLASHES := ["h_01", "h_02", "h_03", "h_04", "h_05", "h_06", "h_07", "h_08", "h_09", "h_10", "h_11", "h_12", "h_13"]
+const FLASH_FROM := 0.18
+var _flash_last := ""
+## The cut for the worst: this long of dead air, at least this far apart (longer under PEKLO).
+const BREAK_SILENCE := 1.3
+const BREAK_GAP_SEC := 150.0
+var _break_at := -9999.0
+var _break_want := false
+## A song of the dread tiers' on air (0-1, eased); the song back at once after a cut.
+var _raw := 0.0
+var _snap_back := false
 ## On a bad night, with you in the office to hear it (the user 4. 11.: "when a song breaks
 ## off, put something morbid there"): the song cut, a breath of dead air with nothing in
 ## it, then something close on the frequency (t_*.mp3: breathing at the microphone, a meal,
@@ -336,9 +357,12 @@ func update(delta: float, ctx: Dictionary, inside_db: float, outside_db: float, 
 		dread = move_toward(dread, target, (DREAD_RISE_PER_SEC if target > dread else DREAD_FALL_PER_SEC) * dt)
 
 	_care = maxf(clampf((dread - 0.3) / 0.6, 0.0, 1.0), CARETAKER.level)
+	# A song of the dread tiers' is itself what the night is: the set leaves it near and dry.
+	_raw = move_toward(_raw, 1.0 if bool(ctx.get("raw", false)) else 0.0, 1.5 * dt)
+	var care := _care * (1.0 - _raw)
 	# Further off the further gone (the hall and the echo would only make it louder).
-	_music_target = lerpf(1.0, 0.5, _care)
-	_pitch_target = -0.1 * _care * _care
+	_music_target = lerpf(1.0, 0.5, care)
+	_pitch_target = -0.1 * care * care
 	_set_base_layers()
 	_update_phantom(dt, power_on)
 	if is_interlude_playing():
@@ -358,6 +382,9 @@ func update(delta: float, ctx: Dictionary, inside_db: float, outside_db: float, 
 		if rl.playing() and rl.gain <= 0.002:
 			_stop(rl)
 
+	if _snap_back:
+		_snap_back = false
+		music_gain = _music_target
 	music_gain = move_toward(music_gain, _music_target, 2.2 * dt)
 	var pitch_rate := 0.12 if _pitch_target < pitch_offset else 1.2
 	pitch_offset = move_toward(pitch_offset, _pitch_target, pitch_rate * dt)
@@ -365,6 +392,19 @@ func update(delta: float, ctx: Dictionary, inside_db: float, outside_db: float, 
 	_power = move_toward(_power, 1.0 if power_on else 0.0, 2.0 * dt)
 	_apply_bus(dt)
 	_mix_layers(dt, inside_db, outside_db)
+
+
+## What the set knows of the night now (radio_tiers.pick).
+func context() -> Dictionary:
+	return _ctx
+
+
+## The worst has cut the song (Ev.BREAK): building_interior puts one of its songs on.
+func take_break() -> bool:
+	if not _break_want:
+		return false
+	_break_want = false
+	return true
 
 
 ## How often and how deep the interior's dropouts are (1 = as built).
@@ -379,10 +419,10 @@ func dropout_depth_scale() -> float:
 # ── layers ───────────────────────────────────────────────────────────────────────
 
 func _set_base_layers() -> void:
-	(_layers["static"] as Layer).target = 0.012 + 0.2 * pow(dread, 1.3)
+	(_layers["static"] as Layer).target = 0.012 + 0.2 * pow(dread, 1.3) * (1.0 - 0.6 * _raw)
 	(_layers["carrier"] as Layer).target = 0.0
 	(_layers["buzz"] as Layer).target = 0.0
-	(_layers["crackle"] as Layer).target = 0.3 * _care
+	(_layers["crackle"] as Layer).target = 0.3 * _care * (1.0 - _raw)
 
 
 func _mix_layers(dt: float, inside_db: float, outside_db: float) -> void:
@@ -500,23 +540,26 @@ func _gap(seconds: float) -> AudioStream:
 func _apply_bus(_dt: float) -> void:
 	if _fx_lowpass == null:
 		return
-	var cutoff := lerpf(LOWPASS_CLEAN_HZ, LOWPASS_RUINED_HZ, pow(dread, 1.2))
+	# (A song of the dread tiers' left raw: hardly muffled, no memory hall round it.)
+	var d := dread * (1.0 - 0.75 * _raw)
+	var care := _care * (1.0 - _raw)
+	var cutoff := lerpf(LOWPASS_CLEAN_HZ, LOWPASS_RUINED_HZ, pow(d, 1.2))
 	if _event == Ev.DRIFT or _hushed:
 		cutoff = LOWPASS_DRIFT_HZ
 	_fx_lowpass.cutoff_hz = lerpf(_fx_lowpass.cutoff_hz, cutoff, 0.08)
 	if _fx_crush != null:
-		_fx_crush.drive = 0.42 * pow(dread, 1.6)
+		_fx_crush.drive = 0.42 * pow(d, 1.6)
 	if _fx_echo != null:
-		var echo_db := maxf(lerpf(-60.0, -15.0, clampf((dread - 0.45) / 0.55, 0.0, 1.0)), lerpf(-60.0, -11.0, _care))
+		var echo_db := maxf(lerpf(-60.0, -15.0, clampf((d - 0.45) / 0.55, 0.0, 1.0)), lerpf(-60.0, -11.0, care))
 		_fx_echo.tap1_level_db = echo_db
 		_fx_echo.feedback_level_db = echo_db - 4.0
 	if _fx_hall != null:
-		_fx_hall.wet = 0.72 * pow(_care, 1.2)
-		_fx_hall.dry = lerpf(1.0, 0.38, pow(_care, 1.4))
-		_fx_hall.room_size = lerpf(0.4, 0.96, _care)
-		_fx_hall.damping = lerpf(0.4, 0.82, _care)
-		_fx_hall.predelay_msec = lerpf(20.0, 150.0, _care)
-		_fx_hall.predelay_feedback = lerpf(0.1, 0.45, _care)
+		_fx_hall.wet = 0.72 * pow(care, 1.2)
+		_fx_hall.dry = lerpf(1.0, 0.38, pow(care, 1.4))
+		_fx_hall.room_size = lerpf(0.4, 0.96, care)
+		_fx_hall.damping = lerpf(0.4, 0.82, care)
+		_fx_hall.predelay_msec = lerpf(20.0, 150.0, care)
+		_fx_hall.predelay_feedback = lerpf(0.1, 0.45, care)
 
 
 # ── what happens to the song ─────────────────────────────────────────────────────
@@ -582,6 +625,22 @@ func _update_events(dt: float) -> void:
 			_music_target = 0.7
 			if not (_layers["voice"] as Layer).playing():
 				_end_event()
+		Ev.FLASH:
+			# The song gone, a splinter in its place; then back at once, as if nothing.
+			_music_target = 0.0
+			(_layers["ghost"] as Layer).target = 0.0
+			if _event_t >= _event_len:
+				_snap_back = true
+				_end_event()
+		Ev.BREAK:
+			# Cut dead: no song, no hiss; then the worst's own (building_interior).
+			_music_target = 0.0
+			(_layers["static"] as Layer).target = 0.0
+			(_layers["ghost"] as Layer).target = 0.0
+			if _event_t >= _event_len:
+				_break_want = true
+				_snap_back = true
+				_end_event()
 		Ev.TERROR:
 			# Dead air: no song, no hiss even; then it; then the carrier a moment.
 			_music_target = 0.0
@@ -602,6 +661,15 @@ func _pick_event() -> int:
 		return Ev.NONE
 	var night := bool(_ctx.get("night", false))
 	var bag: Array = [[Ev.STUTTER, 1.0]]
+	if _raw > 0.5:
+		# A song of the worst's own: only the needle may stick in it (the scream again).
+		if dread > 0.5 and not bool(_ctx.get("client", false)):
+			bag.append([Ev.NEEDLE, 1.5])
+		return int(bag[_rng.randi() % bag.size()][0])
+	if night and dread >= FLASH_FROM:
+		bag.append([Ev.FLASH, 0.5 + 1.5 * dread])
+	if _break_ready():
+		bag.append([Ev.BREAK, 3.0 if dread >= RADIO_TIERS.PEKLO else 0.8])
 	if dread > 0.2:
 		bag.append([Ev.SAG, 1.0])
 	if dread > 0.25 and _tracks.size() > 1:
@@ -665,6 +733,20 @@ func _begin_event(ev: int) -> void:
 			_needle_turns = _rng.randi_range(3, 5) + int(_care * 6.0)
 			_event_count = _needle_turns
 			_event_step = _event_value
+		Ev.FLASH:
+			var pool: Array = FLASHES.filter(func(f): return f != _flash_last)
+			var clip: String = pool[_rng.randi() % pool.size()]
+			_flash_last = clip
+			var fs := _clip(clip)
+			_event_len = (fs.get_length() if fs != null else 1.0) + 0.06
+			music_gain = 0.0
+			_music_target = 0.0
+			_one_shot("fx", clip, lerpf(0.3, 1.0, clampf((dread - FLASH_FROM) / 0.6, 0.0, 1.0)))
+		Ev.BREAK:
+			_break_at = _clock
+			_event_len = BREAK_SILENCE
+			music_gain = 0.0
+			_music_target = 0.0
 		Ev.TERROR:
 			var left: Array = TERRORS.filter(func(t): return t != _terror_last)
 			_terror_clip = str(left[_rng.randi() % left.size()])
@@ -680,6 +762,15 @@ func _begin_event(ev: int) -> void:
 
 func _end_event() -> void:
 	_event = Ev.NONE
+
+
+## The worst may cut the song now: past TEROR at night, on the set's own machine, not on a
+## song of its own already, not too soon after the last (longer apart under PEKLO).
+func _break_ready() -> bool:
+	if not bool(_ctx.get("night", false)) or bool(_ctx.get("client", false)) or dread < RADIO_TIERS.TEROR:
+		return false
+	var gap := BREAK_GAP_SEC * (1.0 if dread >= RADIO_TIERS.PEKLO else 1.8)
+	return _raw < 0.3 and _power > 0.5 and not _hushed and _clock - _break_at >= gap
 
 
 ## A terror may come now: a bad night, you in the office with the set on, not too soon
@@ -707,6 +798,9 @@ func _pick_creature() -> String:
 		pool.append_array(["s_whistle", "s_whistle"])
 	if "child" in tonight:
 		pool.append_array(["s_kids", "s_kids"])
+	# Her laugh (the user 5. 11.: the Cheap Chick's own sound), on the frequency too.
+	if "girl" in tonight:
+		pool.append_array(["s_laugh", "s_laugh"])
 	if dread > 0.7:
 		pool.append_array(["s_knock", "s_breath"])
 	return pool[_rng.randi() % pool.size()]

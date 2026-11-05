@@ -39,6 +39,17 @@ orchestral, cinematic, fantasy, rpg, celtic, flute, harp, strings, choir, epic, 
 
 (`...` = `casio home keyboard waltz preset, harmonium, hungarian minor, 3/4 waltz, oom-pah-pah`.)
 
+## The radio's songs: four tiers by the file's name
+
+`godot/assets/sfx/radio/`, the camp's set and the motel's (the user 5. 11.):
+- `<name>_song.mp3` (or no prefix): any time, day or night (`_song` ones the caravan's set too)
+- `night_*`: only at night
+- `teror_*`: only when the night presses (the radio's dread past 0.5)
+- `peklo_*`: only at the very worst (past 0.8); it cuts the song on air to come on
+As the rest of the radio: 8 kHz, 32 kbps, -14.4 LUFS under a limiter (-1 dB), the original
+kept in `ost/<name>_hq.mp3`. The Caretaker's treatment of a song, offline, three ways
+(`night_care_`, `teror_care_`, `peklo_care_`): `python tools/audiogen/caretaker_treat.py`.
+
 ## Into the game
 
 1. Download as `<cue>.mp3` (the names in the table: the director picks them by name).

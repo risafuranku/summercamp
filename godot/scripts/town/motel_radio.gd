@@ -15,10 +15,16 @@ const SFX := "res://assets/sfx/"
 const SONGS := ["autobusnula_song", "cervenydest_song", "chladnicka_song", "jahody_song", "lekar_song",
 	"letnikupon_song", "mysizavod_song", "nechodven_song", "prostri_song", "regaly_song",
 	"sedmynemastin_song", "song_automat", "song_infravrany", "song_radiovomitce", "vodadoma_song",
-	"zenasadra_song", "goodvibes_song"]
+	"zenasadra_song", "goodvibes_song", "pridejsi_song", "plesvalcik_song", "plesfoxtrot_song", "plestango_song"]
 const ADS := ["reklamadechovka", "reklamajar", "reklamakomar", "reklamalimo", "rodinnyreset_jingle"]
-const NIGHT := ["night_babicka", "night_tatinek", "night_vypinac", "night_motif", "night_tancovacka2"]
-const LOW := ["vodadoma_eerie", "song_cursedinfravrany"]
+const NIGHT := ["night_babicka", "night_tatinek", "night_vypinac", "night_motif", "night_tancovacka2",
+	"night_hajejdadej", "night_pocitanihostu", "night_tosebudejist", "night_tosebudejistzena",
+	"night_care_valcik", "night_care_foxtrot", "night_care_tango", "night_care_tancovacka"]
+const LOW := ["vodadoma_eerie", "song_cursedinfravrany", "teror_spravce", "teror_care_valcik",
+	"teror_care_foxtrot", "teror_care_tango", "teror_care_motif", "teror_care_tancovacka", "teror_care_goodvibes"]
+## And when you are really not well, at night: the worst (the radio's peklo_ tier).
+const HELL := ["peklo_kolena", "peklo_valcik", "peklo_chaos", "peklo_chaosrytmus", "peklo_care_valcik",
+	"peklo_care_foxtrot", "peklo_care_tango", "peklo_care_motif"]
 const JINGLE := "signalplus_jingle"
 ## What each set sounds like: its level, how slow its tape of the world runs, how long it
 ## takes to come up, what is under the programme.
@@ -126,6 +132,8 @@ func _next() -> void:
 				pick = str(NIGHT[_rng.randi_range(0, NIGHT.size() - 1)])
 			if _rng.randf() < 0.5 * low:
 				pick = str(LOW[_rng.randi_range(0, LOW.size() - 1)])
+			if night and low > 0.6 and _rng.randf() < (low - 0.6) * 1.5:
+				pick = str(HELL[_rng.randi_range(0, HELL.size() - 1)])
 		2:
 			pick = str(ADS[_rng.randi_range(0, ADS.size() - 1)])
 	_play_piece(pick, 0.0)
