@@ -166,6 +166,8 @@ func _ready() -> void:
 			_steps = _sun_table()
 		"duskwalk":
 			_steps = _dusk_walk()
+		"bulb":
+			_steps = _bulb()
 
 
 ## R turns what you are about to build, with the pointer anywhere (Y14).
@@ -554,6 +556,26 @@ func sun_row(day: int) -> void:
 		var dir: Vector3 = w.call("direction_to_source_from_hour", h)
 		var p: Dictionary = w.call("sample_time_profile", h)
 		say("SUN day %d h=%.1f height=%.3f energy=%.2f color=%s" % [day, h, dir.y, float(p.get("sun_energy", -1.0)), str(p.get("sun_color", ""))])
+
+
+## The gatehouse bulb at dusk: it stutters and comes up, it does not pop on.
+func bulb_state(tag: String) -> void:
+	var g := get_tree().get_first_node_in_group("camp_gate")
+	var l: OmniLight3D = g.get("_booth_light")
+	say("BULB %s visible=%s energy=%.2f" % [tag, str(l.visible), l.light_energy])
+
+
+func bulb_set(on: bool) -> void:
+	get_tree().get_first_node_in_group("camp_gate").call("set_night", on)
+
+
+func _bulb() -> Array:
+	var s: Array = BOOT.duplicate(true)
+	s += [["wait", 1.0], ["eval", C + ".bulb_set(false)"], ["eval", C + ".bulb_state('day')"], ["eval", C + ".bulb_set(true)"]]
+	for i in 14:
+		s += [["eval", C + ".bulb_state('t%d')" % i], ["wait", 0.1]]
+	s += [["eval", C + ".bulb_set(false)"], ["eval", C + ".bulb_state('morning')"], ["eval", "get_tree().quit()"]]
+	return s
 
 
 ## The evening and the first light from in front of the reception: how the sun goes.

@@ -49,6 +49,8 @@ var _arm_pivot: Node3D
 var _arm_tween: Tween
 var _close_timer: SceneTreeTimer
 var _booth_light: OmniLight3D
+const BOOTH_ENERGY := 1.4
+var _bulb_up: Tween
 var _texture_style
 var _is_open := false
 var _block_shape: CollisionShape3D
@@ -116,9 +118,22 @@ func way_in() -> Array:
 	return [Vector3(gap_center_x, 0.0, fence_z + 1.0), Vector3(gap_center_x, 0.0, fence_z + 13.6)]
 
 
+## The booth's old bulb on its dusk switch: it stutters and comes up, it does not pop on.
 func set_night(night: bool) -> void:
-	if _booth_light != null:
+	if _booth_light == null:
+		return
+	if _bulb_up != null:
+		_bulb_up.kill()
+		_bulb_up = null
+	if not night or _booth_light.visible or not is_inside_tree():
 		_booth_light.visible = night
+		_booth_light.light_energy = BOOTH_ENERGY
+		return
+	_booth_light.visible = true
+	_booth_light.light_energy = 0.0
+	_bulb_up = create_tween()
+	for k in [[0.5, 0.05], [0.05, 0.09], [0.8, 0.06], [0.15, 0.14], [0.6, 0.05], [0.3, 0.2], [1.0, 0.9]]:
+		_bulb_up.tween_property(_booth_light, "light_energy", BOOTH_ENERGY * float(k[0]), float(k[1]))
 
 
 ## Whoever walks through lifts it (the user 4. 11.: "all the characters must"): a figure in
@@ -403,7 +418,7 @@ func _build_booth() -> void:
 	_booth_light = OmniLight3D.new()
 	_booth_light.position = Vector3(-w * 0.5 - 0.3, h - 0.1, 0)
 	_booth_light.light_color = Color(1.0, 0.82, 0.55)
-	_booth_light.light_energy = 1.4
+	_booth_light.light_energy = BOOTH_ENERGY
 	_booth_light.omni_range = 7.0
 	_booth_light.visible = false
 	root.add_child(_booth_light)
