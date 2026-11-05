@@ -74,7 +74,17 @@ static func of(tree: SceneTree) -> Node:
 func site(key: String) -> Dictionary:
 	if not _sites.has(key):
 		_sites[key] = _fresh(key)
-	return _sites[key]
+	var s: Dictionary = _sites[key]
+	# Made before its books (the room in the building looks at the rack the frame it is put
+	# up, the books come within the second): the rack from the stock now they are there. It
+	# stayed empty for good, whatever stood in the storeroom (the user 5. 11.).
+	if s.has("no_books") and not BUSINESS.site(key).is_empty():
+		s.erase("no_books")
+		var fresh := _fresh(key)
+		s["shelf"] = fresh["shelf"]
+		s["trolley"] = fresh["trolley"]
+		s["cut"] = fresh["cut"]
+	return s
 
 
 ## From the books: the rack and the trolley as they were saved, or the rack filled from
@@ -93,8 +103,11 @@ func _fresh(key: String) -> Dictionary:
 		else:
 			shelf[g] = mini(RULES.slot_cap(racks), stock)
 			trolley[g] = 0
-	return {"shelf": shelf, "trolley": trolley, "picked": {}, "served": {}, "gone": {}, "rung": {}, "mat": {}, "till_by": {},
+	var rec := {"shelf": shelf, "trolley": trolley, "picked": {}, "served": {}, "gone": {}, "rung": {}, "mat": {}, "till_by": {},
 		"deli": {}, "cut": (saved.get("cut", {}) as Dictionary).duplicate() if saved.get("cut", {}) is Dictionary else {}}
+	if books.is_empty():
+		rec["no_books"] = true
+	return rec
 
 
 func shelf(key: String) -> Dictionary:
@@ -237,6 +250,8 @@ func _apply(key: String, op: String, args: Array) -> void:
 				s["till_by"].erase(str(args[0]))
 		"snap":
 			var got: Dictionary = args[0]
+			# (The host's rack is the rack: not filled again when the books get here.)
+			s.erase("no_books")
 			for k in ["shelf", "trolley", "picked", "served", "gone", "rung", "mat", "deli", "cut"]:
 				if got.has(k):
 					s[k] = (got[k] as Dictionary).duplicate(true)

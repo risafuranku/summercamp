@@ -223,7 +223,9 @@ static func shop(parent: Node3D, si) -> void:
 	# goods on it are the shelves' station's), the sign over it.
 	var body_at := RACK_AT + Vector3(0, 0, -0.15)
 	K.slab(parent, Vector3(RACK_SIZE.x + 0.04, RACK_SIZE.y + 0.04, 0.28), Vector3(body_at.x, RACK_AT.y, body_at.z - 0.002), _green(), "RackBody")
-	room_picture(parent, J + "st_rack.png", RACK_SIZE, RACK_AT + Vector3(0, 0, 0.002), 0.0, "RackFront")
+	# (Not pulled toward the eye as the retro look pulls a quad: from across the shop it came
+	# out in front of the goods standing on it, the rack bare whatever was on it.)
+	room_picture(parent, J + "st_rack.png", RACK_SIZE, RACK_AT + Vector3(0, 0, 0.002), 0.0, "RackFront").set_meta("retro_no_pull", true)
 	si._sign(parent, "SAMOOBSLUHA\nself-service", Vector3(-0.75, 2.12, -2.55), 30, "enamel")
 	# The bread rack, the fridge and the shelf of tins along the left wall; the chiller
 	# beside the fridge once bought (service_interior._apply_jednota_gear).

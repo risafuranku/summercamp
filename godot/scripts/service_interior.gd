@@ -146,6 +146,8 @@ var _one_dark: MeshInstance3D
 var _world_env_node: WorldEnvironment
 var _own_world: World3D
 var _one_lights_t := 0.0
+## The business whose people and stations came up on the way in by its door (door_ready).
+var _started_for := ""
 var _time_state: int = TIME_DAY
 var _is_day_mode: bool = true
 var _daylight_factor: float = 0.0
@@ -294,8 +296,15 @@ func door_ready(structure: Node3D) -> void:
 	if t == "toilet_block" and im != null and im.has_method("_toilet_door_of"):
 		toilet_entry = im.call("_toilet_door_of", structure)
 	_make_up(t)
-	# A business: in this building now, the walk in sees it through the doorway.
+	# A business: in this building now, the walk in sees it through the doorway, its people
+	# and what is on its racks and counters too (they came up only once you were in, an
+	# empty room in the open door).
 	_bind_one_world(structure)
+	_started_for = ""
+	var origin = structure.get_meta("grid_origin", null)
+	if _one and _current_profile != "staff" and origin is Vector2i:
+		set_upkeep_target(origin, t)
+		_started_for = _upkeep_key
 
 
 ## On the way in, the room's windows show the camp as from the eye coming through the door.
@@ -434,6 +443,9 @@ func _make_up(service_type: String) -> void:
 			_set_restaurant_room("dining", true)
 		elif _current_profile == "pub" and not _is_open:
 			_set_pub_room("main", true)
+		elif _current_profile == "vecerka" and not _is_open:
+			# (Left from the storeroom last time: in by the shop's door again.)
+			_set_vecerka_room("shop", true)
 		elif _current_profile == "toilet" and not _is_open:
 			# The same room built as last time: in through the door you used now.
 			_set_hygiene_room(toilet_entry)
@@ -492,6 +504,8 @@ func _process(delta: float) -> void:
 		# its door): the building's copy back.
 		if _one and _one_copy != null and not _coming_in():
 			_unbind_one_world()
+			_started_for = ""
+			_stop_life()
 		return
 	if _one:
 		_bind_one_world()
@@ -2632,6 +2646,10 @@ func _build_upkeep_spots(block: String) -> void:
 ## InteriorManager, after open_service(): which block this is. Toilet and shower blocks
 ## get their cleaning list; everything else ignores it.
 func set_upkeep_target(coord: Vector2i, building_type: String) -> void:
+	# (Up already, from the way in by the door.)
+	if _started_for != "" and _started_for == "%d:%d" % [coord.x, coord.y]:
+		_started_for = ""
+		return
 	_upkeep_coord = coord
 	_upkeep_type = building_type
 	_upkeep_key = "%d:%d" % [coord.x, coord.y]

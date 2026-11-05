@@ -513,6 +513,73 @@ func _rot() -> int:
 	return 0
 
 
+## The new Jednota's rack, stock and books now (a line).
+func jed_state(tag: String) -> void:
+	var j := get_tree().get_first_node_in_group("jednotas")
+	var sites: Dictionary = CoreRoot.get_state().biz.get("sites", {})
+	var found := false
+	for key in sites:
+		var rec: Dictionary = sites[key]
+		if str(rec.get("kind", "")) != "vecerka":
+			continue
+		found = true
+		var stock := 0
+		for g in rec.get("stock", {}):
+			stock += int(rec["stock"][g])
+		var kept = rec.get("jednota", null)
+		var kept_sum := -1
+		if kept is Dictionary and kept.has("shelf"):
+			kept_sum = 0
+			for g in kept["shelf"]:
+				kept_sum += int(kept["shelf"][g])
+		print("ONESUN %s jed key=%s stock=%d kept_shelf=%d counts=%s in_sites=%s" % [tag, str(key), stock, kept_sum, str(j.debug_counts(key)) if j != null else "-", str(j.get("_sites").has(key)) if j != null else "-"])
+	if not found:
+		print("ONESUN %s jed no record (jednotas node: %s)" % [tag, str(j != null)])
+
+
+## The shelves station as the shop has it now: made, shown, its goods standing (a line).
+func jed_rack(tag: String) -> void:
+	var si = _main.get("_interior_manager").get("_service_interior")
+	var sts: Dictionary = si.get("_stations")
+	var st = sts.get("shelves", null)
+	if st == null or not is_instance_valid(st):
+		print("ONESUN %s rack: no station (stations %s, key %s)" % [tag, str(sts.keys()), str(si.get("_upkeep_key"))])
+		return
+	var shown := 0
+	var units: Dictionary = st.get("_units")
+	var one: Sprite3D = null
+	for g in units:
+		for sp in units[g]:
+			if (sp as Sprite3D).is_visible_in_tree():
+				shown += 1
+				one = sp
+	print("ONESUN %s rack: station vis=%s open=%s key=%s shown=%d one=%s L=%d cam_mask=%d" % [tag, str((st as Node3D).is_visible_in_tree()), str(st.get("_open")), str(st.get("building_key")), shown,
+		str(one.global_position.snapped(Vector3.ONE * 0.01)) if one != null else "-", one.layers if one != null else 0, (si.get("_interior_camera") as Camera3D).cull_mask])
+	if one == null:
+		return
+	var cam := si.get("_interior_camera") as Camera3D
+	var o := cam.global_position
+	var target := one.global_transform * one.get_aabb().get_center()
+	var d := (target - o).normalized()
+	var dist := o.distance_to(target)
+	var hits: Array = []
+	for n in get_tree().root.find_children("*", "GeometryInstance3D", true, false):
+		var g := n as GeometryInstance3D
+		if not g.is_inside_tree() or not g.is_visible_in_tree():
+			continue
+		var b: AABB = g.global_transform * g.get_aabb()
+		if b.size.length() > 80.0:
+			continue
+		var h = b.grow(0.01).intersects_ray(o, d)
+		if h != null and o.distance_to(h) < dist + 0.3:
+			hits.append([o.distance_to(h), g])
+	hits.sort_custom(func(a, b): return float(a[0]) < float(b[0]))
+	print("ONESUN %s rack: eye %s sprite at %.2f m, aabb %s tex %s px %.4f alpha %s" % [tag, str(o.snapped(Vector3.ONE * 0.01)), dist, str(one.get_aabb()), str(one.texture.get_size()) if one.texture != null else "-", one.pixel_size, str(one.modulate)])
+	for i in mini(hits.size(), 12):
+		var g := hits[i][1] as GeometryInstance3D
+		print("ONESUN %s rack:   %.2f m %s L=%d" % [tag, float(hits[i][0]), str(g.get_path()).right(64), g.layers])
+
+
 ## Where the player is, what room is open (one line).
 func where(tag: String) -> void:
 	var p: Node3D = _main.get("_player")
@@ -1054,6 +1121,40 @@ func _ready() -> void:
 						["shot", "%s_%04d" % [ty, int(hr * 100.0)]]]
 				st += [["eval", "debug_jump_to(1, 10.0)"], ["wait", 1.0], ["eval", SI + "._look.set('yaw_deg', 0.0)"], ["eval", SI + "._look.set('pitch_deg', 0.0)"], ["wait", 0.8],
 					["shot", "%s_ahead" % ty], ["eval", SI + ".close_service()"], ["wait", 1.5]]
+			st += [["eval", "get_tree().quit()"]]
+			_steps = st
+			return
+		if a == "--part=jedshelf":
+			# A new Jednota's rack from the moment it is built (the shop opens with full shelves).
+			var st: Array = [
+				["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+				["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
+				["money", 400000], ["clear", 9, 14, 5, 5], ["eval", C + ".jed_state('before')"], ["build", "vecerka", 10, 15, 0]]
+			for k in 8:
+				st += [["wait", 0.5], ["eval", C + ".jed_state('t%d')" % k]]
+			st += [["eval", "debug_jump_to(1, 11.0)"], ["wait", 2.0], ["eval", C + ".jed_state('at11')"],
+				["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('vecerka'))"], ["wait", 4.0], ["eval", C + ".jed_state('inside')"], ["eval", C + ".jed_rack('inside')"], ["mouse", 0.5, 0.5], ["shot", "a_shop"],
+				["eval", "_interior_manager._service_interior._open_station('shelves')"], ["wait", 1.5], ["eval", C + ".jed_rack('station')"], ["shot", "b_shelves"],
+				["eval", "_interior_manager._service_interior._stations['shelves'].close_station()"], ["wait", 2.0], ["eval", C + ".jed_rack('after')"], ["shot", "c_shop_after"],
+				["eval", "get_tree().quit()"]]
+			_steps = st
+			return
+		if a == "--part=bizlife":
+			# Guests in the pub and the Jednota: are they there through the open door, and the
+			# goods on the rack, as you walk in (W26)?
+			var st: Array = [
+				["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+				["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
+				["money", 400000], ["clear", 4, 9, 5, 5], ["clear", 9, 14, 5, 5], ["clear", 4, 14, 5, 5],
+				["build", "pub", 5, 10, 0], ["build", "vecerka", 10, 15, 0], ["build", "cabin_1", 5, 15, 0], ["build", "cabin_1", 7, 15, 0], ["wait", 1.0],
+				["prep_all"], ["book", "Novak family", "family", 4, 3], ["prep_all"], ["book", "Pepa", "drunk", 2, 3],
+				["hours", 0.4], ["checkin"], ["hours", 3.0], ["wait", 6.0]]
+			for ty in ["pub", "vecerka"]:
+				st += [["eval", "debug_send_guests_to('%s', 240)" % ty], ["wait", 6.0], ["eval", "set('debug_camera', null)"], ["door_front", ty, 2.0], ["wait", 0.6], ["shot", "%s_0_at" % ty],
+					["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('%s'))" % ty]]
+				for k in 12:
+					st += [["wait", 0.13], ["shot", "%s_1_in_%02d" % [ty, k]]]
+				st += [["wait", 1.5], ["shot", "%s_2_inside" % ty], ["eval", "_interior_manager._service_interior._leave_on_foot()"], ["wait", 4.0]]
 			st += [["eval", "get_tree().quit()"]]
 			_steps = st
 			return
