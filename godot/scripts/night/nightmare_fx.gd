@@ -9,7 +9,10 @@ extends CanvasLayer
 ##   fx.set_presence("silent_man", 0.7)          # each tick: the sixth sense: a drone in the
 ##                                                # ears, the heart, the edges closing in
 ##   fx.glitch(1.0, 1.2)                          # a hit: tears, split channels, roar
-##   fx.subliminal(tex, 2)                        # a face for two frames, then gone
+##   fx.subliminal(tex, 2)                        # a picture for two frames, then gone (the
+##                                                # faces are out, the user 5. 11.: the Silent
+##                                                # Man's one, rarely; running from anything
+##                                                # the head fills up instead, fever_dream.gd)
 ##   fx.freeze(0.15)                              # the frame stops dead for a beat
 ##   fx.red_flash(0.8)
 ##   fx.tinnitus(4.0)                             # a ring, the world muffled under it
@@ -200,6 +203,15 @@ static func update_retro(screen_height: float) -> void:
 	m.set_shader_parameter("palette_mix", 1.0 if RETRO_RENDER.palette_enabled() else 0.0)
 
 
+## Running from it (scripts/audio/fever_dream.gd): how bad, from the sixth sense and the hunt.
+var _fever: Node
+var _pulse_level := 0.0
+var _pulse_until := -1.0
+const FEVER := preload("res://scripts/audio/fever_dream.gd")
+## Under this much of them nothing has got into your head.
+const FEVER_FROM := 0.3
+## How much of it you have standing still; running, all of it.
+const FEVER_STILL := 0.4
 ## The hunt's beat (scripts/audio/chase_music.gd): fx.set_chase(id, level, near) each tick.
 const CHASE_MUSIC := preload("res://scripts/audio/chase_music.gd")
 var _chase: Node
@@ -218,6 +230,9 @@ func _build() -> void:
 	_chase = CHASE_MUSIC.new()
 	_chase.name = "ChaseMusic"
 	add_child(_chase)
+	_fever = FEVER.new()
+	_fever.name = "FeverDream"
+	add_child(_fever)
 	_screen = ColorRect.new()
 	_screen.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_screen.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -738,6 +753,8 @@ func _process(delta: float) -> void:
 	_time += delta
 	if _chase != null:
 		_chase.tick(delta)
+	if _fever != null:
+		_fever.tick(delta, _fever_want())
 	if is_inside_tree():
 		update_retro(get_viewport().get_visible_rect().size.y)
 	# Dread: the largest source, eased; sources forget themselves each frame.
@@ -1114,6 +1131,23 @@ func _exit_tree() -> void:
 
 ## Your ears close over: the camp's sounds go far away as the presence rises, till
 ## there is the drone, the heart and him.
+## A moment of it with nothing at your back: `level` for `seconds`.
+func fever_pulse(level: float, seconds: float) -> void:
+	_pulse_level = level
+	_pulse_until = _time + seconds
+
+
+## How bad it is in your head: something near you or after you, and you running from it.
+func _fever_want() -> float:
+	var pulse := _pulse_level if _time < _pulse_until else 0.0
+	var threat := maxf(maxf(_presence, _dread), _chase.level() if _chase != null else 0.0)
+	if threat <= FEVER_FROM:
+		return pulse
+	var p := get_tree().get_first_node_in_group("player") if is_inside_tree() else null
+	var running := float(p.get("sprint_lower")) if p != null and p.get("sprint_lower") != null else 0.0
+	return maxf(pulse, clampf((threat - FEVER_FROM) / (1.0 - FEVER_FROM), 0.0, 1.0) * lerpf(FEVER_STILL, 1.0, running))
+
+
 func _update_muffle() -> void:
 	var master := AudioServer.get_bus_index("Master")
 	var want := _presence > 0.25 or _spores > 0.15
@@ -1133,6 +1167,9 @@ func _update_muffle() -> void:
 	# Spores in your ears too: the world goes thick and far.
 	k = maxf(k, clampf((_spores - 0.15) / 0.85, 0.0, 1.0) * 0.85)
 	_muffle.cutoff_hz = lerpf(14000.0, 1600.0, k * k)
+	# (Over the world's muffle the ears still ring: it all goes through the master.)
+	if _fever != null:
+		_muffle.cutoff_hz = lerpf(_muffle.cutoff_hz, 8000.0, _fever.amount())
 
 
 func _update_ring(delta: float) -> void:

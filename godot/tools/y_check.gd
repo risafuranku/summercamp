@@ -5,6 +5,7 @@ extends "res://tools/onesun_check.gd"
 ##   godot --path godot --audio-driver Dummy --resolution 1280x720 res://tools/y_check.tscn -- --out=DIR --y=builder
 
 const LANG_S = preload("res://scripts/lang.gd")
+const NIGHTMARE = preload("res://scripts/night/nightmare_fx.gd")
 const UI := "_interior_manager._building_interior._crt_ui"
 const MAP := "debug_builder_map()"
 const BI := "_interior_manager._building_interior"
@@ -141,6 +142,8 @@ func _ready() -> void:
 			_steps = _bench()
 		"rooms2":
 			_steps = _rooms2()
+		"silent":
+			_steps = _silent()
 
 
 ## R turns what you are about to build, with the pointer anywhere (Y14).
@@ -475,6 +478,55 @@ func _rooms2() -> Array:
 	s += [["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0], ["money", 90000], ["clear", 12, 10, 8, 5],
 		["build", "tent_1", 13, 11, 0], ["build", "tent_1", 15, 11, 0], ["build", "tent_1", 17, 11, 0], ["wait", 1.0], ["prep_all"],
 		["book", "Novak family", "family", 5, 2, 0], ["hours", 0.5], ["wait", 2.0], ["eval", C + ".desk_lines()"], ["eval", "get_tree().quit()"]]
+	return s
+
+
+## The Silent Man's night (Y19, Y23): the torch shorting out frame by frame, the fever in
+## the ears as you run.
+func torch_energy(tag: String) -> void:
+	var p: Node = _main.get("_player")
+	var f = p.get("_flashlight")
+	say("TORCH %s energy %.2f fill %.2f dark %s" % [tag, float(f.light_energy), float(p.get("_flashlight_fill").light_energy), str(p.call("torch_dark"))])
+
+
+func fever_state(tag: String) -> void:
+	var fx: Node = NIGHTMARE.get_for(_main)
+	var fv: Node = fx.get("_fever")
+	var playing := 0
+	for c in fv.get_children():
+		if c is AudioStreamPlayer and c.name != "FeverRing" and (c as AudioStreamPlayer).playing:
+			playing += 1
+	say("FEVER %s presence %.2f level %.2f ring %s %.1f dB splinters %d" % [tag, float(fx.get("_presence")), float(fv.call("amount")), str((fv.get("_ring") as AudioStreamPlayer).playing), float((fv.get("_ring") as AudioStreamPlayer).volume_db), playing])
+
+
+var _fever_presence := 0.0
+
+
+func fever_try(presence: float, running: float) -> void:
+	_fever_presence = presence
+	for a in ["move_sprint", "move_forward"]:
+		if running > 0.0:
+			Input.action_press(a)
+		else:
+			Input.action_release(a)
+
+
+func _process(delta: float) -> void:
+	super._process(delta)
+	if _fever_presence > 0.0:
+		NIGHTMARE.get_for(_main).set_presence("y_check", _fever_presence)
+
+
+func _silent() -> Array:
+	var s: Array = BOOT.duplicate(true)
+	s += [["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0], ["eval", "debug_jump_to(1, 22.0)"], ["eval", "_player.set('torch_carried', true)"], ["wait", 1.2],
+		["eval", C + ".torch_energy('before')"], ["eval", "_player.torch_blackout(3.0, 1.1)"]]
+	for i in 12:
+		s += [["wait", 0.06], ["eval", C + ".torch_energy('t%d')" % i]]
+	s += [["wait", 1.0], ["eval", C + ".torch_energy('dead')"], ["shot", "torch_dead"], ["wait", 2.4], ["eval", C + ".torch_energy('catching')"], ["wait", 1.2], ["eval", C + ".torch_energy('back')"]]
+	s += [["eval", C + ".fever_state('still')"], ["eval", C + ".fever_try(0.9, 0.0)"], ["wait", 2.0], ["eval", C + ".fever_state('stood, it near')"],
+		["eval", C + ".fever_try(0.95, 1.0)"], ["wait", 2.0], ["eval", C + ".fever_state('running')"], ["wait", 2.0], ["eval", C + ".fever_state('running on')"],
+		["eval", C + ".fever_try(0.0, 0.0)"], ["wait", 4.0], ["eval", C + ".fever_state('over')"], ["eval", "get_tree().quit()"]]
 	return s
 
 

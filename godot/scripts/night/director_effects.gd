@@ -148,24 +148,12 @@ func run(id: String, ctx: Dictionary) -> Vector3:
 	return Vector3.INF
 
 
-## A face for two frames, whose depends on who is in the camp tonight (the director's
-## strongest archetype): the quiet ones bring the Silent Man's, the drinkers and the girls
-## the Girl's, the families and the tramps the Photographer's.
-const FACES := ["res://assets/textury/npc/sm_face.png", "res://assets/textury/npc/girl_face_b.png", "res://assets/textury/npc/ph_face_peel.png", "res://assets/textury/npc/sm_face.png"]
-
-
+## A moment with your head not your own (it was a face for two frames: the user 5. 11.).
 func _face_flash() -> void:
-	var w: Array = director.get("arch_weights") if director != null else [1.0, 0.0, 0.0, 0.0]
-	var top := 0
-	for i in w.size():
-		if float(w[i]) > float(w[top]):
-			top = i
-	var path: String = FACES[clampi(top, 0, FACES.size() - 1)]
-	if not ResourceLoader.exists(path):
-		return
-	var fx: Node = NIGHTMARE_FX.get_for(main)
-	if fx != null and fx.has_method("subliminal"):
-		fx.subliminal(load(path), 2, randf_range(0.9, 1.15), Color(1, 1, 1, 0.75))
+	var main: Node = director.get_tree().current_scene if director != null and director.is_inside_tree() else null
+	var fx: Node = NIGHTMARE_FX.get_for(main) if main != null else null
+	if fx != null and fx.has_method("fever_pulse"):
+		fx.fever_pulse(0.6, 2.2)
 
 
 func _process(delta: float) -> void:

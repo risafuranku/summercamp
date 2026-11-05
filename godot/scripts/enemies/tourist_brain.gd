@@ -885,12 +885,6 @@ func _blast_you() -> void:
 	fx.white_blast(1.0)
 	if fx.has_method("tinnitus"):
 		fx.tinnitus(1.6)
-	var burnt: Texture2D = _tex.get("face_peel" if _hits % 2 == 0 else "face_lens", _tex.get("flash"))
-	if fx.has_method("subliminal") and burnt != null:
-		get_tree_timer(0.18, func():
-			var f := _fx()
-			if f != null:
-				f.subliminal(burnt, 4, 1.0, Color(0.75, 0.78, 0.9)))
 	if _hits % 2 == 0:
 		get_tree_timer(0.4, func(): _room(SFX_PEEL, -5.0))
 

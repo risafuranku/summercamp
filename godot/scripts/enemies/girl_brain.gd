@@ -492,9 +492,6 @@ func _jumpscare() -> void:
 	_near_you(_sound(SFX_SCREAM, _player_pos() + Vector3(0, 1.5, 0), 3.0, 1.25))
 	var fx := _fx()
 	if fx != null:
-		# Her lunge at you, claws first (or her eye, an inch off), then the faces.
-		var pic: Texture2D = _tex.get(T_EYE if _rng.randf() < 0.3 and _tex.has(T_EYE) else T_LUNGE, _face(_rng.randi_range(0, 2)))
-		fx.subliminal(pic, 4, 1.15)
 		fx.glitch(0.85, 0.9)
 		fx.red_flash(0.35)
 		fx.blood(0.15)
@@ -715,11 +712,7 @@ func _at_glass(_im) -> bool:
 	_glass_light.global_position = (w["pos"] as Vector3) + (w["out"] as Vector3) * 0.15
 	_glass_light.visible = true
 	if float(w.get("facing", 0.0)) > 0.8 and _tex.has(T_SMILE):
-		_later(0.8, func():
-			var fx := _fx()
-			if fx != null:
-				fx.subliminal(_tex[T_SMILE], 2, 1.0, Color(1, 1, 1, 0.8))
-				_room_2d(SFX_STING, -2.0, 0.9))
+		_later(0.8, func(): _room_2d(SFX_STING, -2.0, 0.9))
 	_later(1.6, func(): _room_2d(SFX_GIGGLE, -10.0, 0.7, true))
 	return true
 
@@ -826,8 +819,6 @@ func _start_ring() -> void:
 		e.set("size_k", 2.2)
 		e.set("gap_k", 1.7)
 		_ring.append({"eyes": e, "open_at": 0.25 * float(i) + _rng.randf_range(0.0, 0.2), "at": p})
-	if _tex.has(T_CROWD):
-		_fx().subliminal(_tex[T_CROWD], 3, 1.0, Color(1, 1, 1, 0.7))
 
 
 func _tick_ring(dt: float) -> void:
@@ -866,8 +857,8 @@ func _drop_ring() -> void:
 	_ring.clear()
 
 
-## For a while after she has had you: her face for a frame now and then, faint, even
-## with her gone; the torch catching in your hand.
+## For a while after she has had you: your head not your own for a moment now and then,
+## even with her gone; the torch catching in your hand.
 func _tick_residue(dt: float) -> void:
 	if _elapsed >= _residue_until:
 		return
@@ -878,11 +869,8 @@ func _tick_residue(dt: float) -> void:
 	var fx := _fx()
 	if fx == null:
 		return
-	var pics: Array = [_face(0), _upside()]
-	if _tex.has(T_SMILE):
-		pics.append(_tex[T_SMILE])
-	var pic: Texture2D = pics[_rng.randi() % pics.size()]
-	fx.subliminal(pic, 1, _rng.randf_range(0.8, 1.2), Color(1, 1, 1, 0.45))
+	if fx.has_method("fever_pulse"):
+		fx.fever_pulse(0.55, 1.6)
 	if _flashlight_on() and _rng.randf() < 0.5:
 		_player.set("flashlight_stutter", 1.0)
 		_root.get_tree().create_timer(0.12).timeout.connect(func():
@@ -1101,13 +1089,10 @@ func _update_stutter(dt: float, d: float, coming: bool) -> void:
 	var fx := _fx()
 	if fx != null:
 		if not _fake_done and d < 8.0:
-			# Once a loop, in the dead torch: her face, all of it, and a shriek cut short.
+			# Once a loop, in the dead torch: a shriek cut short.
 			_fake_done = true
-			fx.subliminal(_face(_rng.randi_range(0, 2)), 3, 1.1)
 			fx.glitch(0.6, 0.5)
 			_near_you(_sound_quarry(SFX_SCREAM, _player_pos() + Vector3(0, 1.5, 0), 3.0, 1.4))
-		elif _rng.randf() < 0.5:
-			fx.subliminal(_face(_rng.randi_range(0, 2)), 2, 0.8, Color(1, 1, 1, 0.5))
 
 
 # â”€â”€ the strike â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

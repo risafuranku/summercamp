@@ -34,7 +34,6 @@ const FLY := U + "hurt_fly.png"
 const WOUND := U + "hurt_wound.png"
 ## How fast the hit's red goes (per second), light .. lethal: a hard one stays longer.
 const FLASH_FALL := [2.0, 1.7, 1.3, 1.0, 0.8]
-const HALLU := U + "hurt_hallu.png"
 const FPS := 12.0
 ## Health (0..1) where it starts to tell, and where it is at its worst.
 const HURT_FROM := 0.45
@@ -75,7 +74,6 @@ const STREAM_FADE_SEC := 2.5
 var _flies: Array = []    # {node, vel, wait}
 var _fly_tex: Texture2D
 var _wound_tex: Texture2D
-var _hallu_tex: Texture2D
 var _trail_t := 0.0
 var _one: AudioStreamPlayer
 var _rng := RandomNumberGenerator.new()
@@ -115,7 +113,6 @@ func _ready() -> void:
 			_gore.append(load(path))
 	_fly_tex = load(FLY) if ResourceLoader.exists(FLY) else null
 	_wound_tex = load(WOUND) if ResourceLoader.exists(WOUND) else null
-	_hallu_tex = load(HALLU) if ResourceLoader.exists(HALLU) else null
 	_heart = _loop(D + "heart.mp3")
 	_flies_snd = _loop(D + "flies.mp3")
 	_squelch = _loop(D + "squelch.mp3")
@@ -425,9 +422,6 @@ func _tick_blackout(delta: float) -> void:
 		var fx = NIGHTMARE_FX.get_for(self)
 		if fx != null:
 			fx.tinnitus(1.4)
-			# In the dark, for a few frames: your own face, torn, in a puddle.
-			if _hallu_tex != null and _rng.randf() < 0.6:
-				get_tree().create_timer(0.35).timeout.connect(func(): fx.subliminal(_hallu_tex, 3, 1.0, Color(0.7, 0.6, 0.6)))
 
 
 ## Everything off (a new game, the menu, the morning's healing is gradual anyway).

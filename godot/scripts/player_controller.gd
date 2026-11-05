@@ -247,9 +247,13 @@ var flashlight_stutter: float = 0.0
 ## again, flickering, till `_torch_back_until` (torch_blackout(): the Silent Man's glasses
 ## throw your light back and the bulb goes, playtest 25. 10.). No beam while dark: nothing
 ## is lit by it.
+var _torch_fail_at := -1.0
 var _torch_dark_until := -1.0
 var _torch_back_until := -1.0
-const TORCH_CLICK := "res://assets/sfx/backroom/lamp_click.mp3"
+## The bulb shorting out in your hand (torch_blackout).
+const TORCH_SHORT := preload("res://assets/sfx/player/torch_short.mp3")
+## How long it fights: surges and drops, in steps twelve a second, each the light's share.
+const TORCH_FAIL := [2.3, 0.15, 1.7, 0.0, 2.6, 0.05, 1.1, 0.0, 0.5, 0.0]
 const TORCH_ON := preload("res://assets/sfx/player/torch_on.mp3")
 const TORCH_OFF := preload("res://assets/sfx/player/torch_off.mp3")
 const TORCH_CLICK_DB := -9.0
@@ -831,21 +835,24 @@ func is_flashlight_active() -> bool:
 	return _flashlight_active
 
 
-## The torch goes dead for `seconds`, then catches again over `back` seconds, flickering.
+## The torch shorts out: a moment of surging and crackling (it was a plain switch off, as
+## if you had done it yourself: the user 5. 11.), dead for `seconds`, then it catches again
+## over `back` seconds, flickering.
 func torch_blackout(seconds: float, back := 1.1) -> void:
 	var now := Time.get_ticks_msec() / 1000.0
 	if now < _torch_back_until:
 		return
-	_torch_dark_until = now + seconds
+	_torch_fail_at = now
+	_torch_dark_until = now + float(TORCH_FAIL.size()) / 12.0 + seconds
 	_torch_back_until = _torch_dark_until + back
-	if ResourceLoader.exists(TORCH_CLICK):
-		var p := AudioStreamPlayer.new()
-		p.stream = load(TORCH_CLICK)
-		p.volume_db = -8.0
-		p.pitch_scale = 0.8
-		add_child(p)
-		p.play()
-		p.finished.connect(p.queue_free)
+	var p := AudioStreamPlayer.new()
+	p.stream = TORCH_SHORT
+	p.volume_db = -6.0
+	add_child(p)
+	p.play()
+	p.finished.connect(p.queue_free)
+	# The kick of it in the hand.
+	_mouse_impact += Vector2(randf_range(-0.012, 0.012), 0.012)
 
 
 ## The torch dead in your hand now, or still catching (torch_blackout): it lights nothing
@@ -1387,7 +1394,10 @@ func _update_flashlight_effect(delta: float) -> void:
 	if flashlight_stutter > 0.0:
 		flicker *= 0.04 if fmod(_flashlight_flicker_time * 9.0, 1.0) < 0.85 else 0.4
 	var now := Time.get_ticks_msec() / 1000.0
-	if now < _torch_dark_until:
+	var fighting := int((now - _torch_fail_at) * 12.0)
+	if _torch_fail_at >= 0.0 and fighting < TORCH_FAIL.size():
+		flicker = float(TORCH_FAIL[maxi(fighting, 0)])
+	elif now < _torch_dark_until:
 		flicker = 0.0
 	elif now < _torch_back_until:
 		# Catching again: off, a stab of light, off, longer on, in steps twelve a second.
@@ -1399,7 +1409,8 @@ func _update_flashlight_effect(delta: float) -> void:
 	if _flashlight_halo != null:
 		_flashlight_halo.light_energy = flashlight_halo_energy * flicker
 	if _flashlight_fill != null:
-		_flashlight_fill.light_energy = flashlight_fill_energy * (0.95 + ((flicker - 1.0) * 0.3))
+		# (Dead is dead: the fill went on lighting your feet.)
+		_flashlight_fill.light_energy = flashlight_fill_energy * (0.95 + ((flicker - 1.0) * 0.3)) if flicker > 0.02 else 0.0
 
 
 func _ensure_footstep_audio() -> void:

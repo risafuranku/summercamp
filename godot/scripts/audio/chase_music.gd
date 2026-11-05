@@ -76,6 +76,11 @@ func playing() -> bool:
 	return _src != "" and _a.playing
 
 
+## How hard the hunt is on now (0 none).
+func level() -> float:
+	return _level if playing() else 0.0
+
+
 func tick(delta: float) -> void:
 	var best := ""
 	var lv := 0.0

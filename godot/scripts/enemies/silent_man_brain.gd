@@ -56,6 +56,12 @@ class_name SilentManBrain
 ## In co-op only the warden he hunts feels any of it; the other's torch drives him off
 ## too (the counter for two: watch each other's backs).
 ##
+## He calls you out (the user 5. 11.: "sounds to lure you out of the buildings, heard from
+## far off outside, nothing typically horror, that give you goosebumps"): now and then while
+## you sit inside, from out in the dark: the one call of the night (`SFX_CALLS`, each night
+## another), a man with no mouth humming, the same to the last wobble every time, a little
+## nearer each time you stay.
+##
 ## Your own torch on him has its price (playtest 25. 10.): his glasses throw the light back
 ## and the bulb goes dead in your hand for three seconds, then catches again, flickering
 ## (player_controller.torch_blackout). More Quiet Guys turned, more of him (main starts
@@ -88,6 +94,14 @@ const SFX_THROAT := "res://assets/sfx/npc/sm_throat.mp3"
 const SFX_STRETCH := "res://assets/sfx/npc/sm_stretch.mp3"
 const SFX_CEILING := "res://assets/sfx/npc/sm_ceiling.mp3"
 const SFX_SECOND := "res://assets/sfx/npc/sm_second_voice.mp3"
+const SFX_CALLS := ["res://assets/sfx/npc/sm_lure_a.mp3", "res://assets/sfx/npc/sm_lure_b.mp3", "res://assets/sfx/npc/sm_lure_c.mp3", "res://assets/sfx/npc/sm_lure_d.mp3"]
+## The wait between his calls (s), the first, how loud (-23 LUFS), and what each one more this
+## stay adds, up to CALL_NEAR_MAX.
+const CALL_EVERY := Vector2(55.0, 120.0)
+const CALL_FIRST := Vector2(25.0, 60.0)
+const CALL_DB := -3.0
+const CALL_NEARER_DB := 1.5
+const CALL_NEAR_MAX := 6.0
 const SFX_STEPS := "res://assets/sfx/npc/silent_steps.mp3"
 const SFX_STEP := "res://assets/sfx/npc/sm_step.mp3"
 const SFX_WHISPER := "res://assets/sfx/npc/silent_whisper.mp3"
@@ -196,6 +210,20 @@ var _revealed := false
 var _reveal_t := -1.0
 var _reveal_seen := 0.0
 var _lesson := false
+## The chance at each of his moments at your back that the face shows, and the night it
+## last did.
+const FACE_CHANCE := 0.06
+var _face_night := -1
+
+
+func _night_no() -> int:
+	var main: Node = _world_root.get_tree().current_scene if _world_root != null and _world_root.is_inside_tree() else null
+	return int(main.get("_day_index")) if main != null and main.get("_day_index") != null else 0
+
+
+## Indoors: when he next calls you out, and how many times this stay.
+var _call_next := 0.0
+var _calls := 0
 ## Indoors: when the next moment of him, and how many there were.
 var _lure_next := -1.0
 var _lure_n := 0
@@ -1331,15 +1359,15 @@ func _update_presence(dt: float) -> void:
 		level = 1.0
 	if fx != null:
 		fx.set_presence(_fx_key, level)
-		if level > 0.7 and _neck_until < 0.0:
+		# His one face for a blink, the white points in the black glasses (the user 5. 11.:
+		# "that one is great, but make it really rare"): at most once a night.
+		if level > 0.7 and _neck_until < 0.0 and _face_night != _night_no():
 			_sub_next -= dt
 			if _sub_next <= 0.0:
 				_sub_next = _rng.randf_range(4.0, 9.0) * (1.8 - level)
-				var faces: Array = [T_FACE]
-				for f in [T_CROSS, T_SECOND, T_CEILING]:
-					if _tex.has(f):
-						faces.append(f)
-				fx.subliminal(_t(faces[_rng.randi() % faces.size()]), 2, _rng.randf_range(0.8, 1.15), Color(0.55, 0.45, 0.42))
+				if _rng.randf() < FACE_CHANCE:
+					_face_night = _night_no()
+					fx.subliminal(_t(T_FACE), 2, _rng.randf_range(0.9, 1.1), Color(0.8, 0.76, 0.72))
 	# The torch in your hand catches and stutters as it gets bad.
 	if level > 0.55 and _player != null:
 		_stutter_next -= dt
@@ -1542,6 +1570,11 @@ func _tick_indoors(delta: float) -> void:
 		# (_lure_n counts on over the night, every stay inside: "late in his night" is the
 		# night's, not this stay's; going in and out does not start him over.)
 		_lure_next = _wall_clock() + _rng.randf_range(12.0, 22.0)
+		_call_next = _wall_clock() + _rng.randf_range(CALL_FIRST.x, CALL_FIRST.y)
+		_calls = 0
+	if _wall_clock() >= _call_next and _fx() != null:
+		_call_next = _wall_clock() + _rng.randf_range(CALL_EVERY.x, CALL_EVERY.y)
+		_call_out()
 	if _ceil != null:
 		_tick_ceiling()
 	if _watch_win >= 0:
@@ -1560,6 +1593,12 @@ func _tick_indoors(delta: float) -> void:
 	if _rng.randf() < WATCH_CHANCE and _start_watch():
 		return
 	_indoor_sound()
+
+
+## From out in the dark, through the walls: tonight's call.
+func _call_out() -> void:
+	_room_2d(str(SFX_CALLS[absi(_night_no()) % SFX_CALLS.size()]), CALL_DB + minf(float(_calls) * CALL_NEARER_DB, CALL_NEAR_MAX))
+	_calls += 1
 
 
 ## Seconds while indoors (the base's _elapsed does not run while it cannot act).
@@ -1684,12 +1723,9 @@ func _indoor_sound() -> void:
 		get_tree_timer(2.4, func():
 			if not _indoors:
 				return
-			# Another warden's room is on their machine, not here: his face over theirs for
-			# a moment, as it was.
-			if _quarry_peer() != 0 or not _start_ceiling():
-				var f := _fx()
-				if f != null:
-					f.subliminal(_t(T_CEILING), 3, 1.0, Color(0.5, 0.45, 0.45)))
+			# (Another warden's room is on their machine: there the sound alone.)
+			if _quarry_peer() == 0:
+				_start_ceiling())
 		return
 	if late and r < 0.32 and _at_glass(_im()):
 		return

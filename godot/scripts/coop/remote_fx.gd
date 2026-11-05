@@ -57,7 +57,7 @@ func _send(method: String, args: Array) -> void:
 		_steady_at[key] = now
 	_last[key] = packed
 	# A one-off (a face for two frames, a flash) is always sent; only what holds is kept.
-	if method in ["subliminal", "freeze", "glitch", "red_flash", "tinnitus", "white_blast", "blood", "ext", "jam_burst", "lock"]:
+	if method in ["subliminal", "fever_pulse", "freeze", "glitch", "red_flash", "tinnitus", "white_blast", "blood", "ext", "jam_burst", "lock"]:
 		_last.erase(key)
 	# An "off" ends what was on: always said, and the next "on" is new again.
 	if method.ends_with("_off"):
@@ -148,6 +148,10 @@ func set_black(alpha: float) -> void:
 
 func glitch(amount: float, seconds: float) -> void:
 	_send("glitch", [amount, seconds])
+
+
+func fever_pulse(level: float, seconds: float) -> void:
+	_send("fever_pulse", [snappedf(level, 0.05), snappedf(seconds, 0.1)])
 
 
 func subliminal(tex: Texture2D, frames: int = 2, scale: float = 1.0, tint: Color = Color.WHITE) -> void:
