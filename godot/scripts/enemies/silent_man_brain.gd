@@ -278,10 +278,6 @@ var _tilt_extra := 0.0
 ## Your torch's beam far past where it lights anything: his lenses catch it (a sting the
 ## first time each round).
 var _glint_stung := false
-## Glasses that are not him: at the edges of your view in the dark, when it is worst;
-## look at one and it goes out. Only the warden he hunts sees them (not under _root).
-var _phantoms: Array = []
-var _phantom_next := 3.0
 const STARE_CHANCE := 0.5
 ## Your torch dead after it drives him off (s), and its flicker back on.
 const TORCH_DARK_SEC := 3.0
@@ -359,7 +355,6 @@ func tick(delta: float) -> void:
 			# (Gone in while he held you: his hands off the screen too, not left there.)
 			_neck_until = -1.0
 			_end_hold()
-			_clear_phantoms()
 			_tick_indoors(delta)
 		elif _away:
 			_away = false
@@ -391,7 +386,6 @@ func _on_return() -> void:
 func _on_stop() -> void:
 	_end_seq()
 	_end_hold()
-	_clear_phantoms()
 	_end_ceiling()
 	var fx := _fx()
 	if fx != null:
@@ -407,7 +401,6 @@ func _on_tick(dt: float) -> void:
 	_track_speed(dt)
 	if _eyes != null:
 		_eyes.set("want", 0.0 if _eyes_out or (_fig_anim != "" and _fig_back) else 1.0)
-	_update_phantoms(dt)
 	if not _seq.is_empty():
 		_update_seq(dt)
 		return
@@ -1402,61 +1395,6 @@ func _update_presence(dt: float) -> void:
 					_player.set("flashlight_stutter", 0.0))
 
 
-func _clear_phantoms() -> void:
-	for ph in _phantoms:
-		var n: Node3D = ph["eyes"]
-		if n != null and is_instance_valid(n):
-			n.queue_free()
-	_phantoms.clear()
-
-
-## When it is worst (the sixth sense high, out in the dark): a pair of his glasses at
-## the edge of your view where he is not, in the dark, 10-20 m off. Look at it, or wait,
-## and it goes out. Up to two at once. Never seen by anyone but you.
-func _update_phantoms(dt: float) -> void:
-	var cam := _camera()
-	var fx := _fx()
-	var bad := _press > 0.45 and _seq.is_empty() and _neck_until < 0.0 and _vanish_at < 0.0 and fx != null and cam != null
-	for i in range(_phantoms.size() - 1, -1, -1):
-		var ph: Dictionary = _phantoms[i]
-		var e: Node3D = ph["eyes"]
-		ph["t"] = float(ph["t"]) - dt
-		var looked := false
-		if cam != null:
-			var to: Vector3 = (ph["at"] as Vector3) - cam.global_position
-			looked = (-cam.global_transform.basis.z).dot(to.normalized()) > cos(deg_to_rad(14.0))
-		if not bad or float(ph["t"]) <= 0.0 or looked or e == null or not is_instance_valid(e):
-			if e != null and is_instance_valid(e):
-				e.queue_free()
-			_phantoms.remove_at(i)
-			continue
-		e.set("strength", 1.0)
-		e.call("update", dt, cam)
-	if not bad:
-		_phantom_next = maxf(_phantom_next, 1.5)
-		return
-	_phantom_next -= dt * (0.5 + _press)
-	if _phantom_next > 0.0 or _phantoms.size() >= 2:
-		return
-	_phantom_next = _rng.randf_range(2.5, 6.0)
-	# Off to one side, well inside the frame's edge, not where you look.
-	var side := -1.0 if _rng.randf() < 0.5 else 1.0
-	var p := _point_from_player(_rng.randf_range(10.0, 20.0), side * _rng.randf_range(24.0, 40.0))
-	if p == Vector3.INF or _lamp_light_at(p) > LURK_DARK:
-		return
-	var at := p + Vector3(0, HEIGHT * 0.92, 0)
-	if _ray_blocked(cam.global_position, at):
-		return
-	var e: Node3D = ENEMY_EYES.new()
-	_root.add_child(e)
-	e.set_meta("coop_quarry_only", true)
-	e.call("setup", "silent_man", 0.0, null)
-	e.set("anchor", null)
-	e.set("point", at)
-	e.set("tilt", _tilt_sign * _rng.randf_range(0.0, 0.5))
-	_phantoms.append({"eyes": e, "at": at, "t": _rng.randf_range(1.2, 3.0)})
-
-
 ## His hands come over your shoulder from the side he is on; he holds you back.
 func _start_hold() -> void:
 	var cam := _camera()
@@ -1940,5 +1878,4 @@ func get_debug_snapshot() -> Dictionary:
 		"lure": _lure_n,
 		"stare": _staring,
 		"eyes_out": _eyes_out,
-		"phantoms": _phantoms.size(),
 	}

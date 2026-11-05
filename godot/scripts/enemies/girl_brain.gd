@@ -16,15 +16,12 @@ extends "res://scripts/enemies/enemy_base.gd"
 ## nearer she is, the bigger and wider apart they are. Lit, you see her own eyes
 ## instead. And a woman humming. And her laugh (the user 5. 11.: "the iconic sound of the
 ## Cheap Chick: she laughs so that you know where she is"; Richard's own cut, girl_laugh):
-## out in the dark from where she really is, every few seconds the further off she is; the
-## decoy, the ring round the lamp and her wall in the night all laugh it too.
+## out in the dark from where she really is, every few seconds the further off she is; her
+## going round the lamp and her wall in the night laugh it too.
 ##
 ## The terror pass (Richard, 20. 10.: "total terror"):
 ##   the dead torch  close, when your torch dies in your hand she takes her step in that
 ##                   dark, and you see her eyes there, nearer, before the light comes back
-##   the decoy       while your torch holds her, a second pair of her eyes opens out in the
-##                   dark to one side, and a soft giggle from there; swing to it and there
-##                   is nothing, and she has moved (you looked away)
 ##   the lamp's edge under a lamp she cannot come in: she goes round the edge of its light,
 ##                   a little further each time you look away, towards your back
 ##   your heart      the pressure, the drone and the heart (nightmare_fx.set_presence) as
@@ -163,10 +160,6 @@ var _strike_cues := {}
 var _tex := {}
 var _static: AudioStreamPlayer3D
 var _hum: AudioStreamPlayer3D
-## The decoy: a second pair of her eyes in the dark ({eyes, at, t}; not under _root, only
-## the warden she hunts sees it), and when the next may open.
-var _decoy := {}
-var _decoy_next := 8.0
 ## Close behind you: the world goes quiet (her hum and the static out, the presence at
 ## its height), then her wet breath at your ear, once a loop.
 var _hush := false
@@ -182,14 +175,9 @@ var _eye_tilt0 := 0.12
 ## Her head turned upside down on her neck (made from her art: the head cut out and
 ## flipped), and where its eyes are.
 var _upside_tex: ImageTexture
-## The ring: under a lamp long enough, pairs of her eyes open one after another all
-## round the edge of its light, each blinking on its own, her laugh from one of them; then
-## all of them go out at once but one. Once a loop. ({eyes, at} each; only yours.)
-var _ring: Array = []
-var _ring_t := -1.0
-var _ring_done := false
-## After the ring: her eyes, the pair that stayed, glow by themselves behind you a while.
-var _ring_stay_until := -1.0
+## Gone round the lamp this loop; her own eyes glowing behind you by themselves till then.
+var _round_done := false
+var _eyes_stay_until := -1.0
 ## Indoors (an outdoor hunter: she cannot hurt you in there; see the top). From the door,
 ## a pause between: her laugh and three slow knocks; her at the window you look at, pressed
 ## to the glass; her teeth chattering behind the wall. Gone off, now and then one of your
@@ -215,9 +203,8 @@ var _wall_hum: AudioStreamPlayer
 var _hum_next := 0.0
 ## Out of a door with her far off: till then she has not noticed you.
 var _out_until := -1.0
-## Her laugh is one voice (the user 5. 11.: "she lays several laughs over each other"; the
-## ring round the lamp had nine going at once): wherever it would come out while it is
-## still going, it does not. Till when; any of her.
+## Her laugh is one voice (the user 5. 11.: "she lays several laughs over each other"):
+## wherever it would come out while it is still going, it does not. Till when; any of her.
 static var _voice_until := 0.0
 var _glass_until := -1.0
 var _glass_light: OmniLight3D
@@ -236,8 +223,7 @@ var _heels: Array = []
 var _glass_at := Vector3.INF
 ## Every sound of hers, loaded at the start of her night: never off the disk mid-scare.
 var _sfx_cache: Array = []
-const RING_AFTER := 6.0
-const RING_PAIRS := 9
+const ROUND_AFTER := 6.0
 ## Far off, found again, she is not standing as a person stands: upside down, hanging
 ## from nothing, or far too tall. Till she moves.
 var _pose_flip := false
@@ -252,7 +238,6 @@ const FX_TEX := preload("res://scripts/night/fx_tex.gd")
 const T_CROWD := N + "girl6_crowd.png"
 const T_EYE := N + "girl6_eye.png"
 const HUSH_DIST := 4.5
-const DECOY_EVERY := Vector2(14.0, 26.0)
 
 
 func get_enemy_id() -> String:
@@ -304,8 +289,6 @@ func _on_start() -> void:
 
 func _on_stop() -> void:
 	_release_player()
-	_drop_decoy()
-	_drop_ring()
 	_hide_glass()
 	_hush_walls()
 	if not _strike_cam.is_empty():
@@ -341,7 +324,7 @@ func _begin_loop() -> void:
 	_behind_done = false
 	_fake_done = false
 	_breath_done = false
-	_ring_done = false
+	_round_done = false
 	_set_pose(false)
 	for _i in 16:
 		# Off to one side of where you look: you can find her if you look for her.
@@ -367,8 +350,6 @@ func _on_tick(dt: float) -> void:
 	if _phase == GONE:
 		_body.visible = false
 		_set_audio(0.0, false)
-		_drop_decoy()
-		_drop_ring()
 		_tick_residue(dt)
 		var fxg := _fx()
 		if fxg != null:
@@ -418,12 +399,11 @@ func _on_tick(dt: float) -> void:
 	# Another warden's machine holds the cold till told: off the moment your torch is off her.
 	if _quarry_peer() != 0 and not (sees and torch_on_her):
 		_player.set("flashlight_drain_boost", 0.0)
-	_tick_ring(dt)
 	# Under a lamp you are out of her reach; long enough and she lets this loop go.
 	if _lamp_light_at(_player_pos()) > LAMP_SAFE:
 		_in_lamp_for += dt
-		if noticed and _in_lamp_for >= RING_AFTER and not _ring_done and _ring_t < 0.0:
-			_start_ring()
+		if noticed and _in_lamp_for >= ROUND_AFTER and not _round_done:
+			_round_the_lamp()
 		# (Not before your eyes: she lets it go when you look away.)
 		if _in_lamp_for >= GIVE_UP_IN_LAMP and not sees:
 			_sound(SFX_LAUGH, head, -5.0, 0.97, 60.0)
@@ -439,7 +419,6 @@ func _on_tick(dt: float) -> void:
 	_update_stutter(dt, d, coming)
 	_last_d = d
 	_update_shine(d, lit, stuttering)
-	_update_decoy(dt, sees and torch_on_her, d)
 	var near := clampf(1.0 - d / 22.0, 0.0, 1.0)
 	_hush = d < HUSH_DIST and not looking
 	_set_audio(near, not _hush and _elapsed >= _found_quiet_until)
@@ -667,8 +646,6 @@ func _indoors_now() -> bool:
 
 ## You went in: was she after you? Then she stays what she was, a woman out there.
 func _went_in() -> void:
-	_drop_decoy()
-	_drop_ring()
 	_set_audio(0.0, false)
 	_door_at = _player_pos()
 	_stand_at = _door_at - _forward_flat() * DOOR_STAND
@@ -986,74 +963,21 @@ func _tick_chatter(dt: float, d: float) -> void:
 				_sound(SFX_SNAP, at, lerpf(-2.5, -11.0, d / 8.0), _rng.randf_range(2.1, 2.7), 14.0))
 
 
-## Under a lamp: the ring of her eyes round the edge of the light.
-func _start_ring() -> void:
-	var cam := _camera()
-	if cam == null or _fx() == null:
+## Under a lamp long enough: she goes round the edge of its light to your back, herself, her
+## laugh from there and her own eyes in the dark a while. Once a loop. (Every eye that shines
+## out there is really one of them, the user 5. 11.: "the only glowing eyes will really be
+## the enemy, no fakes": no pairs of her eyes round the lamp, no second pair to one side.)
+func _round_the_lamp() -> void:
+	_round_done = true
+	var p := _point_from_player(_rng.randf_range(7.0, 9.0), 180.0 + _rng.randf_range(-25.0, 25.0))
+	if p == Vector3.INF or _lamp_light_at(p) > LAMP_SAFE:
 		return
-	_ring_done = true
-	_ring_t = 0.0
-	_drop_ring()
-	var me := _player_pos()
-	var base := _rng.randf_range(0.0, TAU)
-	for i in RING_PAIRS:
-		var ang := base + TAU * float(i) / float(RING_PAIRS) + _rng.randf_range(-0.2, 0.2)
-		var dir := Vector3(sin(ang), 0.0, cos(ang))
-		# Out to where the light ends.
-		var p := Vector3.INF
-		for r in [6.0, 8.0, 10.0, 12.0, 14.0]:
-			var q := _stand(me + dir * float(r))
-			if q != Vector3.INF and _lamp_light_at(q) <= LAMP_SAFE:
-				p = q
-				break
-		if p == Vector3.INF:
-			continue
-		var e: Node3D = ENEMY_EYES.new()
-		_root.add_child(e)
-		e.set_meta("coop_quarry_only", true)
-		e.call("setup", "girl", 0.0, null)
-		e.set("anchor", null)
-		e.set("point", p + Vector3(0, HEIGHT * _rng.randf_range(0.75, 1.05), 0))
-		e.set("tilt", _rng.randf_range(-0.4, 0.4))
-		e.set("size_k", 2.2)
-		e.set("gap_k", 1.7)
-		_ring.append({"eyes": e, "open_at": 0.25 * float(i) + _rng.randf_range(0.0, 0.2), "at": p})
-
-
-func _tick_ring(dt: float) -> void:
-	if _ring_t < 0.0:
-		return
-	_ring_t += dt
-	var cam := _camera()
-	for r in _ring:
-		var e: Node3D = r["eyes"]
-		if e == null or not is_instance_valid(e) or cam == null:
-			continue
-		var on := _ring_t >= float(r["open_at"])
-		if on and not bool(r.get("heard", false)):
-			r["heard"] = true
-			_sound_quarry(SFX_LAUGH, (r["at"] as Vector3) + Vector3(0, 1.5, 0), -15.0, _rng.randf_range(0.55, 1.1), 30.0)
-		e.set("strength", 1.0 if on else 0.0)
-		e.call("update", dt, cam)
-	# All of them out at once; the one that stays is her, behind you.
-	if _ring_t >= 0.25 * float(RING_PAIRS) + 3.5:
-		_drop_ring()
-		_ring_t = -1.0
-		var p := _point_from_player(_rng.randf_range(7.0, 9.0), 180.0 + _rng.randf_range(-25.0, 25.0))
-		if p != Vector3.INF and _lamp_light_at(p) <= LAMP_SAFE:
-			_body.global_position = p
-			_set_look(false, _distance_to_player(p))
-			_moved_unseen = true
-			_ring_stay_until = _elapsed + 5.0
-		_near_you(_sound_quarry(SFX_STING, _player_pos() + Vector3(0, 1.5, 0), 0.5, 0.8))
-
-
-func _drop_ring() -> void:
-	for r in _ring:
-		var e: Node3D = r["eyes"]
-		if e != null and is_instance_valid(e):
-			e.queue_free()
-	_ring.clear()
+	_body.global_position = p
+	_set_look(false, _distance_to_player(p))
+	_moved_unseen = true
+	_eyes_stay_until = _elapsed + 5.0
+	_sound_quarry(SFX_LAUGH, p + Vector3(0, 1.5, 0), -9.0, 0.97, 30.0)
+	_near_you(_sound_quarry(SFX_STING, _player_pos() + Vector3(0, 1.5, 0), 0.5, 0.8))
 
 
 ## For a while after she has had you: your head not your own for a moment now and then,
@@ -1199,7 +1123,7 @@ func _update_shine(d: float, lit: bool, stuttering: bool) -> void:
 	_eyes.set("size_k", 1.0 + 0.35 * near)
 	# Near, they sit wrong on her face: one higher, more and more.
 	_eyes.set("tilt", _eye_tilt0 + signf(_eye_tilt0) * 0.55 * near * near)
-	_eyes.set("want", 1.0 if _shines(d, lit) or (stuttering and d < TOO_CLOSE) or (_elapsed < _ring_stay_until and not lit) else 0.0)
+	_eyes.set("want", 1.0 if _shines(d, lit) or (stuttering and d < TOO_CLOSE) or (_elapsed < _eyes_stay_until and not lit) else 0.0)
 
 
 func _shines(d: float, lit: bool) -> bool:
@@ -1210,57 +1134,6 @@ func _shines(d: float, lit: bool) -> bool:
 		return false
 	var to: Vector3 = _eyes_world() - (aim["origin"] as Vector3)
 	return (aim["dir"] as Vector3).normalized().dot(to.normalized()) >= cos(deg_to_rad(SHINE_DEG))
-
-
-## The decoy: while your torch holds her, now and then a second pair of her eyes opens in
-## the dark off to one side, with a soft giggle from there. Look at it and it goes out;
-## it goes out by itself in a few seconds. Never two.
-func _update_decoy(dt: float, holding: bool, d: float) -> void:
-	var cam := _camera()
-	if not _decoy.is_empty():
-		var e: Node3D = _decoy["eyes"]
-		_decoy["t"] = float(_decoy["t"]) - dt
-		var looked := false
-		if cam != null:
-			var to: Vector3 = (_decoy["at"] as Vector3) - cam.global_position
-			looked = (-cam.global_transform.basis.z).dot(to.normalized()) > cos(deg_to_rad(10.0))
-		if float(_decoy["t"]) <= 0.0 or looked or e == null or not is_instance_valid(e) or cam == null:
-			_drop_decoy()
-			return
-		e.set("strength", 1.0)
-		e.call("update", dt, cam)
-		return
-	_decoy_next -= dt if holding else dt * 0.25
-	if not holding or _decoy_next > 0.0 or d < 6.0 or cam == null or _fx() == null:
-		return
-	_decoy_next = _rng.randf_range(DECOY_EVERY.x, DECOY_EVERY.y)
-	var side := -1.0 if _rng.randf() < 0.5 else 1.0
-	var p := _point_from_player(clampf(d * _rng.randf_range(0.8, 1.2), 8.0, 24.0), side * _rng.randf_range(24.0, 38.0))
-	if p == Vector3.INF or _lamp_light_at(p) > LAMP_SAFE:
-		return
-	var at := p + Vector3(0, HEIGHT * 0.9, 0)
-	if _ray_blocked(cam.global_position, at):
-		return
-	var e: Node3D = ENEMY_EYES.new()
-	_root.add_child(e)
-	e.set_meta("coop_quarry_only", true)
-	e.call("setup", "girl", 0.0, null)
-	e.set("anchor", null)
-	e.set("point", at)
-	e.set("tilt", float(_eyes.get("tilt")) if _eyes != null else 0.1)
-	e.set("size_k", 1.8)
-	e.set("gap_k", 1.5)
-	_decoy = {"eyes": e, "at": at, "t": _rng.randf_range(3.5, 6.0)}
-	_sound_quarry(SFX_LAUGH, at, -12.0, _rng.randf_range(0.9, 1.04), 40.0)
-
-
-func _drop_decoy() -> void:
-	if _decoy.is_empty():
-		return
-	var e: Node3D = _decoy["eyes"]
-	if e != null and is_instance_valid(e):
-		e.queue_free()
-	_decoy = {}
 
 
 ## The torch dies in your hand now and then when she is close: a moment of dark she uses.
@@ -1330,7 +1203,7 @@ var _strike_side := 1.0
 ## Co-op: only the one she hunts sees her while she scares them (the strike, right behind
 ## them, at their window, close, the frames she is not as she is).
 func is_private_now() -> bool:
-	if _phase == STRIKE or _jump_ready or _glass_until > 0.0 or _curse_frames > 0 or _elapsed < _ring_stay_until:
+	if _phase == STRIKE or _jump_ready or _glass_until > 0.0 or _curse_frames > 0 or _elapsed < _eyes_stay_until:
 		return true
 	return _body != null and _body.visible and _distance_to_player(_body.global_position) < 6.0
 
@@ -1360,9 +1233,6 @@ func _mouth() -> Texture2D:
 
 func _start_strike() -> void:
 	_phase = STRIKE
-	_drop_decoy()
-	_drop_ring()
-	_ring_t = -1.0
 	_set_pose(false)
 	if _eyes != null:
 		_eyes.set("want", 0.0)

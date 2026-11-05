@@ -7,7 +7,8 @@ extends Node3D
 ##   - after dark bats flit round the nearest lit lamp (or above you), and moths dance
 ##     round every lit lamp near you;
 ##   - at night an owl sits on one of the trees near you (Grok sprite), hoots now and
-##     then, its eyes catching the light in the dark; come too close and it is gone.
+##     then; come too close and it is gone. (Its eyes do not shine: the only eyes that
+##     shine in the dark here are the night's, the user 5. 11.)
 ## It follows the player wherever they are (the camp, the road, Lesna). Not while you are
 ## in a room. Made by InteriorManager.setup() in the camp's world.
 
@@ -33,9 +34,7 @@ var _audio: AudioStreamPlayer3D
 const OWL_TEX := "res://assets/textury/world/owl.png"
 ## The birds, crows, bats and moths (Grok, two wing beats each): assets/textury/world/sky_*.png.
 const SKY_TEX := "res://assets/textury/world/sky_%s.png"
-const OWL_EYES := "res://assets/textury/world/owl_eyes.png"
 var _owl: Sprite3D
-var _owl_eyes: Sprite3D
 var _owl_snd: AudioStreamPlayer3D
 var _owl_t := 8.0
 var _owl_hoot := 20.0
@@ -115,17 +114,6 @@ func _update_owl(at: Vector3, night: bool, dt: float) -> void:
 		_owl.shaded = true
 		_owl.visible = false
 		add_child(_owl)
-		if ResourceLoader.exists(OWL_EYES):
-			_owl_eyes = Sprite3D.new()
-			_owl_eyes.texture = load(OWL_EYES)
-			_owl_eyes.pixel_size = 0.0035
-			_owl_eyes.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-			_owl_eyes.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-			_owl_eyes.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
-			_owl_eyes.shaded = false
-			_owl_eyes.modulate = Color(1.4, 1.2, 0.8)
-			_owl_eyes.no_depth_test = false
-			_owl.add_child(_owl_eyes)
 		_owl_snd = AudioStreamPlayer3D.new()
 		if ResourceLoader.exists(SFX + "owl_hoot.mp3"):
 			_owl_snd.stream = load(SFX + "owl_hoot.mp3")
@@ -146,10 +134,6 @@ func _update_owl(at: Vector3, night: bool, dt: float) -> void:
 			_owl_t = 999.0
 			_perch(at)
 		return
-	if _owl_eyes != null:
-		# The eyes, a little in front of the face; they blink.
-		_owl_eyes.position = Vector3(0, 0.31, 0.04)
-		_owl_eyes.visible = fmod(_tick, 6.0) > 0.25
 	_owl_hoot -= dt
 	if _owl_hoot <= 0.0:
 		_owl_hoot = _rng.randf_range(18.0, 50.0)

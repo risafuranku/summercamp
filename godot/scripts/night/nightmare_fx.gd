@@ -142,11 +142,9 @@ const LOCK_SEC := 1.0
 ## His, the Silent Man's (the user 5. 11.: "the girl has a great effect when you shine on her;
 ## take it for the silent guy"): the same moment the other way round. The world burnt out to
 ## bone white and him in it, black, nothing of him lit but the glasses; the frame rolls the
-## other way; his own sound; and the two points stay in your eyes a while after it, where
-## they were, on through the dead torch.
+## other way; his own sound. Then nothing of it on the screen.
 const SFX_LOCK_HIM := "res://assets/sfx/npc/sm_lock.mp3"
 const LOCK_WHITE := Color(0.95, 0.9, 0.76, 0.97)
-const LOCK_AFTER_SEC := 1.8
 ## Where the glasses are in his height, how far left of his middle, half their gap in it.
 const LOCK_EYES_AT := 0.914
 const LOCK_EYES_LEFT := 0.01
@@ -159,7 +157,7 @@ var _lock_punch := 0.0
 var _lock_black: ColorRect
 var _lock_fig: TextureRect
 var _lock_negative := false
-## The two points of his, in the blink and after it (over the white, unlike the eyes).
+## The two points of his in the blink (over the white, unlike the eyes).
 var _lock_eyes: Control
 var _lock_eye := Vector2.INF
 var _lock_gap := 0.0
@@ -959,25 +957,22 @@ func _tick_lock(delta: float) -> void:
 	_lock_punch = 0.04 * _lock_k * floorf(maxf(0.0, 1.0 - t / 0.3) * 4.0) / 4.0
 	_lock_clean = 1.0 if t < 0.5 else floorf(clampf(1.0 - (t - 0.5) / 0.5, 0.0, 1.0) * 5.0) / 5.0
 	_lock_eyes.queue_redraw()
-	if t >= (LOCK_AFTER_SEC if _lock_negative else LOCK_SEC):
+	if t >= LOCK_SEC:
 		_lock_t = -1.0
 		_lock_hold = 0.0
 		_lock_punch = 0.0
 		_lock_clean = 0.0
 
 
-## His two points, a game pixel each, going in steps (on the lenses: not on the grid).
+## His two points, a game pixel each, for as long as the blink (on the lenses: not on the grid).
 func _draw_lock_eyes() -> void:
-	if _lock_t < 0.0 or not _lock_negative or _lock_eye == Vector2.INF:
-		return
-	var left := floorf(sqrt(clampf(1.0 - _lock_t / LOCK_AFTER_SEC, 0.0, 1.0)) * 6.0) / 5.0
-	if left <= 0.2:
+	if _lock_t < 0.0 or _lock_t >= LOCK_FIGURE_SEC or not _lock_negative or _lock_eye == Vector2.INF:
 		return
 	var cell := float(maxi(2, int(round(float(DisplayServer.window_get_size().y) / 240.0))))
 	var gap := maxf(_lock_gap, cell * 0.8)
 	for side in [-1.0, 1.0]:
 		var p: Vector2 = (_lock_eye + Vector2(gap * side, 0.0) - Vector2(cell, cell) * 0.5).round()
-		_lock_eyes.draw_rect(Rect2(p, Vector2(cell, cell)), Color(0.95, 0.9, 0.76, minf(left, 1.0)))
+		_lock_eyes.draw_rect(Rect2(p, Vector2(cell, cell)), Color(0.95, 0.9, 0.76))
 
 
 ## Two pale points, one game pixel each, close together; nothing round them. Each eye

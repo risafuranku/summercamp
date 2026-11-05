@@ -426,8 +426,8 @@ func _is_private(b) -> bool:
 
 ## A private enemy hunting another warden: on this machine it is neither seen nor heard
 ## (its root hidden, its sounds silent; what they were is kept for the picture sent
-## over: "coop_db"). What is only ever its quarry's (meta "coop_quarry_only": a decoy
-## pair of eyes, the ring round the lamp) likewise, while the quarry is not here.
+## over: "coop_db"). What is only ever its quarry's (meta "coop_quarry_only": her laugh as
+## she goes round the lamp) likewise, while the quarry is not here.
 func _hide_private(brains: Array) -> void:
 	for b in brains:
 		if b == null:

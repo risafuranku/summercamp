@@ -283,10 +283,17 @@ func _wc() -> Array:
 
 
 ## The paths round 18:50 (Y17): the camp from above while the low sun goes down.
+func _from_hour() -> float:
+	for a in OS.get_cmdline_user_args():
+		if str(a).begins_with("--from="):
+			return float(str(a).trim_prefix("--from="))
+	return 18.45
+
+
 func _dusk() -> Array:
 	var s: Array = BOOT.duplicate(true)
 	s += [["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
-		["eval", "debug_jump_to(1, 18.45)"], ["wait", 0.5], ["topdown", 2, 2, 22, 20], ["wait", 0.5]]
+		["eval", "debug_jump_to(1, %s)" % str(_from_hour())], ["wait", 0.5], ["topdown", 2, 2, 22, 20], ["wait", 0.5]]
 	for i in 60:
 		s += [["wait", 0.28], ["shot", "top_%02d" % i]]
 	s += [["eval", "get_tree().quit()"]]
@@ -553,8 +560,8 @@ func _sun_table() -> Array:
 	return s
 
 
-## Your torch on the Silent Man (Y28): the world burnt out, him black in it, the two points
-## after it through the dead torch.
+## Your torch on the Silent Man (Y28): the world burnt out, him black in it, and nothing of
+## it left on the screen.
 func lock_try() -> void:
 	var b = (_main.get("_enemy_brains") as Array).back()
 	var p: Node3D = _main.get("_player")
@@ -813,11 +820,11 @@ func _girl_out() -> Array:
 	return s
 
 
-## The ring round the lamp: nine pairs of eyes, and how many of her laughs at a time (Y29).
+## Round the lamp, and how many of her laughs at a time (Y29): it was nine pairs of eyes.
 func _girl_ring() -> Array:
 	var s: Array = BOOT.duplicate(true)
 	s += [["wait", 2.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0], ["eval", "debug_jump_to(2, 22.0)"], ["wait", 1.0], ["call", "debug_spawn_enemy", ["girl", 3]], ["wait", 2.0],
-		["eval", "_enemy_brains.back()._start_ring()"]]
+		["eval", "_enemy_brains.back()._round_the_lamp()"]]
 	for i in 30:
 		s += [["eval", C + ".girl_state('ring %d')" % i], ["wait", 0.25]]
 	s += [["eval", "get_tree().quit()"]]

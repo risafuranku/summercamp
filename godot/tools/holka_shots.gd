@@ -206,8 +206,8 @@ func ring() -> String:
 	var g = girl()
 	if g == null:
 		return "no girl"
-	g._start_ring()
-	return "ring %d" % (g.get("_ring") as Array).size()
+	g._round_the_lamp()
+	return "round the lamp"
 
 
 # ── frames timed ──────────────────────────────────────────────────────────────
@@ -253,8 +253,8 @@ func _process(delta: float) -> void:
 		if g != null:
 			var tex: Texture2D = (g.get("_body") as Sprite3D).texture
 			var fx: Node = _main.get_tree().root.get_node_or_null("NightmareFX")
-			what = "phase=%d strike_t=%.2f ring_t=%.2f art=%s stutter=%.2f curse=%d decoy=%d jump=%s screen=%s sub=%s dist=%.1f" % [int(g.get("_phase")), float(g.get("_strike_t")), float(g.get("_ring_t")), tex.resource_path.get_file() if tex != null else "-",
-				float(g.get("_stutter_t")), int(g.get("_curse_frames")), (g.get("_decoy") as Dictionary).size(), g.get("_jump_ready"),
+			what = "phase=%d strike_t=%.2f art=%s stutter=%.2f curse=%d jump=%s screen=%s sub=%s dist=%.1f" % [int(g.get("_phase")), float(g.get("_strike_t")), tex.resource_path.get_file() if tex != null else "-",
+				float(g.get("_stutter_t")), int(g.get("_curse_frames")), g.get("_jump_ready"),
 				fx.get("_screen").visible if fx != null else "-", fx.get("_sub").visible if fx != null else "-", g._distance_to_player((g.get("_body") as Node3D).global_position)]
 		print("HITCH %d ms (frames round it %d ms) at step %d %s %s" % [int(delta * 1000.0), int(_mean_dt * 1000.0), _step_index, str(_steps[mini(_step_index, _steps.size() - 1)]), what])
 	_mean_dt = lerpf(_mean_dt, minf(delta, 0.25), 0.1)
