@@ -11,6 +11,13 @@ extends RefCounted
 ## every row (or column) it crosses, so it never breaks into dashes. Far off they go into
 ## the haze by colour, not by alpha.
 ##
+## The masts' guys, though, go back to what they were from afar (the user 5. 11.: "from far
+## off, from the camp, the masts' cables are still insanely thick; before they were not"):
+## solid only near (a real 4 cm wire is a hair at a kilometre: three dozen solid pixel-wide
+## guys a mast ran together into a grey tent round it), and further off see-through as they
+## always were before, barely there against the sky (`fade`: their true distance, the scale
+## they are drawn at taken off: liblice_masts draws them nearer and smaller).
+##
 ## mesh(): every pair of points (a, b, a, b, ...) one straight piece of wire, each end
 ## knowing the other (CUSTOM0: the other end and the side), the vertex shader widening it
 ## across the view at its own depth.
@@ -19,6 +26,11 @@ const SHADER := """
 shader_type spatial;
 render_mode unshaded, cull_disabled{FOG};
 uniform vec4 haze_color : source_color = vec4(0.7, 0.76, 0.82, 1.0);
+// (fade) Solid nearer than this (m, its true distance), from this far as faint as far_alpha.
+uniform float solid_to = 150.0;
+uniform float faint_from = 700.0;
+uniform float far_alpha = 0.3;
+varying float faint;
 uniform float haze = 0.0;
 uniform float light = 1.0;
 uniform vec3 color = vec3(0.24, 0.24, 0.25);
@@ -34,13 +46,15 @@ void vertex() {
 	// (A piece's end behind the eye: as far as it is, so the width along the piece in
 	// front does not shrink toward it.)
 	float d = max(abs(p.z), 0.05);
+	// Its true distance: drawn nearer and smaller by the node's scale (liblice_masts).
+	faint = smoothstep(solid_to, faint_from, length(p) / max(length(MODEL_MATRIX[1].xyz), 1e-4));
 	// (Its y scale is negative: the renderer's clip space has y down.)
 	float per_px = 2.0 * d / (abs(PROJECTION_MATRIX[1][1]) * VIEWPORT_SIZE.y);
 	p += side * max(radius, min_px * per_px * 0.5) * CUSTOM0.w;
 	POSITION = PROJECTION_MATRIX * vec4(p, 1.0);
 }
 void fragment() {
-	ALBEDO = mix(color * light, haze_color.rgb, clamp(haze, 0.0, 1.0));
+	ALBEDO = mix(color * light, haze_color.rgb, clamp(haze, 0.0, 1.0));{ALPHA}
 }
 """
 
@@ -50,14 +64,17 @@ const MAX_PIECE := 10.0
 
 
 ## `own_haze`: hazed by hand (set "haze", "haze_color"; the masts kilometres off), else
-## in the world's own fog like everything round it (the power lines).
-static func material(color: Color, radius: float, own_haze := false) -> ShaderMaterial:
-	if not _shaders.has(own_haze):
+## in the world's own fog like everything round it (the power lines). `fade`: solid only
+## near, see-through further off (the masts' guys; uniforms solid_to, faint_from, far_alpha).
+static func material(color: Color, radius: float, own_haze := false, fade := false) -> ShaderMaterial:
+	var key := [own_haze, fade]
+	if not _shaders.has(key):
 		var sh := Shader.new()
-		sh.code = SHADER.replace("{FOG}", ", fog_disabled" if own_haze else "")
-		_shaders[own_haze] = sh
+		var alpha := " ALPHA = mix(1.0, far_alpha * (1.0 - clamp(haze, 0.0, 1.0)), faint);"
+		sh.code = SHADER.replace("{FOG}", ", fog_disabled" if own_haze else "").replace("{ALPHA}", alpha if fade else "")
+		_shaders[key] = sh
 	var m := ShaderMaterial.new()
-	m.shader = _shaders[own_haze]
+	m.shader = _shaders[key]
 	m.set_shader_parameter("color", Vector3(color.r, color.g, color.b))
 	m.set_shader_parameter("radius", radius)
 	return m

@@ -76,7 +76,9 @@ void fragment() {
 ## The guys and the frames: solid ribbons at least a pixel wide (a 1-px line
 ## flickered in and out and they were drawn see-through: the user 4. 11., "the masts'
 ## cables close to them clip weirdly, half transparent, from the bus"). Far off they go
-## into the haze by colour. Real steel: guys 4 cm, the frames' girders 0.3 m.
+## into the haze by colour, and the guys see-through again as they were before (the user
+## 5. 11.: "from the camp the cables are still insanely thick"): solid to 150 m, from 700 m
+## a third, less in haze. Real steel: guys 4 cm, the frames' girders 0.3 m.
 const WIRES = preload("res://scripts/ambient/wire_ribbons.gd")
 const GUY_RADIUS := 0.02
 const FRAME_RADIUS := 0.15
@@ -98,7 +100,7 @@ func build() -> void:
 	_body = _shader_mat(BODY_SHADER)
 	_body.set_shader_parameter("height", HEIGHT)
 	_body.set_shader_parameter("bands", float(BANDS))
-	_wire = WIRES.material(Color(0.24, 0.24, 0.25), GUY_RADIUS, true)
+	_wire = WIRES.material(Color(0.24, 0.24, 0.25), GUY_RADIUS, true, true)
 	_ring = WIRES.material(Color(0.62, 0.12, 0.08), FRAME_RADIUS, true)
 	_lamp = _shader_mat(LAMP_SHADER)
 	for spot in spots:
