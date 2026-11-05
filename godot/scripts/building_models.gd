@@ -1194,7 +1194,8 @@ func tent_details(r: Node3D, w: float, h: float, d: float, at: Vector3, yaw: flo
 	var rise := db
 	var lean := atan2(b * 0.5, rise)
 	for sx: float in [-1.0, 1.0]:
-		var roll := _box(t, "TentDoorRoll", Vector3(0.07, sqrt(b * b * 0.25 + rise * rise) * 0.9, 0.07), Vector3(sx * b * 0.27, rise * 0.48, d * 0.5 + 0.04), _flat(color.darkened(0.5)))
+		# (Each its own name: the second, renamed by the tree, stayed hidden.)
+		var roll := _box(t, "TentDoorRoll%s" % ("L" if sx < 0.0 else "R"), Vector3(0.07, sqrt(b * b * 0.25 + rise * rise) * 0.9, 0.07), Vector3(sx * b * 0.27, rise * 0.48, d * 0.5 + 0.04), _flat(color.darkened(0.5)))
 		roll.rotation.z = sx * lean
 		roll.visible = false
 	var rope := _flat(Color(0.84, 0.8, 0.66))

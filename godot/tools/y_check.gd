@@ -128,6 +128,14 @@ func _ready() -> void:
 			_steps = _clip()
 		"rooms":
 			_steps = _rooms()
+		"tent":
+			_steps = _tent()
+		"maze":
+			_steps = _maze()
+		"midge":
+			_steps = _midge()
+		"letters":
+			_steps = _letters()
 
 
 ## R turns what you are about to build, with the pointer anywhere (Y14).
@@ -300,6 +308,104 @@ func _rooms() -> Array:
 			["eval", C + ".fights('%s', %s%s.%s, debug_structure_of_type('%s'))" % [ty, IM, rr[1], rr[2], ty]],
 			["eval", IM + rr[1] + "." + rr[3] + "()"], ["wait", 2.5]]
 	s += [["eval", "get_tree().quit()"]]
+	return s
+
+
+## The tent's unzipped doorway from outside (Y13): the rolled flaps along its edges.
+func rolls() -> void:
+	var st: Node3D = _main.debug_structure_of_type("tent_1")
+	for n in st.find_children("*", "MeshInstance3D", true, false):
+		var g := n as MeshInstance3D
+		if g.is_visible_in_tree():
+			var mesh_name: String = g.mesh.get_class() if g.mesh != null else "-"
+			say("PART %s %s %s size %s rot %s" % [g.name, mesh_name, str(g.position.snapped(Vector3.ONE * 0.01)), str(g.get_aabb().size.snapped(Vector3.ONE * 0.01)), str(g.rotation.snapped(Vector3.ONE * 0.01))])
+	for r in st.find_children("TentDoorRoll*", "MeshInstance3D", true, false):
+		var m := r as MeshInstance3D
+		var par := m.get_parent() as Node3D
+		say("ROLL %s local pos=%s rot.z=%.2f top_dir_local=%s parent_basis_det=%.2f parent_yaw=%.2f size=%s visible=%s" % [m.name, str(m.position.snapped(Vector3.ONE * 0.01)), m.rotation.z, str(m.basis.y.normalized().snapped(Vector3.ONE * 0.01)), par.global_basis.determinant(), par.rotation.y, str((m.mesh as BoxMesh).size), str(m.visible)])
+
+
+func _tent() -> Array:
+	var s: Array = BOOT.duplicate(true)
+	s += [["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0], ["money", 90000],
+		["clear", 12, 11, 7, 3], ["build", "tent_1", 13, 12, 0], ["wait", 1.0], ["eval", "debug_jump_to(1, 13.0)"], ["wait", 1.0],
+		["door_front", "tent_1", 2.4], ["wait", 0.5],
+		["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('tent_1'))"], ["wait", 4.0],
+		["eval", C + ".rolls()"], ["eval", "_interior_manager._tent_interior.close_tent()"], ["wait", 2.5], ["eval", "set('debug_camera', null)"], ["door_front", "tent_1", 2.4], ["wait", 0.6], ["shot", "tent_open"],
+		["eval", C + ".rolls()"], ["eval", "get_tree().quit()"]]
+	return s
+
+
+## The corn maze's ground and ways (Y10): along a way by day, further off, in the torch.
+func _maze() -> Array:
+	var cf := "_corn_field()"
+	var s: Array = BOOT.duplicate(true)
+	s += [["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0], ["eval", "debug_jump_to(1, 12.0)"], ["wait", 1.0],
+		["eval", "set('debug_camera', null)"],
+		["eval", "_player.set_controls_enabled(false)"],
+		["eval", "_player.set('global_position', %s.tile_world(%s.entrance) + Vector3(0, 1.0, 0))" % [cf, cf]], ["wait", 0.5],
+		["eval", "_player.look_at(%s.tile_world(%s.exit_tile) + Vector3(0, 1.0, 0), Vector3(0, 1, 0))" % [cf, cf]], ["eval", "_player.set('_pitch', -0.45)"], ["eval", "_player.set('_pitch_target', -0.45)"], ["wait", 0.6], ["shot", "maze_0"],
+		["eval", "_player.rotate_y(1.57)"], ["wait", 0.4], ["shot", "maze_1"], ["eval", "_player.rotate_y(1.57)"], ["wait", 0.4], ["shot", "maze_2"], ["eval", "_player.rotate_y(1.57)"], ["wait", 0.4], ["shot", "maze_3"],
+		["topdown", 2, 2, 22, 20], ["wait", 0.3], ["eval", "debug_camera.set('global_position', %s.tile_world(%s.entrance) + Vector3(-4, 16, 6))" % [cf, cf]], ["eval", "debug_camera.look_at(%s.tile_world(%s.entrance) + Vector3(-16, 0, 0), Vector3(0, 1, 0))" % [cf, cf]], ["wait", 0.5], ["shot", "maze_above"],
+		["eval", "set('debug_camera', null)"], ["eval", "debug_jump_to(1, 22.0)"], ["wait", 1.5], ["shot", "maze_night"],
+		["eval", "get_tree().quit()"]]
+	return s
+
+
+## The swarm of midges near you (Y16): from a few metres, from close to, walking off.
+func midge_near(d: float) -> void:
+	var wv = _main.get("_weather_visuals")
+	var air: Node = null
+	for n in get_tree().root.find_children("AirLife", "", true, false):
+		air = n
+	if air == null:
+		say("no AirLife")
+		return
+	var sw: Dictionary = (air.get("_swarms") as Array)[0]
+	var c: Vector3 = sw["centre"]
+	var p: Node3D = _main.get("_player")
+	say("SWARM on=%s centre=%s from you %.1f" % [str(air.get("_midges_on")), str(c), c.distance_to(p.global_position)])
+	if c == Vector3.INF:
+		return
+	var at := Vector3(c.x + d, p.global_position.y, c.z)
+	p.global_position = at
+	p.look_at(Vector3(c.x, p.global_position.y, c.z), Vector3.UP)
+
+
+func _midge() -> Array:
+	var s: Array = BOOT.duplicate(true)
+	s += [["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0], ["eval", "weather_system.set_weather(0)"], ["eval", "_set_weather_state(0)"],
+		["eval", "debug_jump_to(1, 17.0)"], ["eval", "set('debug_camera', null)"], ["eval", "_player.set_controls_enabled(false)"], ["wait", 3.5]]
+	for d in [6.0, 3.0, 1.5, 0.7, 0.3]:
+		s += [["eval", C + ".midge_near(%s)" % d], ["wait", 0.5], ["shot", "midge_%d" % int(d * 10.0)]]
+	s += [["eval", "get_tree().quit()"]]
+	return s
+
+
+## The toilets' M and Z once their doors have been used (Y16): how far off their doors they
+## are, you standing elsewhere.
+func letters(tag: String) -> void:
+	var st: Node3D = _main.debug_structure_of_type("toilet_block")
+	var p: Node3D = _main.get("_player")
+	var row: Array = []
+	for n in st.find_children("*", "Label3D", true, false):
+		var l := n as Label3D
+		if l.name == "Bold" or not (l.text in ["M", "Z"]):
+			continue
+		if not (l.get_parent() is Label3D):
+			var door := st.find_child("Door0" if l.text == "M" else "Door1", true, false) as Node3D
+			row.append("%s under %s: %.2f m off the door, %.1f m from you" % [l.text, l.get_parent().name, l.global_position.distance_to(door.global_position), l.global_position.distance_to(p.global_position)])
+	say("LETTERS %s %s" % [tag, str(row)])
+
+
+func _letters() -> Array:
+	var s: Array = BOOT.duplicate(true)
+	s += [["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0], ["eval", "debug_jump_to(1, 12.0)"], ["money", 90000], ["clear", 12, 10, 8, 5],
+		["build", "toilet_block", 13, 11, 0], ["wait", 1.5], ["player", 17, 14, 180.0], ["wait", 0.5], ["eval", C + ".letters('before')"],
+		["eval", "set('debug_camera', null)"], ["door_front", "toilet_block", 1.5], ["wait", 0.5],
+		["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('toilet_block'))"], ["wait", 4.0], ["eval", "_interior_manager._service_interior.close_service()"], ["wait", 2.0], ["eval", C + ".letters('used')"],
+		["player", 17, 14, 180.0], ["wait", 0.5], ["eval", C + ".letters('walked off')"], ["wait", 2.0], ["eval", C + ".letters('2 s')"], ["wait", 3.0], ["eval", C + ".letters('5 s')"], ["wait", 5.0], ["eval", C + ".letters('10 s')"], ["shot", "letters"],
+		["eval", "get_tree().quit()"]]
 	return s
 
 

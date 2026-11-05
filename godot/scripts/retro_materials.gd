@@ -98,27 +98,48 @@ func _on_node_added(n: Node) -> void:
 const LABEL_PULL := 0.011
 var _labels_new: Array = []
 var _labels: Array = []          # {ref, base: its own position, last: as set here}
+## Label id -> its record. A label that comes into the tree again (hung on a door with
+## door_anim: reparented) is still the one label: two records took each other's pulled place
+## for a move of its own, a share nearer the eye every frame, and the toilets' M and Z flew
+## after you all over the map (the user 5. 11., "for the third time").
+var _label_recs: Dictionary = {}
 
 
 func _pull_labels() -> void:
 	for wr in _labels_new:
 		var l = wr.get_ref()
 		if l != null and is_instance_valid(l) and not (l as Label3D).no_depth_test and not (l as Node).has_meta("retro_skip"):
-			_labels.append({"ref": wr, "base": (l as Label3D).position, "last": (l as Label3D).position})
+			var id: int = (l as Node).get_instance_id()
+			if _label_recs.has(id):
+				(_label_recs[id] as Dictionary)["moved"] = true
+				continue
+			var rec := {"ref": wr, "base": (l as Label3D).position, "last": (l as Label3D).position, "id": id}
+			_label_recs[id] = rec
+			_labels.append(rec)
 	_labels_new.clear()
 	var keep: Array = []
 	for rec in _labels:
 		var l = (rec["ref"] as WeakRef).get_ref()
 		if l == null or not is_instance_valid(l):
+			_label_recs.erase(int(rec["id"]))
 			continue
 		keep.append(rec)
 		var lb := l as Label3D
 		if not lb.is_inside_tree() or not lb.is_visible_in_tree():
 			continue
+		var cam := lb.get_viewport().get_camera_3d()
+		# Under a new parent, kept where it was: pulled as it stood, so its own place is back
+		# along the line from the eye.
+		if bool(rec.get("moved", false)):
+			rec.erase("moved")
+			if cam != null and lb.get_parent() is Node3D:
+				var eye0 := cam.global_position
+				var own: Vector3 = eye0 + (lb.global_position - eye0) / (1.0 - LABEL_PULL)
+				rec["base"] = (lb.get_parent() as Node3D).global_transform.affine_inverse() * own
+				rec["last"] = lb.position
 		# Moved by its own code since: that is where it is now.
 		if lb.position != rec["last"]:
 			rec["base"] = lb.position
-		var cam := lb.get_viewport().get_camera_3d()
 		if cam == null:
 			continue
 		var p := lb.get_parent() as Node3D

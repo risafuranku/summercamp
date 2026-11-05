@@ -834,7 +834,9 @@ func _set_door_open(open: bool, tell := true) -> void:
 		# The flaps rolled up and tied either side of the doorway.
 		for sx: float in [-1.0, 1.0]:
 			var roll := _add_box("DoorRoll%s" % ("L" if sx < 0.0 else "R"), Vector3(sx * TENT_HALF_WIDTH * 0.62, 0.42, 1.1), Vector3(0.09, 0.62, 0.09), Color(0.58, 0.48, 0.40))
-			roll.rotation_degrees.z = -sx * rad_to_deg(atan2(TENT_HALF_WIDTH, TENT_RIDGE_HEIGHT)) * 0.9
+			# (Along the doorway's edge, up to the ridge: leaned the other way they stuck out
+			# through the canvas, the user 5. 11.)
+			roll.rotation_degrees.z = sx * rad_to_deg(atan2(TENT_HALF_WIDTH, TENT_RIDGE_HEIGHT)) * 0.9
 			roll.visible = false
 	var changed := open != _door_open
 	_door_open = open

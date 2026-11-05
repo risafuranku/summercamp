@@ -16,6 +16,9 @@ extends Node3D
 ## wall like the maze's, and the strip ends where the camp's fence line would.
 
 const CORN_TEX := "res://assets/textury/world/corn.png"
+const GROUND_SHADER := preload("res://materials/corn_ground.gdshader")
+const GROUND_SOIL := preload("res://assets/textury/world/corn_soil.png")
+const GROUND_WAY := preload("res://assets/textury/world/corn_way.png")
 const SCARECROW_TEX := "res://assets/textury/world/scarecrow.png"
 const HUM_SFX := "res://assets/sfx/world/pylon_hum.mp3"
 const RUSTLE_SFX := "res://assets/sfx/world/corn_rustle.mp3"
@@ -463,36 +466,29 @@ func _build_corn(rng: RandomNumberGenerator) -> void:
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.add_to_group("season_crop")
 	add_child(mi)
-	# The soil under it: darker, ploughed.
+	# The soil under it, ploughed, and the maze's ways trodden pale through it (straw and
+	# dust on them): where you can go reads as a path between the walls of corn, by day and
+	# in the torch. One surface, its shader told where the ways are by a map of the maze, a
+	# pixel a tile.
 	var soil := MeshInstance3D.new()
+	soil.name = "CornGround"
 	var plane := PlaneMesh.new()
 	plane.size = field_rect.size + Vector2(2, 2)
 	soil.mesh = plane
 	soil.position = Vector3(field_rect.get_center().x, 0.015, field_rect.get_center().y)
-	var sm := StandardMaterial3D.new()
-	sm.albedo_color = Color(0.24, 0.19, 0.13)
+	soil.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var map := Image.create(maze_cols, maze_rows, false, Image.FORMAT_L8)
+	for c: Vector2i in maze_open.keys():
+		if c.x >= 0 and c.y >= 0 and c.x < maze_cols and c.y < maze_rows:
+			map.set_pixel(c.x, c.y, Color.WHITE)
+	var sm := ShaderMaterial.new()
+	sm.shader = GROUND_SHADER
+	sm.set_shader_parameter("soil", GROUND_SOIL)
+	sm.set_shader_parameter("way", GROUND_WAY)
+	sm.set_shader_parameter("maze", ImageTexture.create_from_image(map))
+	sm.set_shader_parameter("maze_rect", Vector4(maze_rect.position.x, maze_rect.position.y, maze_rect.size.x, maze_rect.size.y))
 	soil.material_override = sm
 	add_child(soil)
-	# The maze's ways trodden pale (straw and dust on them): where you can go reads as a
-	# path between the walls of corn, by day and in the torch.
-	var trod := MultiMesh.new()
-	trod.transform_format = MultiMesh.TRANSFORM_3D
-	var tile := PlaneMesh.new()
-	tile.size = Vector2(TILE, TILE)
-	trod.mesh = tile
-	var open_tiles: Array = maze_open.keys()
-	trod.instance_count = open_tiles.size()
-	for i in open_tiles.size():
-		trod.set_instance_transform(i, Transform3D(Basis(), tile_world(open_tiles[i]) + Vector3(0, 0.025, 0)))
-	var trod_mi := MultiMeshInstance3D.new()
-	trod_mi.name = "MazeWays"
-	trod_mi.multimesh = trod
-	var tm := StandardMaterial3D.new()
-	tm.albedo_color = Color(0.44, 0.37, 0.24)
-	tm.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
-	trod_mi.material_override = tm
-	trod_mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(trod_mi)
 
 
 func _cross_quad(size: Vector2) -> ArrayMesh:
