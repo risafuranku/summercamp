@@ -133,6 +133,11 @@ python godot/tools/window_coop.py [OUT_DIR] # the reception's windows for two: f
 #   res://tools/soak_check.tscn      three days and nights of every kind of guest at a fast clock (--days=N --speed=K): an hourly line; grep SCRIPT ERROR / ERROR:
 #   res://tools/smrk_check.tscn      a walk into a spruce: held off at its branches' tips, crouched in under it, eased out standing up; what the branches cut off on the map
 #   res://tools/smrt_check.tscn      dead and back: a warden's camp saved, killed, LOAD LAST SAVE straight in (run with its own empty APPDATA: it makes a warden)
+# W26 one world (5. 11.; windowed, --audio-driver Dummy, -- --out=DIR --part=...):
+#   res://tools/onesun_check.tscn    sweep: the reception by the hour, three views held still; ratio: the sun's square on the counter
+#                                    and the back door, with and without the sun (scratchpad patch_stat); out / glass: the reception
+#                                    from the camp; rain: 35 s of rain inside; weather; lights (every light near the room); perf (what
+#                                    each viewport draws); cabin (--quick: noon only): cabin_1 inside and out
 ```
 
 - On some PCs the headless run segfaults once the title screen is up (1. 11., at HEAD too:
@@ -427,12 +432,25 @@ every night's sewer, toilets and frozen pipes the moment they broke).
  (`building_upgrade_menu.gd`) turns off the asking room's `set_process_input` while it is
  up and closes itself when that room is gone; before that its Close never got the click
  and S left the room with the panel still on screen and the mouse captured.
-- **The reception's front door is a second portal**: the doorway (`_setup_door_view`) is
- drawn by a camera that copies the room camera mapped into the camp, at the room
- viewport's size (the quad samples `SCREEN_UV`), so it stays sharp right up to the
- cut into the camp; the camp building's DoorLeaf is on GLASS_LAYER, which portal cameras cull.
- Walking out sets `walked_out` and the player is put where the room's eye was
- (`walk_out_handoff`), collisions off for the last step.
+- **One world (W26, 5. 11.)**: the reception and the cabins are built in the camp's own
+ World3D (their SubViewport has `own_world_3d = false` and meta `retro_room`), the room
+ standing in its building every frame (`building_interior._bind_one_world`,
+ `cabin_interior._bind_one_world`: the cabin you are in, or out in the camp the one you
+ look in at; farther cabins keep their `room_cube`). What they share is
+ `scripts/one_world_room.gd`: the room's eye culls the building's own glass, frames and door
+ leaf (`GLASS_LAYER`, bit 19) and has its own exposure; an interior ReflectionProbe gives the
+ ambient (the room's `Environment` only holds the numbers); a `GPUParticlesCollisionBox3D`
+ keeps the rain out (the rain hides on contact); by day, while the sun shines in
+ (`sun_shining`), the room's own fill and lamps go down and the eye opens; heard from the
+ camp the room's 3D sounds go through `WORLD_SOUNDS.wall_bus`; while you are in a room the
+ camp's own viewport is not drawn nor heard from (`camp_view`). The building and the room
+ must be one plan (`reception_layout`, `cabin_layout`): the model's walls have the room's
+ openings (the cabin's a 4 cm skin, the room's walls 3 cm short of its outer face, so no two
+ faces meet), its window frames are rings, its panes glass while the room is in it. The
+ reception's doorway is a real opening; walking out still sets `walked_out` and puts the
+ player where the room's eye was (`walk_out_handoff`). Tents, caravans and the service
+ rooms are still worlds of their own with portals (their rooms are not the size of their
+ models).
 - **A room's windows share ONE view of the camp** (`scripts/ui/window_shared_view.gd`, the
   user 25. 10.: "shared like this in all interiors, and in every future one"): one camera
   at the room's eye mapped into the camp, the room camera's lens, the room's pixel size;
@@ -760,12 +778,11 @@ every night's sewer, toilets and frozen pipes the moment they broke).
   `CRT_RESOLUTION`. Both programs on screen are visible and running: a program that reads
   keys in `_input` must also ask `OS_KEYS.here(self)` (only the screen looked at takes
   keys), message boxes open on the screen looked at (`_make_dialog` adds `screen_origin`).
-- **The office's windows render the office** (21. 10.): from the camp the reception's panes
-  show the office's own world through a second camera (`_inview_*`). Anything in the office
-  that lies over its windows for the inside only (the camp's view, the doorway's view, the
-  rain on the glass) is on `INVIEW_HIDE_LAYER` (bit 17) so the camera from outside skips
-  it: a new such quad must go there too (`_hide_from_camp`). Office state that should
-  show from outside must live in the room while it is shut (it is not `visible` then).
+- **A one-world room's inside-only things** (its own front door, the rain on its glass, a
+  cabin's own panes) are on `INVIEW_HIDE_LAYER` (bit 17), which the player's camera culls
+  (`player_controller._ensure_camera`): a new such thing must go there too
+  (`_hide_from_camp`). Office state that should show from outside must live in the room
+  while it is shut (it is not `visible` then).
 - **Faces, signs and boards on walls fight them** under the PS1 vertex snap (the snap moves
   the corners of a quad and the wall under it a different way; a centimetre between them
   is not enough). `retro_materials.gd` pulls every QuadMesh / PlaneMesh and every thin
