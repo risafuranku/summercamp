@@ -62,7 +62,9 @@ const FRONT_WALK_IN_SEC := 2.0
 const FRONT_STEP_IN := Vector3(1.72, 1.48, -2.36)
 const FRONT_STEP_OUT := Vector3(1.72, 1.48, -3.1)
 const FRONT_FADE_Z := -2.45
-const FRONT_DOOR_OPEN_DEG := 82.0
+## Out, as the camp sees it open (door_anim.OPEN_DEG: the user 5. 11., in from inside and
+## out from outside).
+const FRONT_DOOR_OPEN_DEG := -82.0
 var _leaving := false
 ## The door's own two sounds, the same as InteriorManager's on the way in.
 const SFX_FRONT_DOOR := "res://assets/sfx/rooms/office_door_open.mp3"

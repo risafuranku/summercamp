@@ -14,6 +14,93 @@ func say(text: String) -> void:
 	print("Y ", text)
 
 
+## The faces of a room's meshes lying in one plane with the meshes round it and facing the
+## same way, overlapping (Y2): the two fight, whichever wins from where you stand. `room`
+## a node in the scene, what is round it anything in `around` not under it.
+func fights(tag: String, room: Node3D, around: Node3D) -> void:
+	var a := _faces(room, null)
+	var b := _faces(around, room)
+	var row: Array = []
+	for fa in a:
+		for fb in b:
+			if int(fa[0]) != int(fb[0]) or int(fa[1]) != int(fb[1]) or absf(float(fa[2]) - float(fb[2])) > 0.006:
+				continue
+			var w := minf(float(fa[4]), float(fb[4])) - maxf(float(fa[3]), float(fb[3]))
+			var h := minf(float(fa[6]), float(fb[6])) - maxf(float(fa[5]), float(fb[5]))
+			if w <= 0.03 or h <= 0.03 or w * h < 0.02:
+				continue
+			row.append("%s / %s %.2f m2" % [str(fa[7]), str(fb[7]), w * h])
+	say("FIGHTS %s %d (%d faces, %d round): %s" % [tag, row.size(), a.size(), b.size(), "; ".join(row.slice(0, 24))])
+
+
+func _faces(under: Node3D, leave: Node3D) -> Array:
+	var out: Array = []
+	for n in under.find_children("*", "MeshInstance3D", true, false):
+		var mi := n as MeshInstance3D
+		if mi == null or not mi.is_visible_in_tree() or mi.mesh == null or (leave != null and (leave == mi or leave.is_ancestor_of(mi))):
+			continue
+		if not (mi.mesh is BoxMesh or mi.mesh is QuadMesh or mi.mesh is PlaneMesh):
+			continue
+		var bs := mi.global_basis.orthonormalized()
+		var square := true
+		for v: Vector3 in [bs.x, bs.y, bs.z]:
+			if maxf(absf(v.x), maxf(absf(v.y), absf(v.z))) < 0.999:
+				square = false
+		if not square:
+			continue
+		var b := mi.global_transform * mi.get_aabb()
+		for ax in 3:
+			var u := (ax + 1) % 3
+			var v := (ax + 2) % 3
+			out.append([ax, -1, b.position[ax], b.position[u], b.end[u], b.position[v], b.end[v], mi.name])
+			out.append([ax, 1, b.end[ax], b.position[u], b.end[u], b.position[v], b.end[v], mi.name])
+	return out
+
+
+## What of the camp's world stands inside this room's box (Y2): the outside poking in.
+func intruders(root_path: String, lo: Vector3, hi: Vector3) -> void:
+	var bi = _bi()
+	var room: Node3D = bi.get(root_path)
+	var box := room.global_transform * AABB(lo, hi - lo)
+	var row: Array = []
+	var seen := 0
+	for n in get_tree().root.find_children("*", "GeometryInstance3D", true, false):
+		var g := n as GeometryInstance3D
+		if g == null or not g.is_inside_tree() or not g.is_visible_in_tree() or room.is_ancestor_of(g) or g.get_world_3d() != room.get_world_3d():
+			continue
+		seen += 1
+		var mmi := g as MultiMeshInstance3D
+		if mmi != null and mmi.multimesh != null:
+			var hits := 0
+			for i in mmi.multimesh.visible_instance_count if mmi.multimesh.visible_instance_count >= 0 else mmi.multimesh.instance_count:
+				var at: Vector3 = mmi.global_transform * mmi.multimesh.get_instance_transform(i).origin
+				if box.has_point(at):
+					hits += 1
+			if hits > 0:
+				row.append("%s multimesh x%d %s" % [mmi.name, hits, str(mmi.get_path()).right(60)])
+			continue
+		var b := g.global_transform * g.get_aabb()
+		if b.size.length() < 60.0 and b.intersects(box):
+			row.append("%s %s %s" % [g.name, str(b.position.snapped(Vector3.ONE * 0.1)) + str(b.size.snapped(Vector3.ONE * 0.1)), str(g.get_path()).right(60)])
+	say("INTRUDERS %d of %d: %s" % [row.size(), seen, "
+".join(row)])
+
+
+## The lights lit round the warden, and the sun and the ambient, at this moment.
+func lights_round() -> void:
+	var p: Node3D = _main.get("_player")
+	var sun: DirectionalLight3D = _main.get("sun")
+	var env: Environment = _main.get("world_environment").environment
+	var row: Array = []
+	for n in get_tree().root.find_children("*", "Light3D", true, false):
+		var l := n as Light3D
+		if l == null or not l.is_visible_in_tree() or l.light_energy <= 0.001 or l is DirectionalLight3D:
+			continue
+		if l.global_position.distance_to(p.global_position) < 30.0:
+			row.append("%s %.2f %s" % [l.name, l.light_energy, str(l.global_position.snapped(Vector3.ONE))])
+	say("LIGHTS h=%.2f sun=%.2f col=%s sh=%s dir=%s amb=%.2f %s near=%s" % [float(_main.get("_time_of_day_hours")), sun.light_energy, str(sun.light_color), str(sun.shadow_enabled), str((-sun.global_basis.z).snapped(Vector3.ONE * 0.01)), env.ambient_light_energy, str(env.ambient_light_color), str(row)])
+
+
 func _ready() -> void:
 	super._ready()
 	var y := ""
@@ -35,6 +122,12 @@ func _ready() -> void:
 			_steps = _marks()
 		"wc":
 			_steps = _wc()
+		"dusk":
+			_steps = _dusk()
+		"clip":
+			_steps = _clip()
+		"rooms":
+			_steps = _rooms()
 
 
 ## R turns what you are about to build, with the pointer anywhere (Y14).
@@ -150,6 +243,63 @@ func _wc() -> Array:
 		["eval", cell + ".set('maint_r', 0.2)"], ["eval", cell + ".set('maintenance', 0.2)"], ["wait", 1.0], ["eval", hint],
 		["eval", cell + ".set('maint_l', 1.0)"], ["eval", cell + ".set('maintenance', 0.2)"], ["wait", 2.5], ["eval", "_trouble_rows(_interior_manager.business)"], ["eval", hint], ["shot", "wc_right_only"],
 		["eval", "get_tree().quit()"]]
+	return s
+
+
+## The paths round 18:50 (Y17): the camp from above while the low sun goes down.
+func _dusk() -> Array:
+	var s: Array = BOOT.duplicate(true)
+	s += [["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
+		["eval", "debug_jump_to(1, 18.45)"], ["wait", 0.5], ["topdown", 2, 2, 22, 20], ["wait", 0.5]]
+	for i in 60:
+		s += [["wait", 0.28], ["shot", "top_%02d" % i]]
+	s += [["eval", "get_tree().quit()"]]
+	return s
+
+
+## Behind the bed in the back room, the reception's skirting boards (Y2).
+func _clip() -> Array:
+	var s: Array = BOOT.duplicate(true)
+	s += [["wait", 2.0], ["eval", BI + "._exit_crt_view()"], ["wait", 2.0], ["eval", "debug_jump_to(1, 12.0)"], ["wait", 1.0], ["mouse", 0.5, 0.5]]
+	var k := 0
+	for p in ["Vector3(0.0, 0.1, 2.3)", "Vector3(2.4, 0.1, 2.0)", "Vector3(2.4, 0.1, -1.0)", "Vector3(0.0, 0.1, -2.3)", "Vector3(-2.4, 0.1, -1.0)", "Vector3(-2.4, 0.1, 1.5)"]:
+		s += [["eval", C + ".rec_face(%s)" % p], ["wait", 1.2], ["shot", "rec_%d" % k]]
+		k += 1
+	s += [["eval", C + ".intruders('_room_root', Vector3(-5.6, 0.05, -2.6), Vector3(2.6, 2.6, 2.6))"],
+		["eval", C + ".fights('reception', " + BI + "._room_root, debug_structure_of_type('main_building'))"]]
+	s += [["eval", BI + "._extras.go_back_room()"], ["wait", 3.0]]
+	k = 0
+	for m in [[0.1, 0.6], [0.5, 0.75], [0.9, 0.6], [0.5, 0.95]]:
+		s += [["mouse", m[0], m[1]], ["wait", 1.0], ["shot", "back_%d" % k]]
+		k += 1
+	s += [["eval", BI + "._extras.go_back_window(true)"], ["wait", 3.0]]
+	for m in [[0.1, 0.6], [0.5, 0.75], [0.9, 0.6], [0.5, 0.95]]:
+		s += [["mouse", m[0], m[1]], ["wait", 1.0], ["shot", "back_%d" % k]]
+		k += 1
+	s += [["eval", "get_tree().quit()"]]
+	return s
+
+
+## Every room in its building: anything of it in one plane with the building's own (Y2).
+func _rooms() -> Array:
+	var IM := "_interior_manager."
+	var s: Array = BOOT.duplicate(true)
+	s += [["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0], ["money", 900000],
+		["clear", 5, 4, 5, 7], ["build", "bowling", 6, 5, 0], ["wait", 0.5],
+		["clear", 12, 11, 7, 3], ["build", "tent_1", 13, 12, 0], ["wait", 0.5],
+		["clear", 12, 14, 4, 3], ["build", "caravan_1", 13, 15, 0], ["wait", 0.5],
+		["clear", 4, 9, 5, 5], ["clear", 9, 9, 3, 5], ["clear", 9, 14, 3, 5], ["build", "pub", 5, 10, 0], ["wait", 0.5], ["clear", 4, 14, 5, 5], ["build", "staffroom", 5, 15, 0],
+		["clear", 16, 14, 5, 5], ["build", "restaurant", 17, 15, 0], ["clear", 21, 9, 5, 5], ["build", "vecerka", 22, 10, 0], ["wait", 2.0],
+		["eval", "debug_repair_ruined()"], ["eval", "debug_jump_to(1, 13.0)"], ["wait", 2.0]]
+	for rr in [["cabin_1", "_cabin_interior", "_cabin_root", "close_cabin"], ["caravan_1", "_caravan_interior", "_root", "close_caravan"], ["bowling", "_bowling_interior", "_root", "close_bowling"], ["tent_1", "_tent_interior", "_tent_root", "close_tent"],
+			["pub", "_service_interior", "_room_root", "close_service"], ["restaurant", "_service_interior", "_room_root", "close_service"], ["vecerka", "_service_interior", "_room_root", "close_service"], ["staffroom", "_service_interior", "_room_root", "close_service"]]:
+		var ty: String = rr[0]
+		s += [["eval", "set('debug_camera', null)"], ["door_front", ty, 2.0], ["wait", 0.5],
+			["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('%s'))" % ty], ["wait", 5.0],
+			["shot", "room_%s" % ty],
+			["eval", C + ".fights('%s', %s%s.%s, debug_structure_of_type('%s'))" % [ty, IM, rr[1], rr[2], ty]],
+			["eval", IM + rr[1] + "." + rr[3] + "()"], ["wait", 2.5]]
+	s += [["eval", "get_tree().quit()"]]
 	return s
 
 

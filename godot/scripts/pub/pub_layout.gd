@@ -296,7 +296,8 @@ static func bar(parent: Node3D, si) -> void:
 ## double door (the user 4. 11.: "outside it is halved down the middle, inside one plain
 ## leaf; leaving it did not open, it vanished: one pub door"), each leaf's face cut from the
 ## front's picture and seen from behind, on its hinges at its outer edge (door_through
-## swings them open into the room on the way out, meta swing_deg), a frame round it. A click
+## swings them open out of the room on the way out, as the camp sees them open, meta
+## swing_deg), a frame round it. A click
 ## on it is the way out (service_interior "service_front_door").
 static func _front_door(parent: Node3D) -> void:
 	var at := Vector3(FRONT_DOOR.x, 0.0, SIZE.z * 0.5)
@@ -308,7 +309,7 @@ static func _front_door(parent: Node3D) -> void:
 		hinge.name = "FrontDoorHinge%s" % ("W" if side < 0.0 else "E")
 		hinge.position = at + Vector3(side * half, 0.0, -0.014)
 		hinge.set_meta("door_leaf", true)
-		hinge.set_meta("swing_deg", -side * DOOR_SWING)
+		hinge.set_meta("swing_deg", side * DOOR_SWING)
 		parent.add_child(hinge)
 		var leaf := MeshInstance3D.new()
 		leaf.name = "FrontDoor%s" % ("W" if side < 0.0 else "E")

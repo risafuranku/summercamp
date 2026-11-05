@@ -523,7 +523,7 @@ func _tick_out() -> void:
 			if not is_instance_valid(n) or not (n as Node3D).visible:
 				continue
 			if (n as Node).has_meta("swing_deg"):
-				# A leaf on its hinges opens into the room as the camp's does (it vanished, the
+				# A leaf on its hinges opens out with the camp's (it vanished, the
 				# user 4. 11.), shut again once you are out (finish).
 				var sw := (n as Node3D).create_tween()
 				sw.tween_property(n, "rotation_degrees:y", float((n as Node).get_meta("swing_deg")), 0.75).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)

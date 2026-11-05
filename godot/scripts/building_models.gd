@@ -1858,7 +1858,7 @@ func _plinth(r: Node3D, sx: float, sz: float, at := Vector3.ZERO) -> void:
 const PLINTH_TOP := 0.13
 
 
-func _plinth_ring(r: Node3D, sx: float, sz: float, at := Vector3.ZERO, band := 0.25) -> void:
+func _plinth_ring(r: Node3D, sx: float, sz: float, at := Vector3.ZERO, band := 0.13) -> void:
 	var mat := _camp_or("concrete.png", Color(0.54, 0.54, 0.5), "stone")
 	var h := PLINTH_TOP + 0.05
 	var y := PLINTH_TOP - h * 0.5
@@ -2380,6 +2380,11 @@ func reception(r: Node3D) -> Dictionary:
 	var z1 := b.end.y
 	var h: float = L.WALL_H
 	var t := 0.12
+	# (The walls' boards a little off the rooms' own walls: their inner faces in one plane
+	# as the rooms' wallpaper, the two fought, red planks through the paper behind the bed,
+	# the user 5. 11.)
+	var off := 0.03
+	var tw := t - off
 	var planks := _camp("planks_red.png", Color(0.98, 0.9, 0.82), Vector3(1.6, 1.6, 1.0))
 	var trim := _camp("planks_grey.png", Color(0.95, 0.94, 0.9), Vector3(1.0, 1.0, 1.0))
 	_plinth_ring(r, b.size.x + 0.3, b.size.y + 0.3, Vector3((x0 + x1) * 0.5, 0, (z0 + z1) * 0.5))
@@ -2410,26 +2415,26 @@ func reception(r: Node3D) -> Dictionary:
 	var sy1 := sc.y + ss.y * 0.5
 
 	# Front wall (z1), around the door and the office window.
-	var fz := z1 + t * 0.5
-	_wall_x(r, "FrontA", x0, dx0, 0.0, h, fz, t, planks)
-	_wall_x(r, "FrontDoorTop", dx0, dx1, L.DOOR_H, h, fz, t, planks)
-	_wall_x(r, "FrontB", dx1, wx0, 0.0, h, fz, t, planks)
-	_wall_x(r, "FrontUnder", wx0, wx1, 0.0, wy0, fz, t, planks)
-	_wall_x(r, "FrontOver", wx0, wx1, wy1, h, fz, t, planks)
-	_wall_x(r, "FrontC", wx1, x1, 0.0, h, fz, t, planks)
+	var fz := z1 + off + tw * 0.5
+	_wall_x(r, "FrontA", x0, dx0, 0.0, h, fz, tw, planks)
+	_wall_x(r, "FrontDoorTop", dx0, dx1, L.DOOR_H, h, fz, tw, planks)
+	_wall_x(r, "FrontB", dx1, wx0, 0.0, h, fz, tw, planks)
+	_wall_x(r, "FrontUnder", wx0, wx1, 0.0, wy0, fz, tw, planks)
+	_wall_x(r, "FrontOver", wx0, wx1, wy1, h, fz, tw, planks)
+	_wall_x(r, "FrontC", wx1, x1, 0.0, h, fz, tw, planks)
 	# Back wall: whole. West wall (the office's end), around its side window.
-	_wall_x(r, "Back", x0 - t, x1 + t, 0.0, h, z0 - t * 0.5, t, planks)
-	var wx := x0 - t * 0.5
-	_wall_z(r, "WestA", z0, sz0, 0.0, h, wx, t, planks)
-	_wall_z(r, "WestUnder", sz0, sz1, 0.0, sy0, wx, t, planks)
-	_wall_z(r, "WestOver", sz0, sz1, sy1, h, wx, t, planks)
-	_wall_z(r, "WestB", sz1, z1, 0.0, h, wx, t, planks)
+	_wall_x(r, "Back", x0 - t, x1 + t, 0.0, h, z0 - off - tw * 0.5, tw, planks)
+	var wx := x0 - off - tw * 0.5
+	_wall_z(r, "WestA", z0, sz0, 0.0, h, wx, tw, planks)
+	_wall_z(r, "WestUnder", sz0, sz1, 0.0, sy0, wx, tw, planks)
+	_wall_z(r, "WestOver", sz0, sz1, sy1, h, wx, tw, planks)
+	_wall_z(r, "WestB", sz1, z1, 0.0, h, wx, tw, planks)
 	# East wall (the gate lane side), around the back room's window.
-	var ex := x1 + t * 0.5
-	_wall_z(r, "EastA", z0, bz0, 0.0, h, ex, t, planks)
-	_wall_z(r, "EastUnder", bz0, bz1, 0.0, by0, ex, t, planks)
-	_wall_z(r, "EastOver", bz0, bz1, by1, h, ex, t, planks)
-	_wall_z(r, "EastB", bz1, z1 + t, 0.0, h, ex, t, planks)
+	var ex := x1 + off + tw * 0.5
+	_wall_z(r, "EastA", z0, bz0, 0.0, h, ex, tw, planks)
+	_wall_z(r, "EastUnder", bz0, bz1, 0.0, by0, ex, tw, planks)
+	_wall_z(r, "EastOver", bz0, bz1, by1, h, ex, tw, planks)
+	_wall_z(r, "EastB", bz1, z1 + t, 0.0, h, ex, tw, planks)
 	# Corner posts.
 	for cx: float in [x0 - t, x1 + t]:
 		for cz: float in [z0 - t, z1 + t]:
