@@ -498,8 +498,16 @@ every night's sewer, toilets and frozen pipes the moment they broke).
  block under the floors fought them). By day, as the sun comes in, the front room's fill and
  lamps go down and its eye opens (`service_interior.DAY_*`, less than a lodging's: the
  stations want seeing). Only the toilets, showers, generator and sewer keep a world of their
- own (no windows). A shot of a station or a room turned the wrong way in a run is the real
- mouse: the look follows the PC's cursor; run it again before looking for a bug. **A room's probe is for its own things only**
+ own (no windows). Walking up to a business's door brings up its people, stations and marks
+ already (`door_ready` calls `set_upkeep_target`, `_started_for` stops the second call): the
+ open door shows the room as it is. A shot of a station or a room turned the wrong way in a
+ run is the real mouse: the look follows the PC's cursor; run it again before looking for a
+ bug. **Stock on a quad:** a quad is pulled toward the eye (`retro_materials._pull_of`), from
+ metres off it comes out in front of sprites standing on it: `retro_no_pull` on the picture
+ behind them (the Jednota's `RackFront`: its goods were seen only at the station). **A record
+ made before the books:** a room in the camp can ask for a business's record the frame the
+ building is put up, the books come within the second (`Jednota.site`: `no_books`, the rack
+ filled once they are there, or a new shop stayed empty for good). **A room's probe is for its own things only**
  (`reflection_mask` = `ROOM_LAYER`, the room's meshes marked by `one_world_room.own_layer`
  now and then): its box takes in what stands outside the walls, and the room's dim ambient
  darkened the reception's back wall and the lean-to's roof from outside. To see a room's
