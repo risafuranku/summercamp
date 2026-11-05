@@ -456,6 +456,17 @@ func photo_windows() -> Array:
 	return out
 
 
+## The guests' hands on the curtains while you look in from the camp (window_lights): the
+## room standing in `van`, its curtains as its panes have them.
+func guest_curtains(van: Node3D, shut: Array) -> void:
+	if van != _inview_van or _is_open:
+		return
+	for i in mini(shut.size(), _windows.size()):
+		var cur = _windows[i].curtain
+		if cur != null:
+			cur.target = 0.0 if bool(shut[i]) else 1.0
+
+
 func curtains_state() -> Array:
 	var out: Array = []
 	for w in _windows:

@@ -19,6 +19,16 @@ extends Node3D
 ##     their lanterns as ever.
 ## The same lodgings light on every machine in co-op: the times come from the lodging and
 ## the day, the guests from the host's pulse. Stepped, twelve a second.
+##
+## They do not like being looked at (the user 5. 11., "as the pigs in Don't Starve put their
+## lights out when you come near"): some lodgings pull their curtains for the night at their
+## own time, a window after a window; come up to a lit cabin or caravan to spy and they all
+## do, quickly; go away and somebody draws them again, a little less likely each time, till
+## they stay shut till the morning. Each pane its own (window_cube's `shut`). A tent has no
+## curtain: it puts its light out when you come near and pretends to sleep. Behind the
+## windows somebody moves about now and then, their shape on the curtain or against the
+## lamp (`figure`), and now and then a curtain lifts at a corner while you stand there.
+## Each machine by its own warden: a thing of the eye, nothing in the books.
 
 const FPS := 12.0
 const WINDOW_LIT := "res://assets/textury/camp/window_lit.png"
@@ -38,6 +48,36 @@ const ROOM_CUBE = preload("res://scripts/ui/room_cube.gd")
 ## By day the room is darker than the day outside (as the live view's, window_into).
 const DAY_ROOM := 0.62
 const MOON := Color(0.42, 0.5, 0.66)
+## How near you must come for them to mind, from the middle of the lodging (m), and how far
+## away to be gone. How far from you anybody is seen moving at all.
+const SPY_NEAR := {"cabin": 8.5, "caravan": 7.5, "tent": 6.5}
+const SPY_GONE := 4.5
+const LIFE_WITHIN := 46.0
+## A share of the lodgings draws them for the night anyway; from when, over how long.
+const DRAW_SHARE := 0.42
+const DRAW_FROM := 19.5
+const DRAW_OVER := 2.2
+## The chance they draw them again once you have gone, the first time, the second...: then
+## they stay shut. Seconds after you went, somebody gets up.
+const REOPEN := [0.9, 0.75, 0.4, 0.0]
+const REOPEN_AFTER := Vector2(3.0, 9.0)
+## A hand along the rod: a share of the way a second; the next window after this long (s),
+## in a hurry or at leisure.
+const PULL_SPEED := 1.7
+const PULL_GAP_QUICK := Vector2(0.35, 0.8)
+const PULL_GAP := Vector2(1.6, 4.5)
+## Somebody crossing the room: the wait (s), how long it takes, how tall against the pane.
+const WALK_EVERY := Vector2(5.0, 19.0)
+const WALK_SEC := Vector2(1.5, 3.6)
+const FIGURE_H := 2.1
+const FIGURE_DARK := 0.74
+## A curtain lifted at the corner while you stand there: the wait, how far, how long.
+const PEEK_EVERY := Vector2(7.0, 18.0)
+const PEEK_OPEN := 0.8
+const PEEK_SEC := 1.3
+const SFX_SHUT := preload("res://assets/sfx/backroom/curtain_shut.mp3")
+const SFX_OPEN := preload("res://assets/sfx/backroom/curtain_open.mp3")
+const FIGURE_TEX := preload("res://assets/textury/npc/host1.png")
 const CAMP := "res://assets/textury/camp/"
 ## The room seen through a lit window, by kind: textures, depth, width, height, and how
 ## high its floor is over the ground outside.
@@ -61,10 +101,18 @@ var _in: Dictionary = {}             # key -> true: guests in the lodging (awake
 var _forced: Dictionary = {}         # key -> "on" / "off": lit or dark whatever the hour (set_forced)
 var _tex_lit: Texture2D
 var _tex_tv: Texture2D
+var _pull_snd: AudioStreamPlayer3D
+var _clock := 0.0
 
 
 func _ready() -> void:
 	name = "WindowLights"
+	_pull_snd = AudioStreamPlayer3D.new()
+	_pull_snd.name = "CurtainPull"
+	_pull_snd.unit_size = 3.0
+	_pull_snd.max_distance = 24.0
+	_pull_snd.volume_db = -16.0
+	add_child(_pull_snd)
 	_tex_lit = load(WINDOW_LIT) if ResourceLoader.exists(WINDOW_LIT) else null
 	_tex_tv = load(WINDOW_TV) if ResourceLoader.exists(WINDOW_TV) else null
 
@@ -79,6 +127,7 @@ func _process(delta: float) -> void:
 		_poll_t = 1.0
 		_poll_guests()
 	_acc += delta
+	_clock += delta
 	if _acc < 1.0 / FPS:
 		return
 	_acc = 0.0
@@ -310,7 +359,162 @@ func _update() -> void:
 		if forced != "":
 			on = dark and forced == "on"
 		var tv := str(rec["kind"]) == "cabin" and powered and hour >= 12.0 and _dice(str(key), day, 7) < 0.33 and forced == ""
+		_watched(rec, str(key), on, dark, hour, day, main)
+		# A tent has no curtain: its light is out while you are about.
+		if str(rec["kind"]) == "tent" and bool(rec.get("hiding", false)):
+			on = false
 		_show(rec, on, tv, powered, dark, hour)
+		_life(rec, on, main)
+
+
+# ── being looked at ──────────────────────────────────────────────────────────
+
+## This lodging's night: whether it wants its curtains pulled now, you near or not.
+func _watched(rec: Dictionary, key: String, lit: bool, dark: bool, hour: float, day: int, main: Node) -> void:
+	var night := day if hour >= 12.0 else day - 1
+	if int(rec.get("night", -9)) != night:
+		rec["night"] = night
+		rec["spied"] = 0
+		rec["stay"] = false
+		rec["near"] = false
+		rec["back_at"] = -1.0
+		rec["hiding"] = false
+	var near := bool(rec.get("near", false))
+	var d := _from_you(rec, main)
+	var at: float = float(SPY_NEAR.get(str(rec["kind"]), 8.0))
+	if lit and not near and d < at:
+		near = true
+		rec["spied"] = int(rec["spied"]) + 1
+		rec["back_at"] = -1.0
+	elif near and (d > at + SPY_GONE or not lit):
+		near = false
+		var n := mini(int(rec["spied"]) - 1, REOPEN.size() - 1)
+		if randf() >= float(REOPEN[n]):
+			rec["stay"] = true
+		rec["back_at"] = _clock + randf_range(REOPEN_AFTER.x, REOPEN_AFTER.y)
+	rec["near"] = near
+	var evening: bool = str(rec["kind"]) != "tent" and _dice(key, night, 20) < DRAW_SHARE and _past(hour, DRAW_FROM + DRAW_OVER * _dice(key, night, 21))
+	var hide: bool = dark and (near or bool(rec["stay"]) or evening or _clock < float(rec["back_at"]))
+	if str(rec["kind"]) == "tent":
+		rec["hiding"] = hide
+		return
+	_pull(rec, hide, near)
+	_tick_panes(rec, near)
+	# Near, the room itself stands behind the glass: its own curtains go with the panes.
+	if _in.has(key) or bool(rec.get("pulled", false)):
+		var im = main.get("_interior_manager")
+		var room = im.get("_cabin_interior" if str(rec["kind"]) == "cabin" else "_caravan_interior") if im != null else null
+		if room != null and room.has_method("guest_curtains"):
+			var shuts: Array = []
+			for w in rec["windows"]:
+				shuts.append(is_instance_valid(w) and float((w as Node).get_meta("wl_shut", 0.0)) > 0.5)
+			room.call("guest_curtains", rec["root"], shuts)
+
+
+## Past `hour` this evening (or on into the small hours).
+static func _past(now: float, hour: float) -> bool:
+	return now >= hour or now < 12.0
+
+
+## How far you are from the lodging's middle (INF in a room: you are not out there).
+func _from_you(rec: Dictionary, main: Node) -> float:
+	var p: Node3D = main.get("_player") as Node3D
+	if p == null or not is_instance_valid(rec["root"]) or (main.has_method("_is_any_interior_open") and bool(main.call("_is_any_interior_open"))):
+		return INF
+	var a: Vector3 = (rec["root"] as Node3D).global_position
+	return Vector2(a.x - p.global_position.x, a.z - p.global_position.z).length()
+
+
+## Every pane to go shut or back, one after another in an order of their own.
+func _pull(rec: Dictionary, shut: bool, quick: bool) -> void:
+	if bool(rec.get("pulled", false)) == shut:
+		return
+	rec["pulled"] = shut
+	var order: Array = (rec["windows"] as Array).duplicate()
+	order.shuffle()
+	var gap: Vector2 = PULL_GAP_QUICK if quick else PULL_GAP
+	var when := _clock + randf_range(0.1, gap.x)
+	for w in order:
+		if not is_instance_valid(w):
+			continue
+		(w as Node).set_meta("wl_goal", 1.0 if shut else 0.0)
+		(w as Node).set_meta("wl_when", when)
+		when += randf_range(gap.x, gap.y)
+
+
+func _tick_panes(rec: Dictionary, near: bool) -> void:
+	for w in rec["windows"]:
+		var mi := w as MeshInstance3D
+		if mi == null or not is_instance_valid(mi):
+			continue
+		var now_at := float(mi.get_meta("wl_shut", 0.0))
+		var goal := float(mi.get_meta("wl_goal", 0.0))
+		if _clock < float(mi.get_meta("wl_when", 0.0)):
+			continue
+		# (Lifted at the corner, somebody looking out: it drops again by itself.)
+		if goal >= 1.0 and _clock < float(mi.get_meta("wl_peek", 0.0)):
+			goal = PEEK_OPEN
+		if is_equal_approx(now_at, goal):
+			continue
+		if not bool(mi.get_meta("wl_moving", false)):
+			mi.set_meta("wl_moving", true)
+			_curtain_sound(mi, goal >= now_at)
+		now_at = move_toward(now_at, goal, PULL_SPEED / FPS)
+		mi.set_meta("wl_shut", now_at)
+		mi.set_instance_shader_parameter("shut", now_at)
+		if is_equal_approx(now_at, goal):
+			mi.set_meta("wl_moving", false)
+	if near and _clock >= float(rec.get("peek_next", 0.0)):
+		rec["peek_next"] = _clock + randf_range(PEEK_EVERY.x, PEEK_EVERY.y)
+		var panes: Array = rec["windows"]
+		if not panes.is_empty():
+			var one = panes[randi() % panes.size()]
+			if is_instance_valid(one) and float((one as Node).get_meta("wl_shut", 0.0)) >= 0.99:
+				(one as Node).set_meta("wl_peek", _clock + PEEK_SEC)
+
+
+func _curtain_sound(mi: MeshInstance3D, shut: bool) -> void:
+	if _pull_snd.playing:
+		return
+	_pull_snd.stream = SFX_SHUT if shut else SFX_OPEN
+	_pull_snd.global_position = mi.global_position
+	_pull_snd.pitch_scale = randf_range(0.92, 1.08)
+	_pull_snd.play()
+
+
+## Somebody moving about in there: across a pane now and then, near enough to be seen.
+func _life(rec: Dictionary, lit: bool, main: Node) -> void:
+	var panes: Array = rec["windows"]
+	if panes.is_empty():
+		return
+	var mi := rec.get("walker", null) as MeshInstance3D
+	if mi != null and not is_instance_valid(mi):
+		mi = null
+		rec["walker"] = null
+	if mi != null:
+		var k := (_clock - float(rec["walk_at"])) / maxf(0.1, float(rec["walk_sec"]))
+		if k >= 1.0 or not lit:
+			mi.set_instance_shader_parameter("figure", Vector3.ZERO)
+			rec["walker"] = null
+		else:
+			# In steps with the rest, stopping a moment half way.
+			var x := float(rec["walk_from"]) + (float(rec["walk_to"]) - float(rec["walk_from"])) * (k if k < 0.45 else (0.45 if k < 0.6 else (k - 0.15) / 0.85))
+			mi.set_instance_shader_parameter("figure", Vector3(x, FIGURE_H, FIGURE_DARK))
+		return
+	if not lit or _clock < float(rec.get("walk_next", 0.0)) or _from_you(rec, main) > LIFE_WITHIN:
+		return
+	rec["walk_next"] = _clock + randf_range(WALK_EVERY.x, WALK_EVERY.y)
+	var one = panes[randi() % panes.size()]
+	if not is_instance_valid(one):
+		return
+	var left := randf() < 0.5
+	if (one as MeshInstance3D).mesh is QuadMesh:
+		(one as MeshInstance3D).set_instance_shader_parameter("pane_size", ((one as MeshInstance3D).mesh as QuadMesh).size)
+	rec["walker"] = one
+	rec["walk_at"] = _clock
+	rec["walk_sec"] = randf_range(WALK_SEC.x, WALK_SEC.y)
+	rec["walk_from"] = -0.25 if left else 1.25
+	rec["walk_to"] = 1.25 if left else -0.25
 
 
 ## The cube's material for this lodging's panes, made once its room is drawn (null till
@@ -339,6 +543,7 @@ func _cube_of(rec: Dictionary) -> ShaderMaterial:
 	if ResourceLoader.exists(cpath):
 		m.set_shader_parameter("curtain_tex", load(cpath))
 		m.set_shader_parameter("curtain", 0.72 if kind == "cabin" else 0.3)
+	m.set_shader_parameter("figure_tex", FIGURE_TEX)
 	rec["cube"] = m
 	for w in rec["windows"]:
 		if is_instance_valid(w):
@@ -417,7 +622,7 @@ func _show(rec: Dictionary, on: bool, tv: bool, powered: bool, dark := false, ho
 			if on:
 				room.set_shader_parameter("light", Vector3(col.r, col.g, col.b) if col != LIT_TINT else Vector3(LAMP.r, LAMP.g, LAMP.b))
 				room.set_shader_parameter("energy", clampf(amount * (0.62 if kind == "cabin" else 0.3), 0.0, 1.2))
-				room.set_shader_parameter("curtain", 0.32 if not tv else 0.5)
+				room.set_shader_parameter("curtain", lerpf(0.32 if not tv else 0.5, 1.0, float(mi.get_meta("wl_shut", 0.0))))
 			continue
 		var want: Texture2D = pic if pic != null else m.albedo_texture
 		if on and m.emission_texture != want:

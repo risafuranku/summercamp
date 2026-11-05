@@ -433,6 +433,18 @@ func _tick_photo_flash(delta: float) -> void:
 	_photo_light.light_energy = float(_photo_light.get_meta("peak", 0.0)) * pow(_photo_t / 0.45, 1.6)
 
 
+## The guests' hands on the curtains while you look in from the camp (window_lights): the
+## room standing in `cabin`, its curtains as its panes have them.
+func guest_curtains(cabin: Node3D, shut: Array) -> void:
+	if cabin != _inview_cabin or _is_open:
+		return
+	var portals := _portals_now()
+	for i in mini(shut.size(), portals.size()):
+		var cur = portals[i].get("curtain")
+		if cur != null:
+			cur.target = 0.0 if bool(shut[i]) else 1.0
+
+
 func curtains_state() -> Array:
 	var out: Array = []
 	for pt in _portals_now():
@@ -647,7 +659,7 @@ func _host_panes(cabin: Node3D) -> void:
 	if cabin == null:
 		return
 	if _pane_glass == null:
-		_pane_glass = ONE_WORLD_ROOM.clear_glass()
+		_pane_glass = ONE_WORLD_ROOM.figure_glass()
 	_pane_host_panes = _panes_of(cabin)
 	for p in _pane_host_panes:
 		var mi := p as MeshInstance3D
@@ -702,7 +714,7 @@ const INVIEW_RANGE := 40.0
 ## camera looking in from the camp skips it.
 const INVIEW_HIDE_LAYER := 1 << 17
 var _inview_cabin: Node3D
-var _pane_glass: StandardMaterial3D
+var _pane_glass: Material
 var _inview_panes: Array = []
 var _inview_scan_t := 0.0
 var _inview_light_t := 0.0

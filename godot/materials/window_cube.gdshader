@@ -41,6 +41,12 @@ uniform float depth_pull = 0.0;
 // the pane's size for their texture (as window_room's).
 uniform sampler2D curtain_tex : source_color, filter_nearest, repeat_enable;
 uniform float curtain = 0.0;
+// Each pane its own (window_lights): how far its curtains are pulled across, 0 as they hang,
+// 1 shut, over the live view too; and somebody in the room, x across the pane, height in
+// panes, how dark: their shape on the curtain or against the lamp.
+instance uniform float shut = 0.0;
+instance uniform vec3 figure = vec3(0.0);
+uniform sampler2D figure_tex : filter_nearest;
 uniform vec2 pane = vec2(0.7, 0.6);
 // (Tools: 1 the room's picture alone, 2 which face, 3 where the ray left the box.)
 uniform int debug = 0;
@@ -94,6 +100,18 @@ void fragment() {
 	}
 	if (live > 0.0) {
 		col = mix(col, texture(room_tex, SCREEN_UV).rgb * bright, live);
+	}
+	float drawn = max(c, shut * 0.5);
+	if (shut > 0.0 && (u < drawn || u > 1.0 - drawn)) {
+		vec2 cuv = vec2((u < drawn ? u : 1.0 - u) * pane.x / 0.35, UV.y * pane.y / 0.5);
+		col = texture(curtain_tex, cuv).rgb * light * energy * 0.85;
+	}
+	if (figure.z > 0.0) {
+		float fw = figure.y * 0.5 * pane.y / pane.x;
+		vec2 fuv = vec2((u - figure.x) / fw + 0.5, (UV.y - 0.1) / figure.y);
+		if (fuv.x > 0.0 && fuv.x < 1.0 && fuv.y > 0.0 && fuv.y < 1.0 && texture(figure_tex, fuv).a > 0.5) {
+			col *= 1.0 - figure.z;
+		}
 	}
 	float slant = pow(1.0 - clamp(abs(dot(NORMAL, VIEW)), 0.0, 1.0), 3.0);
 	vec3 outc = col * tint + vec3(0.55, 0.6, 0.66) * slant * 0.22 * sheen;

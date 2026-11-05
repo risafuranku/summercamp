@@ -144,6 +144,10 @@ func _ready() -> void:
 			_steps = _rooms2()
 		"silent":
 			_steps = _silent()
+		"curtains":
+			_steps = _curtains()
+		"curtains2":
+			_steps = _curtains2()
 
 
 ## R turns what you are about to build, with the pointer anywhere (Y14).
@@ -527,6 +531,90 @@ func _silent() -> Array:
 	s += [["eval", C + ".fever_state('still')"], ["eval", C + ".fever_try(0.9, 0.0)"], ["wait", 2.0], ["eval", C + ".fever_state('stood, it near')"],
 		["eval", C + ".fever_try(0.95, 1.0)"], ["wait", 2.0], ["eval", C + ".fever_state('running')"], ["wait", 2.0], ["eval", C + ".fever_state('running on')"],
 		["eval", C + ".fever_try(0.0, 0.0)"], ["wait", 4.0], ["eval", C + ".fever_state('over')"], ["eval", "get_tree().quit()"]]
+	return s
+
+
+## Guests and their curtains (Y20): you come near a lit cabin and go away, again and again; a
+## tent's light.
+func wl_state(tag: String) -> void:
+	var wl := get_tree().root.find_child("WindowLights", true, false)
+	var lod: Dictionary = wl.get("_lodgings")
+	var row: Array = []
+	for k in lod:
+		var r: Dictionary = lod[k]
+		if str(k) == "10:2":
+			continue
+		var shuts: Array = []
+		for w in r["windows"]:
+			shuts.append(snappedf(float((w as Node).get_meta("wl_shut", 0.0)), 0.1))
+		row.append("%s %s on=%s near=%s spied=%s stay=%s hiding=%s shut=%s" % [str(r["kind"]), str(k), str(r.get("on")), str(r.get("near")), str(r.get("spied")), str(r.get("stay")), str(r.get("hiding")), str(shuts)])
+	say("WL %s %s" % [tag, " | ".join(row)])
+
+
+func lit_all(on: bool) -> void:
+	var wl := get_tree().root.find_child("WindowLights", true, false)
+	for k in wl.get("_lodgings"):
+		wl.call("set_forced", str(k), "on" if on else "")
+
+
+func _curtains() -> Array:
+	var st: Node3D = null
+	var s: Array = BOOT.duplicate(true)
+	s += [["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0], ["money", 90000], ["clear", 12, 10, 8, 5], ["build", "cabin_1", 13, 11, 0], ["build", "tent_1", 17, 11, 0], ["wait", 2.0],
+		["eval", "debug_repair_ruined()"], ["eval", "debug_jump_to(1, 21.0)"], ["wait", 3.5], ["eval", C + ".lit_all(true)"], ["wait", 1.0], ["eval", "set('debug_camera', null)"], ["eval", "_player.set_controls_enabled(false)"]]
+	for i in 5:
+		s += [["player", 13, 19, 0.0], ["wait", 1.0], ["eval", C + ".wl_state('far %d')" % i], ["player", 14, 13, 180.0], ["wait", 0.5], ["shot", "curt_%d_near0" % i], ["wait", 3.0], ["eval", C + ".wl_state('near %d')" % i], ["shot", "curt_%d_near" % i], ["player", 13, 19, 0.0], ["wait", 11.0], ["eval", C + ".wl_state('gone %d')" % i]]
+	s += [["door_front", "tent_1", 1.8], ["wait", 2.0], ["eval", C + ".wl_state('by the tent')"], ["shot", "curt_tent"], ["eval", "get_tree().quit()"]]
+	return s
+
+
+func wl_walker(key: String) -> void:
+	var wl := get_tree().root.find_child("WindowLights", true, false)
+	var r: Dictionary = (wl.get("_lodgings") as Dictionary)[key]
+	r["walk_next"] = 0.0
+
+
+func wl_pane(key: String, i: int) -> void:
+	var wl := get_tree().root.find_child("WindowLights", true, false)
+	var r: Dictionary = (wl.get("_lodgings") as Dictionary)[key]
+	var cube: ShaderMaterial = r.get("cube", null)
+	var w0 := (r["windows"] as Array)[0] as MeshInstance3D
+	var row := []
+	for w in r["windows"]:
+		row.append("%.1f" % float((w as Node).get_meta("wl_shut", 0.0)) + (" live" if (w as Node).has_meta("inview_live") else ""))
+	say("PANE %d on=%s tv=%s candle=%s energy=%s livepar=%s bright=%s mat=%s shut=%s" % [i, str(r.get("on")), str(r.get("tv")), str(r.get("candle")), str(cube.get_shader_parameter("energy")) if cube != null else "-", str(cube.get_shader_parameter("live")) if cube != null else "-", str(cube.get_shader_parameter("bright")) if cube != null else "-", str(w0.material_override.get_class()), str(row)])
+
+
+func stand_before(key: String, d: float) -> void:
+	var wl := get_tree().root.find_child("WindowLights", true, false)
+	var r: Dictionary = (wl.get("_lodgings") as Dictionary)[key]
+	var root: Node3D = r["root"]
+	var p: Node3D = _main.get("_player")
+	var at: Vector3 = root.global_position + root.global_basis.z.normalized() * d
+	p.global_position = Vector3(at.x, p.global_position.y, at.z)
+	p.look_at(Vector3(root.global_position.x, p.global_position.y, root.global_position.z), Vector3.UP)
+
+
+func _lodge() -> String:
+	for a in OS.get_cmdline_user_args():
+		if str(a).begins_with("--lodge="):
+			return str(a).substr(8)
+	return "cabin_1"
+
+
+func _curtains2() -> Array:
+	var s: Array = BOOT.duplicate(true)
+	s += [["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0], ["money", 90000], ["clear", 12, 10, 8, 5], ["build", _lodge(), 13, 11, 0], ["build", "power_generator", 17, 11, 0], ["wait", 2.0],
+		["eval", "debug_repair_ruined()"], ["eval", "debug_jump_to(1, 21.0)"], ["wait", 3.5], ["eval", C + ".lit_all(true)"], ["wait", 1.0], ["eval", "set('debug_camera', null)"], ["eval", "_player.set_controls_enabled(false)"],
+		["eval", "_player.set('torch_carried', false)"], ["eval", "_player._refresh_flashlight_state()"],
+		["eval", "['Y power', _is_grid_powered()]"], ["eval", C + ".stand_before('13:11', 13.5)"], ["wait", 1.0], ["shot", "c2_far"]]
+	s += [["eval", C + ".stand_before('13:11', 10.0)"]]
+	for i in 6:
+		s += [["eval", C + ".wl_walker('13:11')"], ["wait", 0.9], ["shot", "c2_life_%02d" % i], ["wait", 2.8]]
+	s += [["eval", C + ".stand_before('13:11', 6.5)"]]
+	for i in 8:
+		s += [["wait", 0.35], ["eval", C + ".wl_pane('13:11', %d)" % i], ["shot", "c2_pull_%d" % i]]
+	s += [["wait", 2.0], ["shot", "c2_shut"], ["eval", "get_tree().quit()"]]
 	return s
 
 

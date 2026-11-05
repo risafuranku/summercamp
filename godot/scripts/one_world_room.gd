@@ -173,6 +173,14 @@ static func hide_ways(ways: Array, hide: bool) -> void:
 
 
 ## Window glass: a little grey-green, the sky and the sun's glint on it at a slant.
+## The same with somebody's shape able to go by behind it (a lodging's panes).
+static func figure_glass() -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	m.shader = load("res://materials/pane_figure.gdshader")
+	m.set_shader_parameter("figure_tex", load("res://assets/textury/npc/host1.png"))
+	return m
+
+
 static func clear_glass() -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
