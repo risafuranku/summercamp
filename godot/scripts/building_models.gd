@@ -342,18 +342,99 @@ func _painted_leaf(r: Node3D, n: String, file: String, px: Rect2, quad_at: Vecto
 		return null
 	var tex: Texture2D = load(CAMP + file)
 	var pic := Vector2(tex.get_size())
-	var x0 := quad_at.x - quad_size.x * 0.5 + px.position.x / pic.x * quad_size.x
-	var x1 := quad_at.x - quad_size.x * 0.5 + px.end.x / pic.x * quad_size.x
-	var y_top := quad_at.y + quad_size.y * 0.5 - px.position.y / pic.y * quad_size.y
-	var y_bot := quad_at.y + quad_size.y * 0.5 - px.end.y / pic.y * quad_size.y
-	var size := Vector2(x1 - x0, y_top - y_bot)
-	var centre := Vector3((x0 + x1) * 0.5, (y_top + y_bot) * 0.5, quad_at.z + 0.022)
+	var at := _painted_rect(file, px, quad_at, quad_size)
+	var size := at.size
+	var centre := Vector3(at.get_center().x, at.get_center().y, quad_at.z + 0.022)
 	var leaf := _box(r, n, Vector3(size.x, size.y, 0.04), centre, _wood())
 	var face := _face_mat(file)
 	face.uv1_offset = Vector3(px.position.x / pic.x, px.position.y / pic.y, 0.0)
 	face.uv1_scale = Vector3(px.size.x / pic.x, px.size.y / pic.y, 1.0)
 	_quad(r, n + "Face", size, centre + Vector3(0, 0, 0.021), 0.0, face)
 	return leaf
+
+
+## Where the door painted at `px` on the picture `file` (on the front's quad at `quad_at`,
+## `quad_size`) is on the model's front: x from its left jamb, y from its sill.
+func _painted_rect(file: String, px: Rect2, quad_at: Vector3, quad_size: Vector2) -> Rect2:
+	var pic := Vector2((load(CAMP + file) as Texture2D).get_size())
+	var x0 := quad_at.x - quad_size.x * 0.5 + px.position.x / pic.x * quad_size.x
+	var x1 := quad_at.x - quad_size.x * 0.5 + px.end.x / pic.x * quad_size.x
+	var y_top := quad_at.y + quad_size.y * 0.5 - px.position.y / pic.y * quad_size.y
+	var y_bot := quad_at.y + quad_size.y * 0.5 - px.end.y / pic.y * quad_size.y
+	return Rect2(x0, y_bot, x1 - x0, y_top - y_bot)
+
+
+## A front picture with the door painted on it (`px`, its pixels) cut out: the doorway
+## open behind the leaf, the room standing in it in the camp's one world (W26).
+func _door_cut_face(file: String, px: Rect2) -> StandardMaterial3D:
+	var m := _face_mat(file)
+	var key := "door_cut|%s|%s" % [file, str(px)]
+	var tex: Texture2D = _cache.get(key)
+	if tex == null:
+		var img: Image = (m.albedo_texture as Texture2D).get_image() if m.albedo_texture != null else null
+		if img == null:
+			return m
+		img = img.duplicate() as Image
+		if img.is_compressed():
+			img.decompress()
+		img.convert(Image.FORMAT_RGBA8)
+		img.fill_rect(Rect2i(px), Color(0, 0, 0, 0))
+		tex = ImageTexture.create_from_image(img)
+		_cache[key] = tex
+	m.albedo_texture = tex
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	m.alpha_scissor_threshold = 0.5
+	return m
+
+
+## A hall's walls as a shell `t` thick inside its outer faces (`size`, from `y0` up), a lid
+## over it and the front's doorway `door` (x from its left jamb, y from its sill) open
+## through it: the room stands inside it in the camp's one world (W26; a solid box, the
+## doorway stood shut behind the opened leaf).
+func _hall_shell(r: Node3D, size: Vector3, y0: float, door: Rect2, mat: Material, t := 0.1, n := "Hall") -> void:
+	var sx := size.x
+	var sz := size.z
+	var top := y0 + size.y
+	var wh := size.y - t
+	var wy := y0 + wh * 0.5
+	_box(r, n + "Lid", Vector3(sx, t, sz), Vector3(0, top - t * 0.5, 0), mat)
+	_box(r, n + "Back", Vector3(sx, wh, t), Vector3(0, wy, -sz * 0.5 + t * 0.5), mat)
+	for side: float in [-1.0, 1.0]:
+		_box(r, n + "Side", Vector3(t, wh, sz - t * 2.0), Vector3(side * (sx - t) * 0.5, wy, 0), mat)
+	var fz := sz * 0.5 - t * 0.5
+	var x0 := door.position.x
+	var x1 := door.end.x
+	_box(r, n + "Front", Vector3(x0 + sx * 0.5, wh, t), Vector3((x0 - sx * 0.5) * 0.5, wy, fz), mat)
+	_box(r, n + "Front", Vector3(sx * 0.5 - x1, wh, t), Vector3((x1 + sx * 0.5) * 0.5, wy, fz), mat)
+	_box(r, n + "Front", Vector3(x1 - x0, top - t - door.end.y, t), Vector3((x0 + x1) * 0.5, (door.end.y + top - t) * 0.5, fz), mat)
+	if door.position.y > y0 + 0.005:
+		_box(r, n + "Front", Vector3(x1 - x0, door.position.y - y0, t), Vector3((x0 + x1) * 0.5, (y0 + door.position.y) * 0.5, fz), mat)
+
+
+## A side's skin picture (a quad `size` at `at` facing +Z, its texture `rep` times along)
+## in pieces round the doorway `door` (x along, y up, the model's): each piece shows its own
+## part of the picture, so the ribs and the band run on round the opening.
+func _skin_round(r: Node3D, size: Vector2, at: Vector3, mat: Material, rep: float, door: Rect2) -> void:
+	var x_lo := at.x - size.x * 0.5
+	var y_lo := at.y - size.y * 0.5
+	var top := at.y + size.y * 0.5
+	var pieces: Array = [
+		[x_lo, door.position.x, y_lo, top], [door.end.x, at.x + size.x * 0.5, y_lo, top],
+		[door.position.x, door.end.x, door.end.y, top], [door.position.x, door.end.x, y_lo, door.position.y]]
+	for p in pieces:
+		var w := float(p[1]) - float(p[0])
+		var hh := float(p[3]) - float(p[2])
+		if w < 0.005 or hh < 0.005:
+			continue
+		var q := _quad(r, "Skin", Vector2(w, hh), Vector3((float(p[0]) + float(p[1])) * 0.5, (float(p[2]) + float(p[3])) * 0.5, at.z), 0.0, mat)
+		if mat is StandardMaterial3D:
+			var m := (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
+			m.uv1_triplanar = false
+			var u0 := (float(p[0]) - x_lo) / size.x
+			var v0 := (top - float(p[3])) / size.y
+			m.uv1_scale = Vector3(rep * w / size.x, hh / size.y, 1.0)
+			m.uv1_offset = Vector3(rep * u0, v0, 0.0)
+			q.material_override = m
 
 
 ## A face picture whose windows' panes are cut out (tools/artgen/glass_fronts.py): its
@@ -902,7 +983,7 @@ func cabin(r: Node3D, level: int, _w := 0.0, _d := 0.0, _wall_h := 0.0, _roof_h 
 	var tint := [Color(0.86, 0.84, 0.8), Color(0.95, 0.85, 0.82), Color(0.92, 0.86, 0.8)][lv - 1] as Color
 	var walls := _camp(plank_file, tint, Vector3(1.4, 1.4, 1.0))
 	var trim: Material = _wood() if lv == 1 else _camp("planks_grey.png", Color(0.96, 0.95, 0.9) if lv == 2 else Color(0.86, 0.84, 0.76))
-	_plinth(r, w + 0.2, d + 0.2)
+	_plinth_ring(r, w + 0.2, d + 0.2)
 	# The walls a skin round the room's openings (the windows, the door, the bathroom's
 	# door), as the room's own walls have them: the cabin's room stands in it in the camp's
 	# one world (W26), seen in through the windows and seeing out (cabin_interior). The
@@ -923,7 +1004,9 @@ func cabin(r: Node3D, level: int, _w := 0.0, _d := 0.0, _wall_h := 0.0, _roof_h 
 	var front := d * 0.5
 	# The door in the middle of the front.
 	_box(r, "Door", Vector3(CL.DOOR_W, CL.DOOR_H, 0.06), Vector3(0, CL.MODEL_FLOOR + CL.DOOR_H * 0.5, front + 0.03), _camp("door_wood.png", [Color(0.74, 0.68, 0.6), Color(0.62, 0.78, 0.66), Color(0.82, 0.66, 0.54)][lv - 1] as Color))
-	_box(r, "DoorFrame", Vector3(CL.DOOR_W + 0.16, CL.DOOR_H + 0.12, 0.04), Vector3(0, CL.MODEL_FLOOR + CL.DOOR_H * 0.5 + 0.03, front + 0.01), trim)
+	# Its frame round the opening (a board the size of it stood behind the leaf: in the one
+	# world the room is there, the board stood shut in the open doorway, the user 5. 11.).
+	_frame(r, "DoorFrame", -CL.DOOR_W * 0.5, CL.DOOR_W * 0.5, CL.MODEL_FLOOR, CL.MODEL_FLOOR + CL.DOOR_H, front + 0.01, trim, false)
 	# The cabin's number on an enamel plate right of the door (scripts/lodging_signs.gd).
 	r.set_meta("number_plate", Transform3D(Basis(), Vector3(0.66, 1.72, front + 0.04)))
 	# The windows, as the room has them.
@@ -1105,7 +1188,8 @@ func tent_details(r: Node3D, w: float, h: float, d: float, at: Vector3, yaw: flo
 	var rope := _flat(Color(0.84, 0.8, 0.66))
 	var peg := _flat(Color(0.3, 0.3, 0.3))
 	for z: float in [-d * 0.5, d * 0.5]:
-		_cyl(t, "Pole", 0.02, h + 0.1, Vector3(0, (h + 0.1) * 0.5, z + signf(z) * 0.03), _wood())
+		# (Marked: the room crawling in through the doorway leaves them out, tent_interior.)
+		_cyl(t, "Pole", 0.02, h + 0.1, Vector3(0, (h + 0.1) * 0.5, z + signf(z) * 0.03), _wood()).set_meta("tent_pole", true)
 		var end := Vector3(0, 0.02, z + signf(z) * 0.7)
 		var top := Vector3(0, h + 0.05, z + signf(z) * 0.03)
 		var mid := (end + top) * 0.5
@@ -1142,7 +1226,10 @@ func tent_cloth(color: Color) -> StandardMaterial3D:
 
 # ── the caravan (caravan.png): a cream two-tone van with a striped awning ─────
 
-func caravan(r: Node3D, w: float, d: float, level := 1) -> Vector3:
+const CVL = preload("res://scripts/caravan_layout.gd")
+
+
+func caravan(r: Node3D, _w: float, _d: float, level := 1) -> Vector3:
 	# The old Czechoslovak tourer of the Builder's sprites (iso_caravan / 2 / 3): ribbed
 	# cream aluminium over a band (brown on the old one, red once done up), round ends,
 	# the door and curtained windows on the camp side (+Z), on its axle with the drawbar.
@@ -1150,10 +1237,14 @@ func caravan(r: Node3D, w: float, d: float, level := 1) -> Vector3:
 	#   Lv2  the big striped awning on two poles, two chairs and a table, the red band
 	#   Lv3  fairy lights along the awning (lit at night), the TV aerial, wooden steps,
 	#        geraniums in a pot, a second axle
-	var lx := w * 0.62
-	var lz := d * 0.5
-	var h := 1.9
-	var y0 := 0.42
+	# Its body round the room (caravan_layout: the room stands in it in the camp's one
+	# world, W26): `yb` its bottom, `h` its height; `y0` the floor, `wy` the windows' middles.
+	var lx: float = CVL.BODY.x
+	var lz: float = CVL.BODY.z
+	var h: float = CVL.BODY.y
+	var yb: float = CVL.BODY_BOTTOM
+	var y0: float = CVL.VAN_FLOOR
+	var wy: float = y0 + float((CVL.WINDOWS[0][1] as Vector3).y)
 	var lv := clampi(level, 1, 3)
 	var worn := Color(0.86, 0.82, 0.74) if lv == 1 else Color(1, 1, 1)
 	var cream := _flat(Color(0.9, 0.86, 0.74) * worn)
@@ -1165,10 +1256,11 @@ func caravan(r: Node3D, w: float, d: float, level := 1) -> Vector3:
 	# The box of it under the textured sides (the ribs and the band are in the texture),
 	# a plain roof. In the skin's cream below the band: where the PS1 snap parts the skin
 	# from the box at a corner, the box under it does not show through as a wedge of colour.
-	_box(r, "Body", Vector3(lx, h * 0.62, lz), Vector3(0, y0 + h * 0.31 + h * 0.38, 0), cream)
-	_box(r, "Lower", Vector3(lx, h * 0.38, lz), Vector3(0, y0 + h * 0.19, 0), cream)
-	for side: float in [-1.0, 1.0]:
-		_side_quad(r, "Skin", Vector2(lx, h), Vector3(0, y0 + h * 0.5, side * (lz * 0.5 + 0.004)), 0.0 if side > 0.0 else PI, skin, Vector3(lx / 1.9, 1.0, 1.0))
+	# A shell round the room, the doorway through it, its bottom under the room's floor.
+	_hall_shell(r, Vector3(lx, h, lz), yb, CVL.DOORWAY, cream, CVL.SKIN, "Body")
+	_box(r, "BodyBottom", Vector3(lx, CVL.SKIN, lz), Vector3(0, yb + CVL.SKIN * 0.5, 0), cream)
+	_side_quad(r, "Skin", Vector2(lx, h), Vector3(0, yb + h * 0.5, -(lz * 0.5 + 0.004)), PI, skin, Vector3(lx / 1.9, 1.0, 1.0))
+	_skin_round(r, Vector2(lx, h), Vector3(0, yb + h * 0.5, lz * 0.5 + 0.004), skin, lx / 1.9, CVL.DOORWAY)
 	# Rounded ends: half cylinders in the sides' own ribbed skin, its band and all, round
 	# from one side to the other (plain cream over plain brown read as a bare wall, the
 	# towing end most: playtest 25. 10.). The cylinder's side is the top half of its UVs:
@@ -1181,11 +1273,11 @@ func caravan(r: Node3D, w: float, d: float, level := 1) -> Vector3:
 		(end_skin as StandardMaterial3D).uv1_triplanar = false
 		(end_skin as StandardMaterial3D).uv1_scale = Vector3(maxf(1.0, round(round_m / 1.9)), 2.0, 1.0)
 	for side: float in [-1.0, 1.0]:
-		var cap := _cyl(r, "End", lz * 0.5, h, Vector3(side * lx * 0.5, y0 + h * 0.5, 0), end_skin if skin is StandardMaterial3D else cream)
+		var cap := _cyl(r, "End", lz * 0.5, h, Vector3(side * lx * 0.5, yb + h * 0.5, 0), end_skin if skin is StandardMaterial3D else cream)
 		cap.scale = Vector3(0.45, 1.0, 1.0)
 		(cap.mesh as CylinderMesh).radial_segments = 16
-	_box(r, "Roof", Vector3(lx + 0.02, 0.06, lz + 0.02), Vector3(0, y0 + h + 0.03, 0), cream)
-	_box(r, "RoofVent", Vector3(0.5, 0.12, 0.4), Vector3(-lx * 0.15, y0 + h + 0.09, 0), _flat(Color(0.95, 0.94, 0.9)))
+	_box(r, "Roof", Vector3(lx + 0.02, 0.06, lz + 0.02), Vector3(0, yb + h + 0.03, 0), cream)
+	_box(r, "RoofVent", Vector3(0.5, 0.12, 0.4), Vector3(-lx * 0.15, yb + h + 0.09, 0), _flat(Color(0.95, 0.94, 0.9)))
 	# The van's shell (what the room stands inside in the camp's one world: caravan_interior
 	# leaves it out of the room's eye while the room is in it). Marked, not named: a second
 	# child of the same name is renamed.
@@ -1193,7 +1285,7 @@ func caravan(r: Node3D, w: float, d: float, level := 1) -> Vector3:
 		if c is GeometryInstance3D:
 			c.set_meta("van_shell", true)
 	# The door and the windows on the camp side; windows on the back too.
-	var door_x := -lx * 0.25
+	var door_x: float = CVL.DOOR_X
 	# The door a leaf on its hinges (door_through: in and out on foot), its picture on it.
 	_box(r, "Door", Vector3(0.62, 1.55, 0.04), Vector3(door_x, y0 + 0.85, lz * 0.5 + 0.026), cream)
 	_side_quad(r, "DoorFace", Vector2(0.62, 1.55), Vector3(door_x, y0 + 0.85, lz * 0.5 + 0.047), 0.0, _camp_or("caravan_door.png", Color(1, 1, 1), "wood")).set_meta("van_shell", true)
@@ -1202,17 +1294,18 @@ func caravan(r: Node3D, w: float, d: float, level := 1) -> Vector3:
 	r.set_meta("number_plate", Transform3D(Basis(), Vector3(door_x + 0.56, y0 + 1.2, lz * 0.5 + 0.03)))
 	var glass := _camp_or("caravan_window.png", Color(1, 1, 1), "glass")
 	# (Lit at night while the guests are in: scripts/ambient/window_lights.gd.)
-	for wx: float in [lx * 0.14, lx * 0.37]:
-		_side_quad(r, "Window", Vector2(0.78, 0.56), Vector3(wx, y0 + h * 0.66, lz * 0.5 + 0.012), 0.0, glass).set_meta("lit_window", true)
-	_side_quad(r, "WindowSide", Vector2(0.62, 0.5), Vector3(-lx * 0.4, y0 + h * 0.66, lz * 0.5 + 0.012), 0.0, glass).set_meta("lit_window", true)
-	for wx2: float in [-lx * 0.3, lx * 0.05, lx * 0.33]:
-		_side_quad(r, "WindowBack", Vector2(0.7, 0.5), Vector3(wx2, y0 + h * 0.66, -lz * 0.5 - 0.012), PI, glass).set_meta("lit_window", true)
+	var wins: Array = CVL.WINDOWS
+	for i in [2, 3]:
+		_side_quad(r, "Window", wins[i][0], Vector3((wins[i][1] as Vector3).x, wy, lz * 0.5 + 0.012), 0.0, glass).set_meta("lit_window", true)
+	_side_quad(r, "WindowSide", wins[4][0], Vector3((wins[4][1] as Vector3).x, wy, lz * 0.5 + 0.012), 0.0, glass).set_meta("lit_window", true)
+	for i in [5, 6, 7]:
+		_side_quad(r, "WindowBack", wins[i][0], Vector3((wins[i][1] as Vector3).x, wy, -lz * 0.5 - 0.012), PI, glass).set_meta("lit_window", true)
 	# The big window over the dinette at the towing end, the little one at the back: on
 	# the round ends' noses (the room has them too: caravan_interior.WINDOWS; from the
 	# camp they show the room behind them, its _update_inview).
 	var nose := lx * 0.5 + lz * 0.5 * 0.45 + 0.015
-	_side_quad(r, "WindowFront", Vector2(0.9, 0.5), Vector3(nose, y0 + h * 0.66, 0.0), PI * 0.5, glass).set_meta("lit_window", true)
-	_side_quad(r, "WindowRear", Vector2(0.62, 0.44), Vector3(-nose, y0 + h * 0.66, 0.0), -PI * 0.5, glass).set_meta("lit_window", true)
+	_side_quad(r, "WindowFront", wins[0][0], Vector3(nose, wy, 0.0), PI * 0.5, glass).set_meta("lit_window", true)
+	_side_quad(r, "WindowRear", wins[1][0], Vector3(-nose, wy, 0.0), -PI * 0.5, glass).set_meta("lit_window", true)
 	# The step to the door: a folding steel one (Lv3 has wooden steps instead).
 	if lv < 3:
 		_box(r, "DoorStep", Vector3(0.5, 0.04, 0.26), Vector3(door_x, 0.2, lz * 0.5 + 0.16), _metal())
@@ -1224,9 +1317,9 @@ func caravan(r: Node3D, w: float, d: float, level := 1) -> Vector3:
 		_box(r, "DoorLampGlass", Vector3(0.1, 0.07, 0.03), Vector3(door_x, y0 + 1.72, lz * 0.5 + 0.06), _flat(Color(0.95, 0.88, 0.66)))
 	# Lv1: an old patch on the roof, a brick chocking a wheel, a washing line with a towel.
 	if lv == 1:
-		_box(r, "RoofPatch", Vector3(0.7, 0.012, 0.5), Vector3(lx * 0.2, y0 + h + 0.066, -lz * 0.15), _flat(Color(0.42, 0.36, 0.3)))
+		_box(r, "RoofPatch", Vector3(0.7, 0.012, 0.5), Vector3(lx * 0.2, yb + h + 0.066, -lz * 0.15), _flat(Color(0.42, 0.36, 0.3)))
 		_box(r, "WheelChock", Vector3(0.2, 0.1, 0.1), Vector3(0.42, 0.05, lz * 0.5 + 0.06), _flat(Color(0.62, 0.3, 0.22)))
-		var line_from := Vector3(-lx * 0.5 + 0.1, y0 + h - 0.1, lz * 0.5 + 0.02)
+		var line_from := Vector3(-lx * 0.5 + 0.1, yb + h - 0.1, lz * 0.5 + 0.02)
 		var line_to := Vector3(-lx * 0.5 - 1.1, 1.6, lz * 0.5 + 0.9)
 		var along := (line_to - line_from).normalized()
 		var up := (Vector3.UP - along * along.dot(Vector3.UP)).normalized()
@@ -1238,12 +1331,13 @@ func caravan(r: Node3D, w: float, d: float, level := 1) -> Vector3:
 		towel.basis = Basis(flat, Vector3.UP, flat.cross(Vector3.UP))
 	# Lv3: the gas heater's flue cowl on the roof (warm on a frost night), window boxes.
 	if lv >= 3:
-		_cyl(r, "HeaterFlue", 0.07, 0.22, Vector3(lx * 0.28, y0 + h + 0.16, lz * 0.3), _metal())
-		_cyl(r, "HeaterCowl", 0.11, 0.05, Vector3(lx * 0.28, y0 + h + 0.29, lz * 0.3), _flat(Color(0.9, 0.9, 0.88)))
-		for wx3: float in [lx * 0.14, lx * 0.37]:
-			_box(r, "WindowBox", Vector3(0.7, 0.14, 0.16), Vector3(wx3, y0 + h * 0.66 - 0.36, lz * 0.5 + 0.09), _wood())
+		_cyl(r, "HeaterFlue", 0.07, 0.22, Vector3(lx * 0.28, yb + h + 0.16, lz * 0.3), _metal())
+		_cyl(r, "HeaterCowl", 0.11, 0.05, Vector3(lx * 0.28, yb + h + 0.29, lz * 0.3), _flat(Color(0.9, 0.9, 0.88)))
+		for i3 in [2, 3]:
+			var wx3: float = (wins[i3][1] as Vector3).x
+			_box(r, "WindowBox", Vector3(0.7, 0.14, 0.16), Vector3(wx3, wy - 0.36, lz * 0.5 + 0.09), _wood())
 			for i in 2:
-				_flower(r, "flower_daisies" if i == 0 else "flower_tulips", Vector2(0.28, 0.28), Vector3(wx3 - 0.15 + i * 0.3, y0 + h * 0.66 - 0.29, lz * 0.5 + 0.1))
+				_flower(r, "flower_daisies" if i == 0 else "flower_tulips", Vector2(0.28, 0.28), Vector3(wx3 - 0.15 + i * 0.3, wy - 0.29, lz * 0.5 + 0.1))
 	# Running gear: one axle (two on Lv3), the drawbar with its jockey wheel, the gas.
 	var axles: Array = [0.0] if lv < 3 else [-0.36, 0.36]
 	for ax in axles:
@@ -1255,21 +1349,21 @@ func caravan(r: Node3D, w: float, d: float, level := 1) -> Vector3:
 	_cyl(r, "Gas", 0.15, 0.5, Vector3(lx * 0.5 + 0.55, 0.7, 0), _flat(Color(0.72, 0.22, 0.12)))
 	_box(r, "Jack", Vector3(0.06, 0.42, 0.06), Vector3(lx * 0.5 + 1.1, 0.21, 0), _metal())
 	for x: float in [-lx * 0.42, lx * 0.42]:
-		_box(r, "Prop", Vector3(0.1, y0, 0.1), Vector3(x, y0 * 0.5, lz * 0.35), _metal())
+		_box(r, "Prop", Vector3(0.1, yb, 0.1), Vector3(x, yb * 0.5, lz * 0.35), _metal())
 	# The awning: a stub over the window on Lv1, the big one on poles from Lv2.
 	var stripe_a := _flat(Color(0.86, 0.2, 0.16))
 	var stripe_b := _flat(Color(0.95, 0.94, 0.88))
 	if lv == 1:
 		for i in 4:
-			var st := _box(r, "Awning%d" % i, Vector3(0.22, 0.04, 0.5), Vector3(lx * 0.14 - 0.33 + i * 0.22, y0 + h * 0.66 + 0.42, lz * 0.5 + 0.22), stripe_a if i % 2 == 0 else stripe_b)
+			var st := _box(r, "Awning%d" % i, Vector3(0.22, 0.04, 0.5), Vector3((wins[2][1] as Vector3).x - 0.33 + i * 0.22, wy + 0.42, lz * 0.5 + 0.22), stripe_a if i % 2 == 0 else stripe_b)
 			st.rotation.x = 0.42
 	else:
 		for i in 8:
-			var st2 := _box(r, "Awning%d" % i, Vector3(0.26, 0.04, 1.3), Vector3(door_x - 0.9 + i * 0.26, y0 + h - 0.08, lz * 0.5 + 0.6), stripe_a if i % 2 == 0 else stripe_b)
+			var st2 := _box(r, "Awning%d" % i, Vector3(0.26, 0.04, 1.3), Vector3(door_x - 0.9 + i * 0.26, yb + h - 0.08, lz * 0.5 + 0.6), stripe_a if i % 2 == 0 else stripe_b)
 			st2.rotation.x = 0.2
-		_box(r, "AwningValance", Vector3(2.08, 0.14, 0.03), Vector3(door_x, y0 + h - 0.28, lz * 0.5 + 1.24), stripe_a)
+		_box(r, "AwningValance", Vector3(2.08, 0.14, 0.03), Vector3(door_x, yb + h - 0.28, lz * 0.5 + 1.24), stripe_a)
 		for x: float in [door_x - 0.98, door_x + 0.98]:
-			_box(r, "AwningPole", Vector3(0.04, y0 + h - 0.2, 0.04), Vector3(x, (y0 + h - 0.2) * 0.5, lz * 0.5 + 1.25), _metal())
+			_box(r, "AwningPole", Vector3(0.04, yb + h - 0.2, 0.04), Vector3(x, (yb + h - 0.2) * 0.5, lz * 0.5 + 1.25), _metal())
 	# Out front: chairs (and a table from Lv2).
 	var chair := _flat(Color(0.86, 0.2, 0.16) if lv >= 2 else Color(0.2, 0.36, 0.62))
 	var n_chairs := 1 if lv == 1 else 2
@@ -1291,10 +1385,10 @@ func caravan(r: Node3D, w: float, d: float, level := 1) -> Vector3:
 		_box(r, "Step2", Vector3(0.6, 0.16, 0.2), Vector3(door_x, 0.24, lz * 0.5 + 0.12), step_wood)
 		# A geranium in its pot by the steps (the pub's picture), turned to you.
 		_flower(r, "pub_geranium", Vector2(0.3, 0.44), Vector3(door_x + 0.55, 0.0, lz * 0.5 + 0.3), true)
-		_box(r, "AerialMast", Vector3(0.04, 0.7, 0.04), Vector3(lx * 0.3, y0 + h + 0.4, -lz * 0.2), _metal())
-		_box(r, "AerialBoom", Vector3(0.7, 0.03, 0.03), Vector3(lx * 0.3, y0 + h + 0.72, -lz * 0.2), _metal())
+		_box(r, "AerialMast", Vector3(0.04, 0.7, 0.04), Vector3(lx * 0.3, yb + h + 0.4, -lz * 0.2), _metal())
+		_box(r, "AerialBoom", Vector3(0.7, 0.03, 0.03), Vector3(lx * 0.3, yb + h + 0.72, -lz * 0.2), _metal())
 		for i in 5:
-			_box(r, "AerialRod", Vector3(0.03, 0.03, 0.34 - i * 0.04), Vector3(lx * 0.3 - 0.3 + i * 0.15, y0 + h + 0.72, -lz * 0.2), _metal())
+			_box(r, "AerialRod", Vector3(0.03, 0.03, 0.34 - i * 0.04), Vector3(lx * 0.3 - 0.3 + i * 0.15, yb + h + 0.72, -lz * 0.2), _metal())
 		var bulb := StandardMaterial3D.new()
 		bulb.albedo_color = Color(1.0, 0.86, 0.5)
 		bulb.emission_enabled = true
@@ -1306,9 +1400,9 @@ func caravan(r: Node3D, w: float, d: float, level := 1) -> Vector3:
 		r.add_child(lights)
 		for i in 9:
 			var bx := door_x - 0.96 + i * 0.24
-			_box(lights, "Bulb%d" % i, Vector3(0.05, 0.06, 0.05), Vector3(bx, y0 + h - 0.38 - absf(sin(float(i) * 0.9)) * 0.05, lz * 0.5 + 1.25), bulb)
+			_box(lights, "Bulb%d" % i, Vector3(0.05, 0.06, 0.05), Vector3(bx, yb + h - 0.38 - absf(sin(float(i) * 0.9)) * 0.05, lz * 0.5 + 1.25), bulb)
 		lights.set_meta("bulb_material", bulb)
-	return Vector3(lx + lz * 0.5, y0 + h + 0.2, lz)
+	return Vector3(lx + lz * 0.5, yb + h + 0.2, lz)
 
 
 ## A flat face on a side of a model (a door, a window, a skin), `yaw` turning it to
@@ -1732,6 +1826,24 @@ func _plinth(r: Node3D, sx: float, sz: float, at := Vector3.ZERO) -> void:
 	_box(r, "Plinth", Vector3(sx, 0.2, sz), at + Vector3(0, 0.05, 0), _camp_or("concrete.png", Color(0.54, 0.54, 0.5), "stone"))
 
 
+## The plinth of a building with its room standing in it (one world, W26): only a band
+## round the foot of the walls, `band` m in from its edge, its top 2 cm under the rooms'
+## floors. A whole slab had its top over the room's floor (the reception's parquet and the
+## bowling alley's carpet were the plinth's concrete) or level with it (a cabin's boards
+## fought it).
+const PLINTH_TOP := 0.13
+
+
+func _plinth_ring(r: Node3D, sx: float, sz: float, at := Vector3.ZERO, band := 0.25) -> void:
+	var mat := _camp_or("concrete.png", Color(0.54, 0.54, 0.5), "stone")
+	var h := PLINTH_TOP + 0.05
+	var y := PLINTH_TOP - h * 0.5
+	for z: float in [-1.0, 1.0]:
+		_box(r, "Plinth", Vector3(sx, h, band), at + Vector3(0, y, z * (sz - band) * 0.5), mat)
+	for x: float in [-1.0, 1.0]:
+		_box(r, "Plinth", Vector3(band, h, sz - band * 2.0), at + Vector3(x * (sx - band) * 0.5, y, 0), mat)
+
+
 ## One slope: high at the front (+Z), low at the back, overhanging all round.
 func _lean_roof(r: Node3D, sx: float, sz: float, y: float, rise: float, mat: Material, at := Vector3.ZERO) -> void:
 	var roof := _box(r, "Roof", Vector3(sx, 0.08, sz), at + Vector3(0, y + rise * 0.5, 0), mat)
@@ -2045,6 +2157,8 @@ const TOWN := "res://assets/textury/town/"
 ## Where things are on bowling_front.png (shares of the front's width from its middle, of
 ## its height from the ground): the door, and the empty board over it.
 const BOWLING_DOOR_X := -0.271
+## The door's pixels on bowling_front.png (its leaf cut from them, the doorway through them).
+const BOWLING_DOOR_PX := Rect2(60, 93, 51, 102)
 const BOWLING_BOARD := Vector2(-0.263, 0.738)
 
 
@@ -2055,14 +2169,19 @@ func _bowling(r: Node3D, _w: float, _d: float) -> Dictionary:
 	var front := sz * 0.5
 	var y0 := 0.1
 	var concrete: Material = _camp_or("concrete.png", Color(0.6, 0.59, 0.57), "wall", Vector3(4.0, 1.6, 1.0))
-	_plinth(r, sx + 0.3, sz + 0.3)
-	_box(r, "Hall", Vector3(sx, h, sz), Vector3(0, h * 0.5 + y0, 0), concrete)
+	_plinth_ring(r, sx + 0.3, sz + 0.3)
+	# The hall a shell round the room, the doorway through its front where the door is
+	# painted (bowling_interior: the room stands in it, the camp's one world).
+	var door := Rect2(sx * BOWLING_DOOR_X - 0.71, y0, 1.42, 2.6)
+	if ResourceLoader.exists(CAMP + "bowling_front.png"):
+		door = _painted_rect("bowling_front.png", BOWLING_DOOR_PX, Vector3(0, h * 0.5 + y0, front + 0.012), Vector2(sx, h))
+	_hall_shell(r, Vector3(sx, h, sz), y0, door, concrete)
 	# The heavy slab of the roof, out over the walls all round.
 	var roof_top := y0 + h + 0.4
 	_box(r, "Roof", Vector3(sx + 0.7, 0.4, sz + 0.7), Vector3(0, roof_top - 0.2, 0), _camp_or("concrete.png", Color(0.42, 0.41, 0.4), "roof", Vector3(4.0, 1.0, 6.0)))
 	var bulbs: Array = []
 	if ResourceLoader.exists(CAMP + "bowling_front.png"):
-		var fm := _face_mat("bowling_front.png")
+		var fm := _door_cut_face("bowling_front.png", BOWLING_DOOR_PX)
 		if ResourceLoader.exists(CAMP + "bowling_front_glow.png"):
 			# The glow map alone lights (emission added to a black colour, as the town's signs).
 			fm.emission_enabled = true
@@ -2085,7 +2204,7 @@ func _bowling(r: Node3D, _w: float, _d: float) -> Dictionary:
 		_quad(r, "BowlingBack", Vector2(sx, h), Vector3(0, h * 0.5 + y0, -front - 0.012), PI, _face_mat("bowling_back.png"))
 	var door_x := sx * BOWLING_DOOR_X
 	if ResourceLoader.exists(CAMP + "bowling_front.png"):
-		_painted_leaf(r, "Door", "bowling_front.png", Rect2(60, 93, 51, 102), Vector3(0, h * 0.5 + y0, front + 0.012), Vector2(sx, h))
+		_painted_leaf(r, "Door", "bowling_front.png", BOWLING_DOOR_PX, Vector3(0, h * 0.5 + y0, front + 0.012), Vector2(sx, h))
 	# BOWLING painted on the board over the door, and the step up to it.
 	var board := TOWN + "sign_bowling.png"
 	if ResourceLoader.exists(board):
@@ -2239,7 +2358,7 @@ func reception(r: Node3D) -> Dictionary:
 	var t := 0.12
 	var planks := _camp("planks_red.png", Color(0.98, 0.9, 0.82), Vector3(1.6, 1.6, 1.0))
 	var trim := _camp("planks_grey.png", Color(0.95, 0.94, 0.9), Vector3(1.0, 1.0, 1.0))
-	_plinth(r, b.size.x + 0.3, b.size.y + 0.3, Vector3((x0 + x1) * 0.5, 0, (z0 + z1) * 0.5))
+	_plinth_ring(r, b.size.x + 0.3, b.size.y + 0.3, Vector3((x0 + x1) * 0.5, 0, (z0 + z1) * 0.5))
 
 	# The openings, in local space.
 	var door_a: Vector3 = L.local(Vector3(L.DOOR_X.y, 0, -2.55))
@@ -2375,15 +2494,18 @@ func reception(r: Node3D) -> Dictionary:
 func _reception_store(r: Node3D, L, back: float, tin: Material) -> void:
 	var a: Vector3 = L.local(Vector3(L.STORE_X.x, 0.0, L.STORE_Z.y))
 	var b: Vector3 = L.local(Vector3(L.STORE_X.y, 0.0, L.STORE_Z.y))
-	var sx0 := minf(a.x, b.x)
-	var sx1 := maxf(a.x, b.x)
-	var far: float = a.z
+	var t := 0.1
+	# Its walls round the room's (STORE_X, STORE_Z are the room walls' outer faces, as for the
+	# office): they stood in the same place as the room's own, the two pictures fighting,
+	# the store's inside showing out through the boards (X2 of 5. 11.).
+	var sx0 := minf(a.x, b.x) - t
+	var sx1 := maxf(a.x, b.x) + t
+	var far: float = a.z - t
 	var depth := back - far
 	var hi: float = L.STORE_ROOF.x
 	var lo: float = L.STORE_ROOF.y
-	var t := 0.1
 	var boards := _camp("planks_grey.png", Color(0.9, 0.86, 0.8), Vector3(1.6, 1.6, 1.0))
-	_plinth(r, sx1 - sx0 + 0.2, depth + 0.1, Vector3((sx0 + sx1) * 0.5, 0, (back + far) * 0.5))
+	_plinth_ring(r, sx1 - sx0 + 0.2, depth + 0.1, Vector3((sx0 + sx1) * 0.5, 0, (back + far) * 0.5))
 	# The side walls up to the low eave, a wedge on each up to the roof line.
 	for sx: float in [sx0 + t * 0.5, sx1 - t * 0.5]:
 		_box(r, "StoreSide", Vector3(t, lo, depth), Vector3(sx, lo * 0.5, (back + far) * 0.5), boards)
@@ -2404,7 +2526,7 @@ func _reception_store(r: Node3D, L, back: float, tin: Material) -> void:
 	_wall_x(r, "StoreBackOver", gx0, gx1, gb.end.y, lo, bz, t, boards)
 	var blocks := _camp("glass_blocks.png", Color(0.86, 0.9, 0.92), Vector3(4.0, 1.0, 1.0))
 	_box(r, "StoreGlassBlocks", Vector3(gx1 - gx0, gb.size.y, 0.06), Vector3((gx0 + gx1) * 0.5, gb.get_center().y, bz), blocks)
-	_frame(r, "StoreBlocksFrame", gx0, gx1, gb.position.y, gb.end.y, far - 0.01, _camp("planks_grey.png", Color(0.95, 0.94, 0.9), Vector3(1.0, 1.0, 1.0)), true)
+	_frame(r, "StoreBlocksFrame", gx0, gx1, gb.position.y, gb.end.y, far - 0.03, _camp("planks_grey.png", Color(0.95, 0.94, 0.9), Vector3(1.0, 1.0, 1.0)), true)
 	# The roof: one slope of tin from under the building's eave down past the back wall.
 	var run := depth + 0.3
 	var drop := hi - lo

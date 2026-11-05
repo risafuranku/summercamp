@@ -611,6 +611,7 @@ func _bind_one_world(delta: float) -> void:
 		if not _cabin_root.transform.is_equal_approx(x):
 			_cabin_root.transform = x
 	_host_panes(cabin if ok else null)
+	_host_doorways(cabin if ok else null, delta)
 	if _room_env != null:
 		for p in [_probe, _bath_probe]:
 			if p != null:
@@ -652,6 +653,29 @@ func _host_panes(cabin: Node3D) -> void:
 		mi.set_meta("inview_live", true)
 		mi.set_meta("inview_was", mi.material_override)
 		mi.material_override = _pane_glass
+
+
+var _way_host: Node3D
+var _host_ways: Array = []
+var _ways_t := 0.0
+
+
+## The dark doorways of the building the room stands in, out of the way (one_world_room).
+func _host_doorways(host: Node3D, delta: float) -> void:
+	if _way_host != null and not is_instance_valid(_way_host):
+		_way_host = null
+	if host != _way_host:
+		ONE_WORLD_ROOM.hide_ways(_host_ways, false)
+		_host_ways = []
+		_way_host = host
+		_ways_t = 0.0
+	if _way_host == null:
+		return
+	_ways_t -= delta
+	if _ways_t <= 0.0:
+		_ways_t = 0.5
+		_host_ways = ONE_WORLD_ROOM.doorways(_way_host)
+	ONE_WORLD_ROOM.hide_ways(_host_ways, true)
 
 
 func _camp_weather() -> int:
@@ -1939,7 +1963,9 @@ var _door_player: AudioStreamPlayer
 
 
 func _walking() -> bool:
-	return door_walking or (_walk != null and _walk.is_valid() and _walk.is_running())
+	# (Valid, not running: a walk held a frame or two while the room is built, CAM_MOVE.hold,
+	# is still a walk; the look turned the eye away from it for those frames.)
+	return door_walking or (_walk != null and _walk.is_valid())
 
 
 ## The way through the door (scripts/ui/door_through.gd): the room as this cabin's is, the
@@ -1954,6 +1980,10 @@ func door_ready(structure: Node3D) -> void:
 	set_world_anchor(structure)
 	_set_cabin_room("main", true)
 	_apply_time_profile()
+	# Into this cabin and shown, now: the way in is worked out from where the room stands
+	# (door_spec, its leaf), and the room's own door has to be out of the doorway (it stood
+	# shut behind the cabin's opened one, the user 5. 11.).
+	_bind_one_world(0.0)
 
 
 ## On the way in, the room's windows show the camp as from the eye coming through the door.
@@ -1974,7 +2004,7 @@ func door_spec(structure: Node3D) -> Dictionary:
 		if (n as Node3D).is_visible_in_tree():
 			leaf.append(n)
 	return {"root": _cabin_root, "at": Vector3(0.0, CL.ROOM_FLOOR, CL.size(lv).y * 0.5 + 0.03), "out": Vector3(0, 0, 1),
-		"size": Vector2(CL.DOOR_W, CL.DOOR_H), "inner": CL.WALL_T + 0.03, "leaf": leaf}
+		"size": Vector2(CL.DOOR_W, CL.DOOR_H), "inner": CL.WALL_T + 0.03, "leaf": leaf, "one_world": true}
 
 
 func _bath_door_now() -> Dictionary:

@@ -86,6 +86,7 @@ var _tex_cache: Dictionary = {}
 var look = INTERIOR_LOOK.new(112.0, 44.0, 12.0)
 var _sheet: MeshInstance3D
 var _board: MeshInstance3D
+var _board_t := 0.0
 var _at_desk := false
 var _cam_from: Array = []
 var _cam_tween: Tween
@@ -212,6 +213,20 @@ func front_door() -> Node3D:
 
 func process(delta: float, in_office: bool) -> void:
 	_tick_desk(delta)
+	# The keys on the wall all the time, as they hang (the picture of an empty board stood
+	# there off the counter: "the keys vanish from the wall", X4 of 5. 11.).
+	_board_t -= delta
+	if _board_t <= 0.0:
+		_board_t = 1.0
+		if _sheet == null or not is_instance_valid(_sheet):
+			_make_sheets()
+			_board.visible = true
+			_sheet.visible = _at_desk
+		var pic := room_root.get_node_or_null("KeyRack") as Node3D
+		if pic != null:
+			pic.visible = false
+		if not _at_desk:
+			desk.redraw_board()
 	_poll -= delta
 	if _poll <= 0.0:
 		_poll = POLL_SEC
@@ -266,10 +281,7 @@ func _step_down() -> void:
 		_air.visible = false
 	if _sheet != null:
 		_sheet.visible = false
-		_board.visible = false
-	var pic := room_root.get_node_or_null("KeyRack") as Node3D
-	if pic != null:
-		pic.visible = true
+	# (The board stays: the keys hang on the wall all the time, process().)
 	var book := room_root.get_node_or_null("ReceptionNotebook") as Node3D
 	if book != null:
 		book.visible = true

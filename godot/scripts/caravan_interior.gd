@@ -44,40 +44,30 @@ const TIME_EVENING: int = 1
 const TIME_NIGHT: int = 2
 const INTERIOR_RENDER_MIN_SIZE := Vector2i(960, 540)
 
-## The room: length along x, width along z (the door wall is +z), height. The van's own
-## body (building_models.caravan: lx = 0.62 of its 8 m footprint, 2 m deep), so its
-## windows from outside and in are the same windows (_update_inview).
-const L := 4.96
-const W := 2.0
-const H := 1.95
-const DOOR_X := -1.24
+## The room: length along x, width along z (the door wall is +z), height: caravan_layout,
+## the van's body built round it (building_models.caravan), so its windows from outside and
+## in are the same windows (_update_inview).
+const CVL = preload("res://scripts/caravan_layout.gd")
+const L: float = CVL.L
+const W: float = CVL.W
+const H: float = CVL.H
+const DOOR_X: float = CVL.DOOR_X
 ## Where you stand: in the aisle a step in from the door, near the kitchen, so the fridge
 ## opened is seen into (playtest 25. 10.: "stand nearer the fridge").
 const EYE := Vector3(0.25, 1.52, 0.42)
-## The van's windows where the model has them: the big one over the dinette at the
-## towing end, the little one at the back end, three on the door side, three on the
-## kitchen side, all at its window height. [glass size, centre, yaw].
-const WINDOWS := [
-	[Vector2(0.9, 0.5), Vector3(L * 0.5 - 0.004, 1.25, 0.0), -90.0],
-	[Vector2(0.62, 0.44), Vector3(-L * 0.5 + 0.004, 1.25, 0.0), 90.0],
-	[Vector2(0.78, 0.56), Vector3(0.69, 1.25, W * 0.5 - 0.004), 180.0],
-	[Vector2(0.78, 0.56), Vector3(1.84, 1.25, W * 0.5 - 0.004), 180.0],
-	[Vector2(0.62, 0.5), Vector3(-1.98, 1.25, W * 0.5 - 0.004), 180.0],
-	[Vector2(0.7, 0.5), Vector3(-1.49, 1.25, -W * 0.5 + 0.004), 0.0],
-	[Vector2(0.7, 0.5), Vector3(0.25, 1.25, -W * 0.5 + 0.004), 0.0],
-	[Vector2(0.7, 0.5), Vector3(1.64, 1.25, -W * 0.5 + 0.004), 0.0],
-]
+## The van's windows where the model has them (caravan_layout): [glass size, centre, yaw].
+const WINDOWS: Array = CVL.WINDOWS
 ## The model's floor is this high over the ground (building_models.caravan y0).
-const VAN_FLOOR := 0.42
+const VAN_FLOOR: float = CVL.VAN_FLOOR
 ## The door: its leaf on the hinge, how far it opens, the camp's eye on the doorstep
 ## (the room's coordinates: the ground is VAN_FLOOR below its floor).
-const DOOR_W := 0.62
-const DOOR_H := 1.55
+const DOOR_W: float = CVL.DOOR_W
+const DOOR_H: float = CVL.DOOR_H
 const DOOR_OPEN_DEG := -104.0
 ## In the doorway, in the wall's thickness: the walk in starts here, the walk out ends here
 ## looking out through the doorway's view of the camp.
 const STEP_EYE := Vector3(DOOR_X + 0.04, 1.18, W * 0.5 + 0.06)
-const WALL_T := 0.1
+const WALL_T: float = CVL.WALL_T
 ## The camp's eye when there is no warden: the walk in starts from it, the walk out ends in
 ## it (_camp_fov: the warden's Options since 21. 10.; a fixed 56 here jumped wider as the
 ## camp took over at the doorstep, playtest 25. 10.).
@@ -340,6 +330,8 @@ func door_ready(structure: Node3D) -> void:
 	if _inview_van != structure:
 		_release_inview()
 		_take_inview(structure)
+	# Into this van, now: the way in is worked out from where the room stands (door_spec).
+	_bind_one_world(0.0)
 
 
 func door_spec(structure: Node3D) -> Dictionary:
@@ -347,8 +339,11 @@ func door_spec(structure: Node3D) -> Dictionary:
 	if panes.is_empty() or _root == null:
 		return {}
 	var model := (panes[0] as Node3D).get_parent() as Node3D
+	# (Its own leaf out of the doorway while you come in by the van's: the walk in swings it
+	# open as it starts, _walk_in.)
+	var leaf: Array = _door_pivot.get_children() if _door_pivot != null else []
 	return {"root": _root, "at": Vector3(DOOR_X, 0.0, W * 0.5 + 0.026), "out": Vector3(0, 0, 1), "size": Vector2(DOOR_W, DOOR_H),
-		"inner": WALL_T + 0.026, "leaf": [], "in_camp": model.global_transform * Transform3D(Basis(), Vector3(0.0, VAN_FLOOR, 0.0))}
+		"inner": WALL_T + 0.026, "leaf": leaf, "in_camp": model.global_transform * Transform3D(Basis(), Vector3(0.0, VAN_FLOOR, 0.0)), "one_world": true}
 
 
 func door_walk_in(from: Transform3D, fov: float) -> void:
@@ -515,6 +510,7 @@ func _bind_one_world(delta: float) -> void:
 		v = null
 	var van: Node3D = v
 	_host_shell_of(van)
+	_host_doorways(van, delta)
 	if _root.visible != (van != null or _is_open):
 		_root.visible = van != null or _is_open
 	if van != null:
@@ -559,6 +555,29 @@ func _host_shell_of(van: Node3D) -> void:
 		_host_shell.append([g, g.layers, g.cast_shadow])
 		g.layers = ONE_WORLD_ROOM.GLASS_LAYER
 		g.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+
+var _way_host: Node3D
+var _host_ways: Array = []
+var _ways_t := 0.0
+
+
+## The dark doorways of the van the room stands in, out of the way (one_world_room).
+func _host_doorways(host: Node3D, delta: float) -> void:
+	if _way_host != null and not is_instance_valid(_way_host):
+		_way_host = null
+	if host != _way_host:
+		ONE_WORLD_ROOM.hide_ways(_host_ways, false)
+		_host_ways = []
+		_way_host = host
+		_ways_t = 0.0
+	if _way_host == null:
+		return
+	_ways_t -= delta
+	if _ways_t <= 0.0:
+		_ways_t = 0.5
+		_host_ways = ONE_WORLD_ROOM.doorways(_way_host)
+	ONE_WORLD_ROOM.hide_ways(_host_ways, true)
 
 
 func _camp_weather() -> int:
@@ -917,6 +936,17 @@ func _walk_in(from := Transform3D(), from_fov := -1.0) -> void:
 	_walk.tween_callback(_walk_done)
 
 
+## The van's leaf (door_anim's) open for the walk out: the camp beyond it, the room's own
+## leaf swinging in with it.
+func _open_van_door() -> void:
+	var a := _anchor()
+	if a == null:
+		return
+	var da = load("res://scripts/attractions/door_anim.gd")
+	for d in da.find_doors(a):
+		da.open(d, 4.0)
+
+
 ## Out by the door (S, the way out behind you): the room ends on the doorstep, the camp
 ## takes it on.
 func walk_out() -> void:
@@ -934,6 +964,8 @@ func walk_out() -> void:
 	], 1.3)
 	_walk.parallel().tween_callback(_play.bind(SFX_DOOR_OPEN, -4.0)).set_delay(0.32)
 	_walk.parallel().tween_property(_door_pivot, "rotation_degrees:y", DOOR_OPEN_DEG, 0.55).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT).set_delay(0.34)
+	# The van's own leaf with it: the room stands in the van, the camp is right out there.
+	_walk.parallel().tween_callback(_open_van_door).set_delay(0.34)
 	_walk.parallel().tween_callback(_play.bind(SFX_STEP, -8.0)).set_delay(0.95)
 	_walk.parallel().tween_callback(_rock.bind(-0.5)).set_delay(1.0)
 	_walk.parallel().tween_property(_interior_camera, "fov", _camp_fov(), 0.7).set_delay(0.55)

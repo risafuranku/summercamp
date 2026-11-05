@@ -338,6 +338,137 @@ func save_cubes() -> void:
 		i += 1
 
 
+## Everything drawn in the doorway of the first `type` (a box round its middle, from the
+## leaf's plane half a metre in): name, layers, whether the player's camera draws it.
+func door_probe(type: String, tag: String) -> void:
+	var st: Node3D = _main.debug_structure_of_type(type)
+	if st == null:
+		print("ONESUN %s door_probe no %s" % [tag, type])
+		return
+	var da = load("res://scripts/attractions/door_anim.gd")
+	var way: Dictionary = da.entry_points(st, 0)
+	var o: Vector3 = way["outside"]
+	var i: Vector3 = way["inside"]
+	var into := (i - o)
+	into.y = 0.0
+	into = into.normalized()
+	var sill: Vector3 = way["sill"]
+	var c := Vector3(sill.x, sill.y + 1.0, sill.z) + into * 0.25
+	var box := AABB(c - Vector3(0.25, 0.4, 0.25), Vector3(0.5, 0.8, 0.5))
+	var cam := get_viewport().get_camera_3d()
+	var mask := cam.cull_mask if cam != null else 0
+	var door = way.get("door")
+	print("ONESUN %s door_probe %s sill=%s into=%s leaf_rot=%s cam=%s" % [tag, type, str(sill.snapped(Vector3.ONE * 0.01)), str(into.snapped(Vector3.ONE * 0.01)),
+		str((door as Node3D).get_parent().rotation_degrees.snapped(Vector3.ONE)) if door is Node3D else "-", str(cam.get_path()).right(50) if cam != null else "-"])
+	for n in get_tree().root.find_children("*", "GeometryInstance3D", true, false):
+		var g := n as GeometryInstance3D
+		if not g.is_inside_tree() or not g.is_visible_in_tree():
+			continue
+		var gb: AABB = g.global_transform * g.get_aabb()
+		if gb.intersects(box):
+			print("ONESUN %s   in_door %s L=%d drawn=%s size=%s" % [tag, str(g.get_path()).right(96), g.layers, str((g.layers & mask) != 0), str(gb.size.snapped(Vector3.ONE * 0.01))])
+
+
+## Out on foot by the door of `type`: the room `prop` of interior_manager, closed by `close`.
+func walk_out2(prop: String, close: String, type: String) -> void:
+	var im = _main.get("_interior_manager")
+	var st: Node3D = _main.debug_structure_of_type(type)
+	var room = im.get(prop)
+	print("ONESUN walk_out2 ", type, " -> ", im.leave_on_foot(room, st, Callable(room, close)) if st != null and room != null else "no " + type)
+
+
+## The reception's eye now (one line): where, which way, open, walking, the frame.
+func rec_cam(tag: String) -> void:
+	var bi = _bi()
+	var cam: Camera3D = bi.get("_interior_camera")
+	var ex = bi.get("_extras")
+	var main_vp := (_main.get("_world_3d") as Node3D).get_viewport() as SubViewport
+	print("ONESUN %s rec frame=%d open=%s cam=%s rot=%s walking=%s camp_upd=%d room_upd=%d player=%s" % [tag, Engine.get_process_frames(), str(bi.is_open()),
+		str(cam.position.snapped(Vector3.ONE * 0.01)), str((cam.rotation * 57.3).snapped(Vector3.ONE)), str(ex.call("_walking")) if ex != null and ex.has_method("_walking") else "-",
+		main_vp.render_target_update_mode if main_vp != null else -1, (bi.get("_viewport") as SubViewport).render_target_update_mode,
+		str((_main.get("_player") as Node3D).global_position.snapped(Vector3.ONE * 0.01))])
+
+
+## The reception room's meshes that reach out of its shell (out of its walls' outer faces,
+## under the ground, over the walls' top): name, how far (X2 of 5. 11.).
+func rec_poke(tag: String) -> void:
+	var bi = _bi()
+	var shell: Node3D = bi.call("_reception_shell")
+	var room: Node3D = bi.get("_room_root")
+	if shell == null or room == null:
+		print("ONESUN %s rec_poke no shell/room" % tag)
+		return
+	var RLs = load("res://scripts/reception/reception_layout.gd")
+	var b: Rect2 = RLs.local_bounds()
+	var t := 0.12
+	var lo := Vector3(b.position.x - t, -0.02, b.position.y - t)
+	var hi := Vector3(b.end.x + t, float(RLs.WALL_H) + 0.02, b.end.y + t)
+	var inv := shell.global_transform.affine_inverse()
+	var n := 0
+	for m in room.find_children("*", "GeometryInstance3D", true, false):
+		var g := m as GeometryInstance3D
+		if not g.is_visible_in_tree():
+			continue
+		var box: AABB = (inv * g.global_transform) * g.get_aabb()
+		var side := maxf(maxf(lo.x - box.position.x, box.end.x - hi.x), maxf(lo.z - box.position.z, box.end.z - hi.z))
+		var up := box.end.y - hi.y
+		var down := lo.y - box.position.y
+		if side > 0.004 or up > 0.004 or down > 0.004:
+			n += 1
+			print("ONESUN %s poke %s side=%.3f up=%.3f down=%.3f box=%s" % [tag, str(g.get_path()).right(70), side, up, down, str(box)])
+	print("ONESUN %s rec_poke %d out of lo=%s hi=%s" % [tag, n, str(lo), str(hi)])
+
+
+## The reception's eye turned to look at `p` (room space) and held there.
+func rec_face(p: Vector3) -> void:
+	var bi = _bi()
+	var cam: Camera3D = bi.get("_interior_camera")
+	var parent := cam.get_parent() as Node3D
+	var from := parent.global_transform * cam.position
+	var target := (bi.get("_room_root") as Node3D).global_transform * p
+	var t := Transform3D(Basis(), from).looking_at(target, Vector3.UP)
+	var local := parent.global_transform.affine_inverse() * t
+	bi.set("_idle_cam_base_rot", local.basis.get_euler())
+	bi.get("_look").reset()
+
+
+## The rooms' dry boxes and the rain (X1 of 5. 11.): where, how big, drawn, the eye in it.
+func dry_state(tag: String) -> void:
+	var eye := get_viewport().get_camera_3d()
+	for n in get_tree().root.find_children("*", "GPUParticlesCollisionBox3D", true, false):
+		var d := n as GPUParticlesCollisionBox3D
+		var box := AABB(d.global_position - d.size * 0.5, d.size)
+		print("ONESUN %s dry %s vis=%s at=%s size=%s world_same=%s" % [tag, str(d.get_path()).right(60), str(d.is_visible_in_tree()), str(d.global_position.snapped(Vector3.ONE * 0.01)),
+			str(d.size.snapped(Vector3.ONE * 0.01)), str(d.get_world_3d() == (_main.get("_world_3d") as Node3D).get_world_3d())])
+	for n in get_tree().root.find_children("Rain*", "GPUParticles3D", true, false):
+		var p := n as GPUParticles3D
+		print("ONESUN %s rain %s at=%s emitting=%s fps=%d interp=%s ratio=%.2f" % [tag, str(p.name), str(p.global_position.snapped(Vector3.ONE * 0.1)), str(p.emitting), p.fixed_fps, str(p.interpolate), p.amount_ratio])
+	var ci = _main.get("_interior_manager").get("_cabin_interior")
+	var cam: Camera3D = ci.get("_interior_camera")
+	print("ONESUN %s cabin eye at %s" % [tag, str(cam.global_position.snapped(Vector3.ONE * 0.01))])
+
+
+## Where the player is, what room is open (one line).
+func where(tag: String) -> void:
+	var p: Node3D = _main.get("_player")
+	var im = _main.get("_interior_manager")
+	var open := []
+	for k in ["_building_interior", "_cabin_interior", "_tent_interior", "_caravan_interior", "_bowling_interior"]:
+		var r = im.get(k)
+		if r != null and r.has_method("is_open") and bool(r.call("is_open")):
+			open.append(k)
+	print("ONESUN %s where player=%s open=%s" % [tag, str(p.global_position.snapped(Vector3.ONE * 0.1)) if p != null else "-", str(open)])
+
+
+## Out on foot as the rooms' own exits go (interior_manager.leave_on_foot).
+func walk_out(kind: String, type: String) -> void:
+	var im = _main.get("_interior_manager")
+	var st: Node3D = _main.debug_structure_of_type(type)
+	var room = im.get("_%s_interior" % kind)
+	var close := Callable(room, "close_%s" % kind)
+	print("ONESUN walk_out ", kind, " ", type, " -> ", im.leave_on_foot(room, st, close))
+
+
 func cab_state(tag: String) -> void:
 	var ci = _main.get("_interior_manager").get("_cabin_interior")
 	var cab: Node3D = _main.debug_structure_of_type("cabin_1")
@@ -402,10 +533,26 @@ func no_env_ambient() -> void:
 	_no_env_ambient = true
 
 
+var _dump := 0
+var _dump_i := 0
+
+
+## Every frame for the next `n` frames: the picture (dNNN.png) and the reception's eye.
+func dump_frames(n: int) -> void:
+	_dump = n
+
+
 func _process(delta: float) -> void:
 	super._process(delta)
 	if _main == null:
 		return
+	if _dump > 0:
+		_dump -= 1
+		var img := get_viewport().get_texture().get_image()
+		if img != null:
+			img.save_png(_out_dir + "/d%03d.png" % _dump_i)
+		rec_cam("d%03d" % _dump_i)
+		_dump_i += 1
 	var bi0 = _bi() if _main.get("_interior_manager") != null else null
 	if _green and bi0 != null and bi0.get("_room_probe") != null:
 		var pr0 = bi0.get("_room_probe")
@@ -413,7 +560,7 @@ func _process(delta: float) -> void:
 		pr0.ambient_color_energy = 3.0
 	if _nosun:
 		(_main.get("sun") as DirectionalLight3D).visible = false
-	if _hold.x != INF and bi0 != null and bi0.get("_interior_camera") != null:
+	if _hold.x != INF and bi0 != null and bi0.get("_interior_camera") != null and bi0.visible:
 		var cam: Camera3D = bi0.get("_interior_camera")
 		cam.rotation = bi0.get("_idle_cam_base_rot") + Vector3(deg_to_rad(_hold.y), deg_to_rad(_hold.x), 0.0)
 	if _no_env_ambient:
@@ -601,7 +748,7 @@ func _ready() -> void:
 			var st: Array = [
 				["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
 				["eval", "_interior_manager._building_interior.close_interior()"],
-				["money", 40000], ["clear", 12, 10, 20, 15], ["build", "tent_1", 13, 12, 0], ["wait", 1.0], ["eval", C + ".tents()"], ["wait", 2.0],
+				["money", 40000], ["clear", 12, 10, 8, 5], ["build", "tent_1", 13, 12, 0], ["wait", 1.0], ["eval", C + ".tents()"], ["wait", 2.0],
 				["eval", "debug_jump_to(1, 13.0)"], ["wait", 1.5]]
 			for ty in ["tent_1", "tent_2", "tent_3"]:
 				st += [["eval", C + ".around('%s', 20.0, 5.0, 0.4)" % ty], ["wait", 0.6], ["shot", "a_%s_closed" % ty]]
@@ -625,7 +772,7 @@ func _ready() -> void:
 			var st: Array = [
 				["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
 				["eval", "_interior_manager._building_interior.close_interior()"],
-				["money", 40000], ["clear", 12, 10, 20, 15], ["build", "caravan_1", 13, 12, 0], ["wait", 2.0],
+				["money", 40000], ["clear", 12, 10, 8, 5], ["build", "caravan_1", 13, 12, 0], ["wait", 2.0],
 				["eval", "debug_jump_to(1, 12.5)"], ["wait", 2.0]]
 			for ang in [0.0, 30.0, 180.0, 90.0]:
 				st += [["eval", C + ".around('caravan_1', %s, 3.6, 0.2)" % ang], ["wait", 1.0], ["shot", "a_out_%03d" % int(ang)]]
@@ -635,6 +782,196 @@ func _ready() -> void:
 			st += [["eval", "debug_jump_to(1, 22.0)"], ["wait", 1.5], ["eval", VI + "._look.set('yaw_deg', 0.0)"], ["wait", 0.7], ["shot", "c_night_in"],
 				["eval", VI + ".close_caravan()"], ["wait", 1.0], ["eval", C + ".around('caravan_1', 0.0, 3.6, 0.2)"], ["wait", 1.2], ["shot", "d_night_out"],
 				["eval", "get_tree().quit()"]]
+			_steps = st
+			return
+		if a == "--part=walks":
+			var IM := "_interior_manager."
+			var st: Array = [
+				["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+				["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
+				["money", 400000],
+				["clear", 5, 4, 5, 7], ["build", "bowling", 6, 5, 0], ["wait", 0.5],
+				["clear", 12, 11, 7, 3], ["build", "tent_1", 13, 12, 0], ["wait", 0.5], ["eval", C + ".tents()"],
+				["clear", 12, 14, 4, 3], ["build", "caravan_1", 13, 15, 0], ["wait", 1.0],
+				["eval", "debug_repair_ruined()"], ["eval", "debug_jump_to(1, 13.0)"], ["wait", 3.0], ["eval", C + ".structures()"]]
+			var rooms := [["main_building", "_building_interior", "close_interior", 2.0], ["cabin_1", "_cabin_interior", "close_cabin", 1.6],
+				["tent_1", "_tent_interior", "close_tent", 1.4], ["tent_3", "_tent_interior", "close_tent", 1.4],
+				["caravan_1", "_caravan_interior", "close_caravan", 1.6], ["bowling", "_bowling_interior", "close_bowling", 2.0]]
+			var only := ""
+			for a2 in OS.get_cmdline_user_args():
+				if str(a2).begins_with("--rooms="):
+					only = str(a2).substr(8)
+			for rr in rooms:
+				var ty: String = rr[0]
+				if only != "" and not ty in only.split(","):
+					continue
+				st += [["eval", "set('debug_camera', null)"], ["door_front", ty, rr[3]], ["wait", 0.6], ["eval", C + ".where('%s_at')" % ty], ["shot", "%s_0_at" % ty],
+					["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('%s'))" % ty]]
+				for k in 16:
+					st += [["wait", 0.15], ["shot", "%s_1_in_%02d" % [ty, k]]]
+				st += [["wait", 1.5], ["eval", C + ".where('%s_in')" % ty], ["shot", "%s_2_inside" % ty],
+					["eval", IM + rr[1] + "._look.set('yaw_deg', 178.0)"], ["wait", 0.9], ["shot", "%s_3_door_from_inside" % ty],
+					["eval", IM + rr[1] + "._look.set('yaw_deg', 0.0)"], ["wait", 0.5],
+					["eval", {"main_building": "_interior_manager._building_interior._extras.handle_exit()", "caravan_1": "_interior_manager._caravan_interior.walk_out()"}.get(ty, C + ".walk_out2('%s', '%s', '%s')" % [rr[1], rr[2], ty])]]
+				for k in 14:
+					st += [["wait", 0.15], ["shot", "%s_4_out_%02d" % [ty, k]]]
+				st += [["wait", 2.0], ["eval", C + ".where('%s_out')" % ty], ["eval", "_interior_manager.close_main_interior_if_open()"], ["wait", 0.5],
+					["eval", C + ".around('%s', 25.0, %s, 0.3)" % [ty, 16.0 if ty == "bowling" else 7.0]], ["wait", 0.8], ["shot", "%s_5_ext" % ty],
+					["eval", C + ".around('%s', 0.0, %s, 0.0)" % [ty, 11.5 if ty == "bowling" else 3.0]], ["wait", 0.8], ["shot", "%s_6_ext_door" % ty]]
+			st += [["eval", "set('debug_camera', null)"], ["wait", 1.0], ["eval", "get_tree().quit()"]]
+			_steps = st
+			return
+		if a == "--part=unpair":
+			# What is built before the quit (--build=bowling,tents,caravan,cabin_walk): which of
+			# them leaves "BUG, indexing did not unpair geometries from light" at exit.
+			var b := ""
+			for a2 in OS.get_cmdline_user_args():
+				if str(a2).begins_with("--build="):
+					b = str(a2).substr(8)
+			var st: Array = [["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+				["eval", "_interior_manager._building_interior.close_interior()"], ["money", 400000]]
+			if "bowling" in b:
+				st += [["clear", 5, 4, 5, 7], ["build", "bowling", 6, 5, 0], ["wait", 0.5]]
+			if "tents" in b:
+				st += [["clear", 12, 11, 7, 3], ["build", "tent_1", 13, 12, 0], ["wait", 0.5], ["eval", C + ".tents()"]]
+			if "caravan" in b:
+				st += [["clear", 12, 14, 4, 3], ["build", "caravan_1", 13, 15, 0]]
+			st += [["eval", "debug_jump_to(1, 13.0)"], ["wait", 3.0]]
+			if "cabin_walk" in b:
+				st += [["eval", "debug_repair_ruined()"], ["door_front", "cabin_1", 1.6], ["wait", 0.5],
+					["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('cabin_1'))"], ["wait", 4.0],
+					["eval", C + ".walk_out2('_cabin_interior', 'close_cabin', 'cabin_1')"], ["wait", 4.0]]
+			if "tent_walk" in b:
+				st += [["door_front", "tent_1", 1.4], ["wait", 0.5],
+					["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('tent_1'))"], ["wait", 4.0],
+					["eval", C + ".walk_out2('_tent_interior', 'close_tent', 'tent_1')"], ["wait", 4.0]]
+			st += [["wait", 2.0], ["eval", "get_tree().quit()"]]
+			_steps = st
+			return
+		if a == "--part=recdoor":
+			var st: Array = [["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+				["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0], ["eval", "debug_jump_to(1, 13.0)"], ["wait", 2.0],
+				["door_front", "main_building", 2.0], ["wait", 0.6], ["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('main_building'))"],
+				["eval", C + ".dump_frames(90)"]]
+			for k in 0:
+				st += [["wait", 0.03], ["eval", C + ".rec_cam('f%02d')" % k], ["shot", "f%02d" % k]]
+			st += [["wait", 2.0], ["eval", "get_tree().quit()"]]
+			_steps = st
+			return
+		if a == "--part=rainin":
+			# Rain, in by the front door (the lobby, the office, the back room), then the cabin's
+			# room and the reception from round the back (X1, X2 of 5. 11.).
+			var BI := "_interior_manager._building_interior"
+			var st: Array = [["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+				["eval", BI + ".close_interior()"], ["wait", 1.0], ["eval", "debug_jump_to(1, 12.0)"], ["wait", 0.5],
+				["eval", "weather_system.set_weather(4)"], ["eval", "_set_weather_state(4)"], ["wait", 30.0],
+				["door_front", "main_building", 2.0], ["wait", 0.6], ["shot", "a_at_door"],
+				["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('main_building'))"], ["wait", 4.0], ["mouse", 0.5, 0.5]]
+			for v in [[0.0, -10.0, "b_office"], [90.0, -10.0, "b_office_l"], [-90.0, -10.0, "b_office_r"], [180.0, -10.0, "b_office_back"]]:
+				st += [["eval", C + ".hold_view(%s, %s)" % [v[0], v[1]]], ["wait", 0.6], ["shot", v[2]]]
+			st += [["eval", C + ".hold_view(INF, INF)"], ["eval", BI + "._extras.go_back_room()"], ["wait", 3.0], ["shot", "c_back_room"]]
+			for v in [[0.0, -10.0, "c_back_0"], [90.0, -10.0, "c_back_90"], [180.0, -10.0, "c_back_180"], [-90.0, -10.0, "c_back_270"]]:
+				st += [["eval", C + ".hold_view(%s, %s)" % [v[0], v[1]]], ["wait", 0.6], ["shot", v[2]]]
+			st += [["eval", C + ".hold_view(INF, INF)"], ["eval", "_interior_manager.close_main_interior_if_open()"], ["wait", 2.0]]
+			for ang in [90.0, 135.0, 180.0, 225.0, 270.0]:
+				st += [["eval", C + ".around('main_building', %s, 9.0, 0.5)" % ang], ["wait", 0.7], ["shot", "d_rec_%03d" % int(ang)]]
+			st += [["eval", "set('debug_camera', null)"], ["eval", "debug_repair_ruined()"], ["door_front", "cabin_1", 1.6], ["wait", 0.5],
+				["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('cabin_1'))"], ["wait", 4.0], ["mouse", 0.5, 0.5]]
+			st += [["eval", C + ".dry_state('cabin')"]]
+			for v in [[0.0, -15.0, "e_cab_c"], [70.0, -15.0, "e_cab_l"], [-70.0, -15.0, "e_cab_r"]]:
+				st += [["eval", "_interior_manager._cabin_interior._look.set('yaw_deg', %s)" % v[0]], ["eval", "_interior_manager._cabin_interior._look.set('pitch_deg', %s)" % v[1]], ["wait", 0.6], ["shot", v[2]]]
+			for k in 8:
+				st += [["wait", 0.11], ["shot", "f_cab_%d" % k]]
+			st += [["eval", "get_tree().quit()"]]
+			_steps = st
+			return
+		if a == "--part=recround":
+			# The reception from all round in a clear noon, near and further (X2 of 5. 11.: the
+			# back room's inside seen through its outer walls).
+			var st: Array = [["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+				["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0], ["eval", "debug_jump_to(1, 12.0)"], ["wait", 2.0]]
+			st += [["eval", C + ".rec_poke('noon')"]]
+			for d in [5.5, 8.0]:
+				for ang in range(0, 360, 30):
+					st += [["eval", C + ".around('main_building', %s, %s, 0.4)" % [ang, d]], ["wait", 0.5], ["shot", "r%02d_%03d" % [int(d), ang]]]
+			st += [["eval", "set('debug_camera', null)"], ["eval", "get_tree().quit()"]]
+			_steps = st
+			return
+		if a == "--part=keys":
+			# The keys on the reception's wall off the counter, at it, off it again (X4 of 5. 11.).
+			var BI := "_interior_manager._building_interior"
+			var board := "Vector3(2.462, 1.52, 0.435)"
+			_steps = [["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 3.0],
+				["eval", BI + "._exit_crt_view()"], ["wait", 2.0], ["eval", "debug_jump_to(1, 12.0)"], ["wait", 1.0], ["mouse", 0.5, 0.5],
+				["eval", C + ".rec_face(%s)" % board], ["wait", 1.5], ["shot", "k0_board"],
+				["eval", BI + "._desk_room._step_up()"], ["wait", 1.5], ["shot", "k1_desk"],
+				["eval", BI + "._desk_room._step_down()"], ["wait", 1.5],
+				["eval", C + ".rec_face(%s)" % board], ["wait", 1.5], ["shot", "k2_board_after"],
+				["eval", "_interior_manager.close_main_interior_if_open()"], ["wait", 1.0],
+				["glass", "side_glass", 1.4], ["wait", 1.0], ["shot", "k3_from_outside"],
+				["eval", "get_tree().quit()"]]
+			return
+		if a == "--part=cabdoor":
+			var st: Array = [
+				["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+				["eval", "_interior_manager._building_interior.close_interior()"],
+				["eval", "debug_repair_ruined()"], ["eval", "debug_jump_to(1, 13.0)"], ["wait", 2.0],
+				["door_front", "cabin_1", 1.6], ["wait", 0.6], ["shot", "a_at_door"], ["eval", C + ".door_probe('cabin_1', 'before')"],
+				["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('cabin_1'))"], ["wait", 0.05], ["eval", C + ".door_probe('cabin_1', 'go')"]]
+			for k in 12:
+				st += [["wait", 0.12], ["shot", "b_in_%02d" % k]]
+				if k == 3 or k == 6:
+					st += [["eval", C + ".door_probe('cabin_1', 'k%d')" % k]]
+			st += [["wait", 2.0], ["eval", "get_tree().quit()"]]
+			_steps = st
+			return
+		if a == "--part=doors":
+			var st: Array = [
+				["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+				["eval", "_interior_manager._building_interior.close_interior()"],
+				["money", 40000], ["clear", 12, 10, 8, 5], ["build", "tent_1", 13, 12, 0], ["wait", 1.0], ["eval", C + ".tents()"], ["wait", 1.0],
+				["eval", "debug_repair_ruined()"], ["eval", "debug_jump_to(1, 13.0)"], ["wait", 2.0],
+				# In and out of the big tent first: the room stands there after.
+				["door_front", "tent_3", 1.4], ["wait", 0.6],
+				["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('tent_3'))"], ["wait", 6.0], ["shot", "a_in_tent3"],
+				["eval", C + ".walk_out('tent', 'tent_3')"]]
+			for k in 14:
+				st += [["wait", 0.15], ["shot", "b_out_tent3_%02d" % k]]
+			st += [["wait", 2.0], ["door_front", "tent_1", 1.4], ["wait", 0.6], ["shot", "c_at_tent1_door"], ["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('tent_1'))"]]
+			for k in 30:
+				st += [["wait", 0.15], ["shot", "c_in_tent1_%02d" % k]]
+			st += [["wait", 2.0], ["eval", C + ".walk_out('tent', 'tent_1')"], ["wait", 4.0],
+				["door_front", "cabin_1", 1.6], ["wait", 0.6], ["shot", "d_at_cabin_door"],
+				["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('cabin_1'))"]]
+			for k in 30:
+				st += [["wait", 0.15], ["shot", "d_in_cabin_%02d" % k]]
+			st += [["wait", 2.0], ["eval", "_interior_manager._cabin_interior._look.set('yaw_deg', 178.0)"], ["wait", 1.0], ["shot", "e_cabin_door_from_inside"],
+				["eval", "_interior_manager._cabin_interior._look.set('yaw_deg', 0.0)"], ["wait", 0.5],
+				["eval", C + ".walk_out('cabin', 'cabin_1')"]]
+			for k in 20:
+				st += [["wait", 0.15], ["shot", "f_out_cabin_%02d" % k]]
+			st += [["wait", 2.0], ["eval", "get_tree().quit()"]]
+			_steps = st
+			return
+		if a == "--part=floors":
+			var CI := "_interior_manager._cabin_interior"
+			var TI := "_interior_manager._tent_interior"
+			var st: Array = [
+				["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 4.0],
+				["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 1.0], ["mouse", 0.5, 0.5],
+				["eval", "debug_jump_to(1, 12.5)"], ["wait", 1.0]]
+			for v in [[0.0, -60.0, "rec_floor_front"], [150.0, -50.0, "rec_floor_back"], [62.0, -55.0, "rec_floor_left"]]:
+				st += [["eval", C + ".hold_view(%s, %s)" % [v[0], v[1]]], ["wait", 0.5], ["shot", v[2]]]
+			st += [["eval", C + ".hold_view(INF, INF)"], ["eval", "_interior_manager.close_main_interior_if_open()"], ["wait", 1.0],
+				["money", 40000], ["clear", 12, 10, 8, 5], ["build", "tent_1", 13, 12, 0], ["wait", 1.0], ["eval", "debug_repair_ruined()"], ["wait", 1.5],
+				["door_front", "cabin_1", 1.6], ["wait", 0.5], ["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('cabin_1'))"], ["wait", 5.0], ["mouse", 0.5, 0.5]]
+			for v in [[0.0, -40.0, "cab_floor_c"], [72.0, -40.0, "cab_floor_l"], [-72.0, -40.0, "cab_floor_r"]]:
+				st += [["eval", CI + "._look.set('yaw_deg', %s)" % v[0]], ["eval", CI + "._look.set('pitch_deg', %s)" % v[1]], ["wait", 0.7], ["shot", v[2]]]
+			st += [["eval", CI + ".close_cabin()"], ["wait", 1.0],
+				["door_front", "tent_1", 1.4], ["wait", 0.5], ["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('tent_1'))"], ["wait", 5.0], ["mouse", 0.5, 0.5]]
+			for v in [[0.0, -30.0, "tent_floor_c"], [40.0, -25.0, "tent_floor_l"]]:
+				st += [["eval", TI + "._look.set('yaw_deg', %s)" % v[0]], ["eval", TI + "._look.set('pitch_deg', %s)" % v[1]], ["wait", 0.7], ["shot", v[2]]]
+			st += [["eval", "get_tree().quit()"]]
 			_steps = st
 			return
 		if a == "--part=out":

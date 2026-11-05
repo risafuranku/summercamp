@@ -18,9 +18,14 @@ const ONE_WORLD_ROOM = preload("res://scripts/one_world_room.gd")
 var _probe: ReflectionProbe
 var _dry: GPUParticlesCollisionBox3D
 var _walls_t := 0.0
+## The room's floor over the canvas's foot: the tent stands 5 cm into the ground and the
+## ground is not flat (the grass came up through the groundsheet, the user 5. 11.).
+const TENT_LIFT := 0.1
 ## The doorway (TentDoorWay) of the tent the room stands in, and its layers before.
 var _host_way: MeshInstance3D
-var _host_way_layers := 0
+## The tent you are coming to by its door (door_ready), and when.
+var _door_tent: Node3D
+var _door_tent_ms := -100000
 ## Node name prefix -> [camp texture, metres per repeat] (world mapped, see interior_kit).
 const SURFACES := {
 	"FloorMat": ["tent_floor", 0.8], "LeftWall": ["tarp_canvas", 0.9], "RightWall": ["tarp_canvas", 0.9],
@@ -860,7 +865,12 @@ var door_walking := false
 
 
 func door_ready(structure: Node3D) -> void:
+	# Into the tent you are coming to, now: the walk in starts at its door (it started where
+	# the room last stood, a crawl across half the camp, the user 5. 11.).
+	_door_tent = structure
+	_door_tent_ms = Time.get_ticks_msec()
 	_make_up_as(structure)
+	_bind_one_world(0.0)
 
 
 ## The room as `structure`'s tent: its tier, its guests, its door open.
@@ -882,7 +892,7 @@ func door_spec(_structure: Node3D) -> Dictionary:
 	if _tent_root == null:
 		return {}
 	return {"root": _tent_root, "at": Vector3(0.0, 0.0, DOOR_PLANE_Z), "out": Vector3(0, 0, 1),
-		"size": Vector2(TENT_HALF_WIDTH * 2.0, TENT_RIDGE_HEIGHT), "inner": 0.05, "leaf": []}
+		"size": Vector2(TENT_HALF_WIDTH * 2.0, TENT_RIDGE_HEIGHT), "inner": 0.05, "leaf": [], "one_world": true}
 
 
 ## On the way out: the door unzips as you come to it (and stays so).
@@ -914,7 +924,13 @@ func _bind_one_world(delta: float) -> void:
 	if _tent_root == null:
 		return
 	var way: MeshInstance3D = null
-	if _is_open:
+	var coming: bool = _door_tent != null and is_instance_valid(_door_tent) and _door_tent.is_inside_tree() and (door_walking or Time.get_ticks_msec() - _door_tent_ms < 8000)
+	if coming and not _is_open:
+		if _host_way == null or not is_instance_valid(_host_way) or not _door_tent.is_ancestor_of(_host_way):
+			way = _doorway_near(_door_tent)
+		else:
+			way = _host_way
+	elif _is_open:
 		var im := get_parent()
 		var a = im.get("_active_tent_node") if im != null else null
 		if a != null and is_instance_valid(a) and (a as Node3D).is_inside_tree():
@@ -926,16 +942,19 @@ func _bind_one_world(delta: float) -> void:
 		way = _inview_way
 	if way != _host_way:
 		if _host_way != null and is_instance_valid(_host_way):
-			_host_way.layers = _host_way_layers
+			_host_way.layers = 1
+			_poles_of(_host_way, false)
 		_host_way = way
 		if way != null:
-			_host_way_layers = way.layers
-			way.layers = 0
+			_poles_of(way, true)
+	# (Kept so: a door's walk puts back what it took away.)
+	if _host_way != null and is_instance_valid(_host_way):
+		_host_way.layers = 0
 	var ok := way != null
 	if _tent_root.visible != (ok or _is_open):
 		_tent_root.visible = ok or _is_open
 	if ok:
-		var x := Transform3D(way.global_basis.orthonormalized(), way.global_position) * Transform3D(Basis(), Vector3(0.0, 0.0, -DOOR_PLANE_Z))
+		var x := Transform3D(way.global_basis.orthonormalized(), way.global_position) * Transform3D(Basis(), Vector3(0.0, TENT_LIFT, -DOOR_PLANE_Z))
 		if not _tent_root.transform.is_equal_approx(x):
 			_tent_root.transform = x
 	if _probe != null and _tent_env != null:
@@ -945,6 +964,18 @@ func _bind_one_world(delta: float) -> void:
 	if _walls_t <= 0.0:
 		_walls_t = 0.5
 		ONE_WORLD_ROOM.sounds_through_walls(_tent_root, not _is_open)
+
+
+## The poles at the doorway and the back of the tent the room stands in: the room's eye
+## leaves them out (crawling in, the front one stood across the whole view for a frame);
+## the room has its own ridge.
+func _poles_of(way: MeshInstance3D, hide: bool) -> void:
+	var t := way.get_parent()
+	if t == null:
+		return
+	for c in t.get_children():
+		if c is GeometryInstance3D and (c as Node).has_meta("tent_pole"):
+			(c as GeometryInstance3D).layers = ONE_WORLD_ROOM.GLASS_LAYER if hide else 1
 
 
 ## Of a tent's doorways (a pair's two) the one nearest your body in the camp: the one you

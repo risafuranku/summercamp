@@ -57,12 +57,16 @@ func build(parent: Node3D, audio_parent: Node) -> void:
 	var boards := K.surface("planks_grey", 0.9, Color(0.86, 0.8, 0.72))
 	# The floor a step down from the office's, bare concrete.
 	K.slab(root, Vector3(w, 0.1, d), Vector3(0, -0.07, (z0 + z1) * 0.5), K.surface("concrete", 1.2, Color(0.8, 0.78, 0.74)), "StoreFloor")
-	K.slab(root, Vector3(0.1, 2.7, d), Vector3(x0 - 0.05, 1.3, (z0 + z1) * 0.5), boards, "StoreWallL")
-	K.slab(root, Vector3(0.1, 2.7, d), Vector3(x1 + 0.05, 1.3, (z0 + z1) * 0.5), boards, "StoreWallR")
-	_back_wall(x0, x1, z1, boards)
 	# The roof boards, falling from the office wall to the back.
 	var top_a: float = RL.STORE_ROOF.x - 0.06
 	var top_b: float = RL.STORE_ROOF.y - 0.06
+	# The walls up to the roof's low edge: above it the lean-to's own boards (the room
+	# stands in it in the camp's one world; 2.7 m walls stood out over its falling tin
+	# roof, the store's inside seen from the camp, X2 of 5. 11.).
+	var wall_top := top_b + 0.06
+	K.slab(root, Vector3(0.1, wall_top + 0.05, d), Vector3(x0 - 0.05, (wall_top - 0.05) * 0.5, (z0 + z1) * 0.5), boards, "StoreWallL")
+	K.slab(root, Vector3(0.1, wall_top + 0.05, d), Vector3(x1 + 0.05, (wall_top - 0.05) * 0.5, (z0 + z1) * 0.5), boards, "StoreWallR")
+	_back_wall(x0, x1, z1, boards, wall_top + 0.05)
 	var slope := atan2(top_a - top_b, d)
 	var ceil := K.slab(root, Vector3(w + 0.2, 0.06, sqrt(d * d + (top_a - top_b) * (top_a - top_b)) + 0.1), Vector3(0, (top_a + top_b) * 0.5 + 0.03, (z0 + z1) * 0.5), K.surface("planks_dark", 0.7), "StoreCeiling")
 	ceil.rotation.x = slope
@@ -139,10 +143,9 @@ func build(parent: Node3D, audio_parent: Node) -> void:
 
 
 ## The back wall round the glass blocks; the blocks glow with the day.
-func _back_wall(x0: float, x1: float, z1: float, mat: Material) -> void:
+func _back_wall(x0: float, x1: float, z1: float, mat: Material, h := 2.7) -> void:
 	var b: Rect2 = RL.STORE_BLOCKS
 	var z := z1 + 0.05
-	var h := 2.7
 	K.slab(root, Vector3(b.position.x - x0, h, 0.1), Vector3((x0 + b.position.x) * 0.5, h * 0.5 - 0.05, z), mat, "StoreBackA")
 	K.slab(root, Vector3(x1 - b.end.x, h, 0.1), Vector3((b.end.x + x1) * 0.5, h * 0.5 - 0.05, z), mat, "StoreBackB")
 	K.slab(root, Vector3(b.size.x, b.position.y + 0.1, 0.1), Vector3(b.get_center().x, (b.position.y - 0.1) * 0.5, z), mat, "StoreBackUnder")

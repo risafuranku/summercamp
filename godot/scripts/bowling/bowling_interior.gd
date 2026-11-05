@@ -204,6 +204,7 @@ func _bind_one_world() -> void:
 		var x: Transform3D = _anchor.global_transform * Transform3D(Basis(), HALL_UP)
 		if not _root.transform.is_equal_approx(x):
 			_root.transform = x
+
 	if _env != null:
 		for p in [_probe, _cellar_probe]:
 			if p != null:
@@ -290,7 +291,11 @@ var door_walking := false
 
 
 func door_ready(structure: Node3D) -> void:
+	# The hall in this building and shown, now: the walk in sees it through the doorway.
 	_anchor = structure
+	_root.visible = true
+	_bind_one_world()
+	ONE_WORLD_ROOM.hide_ways(ONE_WORLD_ROOM.doorways(_anchor), true)
 	var origin = structure.get_meta("grid_origin", null)
 	if origin is Vector2i:
 		key = "%d:%d" % [origin.x, origin.y]
@@ -302,7 +307,7 @@ func door_ready(structure: Node3D) -> void:
 func door_spec(_structure: Node3D) -> Dictionary:
 	if _root == null:
 		return {}
-	return {"root": _root, "at": Vector3(LAYOUT.DOOR_X, 0.0, LAYOUT.FRONT_Z + 0.03), "out": Vector3(0, 0, 1), "size": Vector2(1.42, 2.6), "inner": 0.03, "leaf": []}
+	return {"root": _root, "at": Vector3(LAYOUT.DOOR_X, 0.0, LAYOUT.FRONT_Z + 0.03), "out": Vector3(0, 0, 1), "size": Vector2(1.42, 2.6), "inner": 0.03, "leaf": [], "one_world": true}
 
 
 ## In from the doorway (door_through: the eye where yours was) to the station the alley opened
@@ -379,6 +384,8 @@ func close_bowling() -> void:
 	_viewport.audio_listener_enable_3d = false
 	ONE_WORLD_ROOM.camp_view(get_tree(), true)
 	_root.visible = false
+	# Put away, the doorway's dark stands for it again (a guest's door opening on nothing).
+	ONE_WORLD_ROOM.hide_ways(ONE_WORLD_ROOM.doorways(_anchor), false)
 	_room = "hall"
 	_hall.stop()
 	_hum.stop()
@@ -402,6 +409,8 @@ func _process(delta: float) -> void:
 	if _own_t <= 0.0:
 		_own_t = 1.0
 		ONE_WORLD_ROOM.own_lights(_root)
+		# The dark doorway behind its leaf out of the way: the hall itself is there.
+		ONE_WORLD_ROOM.hide_ways(ONE_WORLD_ROOM.doorways(_anchor), true)
 	_poll -= delta
 	if _poll <= 0.0:
 		_poll = 0.25

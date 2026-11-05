@@ -1090,6 +1090,8 @@ func _build_room() -> void:
 	dry.name = "Dry"
 	dry.position = (lo + hi) * 0.5 + Vector3(0, -0.25, 0)
 	dry.size = hi - lo + Vector3(0.1, 0.5, 0.1)
+	# (The rain's streaks are not drawn inside it: weather_visuals._update_dry_boxes.)
+	dry.add_to_group("dry_box")
 	_room_root.add_child(dry)
 
 	# ── FLOOR ─────────────────────────────────────────────────────────────────

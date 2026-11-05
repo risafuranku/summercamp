@@ -116,7 +116,8 @@ func set_room(which: String, camera: Camera3D) -> void:
 
 
 func walking() -> bool:
-	return _walk != null and _walk.is_valid() and _walk.is_running()
+	# (A walk held a frame or two by CAM_MOVE.hold is still a walk: is_valid, not is_running.)
+	return _walk != null and _walk.is_valid()
 
 
 ## Through the doorway to the other room, one smooth walk.

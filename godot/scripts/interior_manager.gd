@@ -691,7 +691,10 @@ func _on_crt_interact() -> void:
 	var body := _player as CharacterBody3D
 	var way: Dictionary = _building_interior.walk_in_handoff() if body != null and _building_interior.has_method("walk_in_handoff") else {}
 	if not way.is_empty() and Vector2(body.global_position.x - way["to"].x, body.global_position.z - way["to"].z).length() < WALK_IN_FROM_M:
-		var stop: Vector3 = (way["to"] as Vector3) - (way["dir"] as Vector3) * WALK_IN_SHORT_M
+		# The office stands in its shell in the camp's one world (W26): the door opens on it
+		# and the walk goes on into the doorway, where the room's eye takes it on (it stopped
+		# short of the shut door and the frame froze over the dark, the user 5. 11.).
+		var stop: Vector3 = way["to"]
 		var dist := body.global_position.distance_to(stop)
 		_set_player_controls_enabled(false)
 		var mask := body.collision_mask
@@ -701,23 +704,52 @@ func _on_crt_interact() -> void:
 		body.rotation.y = atan2(-dir.x, -dir.z)
 		body.set("_pitch", 0.0)
 		body.set("_pitch_target", 0.0)
+		var inner := _office_front_leaf()
+		if inner != null:
+			inner.visible = false
+		var shell := _world_3d.find_child("MainBuilding", true, false) as Node3D if _world_3d != null else null
+		var leaf := _nearest_door(shell, stop)
+		if leaf != null:
+			DOOR_ANIM.open(leaf, 3.0)
+		_play_office_door(OFFICE_DOOR_OPEN)
 		var tw := create_tween()
 		_stepping_out = tw
-		tw.tween_property(body, "global_position", stop, clampf(dist / 2.4, 0.25, 0.9)).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		# A beat for the leaf to swing in, then on into the doorway.
+		tw.tween_interval(0.35)
+		tw.tween_property(body, "global_position", stop, clampf(dist / 2.0, 0.35, 1.1)).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 		tw.tween_callback(func() -> void:
 			if is_instance_valid(body):
 				body.collision_mask = mask
-			_play_office_door(OFFICE_DOOR_OPEN)
+			_walked_in_ms = Time.get_ticks_msec()
+			if inner != null and is_instance_valid(inner):
+				inner.visible = true
 			_enter_office(true))
 		return
 	_enter_office(false)
 
 
+## The office's own front leaf (the room's side of the front door: reception desk_room).
+func _office_front_leaf() -> Node3D:
+	var desk = _building_interior.get("_desk_room") if _building_interior != null else null
+	return desk.front_door() if desk != null and desk.has_method("front_door") else null
+
+
+## The leaf of `structure` (door_anim's) nearest to `at`.
+func _nearest_door(structure: Node3D, at: Vector3) -> MeshInstance3D:
+	if structure == null:
+		return null
+	var best: MeshInstance3D = null
+	var bd := INF
+	for d in DOOR_ANIM.find_doors(structure):
+		var dd := (d as Node3D).global_position.distance_to(at)
+		if dd < bd:
+			bd = dd
+			best = d
+	return best
+
+
 ## How near the front door (m) the warden must be for the walk up to it.
 const WALK_IN_FROM_M := 4.5
-## How far short of the room's doorway eye (reception_extras.FRONT_STEP_IN) the camp's
-## walk stops: outside the shut door, its frame still in view.
-const WALK_IN_SHORT_M := 1.1
 
 
 func _enter_office(walked_in: bool) -> void:

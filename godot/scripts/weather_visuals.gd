@@ -226,6 +226,7 @@ var _rain_splash: GPUParticles3D
 var _bolt: Sprite3D
 var _bolt_t := -1.0
 const RAIN_TEX := "res://assets/textury/world/rain_streak.png"
+const RAIN_SHADER := preload("res://materials/rain_streak.gdshader")
 const SPLASH_TEX := "res://assets/textury/world/rain_splash.png"
 const BOLT_TEX := "res://assets/textury/world/lightning_bolt.png"
 ## The campaign day (core/systems/season.gd): the autumn shifts the light.
@@ -376,21 +377,30 @@ func _rain_layer(node_name: String, amount: int, box: Vector3, w: float, h: floa
 	# Gone where a roof is over the room you are in (its GPUParticlesCollisionBox3D,
 	# building_interior's "Dry"): the rain fell through the reception's ceiling.
 	pm.collision_mode = ParticleProcessMaterial.COLLISION_HIDE_ON_CONTACT
+	# Unseen for its first steps: a drop born inside a room (the box it is born in reaches
+	# from over the roofs down to your feet) meets the room's dry box only from its second
+	# step on, a streak standing in the cabin for a step (X1 of 5. 11.).
+	var born := clampf(0.075 / life, 0.01, 0.2)
+	var ramp := Gradient.new()
+	ramp.set_color(0, Color(1, 1, 1, 0))
+	ramp.set_color(1, Color(1, 1, 1, 1))
+	ramp.add_point(born, Color(1, 1, 1, 0))
+	ramp.add_point(born + 0.01, Color(1, 1, 1, 1))
+	var ramp_tex := GradientTexture1D.new()
+	ramp_tex.gradient = ramp
+	pm.color_ramp = ramp_tex
 	var mesh := _rain_streak_mesh(w, h)
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.blend_mode = BaseMaterial3D.BLEND_MODE_MIX
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	mat.albedo_color = Color(0.84, 0.88, 0.92, 0.5)
-	# Not a bar across the lens: gone within a stride of the eye (the far layer's broad
-	# streaks within ten metres: closer they were grey slabs across the view).
-	mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_ALPHA
-	mat.distance_fade_min_distance = fade_from
-	mat.distance_fade_max_distance = fade_to
+	# Unshaded, its picture and tint (`albedo`, set as the weather goes), and not a bar
+	# across the lens: gone within a stride of the eye (the far layer's broad streaks within
+	# ten metres: closer they were grey slabs across the view). Never inside a room: the
+	# rooms' dry boxes cut it (materials/rain_streak.gdshader, _update_dry_boxes).
+	var mat := ShaderMaterial.new()
+	mat.shader = RAIN_SHADER
+	mat.set_shader_parameter("albedo", Color(0.84, 0.88, 0.92, 0.5))
+	mat.set_shader_parameter("fade_from", fade_from)
+	mat.set_shader_parameter("fade_to", fade_to)
 	if ResourceLoader.exists(RAIN_TEX):
-		mat.albedo_texture = load(RAIN_TEX)
+		mat.set_shader_parameter("streak", load(RAIN_TEX))
 	mesh.surface_set_material(0, mat)
 	p.process_material = pm
 	p.draw_pass_1 = mesh
@@ -421,6 +431,7 @@ func setup_weather_particles() -> void:
 	spm.emission_box_extents = Vector3(9.0, 0.0, 9.0)
 	spm.gravity = Vector3.ZERO
 	spm.collision_mode = ParticleProcessMaterial.COLLISION_HIDE_ON_CONTACT
+	# (Its first step unseen as the streaks': a crown born on a floor under a roof.)
 	spm.initial_velocity_min = 0.0
 	spm.initial_velocity_max = 0.0
 	var curve := Curve.new()
@@ -431,8 +442,10 @@ func setup_weather_particles() -> void:
 	ct.curve = curve
 	spm.scale_curve = ct
 	var ramp := Gradient.new()
-	ramp.set_color(0, Color(1, 1, 1, 0.9))
+	ramp.set_color(0, Color(1, 1, 1, 0.0))
 	ramp.set_color(1, Color(1, 1, 1, 0.0))
+	ramp.add_point(0.2, Color(1, 1, 1, 0.0))
+	ramp.add_point(0.23, Color(1, 1, 1, 0.9))
 	var gt := GradientTexture1D.new()
 	gt.gradient = ramp
 	spm.color_ramp = gt
@@ -1982,6 +1995,41 @@ func _rain_tilt_strength_bounds() -> Vector2:
 		_: return Vector2.ZERO
 
 
+var _dry_t := 0.0
+
+
+## The rooms' dry boxes (group "dry_box": one_world_room.dry, the reception's) drawn now,
+## the nearest eight, handed to the streaks' shader: no streak inside a room.
+func _update_dry_boxes(delta: float) -> void:
+	_dry_t -= delta
+	if _dry_t > 0.0 or _world_3d == null or not _world_3d.is_inside_tree():
+		return
+	_dry_t = 0.25
+	var at: Vector3 = _rain_particles.global_position if _rain_particles != null else Vector3.ZERO
+	var boxes: Array = []
+	for n in _world_3d.get_tree().get_nodes_in_group("dry_box"):
+		var d := n as GPUParticlesCollisionBox3D
+		if d == null or not d.is_inside_tree() or not d.is_visible_in_tree():
+			continue
+		boxes.append([d.global_position.distance_squared_to(at), d])
+	boxes.sort_custom(func(a, b): return float(a[0]) < float(b[0]))
+	var inv: Array = []
+	for i in mini(boxes.size(), 8):
+		var d := boxes[i][1] as GPUParticlesCollisionBox3D
+		var x := d.global_transform * Transform3D(Basis.from_scale(d.size), Vector3.ZERO)
+		inv.append(Projection(x.affine_inverse()))
+	while inv.size() < 8:
+		inv.append(Projection.IDENTITY)
+	for layer in [_rain_particles, _rain_far]:
+		if layer == null:
+			continue
+		var mesh = layer.draw_pass_1 as Mesh
+		var m = mesh.surface_get_material(0) as ShaderMaterial if mesh != null else null
+		if m != null:
+			m.set_shader_parameter("dry_count", mini(boxes.size(), 8))
+			m.set_shader_parameter("dry_inv", inv)
+
+
 ## The rain as it is now, going over to what the weather wants in RAIN_EASE_SEC (a drizzle
 ## turning to rain came down all at once, the user 4. 11.): how much, how fast, how clear,
 ## how long the drops; 0 much is none.
@@ -2054,9 +2102,10 @@ func _update_weather_particles(_delta: float) -> void:
 		if layer == null:
 			continue
 		var draw_mesh = layer.draw_pass_1 as Mesh
-		var rain_mat = draw_mesh.surface_get_material(0) as StandardMaterial3D if draw_mesh != null else null
+		var rain_mat = draw_mesh.surface_get_material(0) as ShaderMaterial if draw_mesh != null else null
 		if rain_mat != null:
-			rain_mat.albedo_color = Color(tint.r, tint.g, tint.b, alpha * float(pair[1]))
+			rain_mat.set_shader_parameter("albedo", Color(tint.r, tint.g, tint.b, alpha * float(pair[1])))
+	_update_dry_boxes(_delta)
 	if _rain_splash != null:
 		var sm := (_rain_splash.draw_pass_1 as QuadMesh).material as StandardMaterial3D
 		if sm != null:

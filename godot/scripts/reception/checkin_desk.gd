@@ -291,6 +291,23 @@ func picture() -> Texture2D:
 	return _vp.get_texture()
 
 
+var _board_was := ""
+
+
+## The board on the wall as the rooms are now while the desk is shut (its picture drawn once
+## when a key has come or gone: the keys hang there all the time, X4 of 5. 11.).
+func redraw_board() -> void:
+	if visible:
+		return
+	_refresh_keys()
+	var now := str(_keys) + str(_slots)
+	if now == _board_was:
+		return
+	_board_was = now
+	_canvas.queue_redraw()
+	_vp.render_target_update_mode = SubViewport.UPDATE_ONCE
+
+
 func current_guest_id() -> int:
 	return int(_guest.get("id", -999)) if not _guest.is_empty() else -999
 

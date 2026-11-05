@@ -47,6 +47,10 @@ const GUTTER_W := RULES.GUTTER_W
 ## The door (as painted outside at -0.271 of the 10.4 m front) and where you stand
 ## coming in.
 const DOOR_X := -2.82
+## The doorway through the front wall (the door painted outside: building_models
+## BOWLING_DOOR_PX on the 10.4 x 5.2 m front), its sill over the hall's floor.
+const DOOR_SIZE := Vector2(1.42, 2.64)
+const DOOR_SILL := 0.155
 const ENTRY := Vector3(-2.82, 1.62, 7.7)
 ## Camera spots: [position, rotation (degrees)].
 const SPOTS := {
@@ -123,12 +127,18 @@ static func build(root: Node3D) -> Dictionary:
 	var out := {"tubes": [], "clicks": {}, "lights": []}
 	var wall := _tex_or("bowl_wall", "concrete")
 	var room := KIT.room(root, Vector3(W, H, L), _tex_or("bowl_carpet", "lino_floor"), wall, "ceiling_board", 1.6, 1.4)
+	# The doorway through the front wall: the hall stands in its building in the camp's one
+	# world, the opened leaf shows it (W26: the wall stood shut behind it).
+	_door_hole(root, room["front"] as MeshInstance3D)
 	# The back wall, in the dark behind the masking panel, darker.
 	(room["back"] as MeshInstance3D).material_override = KIT.surface(wall, 1.6, Color(0.55, 0.55, 0.55))
 	# The camp's stripes round the walls inside too: red, white, sky blue at hip height,
 	# painted on (one band of the three, its picture stretched along the wall).
+	# (On the front either side of the doorway: it ran across it, walked through on the way out.)
+	var fronts: Array = [[-W * 0.5 + 0.01, DOOR_X - DOOR_SIZE.x * 0.5 - 0.02], [DOOR_X + DOOR_SIZE.x * 0.5 + 0.02, W * 0.5 - 0.01]]
 	if ResourceLoader.exists(KIT.TEX + "bowl_stripes.png"):
-		_band(root, "bowl_stripes", W - 0.02, Vector3(0, 1.02, FRONT_Z - 0.022), 180.0)
+		for f in fronts:
+			_band(root, "bowl_stripes", float(f[1]) - float(f[0]), Vector3((float(f[0]) + float(f[1])) * 0.5, 1.02, FRONT_Z - 0.022), 180.0)
 		for side: float in [-1.0, 1.0]:
 			_band(root, "bowl_stripes", FRONT_Z - MASK_Z, Vector3(side * (W * 0.5 - 0.022), 1.02, (FRONT_Z + MASK_Z) * 0.5), -90.0 * side)
 	else:
@@ -136,7 +146,8 @@ static func build(root: Node3D) -> Dictionary:
 		for s in stripes:
 			var m := _flat(s[0])
 			var y: float = s[1]
-			KIT.slab(root, Vector3(W - 0.02, 0.16, 0.02), Vector3(0, y, FRONT_Z - 0.012), m, "Stripe")
+			for f in fronts:
+				KIT.slab(root, Vector3(float(f[1]) - float(f[0]), 0.16, 0.02), Vector3((float(f[0]) + float(f[1])) * 0.5, y, FRONT_Z - 0.012), m, "Stripe")
 			for side: float in [-1.0, 1.0]:
 				KIT.slab(root, Vector3(0.02, 0.16, FRONT_Z - MASK_Z), Vector3(side * (W * 0.5 - 0.012), y, (FRONT_Z + MASK_Z) * 0.5), m, "Stripe")
 	_lanes(root)
@@ -388,6 +399,22 @@ static func cellar(root: Node3D) -> Dictionary:
 ## A camp texture of the alley's own if it is there yet, else the stand-in.
 static func _tex_or(name: String, fallback: String) -> String:
 	return name if ResourceLoader.exists(KIT.TEX + name + ".png") else fallback
+
+
+## The front wall in pieces round the doorway (DOOR_X, DOOR_SIZE over DOOR_SILL).
+static func _door_hole(root: Node3D, wall: MeshInstance3D) -> void:
+	var m := wall.material_override
+	var t := (wall.mesh as BoxMesh).size.z
+	var z := wall.position.z
+	var x0 := DOOR_X - DOOR_SIZE.x * 0.5
+	var x1 := DOOR_X + DOOR_SIZE.x * 0.5
+	var y1 := DOOR_SILL + DOOR_SIZE.y
+	root.remove_child(wall)
+	wall.free()
+	KIT.slab(root, Vector3(x0 + W * 0.5, H, t), Vector3((x0 - W * 0.5) * 0.5, H * 0.5, z), m, "WallFront")
+	KIT.slab(root, Vector3(W * 0.5 - x1, H, t), Vector3((x1 + W * 0.5) * 0.5, H * 0.5, z), m, "WallFront")
+	KIT.slab(root, Vector3(x1 - x0, H - y1, t), Vector3(DOOR_X, (y1 + H) * 0.5, z), m, "WallFront")
+	KIT.slab(root, Vector3(x1 - x0, DOOR_SILL, t), Vector3(DOOR_X, DOOR_SILL * 0.5, z), m, "WallFront")
 
 
 ## A painted band along a wall (`length` metres, 0.48 high, facing `yaw`): its picture once

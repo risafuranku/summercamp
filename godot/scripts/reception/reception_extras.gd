@@ -536,7 +536,9 @@ func away() -> bool:
 
 
 func _walking() -> bool:
-	return _walk != null and is_instance_valid(_walk) and _walk.is_running()
+	# (A walk held a frame or two while the room is built, CAM_MOVE.hold, is still a walk: the
+	# look turned the eye to the desk's way for those frames, out of the door coming in.)
+	return _walk != null and is_instance_valid(_walk) and _walk.is_valid()
 
 
 ## Co-op: on the way from one of the office's rooms to another, {f: from, to, k: how far

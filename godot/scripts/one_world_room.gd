@@ -68,6 +68,8 @@ static func probe(parent: Node3D, n: String) -> ReflectionProbe:
 static func dry(parent: Node3D, n: String) -> GPUParticlesCollisionBox3D:
 	var d := GPUParticlesCollisionBox3D.new()
 	d.name = n
+	# (The rain's streaks are not drawn inside it: weather_visuals._update_dry_boxes.)
+	d.add_to_group("dry_box")
 	parent.add_child(d)
 	return d
 
@@ -131,6 +133,31 @@ static func own_lights(root: Node) -> void:
 			g.layers |= ROOM_LAYER
 	for n in root.find_children("*", "Light3D", true, false):
 		(n as Light3D).light_cull_mask = ROOM_LAYER
+
+
+## The dark doorways behind a building's leaves (door_anim's, a tent's own): not drawn while
+## the room stands in the building, the room itself being there (seen from the room, the dark
+## stood in the doorway, the camp behind it).
+static func doorways(structure: Node3D) -> Array:
+	var out: Array = []
+	if structure == null or not is_instance_valid(structure):
+		return out
+	var da = load("res://scripts/attractions/door_anim.gd")
+	for d in da.find_doors(structure):
+		var w = da.way_of(d)
+		if w != null and not w in out:
+			out.append(w)
+	for w in structure.find_children("*Way", "MeshInstance3D", true, false):
+		if not w in out:
+			out.append(w)
+	return out
+
+
+## Every way in `ways` hidden (layers 0) or back (the camp's layer).
+static func hide_ways(ways: Array, hide: bool) -> void:
+	for w in ways:
+		if w != null and is_instance_valid(w):
+			(w as MeshInstance3D).layers = 0 if hide else 1
 
 
 ## Window glass: a little grey-green, the sky and the sun's glint on it at a slant.

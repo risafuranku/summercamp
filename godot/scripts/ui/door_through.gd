@@ -26,6 +26,11 @@ extends Node
 ##   door_walking           true here while the eye is not the room's (no look, no clicks)
 ##   door_tick(eye, fov)    optional: its windows kept up for the eye coming in
 ##   door_walk_in(from, fov) optional: the room walks its own way in from the doorway
+##
+## A room built in the camp's own world (W26: spec "one_world") stands behind the doorway
+## itself: no panes either way (the one in the room looking out drew itself, a portal into
+## the endless, the user 5. 11.), the doorway's dark not drawn, the room's own leaf out of
+## the way while you come through it; the eye goes on from where it is.
 
 const VIEW := preload("res://scripts/ui/window_shared_view.gd")
 const DOOR_ANIM := preload("res://scripts/attractions/door_anim.gd")
@@ -82,6 +87,8 @@ var _state := ""
 var _done: Callable
 ## The room's eye as the room had it (it goes with yours on the way in).
 var _stand: Array = []
+## A room in the camp's own world (spec "one_world"): no panes.
+var _one := false
 var _ticked := Transform3D()
 var _in_since := 0.0
 ## The room's own picture is drawn all the way up to its door, its eye with yours: the
@@ -110,6 +117,14 @@ func approach(room: Object, structure: Node3D, way: Dictionary, camp: Node3D) ->
 	if _vp != null:
 		_vp_mode = _vp.render_target_update_mode
 		_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	if _one:
+		# (Its walls are real round a real doorway: nothing of it is left out.)
+		_clear_doorway()
+		for n in _spec.get("leaf", []):
+			if is_instance_valid(n) and (n as Node3D).visible:
+				(n as Node3D).visible = false
+				_leaf_shown.append(n)
+		return true
 	for d in _doors_of(way):
 		var p := DOOR_ANIM.way_of(d)
 		if p == null:
@@ -159,7 +174,9 @@ func step_in() -> void:
 	var from := Transform3D(t.basis.orthonormalized(), t.origin)
 	_state = "in"
 	_in_since = 0.0
-	_restore_panes()
+	# (One world: the doorway's dark stays out of the way till you are in: finish.)
+	if not _one:
+		_restore_panes()
 	# Its wall is not there yet for the eye that comes through it.
 	_room_cam.cull_mask &= ~VIEW.HIDE_LAYER
 	if _room.has_method("door_walk_in"):
@@ -240,7 +257,8 @@ func leave(room: Object, structure: Node3D, way: Dictionary, camp: Node3D, done:
 	keys.append({"pos": end_pos, "rot": out_rot})
 	var dur := clampf(_length(keys) / PACE + _turn(keys) / PI * TURN_SEC, 0.8, 2.8)
 	room.set("door_walking", true)
-	_make_out_pane()
+	if not _one:
+		_make_out_pane()
 	_walk = WALK_PATH.play(room as Node, _room_cam, keys, dur)
 	_walk.parallel().tween_property(_room_cam, "fov", _eye.fov, dur)
 	_walk.tween_callback(_walked_out)
@@ -278,6 +296,7 @@ func finish() -> void:
 	if _out_pane != null and is_instance_valid(_out_pane):
 		_out_pane.queue_free()
 	_out_pane = null
+	_one = false
 	_out_open = false
 	if _room_cam != null and is_instance_valid(_room_cam):
 		_room_cam.cull_mask |= VIEW.HIDE_LAYER
@@ -326,12 +345,17 @@ func _take(room: Object, structure: Node3D, way: Dictionary, camp: Node3D, make_
 	_structure = structure
 	_spec = spec
 	_way = way
+	_one = bool(spec.get("one_world", false))
 	_eye = eye
 	_camp = camp
 	var root: Node3D = spec["root"]
 	_world = root.get_world_3d()
 	_frame_g = root.global_transform * _frame(spec["at"], spec["out"])
-	if spec.get("in_camp") is Transform3D:
+	if _one:
+		# The room is where its building is: the eye goes on from where it is (laid one door
+		# on the other, it jumped by what the two doors' planes differ).
+		_to_room = Transform3D()
+	elif spec.get("in_camp") is Transform3D:
 		_to_room = root.global_transform * (spec["in_camp"] as Transform3D).affine_inverse()
 	else:
 		_to_room = _frame_g * _frame(way["sill"], way["normal"]).affine_inverse()
@@ -403,7 +427,24 @@ func _restore_panes() -> void:
 	for h in _panes:
 		if is_instance_valid(h[0]):
 			(h[0] as MeshInstance3D).material_override = h[1]
+			if h.size() > 2:
+				(h[0] as MeshInstance3D).layers = int(h[2])
 	_panes.clear()
+
+
+## One world: the doorway's dark (door_anim's, behind the leaf as it opens) not drawn while
+## you come or go through it: the room itself, or the camp, is there.
+func _clear_doorway() -> void:
+	for d in _doors_of(_way):
+		var p := DOOR_ANIM.way_of(d)
+		if p != null and p.layers != 0:
+			_panes.append([p, p.material_override, p.layers])
+			p.layers = 0
+	if _way.get("pane", null) is MeshInstance3D:
+		var p2 := _way["pane"] as MeshInstance3D
+		if p2.layers != 0:
+			_panes.append([p2, p2.material_override, p2.layers])
+			p2.layers = 0
 
 
 ## The doorway from inside: a pane showing the camp, hidden till the door opens.
@@ -438,7 +479,8 @@ func _process(delta: float) -> void:
 		return
 	match _state:
 		"approach":
-			_view.offer(_eye, _camp, _to_room * _camp.global_transform, _world, null)
+			if not _one:
+				_view.offer(_eye, _camp, _to_room * _camp.global_transform, _world, null)
 			var t := _to_room * _eye.global_transform
 			var at := Transform3D(t.basis.orthonormalized(), t.origin)
 			if _room.has_method("door_tick"):
@@ -489,8 +531,11 @@ func _tick_out() -> void:
 				continue
 			(n as Node3D).visible = false
 			_leaf_shown.append(n)
-		_out_pane.visible = true
-	if not _out_open:
+		if _one:
+			_clear_doorway()
+		else:
+			_out_pane.visible = true
+	if not _out_open or _one:
 		return
 	_place_out_pane(maxf(-(float(_spec.get("inner", 0.15)) + 0.012), z + PANE_AHEAD_M))
 	var root: Node3D = _spec["root"]
