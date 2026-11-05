@@ -130,6 +130,13 @@ var _is_open: bool = false
 const ONE_WORLD_ROOM = preload("res://scripts/one_world_room.gd")
 const ONE_WORLD_COPY := {"pub": "PubRoom", "rest": "BistroRoom", "vecerka": "JednotaRoom", "staff": "StaffRooms"}
 const BACK_ROOM_UP := Vector3(0.0, 60.0, 0.0)
+## By day the light comes in through a business's windows (the camp's own sun): while it does
+## the room's fill and its lamps go down this far and the eye opens this much. Less than a
+## lodging's: the work at the stations wants seeing, away from the windows too.
+const DAY_FILL := 0.45
+const DAY_LAMP := 0.55
+const DAY_EXPOSURE := 1.25
+var _one_eye: CameraAttributesPractical
 var _one := false
 var _one_copy: Node3D
 var _one_anchor: Node3D
@@ -1434,7 +1441,7 @@ func _one_plan() -> Dictionary:
 ## building's copy has them: the camp is behind the glass), its windows glass; put away
 ## until it stands in its building (_bind_one_world).
 func _one_after_build() -> void:
-	ONE_WORLD_ROOM.eye(_interior_camera)
+	_one_eye = ONE_WORLD_ROOM.eye(_interior_camera)
 	var plan := _one_plan()
 	var size: Vector3 = plan.get("size", Vector3(6, 3, 5))
 	_one_probe = ONE_WORLD_ROOM.probe(_room_root, "ServiceLight")
@@ -3942,6 +3949,11 @@ func _tick_windows(delta: float) -> void:
 		e["w"].update(root, _interior_camera, xf, live, world, delta, anchor)
 
 
+func _camp_weather() -> int:
+	var scene := get_tree().current_scene if is_inside_tree() else null
+	return int(scene.get("_weather_state")) if scene != null and scene.get("_weather_state") != null else 0
+
+
 ## The building outside (InteriorManager's open structure).
 func _service_anchor() -> Node3D:
 	var im := get_parent()
@@ -4404,6 +4416,15 @@ func _apply_manual_service_light_profile(animated: bool) -> void:
 	if _current_profile == "rest" and _restaurant_room == "basement":
 		target_ambient *= 0.28
 		target_light *= 0.15
+	# One world: the day comes in through the windows itself (the rooms behind have none).
+	if _one and _at_front_door():
+		var dw: Vector2 = ONE_WORLD_ROOM.day_of(_daylight_factor, get_tree(), _camp_weather())
+		target_ambient *= lerpf(1.0, DAY_FILL, dw.x)
+		target_light *= lerpf(1.0, DAY_LAMP, dw.y)
+		if _one_eye != null:
+			_one_eye.exposure_multiplier = lerpf(1.0, DAY_EXPOSURE, dw.y)
+	elif _one_eye != null:
+		_one_eye.exposure_multiplier = 1.0
 	if animated:
 		if _manual_light_tween != null and is_instance_valid(_manual_light_tween):
 			_manual_light_tween.kill()

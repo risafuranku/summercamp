@@ -495,8 +495,11 @@ every night's sewer, toilets and frozen pipes the moment they broke).
  (the cellar, the kitchen, the storeroom) stands 60 m over the building (`BACK_ROOM_UP`, a
  dark box round it); put away 2000 m up when shut. The fronts' painted doors are cut out
  (`_glass_door_face`), the plinths are rings, the staffroom's under its walls only (its
- block under the floors fought them). Only the toilets, showers, generator and sewer keep a
- world of their own (no windows). **A room's probe is for its own things only**
+ block under the floors fought them). By day, as the sun comes in, the front room's fill and
+ lamps go down and its eye opens (`service_interior.DAY_*`, less than a lodging's: the
+ stations want seeing). Only the toilets, showers, generator and sewer keep a world of their
+ own (no windows). A shot of a station or a room turned the wrong way in a run is the real
+ mouse: the look follows the PC's cursor; run it again before looking for a bug. **A room's probe is for its own things only**
  (`reflection_mask` = `ROOM_LAYER`, the room's meshes marked by `one_world_room.own_layer`
  now and then): its box takes in what stands outside the walls, and the room's dim ambient
  darkened the reception's back wall and the lean-to's roof from outside. To see a room's

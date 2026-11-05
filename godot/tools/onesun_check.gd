@@ -505,6 +505,14 @@ func rec_probe_on(on: bool) -> void:
 	(_bi().get("_room_probe") as Node3D).visible = on
 
 
+## The buildings of a part turned by --rot=N quarters.
+func _rot() -> int:
+	for a in OS.get_cmdline_user_args():
+		if str(a).begins_with("--rot="):
+			return int(str(a).substr(6))
+	return 0
+
+
 ## Where the player is, what room is open (one line).
 func where(tag: String) -> void:
 	var p: Node3D = _main.get("_player")
@@ -976,8 +984,8 @@ func _ready() -> void:
 				["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
 				["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
 				["money", 400000], ["clear", 4, 9, 5, 5], ["clear", 9, 9, 5, 5], ["clear", 9, 14, 5, 5],
-				["build", "pub", 5, 10, 0], ["build", "restaurant", 10, 10, 0], ["build", "vecerka", 10, 15, 0], ["wait", 2.0],
-				["clear", 4, 14, 5, 5], ["build", "staffroom", 5, 15, 0], ["wait", 1.0],
+				["build", "pub", 5, 10, _rot()], ["build", "restaurant", 10, 10, _rot()], ["build", "vecerka", 10, 15, _rot()], ["wait", 2.0],
+				["clear", 4, 14, 5, 5], ["build", "staffroom", 5, 15, _rot()], ["wait", 1.0],
 				["eval", "debug_jump_to(1, 12.0)"], ["wait", 3.0], ["eval", C + ".structures()"]]
 			var only := ""
 			for a2 in OS.get_cmdline_user_args():
@@ -1026,6 +1034,27 @@ func _ready() -> void:
 				["eval", C + ".rec_probe_on(false)"], ["wait", 0.3], ["shot", "b_no_probe"], ["eval", C + ".rec_probe_on(true)"], ["wait", 0.2],
 				["eval", C + ".rec_room(false)"], ["wait", 0.3], ["shot", "c_no_room"], ["eval", C + ".rec_room(true)"], ["wait", 0.2],
 				["eval", "set('debug_camera', null)"], ["eval", "get_tree().quit()"]]
+			_steps = st
+			return
+		if a == "--part=bizsun":
+			# The camp's sun in the businesses: inside, looking back at the windows and down at
+			# the floor, through the day, at a station by day, in rain (W26).
+			var SI := "_interior_manager._service_interior"
+			var st: Array = [
+				["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+				["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
+				["money", 400000], ["clear", 4, 9, 5, 5], ["clear", 9, 9, 5, 5], ["clear", 9, 14, 5, 5], ["clear", 4, 14, 5, 5],
+				["build", "pub", 5, 10, _rot()], ["build", "restaurant", 10, 10, _rot()], ["build", "vecerka", 10, 15, _rot()], ["build", "staffroom", 5, 15, _rot()], ["wait", 2.0],
+				["eval", "debug_jump_to(1, 10.0)"], ["wait", 2.0]]
+			for ty in ["pub", "restaurant", "vecerka", "staffroom"]:
+				st += [["eval", "set('debug_camera', null)"], ["door_front", ty, 2.0], ["wait", 0.6],
+					["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('%s'))" % ty], ["wait", 5.0], ["mouse", 0.5, 0.5]]
+				for hr in [9.0, 11.0, 13.0, 15.0, 16.5, 17.5]:
+					st += [["eval", "debug_jump_to(1, %s)" % hr], ["wait", 1.5], ["eval", SI + "._look.set('yaw_deg', 178.0)"], ["eval", SI + "._look.set('pitch_deg', -30.0)"], ["wait", 0.8],
+						["shot", "%s_%04d" % [ty, int(hr * 100.0)]]]
+				st += [["eval", "debug_jump_to(1, 10.0)"], ["wait", 1.0], ["eval", SI + "._look.set('yaw_deg', 0.0)"], ["eval", SI + "._look.set('pitch_deg', 0.0)"], ["wait", 0.8],
+					["shot", "%s_ahead" % ty], ["eval", SI + ".close_service()"], ["wait", 1.5]]
+			st += [["eval", "get_tree().quit()"]]
 			_steps = st
 			return
 		if a == "--part=storein":
