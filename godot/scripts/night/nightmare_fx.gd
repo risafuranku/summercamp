@@ -200,6 +200,11 @@ static func update_retro(screen_height: float) -> void:
 	m.set_shader_parameter("palette_mix", 1.0 if RETRO_RENDER.palette_enabled() else 0.0)
 
 
+## The hunt's beat (scripts/audio/chase_music.gd): fx.set_chase(id, level, near) each tick.
+const CHASE_MUSIC := preload("res://scripts/audio/chase_music.gd")
+var _chase: Node
+
+
 func _init() -> void:
 	name = NODE_NAME
 	layer = 104
@@ -210,6 +215,9 @@ func _init() -> void:
 ## Its parts are made with it, not on entering the tree: it is added deferred, and the
 ## first calls can come before that.
 func _build() -> void:
+	_chase = CHASE_MUSIC.new()
+	_chase.name = "ChaseMusic"
+	add_child(_chase)
 	_screen = ColorRect.new()
 	_screen.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_screen.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -330,6 +338,12 @@ func _build() -> void:
 ## How close a thing is (0 far, 1 on you), set every tick by whatever is out there.
 func set_dread(source: String, level: float) -> void:
 	_dread_src[source] = clampf(level, 0.0, 1.0)
+
+
+## Something running at you: its own beat (chase_music.gd), each tick; below 0 stops it dead.
+func set_chase(source: String, level: float, near: float = 0.0) -> void:
+	if _chase != null:
+		_chase.want(source, level, near)
 
 
 ## The sixth sense of something near you in the dark (0 nothing .. 1 at your neck).
@@ -722,6 +736,8 @@ func _warm_step() -> void:
 
 func _process(delta: float) -> void:
 	_time += delta
+	if _chase != null:
+		_chase.tick(delta)
 	if is_inside_tree():
 		update_retro(get_viewport().get_visible_rect().size.y)
 	# Dread: the largest source, eased; sources forget themselves each frame.

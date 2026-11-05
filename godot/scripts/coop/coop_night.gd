@@ -865,7 +865,7 @@ func _rfx_apply(method: String, args: Array) -> void:
 	match method:
 		"set_dread", "set_presence", "set_spores":
 			_rfx_levels[method + "|" + str(args[0])] = [method, str(args[0]), float(args[1]), Time.get_ticks_msec()]
-		"set_eyes", "set_jam":
+		"set_eyes", "set_jam", "set_chase":
 			_rfx_levels[method + "|" + str(args[0])] = [method, args, 0.0, Time.get_ticks_msec()]
 		"close_up", "overlay", "split":
 			if args.is_empty() or args[0] == null:
@@ -900,7 +900,7 @@ func _rfx_tick() -> void:
 		if now - int(e[3]) > (250 if str(e[0]) == "set_eyes" else (400 if str(e[0]) == "set_jam" else 1000)):
 			_rfx_levels.erase(k)
 			continue
-		if str(e[0]) == "set_eyes" or str(e[0]) == "set_jam":
+		if str(e[0]) == "set_eyes" or str(e[0]) == "set_jam" or str(e[0]) == "set_chase":
 			fx.callv(str(e[0]), e[1])
 		else:
 			fx.call(str(e[0]), str(e[1]), float(e[2]))

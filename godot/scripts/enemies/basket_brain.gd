@@ -390,6 +390,7 @@ func _tick_out(dt: float) -> void:
 			_spare_current()
 		_come_out()
 	var d := _distance_to_player(_body.global_position)
+	_tick_chase(d)
 	match _phase:
 		"hunt", "turn":
 			if _phase == "turn":
@@ -451,6 +452,22 @@ func _tick_out(dt: float) -> void:
 			_tick_reach(dt, "hunt")
 		_:
 			_set_phase("hunt", 0.0)
+
+
+## Her hunt's beat (chase_music.gd, the user 5. 11.): out on you, louder the nearer, its
+## harder half close; when she stops to straighten up and look it stops dead (the silence
+## says: keep still), and it comes back on a hit when she comes on; at a run, all of it.
+func _tick_chase(d: float) -> void:
+	var fx := _fx()
+	if fx == null or not fx.has_method("set_chase"):
+		return
+	match _phase:
+		"look", "stare", "turn", "reach", "strike":
+			fx.set_chase("basket", -1.0)
+		"lunge":
+			fx.set_chase("basket", 1.0, 1.0)
+		"hunt":
+			fx.set_chase("basket", clampf((34.0 - d) / 22.0, 0.0, 1.0), clampf((13.0 - d) / 8.0, 0.0, 1.0))
 
 
 func _speed_now() -> float:

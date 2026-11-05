@@ -17025,6 +17025,9 @@ msgstr "kroky za noční službou přes celý kemp"
 msgid "a call from the woods"
 msgstr "volání z lesa"
 
+msgid "music in the woods, and screaming. Then nothing"
+msgstr "v lese hudba a křik. Pak nic"
+
 #: scripts/night/night_director.gd:95
 msgid "a person crossing the camp in the dark. Prints"
 msgstr "postava přešla kemp potmě. Stopy"

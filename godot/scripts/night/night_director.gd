@@ -77,6 +77,9 @@ const EVENTS := {
 	"guest_out":     {"places": ["out_dark", "out_lit"], "cost": 6.0, "min": State.SUSPICION, "cd": 1200.0, "arch": [A.MIMIC, A.OBSERVER], "next": ["call_far"], "w": 1.1, "needs": ["guest_sleeping"], "hours": [0.0, 4.5], "nightly": 0.35},
 	"far_light":     {"places": ["out_dark", "out_lit"], "cost": 5.0, "min": State.SUSPICION, "cd": 420.0, "arch": [A.OBSERVER], "next": ["call_far"], "w": 1.0},
 	"room_sounds":   {"places": ["out_dark", "out_lit"], "cost": 4.0, "min": State.UNEASE, "cd": 300.0, "arch": [A.MIMIC, A.HUNTER, A.OBSERVER], "next": ["steps_behind"], "w": 2.0, "needs": ["haunted_near"]},
+	# A splinter of one of the hells far off in the trees (the user 4. 11.: "audio illusions"):
+	# a scream to a waltz, a brass band, the plea, the granny's lullaby; then nothing.
+	"hell_far":      {"places": ["out_dark", "out_lit"], "cost": 3.0, "min": State.SUSPICION, "cd": 280.0, "arch": [A.MIMIC, A.DISTURBER, A.OBSERVER], "next": ["hush_drop"], "w": 0.9},
 }
 ## How the night log puts each (CampStat's NIGHT page, the morning after).
 const LOG_LINES := {
@@ -92,6 +95,7 @@ const LOG_LINES := {
 	"lamp_out": "a lamp went out by itself, then came back",
 	"steps_behind": "steps following the night staff across the camp",
 	"call_far": "a call from the woods",
+	"hell_far": "music in the woods, and screaming. Then nothing",
 	"silhouette": "a person crossing the camp in the dark. Prints",
 	"omen": "something at the edge of the camp",
 	"room_sounds": "movement in a guest's cabin while they slept",
@@ -116,7 +120,7 @@ const LOG_LINES := {
 const RUNS := {
 	"office": ["radio_bleed", "face_flash", "lights_stutter", "breaker_trip", "knock", "hush_drop"],
 	"back_room": ["face_flash", "lights_stutter", "breaker_trip", "wall_brush", "hush_drop"],
-	"out_dark": ["face_flash", "twig_snap", "hush_drop", "breaker_trip", "call_far", "door_bang"],
+	"out_dark": ["face_flash", "twig_snap", "hush_drop", "breaker_trip", "call_far", "door_bang", "hell_far"],
 	"out_lit": ["lamp_out", "face_flash", "twig_snap", "hush_drop", "breaker_trip", "call_far"],
 }
 const RUN_CHANCE := {State.UNEASE: 0.06, State.SUSPICION: 0.14, State.ESCALATION: 0.24, State.MANIFESTATION: 0.32}

@@ -145,6 +145,12 @@ func _enter(phase: String, seconds: float) -> void:
 
 func _on_tick(dt: float) -> void:
 	_track_speed(dt)
+	# His rush has its beat (chase_music.gd); where he gets to it stops dead and he listens,
+	# and at your back, the string round your neck, so does it.
+	var cfx := _fx()
+	if cfx != null and cfx.has_method("set_chase"):
+		var strike := _strike_t >= 0.0
+		cfx.set_chase("whistler", -1.0 if strike or _phase == "listen" else (1.0 if _phase == "rush" else 0.0))
 	_eyes.set("want", 1.0 if _elapsed < _eyes_until and _phase != "rush" else 0.0)
 	if _strike_t >= 0.0:
 		_tick_strike(dt)

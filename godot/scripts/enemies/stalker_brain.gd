@@ -59,6 +59,10 @@ func _on_tick(dt: float) -> void:
 	var pos := _body.global_position
 	var player := _player_pos()
 	var light := _lamp_light_at(player)
+	# His charge has its beat (chase_music.gd): the brass band screaming.
+	var fx := _fx()
+	if fx != null and fx.has_method("set_chase"):
+		fx.set_chase("stalker", 1.0 if _charging else 0.0)
 	if _charging:
 		if light > GIVE_UP_LIGHT:
 			_charging = false

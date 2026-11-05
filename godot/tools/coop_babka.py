@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Co-op check of the mushroom granny: a host and a client of the game on this machine
 (tools/coop_babka.tscn). PASS when she hunts the warden who is outside and it reaches
-them: they see her, her spores are on their screen, her catch hurts them and leaves them
-limping. `--case=inside`: both wardens in the office, PASS when she eats on the host's
+them: they see her, her spores are on their screen, her catch hurts them (no limp since W29) and her
+hunt's beat reaches them. `--case=inside`: both wardens in the office, PASS when she eats on the host's
 camp and the other warden's office radio relays it.
 
     python godot/tools/coop_babka.py [OUT_DIR] [--case=inside]
@@ -75,11 +75,14 @@ def main():
         failures.append("the joining warden does not see her near them: %s" % r)
     if r is None or float(r["spores"]) < 0.05:
         failures.append("her spores are not on the joining warden's screen: %s" % r)
+    if r is None or r.get("chase_seen") != "true":
+        failures.append("her hunt's beat does not reach the joining warden: %s" % r)
     r = report(c, "client", "struck_here")
     if r is None or int(r["hp"]) >= 100:
         failures.append("her catch does not hurt the joining warden: %s" % r)
-    if r is None or float(r["limp"]) >= 1.0:
-        failures.append("the joining warden does not limp after her catch: %s" % r)
+    # (No limp after her any more: the user 4. 11., W29; enemy_check's the same.)
+    if r is None or float(r["limp"]) < 1.0:
+        failures.append("the joining warden limps after her catch (W29: must not): %s" % r)
     print("\n".join(l for l in (h + c).splitlines() if "COOP BABKA" in l))
     if failures:
         print("COOP BABKA: FAIL")

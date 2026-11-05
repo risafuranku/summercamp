@@ -98,6 +98,11 @@ func run(id: String, ctx: Dictionary) -> Vector3:
 			if p != Vector3.INF:
 				_world_sound("call_far.mp3", p + Vector3(0, 1.6, 0), 2.0, 90.0, 18.0)
 				return p
+		"hell_far":
+			var hp := _dark_spot(ctx.get("pos", Vector3.ZERO), 30.0, 48.0)
+			if hp != Vector3.INF:
+				_world_sound("res://assets/sfx/night/illusion_%d.ogg" % randi_range(1, 6), hp + Vector3(0, 1.6, 0), 4.0, 95.0, 16.0)
+				return hp
 		"silhouette":
 			return _silhouette(ctx.get("pos", Vector3.ZERO))
 		"far_light":

@@ -53,10 +53,16 @@ func _ready() -> void:
 
 ## The radio here ever relaying her meal since the night began (the other warden's).
 var _relay_seen := false
+## Her hunt's beat heard on this machine (chase_music.gd through remote_fx on the other's).
+var _chase_seen := false
 
 
 func _process(delta: float) -> void:
 	super._process(delta)
+	var nfx: Node = get_tree().root.get_node_or_null("NightmareFX")
+	var ch = nfx.get("_chase") if nfx != null else null
+	if ch != null and ch.playing() and str(ch.get("_src")) == "basket":
+		_chase_seen = true
 	var im = _main.get("_interior_manager") if _main != null else null
 	var bi = im.get("_building_interior") if im != null else null
 	var dread = bi.get("_dread") if bi != null else null
@@ -136,5 +142,5 @@ func _run_step(step: Array) -> void:
 	var limp := 1.0
 	if p != null and p.get("held_speed_mult") != null:
 		limp = float(p.get("held_speed_mult"))
-	print("COOP BABKA %s: %s spores=%.2f mirror_shown=%d hp=%d limp=%.2f phase=%s eaten=%d relay_seen=%s" % [_role, str(step[1]), spores, shown,
-		int(_main.get("_player_health")), limp, phase, eaten, str(_relay_seen)])
+	print("COOP BABKA %s: %s spores=%.2f mirror_shown=%d hp=%d limp=%.2f phase=%s eaten=%d relay_seen=%s chase_seen=%s" % [_role, str(step[1]), spores, shown,
+		int(_main.get("_player_health")), limp, phase, eaten, str(_relay_seen), str(_chase_seen)])

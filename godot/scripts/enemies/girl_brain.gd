@@ -14,7 +14,10 @@ extends "res://scripts/enemies/enemy_base.gd"
 ## does not reach, two small pale points where her eyes are, each blinking on its own
 ## (enemy_eyes "girl", in the world, at the eyes of whichever stage she is in); the
 ## nearer she is, the bigger and wider apart they are. Lit, you see her own eyes
-## instead. And a woman humming.
+## instead. And a woman humming. And her laugh (the user 5. 11.: "the iconic sound of the
+## Cheap Chick: she laughs so that you know where she is"; Richard's own cut, girl_laugh):
+## out in the dark from where she really is, every few seconds the further off she is; the
+## decoy, the ring round the lamp and her wall in the night all laugh it too.
 ##
 ## The terror pass (Richard, 20. 10.: "total terror"):
 ##   the dead torch  close, when your torch dies in your hand she takes her step in that
@@ -76,6 +79,7 @@ const SFX_HEEL := "res://assets/sfx/npc/girl_heel.mp3"
 const SFX_RUSH := "res://assets/sfx/npc/girl_rush.mp3"
 const SFX_STING := "res://assets/sfx/npc/girl_sting.mp3"
 const SFX_GIGGLE := "res://assets/sfx/npc/girl_giggle.mp3"
+const SFX_LAUGH := "res://assets/sfx/npc/girl_laugh.mp3"
 const SFX_SCREAM := "res://assets/sfx/npc/girl_scream.mp3"
 const SFX_DROOL := "res://assets/sfx/npc/girl_drool.mp3"
 const LAMP_SAFE := 0.22
@@ -140,7 +144,7 @@ var _curse_next := 6.0
 var _curse_frames := 0
 var _curse_back: Texture2D
 ## Her laugh from far out in the dark, slowed down into something low.
-var _far_laugh_next := 20.0
+var _far_laugh_next := 6.0
 var _eye_tilt0 := 0.12
 ## Her head turned upside down on her neck (made from her art: the head cut out and
 ## flipped), and where its eyes are.
@@ -355,7 +359,7 @@ func _on_tick(dt: float) -> void:
 			_start_ring()
 		# (Not before your eyes: she lets it go when you look away.)
 		if _in_lamp_for >= GIVE_UP_IN_LAMP and not sees:
-			_sound(SFX_GIGGLE, head, -6.0)
+			_sound(SFX_LAUGH, head, -5.0, 0.97, 60.0)
 			_leave(_rng.randf_range(10.0, 16.0))
 			return
 	else:
@@ -478,7 +482,7 @@ func _go_behind() -> void:
 	_set_pose(false)
 	_jump_ready = true
 	_moved_unseen = false
-	_sound(SFX_GIGGLE, p + Vector3(0, 1.5, 0), -7.0)
+	_sound(SFX_LAUGH, p + Vector3(0, 1.5, 0), -6.0, 1.02)
 
 
 ## Face to face after the turn: the sting, her face over everything for three frames,
@@ -627,7 +631,7 @@ func _room_lure(n: int) -> void:
 			for i in 5:
 				_later(0.55 * float(i), func(): _room_2d(SFX_HEEL, -10.0 - 2.0 * float(i), _rng.randf_range(0.9, 1.0), true))
 		2:
-			_room_2d(SFX_GIGGLE, -8.0, 0.9, true)
+			_room_2d(SFX_LAUGH, -7.0, 0.98, true)
 			for i in 3:
 				_later(1.3 + 0.9 * float(i), func(): _room_2d("res://assets/sfx/director/knock.mp3", -6.0, 0.85))
 		3:
@@ -838,7 +842,7 @@ func _tick_ring(dt: float) -> void:
 		var on := _ring_t >= float(r["open_at"])
 		if on and not bool(r.get("heard", false)):
 			r["heard"] = true
-			_sound_quarry(SFX_GIGGLE, (r["at"] as Vector3) + Vector3(0, 1.5, 0), -16.0, _rng.randf_range(0.55, 1.1), 30.0)
+			_sound_quarry(SFX_LAUGH, (r["at"] as Vector3) + Vector3(0, 1.5, 0), -15.0, _rng.randf_range(0.55, 1.1), 30.0)
 		e.set("strength", 1.0 if on else 0.0)
 		e.call("update", dt, cam)
 	# All of them out at once; the one that stays is her, behind you.
@@ -913,13 +917,19 @@ func _tick_curse(dt: float, seen_near: bool) -> void:
 	_sound(SFX_STATIC_ONE, _body.global_position + Vector3(0, 1.4, 0), 3.0, 0.7, 30.0)
 
 
-## Out of the dark, far off, her laugh slowed down into something low and long.
+## Her laugh out of the dark, from where she really is: the further off, the more often,
+## carried far (a big unit size: you hear where); now and then slowed down into something
+## low and long.
 func _tick_far_laugh(dt: float, d: float) -> void:
 	_far_laugh_next -= dt
-	if _far_laugh_next > 0.0 or d < 11.0:
+	if _far_laugh_next > 0.0 or d < 9.0:
 		return
-	_far_laugh_next = _rng.randf_range(16.0, 32.0)
-	_sound(SFX_GIGGLE, _body.global_position + Vector3(0, 1.5, 0), -10.0, _rng.randf_range(0.48, 0.58), 50.0)
+	_far_laugh_next = lerpf(14.0, 7.0, clampf((d - 9.0) / 30.0, 0.0, 1.0)) * _rng.randf_range(0.8, 1.25)
+	var slow := _rng.randf() < 0.18
+	var p := _sound(SFX_LAUGH, _body.global_position + Vector3(0, 1.5, 0), -6.0 if slow else -3.0,
+		_rng.randf_range(0.5, 0.6) if slow else _rng.randf_range(0.96, 1.04), 80.0)
+	if p != null:
+		p.unit_size = 9.0
 
 
 ## Her own art with the head cut out and turned upside down on the neck: the cap at the
@@ -1052,7 +1062,7 @@ func _update_decoy(dt: float, holding: bool, d: float) -> void:
 	e.set("size_k", 1.8)
 	e.set("gap_k", 1.5)
 	_decoy = {"eyes": e, "at": at, "t": _rng.randf_range(3.5, 6.0)}
-	_sound_quarry(SFX_GIGGLE, at, -18.0, _rng.randf_range(0.85, 1.0), 30.0)
+	_sound_quarry(SFX_LAUGH, at, -12.0, _rng.randf_range(0.9, 1.04), 40.0)
 
 
 func _drop_decoy() -> void:
