@@ -23,6 +23,21 @@ const INTERIOR_TORCH = preload("res://scripts/ui/interior_torch.gd")
 const INTERIOR_PREP = preload("res://scripts/interior_prep.gd")
 const INTERIOR_KIT = preload("res://scripts/interior_kit.gd")
 const ROOM_WEATHER = preload("res://scripts/ambient/room_weather.gd")
+## One world (W26): the room stands in its van in the camp's own world
+## (scripts/one_world_room.gd); the van it stands in has its shell left out by the room's
+## eye (and by the eye looking in from the camp) and casts no shadow then, the room's own
+## walls and windows doing it.
+const ONE_WORLD_ROOM = preload("res://scripts/one_world_room.gd")
+const DAY_FILL := 0.35
+const DAY_LAMP := 0.4
+const DAY_EXPOSURE := 1.3
+var _eye: CameraAttributesPractical
+var _probe: ReflectionProbe
+var _dry: GPUParticlesCollisionBox3D
+var _walls_t := 0.0
+var _host: Node3D
+## [node, its layers, its cast_shadow] of the host van's shell.
+var _host_shell: Array = []
 
 const TIME_DAY: int = 0
 const TIME_EVENING: int = 1
@@ -179,6 +194,8 @@ func open_caravan(level: int = 1, walked := false) -> void:
 	_is_open = true
 	visible = true
 	_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	ONE_WORLD_ROOM.camp_view(get_tree(), false)
+	_viewport.audio_listener_enable_3d = true
 	_release_inview()
 	call_deferred("_life_enter")
 	if walked:
@@ -204,6 +221,8 @@ func close_caravan() -> void:
 	visible = false
 	# Shut, the room is drawn only for the camp looking in (_update_inview).
 	_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	_viewport.audio_listener_enable_3d = false
+	ONE_WORLD_ROOM.camp_view(get_tree(), true)
 	_door_pivot.rotation_degrees.y = 0.0
 	if _life != null:
 		_life.on_leave()
@@ -218,6 +237,8 @@ func _process(delta: float) -> void:
 		return
 	if not _is_open:
 		_update_inview(delta)
+	_bind_one_world(delta)
+	if not _is_open:
 		return
 	_tick_windows(delta)
 	if _life != null:
@@ -367,7 +388,8 @@ func _tick_smashed() -> void:
 	var on := _smash_mess != null and _smash_mess.is_visible_in_tree()
 	if _windows.size() > SMASH_WINDOW:
 		var sw = _windows[SMASH_WINDOW]
-		INTERIOR_PREP.smashed_window(sw.quad, sw.get("_shared") as ShaderMaterial, sw.size, on)
+		INTERIOR_PREP.smashed_window(sw.quad, null, sw.size, on)
+		(sw.quad as MeshInstance3D).visible = not on
 	_set_smash_heard(on and _is_open)
 
 
@@ -478,6 +500,72 @@ var _inview_light_t := 0.0
 var _vans: Array = []
 
 
+# ── one world (W26) ──────────────────────────────────────────────────────────
+
+## The room in the van you are in, or (out in the camp) in the one you look in at; none, it
+## is put away (its lamp with it). That van's shell is left out by the room's eye and casts
+## no shadow while the room is in it; its light inside is its probe's; heard from the camp
+## its sounds come through the walls.
+func _bind_one_world(delta: float) -> void:
+	if _root == null or _cube_baking:
+		return
+	# (A van replaced by its upgrade: the old one freed under us.)
+	var v = _anchor() if _is_open else _inview_van
+	if v != null and (not is_instance_valid(v) or not (v as Node3D).is_inside_tree()):
+		v = null
+	var van: Node3D = v
+	_host_shell_of(van)
+	if _root.visible != (van != null or _is_open):
+		_root.visible = van != null or _is_open
+	if van != null:
+		var panes := _panes_of(van)
+		if not panes.is_empty():
+			var model := (panes[0] as Node3D).get_parent() as Node3D
+			var x: Transform3D = model.global_transform * Transform3D(Basis(), Vector3(0.0, VAN_FLOOR, 0.0))
+			if not _root.transform.is_equal_approx(x):
+				_root.transform = x
+	if _probe != null and _env != null:
+		_probe.ambient_color = _env.ambient_light_color
+		_probe.ambient_color_energy = _env.ambient_light_energy
+	_walls_t -= delta
+	if _walls_t <= 0.0:
+		_walls_t = 0.5
+		ONE_WORLD_ROOM.sounds_through_walls(_root, not _is_open)
+
+
+func _host_shell_of(van: Node3D) -> void:
+	if _host != null and not is_instance_valid(_host):
+		_host = null
+	if van == _host:
+		return
+	for e in _host_shell:
+		var g = e[0]
+		if g != null and is_instance_valid(g):
+			(g as GeometryInstance3D).layers = int(e[1])
+			(g as GeometryInstance3D).cast_shadow = int(e[2])
+	_host_shell.clear()
+	_host = van
+	if van == null:
+		return
+	var panes := _panes_of(van)
+	if panes.is_empty():
+		return
+	var model := (panes[0] as Node3D).get_parent() as Node3D
+	# (Below the model too: the door leaf goes onto its hinge.)
+	for c in model.find_children("*", "GeometryInstance3D", true, false):
+		var g := c as GeometryInstance3D
+		if not (g.has_meta("van_shell") or g.has_meta("lit_window")):
+			continue
+		_host_shell.append([g, g.layers, g.cast_shadow])
+		g.layers = ONE_WORLD_ROOM.GLASS_LAYER
+		g.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+
+func _camp_weather() -> int:
+	var scene := get_tree().current_scene if is_inside_tree() else null
+	return int(scene.get("_weather_state")) if scene != null and scene.get("_weather_state") != null else 0
+
+
 func _camp_camera() -> Camera3D:
 	var scene := get_tree().current_scene if is_inside_tree() else null
 	var w3d = scene.get("_world_3d") if scene != null else null
@@ -565,13 +653,9 @@ func _update_inview(delta: float) -> void:
 	# glass hidden (the openings in the walls, _cut_walls).
 	# (Near enough to see through, and only while one of them is in sight: it draws the
 	# camp a second time.)
-	var world := _inview_van.get_world_3d()
-	var near := _inview_van.global_position.distance_to(cam.global_position) < INVIEW_THROUGH_M
+	# (One world: through the van's windows the camp itself, the room's glass its own.)
 	for w in _windows:
-		var q: MeshInstance3D = w.quad
-		var across: bool = q.global_basis.z.dot(_inview_cam.global_position - q.global_position) > 0.0
-		q.layers = 1 if across else INVIEW_HIDE_LAYER
-		w.update(_root, _inview_cam, room_in_camp, across and near and _in_sight(w, _inview_cam, Vector2(_inview_vp.size), 0.0), world, delta, _inview_van)
+		w.update(_root, _inview_cam, room_in_camp, false, null, delta, _inview_van)
 	_inview_light_t -= delta
 	if _inview_light_t <= 0.0:
 		_inview_light_t = 0.5
@@ -595,6 +679,9 @@ func bake_cubes() -> void:
 	var was_level := _level
 	var was_state := _time_state
 	var was_lights := _lights_on
+	# Drawn far over the camp (the room is in the camp's world; under the land nothing is
+	# drawn): nothing round it, past the camp's eye's reach.
+	_root.transform = Transform3D(Basis(), Vector3(0.0, ONE_WORLD_ROOM.BAKE_UP, 0.0))
 	for lv in [1, 2, 3]:
 		if _is_open:
 			break
@@ -690,8 +777,6 @@ func _release_inview() -> void:
 	_inview_van = null
 	if _inview_vp != null:
 		_inview_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
-	for w in _windows:
-		(w.quad as MeshInstance3D).layers = INVIEW_HIDE_LAYER
 
 
 ## The room's light as the camp's hour has it, its lamp as window_lights has the van
@@ -729,8 +814,9 @@ func _ensure_inview() -> void:
 	add_child(_inview_vp)
 	_inview_cam = Camera3D.new()
 	_inview_cam.near = 0.05
-	_inview_cam.far = 40.0
-	_inview_cam.cull_mask = 0xFFFFF & ~INVIEW_HIDE_LAYER
+	# (The camp's own world now, the room in its van: near is all it needs.)
+	_inview_cam.far = 14.0
+	_inview_cam.cull_mask = 0xFFFFF & ~INVIEW_HIDE_LAYER & ~ONE_WORLD_ROOM.GLASS_LAYER
 	_inview_vp.add_child(_inview_cam)
 	if _weather != null and is_instance_valid(_weather):
 		_hide_from_camp(_weather)
@@ -764,6 +850,8 @@ func _build_door() -> void:
 	# (On the wall's outer face: the walk out ends in the doorway looking out through it.)
 	_door_view = WINDOW_PORTAL.make(self, _root, Vector3(DOOR_X, 0.04 + DOOR_H * 0.5, W * 0.5 + WALL_T + 0.004), Vector3(0, 0, 1), Vector2(DOOR_W, DOOR_H), "", 320, false)
 	_door_view.fixed_px = true
+	# (One world: the doorway is an opening onto the camp itself.)
+	_door_view.set_one_world(null)
 	_hide_from_camp(_door_view.quad)
 	_door_pivot = Node3D.new()
 	_door_pivot.name = "DoorHinge"
@@ -967,7 +1055,8 @@ func _build_viewport() -> void:
 	RETRO_RENDER.register(_viewport_container)
 	_viewport = SubViewport.new()
 	_viewport.name = "CaravanViewport"
-	_viewport.own_world_3d = true
+	# The camp's own world: the room stands in its van there (_bind_one_world).
+	ONE_WORLD_ROOM.viewport(_viewport)
 	_viewport.size = INTERIOR_RENDER_MIN_SIZE
 	_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_viewport.handle_input_locally = false
@@ -978,9 +1067,8 @@ func _build_viewport() -> void:
 	_env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	_env.ambient_light_color = Color(0.8, 0.78, 0.72)
 	_env.ambient_light_energy = 0.8
-	var we := WorldEnvironment.new()
-	we.environment = _env
-	_viewport.add_child(we)
+	# (The camp's world has its own environment: these are the room's numbers, its probe's
+	# ambient, _bind_one_world.)
 
 
 func _build_room() -> void:
@@ -992,8 +1080,8 @@ func _build_room() -> void:
 	_interior_camera.name = "CaravanCamera"
 	_interior_camera.fov = 70.0
 	_interior_camera.near = 0.05
-	_interior_camera.far = 12.0
 	_interior_camera.current = true
+	_eye = ONE_WORLD_ROOM.eye(_interior_camera)
 	_interior_camera.position = EYE
 	_interior_camera.rotation_degrees = Vector3(EYE_PITCH_DEG, EYE_YAW_DEG, 0.0)
 	# The camera on a rig that rocks with the van on its springs (_rock); still, it is the
@@ -1002,6 +1090,9 @@ func _build_room() -> void:
 	_cam_rig.name = "CamRig"
 	_root.add_child(_cam_rig)
 	_cam_rig.add_child(_interior_camera)
+	_probe = ONE_WORLD_ROOM.probe(_root, "VanLight")
+	_dry = ONE_WORLD_ROOM.dry(_root, "Dry")
+	ONE_WORLD_ROOM.fit(_probe, _dry, Vector3(-L * 0.5, 0.0, -W * 0.5), Vector3(L * 0.5, H + 0.1, W * 0.5))
 	var shell: Dictionary = K.room(_root, Vector3(L, H, W), "caravan_floor", "caravan_veneer", "caravan_ceiling", 1.1, 0.7)
 	# The walls with the doorway (you walk in and out through it) and the windows cut out.
 	_cut_walls(shell)
@@ -1019,6 +1110,8 @@ func _build_room() -> void:
 		var into := _inward(float(wspec[2]))
 		var wp = WINDOW_PORTAL.make(self, _root, (wspec[1] as Vector3) + into * 0.01, -into, wspec[0], "curtain_floral", 192)
 		_windows.append(wp)
+		# Glass in the opening, the camp itself behind it, the rain on it; for the inside.
+		wp.set_one_world(ONE_WORLD_ROOM.clear_glass())
 		_room_weather().add_window(wp.quad)
 		_hide_from_camp(wp.quad)
 		# A plain frame round it.
@@ -1308,6 +1401,14 @@ func _apply_light() -> void:
 	var glow := 0.22 if _time_state == TIME_DAY else (0.08 if _time_state == TIME_EVENING else 0.0)
 	for m in _window_mats:
 		m.emission_energy_multiplier = glow
+	# One world: the day comes in through the windows itself; while it does the room's fill
+	# and its lamp go down a little and the eye opens.
+	var dw: Vector2 = ONE_WORLD_ROOM.day_of(_daylight, get_tree(), _camp_weather())
+	_env.ambient_light_energy *= lerpf(1.0, DAY_FILL, dw.x)
+	if _lamp != null:
+		_lamp.light_energy *= lerpf(1.0, DAY_LAMP, dw.y)
+	if _eye != null:
+		_eye.exposure_multiplier = lerpf(1.0, DAY_EXPOSURE, dw.y)
 
 
 func _quad_mat(tex: String, glow: float) -> StandardMaterial3D:

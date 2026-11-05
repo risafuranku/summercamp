@@ -44,6 +44,10 @@ var _shared: ShaderMaterial
 ## Its picture kept at the size it was made (a doorway walked up to: refitting it each
 ## frame it grew blinked black; caravan_interior's door).
 var fixed_px := false
+## One world (W26): the room stands in the camp's own world, the camp itself behind the
+## opening: the quad is glass (the rain on it; `glass` null: no quad, a doorway), no view
+## drawn into it, only the curtain and the flash go on (set_one_world).
+var one_world := false
 
 
 ## A window in `room` (a Node3D of the room, room space) at `centre`, facing `outward`
@@ -185,10 +189,26 @@ static func building_box(anchor: Node3D) -> AABB:
 ## Each frame while the room is open. `room`: the room's node (room space), `eye`: the
 ## room's camera, `xform`: room_to_world, `live`: whether this window is to be drawn
 ## (its part of the building is the one you are in).
+func set_one_world(glass: Material) -> void:
+	one_world = true
+	if _shared != null:
+		_update_shared(false)
+	if vp != null:
+		vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	if quad != null:
+		quad.material_override = glass
+		quad.visible = glass != null
+
+
 func update(room: Node3D, eye: Camera3D, xform: Transform3D, live: bool, world: World3D, delta: float, building: Node3D = null) -> void:
 	if curtain != null:
 		curtain.update(delta)
 	_flash = maxf(0.0, _flash - delta)
+	if one_world:
+		var f1 := pow(_flash / FLASH_SEC, 1.6) if _flash > 0.0 else 0.0
+		if light != null:
+			light.light_energy = 9.0 * f1 * (1.0 if curtain == null else lerpf(0.18, 1.0, curtain.open))
+		return
 	var shut: bool = curtain != null and float(curtain.open) < 0.03
 	var on: bool = live and not shut and world != null and eye != null
 	if _shared != null:

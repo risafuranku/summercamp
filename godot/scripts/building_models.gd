@@ -1186,11 +1186,18 @@ func caravan(r: Node3D, w: float, d: float, level := 1) -> Vector3:
 		(cap.mesh as CylinderMesh).radial_segments = 16
 	_box(r, "Roof", Vector3(lx + 0.02, 0.06, lz + 0.02), Vector3(0, y0 + h + 0.03, 0), cream)
 	_box(r, "RoofVent", Vector3(0.5, 0.12, 0.4), Vector3(-lx * 0.15, y0 + h + 0.09, 0), _flat(Color(0.95, 0.94, 0.9)))
+	# The van's shell (what the room stands inside in the camp's one world: caravan_interior
+	# leaves it out of the room's eye while the room is in it). Marked, not named: a second
+	# child of the same name is renamed.
+	for c in r.get_children():
+		if c is GeometryInstance3D:
+			c.set_meta("van_shell", true)
 	# The door and the windows on the camp side; windows on the back too.
 	var door_x := -lx * 0.25
 	# The door a leaf on its hinges (door_through: in and out on foot), its picture on it.
 	_box(r, "Door", Vector3(0.62, 1.55, 0.04), Vector3(door_x, y0 + 0.85, lz * 0.5 + 0.026), cream)
-	_side_quad(r, "DoorFace", Vector2(0.62, 1.55), Vector3(door_x, y0 + 0.85, lz * 0.5 + 0.047), 0.0, _camp_or("caravan_door.png", Color(1, 1, 1), "wood"))
+	_side_quad(r, "DoorFace", Vector2(0.62, 1.55), Vector3(door_x, y0 + 0.85, lz * 0.5 + 0.047), 0.0, _camp_or("caravan_door.png", Color(1, 1, 1), "wood")).set_meta("van_shell", true)
+	(r.get_child(r.get_child_count() - 2) as Node).set_meta("van_shell", true)
 	# Its number on an enamel plate beside the door (scripts/lodging_signs.gd).
 	r.set_meta("number_plate", Transform3D(Basis(), Vector3(door_x + 0.56, y0 + 1.2, lz * 0.5 + 0.03)))
 	var glass := _camp_or("caravan_window.png", Color(1, 1, 1), "glass")

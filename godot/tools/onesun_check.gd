@@ -620,6 +620,23 @@ func _ready() -> void:
 				["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 8.0],
 				["eval", C + ".save_cubes()"], ["eval", "get_tree().quit()"]]
 			return
+		if a == "--part=van":
+			var VI := "_interior_manager._caravan_interior"
+			var st: Array = [
+				["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+				["eval", "_interior_manager._building_interior.close_interior()"],
+				["money", 40000], ["clear", 12, 10, 20, 15], ["build", "caravan_1", 13, 12, 0], ["wait", 2.0],
+				["eval", "debug_jump_to(1, 12.5)"], ["wait", 2.0]]
+			for ang in [0.0, 30.0, 180.0, 90.0]:
+				st += [["eval", C + ".around('caravan_1', %s, 3.6, 0.2)" % ang], ["wait", 1.0], ["shot", "a_out_%03d" % int(ang)]]
+			st += [["eval", "set('debug_camera', null)"], ["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('caravan_1'))"], ["wait", 5.0], ["mouse", 0.5, 0.5]]
+			for v in [[0.0, -8.0, "c"], [70.0, -5.0, "l"], [-70.0, -5.0, "r"], [150.0, -5.0, "b"]]:
+				st += [["eval", VI + "._look.set('yaw_deg', %s)" % v[0]], ["eval", VI + "._look.set('pitch_deg', %s)" % v[1]], ["wait", 0.7], ["shot", "b_in_%s" % v[2]]]
+			st += [["eval", "debug_jump_to(1, 22.0)"], ["wait", 1.5], ["eval", VI + "._look.set('yaw_deg', 0.0)"], ["wait", 0.7], ["shot", "c_night_in"],
+				["eval", VI + ".close_caravan()"], ["wait", 1.0], ["eval", C + ".around('caravan_1', 0.0, 3.6, 0.2)"], ["wait", 1.2], ["shot", "d_night_out"],
+				["eval", "get_tree().quit()"]]
+			_steps = st
+			return
 		if a == "--part=out":
 			var st: Array = [
 				["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 4.0],
