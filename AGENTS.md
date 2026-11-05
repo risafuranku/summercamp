@@ -448,9 +448,20 @@ every night's sewer, toilets and frozen pipes the moment they broke).
  openings (the cabin's a 4 cm skin, the room's walls 3 cm short of its outer face, so no two
  faces meet), its window frames are rings, its panes glass while the room is in it. The
  reception's doorway is a real opening; walking out still sets `walked_out` and puts the
- player where the room's eye was (`walk_out_handoff`). Tents, caravans and the service
- rooms are still worlds of their own with portals (their rooms are not the size of their
- models).
+ player where the room's eye was (`walk_out_handoff`). Also in one world: the bowling hall
+ (its floor on the model's; the cellar far over the hall, shown only while you are in it),
+ the tents (every tent at least its room, `building_manager.TENT_SIZE`; the canvas's front a
+ real doorway the size of the room's front gable, `building_models.TENT_DOORWAY`) and the
+ caravans (the room is the van's body by plan; the van it stands in has its shell, marked
+ `van_shell`, left out of the room's eye and its shadow off while it does). One room
+ serves every cabin, tent and van: it stands in the one you are in or look in at
+ (`_host_panes`, `_host_way`, `_host_shell_of`); the others keep their cubes and darks.
+ **Under the land nothing is drawn** (a room put below y 0 rendered as sky): bake a room's
+ cubes far over the camp (`one_world_room.BAKE_UP`). Lamps without shadows in a room built in
+ the camp light the grass outside its walls: `one_world_room.own_lights` (the room's own
+ layer, 13). The service rooms (toilets, showers, the generator, the sewer) and the
+ businesses' interiors are still worlds of their own: the businesses have a second copy of
+ their room in their building for the camp to see (`business/room_outside.gd`).
 - **A room's windows share ONE view of the camp** (`scripts/ui/window_shared_view.gd`, the
   user 25. 10.: "shared like this in all interiors, and in every future one"): one camera
   at the room's eye mapped into the camp, the room camera's lens, the room's pixel size;
