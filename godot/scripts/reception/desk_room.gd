@@ -742,7 +742,7 @@ func _build_door() -> void:
 	var face_out := K.picture(_door_pivot, "door_wood", Vector2(DOOR_W, 2.05), Vector3(-DOOR_W * 0.5, 1.025, -0.026), 180.0, "FrontDoorFaceOut")
 	# Click it and you go out into the camp, the way you came in (reception_extras).
 	_hot("front_door", DOOR_HINGE + Vector3(-DOOR_W * 0.5, 1.05, 0.05), Vector3(DOOR_W, 2.1, 0.2), [leaf, face_in, face_out])
-	# In the camp's one world (building_interior.ONE_WORLD) the building's own leaf is the door
+	# In the camp's one world (building_interior, W26) the building's own leaf is the door
 	# from outside, this one from inside: the camp's eye leaves it out.
 	for m in [leaf, face_in, face_out]:
 		if m is VisualInstance3D:

@@ -474,10 +474,9 @@ func is_ringing() -> bool:
 func _ring_once() -> void:
 	if phone_view != null and phone_view.visible:
 		return
+	# (Heard from the camp too, through the walls: the room is in the camp's world.)
 	if _bell3d != null and _bell3d.stream != null:
 		_bell3d.play()
-	if host != null and host.has_method("ring_outdoor"):
-		host.ring_outdoor()
 	if _phone_root != null:
 		# The handset jumps in its cradle with the bell.
 		var hs := _phone_root.get_node_or_null("Handset") as Node3D

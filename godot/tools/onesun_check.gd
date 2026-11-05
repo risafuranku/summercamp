@@ -1,6 +1,6 @@
 extends "res://tools/shot_driver.gd"
 
-## The camp's own sun in the reception built in the camp's world (W26, ONE_WORLD): from points
+## The camp's own sun in the reception built in the camp's world (W26, one world): from points
 ## just inside each of its windows a line back towards the sun, and every shadow caster's box
 ## it goes through (what keeps the sun out), the sun's own settings. Lines "ONESUN ...".
 ##   godot --path godot --audio-driver Dummy --resolution 1280x720 res://tools/onesun_check.tscn -- --out=DIR

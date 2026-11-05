@@ -464,7 +464,7 @@ static func bold(l: Label3D) -> void:
 
 
 ## Drawn by a viewport with a world of its own (the bus, the pipes), or a room's built in the
-## camp's world (meta "retro_room" on its viewport: building_interior.ONE_WORLD).
+## camp's world (meta "retro_room" on its viewport: building_interior, W26).
 func _in_room(n: Node) -> bool:
 	var vp := n.get_viewport()
 	return vp is SubViewport and ((vp as SubViewport).own_world_3d or vp.has_meta("retro_room"))
