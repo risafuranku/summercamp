@@ -24,6 +24,7 @@ extends Node3D
 ## and counterweight; playtest 25. 10. "texture the barrier"), falling back to the old
 ## texture set.
 
+const STEP_MOTION := preload("res://scripts/ambient/step_motion.gd")
 const TEX_DIR := "res://assets/textury/camp/"
 const SFX_LIFT := "res://assets/sfx/gate/barrier_lift.mp3"
 const SFX_DROP := "res://assets/sfx/gate/barrier_drop.mp3"
@@ -61,6 +62,11 @@ var _party_until := 0.0
 
 ## `gate_world`: the centre of the gate tile; `fence_z_world`: the south fence line.
 func build(gate_world: Vector3, fence_z_world: float, texture_style) -> void:
+	# The world's stepped motion (the camp's doors and flaps find themselves there).
+	if is_inside_tree():
+		STEP_MOTION.get_for(self)
+	else:
+		tree_entered.connect(func(): STEP_MOTION.get_for(self), CONNECT_ONE_SHOT)
 	_texture_style = texture_style
 	gap_center_x = gate_world.x
 	fence_z = fence_z_world
@@ -248,6 +254,10 @@ func _swing(deg: float, seconds: float) -> void:
 	_arm_tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	# The arm runs along +X from the pivot: a positive turn about Z lifts it.
 	_arm_tween.tween_property(_arm_pivot, "rotation:z", deg_to_rad(deg), seconds)
+	# Down on its rest it bounces twice; up at the top it shudders (the user 5. 11.: in
+	# steps, a few frames a second, step_motion.gd).
+	var turns: Array = [deg_to_rad(2.6), 0.0, deg_to_rad(1.1), 0.0] if deg < 1.0 else [deg_to_rad(-1.4), 0.0, deg_to_rad(-0.6), 0.0]
+	_arm_tween.finished.connect(func(): STEP_MOTION.kick(_arm_pivot, Vector3(0, 0, 1), turns))
 
 
 # ── geometry ──────────────────────────────────────────────────────────────────

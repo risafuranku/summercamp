@@ -18,6 +18,7 @@ const TEX := "res://assets/textury/town/"
 const TEX_CAMP := "res://assets/textury/camp/"
 const SFX := "res://assets/sfx/town/"
 const CLOTH := preload("res://materials/cloth_wind.gdshader")
+const STEP_MOTION := preload("res://scripts/ambient/step_motion.gd")
 
 var town: Node3D
 var _rng := RandomNumberGenerator.new()
@@ -348,8 +349,11 @@ func _street() -> void:
 	_solid(Vector3(-7.0, 0.9, 8.4), Vector3(1.6, 1.8, 0.3))
 	_sprite("shrine", 3.0, Vector3(-69.3, 0, -6.4), true)
 	_solid(Vector3(-69.3, 1.2, -6.4), Vector3(0.7, 2.4, 0.7))
-	# The pub's sign, out on its bracket over the door.
-	_sprite("pub_sign", 0.8, Vector3(19.6, 2.7, -9.7), false, PI * 0.5)
+	# The pub's sign, out on its bracket over the door: hung from its top edge, it swings in
+	# the wind and knocks about, in steps (step_motion.gd).
+	var pub_sign := _sprite("pub_sign", 0.8, Vector3(19.6, 2.7, -9.7), false, PI * 0.5)
+	if pub_sign != null:
+		STEP_MOTION.attach(pub_sign, "swing", Vector3.RIGHT, 0.32, {"pivot": Vector3(0, 0.8, 0), "near": 80.0})
 	# A wood pile by the pub's side, crates of empties at its back door.
 	_sprite("woodpile", 1.4, Vector3(23.2, 0, -14.0), false, PI * 0.5)
 

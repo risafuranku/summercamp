@@ -127,7 +127,57 @@ static func build(parent: Node3D, floor_y: float, mats: Dictionary) -> Dictionar
 	for x in [-0.72, -0.5]:
 		var p := _box(parent, Vector3(x, y + 0.1, DASH_BACK + 0.06), Vector3(0.09, 0.03, 0.18), rubber)
 		p.rotation.x = deg_to_rad(35.0)
-	return {"parts": parts, "seat": seat, "dash_face": face}
+	return {"parts": parts, "seat": seat, "dash_face": face, "needles": needles(face)}
+
+
+## The two big dials' needles on the dash's face (tools/artgen/karosa.py draws the dials
+## without them): the speed and the revs, each on its pivot at its dial's middle.
+const DIAL_X := [-0.05, 0.15]
+const DIAL_Y := -0.01
+const NEEDLE_LEN := 0.064
+static func needles(face: MeshInstance3D) -> Array:
+	var out: Array = []
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.albedo_color = Color(0.86, 0.36, 0.16)
+	for x in DIAL_X:
+		var pivot := Node3D.new()
+		pivot.name = "Needle"
+		pivot.position = Vector3(float(x), DIAL_Y, 0.004)
+		face.add_child(pivot)
+		var q := MeshInstance3D.new()
+		var qm := QuadMesh.new()
+		qm.size = Vector2(NEEDLE_LEN, 0.007)
+		qm.center_offset = Vector3(NEEDLE_LEN * 0.4, 0, 0)
+		q.mesh = qm
+		q.material_override = m
+		q.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		pivot.add_child(q)
+		out.append(pivot)
+	set_needles(out, 0.0, 0.0)
+	return out
+
+
+## Where the needles stand at `speed` (m/s): the speed from 0 to 100 km/h across the scale
+## (220 degrees down to -40), the revs from the gear it would be in; `shake` (0..1) knocks
+## them about a little (the road). A step each time it is called.
+static func set_needles(pivots: Array, speed: float, shake: float) -> void:
+	if pivots.size() < 2:
+		return
+	var kmh := speed * 3.6
+	var gears := [0.0, 4.0, 8.0, 13.0, 19.0, 30.0]
+	var rev := 0.24
+	if speed > 0.3:
+		for g in range(gears.size() - 1):
+			if speed < float(gears[g + 1]) or g == gears.size() - 2:
+				rev = 0.3 + 0.55 * clampf((speed - float(gears[g])) / (float(gears[g + 1]) - float(gears[g])), 0.0, 1.0)
+				break
+	var j := shake * 0.035
+	for i in 2:
+		var f: float = clampf(kmh / 100.0, 0.0, 1.0) if i == 0 else rev
+		var a := deg_to_rad(220.0 - 260.0 * f) + randf_range(-j, j)
+		# In whole steps of the scale's pixels, as a cheap dial jumps.
+		(pivots[i] as Node3D).rotation.z = snappedf(a, deg_to_rad(3.0))
 
 
 static func _mat(mats: Dictionary, key: String, tex: String, tint: Color, uv := Vector2.ONE) -> StandardMaterial3D:

@@ -469,10 +469,9 @@ def dash():
             a = math.radians(220 - k * 26)
             c.rect(cx + math.cos(a) * r * 0.82 - 0.004, 0.2 + math.sin(a) * r * 0.82 - 0.004,
                    cx + math.cos(a) * r * 0.82 + 0.004, 0.2 + math.sin(a) * r * 0.82 + 0.004, (220, 220, 214))
-        a = math.radians(rng.uniform(150, 200))
-        for t in range(12):
-            q = t / 12.0 * r * 0.75
-            c.rect(cx + math.cos(a) * q - 0.003, 0.2 + math.sin(a) * q - 0.003, cx + math.cos(a) * q + 0.003, 0.2 + math.sin(a) * q + 0.003, (220, 90, 40))
+        # (The needles are the game's own: karosa_cab.needles, jumping in steps. The draw
+        # still taken from the dice so the grain stays as it was.)
+        rng.uniform(150, 200)
     for row in range(2):
         for k in range(3):
             cx = 0.98 + k * 0.1

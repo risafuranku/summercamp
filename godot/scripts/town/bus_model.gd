@@ -96,6 +96,8 @@ var _steer_shown := 0.0
 var _steer_wheel: Node3D
 var _lean := 0.0
 var _step := -1
+## The dials' needles (karosa_cab.needles), moved a step at a time.
+var _needles: Array = []
 
 
 func _ready() -> void:
@@ -273,6 +275,8 @@ func _process(delta: float) -> void:
 			_steer_wheel.basis = Basis(Vector3.RIGHT, deg_to_rad(WHEEL_TILT)) * Basis(Vector3.UP, _steer_shown * STEER_RATIO)
 		var lateral := _speed * _speed * tan(_steer_shown) / 5.3
 		_lean = clampf(lateral * 0.0065, -0.045, 0.045)
+		if not _needles.is_empty() and is_visible_in_tree():
+			CAB.set_needles(_needles, _speed, minf(1.0, _speed / 10.0))
 	_body.rotation.z = rock - _lean
 	_idle.pitch_scale = 1.0 + minf(0.5, _speed / 20.0)
 	_face_driver()
@@ -604,8 +608,9 @@ func _build_inside() -> void:
 	_quad(_body, Vector3(0, (FLOOR_Y + WINDSCREEN_Y.x) * 0.5, front_z - 0.02), Vector2(WIDTH - 0.08, WINDSCREEN_Y.x - FLOOR_Y), Vector3.ZERO, wall)
 	_quad(_body, Vector3(0, (FLOOR_Y + CEIL_Y) * 0.5, back_z), Vector2(WIDTH - 0.08, CEIL_Y - FLOOR_Y), Vector3(0, PI, 0), wall)
 	# The driver's place, as in the photo.
-	CAB.build(_body, FLOOR_Y, _inside_mats)
+	var cab: Dictionary = CAB.build(_body, FLOOR_Y, _inside_mats)
 	_steer_wheel = _body.get_node_or_null("Wheel") as Node3D
+	_needles = cab.get("needles", [])
 	# The tan seats down both sides as the cabin has them (bus_ride.SEATS): none by the
 	# steps, none from the back door on.
 	for i in 8:

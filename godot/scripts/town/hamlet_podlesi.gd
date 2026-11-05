@@ -184,10 +184,14 @@ func _stops_h() -> void:
 		var f: Vector3 = pole[1]
 		_box(root, at + Vector3(0, 1.4, 0), Vector3(0.08, 2.8, 0.08), grey)
 		_box(root, at + Vector3(0, 0.1, 0), Vector3(0.3, 0.2, 0.3), _mat(TEX_CAMP + "concrete.png", Color(0.8, 0.8, 0.78)))
-		_box(root, at + Vector3(0, 2.5, 0), Vector3(0.6, 0.45, 0.03), grey)
+		var plate := _box(root, at + Vector3(0, 2.5, 0), Vector3(0.6, 0.45, 0.03), grey)
+		var first := root.get_child_count()
 		for s in [f, -f]:
 			_face(root, at + Vector3(0, 2.5, 0) + s * 0.02, Vector2(0.6, 0.45), s, sign_mat)
 			_letters(root, "podlesi_stop", at + Vector3(0, 2.05, 0) + s * 0.01, s)
+		# Its tin in a wind out in the open fields: twisted and knocked about, in steps.
+		if plate is Node3D:
+			preload("res://scripts/ambient/step_motion.gd").attach(plate, "rattle", Vector3.UP, 0.035, {"shift": Vector3(0, 0, 0.005), "from": 0.5, "with": root.get_children().slice(first)})
 		var case_mat := _mat(_first([TEX + "timetable_case.png"]), Color(0.6, 0.62, 0.6))
 		_box(root, at + Vector3(0, 1.45, 0) + f * 0.06, Vector3(0.46, 0.62, 0.05), _mat("", Color(0.55, 0.56, 0.55)))
 		_face(root, at + Vector3(0, 1.45, 0) + f * 0.09, Vector2(0.46, 0.62), f, case_mat)

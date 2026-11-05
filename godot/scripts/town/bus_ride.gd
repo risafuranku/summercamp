@@ -56,6 +56,7 @@ const DRIVER_PRICE := 3
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 const TEX := "res://assets/textury/town/"
 const KAROSA_CAB = preload("res://scripts/town/karosa_cab.gd")
+const STEP_MOTION = preload("res://scripts/ambient/step_motion.gd")
 const TEX_CAMP := "res://assets/textury/camp/"
 const SFX := "res://assets/sfx/bus/"
 const NPC := "res://assets/textury/npc/"
@@ -204,6 +205,12 @@ var _travelled := 0.0
 var _rig: Node3D
 ## The driver's wheel in the cabin, turned as the bus outside turns his (bus_model).
 var _cab_wheel: Node3D
+## The cabin's side panes (they clack in their frames on a bump), the used tickets stuck
+## behind the punch (they flutter while it goes), the dials' needles: all in steps.
+var _panes: Array = []
+var _tickets: Array = []
+var _cab_needles: Array = []
+var _needle_step := -1
 const CABIN_Y := 0.78
 ## The clickable things in the cabin are on their own physics layer (the world's walls
 ## and floors are not in the way of the mouse).
@@ -758,11 +765,24 @@ func _update_bumps(delta: float) -> void:
 		_bump_cell = cell
 		if _hash01(cell, 17) < 0.45:
 			_bump = lerpf(0.015, 0.042, _hash01(cell, 29))
+			# The panes clack in their frames, one a step after another.
+			for i in _panes.size():
+				var pane = _panes[i]
+				if pane is Node3D and is_instance_valid(pane):
+					var a := _bump * 0.3
+					var turns: Array = []
+					for _w in (i * 7 + cell) % 3:
+						turns.append(0.0)
+					turns.append_array([a, -a * 0.6, a * 0.25, 0.0])
+					STEP_MOTION.kick(pane, Vector3.RIGHT, turns)
 			# A real pothole now and then: the thump and the whole body clattering.
 			if _bump > 0.034:
 				_play_two("karosa_pothole.mp3", -9.0)
 	_bump = maxf(0.0, _bump - delta * 0.12)
 	var tick := floorf(Time.get_ticks_msec() / 83.0)
+	if int(tick) != _needle_step and not _cab_needles.is_empty():
+		_needle_step = int(tick)
+		KAROSA_CAB.set_needles(_cab_needles, _speed, minf(1.0, _bump * 30.0 + _speed / 20.0))
 	var sway := 0.0
 	if _speed > 1.0:
 		sway = sin(tick * 0.37) * 0.006 * (_speed / CRUISE)
@@ -2225,7 +2245,7 @@ func _build_cabin() -> void:
 			var sl := span.y - span.x
 			var sm := (span.x + span.y) * 0.5
 			_box(cabin, Vector3(x, 0.42, sm), Vector3(0.06, 0.84, sl), wall)
-			_quad(cabin, Vector3(x - side * 0.01, 1.35, sm), Vector2(sl, 1.02), side * PI * 0.5, _glass_material())
+			_panes.append(_quad(cabin, Vector3(x - side * 0.01, 1.35, sm), Vector2(sl, 1.02), side * PI * 0.5, _glass_material()))
 		_box(cabin, Vector3(x, 2.0, mid), Vector3(0.06, 0.28, length), wall)
 		var z := FLOOR_Z.x + 0.32
 		while z < FLOOR_Z.y:
@@ -2251,6 +2271,7 @@ func _build_cabin() -> void:
 	_box(cabin, Vector3(0, 0.3, FLOOR_Z.x), Vector3(HALF_W * 2.0, 0.6, 0.08), _mat("front", "", Color(0.3, 0.3, 0.3)))
 	var cab: Dictionary = KAROSA_CAB.build(cabin, 0.0, _mats)
 	_cab_wheel = cabin.get_node_or_null("Wheel") as Node3D
+	_cab_needles = cab.get("needles", [])
 	# Seats: a cushion, the back with its cloth and its cover, a chrome grip.
 	var cloth := _mat("seat_cloth", TEX + "karosa_seat_cloth.png", Color(1, 1, 1), Vector2(4.0, 2.0))
 	var edge := _mat("seat_edge", "", Color(0.36, 0.24, 0.16))
@@ -2294,6 +2315,24 @@ func _build_cabin() -> void:
 	var face_tex := _town_tex("validator")
 	var face := _quad(punch, Vector3(0.051, 0, 0), Vector2(0.15, 0.32), PI * 0.5, _tex_mat(face_tex, true) if face_tex != null else _mat("punch_face", "", Color(0.12, 0.12, 0.12)))
 	_hot_body(punch, "punch", Vector3.ZERO, Vector3(0.24, 0.4, 0.3), [shell, face])
+	# The used tickets people stuck behind it, between the box and the pole: they flutter in
+	# the draught while it goes, in steps (the user 5. 11.).
+	var used := load("res://assets/textury/items/ticket_used.png") as Texture2D
+	if used != null:
+		for k in 3:
+			var tk := Sprite3D.new()
+			tk.texture = used
+			tk.pixel_size = 0.0034
+			tk.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+			tk.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+			tk.shaded = true
+			tk.double_sided = true
+			tk.offset = Vector2(0, -6.0)
+			tk.position = Vector3(-0.055, 0.17 - 0.05 * float(k), -0.03 + 0.03 * float(k))
+			tk.rotation = Vector3(0, PI * 0.5 + 0.25 * float(k - 1), 0.35 * float(k - 1))
+			punch.add_child(tk)
+			_tickets.append(tk)
+			STEP_MOTION.attach(tk, "flap", Vector3.RIGHT, 0.5, {"drive": func(): return clampf(_speed / CRUISE, 0.0, 1.0) * 0.8 + _bump * 6.0, "near": 12.0})
 	# The driver in his seat (karosa_cab.gd's): Grok's man without a seat, from behind.
 	var driver := Node3D.new()
 	driver.position = Vector3(KAROSA_CAB.SEAT.x, 0, KAROSA_CAB.SEAT.y)
