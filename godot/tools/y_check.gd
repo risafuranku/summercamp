@@ -148,6 +148,8 @@ func _ready() -> void:
 			_steps = _curtains()
 		"curtains2":
 			_steps = _curtains2()
+		"sound":
+			_steps = _sound_trail()
 
 
 ## R turns what you are about to build, with the pointer anywhere (Y14).
@@ -615,6 +617,21 @@ func _curtains2() -> Array:
 	for i in 8:
 		s += [["wait", 0.35], ["eval", C + ".wl_pane('13:11', %d)" % i], ["shot", "c2_pull_%d" % i]]
 	s += [["wait", 2.0], ["shot", "c2_shut"], ["eval", "get_tree().quit()"]]
+	return s
+
+
+## What is heard, for --write-movie (Y3): the marks print the clock; in by the reception's
+## door, out, the torch on and off in the dark.
+func mark(tag: String) -> void:
+	say("MARK %s %.2f" % [tag, float(Time.get_ticks_msec()) / 1000.0])
+
+
+func _sound_trail() -> Array:
+	var s: Array = BOOT.duplicate(true)
+	s += [["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 3.0], ["eval", "debug_jump_to(1, 12.0)"], ["eval", "set('debug_camera', null)"],
+		["door_front", "main_building", 2.0], ["wait", 2.0], ["eval", C + ".mark('door')"],
+		["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('main_building'))"], ["wait", 5.0],
+		["eval", BI + "._exit_crt_view()"], ["wait", 3.0], ["eval", "get_tree().quit()"]]
 	return s
 
 
