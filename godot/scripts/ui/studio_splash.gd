@@ -25,9 +25,11 @@ extends Control
 ## viewport) draws the tubes, the studio_neon shader lights the wall with them and puts
 ## the frame through a Build palette (tools/gen_splash_palette.py) with grain and the
 ## game's dither, the moths fly over that. Shown like the engine's boot splash:
-## kept aspect, nearest. Esc, space, Enter or a click go straight to the fade (not in
-## the first second, and not a pad: stray pad and key events at start-up used to cut the
-## intro short). Headless runs go straight to main.
+## kept aspect, nearest. Esc, space, Enter or a click end it there and then (not in the
+## first moment, and not a pad: stray pad and key events at start-up used to cut the
+## intro short): a short fade, no more of its sounds, the title card while main loads (it
+## went on ticking and striking behind the slow fade, "the intro plays out in the
+## background", the user 5. 11.). Headless runs go straight to main.
 
 const MAIN_SCENE := "res://scenes/main.tscn"
 ## main.WINDOW_TITLE (preloading main.gd here would load the whole game up front).
@@ -113,10 +115,12 @@ const GODOT_HOLD := 1.6
 ## The fade to black (through the palette), then the title card fading in and staying
 ## a moment before main takes over.
 const FADE_SLOW := 1.4
+## Skipped: as quick as a blink.
+const FADE_SKIP := 0.3
 const TITLE_IN := 0.45
 const TITLE_HOLD := 0.15
 ## Skipping only after this long, and only with these (a deliberate press).
-const SKIP_AFTER := 1.0
+const SKIP_AFTER := 0.35
 const SKIP_KEYS := [KEY_ESCAPE, KEY_SPACE, KEY_ENTER, KEY_KP_ENTER]
 
 ## The sign layer's alpha for the clear glass panels (the shader reads >= 0.95 as
@@ -154,6 +158,9 @@ var _pan_at := INF
 var _earliest_cut := 0.0
 ## When the fade out started (-1 = not yet).
 var _fade_at := -1.0
+## Skipped by a key or a click: the intro is over, seen and heard.
+var _skipped := false
+var _born_ms := 0
 var _leave_at := INF
 var _t := 0.0
 var _done := false
@@ -172,6 +179,7 @@ var _tap_cooldown := 0.0
 
 
 func _ready() -> void:
+	_born_ms = Time.get_ticks_msec()
 	DisplayServer.window_set_title(WINDOW_TITLE)
 	if not preview and DisplayServer.get_name() == "headless":
 		get_tree().change_scene_to_file.call_deferred(MAIN_SCENE)
@@ -490,8 +498,9 @@ func _process(delta: float) -> void:
 	if preview or _done or _viewport == null:
 		return
 	# Frame time, not the wall clock: a loading hitch slows the picture down instead of
-	# skipping it, and --write-movie records it at its own pace.
-	_t += minf(delta, 0.1)
+	# skipping it, and --write-movie records it at its own pace. (Skipped, the wall clock:
+	# main loading on its thread starves the frames, and the fade crawled through them.)
+	_t += delta if _skipped else minf(delta, 0.1)
 	var loaded := _main_loaded()
 	if _fade_at < 0.0 and loaded and _t >= _earliest_cut:
 		_fade_out(_t)
@@ -504,7 +513,7 @@ func _process(delta: float) -> void:
 	_crickets.volume_db = linear_to_db(night) + CRICKETS_DB
 	_wind.volume_db = linear_to_db(night) + WIND_DB + 6.0 * (_Leaves.gust(_t) - 1.0)
 	_tap_cooldown -= delta
-	if _moths.tapped and _tap_cooldown <= 0.0:
+	if _moths.tapped and _tap_cooldown <= 0.0 and not _skipped:
 		_play("moth_tap", -21.0, _rng.randf_range(0.85, 1.25))
 		_tap_cooldown = 0.6
 	_moths.tapped = false
@@ -513,13 +522,16 @@ func _process(delta: float) -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if preview or _done or _fade_at >= 0.0 or _t < SKIP_AFTER:
+	# (By the wall clock: main loading on its thread holds the picture's clock near nought
+	# for the first seconds, and a press then was thrown away.)
+	if preview or _done or _fade_at >= 0.0 or float(Time.get_ticks_msec() - _born_ms) < SKIP_AFTER * 1000.0:
 		return
 	var key := event as InputEventKey
 	var click := event as InputEventMouseButton
 	var pressed: bool = (key != null and key.pressed and not key.echo and SKIP_KEYS.has(key.keycode)) \
 		or (click != null and click.pressed and click.button_index == MOUSE_BUTTON_LEFT)
 	if pressed:
+		_skipped = true
 		_fade_out(_t)
 		get_viewport().set_input_as_handled()
 
@@ -529,11 +541,11 @@ func _input(event: InputEvent) -> void:
 func _fade(t: float) -> float:
 	if _fade_at < 0.0 or t < _fade_at:
 		return 1.0
-	return 1.0 - smoothstep(0.0, 1.0, (t - _fade_at) / FADE_SLOW)
+	return 1.0 - smoothstep(0.0, 1.0, (t - _fade_at) / (FADE_SKIP if _skipped else FADE_SLOW))
 
 
 func _title_at() -> float:
-	return _fade_at + FADE_SLOW if _fade_at >= 0.0 else INF
+	return _fade_at + (FADE_SKIP if _skipped else FADE_SLOW) if _fade_at >= 0.0 else INF
 
 
 ## main's title card, fading in out of the black (not in preview: the bake tool reads
@@ -600,6 +612,9 @@ func _build_audio() -> void:
 
 
 func _fire_events() -> void:
+	# (Skipped: nothing more of it.)
+	if _skipped:
+		return
 	while _next_event < _events.size() and _events[_next_event][0] <= _t:
 		var e: Array = _events[_next_event]
 		_next_event += 1

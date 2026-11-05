@@ -250,7 +250,16 @@ var flashlight_stutter: float = 0.0
 var _torch_dark_until := -1.0
 var _torch_back_until := -1.0
 const TORCH_CLICK := "res://assets/sfx/backroom/lamp_click.mp3"
+const TORCH_ON := preload("res://assets/sfx/player/torch_on.mp3")
+const TORCH_OFF := preload("res://assets/sfx/player/torch_off.mp3")
+const TORCH_CLICK_DB := -9.0
 var _flashlight_user_chose_off: bool = false
+## It is raining (main: set_flashlight_rain).
+var _raining := false
+## F works by day: the rain, and a torch you switched on in it stays on after it till you
+## switch it off (nothing puts it out over your head).
+var _flashlight_wet := false
+var _torch_snd: AudioStreamPlayer
 var _flashlight_disallowed_at: int = -100000
 var _grid_manager: Node
 var _steps: Dictionary = {}          # surface -> [AudioStream]
@@ -776,8 +785,8 @@ func set_grid_manager(grid_manager: Node) -> void:
 	_grid_manager = grid_manager
 
 
-## Main allows the flashlight at dusk; enemies "blink" it off for a fraction of a
-## second. Coming back from a blink keeps the player's own on/off choice; coming back
+## Main allows the flashlight at dusk (and by F in the rain: set_flashlight_rain); enemies
+## "blink" it off for a fraction of a second. Coming back from a blink keeps the player's own on/off choice; coming back
 ## after a real dark period (a new evening) switches it on again.
 func set_flashlight_allowed(allowed: bool) -> void:
 	var was_allowed := _flashlight_allowed
@@ -789,7 +798,33 @@ func set_flashlight_allowed(allowed: bool) -> void:
 		if now - _flashlight_disallowed_at > 5000:
 			_flashlight_user_chose_off = false
 		_flashlight_user_enabled = not _flashlight_user_chose_off and flashlight_battery > 0.02
+		_flashlight_wet = _raining
 	_refresh_flashlight_state()
+
+
+## Rain and storms: the torch is yours by day too (the user 5. 11.), by F only: it comes on
+## by itself in the dark alone.
+func set_flashlight_rain(raining: bool) -> void:
+	_raining = raining
+	if raining and not _flashlight_wet:
+		_flashlight_wet = true
+		if not _flashlight_allowed:
+			_flashlight_user_enabled = false
+	elif _flashlight_allowed:
+		_flashlight_wet = raining
+	_refresh_flashlight_state()
+
+
+## The switch under your thumb.
+func torch_click(on: bool) -> void:
+	if _torch_snd == null:
+		_torch_snd = AudioStreamPlayer.new()
+		_torch_snd.name = "TorchClick"
+		_torch_snd.volume_db = TORCH_CLICK_DB
+		add_child(_torch_snd)
+	_torch_snd.stream = TORCH_ON if on else TORCH_OFF
+	_torch_snd.pitch_scale = randf_range(0.97, 1.03)
+	_torch_snd.play()
 
 
 func is_flashlight_active() -> bool:
@@ -826,14 +861,21 @@ func torch_wanted_indoors() -> bool:
 	return not _flashlight_user_chose_off and flashlight_battery > 0.02
 
 
-## F: the torch on or off (also from inside a room, scripts/ui/interior_torch.gd).
+## F: the torch on or off (also from inside a room, scripts/ui/interior_torch.gd, which
+## clicks for itself: only it knows the room is dark).
 func toggle_flashlight() -> void:
 	if not torch_carried:
 		return
 	if _flashlight_user_enabled or flashlight_battery > 0.02:
+		var was := _flashlight_active
 		_flashlight_user_enabled = not _flashlight_user_enabled
 		_flashlight_user_chose_off = not _flashlight_user_enabled
 		_refresh_flashlight_state()
+		if _flashlight_active != was and not in_room:
+			torch_click(_flashlight_active)
+	elif (_flashlight_allowed or _raining) and not in_room:
+		# A flat cell: the switch goes, nothing comes.
+		torch_click(true)
 
 
 func play_damage_feedback(tier: int, _damage_amount: int, fatal: bool = false) -> void:
@@ -1231,7 +1273,10 @@ func _ensure_flashlight() -> void:
 
 
 func _refresh_flashlight_state() -> void:
-	_flashlight_active = _flashlight_allowed and _flashlight_user_enabled and torch_carried and not hand_busy
+	# (The rain over and the torch off: F sleeps till dusk.)
+	if _flashlight_wet and not _raining and not _flashlight_user_enabled:
+		_flashlight_wet = false
+	_flashlight_active = (_flashlight_allowed or _flashlight_wet) and _flashlight_user_enabled and torch_carried and not hand_busy
 	if _flashlight != null:
 		_flashlight.visible = _flashlight_active
 		_flashlight.light_energy = flashlight_energy if _flashlight_active else 0.0

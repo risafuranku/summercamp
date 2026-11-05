@@ -64,7 +64,9 @@ const FRONT_STEP_OUT := Vector3(1.72, 1.48, -3.1)
 const FRONT_FADE_Z := -2.45
 const FRONT_DOOR_OPEN_DEG := 82.0
 var _leaving := false
-const SFX_FRONT_DOOR := "res://assets/sfx/dvereotevrit.mp3"
+## The door's own two sounds, the same as InteriorManager's on the way in.
+const SFX_FRONT_DOOR := "res://assets/sfx/rooms/office_door_open.mp3"
+const SFX_FRONT_DOOR_SHUT := "res://assets/sfx/rooms/office_door_close.mp3"
 ## player_controller.camera_fov: the camp's eye the walk out hands over to (the warden's
 ## own since 21. 10.: _out_fov; this when there is no player).
 const FRONT_OUT_FOV := 72.0
@@ -942,7 +944,7 @@ func come_in_front(end_pos: Vector3, end_rot: Vector3, end_fov: float) -> void:
 	if door != null:
 		door.rotation_degrees.y = FRONT_DOOR_OPEN_DEG
 		_walk.parallel().tween_property(door, "rotation_degrees:y", 0.0, 0.6) 			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT).set_delay(dur * 0.42)
-		_walk.parallel().tween_callback(_play.bind(SFX_FRONT_DOOR, -12.0)).set_delay(dur * 0.42)
+		_walk.parallel().tween_callback(_play.bind(SFX_FRONT_DOOR_SHUT, -10.0)).set_delay(dur * 0.42 + 0.3)
 
 
 ## Out of the room while still walking (the doorway's line crossed, process()): the

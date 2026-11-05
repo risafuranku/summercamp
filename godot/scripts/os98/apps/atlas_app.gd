@@ -36,6 +36,7 @@ const NAMES := {
 	"restaurant": "Bistro", "pub": "Pub", "corn_stand": "Corn stand", "bonfire": "Campfire", "sports_field": "Pitch",
 	"lake_slide": "Lake slide", "playground": "Playground", "ping_pong": "Ping-pong", "hammock": "Hammock",
 	"bench": "Bench", "picnic_table": "Picnic table", "flower_bed": "Flower bed", "gnome": "Gnome", "flagpole": "Flagpole",
+	"tree_spruce": "Spruce", "tree_birch": "Birch",
 	"vecerka": "Jednota",
 	"upgrade:2": "room upgrades", "upgrade:3": "the best rooms",
 }

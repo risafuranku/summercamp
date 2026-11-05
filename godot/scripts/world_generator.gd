@@ -883,7 +883,7 @@ func _scatter_ground_litter() -> void:
 		scatter_root.add_child(piece)
 
 
-func _create_tree(pos: Vector3, dice: RandomNumberGenerator = null) -> StaticBody3D:
+func _create_tree(pos: Vector3, dice: RandomNumberGenerator = null, wanted := -1) -> StaticBody3D:
 	var r: RandomNumberGenerator = dice if dice != null else _rng
 	var tree = StaticBody3D.new()
 	tree.name = "Tree"
@@ -896,6 +896,8 @@ func _create_tree(pos: Vector3, dice: RandomNumberGenerator = null) -> StaticBod
 		kind = TREE_KIND_DEAD
 	elif roll < 0.24:
 		kind = TREE_KIND_BIRCH
+	if wanted >= 0:
+		kind = wanted
 	var s := r.randf_range(0.82, 1.32)
 	tree.scale = Vector3(s, s * r.randf_range(0.92, 1.12), s)
 	# Which tree it is, for what lives in it (scripts/ambient/body_world.gd: leaves off a
@@ -924,6 +926,16 @@ func _create_tree(pos: Vector3, dice: RandomNumberGenerator = null) -> StaticBod
 			_add_tree_part(tree, _tree_mesh("spruce_crown"), _tree_material("needles", r.randi_range(0, 2)))
 	# Ferns, mushrooms, a stump... at its foot (scripts/ambient/forest_floor.gd).
 	FOREST_FLOOR.dress(tree)
+	return tree
+
+
+## A tree planted in the Builder (building_models): the forest's own, standing where it is
+## put. `dice_seed` from its cell: the same tree on every machine.
+func plant_tree(kind: int, dice_seed: int) -> StaticBody3D:
+	var dice := RandomNumberGenerator.new()
+	dice.seed = dice_seed
+	var tree := _create_tree(Vector3.ZERO, dice, kind)
+	tree.position = Vector3.ZERO
 	return tree
 
 

@@ -98,7 +98,7 @@ const TOOL_FRAME := "res://assets/textury/builder/cursors/%s_%d.png"
 const TOOL_FPS := 4.0
 ## The OS's own arrow (os_shell.gd ARROW), the pointer's body.
 const OS_SHELL := preload("res://scripts/os98/os_shell.gd")
-const SMALL := ["bench", "lamp_post", "flower_bed", "gnome", "flagpole", "picnic_table", "hammock", "sewer", "tent_1", "tent_2", "tent_3", "bonfire", "corn_stand", "ping_pong"]
+const SMALL := ["bench", "lamp_post", "flower_bed", "tree_spruce", "tree_birch", "gnome", "flagpole", "picnic_table", "hammock", "sewer", "tent_1", "tent_2", "tent_3", "bonfire", "corn_stand", "ping_pong"]
 
 const CURSOR_SHADER := """
 shader_type spatial;

@@ -20,6 +20,8 @@ var _hand: CanvasLayer
 var _q := Quaternion.IDENTITY
 var _ready_q := false
 var _on := false
+## The room is dark now: F does something you can see.
+var _dark := false
 var _t := 0.0
 var _frame := -10
 
@@ -75,6 +77,7 @@ func get_aim() -> Dictionary:
 ## `dark`: the room's lights are off or have no power, and it is dark outside.
 func update(delta: float, dark: bool) -> void:
 	_frame = Engine.get_process_frames()
+	_dark = dark
 	var player := _player()
 	var torch_on := player != null and player.has_method("torch_wanted_indoors") and bool(player.torch_wanted_indoors())
 	_set_on(dark and torch_on and _camera != null and is_instance_valid(_camera) and _camera.is_inside_tree())
@@ -128,6 +131,8 @@ func _input(event: InputEvent) -> void:
 	var player := _player()
 	if player != null and player.has_method("toggle_flashlight"):
 		player.toggle_flashlight()
+		if _dark and player.has_method("torch_click"):
+			player.torch_click(bool(player.torch_wanted_indoors()))
 
 
 func _set_on(on: bool) -> void:

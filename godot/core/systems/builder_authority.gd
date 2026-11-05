@@ -27,6 +27,8 @@ const ALLOWED_BUILD_TYPES: Dictionary = {
 	"bench": true,
 	"picnic_table": true,
 	"flower_bed": true,
+	"tree_spruce": true,
+	"tree_birch": true,
 	"gnome": true,
 	"flagpole": true,
 	"playground": true,

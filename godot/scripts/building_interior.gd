@@ -1594,8 +1594,9 @@ func _input(event: InputEvent) -> void:
 		return
 
 	if _crt_active:
-		# Esc stands you up from the PC (a second one walks you out of the room).
-		if event.is_action_pressed("ui_cancel"):
+		# Esc stands you up from the PC (a second one walks you out of the room), and so does
+		# Space, as it leaves everything else, unless you are typing.
+		if event.is_action_pressed("ui_cancel") or (INTERIOR_LOOK.is_space(event) and not _crt_typing()):
 			_exit_crt_view()
 			get_viewport().set_input_as_handled()
 			return

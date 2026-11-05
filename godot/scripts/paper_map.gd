@@ -179,7 +179,7 @@ func _corn_gate_coord(grid) -> Vector2i:
 func _is_tree(n: Node) -> bool:
 	var cur := n
 	while cur != null:
-		if cur.is_in_group("trees"):
+		if cur.is_in_group("trees") or str(cur.get_meta("building_type", "")).begins_with("tree_"):
 			return true
 		cur = cur.get_parent()
 	return false

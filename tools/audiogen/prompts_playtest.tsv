@@ -1,1 +1,3 @@
 pub_room_calm	22.0	assets/sfx/pub/pub_room.mp3	Inside a small village pub in the evening: a low steady murmur of several men's voices talking quietly, words that cannot be made out, glasses clinking now and then, a chair scraping on wooden floorboards, a cough, a mug set down on a wooden table. No laughter, no shouting, no music. Seamless loop.
+torch_on	0.5	assets/sfx/player/torch_on.mp3	A small cheap plastic torch's thumb switch pushed forward: one crisp short mechanical click-clack, very close to the ear, dry, no room, no music, no voice.
+torch_off	0.5	assets/sfx/player/torch_off.mp3	A small cheap plastic torch's thumb switch pulled back off: one slightly softer, lower single click, very close to the ear, dry, no room, no music, no voice.

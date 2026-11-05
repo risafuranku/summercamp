@@ -37,7 +37,7 @@ const CATEGORIES: Array = [
 	{"id": "washrooms", "label": "Washrooms & staff", "icon": "res://assets/textury/builder/cat_facilities.png", "items": ["toilet_block", "shower_block", "staffroom"]},
 	{"id": "food", "label": "Businesses", "icon": "res://assets/textury/builder/cat_food.png", "items": ["corn_stand", "pub", "restaurant", "vecerka", "bowling"]},
 	{"id": "fun", "label": "Fun", "icon": "res://assets/textury/builder/cat_fun.png", "items": ["bonfire", "sports_field", "playground", "ping_pong", "hammock", "lake_slide"]},
-	{"id": "decor", "label": "Decor", "icon": "res://assets/textury/builder/cat_decor.png", "items": ["bench", "picnic_table", "flower_bed", "gnome", "flagpole", "mega_gnome"]},
+	{"id": "decor", "label": "Decor", "icon": "res://assets/textury/builder/cat_decor.png", "items": ["bench", "picnic_table", "flower_bed", "tree_spruce", "tree_birch", "gnome", "flagpole", "mega_gnome"]},
 ]
 
 ## Catalogue pictures (the map has its own, isometric).
@@ -58,6 +58,8 @@ const ITEM_ICONS := {
 	"bench": "res://assets/textury/builder/iso_bench.png",
 	"picnic_table": "res://assets/textury/builder/iso_picnic.png",
 	"flower_bed": "res://assets/textury/builder/iso_flowerbed.png",
+	"tree_spruce": "res://assets/textury/builder/strom.png",
+	"tree_birch": "res://assets/textury/builder/iso_birch.png",
 	"gnome": "res://assets/textury/builder/iso_gnome.png",
 	"mega_gnome": "res://assets/textury/builder/iso_gnome.png",
 	"flagpole": "res://assets/textury/builder/iso_flagpole.png",
@@ -86,6 +88,7 @@ const SHORT_NAMES := {
 	"bonfire": "Bonfire", "sports_field": "Sports field", "lake_slide": "Lake slide", "sewer": "Sewage",
 	"path": "Path", "lamp_post": "Lamp", "demolish": "Bulldozer",
 	"bench": "Bench", "picnic_table": "Picnic table", "flower_bed": "Flower bed", "gnome": "Gnome", "mega_gnome": "Mega gnome",
+	"tree_spruce": "Spruce", "tree_birch": "Birch",
 	"flagpole": "Flagpole", "playground": "Playground", "ping_pong": "Ping-pong", "hammock": "Hammock",
 	"corn_stand": "Corn stand", "bowling": "Bowling",
 	"staffroom": "Staffroom",
@@ -108,6 +111,8 @@ const BLURBS := {
 	"bench": "A seat by the path. The old ones love it.",
 	"picnic_table": "Bread, salami and a beer in the open.",
 	"flower_bed": "Pretty. The cabins round it feel nicer.",
+	"tree_spruce": "Shade by day. By night, one more place to stand.",
+	"tree_birch": "Its white bark shows up in the dark.",
 	"gnome": "Kitsch. Guests smile at it. Mostly.",
 	"mega_gnome": "As tall as a cabin. Registered copies only.",
 	"flagpole": "The camp's flag. It looks like a real camp now.",
@@ -832,6 +837,10 @@ func _input(event: InputEvent) -> void:
 		toggle_graphs()
 	elif k == KEY_T:
 		turn_view(-1 if event.shift_pressed else 1)
+	elif k == KEY_R:
+		# The building in hand a quarter on, wherever the keyboard's focus lies (the map panel
+		# only heard it with the focus on it, after a click on the map: the user 5. 11.).
+		_map_panel.rotate_selected_building(-1 if event.shift_pressed else 1)
 	elif k == KEY_X or k == KEY_DELETE or k == KEY_BACKSPACE:
 		if _selected != "":
 			_select("")

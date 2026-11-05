@@ -140,11 +140,6 @@ func _update_owl(at: Vector3, night: bool, dt: float) -> void:
 	if _owl.visible and Vector2(_owl.global_position.x - at.x, _owl.global_position.z - at.z).length() < 6.0:
 		_owl.visible = false
 		_owl_t = _rng.randf_range(20.0, 45.0)
-		if _audio != null and ResourceLoader.exists(SFX + "flock_over.mp3"):
-			_audio.stream = load(SFX + "flock_over.mp3")
-			_audio.global_position = _owl.global_position
-			_audio.volume_db = -14.0
-			_audio.play()
 	if not _owl.visible:
 		_owl_t -= dt
 		if _owl_t <= 0.0:
@@ -227,12 +222,15 @@ func _update_flocks(delta: float) -> void:
 			var kind := str(f["kind"])
 			var beat := (int(step) + int(b["phase"])) % (6 if kind == "bird" else 8)
 			s.texture = _tex[kind + ("_down" if beat < (2 if kind == "bird" else 3) else "_up")]
+		# (The crows call; a flock of small birds goes over without a sound: its rush of wings
+		# was one more swoosh out of nowhere, the user 5. 11.)
 		if not bool(f["heard"]) and dist > float(f["length"]) * 0.4:
 			f["heard"] = true
-			_audio.stream = load(SFX + ("crows_over.mp3" if str(f["kind"]) == "crow" else "flock_over.mp3"))
-			_audio.volume_db = -10.0 if str(f["kind"]) == "bird" else -6.0
-			_audio.global_position = lead
-			_audio.play()
+			if str(f["kind"]) == "crow":
+				_audio.stream = load(SFX + "crows_over.mp3")
+				_audio.volume_db = -6.0
+				_audio.global_position = lead
+				_audio.play()
 		if dist > float(f["length"]):
 			for b in f["birds"]:
 				(b["sprite"] as Node).queue_free()

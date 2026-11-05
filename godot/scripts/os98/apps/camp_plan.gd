@@ -106,7 +106,7 @@ func rebuild() -> void:
 				continue
 			seen[root.get_instance_id()] = true
 			var t := str(root.get_meta("building_type", ""))
-			if t == "" or t == "path" or t == "lamp_post":
+			if t == "" or t == "path" or t == "lamp_post" or t.begins_with("tree_"):
 				continue
 			var og: Vector2i = root.get_meta("grid_origin", Vector2i(x, y))
 			var key := "%d:%d" % [og.x, og.y]

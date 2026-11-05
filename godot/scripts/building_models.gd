@@ -13,11 +13,12 @@ extends RefCounted
 const CAMP := "res://assets/textury/camp/"
 ## The cabin's plan, shared with the room inside (cabin_interior.gd).
 const CL = preload("res://scripts/cabin_layout.gd")
+const WORLD_GEN = preload("res://scripts/world_generator.gd")
 const FONT := "res://assets/fonts/w95b.fnt"
 const MODELS := ["toilet_block", "shower_block", "pub", "restaurant", "power_generator", "sewer",
 	"bonfire", "sports_field", "lake_slide", "dumpsters",
 	"bench", "picnic_table", "flower_bed", "gnome", "flagpole", "playground", "ping_pong", "hammock", "corn_stand", "mega_gnome",
-	"vecerka", "bowling", "staffroom"]
+	"vecerka", "bowling", "staffroom", "tree_spruce", "tree_birch"]
 
 var _psx: Callable           # (color, wobble, snap, steps, corrosion, category) -> Material
 var _cache: Dictionary = {}
@@ -61,6 +62,8 @@ func build(type: String, root: Node3D, tile: float, footprint: Vector2i) -> Dict
 			return _picnic(root, w, d)
 		"flower_bed":
 			return _flowerbed(root, w, d)
+		"tree_spruce", "tree_birch":
+			return _planted_tree(root, type)
 		"gnome":
 			return _gnome(root, w, d)
 		"mega_gnome":
@@ -1515,6 +1518,18 @@ func _picnic(r: Node3D, _w: float, _d: float) -> Dictionary:
 ## field stones, two rows of clumps (Grok spr_flowers_bed: tulips, marigolds, cornflowers,
 ## daisies, asters), each turned to you as Build's sprites were.
 const FLOWERS := ["flower_tulips", "flower_marigolds", "flower_cornflowers", "flower_daisies", "flower_asters"]
+
+
+## A tree you planted (the user 5. 11.): the forest's own, either kind.
+func _planted_tree(r: Node3D, type: String) -> Dictionary:
+	var scene := (Engine.get_main_loop() as SceneTree).current_scene
+	var maker = scene.get("world_generator") if scene != null else null
+	if maker != null:
+		var cell: Vector2i = r.get_meta("grid_origin", Vector2i.ZERO)
+		r.add_child(maker.plant_tree(WORLD_GEN.TREE_KIND_BIRCH if type == "tree_birch" else WORLD_GEN.TREE_KIND_SPRUCE, hash(cell)))
+	# (Its materials are the whole forest's.)
+	r.set_meta("no_wear", true)
+	return {"size": Vector3(0.44, 2.2, 0.44), "target": Vector3(0, 1.0, 0.3)}
 
 
 func _flowerbed(r: Node3D, _w: float, _d: float) -> Dictionary:

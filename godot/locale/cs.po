@@ -30813,3 +30813,21 @@ msgstr "Jít do kaple"
 #: scripts/hud_manager.gd
 msgid "Until 06:30"
 msgstr "Do 06:30"
+
+msgid "Spruce (1x1)"
+msgstr "Smrk (1x1)"
+
+msgid "Birch (1x1)"
+msgstr "Bříza (1x1)"
+
+msgid "Spruce"
+msgstr "Smrk"
+
+msgid "Birch"
+msgstr "Bříza"
+
+msgid "Shade by day. By night, one more place to stand."
+msgstr "Ve dne stín. V noci další místo, kde může někdo stát."
+
+msgid "Its white bark shows up in the dark."
+msgstr "Její bílou kůru je vidět i potmě."

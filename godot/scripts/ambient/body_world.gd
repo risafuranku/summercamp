@@ -5,7 +5,9 @@ extends Node3D
 ## each machine draws its own without a word on the wire):
 ##   - the grass, the flowers, the ferns, nettles and blueberries part round their feet and
 ##     come back (ground_tuft.gdshader reads where the feet are: the shader globals
-##     body_0..body_3), and rustle as you go through the tall ones;
+##     body_0..body_3), silently (the quick swooshes as you went through them, off a branch,
+##     off a bird or a squirrel, and the knock of a falling cone: "I never wanted that in the
+##     game, delete it now", the user 5. 11.);
 ##   - here and there a tree's low branch swishes across your view as you push past it
 ##     (one tree in six, always the same ones), with a few leaves off it;
 ##   - by day, out of the rain: leaves come down round you under the birches, a cone drops
@@ -110,7 +112,7 @@ const PRELOAD_TEX := ["branch.png", "leaf_birch.png", "leaf_oak.png", "leaf_mapl
 	"body_bfly_tort_open.png", "body_bfly_tort_shut.png", "body_squirrel_still.png",
 	"body_squirrel_climb_a.png", "body_squirrel_climb_b.png", "body_duck_stand.png",
 	"body_duck_walk.png", "body_duck_up.png", "body_duck_down.png"]
-const PRELOAD_SFX := ["corn_rustle.mp3", "kick_cone.mp3", "res://assets/sfx/nature/crow.mp3",
+const PRELOAD_SFX := ["res://assets/sfx/nature/crow.mp3",
 	"res://assets/sfx/lake/stroke.mp3", "res://assets/sfx/nature/ducks_a.mp3"]
 var _streams: Dictionary = {}
 
@@ -316,7 +318,6 @@ func _rustle(w: Array, dt: float) -> void:
 	for pl in _plants:
 		var pp: Vector3 = pl[0]
 		if Vector2(pp.x - at.x, pp.z - at.z).length() < RUSTLE_R and absf(pp.y - at.y) < 1.0:
-			_sound("corn_rustle.mp3", pp, -15.0 + minf(speed, 4.0) * 1.2, _rng.randf_range(1.12, 1.3), 0.55)
 			f["rustle"] = _rng.randf_range(0.45, 0.8)
 			if str(pl[1]) == "fern" and _rng.randf() < 0.15 and _day_life():
 				_butterfly_up(pp)
@@ -401,7 +402,6 @@ func _whip(side: float, kind: int) -> void:
 	_branch_t = 0.0
 	_branch_side = side
 	_branch_cool = 6.0
-	_sound("corn_rustle.mp3", _player.global_position + Vector3(0, 1.4, 0), -9.0, 1.25, 0.4)
 	if kind == 1 and _day_life():
 		for i in 3:
 			_leaf_at(_player.global_position + Vector3(_rng.randf_range(-0.6, 0.6), 2.0, _rng.randf_range(-0.6, 0.6)) - _player.global_basis.z * 0.8)
@@ -528,7 +528,6 @@ func _birds_up(t: Node3D, tp: Vector3, kind: int) -> void:
 		s.global_position = tp + Vector3(_rng.randf_range(-0.8, 0.8), top + _rng.randf_range(-0.6, 0.4), _rng.randf_range(-0.8, 0.8))
 		var dir := (away.rotated(Vector3.UP, _rng.randf_range(-0.7, 0.7)) * _rng.randf_range(4.0, 6.0) + Vector3.UP * _rng.randf_range(2.0, 3.2))
 		_sprites.append({"node": s, "v": dir, "life": 5.0, "kind": "bird", "up": up, "dn": dn, "ph": float(i)})
-	_sound("corn_rustle.mp3", tp + Vector3(0, 4.0, 0), -13.0, 1.4, 0.35)
 	if crow:
 		_sound("res://assets/sfx/nature/crow.mp3", tp + Vector3(0, 4.0, 0), -8.0, _rng.randf_range(0.95, 1.05))
 
@@ -559,8 +558,6 @@ func _step_sprites(dt: float) -> void:
 				var g := _ground_at(n.global_position)
 				if n.global_position.y <= g + 0.05:
 					n.global_position.y = g + 0.05
-					if v.y < -1.0:
-						_sound("kick_cone.mp3", n.global_position, -10.0, _rng.randf_range(0.9, 1.1))
 					v = Vector3.ZERO
 				sp["v"] = v
 			"bird":
@@ -773,7 +770,6 @@ func _step_squirrel(dt: float) -> void:
 		return
 	if not bool(_squirrel["run"]) and n.global_position.distance_to(me + Vector3(0, 1.2, 0)) < 5.0:
 		_squirrel["run"] = true
-		_sound("corn_rustle.mp3", n.global_position, -16.0, 1.6, 0.3)
 	if bool(_squirrel["run"]):
 		_squirrel["ph"] = float(_squirrel["ph"]) + 1.0
 		var a := _texture("body_squirrel_climb_a.png")

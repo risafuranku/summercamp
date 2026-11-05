@@ -28,10 +28,11 @@ const ICON_SPAN := {
 	"caravan_1": 1.27, "caravan_2": 1.27, "caravan_3": 1.27, "toilet_block": 0.85, "shower_block": 1.02,
 	"restaurant": 1.56, "pub": 1.69, "pub_2": 1.69, "corn_stand": 0.6, "bonfire": 0.95, "sports_field": 1.49,
 	"lake_slide": 1.26, "playground": 1.28, "ping_pong": 0.54, "hammock": 0.45, "bench": 0.3, "picnic_table": 0.42,
-	"flower_bed": 0.42, "gnome": 0.2, "mega_gnome": 0.9, "flagpole": 0.3, "lamp_iso": 0.24, "lamp_post": 0.24, "sewer": 0.7, "power_generator": 0.83, "vecerka_iso": 1.8,
+	"flower_bed": 0.42, "tree_spruce": 0.46, "tree_birch": 0.42, "gnome": 0.2, "mega_gnome": 0.9, "flagpole": 0.3, "lamp_iso": 0.24, "lamp_post": 0.24, "sewer": 0.7, "power_generator": 0.83, "vecerka_iso": 1.8,
 	"staffroom": 1.6,
 }
 const SFX_DIR := "res://assets/sfx/builder/"
+const WORLD_GEN = preload("res://scripts/world_generator.gd")
 
 ## Status severity, consumed by builder_module for colour + audio feedback.
 const STATUS_INFO := 0
@@ -87,6 +88,8 @@ const ICON_PATHS := {
 	"path": "res://assets/textury/builder/parking.PNG",
 	"lamp_post": "res://assets/textury/builder/gen.PNG",
 	"tree": "res://assets/textury/builder/strom.png",
+	"tree_spruce": "res://assets/textury/builder/strom.png",
+	"tree_birch": "res://assets/textury/builder/iso_birch.png",
 	"corn": "res://assets/textury/builder/iso_corn.png",
 	"tent_2": "res://assets/textury/builder/stan2.png",
 	"tent_3": "res://assets/textury/builder/stan3.png",
@@ -344,7 +347,7 @@ const PATH_BLOCKED := 2
 var _path_batch: Dictionary = {}
 ## Small things built in a row by dragging (a line of benches, lamps, flower beds): the
 ## line while the button is down, then one build each, one price.
-const ROW_TYPES := ["bench", "lamp_post", "flower_bed", "picnic_table", "gnome", "flagpole"]
+const ROW_TYPES := ["bench", "lamp_post", "flower_bed", "picnic_table", "gnome", "flagpole", "tree_spruce", "tree_birch"]
 var _row_drag := false
 var _row_start := Vector2i(-1, -1)
 var _row_press := Vector2.ZERO
@@ -422,7 +425,7 @@ const WORKER_TEX := [
 	"res://assets/textury/builder/site_worker_b.png",
 ]
 ## Small things go up in a moment; a building takes longer the bigger it is.
-const SITE_QUICK := ["bench", "lamp_post", "flower_bed", "gnome", "flagpole", "picnic_table", "hammock"]
+const SITE_QUICK := ["bench", "lamp_post", "flower_bed", "gnome", "flagpole", "picnic_table", "hammock", "tree_spruce", "tree_birch"]
 const HAMMER_EVERY := 0.36
 const RUBBLE_LIFE := 4.0
 var _site_len: Dictionary = {}    # origin -> seconds the site stands
@@ -2050,6 +2053,8 @@ func _mini_kind(t: String) -> String:
 		return "services"
 	if t in ["bonfire", "sports_field", "lake_slide"]:
 		return "fun"
+	if t.begins_with("tree_"):
+		return "tree"
 	return "utility"
 
 
@@ -2795,9 +2800,11 @@ func _draw_structure(entry: Dictionary, tile_w: float, tile_h: float) -> void:
 	if root.is_in_group("corn"):
 		if _draw_icon(center, Vector2(tile_w * 1.02, tile_h * 2.3), "corn", 0, Color(1.0, 1.0, 1.0, 0.98)):
 			return
-	if root.is_in_group("trees"):
-		var tk := "tree"
-		if _swaying:
+	if root.is_in_group("trees") or building_type.begins_with("tree_"):
+		# (The forest's birches too: they stood there as spruces.)
+		var birch := building_type == "tree_birch" or int(root.get_meta("tree_kind", -1)) == WORLD_GEN.TREE_KIND_BIRCH
+		var tk := "tree_birch" if birch else "tree"
+		if _swaying and not birch:
 			var dc := _rotate_coord_for_display(entry.get("origin", Vector2i.ZERO))
 			tk = "tree_sway_%d" % [1, 0, 1, 2, 1, 3][(_sway_step + dc.x / 2 + (dc.y % 3)) % 6]
 		if not _draw_icon(center, Vector2(maxf(12.0, tile_w * 1.22), maxf(12.0, tile_h * 1.85)), tk, 0, Color(1.0, 1.0, 1.0, 0.98)):
@@ -3327,7 +3334,7 @@ func _icon_key_for_type(building_type: String) -> String:
 			return "cabin_1"
 		"caravan_1", "caravan_2", "caravan_3", "bonfire", "sports_field", "lake_slide":
 			return building_type
-		"bench", "picnic_table", "flower_bed", "gnome", "flagpole", "playground", "ping_pong", "hammock", "corn_stand", "mega_gnome":
+		"bench", "picnic_table", "flower_bed", "gnome", "flagpole", "playground", "ping_pong", "hammock", "corn_stand", "mega_gnome", "tree_spruce", "tree_birch":
 			return building_type
 		"toilet_block":
 			return "toilet_block"

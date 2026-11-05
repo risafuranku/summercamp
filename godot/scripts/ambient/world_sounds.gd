@@ -305,7 +305,7 @@ func _rain_by_surface(here: Vector3, main: Node) -> void:
 		if structures != null:
 			for c in structures.get_children():
 				var bt := str(c.get_meta("building_type", ""))
-				if bt == "" or bt in ["path", "lamp_post", "flagpole", "bench", "gnome", "flower_bed", "picnic_table", "bonfire", "sports_field", "hammock"]:
+				if bt == "" or bt.begins_with("tree_") or bt in ["path", "lamp_post", "flagpole", "bench", "gnome", "flower_bed", "picnic_table", "bonfire", "sports_field", "hammock"]:
 					continue
 				var d := (c as Node3D).global_position.distance_to(here)
 				if d < 18.0:
@@ -419,7 +419,7 @@ func _after_rain(delta: float, here: Vector3, w: int) -> void:
 	var near: Array = []
 	for c in structures.get_children():
 		var bt := str(c.get_meta("building_type", ""))
-		if bt == "" or bt == "path" or bt == "lamp_post" or bt == "flagpole":
+		if bt == "" or bt == "path" or bt == "lamp_post" or bt == "flagpole" or bt.begins_with("tree_"):
 			continue
 		var d := (c as Node3D).global_position.distance_to(here)
 		if d < 16.0:

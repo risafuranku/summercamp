@@ -3926,6 +3926,8 @@ func _set_weather_state(new_state: int) -> void:
 		_interior_manager.sync_weather(_weather_state)
 	if GuestManager != null and GuestManager.has_method("set_camp_weather"):
 		GuestManager.set_camp_weather(_weather_state)
+	if _player != null and _player.has_method("set_flashlight_rain"):
+		_player.set_flashlight_rain(_is_raining_weather_active() and not _menu_mode)
 	# No line in the feed for it: the player sees the weather change (the user 30. 10.).
 
 
