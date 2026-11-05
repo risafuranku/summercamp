@@ -37,6 +37,16 @@ const LEDGER = preload("res://scripts/business/ledger_closeup.gd")
 const KIT = preload("res://scripts/interior_kit.gd")
 const BUSINESS_RT = preload("res://scripts/business/business_runtime.gd")
 const LANE_PLAY = preload("res://scripts/bowling/lane_play.gd")
+## One world (W26): the hall stands in the alley's building in the camp's own world
+## (scripts/one_world_room.gd), the cellar under it.
+const ONE_WORLD_ROOM = preload("res://scripts/one_world_room.gd")
+## The hall's floor over the model's ground (building_models._bowling: y0).
+const HALL_UP := Vector3(0.0, 0.1, 0.0)
+var _anchor: Node3D
+var _probe: ReflectionProbe
+var _dry: GPUParticlesCollisionBox3D
+var _cellar_probe: ReflectionProbe
+var _own_t := 0.0
 const SFX := "res://assets/sfx/bowling/"
 const TIME_DAY: int = 0
 const TIME_NIGHT: int = 2
@@ -121,7 +131,30 @@ func _ready() -> void:
 	_interior_camera = Camera3D.new()
 	_interior_camera.fov = 62.0
 	_interior_camera.near = 0.05
+	ONE_WORLD_ROOM.eye(_interior_camera)
 	_root.add_child(_interior_camera)
+	_probe = ONE_WORLD_ROOM.probe(_root, "HallLight")
+	_dry = ONE_WORLD_ROOM.dry(_root, "Dry")
+	ONE_WORLD_ROOM.fit(_probe, _dry, Vector3(-LAYOUT.W * 0.5, 0.0, -LAYOUT.L * 0.5), Vector3(LAYOUT.W * 0.5, LAYOUT.H + 0.1, LAYOUT.L * 0.5))
+	# Round the cellar the dark it had in a world of its own (it is up over the camp, the
+	# sky round its walls).
+	var dark := MeshInstance3D.new()
+	dark.name = "CellarDark"
+	var db := BoxMesh.new()
+	db.size = LAYOUT.CELLAR_SIZE + Vector3(3.0, 3.0, 3.0)
+	db.flip_faces = true
+	dark.mesh = db
+	var dm := StandardMaterial3D.new()
+	dm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	dm.albedo_color = Color(0.05, 0.05, 0.06)
+	dark.material_override = dm
+	dark.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	dark.position = Vector3(0, LAYOUT.CELLAR_SIZE.y * 0.5, 0)
+	_cellar_root.add_child(dark)
+	_cellar_probe = ONE_WORLD_ROOM.probe(_cellar_root, "CellarLight")
+	ONE_WORLD_ROOM.fit(_cellar_probe, null, Vector3(-LAYOUT.CELLAR_SIZE.x * 0.5, 0.0, -LAYOUT.CELLAR_SIZE.z * 0.5), Vector3(LAYOUT.CELLAR_SIZE.x * 0.5, LAYOUT.CELLAR_SIZE.y + 0.1, LAYOUT.CELLAR_SIZE.z * 0.5))
+	# Put away while nobody is in (its lamps out with it): shown by open_bowling.
+	_root.visible = false
 	_hall = _loop("hall_loop.mp3", -16.0)
 	_hum = _loop("fluoro.mp3", -26.0)
 	_cellar_loop = _loop("cellar_loop.ogg", -15.0)
@@ -148,7 +181,8 @@ func _build_viewport() -> void:
 	RETRO_RENDER.register(_viewport_container)
 	_viewport = SubViewport.new()
 	_viewport.name = "BowlingViewport"
-	_viewport.own_world_3d = true
+	# The camp's own world: the hall stands in its building there (_bind_one_world).
+	ONE_WORLD_ROOM.viewport(_viewport)
 	_viewport.size = INTERIOR_RENDER_MIN_SIZE
 	_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	_viewport.handle_input_locally = false
@@ -159,9 +193,40 @@ func _build_viewport() -> void:
 	_env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	_env.ambient_light_color = Color(0.7, 0.74, 0.76)
 	_env.ambient_light_energy = 0.55
-	var we := WorldEnvironment.new()
-	we.environment = _env
-	_viewport.add_child(we)
+	# (The camp's world has its own environment: these are the hall's numbers, its probes'
+	# ambient, _bind_one_world.)
+
+
+## The hall in the alley's building (its floor on the model's), its probes lit as the hall
+## is (the cellar's numbers while you are down there).
+func _bind_one_world() -> void:
+	if _anchor != null and is_instance_valid(_anchor) and _anchor.is_inside_tree():
+		var x: Transform3D = _anchor.global_transform * Transform3D(Basis(), HALL_UP)
+		if not _root.transform.is_equal_approx(x):
+			_root.transform = x
+	if _env != null:
+		for p in [_probe, _cellar_probe]:
+			if p != null:
+				(p as ReflectionProbe).ambient_color = _env.ambient_light_color
+				(p as ReflectionProbe).ambient_color_energy = _env.ambient_light_energy
+
+
+func _key_of(st: Node) -> String:
+	var origin = st.get_meta("grid_origin", null) if st != null else null
+	return "%d:%d" % [origin.x, origin.y] if origin is Vector2i else ""
+
+
+## The alley's building at `k` ("x:y") in the camp.
+func _structure_of(k: String) -> Node3D:
+	var scene := get_tree().current_scene if is_inside_tree() else null
+	var bm = scene.get("building_manager") if scene != null else null
+	var structures: Node = bm.get_node_or_null("Structures") if bm != null else null
+	if structures == null:
+		return null
+	for c in structures.get_children():
+		if c is Node3D and _key_of(c) == k:
+			return c
+	return null
 
 
 func _loop(file: String, db: float) -> AudioStreamPlayer:
@@ -225,6 +290,7 @@ var door_walking := false
 
 
 func door_ready(structure: Node3D) -> void:
+	_anchor = structure
 	var origin = structure.get_meta("grid_origin", null)
 	if origin is Vector2i:
 		key = "%d:%d" % [origin.x, origin.y]
@@ -267,6 +333,13 @@ func open_bowling(p_key: String) -> void:
 	visible = true
 	_bowling = BOWLING.of(get_tree())
 	_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	if _anchor == null or not is_instance_valid(_anchor) or _key_of(_anchor) != key:
+		_anchor = _structure_of(key)
+	_root.visible = true
+	_cellar_root.visible = _room == "cellar"
+	_bind_one_world()
+	ONE_WORLD_ROOM.camp_view(get_tree(), false)
+	_viewport.audio_listener_enable_3d = true
 	_go("hall", true)
 	_apply_light()
 	if CoreRoot != null and CoreRoot.actions != null:
@@ -303,6 +376,9 @@ func close_bowling() -> void:
 	_is_open = false
 	visible = false
 	_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	_viewport.audio_listener_enable_3d = false
+	ONE_WORLD_ROOM.camp_view(get_tree(), true)
+	_root.visible = false
 	_room = "hall"
 	_hall.stop()
 	_hum.stop()
@@ -321,6 +397,11 @@ func close_bowling() -> void:
 func _process(delta: float) -> void:
 	if not _is_open:
 		return
+	_bind_one_world()
+	_own_t -= delta
+	if _own_t <= 0.0:
+		_own_t = 1.0
+		ONE_WORLD_ROOM.own_lights(_root)
 	_poll -= delta
 	if _poll <= 0.0:
 		_poll = 0.25
@@ -727,6 +808,8 @@ func _cross_to(room: String) -> void:
 	if im != null and im.has_method("_door_transition"):
 		im.call("_door_transition", room == "cellar")
 	_room = room
+	# (Over the camp: there only while you are down in it.)
+	_cellar_root.visible = room == "cellar"
 	_apply_light()
 	_room_audio()
 

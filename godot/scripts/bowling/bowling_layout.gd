@@ -13,8 +13,9 @@ extends RefCounted
 ##                scale): BowlingRules' lane metres go through lane_point()
 ##   the back     the masking panel over the pin decks, painted by the camp; behind it
 ##                the pit and the walkway where the pins are set up by hand
-##   the cellar   under it all (cellar(): its own room, far off in the hall's world so
-##                neither's lights reach the other): damp concrete, one bulb, oil drums, and on its
+##   the cellar   under it all (cellar(): its own room, far over the hall in the camp's one
+##                world, so neither's lights reach the other; it shows only while you are
+##                in it, bowling_interior; under the land nothing is drawn): damp concrete, one bulb, oil drums, and on its
 ##                back wall the pinsetting machine's gear train from the books (the
 ##                Stavomat's iron or the Brnoswick's enamel), worked by cellar_station.gd
 ##

@@ -112,6 +112,24 @@ static func sounds_through_walls(root: Node, walls: bool) -> void:
 		a.bus = StringName(ws.wall_bus(bus_in) if walls else bus_in)
 
 
+## A room's own layer (building_models.ROOM_LAYER, the businesses' rooms have it too): its
+## lamps light it and nothing outside its walls (a hall's tubes lit the grass round the
+## building through them). Every mesh under `root` on the camp's layer gets it, every lamp
+## lights only it; again now and then for what comes in later (guests, things).
+const ROOM_LAYER := 1 << 13
+
+
+static func own_lights(root: Node) -> void:
+	if root == null:
+		return
+	for n in root.find_children("*", "GeometryInstance3D", true, false):
+		var g := n as GeometryInstance3D
+		if (g.layers & 1) != 0 and (g.layers & ROOM_LAYER) == 0:
+			g.layers |= ROOM_LAYER
+	for n in root.find_children("*", "Light3D", true, false):
+		(n as Light3D).light_cull_mask = ROOM_LAYER
+
+
 ## Window glass: a little grey-green, the sky and the sun's glint on it at a slant.
 static func clear_glass() -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()

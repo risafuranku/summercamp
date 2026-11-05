@@ -268,6 +268,42 @@ func vp_info(tag: String) -> void:
 	print("ONESUN vp %s: %s  fps=%.0f" % [tag, ", ".join(out), Engine.get_frames_per_second()])
 
 
+func cellar_meshes(tag: String) -> void:
+	var bi = _main.get("_interior_manager").get("_bowling_interior")
+	var cr: Node3D = bi.get("_cellar_root")
+	var cam: Camera3D = bi.get("_interior_camera")
+	var n := 0
+	for m in cr.find_children("*", "GeometryInstance3D", true, false):
+		var g := m as GeometryInstance3D
+		if n < 14:
+			var mat = g.material_override if g.material_override != null else (g.get("mesh").surface_get_material(0) if g.get("mesh") != null and g.get("mesh").get_surface_count() > 0 else null)
+			print("ONESUN %s cm %s vis=%s L=%d mat=%s tr=%s" % [tag, str(g.name), str(g.is_visible_in_tree()), g.layers, mat.get_class() if mat != null else "-",
+				str((mat as BaseMaterial3D).transparency) if mat is BaseMaterial3D else "-"])
+		n += 1
+	print("ONESUN %s cellar meshes=%d cam_mask=%d cam_far=%.1f cam_near=%.2f env=%s attrs=%s" % [tag, n, cam.cull_mask, cam.far, cam.near, str(cam.environment), str(cam.attributes)])
+
+
+func env_state(tag: String) -> void:
+	var env: Environment = (_main.get("_world_3d") as Node3D).get_world_3d().environment
+	print("ONESUN %s env fog=%s mode=%d dens=%.4f h=%.1f hdens=%.3f aerial=%.2f sky_affect=%.2f vol=%s bg=%d" % [tag, str(env.fog_enabled), env.fog_mode, env.fog_density,
+		env.fog_height, env.fog_height_density, env.fog_aerial_perspective, env.fog_sky_affect, str(env.volumetric_fog_enabled), env.background_mode])
+
+
+func bowl_state(tag: String) -> void:
+	var bi = _main.get("_interior_manager").get("_bowling_interior")
+	var cam: Camera3D = bi.get("_interior_camera")
+	var cr: Node3D = bi.get("_cellar_root")
+	var root: Node3D = bi.get("_root")
+	var dark := cr.get_node_or_null("CellarDark") as MeshInstance3D
+	var st = bi.get("_stations").get("cellar")
+	print("ONESUN %s bowl cam=%s cur=%s cellar=%s root=%s root_vis=%s dark=%s/%s station=%s vp_world_same=%s" % [tag, str(cam.global_position.snapped(Vector3.ONE * 0.1)), str(cam.current),
+		str(cr.global_position.snapped(Vector3.ONE * 0.1)), str(root.global_position.snapped(Vector3.ONE * 0.1)), str(root.is_visible_in_tree()),
+		str(dark.global_position.snapped(Vector3.ONE * 0.1)) if dark != null else "-", str(dark.is_visible_in_tree()) if dark != null else "-",
+		str((st as Node3D).global_position.snapped(Vector3.ONE * 0.1)) if st != null else "-", str(cam.get_world_3d() == (_main.get("_world_3d") as Node3D).get_world_3d())])
+	var vp := cam.get_viewport()
+	print("ONESUN %s bowl viewport=%s cams: %s" % [tag, str(vp.get_path()).right(60), str(vp.get_camera_3d().get_path()).right(80) if vp.get_camera_3d() != null else "-"])
+
+
 func cab_state(tag: String) -> void:
 	var ci = _main.get("_interior_manager").get("_cabin_interior")
 	var cab: Node3D = _main.debug_structure_of_type("cabin_1")
@@ -509,6 +545,21 @@ func _ready() -> void:
 				["eval", "_interior_manager.close_main_interior_if_open()"], ["wait", 2.0], ["eval", C + ".vp_info('outside')"],
 				["eval", "debug_repair_ruined()"], ["wait", 1.0],
 				["eval", CI + ".set_world_anchor(debug_structure_of_type('cabin_1'))"], ["eval", CI + ".open_cabin(1)"], ["wait", 2.0], ["eval", C + ".vp_info('in_cabin')"],
+				["eval", "get_tree().quit()"]]
+			return
+		if a == "--part=bowl":
+			var BI := "_interior_manager._bowling_interior"
+			_steps = [
+				["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+				["eval", "_interior_manager._building_interior.close_interior()"],
+				["money", 40000], ["clear", 4, 4, 16, 12], ["build", "bowling", 6, 5, 0], ["wait", 2.0],
+				["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('bowling'))"], ["wait", 3.0],
+				["shot", "w0_in"], ["eval", C + ".bowl_state('in')"],
+				["eval", BI + "._switch_station('cellar')"], ["wait", 2.5], ["shot", "w1_cellar"], ["eval", C + ".bowl_state('cellar')"],
+				["eval", C + ".env_state('cellar')"], ["eval", C + ".cellar_meshes('cellar')"],
+				["eval", "_world_3d.get_world_3d().environment.set('fog_enabled', false)"], ["wait", 0.3], ["shot", "w2_cellar_no_fog"],
+				["eval", BI + "._interior_camera.set('rotation_degrees', Vector3(0, 0, 0))"], ["wait", 0.3], ["shot", "w3_cellar_back"],
+				["eval", BI + "._interior_camera.set('rotation_degrees', Vector3(0, 180, 0))"], ["wait", 0.3], ["shot", "w4_cellar_front"],
 				["eval", "get_tree().quit()"]]
 			return
 		if a == "--part=out":
