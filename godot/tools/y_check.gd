@@ -152,6 +152,10 @@ func _ready() -> void:
 			_steps = _sound_trail()
 		"call":
 			_steps = _call()
+		"music":
+			_steps = _music()
+		"girlout":
+			_steps = _girl_out()
 
 
 ## R turns what you are about to build, with the pointer anywhere (Y14).
@@ -654,6 +658,54 @@ func _call() -> Array:
 		["eval", "['Y brains', _enemy_brains.size()]"], ["eval", C + ".call_state('started')"],
 		["eval", "_enemy_brains.back().set('_call_next', 0.0)"], ["wait", 0.5], ["eval", C + ".call_state('called')"], ["wait", 1.0], ["eval", C + ".call_state('a second on')"],
 		["eval", "_enemy_brains.back().set('_call_next', 0.0)"], ["wait", 0.5], ["eval", C + ".call_state('again')"], ["eval", "get_tree().quit()"]]
+	return s
+
+
+## No music at night: the song of the hour, one left playing into the dusk, none starting.
+func music_state(tag: String) -> void:
+	var m: Node = _main.get("_music_director")
+	var p: AudioStreamPlayer = m.get("_player")
+	say("MUSIC %s h=%.2f cue_for=%s cue=%s phase=%s going_out=%s playing=%s" % [tag, float(_main.get("_time_of_day_hours")), str(m.call("_cue_for")), str(m.get("_cue")), str(m.get("_phase")), str(m.get("_going_out")), str(p.playing)])
+
+
+func _music() -> Array:
+	var s: Array = BOOT.duplicate(true)
+	s += [["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0]]
+	for h in [7.0, 12.0, 17.0, 19.4, 19.6, 22.0, 23.5, 3.0, 5.5, 6.1]:
+		s += [["eval", "debug_jump_to(%d, %s)" % [2 if h > 6.0 and h < 19.6 else 3, h]], ["wait", 0.2], ["eval", C + ".music_state('hour')"]]
+	# A piece going at dusk; out and about at night with the rest over.
+	s += [["eval", "debug_jump_to(2, 18.0)"], ["wait", 0.3], ["eval", "_music_director.set('_rest', 0.0)"], ["eval", "_music_director.set('_drive', 1.0)"],
+		["eval", "_music_director._start(_music_director._cue_for(), 0.0)"], ["wait", 6.0], ["eval", C + ".music_state('a piece on')"],
+		["eval", "debug_jump_to(2, 20.0)"], ["wait", 1.0], ["eval", C + ".music_state('dusk')"], ["wait", 8.0], ["eval", C + ".music_state('8 s on')"],
+		["eval", "_music_director.set('_rest', 0.0)"], ["eval", "_music_director.set('_drive', 1.0)"], ["wait", 3.0], ["eval", C + ".music_state('free to start')"], ["eval", "get_tree().quit()"]]
+	return s
+
+
+## Out of a building with the Girl hunting (Y30): how far she is, second by second, and
+## whether she has you; her laughs at once (Y29).
+func girl_state(tag: String) -> void:
+	var brains: Array = _main.get("_enemy_brains")
+	if brains.is_empty():
+		say("GIRL %s none" % tag)
+		return
+	var b = brains.back()
+	var body: Node3D = b.get("_body")
+	var laughs := 0
+	for n in (b.get("_root") as Node).get_children():
+		if n is AudioStreamPlayer3D and (n as AudioStreamPlayer3D).playing and (n as AudioStreamPlayer3D).stream != null and str((n as AudioStreamPlayer3D).stream.resource_path).contains("girl_laugh"):
+			laughs += 1
+	say("GIRL %s phase=%s d=%.1f visible=%s behind_done=%s jump_ready=%s laughs=%d health=%s" % [tag, str(b.get("_phase")), body.global_position.distance_to((_main.get("_player") as Node3D).global_position), str(body.visible), str(b.get("_behind_done")), str(b.get("_jump_ready")), laughs, str(_main.get("_player_health"))])
+
+
+func _girl_out() -> Array:
+	var s: Array = BOOT.duplicate(true)
+	s += [["wait", 2.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0], ["eval", "debug_jump_to(2, 22.0)"], ["wait", 1.0], ["call", "debug_spawn_enemy", ["girl", 3]], ["wait", 2.0],
+		["eval", C + ".girl_state('spawned')"], ["eval", "_enemy_brains.back().set('_round', 2)"], ["eval", "set('debug_camera', null)"], ["door_front", "main_building", 2.0], ["wait", 0.5],
+		["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('main_building'))"], ["wait", 8.0], ["eval", C + ".girl_state('inside')"],
+		["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 1.0], ["eval", "_interior_manager._building_interior._extras.handle_exit()"], ["wait", 3.0]]
+	for i in 34:
+		s += [["eval", C + ".girl_state('out %d')" % i], ["wait", 1.0]]
+	s += [["eval", "get_tree().quit()"]]
 	return s
 
 

@@ -8,7 +8,9 @@ extends Node
 ## The songs are godot/assets/music/<cue>.mp3, five minutes each, mapped by
 ## tools/audiogen/music_sections.py into music_cues.json: their bars, the sections where
 ## they change (a piece comes in at one of them, or at the song's own start) and where
-## their own fade-out begins. Which song is the hour's and the weather's (_cue_for).
+## their own fade-out begins. Which song is the hour's and the weather's (_cue_for). None
+## from dusk to first light (the user 5. 11.: "at night the music that plays by day simply
+## started. no!"): the night has its own sounds; a piece still playing at dusk winds down.
 ##
 ## Silence is the rule. After a while on your feet outside (walking, working: `_drive`),
 ## and some minutes after the last piece, a piece comes in: its player starts slow, at
@@ -58,6 +60,9 @@ const HUSH_OUT := 0.25
 const DIRECTOR_OUT := 2   # NightDirector.State.UNEASE
 ## Out of step with the host by more than this (s), the other machine seeks back.
 const DRIFT_SEC := 0.6
+## The hours with no music: the camp's own songs are the day's.
+const NIGHT_FROM := 19.5
+const NIGHT_TO := 6.0
 
 enum { OFF, UP, ON, DOWN }
 
@@ -240,10 +245,8 @@ func _cue_for() -> String:
 	var pick := ""
 	if w == 6:
 		pick = "red"
-	elif h >= 22.5 or h < 5.0:
-		pick = "night"
-	elif h >= 19.5:
-		pick = "nightstart"
+	elif h >= NIGHT_FROM or h < NIGHT_TO:
+		return ""
 	elif w == 3 or w == 4 or w == 5:
 		pick = "rain"
 	elif h < 10.0:
