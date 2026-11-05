@@ -903,7 +903,11 @@ func cabin(r: Node3D, level: int, _w := 0.0, _d := 0.0, _wall_h := 0.0, _roof_h 
 	var walls := _camp(plank_file, tint, Vector3(1.4, 1.4, 1.0))
 	var trim: Material = _wood() if lv == 1 else _camp("planks_grey.png", Color(0.96, 0.95, 0.9) if lv == 2 else Color(0.86, 0.84, 0.76))
 	_plinth(r, w + 0.2, d + 0.2)
-	_box(r, "Walls", Vector3(w, wall_h, d), Vector3(0, wall_h * 0.5 + 0.1, 0), walls)
+	# The walls a skin round the room's openings (the windows, the door, the bathroom's
+	# door), as the room's own walls have them: the cabin's room stands in it in the camp's
+	# one world (W26), seen in through the windows and seeing out (cabin_interior). The
+	# room's walls are inside this skin, 3 cm short of its outer face.
+	_cabin_skin(r, lv, w, d, wall_h, walls)
 	for x: float in [-w * 0.5, w * 0.5]:
 		for z: float in [-d * 0.5, d * 0.5]:
 			_box(r, "Corner", Vector3(0.14, wall_h, 0.14), Vector3(x, wall_h * 0.5 + 0.1, z), trim)
@@ -965,6 +969,78 @@ func cabin(r: Node3D, level: int, _w := 0.0, _d := 0.0, _wall_h := 0.0, _roof_h 
 				_box(r, "Gutter", Vector3(w + 0.5, 0.07, 0.1), Vector3(0, top - 0.02, gz * (d * 0.5 + 0.37)), _metal())
 			_box(r, "Downpipe", Vector3(0.07, top, 0.07), Vector3(w * 0.5 + 0.2, top * 0.5, front + 0.37), _metal())
 	return Vector3(w + 0.4, wall_h + roof_h + 0.3, d + 0.4)
+
+
+## The skin of a cabin's walls (CABIN_SKIN thick at their outer faces) round the openings
+## the room has (CL: the windows, the door, the bathroom's door from the tier up), its top
+## closed under the roof.
+const CABIN_SKIN := 0.04
+
+
+func _cabin_skin(r: Node3D, lv: int, w: float, d: float, wall_h: float, mat: Material) -> void:
+	var y0 := 0.1
+	var y1 := wall_h + 0.1
+	var t := CABIN_SKIN
+	# [wall] -> [[along0, along1, bottom, top]]: along x for the front and back, along z
+	# for the sides.
+	var holes := {"front": [], "back": [], "right": [], "left": []}
+	for win in CL.windows(lv):
+		var c: Vector3 = win["centre"]
+		var sz: Vector2 = win["size"]
+		var along := c.x if str(win["wall"]) in ["front", "back"] else c.z
+		(holes[str(win["wall"])] as Array).append([along - sz.x * 0.5, along + sz.x * 0.5, c.y - sz.y * 0.5, c.y + sz.y * 0.5])
+	(holes["front"] as Array).append([-CL.DOOR_W * 0.5, CL.DOOR_W * 0.5, CL.MODEL_FLOOR, CL.MODEL_FLOOR + CL.DOOR_H])
+	if CL.has_bath(lv):
+		var bz: float = CL.bath_door_z(lv)
+		(holes["right"] as Array).append([bz - CL.BATH_DOOR_W * 0.5, bz + CL.BATH_DOOR_W * 0.5, CL.MODEL_FLOOR, CL.MODEL_FLOOR + CL.BATH_DOOR_H])
+	var slabs: Array = []
+	for wall in holes.keys():
+		var hs: Array = holes[wall]
+		hs.sort_custom(func(a, b): return float(a[0]) < float(b[0]))
+		var front_back: bool = wall in ["front", "back"]
+		var a0 := -w * 0.5 if front_back else -d * 0.5 + t
+		var a1 := w * 0.5 if front_back else d * 0.5 - t
+		var pieces: Array = []
+		var u := a0
+		for h in hs:
+			if float(h[0]) > u + 0.001:
+				pieces.append([u, float(h[0]), y0, y1])
+			pieces.append([float(h[0]), float(h[1]), y0, float(h[2])])
+			pieces.append([float(h[0]), float(h[1]), float(h[3]), y1])
+			u = float(h[1])
+		if u < a1 - 0.001:
+			pieces.append([u, a1, y0, y1])
+		for p in pieces:
+			var len := float(p[1]) - float(p[0])
+			var hh := float(p[3]) - float(p[2])
+			if len < 0.005 or hh < 0.005:
+				continue
+			var mid := (float(p[0]) + float(p[1])) * 0.5
+			var ym := (float(p[2]) + float(p[3])) * 0.5
+			match wall:
+				"front":
+					slabs.append([Vector3(len, hh, t), Vector3(mid, ym, d * 0.5 - t * 0.5)])
+				"back":
+					slabs.append([Vector3(len, hh, t), Vector3(mid, ym, -d * 0.5 + t * 0.5)])
+				"right":
+					slabs.append([Vector3(t, hh, len), Vector3(w * 0.5 - t * 0.5, ym, mid)])
+				_:
+					slabs.append([Vector3(t, hh, len), Vector3(-w * 0.5 + t * 0.5, ym, mid)])
+	slabs.append([Vector3(w, 0.02, d), Vector3(0, y1 + 0.01, 0)])
+	# One mesh round the old box's middle: the boards' pattern (the material's triplanar in
+	# the mesh's own space) runs on across the pieces as it ran over the box.
+	var origin := Vector3(0, (y0 + y1) * 0.5, 0)
+	var st := SurfaceTool.new()
+	for sl in slabs:
+		var b := BoxMesh.new()
+		b.size = sl[0]
+		st.append_from(b, 0, Transform3D(Basis(), (sl[1] as Vector3) - origin))
+	var m := MeshInstance3D.new()
+	m.name = "Walls"
+	m.mesh = st.commit()
+	m.position = origin
+	m.material_override = mat
+	r.add_child(m)
 
 
 ## The porch in front of the door: boards on the ground, two posts and a tin roof over the
@@ -1723,21 +1799,31 @@ func _triangle(r: Node3D, pos: Vector3, size: float, color: Color) -> void:
 
 
 func _window(r: Node3D, pos: Vector3, size: Vector2, yaw := 0.0, frame_mat: Material = null) -> void:
-	var frame := _box(r, "WindowFrame", Vector3(size.x + 0.12, size.y + 0.12, 0.05), pos, frame_mat if frame_mat != null else _wood())
-	frame.rotation.y = yaw
+	# The frame round the opening, four boards (a board behind the glass hid the room in the
+	# cabin's one world, W26).
+	var fm: Material = frame_mat if frame_mat != null else _wood()
+	var basis := Basis(Vector3.UP, yaw)
+	var frames: Array = []
+	for b in [[Vector3(size.x + 0.12, 0.06, 0.05), Vector3(0, size.y * 0.5 + 0.03, 0)], [Vector3(size.x + 0.12, 0.06, 0.05), Vector3(0, -size.y * 0.5 - 0.03, 0)],
+			[Vector3(0.06, size.y, 0.05), Vector3(-size.x * 0.5 - 0.03, 0, 0)], [Vector3(0.06, size.y, 0.05), Vector3(size.x * 0.5 + 0.03, 0, 0)]]:
+		var f := _box(r, "WindowFrame", b[0], pos + basis * (b[1] as Vector3), fm)
+		f.rotation.y = yaw
+		frames.append(f)
 	var glass_mat := _camp("window_curtain.png", Color(0.8, 0.84, 0.86))
 	# The whole picture on the pane, a quad over the frame's face (a box mapped by its
 	# metres showed a dark corner of it: inventory 20. 10.); lit at night by
 	# scripts/ambient/window_lights.gd while the guests are in.
 	var glass := _side_quad(r, "Window", size, pos + Basis(Vector3.UP, yaw) * Vector3(0, 0, 0.03), yaw, glass_mat)
 	glass.set_meta("lit_window", true)
+	# Glass: the sun goes through it into the room (W26).
+	glass.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var bar := _box(r, "WindowBar", Vector3(0.04, size.y, 0.07), pos, _wood())
 	bar.rotation.y = yaw
 	# Over the pane (a quad, pulled further than the frame's board by the retro look): with
 	# the frame's pull it went under the pane from a few metres off.
 	bar.set_meta("retro_pull", WINDOW_BAR_PULL)
 	# Not seen by the cameras that look out through this window from inside.
-	for m in [frame, glass, bar]:
+	for m in frames + [glass, bar]:
 		(m as MeshInstance3D).layers = GLASS_LAYER
 
 

@@ -26,6 +26,20 @@ const CURTAIN = preload("res://scripts/reception/curtain.gd")
 const INTERIOR_PREP = preload("res://scripts/interior_prep.gd")
 const INTERIOR_KIT = preload("res://scripts/interior_kit.gd")
 const ROOM_WEATHER = preload("res://scripts/ambient/room_weather.gd")
+## One world (W26): the room stands in its cabin in the camp's own world (scripts/one_world_room.gd).
+const ONE_WORLD_ROOM = preload("res://scripts/one_world_room.gd")
+## By day, while the sun shines in, the room's own fill and its bulb are this share of what
+## they were in a world of their own, and the eye opens as much (the real day comes in
+## through the windows: the reception's numbers, building_interior).
+const DAY_FILL := 0.15
+const DAY_LAMP := 0.25
+const DAY_EXPOSURE := 1.4
+var _eye: CameraAttributesPractical
+var _probe: ReflectionProbe
+var _dry: GPUParticlesCollisionBox3D
+var _bath_probe: ReflectionProbe
+var _bath_dry: GPUParticlesCollisionBox3D
+var _walls_t := 0.0
 
 signal room_task_completed(task_id: String)
 signal request_close
@@ -248,6 +262,9 @@ func open_cabin(level: int = 1) -> void:
 		return
 	_is_open = true
 	visible = true
+	ONE_WORLD_ROOM.camp_view(get_tree(), false)
+	# (The room's eye is the ear in here: the camp is heard from where you stand in it.)
+	_viewport.audio_listener_enable_3d = true
 	_sync_viewport_to_window()
 	# In by the front door whichever room you left from (the camera kept the bathroom's
 	# doorway, and the next visit began inside the room's right wall).
@@ -298,16 +315,15 @@ func _room_weather():
 ## curtain to draw over it (the Photographer takes pictures through the glass) that
 ## glints under the cursor like everything else you can use.
 func _add_portal(shell: Node3D, lv: int, n: String, centre: Vector3, outward: Vector3, size: Vector2, curtain_tex: String) -> void:
-	var view = load("res://scripts/ui/window_shared_view.gd").for_host(self)
-	var cam: Camera3D = view.cam
+	var view = null
+	var cam: Camera3D = null
 	var quad := MeshInstance3D.new()
 	quad.name = n + "Glass"
 	var q := QuadMesh.new()
 	q.size = size
 	quad.mesh = q
-	var m: ShaderMaterial = view.pane_material(true)
-	m.set_shader_parameter("live", 1.0)
-	quad.material_override = m
+	# Glass in the opening, the camp itself behind it (one world: no view of it painted on).
+	quad.material_override = ONE_WORLD_ROOM.clear_glass()
 	var z := -outward.normalized()
 	var x := Vector3.UP.cross(z).normalized()
 	var frame := Transform3D(Basis(x, Vector3.UP, z), centre)
@@ -315,6 +331,9 @@ func _add_portal(shell: Node3D, lv: int, n: String, centre: Vector3, outward: Ve
 	quad.visible = false
 	shell.add_child(quad)
 	_room_weather().add_window(quad)
+	# The room's glass and the rain on it are for the inside: from the camp the cabin's own
+	# panes are seen (building_models.cabin, made glass while the room is in it).
+	_hide_from_camp(quad)
 	var cur = CURTAIN.new()
 	var hang := centre - outward.normalized() * (CABIN_LAYOUT.WALL_T + 0.08)
 	cur.build(shell, hang, size.x + 0.1, size.y + 0.3, rad_to_deg(atan2(-outward.x, -outward.z)), curtain_tex, 0.7, self, true)
@@ -383,7 +402,7 @@ func photo_windows() -> Array:
 		w["eye"] = _interior_camera.global_position
 		# Your eye out in the camp (the window's camera): what is out there stands on the
 		# line from it through the glass.
-		w["view"] = (pt["cam"] as Camera3D).global_position
+		w["view"] = _interior_camera.global_position
 		out.append(w)
 	return out
 
@@ -433,11 +452,9 @@ func take_curtains(state: Array) -> void:
 ## Each frame while you are in: the windows of the room you are in offer your eye to the
 ## cabin's one view of the camp (window_shared_view.gd), mapped out into the cabin there.
 func _update_portals() -> void:
-	var live := _anchor != null and is_instance_valid(_anchor) and _anchor.is_inside_tree()
 	var dt := get_process_delta_time()
 	_tick_photo_flash(dt)
 	_tick_smashed()
-	var to_world := _room_to_world() if live else Transform3D()
 	var clickable := _active_room == "main" and not _walking()
 	for lv in _level_portals.keys():
 		for pt in _level_portals[lv]:
@@ -447,10 +464,9 @@ func _update_portals() -> void:
 			if cur != null:
 				cur.update(dt)
 			(pt["cbody"] as StaticBody3D).collision_layer = 1 if shown and clickable else 0
-			var on: bool = live and shown and (cur == null or cur.open > 0.03)
-			(pt["quad"] as MeshInstance3D).visible = on
-			if on:
-				pt["view"].offer(_interior_camera, _cabin_root, to_world, _anchor.get_world_3d(), _anchor)
+			# (The glass in its opening, the camp behind it: one world. Broken, none.)
+			var quad := pt["quad"] as MeshInstance3D
+			quad.visible = shown and not quad.has_meta("smashed_now")
 
 
 # -- the window the mushroom granny smashed (mess_rules CARNAGE_WALL "smashed"; Richard
@@ -488,7 +504,11 @@ func _tick_smashed() -> void:
 	for pt in _portals_now():
 		var quad := pt["quad"] as MeshInstance3D
 		if str(quad.name) == "View_%sGlass" % SMASH_WINDOW:
-			INTERIOR_PREP.smashed_window(quad, quad.material_override as ShaderMaterial, pt["size"], on)
+			INTERIOR_PREP.smashed_window(quad, null, pt["size"], on)
+			if on:
+				quad.set_meta("smashed_now", true)
+			elif quad.has_meta("smashed_now"):
+				quad.remove_meta("smashed_now")
 	_set_smash_heard(on and _is_open)
 
 
@@ -538,11 +558,14 @@ func close_cabin() -> void:
 	_glint.clear()
 	_set_smash_heard(false)
 	visible = false
+	_viewport.audio_listener_enable_3d = false
+	ONE_WORLD_ROOM.camp_view(get_tree(), true)
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	request_close.emit()
 
 
 func _process(delta: float) -> void:
+	_bind_one_world(delta)
 	_update_sleeper(delta)
 	if not _is_open:
 		_update_inview(delta)
@@ -570,6 +593,39 @@ func _process(delta: float) -> void:
 		INTERIOR_LOOK.set_side_hints(_side_hints, "", "Bathroom  [D]" if CABIN_LAYOUT.has_bath(_cabin_level) else "")
 
 
+# ── one world (W26) ──────────────────────────────────────────────────────────
+
+## The room in the cabin you are in, or (out in the camp) in the one you look into
+## (_update_inview); none near, it is put away (its lamp out with it). Its light inside is
+## its probes', the room's numbers; heard from the camp its sounds come through the walls.
+func _bind_one_world(delta: float) -> void:
+	if _cabin_root == null or _cube_baking:
+		return
+	var cabin: Node3D = _anchor if _is_open else _inview_cabin
+	var ok := cabin != null and is_instance_valid(cabin) and cabin.is_inside_tree()
+	# (Opened with no cabin to stand in, it stays where it last stood.)
+	if _cabin_root.visible != (ok or _is_open):
+		_cabin_root.visible = ok or _is_open
+	if ok:
+		var x: Transform3D = cabin.global_transform * Transform3D(Basis(), CABIN_LAYOUT.ROOM_TO_MODEL)
+		if not _cabin_root.transform.is_equal_approx(x):
+			_cabin_root.transform = x
+	if _room_env != null:
+		for p in [_probe, _bath_probe]:
+			if p != null:
+				(p as ReflectionProbe).ambient_color = _room_env.ambient_light_color
+				(p as ReflectionProbe).ambient_color_energy = _room_env.ambient_light_energy
+	_walls_t -= delta
+	if _walls_t <= 0.0:
+		_walls_t = 0.5
+		ONE_WORLD_ROOM.sounds_through_walls(_cabin_root, not _is_open)
+
+
+func _camp_weather() -> int:
+	var scene := get_tree().current_scene if is_inside_tree() else null
+	return int(scene.get("_weather_state")) if scene != null and scene.get("_weather_state") != null else 0
+
+
 # ── the camp looking in ──────────────────────────────────────────────────────
 #
 # From the camp the nearest cabin's windows show this room (the user 21. 10.: the cabin's
@@ -587,10 +643,8 @@ const INVIEW_RANGE := 40.0
 ## What lies over the room's windows inside (the camp in the glass, the rain on it): the
 ## camera looking in from the camp skips it.
 const INVIEW_HIDE_LAYER := 1 << 17
-var _inview_vp: SubViewport
-var _inview_cam: Camera3D
-var _inview_mat: ShaderMaterial
 var _inview_cabin: Node3D
+var _pane_glass: StandardMaterial3D
 var _inview_panes: Array = []
 var _inview_scan_t := 0.0
 var _inview_light_t := 0.0
@@ -665,20 +719,6 @@ func _update_inview(delta: float) -> void:
 		var cur = pt.get("curtain")
 		if cur != null:
 			cur.update(delta)
-	# The camp's eye in the room: the world -> the cabin (the room's model space) -> the room.
-	var to_room: Transform3D = _cabin_root.global_transform * (_inview_cabin.global_transform * Transform3D(Basis(), CABIN_LAYOUT.ROOM_TO_MODEL)).affine_inverse()
-	var t := to_room * cam.global_transform
-	_inview_cam.global_transform = Transform3D(t.basis.orthonormalized(), t.origin)
-	_inview_cam.fov = cam.fov
-	_inview_cam.keep_aspect = cam.keep_aspect
-	# The camp's eye looking up or down is a shifted frustum (player_controller): the same.
-	_inview_cam.projection = cam.projection
-	var nk := _inview_cam.near / maxf(cam.near, 0.001)
-	_inview_cam.size = cam.size * nk
-	_inview_cam.frustum_offset = cam.frustum_offset * nk
-	var px := Vector2i(cam.get_viewport().get_visible_rect().size)
-	if _inview_vp.size != px and px.x > 0:
-		_inview_vp.size = px
 	_inview_light_t -= delta
 	if _inview_light_t <= 0.0:
 		_inview_light_t = 0.5
@@ -709,6 +749,8 @@ func bake_cubes() -> void:
 	var was_lights := _manual_lights_on
 	var was_guests := _guest_occupants.duplicate(true)
 	set_guest_occupants([])
+	# Drawn far under the camp (the room is in the camp's world): nothing round it.
+	_cabin_root.transform = Transform3D(Basis(), Vector3(0.0, -400.0, 0.0))
 	for lv in [1, 2, 3]:
 		if _is_open:
 			break
@@ -754,16 +796,8 @@ func cube_spec(structure: Node3D) -> Dictionary:
 		"world_to_room": (structure.global_transform * Transform3D(Basis(), CABIN_LAYOUT.ROOM_TO_MODEL)).affine_inverse()}
 
 
-## The near cabin's live room over its cube, faded in.
-func _fade_live(mat: ShaderMaterial, to: float) -> void:
-	var from := float(mat.get_shader_parameter("live")) if mat.get_shader_parameter("live") != null else 0.0
-	var tw := create_tween()
-	tw.tween_method(func(v: float) -> void: mat.set_shader_parameter("live", v), from, to, 0.4)
-
-
 ## The room made up as `cabin` is, and its panes given the room's picture.
 func _take_inview(cabin: Node3D) -> void:
-	_ensure_inview()
 	_inview_cabin = cabin
 	_inview_panes = _panes_of(cabin)
 	var t := str(cabin.get_meta("building_type", "cabin_1"))
@@ -781,19 +815,15 @@ func _take_inview(cabin: Node3D) -> void:
 	var by_room = im.get("_curtains_by_room") if im != null else null
 	if key != "" and by_room is Dictionary and (by_room as Dictionary).has(key):
 		take_curtains((by_room as Dictionary)[key])
+	# Its panes are glass while the room stands in it (one world: _bind_one_world puts it
+	# there); window_lights leaves "inview_live" panes be (their cube, their glow).
+	if _pane_glass == null:
+		_pane_glass = ONE_WORLD_ROOM.clear_glass()
 	for p in _inview_panes:
 		var mi := p as MeshInstance3D
 		mi.set_meta("inview_live", true)
-		# Its cube's pane (window_lights): the live room fades in over it.
-		var cube := mi.get_meta("wl_cube") as ShaderMaterial if mi.has_meta("wl_cube") else null
-		if cube != null:
-			cube.set_shader_parameter("room_tex", _inview_vp.get_texture())
-			cube.set_shader_parameter("depth_pull", 0.009)
-			_fade_live(cube, 1.0)
-			continue
 		mi.set_meta("inview_was", mi.material_override)
-		mi.material_override = _inview_mat
-	_inview_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+		mi.material_override = _pane_glass
 	_inview_light_t = 0.0
 
 
@@ -805,17 +835,12 @@ func _release_inview() -> void:
 		var mi := p as MeshInstance3D
 		if mi == null:
 			continue
-		var cube := mi.get_meta("wl_cube") as ShaderMaterial if mi.has_meta("wl_cube") else null
-		if cube != null:
-			cube.set_shader_parameter("live", 0.0)
 		if mi.has_meta("inview_was"):
 			mi.material_override = mi.get_meta("inview_was")
 			mi.remove_meta("inview_was")
 		mi.remove_meta("inview_live")
 	_inview_panes.clear()
 	_inview_cabin = null
-	if _inview_vp != null:
-		_inview_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
 
 
 ## The room's light as the camp's hour has it, its lamp as window_lights has the cabin
@@ -840,43 +865,6 @@ func _inview_room_light() -> void:
 	if guests.size() != _guest_occupants.size():
 		set_guest_occupants(guests)
 	set_time_state(state)
-	var bright := 1.0 if state == TIME_NIGHT else (0.8 if state == TIME_EVENING else 0.62)
-	_inview_mat.set_shader_parameter("bright", bright)
-	_inview_mat.set_shader_parameter("glow", 0.0)
-	for p in _inview_panes:
-		var cube := (p as Node).get_meta("wl_cube") as ShaderMaterial if is_instance_valid(p) and (p as Node).has_meta("wl_cube") else null
-		if cube != null:
-			cube.set_shader_parameter("bright", bright)
-
-
-func _ensure_inview() -> void:
-	if _inview_vp != null:
-		return
-	_inview_vp = SubViewport.new()
-	_inview_vp.name = "CabinFromCamp"
-	_inview_vp.size = Vector2i(426, 240)
-	_inview_vp.world_3d = _viewport.find_world_3d()
-	_inview_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
-	add_child(_inview_vp)
-	_inview_cam = Camera3D.new()
-	_inview_cam.near = 0.05
-	_inview_cam.far = 40.0
-	_inview_cam.cull_mask = 0xFFFFF & ~INVIEW_HIDE_LAYER & ~GLASS_LAYER
-	_inview_vp.add_child(_inview_cam)
-	# The room's own views out and the rain on their glass are for the inside only.
-	for lv in _level_portals.keys():
-		for pt in _level_portals[lv]:
-			_hide_from_camp(pt["quad"])
-	if _weather != null and is_instance_valid(_weather):
-		_hide_from_camp(_weather)
-	_inview_mat = ShaderMaterial.new()
-	_inview_mat.shader = load("res://materials/window_into.gdshader")
-	_inview_mat.set_shader_parameter("room_tex", _inview_vp.get_texture())
-	_inview_mat.set_shader_parameter("live", 1.0)
-	# Between the window's frame and its bar, as the retro look pulls them (the frame 0.005,
-	# the bar 0.012: building_models.WINDOW_BAR_PULL). With the frame's own pull the frame's
-	# boards came over the room from ten metres off (playtest 25. 10.: "wood over the windows").
-	_inview_mat.set_shader_parameter("depth_pull", 0.009)
 
 
 static func _hide_from_camp(n: Node) -> void:
@@ -1182,7 +1170,8 @@ func _build_viewport() -> void:
 
 	_viewport = SubViewport.new()
 	_viewport.name = "CabinViewport"
-	_viewport.own_world_3d = true
+	# The camp's own world: the room stands in its cabin there (_bind_one_world).
+	ONE_WORLD_ROOM.viewport(_viewport)
 	_viewport.size = INTERIOR_RENDER_MIN_SIZE
 	_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_viewport.handle_input_locally = false
@@ -1194,11 +1183,9 @@ func _build_viewport() -> void:
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color(0.78, 0.82, 0.78)
 	env.ambient_light_energy = 0.98
+	# (The camp's world has its own environment: these are the room's numbers, its probe's
+	# ambient, _bind_one_world.)
 	_room_env = env
-
-	var world_env = WorldEnvironment.new()
-	world_env.environment = env
-	_viewport.add_child(world_env)
 
 	# Interior-only barrel/fisheye pass.
 	_barrel_overlay = ColorRect.new()
@@ -1240,10 +1227,10 @@ func _build_cabin_room() -> void:
 	_light_switch_mesh = null
 	_bathroom_root = Node3D.new()
 	_bathroom_root.name = "BathroomRoom"
-	_viewport.add_child(_bathroom_root)
+	_cabin_root.add_child(_bathroom_root)
 	_torch_root = Node3D.new()
 	_torch_root.name = "TorchBeams"
-	_viewport.add_child(_torch_root)
+	_cabin_root.add_child(_torch_root)
 
 	_interior_camera = Camera3D.new()
 	_interior_camera.name = "CabinCamera"
@@ -1251,6 +1238,7 @@ func _build_cabin_room() -> void:
 	_interior_camera.rotation_degrees = Vector3(-8.0, 0.0, 0.0)
 	_interior_camera.fov = ROOM_FOV
 	_interior_camera.current = true
+	_eye = ONE_WORLD_ROOM.eye(_interior_camera)
 	_cabin_root.add_child(_interior_camera)
 
 	# Warm cabin light.
@@ -1262,6 +1250,10 @@ func _build_cabin_room() -> void:
 	_main_light.omni_attenuation = 1.2
 	_main_light.shadow_enabled = true
 	_cabin_root.add_child(_main_light)
+	_probe = ONE_WORLD_ROOM.probe(_cabin_root, "RoomLight")
+	_dry = ONE_WORLD_ROOM.dry(_cabin_root, "Dry")
+	_bath_probe = ONE_WORLD_ROOM.probe(_bathroom_root, "BathLight")
+	_bath_dry = ONE_WORLD_ROOM.dry(_bathroom_root, "BathDry")
 
 	# The room of each tier, built from the cabin's plan (scripts/cabin_layout.gd) the way
 	# the model outside is: its walls with the real openings, every window a view out with
@@ -1332,10 +1324,11 @@ func _build_level_shell(lv: int) -> void:
 	if CL.has_bath(lv):
 		var bz: float = CL.bath_door_z(lv)
 		(holes["right"] as Array).append([_along_wall("right", Vector3(0, 0, bz), iw, id) - CL.BATH_DOOR_W * 0.5, f, CL.BATH_DOOR_W, CL.BATH_DOOR_H])
-	_wall_with_holes(shell, "front", iw, id, h, f, t, holes["front"], wall)
-	_wall_with_holes(shell, "back", iw, id, h, f, t, holes["back"], wall)
-	_wall_with_holes(shell, "right", iw, id, h, f, t, holes["right"], wall)
-	_wall_with_holes(shell, "left", iw, id, h, f, t, holes["left"], wall)
+	# (3 cm short of the outer face: the cabin's own skin is there, building_models.CABIN_SKIN.)
+	_wall_with_holes(shell, "front", iw, id, h, f, t, holes["front"], wall, 0.03)
+	_wall_with_holes(shell, "back", iw, id, h, f, t, holes["back"], wall, 0.03)
+	_wall_with_holes(shell, "right", iw, id, h, f, t, holes["right"], wall, 0.03)
+	_wall_with_holes(shell, "left", iw, id, h, f, t, holes["left"], wall, 0.03)
 	# Skirting and a cornice in dark wood, Build-style trim.
 	var trim := K.surface("planks_dark", 0.6)
 	for z: float in [-id * 0.5 + 0.015, id * 0.5 - 0.015]:
@@ -1394,7 +1387,9 @@ func _along_wall(which: String, p: Vector3, _iw: float, _id: float) -> float:
 
 ## A wall of the room with its openings: slabs round each hole (beside, under, over).
 ## Returns the slabs.
-func _wall_with_holes(parent: Node3D, which: String, iw: float, id: float, h: float, f: float, t: float, holes: Array, mat: Material) -> Array:
+## `skin`: what is left of the wall's thickness at its outer face for the cabin outside
+## (building_models.cabin's skin, one world W26): the room's wall stops that short of it.
+func _wall_with_holes(parent: Node3D, which: String, iw: float, id: float, h: float, f: float, t: float, holes: Array, mat: Material, skin := 0.0) -> Array:
 	var length := iw + 2.0 * t if which in ["front", "back"] else id
 	var pieces: Array = []      # [u0, u1, y0, y1]
 	var sorted := holes.duplicate()
@@ -1423,19 +1418,20 @@ func _wall_with_holes(parent: Node3D, which: String, iw: float, id: float, h: fl
 		var hh: float = float(pc[3]) - float(pc[2])
 		var pos: Vector3
 		var size: Vector3
+		var tt := t - skin
 		match which:
 			"front":
-				pos = Vector3(-u_mid, y_mid, id * 0.5 + t * 0.5)
-				size = Vector3(w, hh, t)
+				pos = Vector3(-u_mid, y_mid, id * 0.5 + tt * 0.5)
+				size = Vector3(w, hh, tt)
 			"back":
-				pos = Vector3(u_mid, y_mid, -id * 0.5 - t * 0.5)
-				size = Vector3(w, hh, t)
+				pos = Vector3(u_mid, y_mid, -id * 0.5 - tt * 0.5)
+				size = Vector3(w, hh, tt)
 			"right":
-				pos = Vector3(iw * 0.5 + t * 0.5, y_mid, u_mid)
-				size = Vector3(t, hh, w)
+				pos = Vector3(iw * 0.5 + tt * 0.5, y_mid, u_mid)
+				size = Vector3(tt, hh, w)
 			_:
-				pos = Vector3(-iw * 0.5 - t * 0.5, y_mid, -u_mid)
-				size = Vector3(t, hh, w)
+				pos = Vector3(-iw * 0.5 - tt * 0.5, y_mid, -u_mid)
+				size = Vector3(tt, hh, w)
 		slabs.append(INTERIOR_KIT.slab(parent, size, pos, mat, "Wall%s%d" % [which.capitalize(), i]))
 		i += 1
 	return slabs
@@ -1829,6 +1825,14 @@ func _apply_level_variant() -> void:
 	if _light_switch_body != null:
 		_light_switch_body.position = Vector3(0.62, CL.ROOM_FLOOR + 1.2, inner.y * 0.5 - 0.02)
 	_set_node_visible("SlopBucket", _cabin_level == 1)
+	ONE_WORLD_ROOM.fit(_probe, _dry, Vector3(-inner.x * 0.5, 0.0, -inner.y * 0.5), Vector3(inner.x * 0.5, CL.ROOM_FLOOR + h + 0.1, inner.y * 0.5))
+	if _bath_probe != null:
+		var bb: AABB = CL.annex_box(2)
+		var bw: float = bb.size.x - CL.WALL_T
+		var bd: float = bb.size.z - CL.WALL_T * 2.0
+		ONE_WORLD_ROOM.fit(_bath_probe, _bath_dry, Vector3(-bw * 0.5, 0.0, -bd * 0.5), Vector3(bw * 0.5, CL.ROOM_FLOOR + 2.1, bd * 0.5))
+		_bath_probe.visible = CL.has_bath(_cabin_level)
+		_bath_dry.visible = CL.has_bath(_cabin_level)
 	if _bathroom_root != null:
 		_bathroom_root.position = _bath_origin()
 		var bath_wall := INTERIOR_KIT.surface("tiles_bathroom", 0.9) if _cabin_level >= 3 else INTERIOR_KIT.surface("oil_wall", 2.0)
@@ -2212,6 +2216,16 @@ func _apply_time_profile(animated: bool = false) -> void:
 	if _derelict and _room_env != null:
 		_room_env.ambient_light_energy *= 0.36
 		_room_env.ambient_light_color = _room_env.ambient_light_color.lerp(Color(0.5, 0.56, 0.46), 0.5)
+	# One world: the day comes in through the windows itself (the camp's sun on the floor);
+	# while it does the room's fill and its bulb go down and the eye opens a little; on a
+	# grey day the bulb is the light again.
+	var dw: Vector2 = ONE_WORLD_ROOM.day_of(_daylight_factor, get_tree(), _camp_weather())
+	if _room_env != null:
+		_room_env.ambient_light_energy *= lerpf(1.0, DAY_FILL, dw.x)
+	if _main_light != null:
+		_main_light.light_energy *= lerpf(1.0, DAY_LAMP, dw.y)
+	if _eye != null:
+		_eye.exposure_multiplier = lerpf(1.0, DAY_EXPOSURE, dw.y)
 	_apply_manual_light_profile(animated)
 
 

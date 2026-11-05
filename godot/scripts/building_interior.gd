@@ -58,6 +58,7 @@ const INTERIOR_RENDER_MIN_SIZE := Vector2i(960, 540)
 ## The camp building's glass and door (building_models.GLASS_LAYER): the room's eye leaves
 ## them out (the room has its own door in the doorway).
 const CAMP_GLASS_LAYER := 1 << 19
+const ONE_WORLD_ROOM = preload("res://scripts/one_world_room.gd")
 ## By day the room's own fill is this share of what it was in a world of its own (the real
 ## sun and sky come in through the windows now).
 var day_fill := 0.1
@@ -2405,12 +2406,9 @@ func _one_world_inside(on: bool) -> void:
 			env.ssao_light_affect = _room_environment.ssao_light_affect
 		else:
 			env.ssao_enabled = false
-	var main := _resolve_main_runtime_host()
-	var w3d = main.get("_world_3d") if main != null else null
-	if w3d is Node3D and (w3d as Node3D).is_inside_tree():
-		var vp := (w3d as Node3D).get_viewport()
-		if vp != null:
-			vp.audio_listener_enable_3d = not on
+	# The camp's own view neither drawn nor heard from while you are in here (this room's eye
+	# draws the camp through the windows and is the ear).
+	ONE_WORLD_ROOM.camp_view(get_tree(), not on)
 	_room_sounds_through_walls(not on)
 
 
