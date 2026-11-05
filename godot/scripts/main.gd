@@ -1100,7 +1100,13 @@ func _find_guest_in_view() -> Dictionary:
 	var cam := _get_player_camera()
 	if cam == null:
 		return {}
-	return _guest_agents.find_guest_in_view(cam, INTERACT_DISTANCE + 0.8)
+	var guest: Dictionary = _guest_agents.find_guest_in_view(cam, INTERACT_DISTANCE + 0.8)
+	# Who stands at the corn stand is there to be served: E is the stand's (the user 5. 11.:
+	# with customers at it there was only "talk to" and no way behind the counter).
+	var act: Dictionary = guest.get("activity", {})
+	if str(act.get("target_type", "")) == "corn_stand" and int(act.get("arrive", 0)) <= int(guest.get("now_abs", 0)):
+		return {}
+	return guest
 
 
 ## Duke3D-style quote line: what guests near the player just said shows in the HUD
@@ -1826,7 +1832,7 @@ func _stock_rows(biz) -> Array:
 				worst_k = k
 				worst = g
 		if worst != "":
-			rows.append({"id": "s%s" % str(key), "kind": str(TROUBLE_KIND.get(kind, "pub")), "word": str((gd[worst] as Dictionary).get("label", "")), "cat": "biz", "left": clampf(worst_k, 0.0, 1.0)})
+			rows.append({"id": "s%s" % str(key), "kind": str(TROUBLE_KIND.get(kind, "pub")), "word": str((gd[worst] as Dictionary).get("label", "")), "cat": "stock", "left": clampf(worst_k, 0.0, 1.0)})
 	return rows
 
 
@@ -1835,7 +1841,8 @@ func _stock_rows(biz) -> Array:
 ## want cleaning"): each empty lodging that is dirty (the broom) or not made up (the
 ## linen), each toilet and shower block worn into wanting a clean (as its own room's list
 ## has it: mess_rules.block_tasks) or broken.
-const WORK_BLOCK_DIRTY: float = preload("res://core/systems/maintenance_rules.gd").DIRTY_AT
+const WORK_RULES = preload("res://core/systems/maintenance_rules.gd")
+const WORK_BLOCK_DIRTY: float = WORK_RULES.DIRTY_AT
 
 
 func _work_rows() -> Array:
@@ -1854,16 +1861,40 @@ func _work_rows() -> Array:
 		var no: int = GuestManager.room_number(str(key))
 		var word := tr(kind.capitalize()) + (" %d" % no if no > 0 else "")
 		rows.append({"id": "w%s" % str(key), "kind": "clean" if st == "dirty" else "bed", "word": word, "cat": "work", "left": -1.0})
+	var wcs: Array = []
+	for coord in state.grid.cells.keys():
+		var cell: Dictionary = state.grid.cells[coord]
+		if str(cell.get("type", "")) == "toilet_block" and cell.get("root_coord", coord) == coord:
+			wcs.append(coord)
+	wcs.sort()
 	for coord in state.grid.cells.keys():
 		var cell: Dictionary = state.grid.cells[coord]
 		var t := str(cell.get("type", ""))
 		if (t != "toilet_block" and t != "shower_block") or cell.get("root_coord", coord) != coord:
 			continue
 		var bkey := "%d:%d" % [coord.x, coord.y]
-		if float(cell.get("maintenance", 1.0)) >= WORK_BLOCK_DIRTY and not state.failures.has(bkey):
+		var broken: bool = state.failures.has(bkey)
+		if t == "toilet_block":
+			# A plate for each toilet, the one that is dirty (the user 5. 11.: "both toilets
+			# dirty", and only the one was).
+			var told := false
+			for side in WORK_RULES.SIDES:
+				if WORK_RULES.side_condition(cell, side) < WORK_BLOCK_DIRTY:
+					rows.append({"id": "w%s%s" % [bkey, side], "kind": "toilet", "word": _wc_word(side, wcs.find(coord) + 1 if wcs.size() > 1 else 0), "cat": "work", "left": -1.0})
+					told = true
+			if told or not broken:
+				continue
+		elif float(cell.get("maintenance", 1.0)) >= WORK_BLOCK_DIRTY and not broken:
 			continue
 		rows.append({"id": "w%s" % bkey, "kind": "toilet" if t == "toilet_block" else "shower", "word": tr("Toilets") if t == "toilet_block" else tr("Showers"), "cat": "work", "left": -1.0})
 	return rows
+
+
+## A toilet's name on its plate: its side, with `no` the block's number when there are more.
+func _wc_word(side: String, no: int) -> String:
+	if no > 0:
+		return tr("WC %d left" if side == "l" else "WC %d right") % no
+	return tr("WC left" if side == "l" else "WC right")
 
 
 func _on_guest_at_gate(row: Dictionary) -> void:

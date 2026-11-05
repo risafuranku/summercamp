@@ -114,10 +114,10 @@ func _build(structure: Node3D) -> Dictionary:
 func _top_of(structure: Node3D) -> float:
 	var top := structure.global_position.y + 2.4
 	var found := false
-	for n in structure.find_children("*", "VisualInstance3D", true, false):
-		if n is Sprite3D or not (n as VisualInstance3D).visible:
+	for n in structure.find_children("*", "MeshInstance3D", true, false):
+		if not (n as MeshInstance3D).visible:
 			continue
-		var box: AABB = (n as VisualInstance3D).global_transform * (n as VisualInstance3D).get_aabb()
+		var box: AABB = (n as MeshInstance3D).global_transform * (n as MeshInstance3D).get_aabb()
 		top = box.end.y if not found else maxf(top, box.end.y)
 		found = true
 	return top

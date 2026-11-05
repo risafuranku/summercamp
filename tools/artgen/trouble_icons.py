@@ -20,7 +20,9 @@ BOX = (12, 10)
 KINDS = ["litter", "raccoons", "delivery", "lost_kid", "noise", "tree", "someone", "breaker", "lamp",
          "sewer", "toilet", "corn", "frozen", "pub", "rest", "vecerka", "stand",
          # The housework (playtest 25. 10.): the showers, a lodging to clean, one to make up.
-         "shower", "clean", "bed"]
+         "shower", "clean", "bed",
+         # A business's goods running out (the user 5. 11.).
+         "crate"]
 DEST = os.path.join(process.GODOT, "assets", "textury", "ui")
 
 
@@ -49,6 +51,12 @@ def main():
         if not os.path.exists(src):
             print("skip", k)
             continue
+        if k == "crate":
+            # The crate without its lid leaning on it: at 12 pixels the two read as a lump.
+            im = Image.open(src).convert("RGB")
+            im.paste((255, 0, 255), (int(im.width * 0.598), 0, im.width, im.height))
+            src = os.path.join(HERE, "out", "spr_hud_tr_crate", "crate_only.png")
+            im.save(src)
         h = BOX[1]
         out = process.sprite(src, h)
         while out.width > BOX[0] and h > 4:

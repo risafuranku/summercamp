@@ -93,7 +93,7 @@ const INTERIOR_ASSIGNMENTS := [
 			"restaurant": "Enter bistro",
 			"pub": "Enter pub",
 			"vecerka": "Go into the Jednota",
-			"toilet_block": "Enter toilets",
+			"toilet_block": "Enter toilet",
 			"shower_block": "Enter showers",
 			"sewer": "Open sewer hatch",
 			"power_generator": "Enter generator shed",
@@ -630,6 +630,10 @@ func get_hint_for_structure(structure: Node3D) -> String:
 		var origin: Vector2i = structure.get_meta("grid_origin", Vector2i(-999, -999))
 		var cell: Dictionary = state.grid.cells.get(origin, {}) if state != null and state.grid != null else {}
 		var condition := float(cell.get("maintenance", 1.0))
+		# Each toilet says its own: the door you look at, its own bowl (the user 5. 11.: both
+		# doors said dirty for the one dirty bowl).
+		if building_type == "toilet_block":
+			condition = MAINT_RULES.side_condition(cell, "l" if _toilet_door_of(structure) == "left" else "r")
 		# (Each piece in the warden's language: put together they are found by nothing.)
 		if condition < MAINT_RULES.FILTHY:
 			hint = tr(hint) + tr(" - filthy, clean it")
@@ -750,6 +754,8 @@ func _nearest_door(structure: Node3D, at: Vector3) -> MeshInstance3D:
 
 ## How near the front door (m) the warden must be for the walk up to it.
 const WALK_IN_FROM_M := 4.5
+## A door within this of the view's middle is the one you look at.
+const DOOR_AIM_DOT := 0.8
 
 
 func _enter_office(walked_in: bool) -> void:
@@ -957,13 +963,7 @@ func _walk_up_first(structure: Node3D, again: Callable, room: Object = null) -> 
 	var doors: Array = DOOR_ANIM.find_doors(structure)
 	if doors.is_empty():
 		doors = structure.find_children("TentFlap", "MeshInstance3D", true, false)
-	var pick := 0
-	var best := INF
-	for i in doors.size():
-		var dd := body.global_position.distance_to((doors[i] as Node3D).global_position)
-		if dd < best:
-			best = dd
-			pick = i
+	var pick := _door_in_view(doors)
 	var way: Dictionary = DOOR_ANIM.entry_points(structure, pick)
 	if way.is_empty():
 		return false
@@ -1367,13 +1367,43 @@ func _on_service_interact(service_node: Node) -> void:
 	_set_player_controls_enabled(false)
 
 
-## The toilet block has a door per stall (building_models._toilets): the one on the side
-## of the building you are standing at, as seen from its front.
+## The toilet block has a door per stall (building_models._toilets): the one you look at,
+## left or right as seen from its front.
 func _toilet_door_of(structure: Node3D) -> String:
 	var p := _player as Node3D
 	if structure == null or p == null:
 		return "left"
-	return "left" if structure.to_local(p.global_position).x < 0.0 else "right"
+	var doors: Array = DOOR_ANIM.find_doors(structure)
+	if doors.is_empty():
+		return "left" if structure.to_local(p.global_position).x < 0.0 else "right"
+	var door := doors[_door_in_view(doors)] as Node3D
+	return "left" if structure.to_local(door.global_position).x < 0.0 else "right"
+
+
+## Which of a building's `doors` you mean: the one in the middle of your view; the nearest
+## when you look at none of them.
+func _door_in_view(doors: Array) -> int:
+	var p := _player as Node3D
+	if p == null or doors.is_empty():
+		return 0
+	var cam := p.get("_camera") as Camera3D
+	var pick := 0
+	var best := INF
+	for i in doors.size():
+		var dd := p.global_position.distance_to((doors[i] as Node3D).global_position)
+		if dd < best:
+			best = dd
+			pick = i
+	if cam == null or doors.size() < 2:
+		return pick
+	var fwd := -cam.global_basis.z
+	var aim := DOOR_AIM_DOT
+	for i in doors.size():
+		var dot := ((doors[i] as Node3D).global_position - cam.global_position).normalized().dot(fwd)
+		if dot > aim:
+			aim = dot
+			pick = i
+	return pick
 
 
 func _on_service_closed() -> void:

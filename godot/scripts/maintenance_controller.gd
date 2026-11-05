@@ -314,8 +314,9 @@ func _world_aabb(node: Node) -> AABB:
 	var stack: Array = [node]
 	while not stack.is_empty():
 		var n = stack.pop_back()
-		var vi := n as VisualInstance3D
-		if vi != null and not (vi is Sprite3D):
+		# (The meshes: a light's box is as big as its reach.)
+		var vi := n as MeshInstance3D
+		if vi != null:
 			var box: AABB = vi.global_transform * vi.get_aabb()
 			out = box if first else out.merge(box)
 			first = false

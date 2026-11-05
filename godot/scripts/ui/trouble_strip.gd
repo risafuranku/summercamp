@@ -10,7 +10,10 @@ extends Control
 ## businesses' green). A day's trouble has its time running out under the word (amber,
 ## then red, blinking at the end); a business the number waiting (on the picture's corner).
 ## New ones blink their
-## frame a moment. The detail (where, what to do) stays on TAB. Fed by
+## frame a moment. What is running out at a business is a plate of its own (the user 5. 11.:
+## "kukuricne", the name cut off on a plate like the rest, and nothing said it was goods):
+## wider, the colour of a cardboard box, the place's picture, the goods by their whole
+## name, the crate at its end, the bar what is left. The detail (where, what to do) stays on TAB. Fed by
 ## hud_manager.set_troubles(), the same rows on every co-op machine (the day's events, the
 ## night's jobs and the businesses' queues are all the host's).
 
@@ -32,7 +35,13 @@ const RED := Color(1.0, 0.42, 0.34)
 const BONE := Color(0.93, 0.89, 0.78)
 ## The housework's stripe (an empty lodging to clean or make up, a block to clean): blue.
 const WORK := Color(0.5, 0.72, 0.96)
-const CAT := {"day": AMBER, "night": RED, "biz": GREEN, "work": WORK}
+## A business's goods: the stripe, the plate, its edge, and how much wider it is.
+const STOCK := Color(0.96, 0.62, 0.24)
+const STOCK_FILL := Color(0.24, 0.15, 0.07, 0.92)
+const STOCK_LIGHT := Color(0.74, 0.52, 0.28, 0.95)
+const STOCK_WIDER := 46.0
+const STOCK_CRATE := "crate"
+const CAT := {"day": AMBER, "night": RED, "biz": GREEN, "work": WORK, "stock": STOCK}
 const TEX := "res://assets/textury/ui/trouble_%s.png"
 const NEW_SEC := 3.0
 
@@ -52,7 +61,7 @@ func _init() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 
 
-## [{id, kind, word, cat: day|night|biz|work, left: 0..1 or -1, n}]
+## [{id, kind, word, cat: day|night|biz|work|stock, left: 0..1 or -1, n}]
 func set_rows(rows: Array) -> void:
 	_rows = rows.duplicate(true)
 	var now := {}
@@ -101,7 +110,11 @@ func occupied() -> Rect2:
 		return Rect2()
 	var u: float = l["u"]
 	var rows := float(l["n"]) + (1.0 if _rows.size() > int(l["n"]) else 0.0)
-	return Rect2(float(l["x"]), float(l["y0"]), PLATE.x * u, float(l["step"]) * rows)
+	var more := 0.0
+	for i in int(l["n"]):
+		if str((_rows[i] as Dictionary).get("cat", "")) == "stock":
+			more = STOCK_WIDER * u
+	return Rect2(float(l["x"]) - more, float(l["y0"]), PLATE.x * u + more, float(l["step"]) * rows)
 
 
 func _draw() -> void:
@@ -124,11 +137,14 @@ func _draw() -> void:
 
 
 func _plate(row: Dictionary, at: Vector2, u: float, f: Font, fs: int) -> void:
-	var box := Rect2(at, PLATE * u)
+	var stock := str(row.get("cat", "")) == "stock"
+	var wider := STOCK_WIDER if stock else 0.0
+	at.x -= wider * u
+	var box := Rect2(at, (PLATE + Vector2(wider, 0.0)) * u)
 	var fresh := _t - float(_seen.get(str(row.get("id", "")), _t)) < NEW_SEC
 	var flash := fresh and int(_t * 4.0) % 2 == 0
-	draw_rect(box, FILL)
-	var lt := BONE if flash else LIGHT
+	draw_rect(box, STOCK_FILL if stock else FILL)
+	var lt := BONE if flash else (STOCK_LIGHT if stock else LIGHT)
 	draw_rect(Rect2(box.position, Vector2(box.size.x, u)), lt)
 	draw_rect(Rect2(box.position, Vector2(u, box.size.y)), lt)
 	draw_rect(Rect2(box.position + Vector2(0, box.size.y - u), Vector2(box.size.x, u)), BONE if flash else DARK)
@@ -139,7 +155,9 @@ func _plate(row: Dictionary, at: Vector2, u: float, f: Font, fs: int) -> void:
 	var nod := -1.0 if int(_t * 2.0 + float(hash(str(row.get("id", ""))) % 7)) % 6 == 0 else 0.0
 	_icon(TEX % str(row.get("kind", "")), at + (ICON_AT + Vector2(0, nod)) * u, u)
 	var word := tr(str(row.get("word", ""))).to_upper()
-	var room := (PLATE.x - WORD_AT.x - 2.0) * u
+	var room := (PLATE.x + wider - WORD_AT.x - 2.0 - (ICON_BOX.x if stock else 0.0)) * u
+	if stock:
+		_icon(TEX % STOCK_CRATE, at + Vector2(PLATE.x + wider - ICON_BOX.x - 2.0, ICON_AT.y + nod) * u, u)
 	while word.length() > 1 and f.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > room:
 		word = word.substr(0, word.length() - 1)
 	_text(f, word, at + WORD_AT * u, fs, u, BONE)
@@ -154,7 +172,7 @@ func _plate(row: Dictionary, at: Vector2, u: float, f: Font, fs: int) -> void:
 	var left := float(row.get("left", -1.0))
 	if left >= 0.0:
 		var col := AMBER if left > 0.3 else RED
-		var bar := Rect2(at + BAR.position * u, BAR.size * u)
+		var bar := Rect2(at + BAR.position * u, (BAR.size + Vector2(wider - (ICON_BOX.x if stock else 0.0), 0.0)) * u)
 		draw_rect(bar.grow(u * 0.5), SLOT)
 		if not (left <= 0.15 and int(_t * 3.0) % 2 == 1):
 			draw_rect(Rect2(bar.position, Vector2(floorf(bar.size.x * clampf(left, 0.0, 1.0) / u) * u, bar.size.y)), col)

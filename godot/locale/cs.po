@@ -30449,7 +30449,7 @@ msgid "Not my job, this one."
 msgstr "Tenhle na starost nemám."
 
 msgid "Go to the toilet"
-msgstr "Jít na záchod"
+msgstr "Vejít na záchod"
 
 msgid "Matches. A dollar. Ten in a box, it used to be forty."
 msgstr "Sirky. Za desítku. Deset v krabičce, bývalo jich čtyřicet."
@@ -30831,3 +30831,18 @@ msgstr "Ve dne stín. V noci další místo, kde může někdo stát."
 
 msgid "Its white bark shows up in the dark."
 msgstr "Její bílou kůru je vidět i potmě."
+
+msgid "Enter toilet"
+msgstr "Vejít na záchod"
+
+msgid "WC left"
+msgstr "WC levý"
+
+msgid "WC right"
+msgstr "WC pravý"
+
+msgid "WC %d left"
+msgstr "WC %d levý"
+
+msgid "WC %d right"
+msgstr "WC %d pravý"

@@ -128,8 +128,10 @@ func _top_of(s: Node3D) -> Vector3:
 	var stack: Array = [s]
 	while not stack.is_empty():
 		var n = stack.pop_back()
-		var vi := n as VisualInstance3D
-		if vi != null and not (vi is Sprite3D) and not (vi is Label3D):
+		# (The meshes: a light's box is as big as its reach, and a tent slept in keeps its
+		# window light; the mark stood five metres over it, the user 5. 11.)
+		var vi := n as MeshInstance3D
+		if vi != null:
 			var box: AABB = vi.global_transform * vi.get_aabb()
 			if box.size.x > 0.6 or box.size.z > 0.6:
 				out = box if first else out.merge(box)
