@@ -15,6 +15,15 @@ const J := "get_tree().get_first_node_in_group('jednotas')"
 const KEY := SI + "._upkeep_key"
 
 
+## A little of everything on the rack (a new shop's stands empty till somebody shelves it, and
+## a basket of nothing is no ticket: the first turn at the till had nobody to serve).
+func _stock_rack() -> Array:
+	var out: Array = []
+	for g in load("res://core/systems/jednota_rules.gd").all_goods():
+		out.append(["eval", J + ".debug_set_shelf(" + KEY + ", '%s', 2)" % g])
+	return out
+
+
 func _ready() -> void:
 	super._ready()
 	if _role == "host":
@@ -31,6 +40,7 @@ func _ready() -> void:
 			["hours", 0.4], ["checkin"], ["hours", 2.0], ["wait", 3.0],
 			["eval", "debug_send_guests_to('vecerka', 300)"], ["wait", 2.0],
 			["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('vecerka'))"], ["wait", 3.0],
+		] + _stock_rack() + [
 			["eval", J + ".debug_pick_all(" + KEY + ")"], ["wait", 1.0],
 			["coop_signal", "host_in_shop"], ["coop_wait_file", "client_in_shop"], ["wait", 2.0],
 			["eval", SI + "._open_station('till')"], ["wait", 1.5],

@@ -964,6 +964,7 @@ func _bind_one_world(delta: float) -> void:
 	if _walls_t <= 0.0:
 		_walls_t = 0.5
 		ONE_WORLD_ROOM.sounds_through_walls(_tent_root, not _is_open)
+		ONE_WORLD_ROOM.own_layer(_tent_root)
 
 
 ## The poles at the doorway and the back of the tent the room stands in: the room's eye

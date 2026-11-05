@@ -294,6 +294,7 @@ func door_ready(structure: Node3D) -> void:
 	# The hall in this building and shown, now: the walk in sees it through the doorway.
 	_anchor = structure
 	_root.visible = true
+	ONE_WORLD_ROOM.own_lights(_root)
 	_bind_one_world()
 	ONE_WORLD_ROOM.hide_ways(ONE_WORLD_ROOM.doorways(_anchor), true)
 	var origin = structure.get_meta("grid_origin", null)

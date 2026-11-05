@@ -292,6 +292,11 @@ func _step(open: bool, w: int, flash: float, wet: float, wind: float) -> void:
 	# The bolt flickers: on, off, on.
 	var flick := 0.25 if int(_t * 16.0) % 3 == 1 else 1.0
 	var glass := maxf(_rain, wet * 0.5)
+	# (A window gone with its glass: a business's painted view taken out of its wall when the
+	# room was opened onto the camp, service_interior one world.)
+	for i in range(_windows.size() - 1, -1, -1):
+		if not is_instance_valid(_windows[i]["light"]):
+			_windows.remove_at(i)
 	for win in _windows:
 		var mat: ShaderMaterial = win["mat"]
 		mat.set_shader_parameter("rain", glass)

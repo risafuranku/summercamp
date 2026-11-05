@@ -59,6 +59,10 @@ static func probe(parent: Node3D, n: String) -> ReflectionProbe:
 	p.ambient_mode = ReflectionProbe.AMBIENT_COLOR
 	p.update_mode = ReflectionProbe.UPDATE_ONCE
 	p.blend_distance = 0.15
+	# On the room's own things only: its box takes in what stands outside the walls too (the
+	# reception's lit its back wall and the lean-to's roof from outside with the room's dim
+	# ambient, a dark patch on the building, X2 of 5. 11.). `own_layer` marks them.
+	p.reflection_mask = ROOM_LAYER
 	parent.add_child(p)
 	return p
 
@@ -127,12 +131,20 @@ const ROOM_LAYER := 1 << 13
 static func own_lights(root: Node) -> void:
 	if root == null:
 		return
+	own_layer(root)
+	for n in root.find_children("*", "Light3D", true, false):
+		(n as Light3D).light_cull_mask = ROOM_LAYER
+
+
+## Every mesh under `root` on the room's own layer as well as the camp's: its probe's ambient
+## is for them (now and then again, for what comes in later).
+static func own_layer(root: Node) -> void:
+	if root == null:
+		return
 	for n in root.find_children("*", "GeometryInstance3D", true, false):
 		var g := n as GeometryInstance3D
 		if (g.layers & 1) != 0 and (g.layers & ROOM_LAYER) == 0:
 			g.layers |= ROOM_LAYER
-	for n in root.find_children("*", "Light3D", true, false):
-		(n as Light3D).light_cull_mask = ROOM_LAYER
 
 
 ## The dark doorways behind a building's leaves (door_anim's, a tent's own): not drawn while

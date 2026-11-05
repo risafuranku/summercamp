@@ -527,6 +527,7 @@ func _bind_one_world(delta: float) -> void:
 	if _walls_t <= 0.0:
 		_walls_t = 0.5
 		ONE_WORLD_ROOM.sounds_through_walls(_root, not _is_open)
+		ONE_WORLD_ROOM.own_layer(_root)
 
 
 func _host_shell_of(van: Node3D) -> void:

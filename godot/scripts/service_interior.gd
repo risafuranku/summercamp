@@ -120,6 +120,25 @@ const TIME_NIGHT: int = 2
 const INTERIOR_RENDER_MIN_SIZE := Vector2i(960, 540)
 
 var _is_open: bool = false
+## The businesses built in the camp's own world (W26, the user 4. 11.: "from outside the
+## rooms real, from inside the camp real"): the front room stands in its building where the
+## building's own copy of it stands (building_models._room_inside, hidden while it does),
+## its windows and door real openings, the sun the camp's; a room behind it (the pub's
+## cellar, the bistro's kitchen and cellar, the Jednota's storeroom) far over the building,
+## windowless, the dark round it. The other rooms (toilets, showers, the generator, the
+## sewer) keep a world of their own.
+const ONE_WORLD_ROOM = preload("res://scripts/one_world_room.gd")
+const ONE_WORLD_COPY := {"pub": "PubRoom", "rest": "BistroRoom", "vecerka": "JednotaRoom", "staff": "StaffRooms"}
+const BACK_ROOM_UP := Vector3(0.0, 60.0, 0.0)
+var _one := false
+var _one_copy: Node3D
+var _one_anchor: Node3D
+var _one_ways: Array = []
+var _one_probe: ReflectionProbe
+var _one_dark: MeshInstance3D
+var _world_env_node: WorldEnvironment
+var _own_world: World3D
+var _one_lights_t := 0.0
 var _time_state: int = TIME_DAY
 var _is_day_mode: bool = true
 var _daylight_factor: float = 0.0
@@ -207,10 +226,15 @@ func _ready() -> void:
 	_build_viewport()
 	_sync_viewport_to_window()
 	_setup_sewer_ambience_player()
-	_build_service_room("rest")
+	# (The bistro's room made ready at the start: in the camp's world as it will be used.)
+	_set_one_world(ONE_WORLD_COPY.has(_current_profile))
+	_build_service_room(_current_profile)
 
 
 func _notification(what: int) -> void:
+	# (Out of the viewport while a business is in the camp's world: freed with us.)
+	if what == NOTIFICATION_PREDELETE and _world_env_node != null and is_instance_valid(_world_env_node) and _world_env_node.get_parent() == null:
+		_world_env_node.free()
 	if what == NOTIFICATION_WM_SIZE_CHANGED:
 		_sync_viewport_to_window()
 		_update_swipe_overlay_size()
@@ -263,6 +287,8 @@ func door_ready(structure: Node3D) -> void:
 	if t == "toilet_block" and im != null and im.has_method("_toilet_door_of"):
 		toilet_entry = im.call("_toilet_door_of", structure)
 	_make_up(t)
+	# A business: in this building now, the walk in sees it through the doorway.
+	_bind_one_world(structure)
 
 
 ## On the way in, the room's windows show the camp as from the eye coming through the door.
@@ -302,7 +328,7 @@ func door_spec(structure: Node3D) -> Dictionary:
 			if fd != null:
 				leaf.append(fd)
 			var spec := {"root": _room_root, "at": Vector3(STAFF_PLAN.DOOR_X, STAFF_PLAN.FLOOR, STAFF_PLAN.L_MAX.y + STAFF_PLAN.WALL * 0.5), "out": out,
-				"size": Vector2(STAFF_PLAN.DOOR_W, STAFF_PLAN.DOOR_H), "inner": STAFF_PLAN.WALL * 0.5, "leaf": leaf}
+				"size": Vector2(STAFF_PLAN.DOOR_W, STAFF_PLAN.DOOR_H), "inner": STAFF_PLAN.WALL * 0.5, "leaf": leaf, "one_world": _one}
 			if rooms != null:
 				spec["in_camp"] = rooms.global_transform
 			return spec
@@ -322,7 +348,7 @@ func _laid_door(structure: Node3D, room_name: String, wall_out: Vector3, size: V
 		var fd := _room_root.find_child("FrontDoor", true, false)
 		if fd != null:
 			leaf.append(fd)
-	var spec := {"root": _room_root, "at": wall_out + Vector3(0.0, 0.0, 0.03), "out": Vector3(0, 0, 1), "size": size, "inner": wall + 0.03, "leaf": leaf}
+	var spec := {"root": _room_root, "at": wall_out + Vector3(0.0, 0.0, 0.03), "out": Vector3(0, 0, 1), "size": size, "inner": wall + 0.03, "leaf": leaf, "one_world": _one}
 	var room := structure.find_child(room_name, true, false) as Node3D
 	if room != null:
 		spec["in_camp"] = room.global_transform
@@ -367,6 +393,10 @@ func open_service(service_type: String) -> void:
 		return
 	_is_open = true
 	visible = true
+	if _one:
+		_bind_one_world()
+		ONE_WORLD_ROOM.camp_view(get_tree(), false)
+		_viewport.audio_listener_enable_3d = true
 	_sync_viewport_to_window()
 	if _current_profile == "generator" and _shed != null:
 		_active_subroom = "set"
@@ -390,6 +420,7 @@ func _make_up(service_type: String) -> void:
 		_restaurant_room = "dining"
 	if wanted_profile != _current_profile:
 		_current_profile = wanted_profile
+		_set_one_world(ONE_WORLD_COPY.has(_current_profile))
 		_build_service_room(_current_profile)
 	else:
 		if _current_profile == "rest":
@@ -412,6 +443,10 @@ func close_service() -> void:
 		_upkeep_prep.tasks._scrub.close()
 	_is_open = false
 	visible = false
+	if _one:
+		ONE_WORLD_ROOM.camp_view(get_tree(), true)
+		_viewport.audio_listener_enable_3d = false
+		_unbind_one_world()
 	if _counter_game != null and _counter_game.visible:
 		_counter_game.call("_closing")
 		_counter_game.visible = false
@@ -446,7 +481,18 @@ func close_service() -> void:
 
 func _process(delta: float) -> void:
 	if not _is_open or _interior_camera == null:
+		# A business stood in its building for a walk in that did not come (walked away from
+		# its door): the building's copy back.
+		if _one and _one_copy != null and not _coming_in():
+			_unbind_one_world()
 		return
+	if _one:
+		_bind_one_world()
+		# The lamps lit since (the stations', the night's) the room's own too, once a second.
+		_one_lights_t -= delta
+		if _one_lights_t <= 0.0:
+			_one_lights_t = 1.0
+			ONE_WORLD_ROOM.own_lights(_room_root)
 	# (Through the door: the walk has the eye.)
 	if lodge_sleeping or door_walking:
 		_tick_windows(delta)
@@ -1076,7 +1122,13 @@ func _build_viewport() -> void:
 
 	_viewport = SubViewport.new()
 	_viewport.name = "ServiceViewport"
-	_viewport.own_world_3d = true
+	# A world of its own (the toilets, the showers...), or the camp's (the businesses):
+	# _set_one_world hands it the one or the other (own_world_3d switched off a viewport
+	# with content left the engine without its scenario).
+	_own_world = World3D.new()
+	_viewport.own_world_3d = false
+	_viewport.world_3d = _own_world
+	_viewport.set_meta("retro_room", true)
 	_viewport.size = INTERIOR_RENDER_MIN_SIZE
 	_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_viewport.handle_input_locally = false
@@ -1093,6 +1145,7 @@ func _build_viewport() -> void:
 	var world_env = WorldEnvironment.new()
 	world_env.environment = env
 	_viewport.add_child(world_env)
+	_world_env_node = world_env
 
 	_barrel_overlay = ColorRect.new()
 	_barrel_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -1335,8 +1388,150 @@ func _build_service_room(profile: String) -> void:
 		_bodies_live(_vecerka_storage_root, _vecerka_storage_root.visible)
 
 	_cam_base_rot = _interior_camera.rotation
+	if _one:
+		_one_after_build()
 	_apply_time_profile()
 	_update_sewer_ambience_state()
+
+
+## The viewport in the camp's own world (the businesses) or a world of its own.
+func _set_one_world(on: bool) -> void:
+	if on == _one:
+		return
+	_unbind_one_world()
+	_one = on
+	if on:
+		# The camp's world (the root's, as the camp's own view has it).
+		_viewport.world_3d = null
+		# (Its WorldEnvironment would be the camp's then: the room's numbers stay in _room_env.)
+		if _world_env_node != null and _world_env_node.get_parent() != null:
+			_viewport.remove_child(_world_env_node)
+	else:
+		_viewport.world_3d = _own_world
+		if _world_env_node != null and _world_env_node.get_parent() == null:
+			_viewport.add_child(_world_env_node)
+
+
+## The front room's size and its door (layout space: the floor's middle, the front +Z).
+func _one_plan() -> Dictionary:
+	match _current_profile:
+		"pub":
+			return {"size": PUB_LAYOUT.SIZE, "door": Vector3(PUB_LAYOUT.FRONT_DOOR.x, 0.0, PUB_LAYOUT.SIZE.z * 0.5), "door_size": PUB_LAYOUT.FRONT_DOOR_SIZE,
+				"windows": PUB_LAYOUT.WINDOWS, "root": _pub_main_root}
+		"rest":
+			return {"size": BISTRO_LAYOUT.SIZE, "door": BISTRO_LAYOUT.DOOR, "door_size": BISTRO_LAYOUT.DOOR_SIZE, "windows": BISTRO_LAYOUT.WINDOWS, "root": _restaurant_dining_root}
+		"vecerka":
+			return {"size": JEDNOTA_LAYOUT.SIZE, "door": JEDNOTA_LAYOUT.DOOR, "door_size": JEDNOTA_LAYOUT.DOOR_SIZE, "windows": JEDNOTA_LAYOUT.WINDOWS, "root": _vecerka_shop_root}
+		"staff":
+			# Both its rooms where the building has them, their walls open already.
+			return {"lo": Vector3(STAFF_PLAN.L_MIN.x, STAFF_PLAN.FLOOR, STAFF_PLAN.L_MIN.y), "hi": Vector3(STAFF_PLAN.B_MAX.x, STAFF_PLAN.FLOOR + STAFF_PLAN.L_H + 0.15, STAFF_PLAN.L_MAX.y)}
+	return {}
+
+
+## A business's room just built for the camp's world: the eye sees the camp out to its
+## horizon, the room's lamps light the room only, an interior probe for its ambient, the
+## rain kept out, the front room's walls opened where its windows and its door are (as its
+## building's copy has them: the camp is behind the glass), its windows glass; put away
+## until it stands in its building (_bind_one_world).
+func _one_after_build() -> void:
+	ONE_WORLD_ROOM.eye(_interior_camera)
+	var plan := _one_plan()
+	var size: Vector3 = plan.get("size", Vector3(6, 3, 5))
+	_one_probe = ONE_WORLD_ROOM.probe(_room_root, "ServiceLight")
+	var dry := ONE_WORLD_ROOM.dry(_room_root, "Dry")
+	ONE_WORLD_ROOM.fit(_one_probe, dry, plan.get("lo", Vector3(-size.x * 0.5, 0.0, -size.z * 0.5)), plan.get("hi", Vector3(size.x * 0.5, size.y + 0.15, size.z * 0.5)))
+	var front = plan.get("root")
+	if front is Node3D:
+		var openings: Array = (plan["windows"] as Array).duplicate()
+		var door_size: Vector2 = plan["door_size"]
+		openings.append({"wall": "front", "at": Vector3((plan["door"] as Vector3).x, door_size.y * 0.5, size.z * 0.5), "size": door_size})
+		INTERIOR_KIT.open_windows(front as Node3D, openings)
+	for e in _windows:
+		e["w"].set_one_world(ONE_WORLD_ROOM.clear_glass())
+	# Round a room put up over the building: the dark it had in a world of its own.
+	_one_dark = MeshInstance3D.new()
+	_one_dark.name = "BackRoomDark"
+	var db := BoxMesh.new()
+	db.size = Vector3(size.x + 6.0, size.y + 6.0, size.z + 6.0)
+	db.flip_faces = true
+	_one_dark.mesh = db
+	var dm := StandardMaterial3D.new()
+	dm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	dm.albedo_color = Color(0.05, 0.05, 0.06)
+	_one_dark.material_override = dm
+	_one_dark.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_one_dark.position = Vector3(0, size.y * 0.5, 0)
+	_one_dark.visible = false
+	_room_root.add_child(_one_dark)
+	ONE_WORLD_ROOM.own_lights(_room_root)
+	_room_root.visible = false
+	_room_root.position = Vector3(0.0, ONE_WORLD_ROOM.BAKE_UP, 0.0)
+
+
+## The room into `anchor` (the building you go into; else the open one): the front room
+## where the building's copy of it is (the copy hidden, the doorway's dark out of the way),
+## a room behind it far over it.
+func _bind_one_world(anchor: Node3D = null) -> void:
+	if not _one or _room_root == null or not is_instance_valid(_room_root):
+		return
+	if anchor == null:
+		anchor = _service_anchor()
+	if anchor == null or not is_instance_valid(anchor) or not anchor.is_inside_tree():
+		return
+	if anchor != _one_anchor or _one_copy == null or not is_instance_valid(_one_copy):
+		_unbind_one_world()
+		_one_anchor = anchor
+		_one_copy = anchor.find_child(str(ONE_WORLD_COPY.get(_current_profile, "")), true, false) as Node3D
+		_one_ways = ONE_WORLD_ROOM.doorways(anchor)
+	if _one_copy == null:
+		return
+	_one_copy_shown(false)
+	ONE_WORLD_ROOM.hide_ways(_one_ways, true)
+	# (The staffroom's two rooms both stand in its building.)
+	var back := _current_profile != "staff" and not _at_front_door()
+	var x := _one_copy.global_transform * Transform3D(Basis(), BACK_ROOM_UP if back else Vector3.ZERO)
+	if not _room_root.transform.is_equal_approx(x):
+		_room_root.transform = x
+	_room_root.visible = true
+	if _one_dark != null:
+		_one_dark.visible = back
+	if _one_probe != null and _room_env != null:
+		_one_probe.ambient_color = _room_env.ambient_light_color
+		_one_probe.ambient_color_energy = _room_env.ambient_light_energy
+
+
+## On the way in by a door (door_through's approach to this room).
+func _coming_in() -> bool:
+	var im := get_parent()
+	var th = im.get("through") if im != null else null
+	return th != null and is_instance_valid(th) and th.has_method("coming_to") and bool(th.call("coming_to", self))
+
+
+## Out of its building: the copy back, the doorway's dark back, the room put away.
+## The building's copy of the room shown or put away (the staffroom's: its inside and its
+## lamps in the rooms, its outside staying: staffroom_plan "Inside").
+func _one_copy_shown(on: bool) -> void:
+	if _one_copy == null or not is_instance_valid(_one_copy):
+		return
+	if _current_profile == "staff" or _one_copy.name == "StaffRooms":
+		for n in ["Inside", "Lamp_lounge", "Lamp_boiler"]:
+			var c := _one_copy.get_node_or_null(n) as Node3D
+			if c != null:
+				c.visible = on
+		return
+	_one_copy.visible = on
+
+
+func _unbind_one_world() -> void:
+	if _one_copy != null and is_instance_valid(_one_copy):
+		_one_copy_shown(true)
+	_one_copy = null
+	_one_anchor = null
+	ONE_WORLD_ROOM.hide_ways(_one_ways, false)
+	_one_ways = []
+	if _one and _room_root != null and is_instance_valid(_room_root):
+		_room_root.visible = false
+		_room_root.position = Vector3(0.0, ONE_WORLD_ROOM.BAKE_UP, 0.0)
 
 
 func _build_restaurant_dining_layout(parent: Node3D) -> void:
@@ -3715,7 +3910,9 @@ func _make_windows(profile: String) -> void:
 			elif profile == "vecerka":
 				entry["at"] = JEDNOTA_LAYOUT.AT
 			_windows.append(entry)
-	if profile == "vecerka" and _vecerka_shop_root != null:
+	# (Not in the camp's one world: the building has no window there, it was a view of the
+	# camp painted on the shop's right wall.)
+	if profile == "vecerka" and _vecerka_shop_root != null and not _one:
 		var w2 = WINDOW_PORTAL.make(self, _vecerka_shop_root, Vector3(3.17, 1.55, 1.55), Vector3(1, 0, 0), Vector2(1.0, 0.8), "curtain_floral")
 		_windows.append({"w": w2, "root": _vecerka_shop_root, "at": JEDNOTA_LAYOUT.AT})
 

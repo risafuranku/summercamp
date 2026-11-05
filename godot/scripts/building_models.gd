@@ -216,7 +216,7 @@ func _pub(r: Node3D, _w: float, _d: float) -> Dictionary:
 	var cx := at.x
 	var cz := at.z
 	var plaster: Material = _town_or("village_plaster.png", Color(0.96, 0.92, 0.82), "plaster_stone.png", Vector3(2.0, 1.2, 1.0))
-	_plinth(r, sx + 0.3, sz + 0.3, Vector3(cx, 0, cz))
+	_plinth_ring(r, sx + 0.3, sz + 0.3, Vector3(cx, 0, cz))
 	_room_inside(r, at, "PubRoom", func(room: Node3D, host) -> void: lay.bar_outside(room, host), lay, {"tap": "tap", "bar": "back", "wash": "wash"}, "taprooms")
 	_gable_roof(r, Vector3(cx, h + 0.1, cz), sx + 0.5, sz + 0.6, 1.5, _camp("corrugated_roof.png", Color(0.62, 0.6, 0.56), Vector3(3.0, 2.0, 1.0)))
 	_box(r, "Chimney", Vector3(0.45, 1.4, 0.45), Vector3(sx * 0.25 + cx, h + 1.2, -0.7), _camp_or("brick_red.png", Color(0.7, 0.42, 0.34), "brick"))
@@ -229,7 +229,7 @@ func _pub(r: Node3D, _w: float, _d: float) -> Dictionary:
 	# plaster at the back and the right.
 	var front := cz + sz * 0.5
 	var door_x := cx + (65.0 / 271.0 - 0.5) * sx
-	_quad(r, "PubFront", Vector2(sx, h), Vector3(cx, h * 0.5 + 0.1, front + 0.012), 0.0, _glass_face("camp_pub_front_glass.png", "camp_pub_front.png"))
+	_quad(r, "PubFront", Vector2(sx, h), Vector3(cx, h * 0.5 + 0.1, front + 0.012), 0.0, _glass_door_face("camp_pub_front_glass.png", "camp_pub_front.png", Rect2(44, 30, 42, 75)))
 	# Its old double door, a leaf each side (door_through: in and out on foot).
 	_painted_leaf(r, "Door0", "camp_pub_front_glass.png", Rect2(44, 30, 21, 75), Vector3(cx, h * 0.5 + 0.1, front + 0.012), Vector2(sx, h))
 	_painted_leaf(r, "Door1", "camp_pub_front_glass.png", Rect2(65, 30, 21, 75), Vector3(cx, h * 0.5 + 0.1, front + 0.012), Vector2(sx, h))
@@ -448,6 +448,15 @@ func _glass_face(file: String, fallback: String) -> StandardMaterial3D:
 	return m
 
 
+## A front's glass face with its painted door cut out too (`px`): the room inside stands
+## behind the doorway (service_interior, the camp's one world, W26); without the cut
+## picture, the old one.
+func _glass_door_face(file: String, fallback: String, px: Rect2) -> StandardMaterial3D:
+	if not ResourceLoader.exists(CAMP + file):
+		return _face_mat(fallback)
+	return _door_cut_face(file, px)
+
+
 ## A pane of a window looked into (the room behind it real): a little grey and shine.
 func _pane_into(r: Node3D, size: Vector2, pos: Vector3, yaw: float) -> MeshInstance3D:
 	var m := StandardMaterial3D.new()
@@ -478,11 +487,11 @@ func _restaurant(r: Node3D, _w: float, _d: float) -> Dictionary:
 	var sz: float = room_size.z + 2.0 * float(lay.WALL)
 	var h := 2.9
 	var front := at.z + sz * 0.5
-	_plinth(r, sx + 0.3, sz + 0.3, Vector3(at.x, 0, at.z))
+	_plinth_ring(r, sx + 0.3, sz + 0.3, Vector3(at.x, 0, at.z))
 	_room_inside(r, at, "BistroRoom", func(room: Node3D, host) -> void: lay.dining_outside(room, host), lay, {"floor": "floor"}, "kitchens")
 	# The faces on the room's walls: the front's picture with its glass cut out; concrete
 	# over the green tiled band round the other three.
-	_quad(r, "BistroFront", Vector2(sx, h), Vector3(at.x, h * 0.5 + 0.1, front + 0.015), 0.0, _glass_face("camp_bistro_front_glass.png", "camp_bistro_front.png"))
+	_quad(r, "BistroFront", Vector2(sx, h), Vector3(at.x, h * 0.5 + 0.1, front + 0.015), 0.0, _glass_door_face("camp_bistro_front_glass.png", "camp_bistro_front.png", Rect2(97, 45, 29, 76)))
 	var concrete: Material = _camp_or("concrete.png", Color(1.0, 0.98, 0.9), "wall")
 	var tiles: Material = _camp_or("tiles_green.png", Color(0.62, 0.8, 0.66), "wall", Vector3(4.0, 1.0, 1.0))
 	for side in [[Vector2(sz, 0.0), Vector3(-sx * 0.5 - 0.012, 0, 0), -PI * 0.5], [Vector2(sz, 0.0), Vector3(sx * 0.5 + 0.012, 0, 0), PI * 0.5], [Vector2(sx, 0.0), Vector3(0, 0, -sz * 0.5 - 0.012), PI]]:
@@ -2100,10 +2109,10 @@ func _jednota(r: Node3D, _w: float, _d: float) -> Dictionary:
 	var sz: float = room_size.z + 2.0 * float(lay.WALL)
 	var h := 3.4
 	var front := sz * 0.5
-	_plinth(r, sx + 0.3, sz + 0.3)
+	_plinth_ring(r, sx + 0.3, sz + 0.3)
 	_room_inside(r, lay.AT, "JednotaRoom", func(room: Node3D, host) -> void: lay.shop_outside(room, host), lay, {"till": "till", "shelves": "shelves", "deli": "deli"}, "jednotas")
 	_box(r, "Roof", Vector3(sx + 0.5, 0.25, sz + 0.5), Vector3(0, h + 0.22, 0), _camp_or("concrete.png", Color(0.62, 0.6, 0.58), "roof"))
-	_quad(r, "JednotaFront", Vector2(sx, h), Vector3(0, h * 0.5 + 0.1, front + 0.012), 0.0, _glass_face("jednota_front_glass.png", "jednota_front.png"))
+	_quad(r, "JednotaFront", Vector2(sx, h), Vector3(0, h * 0.5 + 0.1, front + 0.012), 0.0, _glass_door_face("jednota_front_glass.png", "jednota_front.png", Rect2(109, 54, 39, 79)))
 	_painted_leaf(r, "Door", "jednota_front_glass.png", Rect2(109, 54, 39, 79), Vector3(0, h * 0.5 + 0.1, front + 0.012), Vector2(sx, h))
 	_door_sign(r, Vector3((lay.AT as Vector3).x + (lay.DOOR as Vector3).x, 1.75, front + 0.05))
 	for wd in lay.WINDOWS:

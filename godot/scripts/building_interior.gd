@@ -206,6 +206,7 @@ var _desk_lamp: OmniLight3D
 ## One world: the light inside the reception's walls (an interior probe: its ambient, not
 ## the camp's sky's), kept to _room_environment's numbers.
 var _room_probe: ReflectionProbe
+var _own_layer_t := 0.0
 ## One world: the room's eye's exposure (CameraAttributesPractical), up by day.
 var _room_eye: CameraAttributesPractical
 var _office_curtain
@@ -1079,6 +1080,8 @@ func _build_room() -> void:
 	_room_probe.ambient_mode = ReflectionProbe.AMBIENT_COLOR
 	_room_probe.update_mode = ReflectionProbe.UPDATE_ONCE
 	_room_probe.blend_distance = 0.15
+	# (The room's own things only: one_world_room.probe.)
+	_room_probe.reflection_mask = ONE_WORLD_ROOM.ROOM_LAYER
 	var lo := Vector3(RL.BACK_X.x, 0.0, RL.OFFICE_Z.x)
 	var hi := Vector3(RL.OFFICE_X.y, RL.WALL_H + 0.2, RL.STORE_Z.y)
 	_room_probe.position = (lo + hi) * 0.5
@@ -2437,6 +2440,11 @@ func _one_world_from_camp(delta: float) -> void:
 	# The room is always there to be seen from the camp (the other warden at the PC in it:
 	# interior_manager._coop_office_from_camp).
 	_inview_live = not visible
+	# (Its things on the layer its probe is for, what came in since too.)
+	_own_layer_t -= delta
+	if _own_layer_t <= 0.0:
+		_own_layer_t = 1.0
+		ONE_WORLD_ROOM.own_layer(_room_root)
 	if not _one_world_glass_done or _glass_cache.is_empty() or not is_instance_valid(_glass_cache.get("office_glass")):
 		_sync_reception_glass()
 		_one_world_glass_done = not _glass_cache.is_empty()

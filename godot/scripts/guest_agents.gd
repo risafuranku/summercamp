@@ -408,7 +408,9 @@ func _update_party(party: Dictionary, now: float, _delta: float) -> void:
 		# Coming out of a building: its door opens as they step out.
 		if not bool(party.get("exit_open", true)) and not (party.get("exit", {}) as Dictionary).is_empty():
 			party["exit_open"] = true
-			DOOR_ANIM.open(party["exit"].get("door", null), 1.4)
+			var way_out = party["exit"].get("door", null)
+			if way_out != null and is_instance_valid(way_out):
+				DOOR_ANIM.open(way_out, 1.4)
 	elif kind == "wait_gate":
 		# Through the barrier and up the path to the reception, in the order they came;
 		# the first two go in (the counter, the bench: building_interior.gd), the rest
@@ -432,7 +434,11 @@ func _update_party(party: Dictionary, now: float, _delta: float) -> void:
 			visible_now = e < 1.0 + 0.35 * float(members.size() - 1)
 			if visible_now and not bool(party.get("entry_open", false)):
 				party["entry_open"] = true
-				DOOR_ANIM.open(entry.get("door", null), 1.6 + 0.5 * float(members.size()))
+				# (Its leaf gone if the building was built anew while they walked to it: the
+				# joining machine gets the camp's buildings again as the host's change.)
+				var leaf = entry.get("door", null)
+				if leaf != null and is_instance_valid(leaf):
+					DOOR_ANIM.open(leaf, 1.6 + 0.5 * float(members.size()))
 			if not visible_now:
 				party["inside"] = true
 			lead_pos = entry["outside"]

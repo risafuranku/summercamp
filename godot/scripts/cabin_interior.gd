@@ -621,6 +621,7 @@ func _bind_one_world(delta: float) -> void:
 	if _walls_t <= 0.0:
 		_walls_t = 0.5
 		ONE_WORLD_ROOM.sounds_through_walls(_cabin_root, not _is_open)
+		ONE_WORLD_ROOM.own_layer(_cabin_root)
 
 
 ## The panes of the cabin the room stands in are glass (the room behind them, seen from

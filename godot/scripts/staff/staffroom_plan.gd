@@ -197,6 +197,13 @@ static func _holes(which: String) -> Array:
 ## [centre, size]}}.
 static func build(root: Node3D, camp: bool) -> Dictionary:
 	var out := {"lockers": [], "lockers_open": [], "armchairs": [], "glass": {}, "curtains": {}, "lamp_meshes": [], "hot": {}}
+	# The rooms in a node of their own, the building's outside beside it: in the camp the
+	# inside is put away while the service interior's own rooms stand there (the camp's one
+	# world, W26), the walls, the roofs and the lamp over the door staying.
+	var outer := root
+	root = Node3D.new()
+	root.name = "Inside"
+	outer.add_child(root)
 	var wall_in := K.surface(tex("staff_wall_in", "oil_wall"), L_H)
 	var boiler_wall := K.surface(tex("kotelna_wall", "brick_red"), B_H)
 	var plaster := K.surface(tex("staff_plaster", "roughcast_wall"), 1.6)
@@ -226,7 +233,7 @@ static func build(root: Node3D, camp: bool) -> Dictionary:
 	wall(root, Vector2(B_MIN.x, B_MAX.y), Vector2(B_MAX.x, B_MAX.y), FLOOR, B_H, lay, Vector2(0, 1), [], boiler_wall, 0.0, "BoilerFront")
 	wall(root, Vector2(B_MAX.x, B_MIN.y), Vector2(B_MAX.x, B_MAX.y), FLOOR, B_H, lay, Vector2(1, 0), _holes("b_right"), boiler_wall, 0.0, "BoilerRight")
 	if camp:
-		_outside(root, plaster, out)
+		_outside(outer, plaster, out)
 	# The doorway's frame and the door standing open into the boiler room.
 	var frame_mat := K.surface("planks_dark", 0.6)
 	for sz: float in [-1.0, 1.0]:
@@ -272,13 +279,22 @@ static func _outside(root: Node3D, plaster: Material, out: Dictionary) -> void:
 	wall(root, Vector2(B_MAX.x, B_MIN.y - WALL), Vector2(B_MAX.x, B_MAX.y + WALL), FLOOR, bh, t, Vector2(1, 0), _shift(_holes("b_right"), WALL), plaster, o, "OutRight")
 	# The lounge's taller wall over the boiler room's roof.
 	K.slab(root, Vector3(B_MIN.x - L_MAX.x, L_H - B_H + 0.2, L_MAX.y - L_MIN.y + 2.0 * WALL), Vector3((L_MAX.x + B_MIN.x) * 0.5, FLOOR + B_H + (L_H - B_H + 0.2) * 0.5, 0.0), plaster, "OutStep")
-	# The plinth all round, the steps up to the door.
+	# The plinth all round under the walls, the steps up to the door (a block under the
+	# whole hut had its top in the floors' own plane: the two fought, seen from inside).
 	var plinth := K.surface(tex("staff_plinth", "concrete"), 1.2)
 	var x0 := L_MIN.x - WALL - 0.04
 	var x1 := B_MAX.x + WALL + 0.04
 	var z0 := L_MIN.y - WALL - 0.04
 	var z1 := L_MAX.y + WALL + 0.04
-	K.slab(root, Vector3(x1 - x0, FLOOR + 0.1, z1 - z0), Vector3((x0 + x1) * 0.5, (FLOOR - 0.1) * 0.5, (z0 + z1) * 0.5), plinth, "Plinth")
+	var ph := FLOOR + 0.1
+	var py := (FLOOR - 0.1) * 0.5
+	var band := WALL + 0.04
+	for z: float in [z0 + band * 0.5, z1 - band * 0.5]:
+		K.slab(root, Vector3(x1 - x0, ph, band), Vector3((x0 + x1) * 0.5, py, z), plinth, "Plinth")
+	for x: float in [x0 + band * 0.5, x1 - band * 0.5]:
+		K.slab(root, Vector3(band, ph, z1 - z0 - band * 2.0), Vector3(x, py, (z0 + z1) * 0.5), plinth, "Plinth")
+	# Under the wall between the rooms and the threshold strip, the floors' edges.
+	K.slab(root, Vector3(B_MIN.x - L_MAX.x, ph - 0.1, z1 - z0 - band * 2.0), Vector3((L_MAX.x + B_MIN.x) * 0.5, py - 0.05, (z0 + z1) * 0.5), plinth, "Plinth")
 	K.slab(root, Vector3(1.3, FLOOR * 0.5, 0.36), Vector3(DOOR_X, FLOOR * 0.25, z1 + 0.18), plinth, "StepLow")
 	K.slab(root, Vector3(1.2, FLOOR, 0.2), Vector3(DOOR_X, FLOOR * 0.5 - 0.02, z1 + 0.06), plinth, "StepHigh")
 	# The flat roofs of tar paper, a tin edge round them; the boiler room's chimney.

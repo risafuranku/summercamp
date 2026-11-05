@@ -112,7 +112,8 @@ func set_room(which: String, camera: Camera3D) -> void:
 	camera.position = PLAN.EYE_BOILER if which == "boiler" else PLAN.EYE_LOUNGE
 	camera.rotation = PLAN.LOOK_BOILER if which == "boiler" else PLAN.LOOK_LOUNGE
 	camera.fov = 70.0
-	camera.far = 22.0
+	# (No nearer than it is: in the camp's one world it sees the camp out to its horizon.)
+	camera.far = maxf(camera.far, 22.0)
 
 
 func walking() -> bool:

@@ -467,6 +467,44 @@ func rec_probe(tag: String, at: Vector3, half: float) -> void:
 		print("ONESUN %s at %s %s L=%d tex=%s box=%s" % [tag, str(at), str(g.get_path()).right(64), g.layers, tex, str(gb)])
 
 
+## The reception's room shown or not (a shot with and without it: whatever differs but in its
+## windows and doorway is the room seen from outside, X2 of 5. 11.).
+func rec_room(on: bool) -> void:
+	(_bi().get("_room_root") as Node3D).visible = on
+
+
+## What a ray through the picture's pixel `px` (of 1280 x 720) meets, nearest first, by box.
+func ray_list(tag: String, px: Vector2) -> void:
+	var cam := _main.get("debug_camera") as Camera3D
+	if cam == null:
+		cam = get_viewport().get_camera_3d()
+	var size := cam.get_viewport().get_visible_rect().size
+	var at := Vector2(px.x / 1280.0, px.y / 720.0) * size
+	var o := cam.project_ray_origin(at)
+	var d := cam.project_ray_normal(at)
+	var hits: Array = []
+	for n in get_tree().root.find_children("*", "GeometryInstance3D", true, false):
+		var g := n as GeometryInstance3D
+		if not g.is_inside_tree() or not g.is_visible_in_tree():
+			continue
+		var b: AABB = g.global_transform * g.get_aabb()
+		if b.size.length() > 80.0:
+			continue
+		var h = b.grow(0.005).intersects_ray(o, d)
+		if h != null:
+			hits.append([o.distance_to(h), g])
+	hits.sort_custom(func(a, b): return float(a[0]) < float(b[0]))
+	print("ONESUN %s ray at %s from %s dir %s" % [tag, str(px), str(o.snapped(Vector3.ONE * 0.01)), str(d.snapped(Vector3.ONE * 0.01))])
+	for i in mini(hits.size(), 14):
+		var g := hits[i][1] as GeometryInstance3D
+		print("ONESUN %s   %.2f m %s L=%d" % [tag, float(hits[i][0]), str(g.get_path()).right(70), g.layers])
+
+
+## The reception's interior probe on or off (what it does to the walls outside).
+func rec_probe_on(on: bool) -> void:
+	(_bi().get("_room_probe") as Node3D).visible = on
+
+
 ## Where the player is, what room is open (one line).
 func where(tag: String) -> void:
 	var p: Node3D = _main.get("_player")
@@ -929,6 +967,66 @@ func _ready() -> void:
 				["eval", "_interior_manager.close_main_interior_if_open()"], ["wait", 1.0],
 				["glass", "side_glass", 1.4], ["wait", 1.0], ["shot", "k3_from_outside"],
 				["eval", "get_tree().quit()"]]
+			return
+		if a == "--part=bizwalks":
+			# The businesses in the camp's one world: in by the door, round the room, into the
+			# room behind it and back, out by the door, from outside (W26).
+			var SI := "_interior_manager._service_interior"
+			var st: Array = [
+				["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+				["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
+				["money", 400000], ["clear", 4, 9, 5, 5], ["clear", 9, 9, 5, 5], ["clear", 9, 14, 5, 5],
+				["build", "pub", 5, 10, 0], ["build", "restaurant", 10, 10, 0], ["build", "vecerka", 10, 15, 0], ["wait", 2.0],
+				["clear", 4, 14, 5, 5], ["build", "staffroom", 5, 15, 0], ["wait", 1.0],
+				["eval", "debug_jump_to(1, 12.0)"], ["wait", 3.0], ["eval", C + ".structures()"]]
+			var only := ""
+			for a2 in OS.get_cmdline_user_args():
+				if str(a2).begins_with("--rooms="):
+					only = str(a2).substr(8)
+			for rr in [["pub", "p_cellar", "pc_main"], ["restaurant", "d_kitchen", "k_dining"], ["vecerka", "s_store", "st_shop"], ["staffroom", "", ""]]:
+				var ty: String = rr[0]
+				if only != "" and not ty in only.split(","):
+					continue
+				st += [["eval", "set('debug_camera', null)"], ["eval", C + ".around('%s', 0.0, 9.0, 0.3)" % ty], ["wait", 0.8], ["shot", "%s_0_ext" % ty],
+					["eval", "set('debug_camera', null)"], ["door_front", ty, 2.0], ["wait", 0.6], ["shot", "%s_1_at" % ty],
+					["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('%s'))" % ty]]
+				for k in 14:
+					st += [["wait", 0.15], ["shot", "%s_2_in_%02d" % [ty, k]]]
+				st += [["wait", 1.5], ["mouse", 0.5, 0.5], ["shot", "%s_3_inside" % ty]]
+				for v in [[60.0, "l"], [-60.0, "r"], [175.0, "door"]]:
+					st += [["eval", SI + "._look.set('yaw_deg', %s)" % v[0]], ["wait", 0.7], ["shot", "%s_4_look_%s" % [ty, v[1]]]]
+				st += [["eval", SI + "._look.set('yaw_deg', 0.0)"], ["wait", 0.4],
+					["eval", (SI + "._go_door('%s')" % rr[1]) if rr[1] != "" else SI + "._staff_room.walk_to('boiler')"], ["wait", 3.0], ["shot", "%s_5_back_room" % ty],
+					["eval", (SI + "._go_door('%s')" % rr[2]) if rr[2] != "" else SI + "._staff_room.walk_to('lounge')"], ["wait", 3.0], ["shot", "%s_6_front_again" % ty],
+					["eval", SI + "._leave_on_foot()"]]
+				for k in 12:
+					st += [["wait", 0.15], ["shot", "%s_7_out_%02d" % [ty, k]]]
+				st += [["wait", 2.0], ["eval", "_interior_manager.close_service_if_open()" if false else "set('debug_camera', null)"],
+					["eval", C + ".around('%s', 20.0, 7.5, 0.3)" % ty], ["wait", 0.8], ["shot", "%s_8_ext_after" % ty]]
+			st += [["eval", "set('debug_camera', null)"], ["wait", 1.0], ["eval", "get_tree().quit()"]]
+			_steps = st
+			return
+		if a == "--part=recdiff":
+			var st: Array = [["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+				["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0], ["eval", "debug_jump_to(1, 12.0)"], ["wait", 2.0]]
+			for h in [0.3, 3.5]:
+				for d in [6.5, 12.0, 25.0, 50.0]:
+					for ang in range(0, 360, 30):
+						var n := "%02d_%03d_%03d" % [int(h * 10.0), int(d), ang]
+						st += [["eval", C + ".around('main_building', %s, %s, %s)" % [ang, d, h]], ["wait", 0.25], ["shot", "a_" + n],
+							["eval", C + ".rec_room(false)"], ["wait", 0.12], ["shot", "b_" + n], ["eval", C + ".rec_room(true)"], ["wait", 0.05]]
+			st += [["eval", "set('debug_camera', null)"], ["eval", "get_tree().quit()"]]
+			_steps = st
+			return
+		if a == "--part=recray":
+			var st: Array = [["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+				["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0], ["eval", "debug_jump_to(1, 12.0)"], ["wait", 2.0],
+				["eval", C + ".around('main_building', 180, 6.5, 0.3)"], ["wait", 0.6], ["shot", "a_room"],
+				["eval", C + ".ray_list('sliver', Vector2(472, 460))"],
+				["eval", C + ".rec_probe_on(false)"], ["wait", 0.3], ["shot", "b_no_probe"], ["eval", C + ".rec_probe_on(true)"], ["wait", 0.2],
+				["eval", C + ".rec_room(false)"], ["wait", 0.3], ["shot", "c_no_room"], ["eval", C + ".rec_room(true)"], ["wait", 0.2],
+				["eval", "set('debug_camera', null)"], ["eval", "get_tree().quit()"]]
+			_steps = st
 			return
 		if a == "--part=storein":
 			# The store behind the office from inside (its walls under the lean-to's roof, X2).
