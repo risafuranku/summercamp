@@ -49,6 +49,22 @@ const TIME_DAY: int = 0
 const TIME_EVENING: int = 1
 const TIME_NIGHT: int = 2
 const INTERIOR_RENDER_MIN_SIZE := Vector2i(960, 540)
+## One world (W26, the user 4. 11.: "from outside the rooms real, from inside the camp real,
+## always the one same world"): the room is built in the camp's world where the reception
+## stands and its viewport draws that world from the room's eye; the windows and the
+## doorway are openings and the sun is the camp's own. (Before: a little world of its own,
+## the camp painted on its windows and it painted on the camp's, a copy of the sun in it.)
+const ONE_WORLD := true
+## The camp building's glass and door (building_models.GLASS_LAYER): the room's eye leaves
+## them out (the room has its own door in the doorway).
+const CAMP_GLASS_LAYER := 1 << 19
+## By day the room's own fill is this share of what it was in a world of its own (the real
+## sun and sky come in through the windows now).
+var day_fill := 0.1
+## The tube's and the sky's glow off the window by day, their share; the eye's exposure.
+var day_tube := 0.2
+var day_window := 0.3
+var day_exposure := 1.4
 const RADIO_INTERIOR_VOLUME_DB: float = -11.0
 const RADIO_OUTSIDE_NEAR_VOLUME_DB: float = -12.5
 const RADIO_OUTSIDE_SILENT_DB: float = -80.0
@@ -194,6 +210,11 @@ var _sun_beam: SpotLight3D
 ## and its strength; the walls' and the drawn curtains' shadows leave only what the
 ## windows let in. The old beam from a fixed point outside the window is off.
 var _room_sun: DirectionalLight3D
+## One world: the light inside the reception's walls (an interior probe: its ambient, not
+## the camp's sky's), kept to _room_environment's numbers.
+var _room_probe: ReflectionProbe
+## One world: the room's eye's exposure (CameraAttributesPractical), up by day.
+var _room_eye: CameraAttributesPractical
 ## Three times the camp's: the office's daylight fill is strong (raised against "too dark
 ## by day"), and the patch has to stand out of it as the sun does in a room.
 const ROOM_SUN_K := 3.0
@@ -485,6 +506,9 @@ func open_interior() -> void:
 		_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 		# Its own 3D sounds (the tube's buzz, the TV, the night's knocks) only while you are in.
 		_viewport.audio_listener_enable_3d = true
+	if ONE_WORLD:
+		_bind_one_world()
+		_one_world_inside(true)
 	_set_window_view_live(true)
 	_update_window_texture()
 	visible = true
@@ -552,12 +576,16 @@ func close_interior() -> void:
 	if _viewport != null:
 		_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 		_viewport.audio_listener_enable_3d = false
+	if ONE_WORLD:
+		_one_world_inside(false)
 	_set_window_view_live(false)
 	visible = false
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
 
 func _process(delta: float) -> void:
+	if ONE_WORLD:
+		_bind_one_world()
 	_update_inview(delta)
 	_update_room_sun()
 	_update_radio_mix(delta)
@@ -813,13 +841,19 @@ func _capture_crt_orbit_anchor() -> void:
 		_crt_orbit_anchor_offset = Vector3(0.0, 0.0, 0.4)
 
 
+## In the eye's own space, the room's (in the camp's one world the room lies where the
+## building stands, so the screen's global place is not the room's).
 func _get_crt_orbit_pivot() -> Vector3:
+	var p := Vector3.INF
 	var scr := _look_screen()
 	if scr != null and is_instance_valid(scr):
-		return scr.global_transform.origin
-	if _crt_body != null and is_instance_valid(_crt_body):
-		return _crt_body.global_transform.origin
-	return _crt_orbit_anchor_pos + Vector3(0.0, 0.0, -0.4)
+		p = scr.global_transform.origin
+	elif _crt_body != null and is_instance_valid(_crt_body):
+		p = _crt_body.global_transform.origin
+	else:
+		return _crt_orbit_anchor_pos + Vector3(0.0, 0.0, -0.4)
+	var par := _interior_camera.get_parent() as Node3D if _interior_camera != null else null
+	return par.to_local(p) if par != null else p
 
 
 
@@ -942,7 +976,9 @@ func _build_viewport() -> void:
 
 	_viewport = SubViewport.new()
 	_viewport.name = "InteriorViewport"
-	_viewport.own_world_3d = true
+	_viewport.own_world_3d = not ONE_WORLD
+	# Its rooms are a room's to the retro look in the camp's world too (no vertex snap).
+	_viewport.set_meta("retro_room", true)
 	_viewport.size = INTERIOR_RENDER_MIN_SIZE
 	_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	_viewport.handle_input_locally = false
@@ -973,9 +1009,12 @@ func _build_viewport() -> void:
 	env.fog_density = 0.004
 	_room_environment = env
 
-	var world_env = WorldEnvironment.new()
-	world_env.environment = env
-	_viewport.add_child(world_env)
+	# One world: the camp's environment is the room's too (a WorldEnvironment here would be
+	# the camp's); the room's light inside is its probe's (_room_probe), these numbers.
+	if not ONE_WORLD:
+		var world_env = WorldEnvironment.new()
+		world_env.environment = env
+		_viewport.add_child(world_env)
 
 	# Interior-only barrel/fisheye post effect.
 	_barrel_overlay = ColorRect.new()
@@ -1014,7 +1053,11 @@ func _build_room() -> void:
 	_interior_camera.position = RECEPTION_CAM_POS
 	_interior_camera.fov = 68.0
 	_interior_camera.near = 0.05
-	_interior_camera.far = 22.0
+	_interior_camera.far = 600.0 if ONE_WORLD else 22.0
+	if ONE_WORLD:
+		_interior_camera.cull_mask = 0xFFFFF & ~CAMP_GLASS_LAYER
+		_room_eye = CameraAttributesPractical.new()
+		_interior_camera.attributes = _room_eye
 	_interior_camera.current = true
 	_room_root.add_child(_interior_camera)
 
@@ -1073,6 +1116,25 @@ func _build_room() -> void:
 	_room_sun.sky_mode = DirectionalLight3D.SKY_MODE_LIGHT_ONLY
 	_room_sun.visible = false
 	_room_root.add_child(_room_sun)
+	if ONE_WORLD:
+		_room_probe = ReflectionProbe.new()
+		_room_probe.name = "RoomLight"
+		_room_probe.interior = true
+		_room_probe.ambient_mode = ReflectionProbe.AMBIENT_COLOR
+		_room_probe.update_mode = ReflectionProbe.UPDATE_ONCE
+		_room_probe.blend_distance = 0.15
+		var lo := Vector3(RL.BACK_X.x, 0.0, RL.OFFICE_Z.x)
+		var hi := Vector3(RL.OFFICE_X.y, RL.WALL_H + 0.2, RL.STORE_Z.y)
+		_room_probe.position = (lo + hi) * 0.5
+		_room_probe.size = hi - lo + Vector3(0.1, 0.0, 0.1)
+		_room_root.add_child(_room_probe)
+		# The roof keeps the rain out (the camp's rain falls round your body, through the
+		# roofs: weather_visuals' drops go where they meet this).
+		var dry := GPUParticlesCollisionBox3D.new()
+		dry.name = "Dry"
+		dry.position = (lo + hi) * 0.5 + Vector3(0, -0.25, 0)
+		dry.size = hi - lo + Vector3(0.1, 0.5, 0.1)
+		_room_root.add_child(dry)
 
 	# ── FLOOR ─────────────────────────────────────────────────────────────────
 	_add_box(_room_root, "Floor", Vector3(0.0, 0.0, 0.0), Vector3(5.0, 0.1, 5.0), Color(0.44, 0.32, 0.22))
@@ -1104,11 +1166,13 @@ func _build_room() -> void:
 	_add_box(_room_root, "FrontDoorFrameL", Vector3( 1.22, 1.05, -2.52), Vector3(0.06, 2.10, 0.14), Color(0.20, 0.14, 0.10))
 	_add_box(_room_root, "FrontDoorFrameR", Vector3( 2.23, 1.05, -2.52), Vector3(0.06, 2.10, 0.14), Color(0.20, 0.14, 0.10))
 	_add_box(_room_root, "FrontDoorFrameT", Vector3( 1.725, 2.12, -2.52), Vector3(1.07, 0.06, 0.14), Color(0.20, 0.14, 0.10))
-	# Beyond the door: the step and the camp, lit by the day (the window's view).
-	_add_box(_room_root, "FrontStep", Vector3(1.725, -0.02, -3.1), Vector3(1.2, 0.08, 1.1), Color(0.46, 0.44, 0.40))
-	_add_box(_room_root, "FrontPorchL", Vector3(1.15, 1.2, -3.1), Vector3(0.06, 2.6, 1.1), Color(0.40, 0.32, 0.24))
-	_add_box(_room_root, "FrontPorchR", Vector3(2.30, 1.2, -3.1), Vector3(0.06, 2.6, 1.1), Color(0.40, 0.32, 0.24))
-	_add_box(_room_root, "FrontPorchTop", Vector3(1.725, 2.4, -3.1), Vector3(1.2, 0.06, 1.1), Color(0.40, 0.32, 0.24))
+	# Beyond the door: the step and the camp, lit by the day (the window's view). In one
+	# world the camp's own porch and step are out there.
+	if not ONE_WORLD:
+		_add_box(_room_root, "FrontStep", Vector3(1.725, -0.02, -3.1), Vector3(1.2, 0.08, 1.1), Color(0.46, 0.44, 0.40))
+		_add_box(_room_root, "FrontPorchL", Vector3(1.15, 1.2, -3.1), Vector3(0.06, 2.6, 1.1), Color(0.40, 0.32, 0.24))
+		_add_box(_room_root, "FrontPorchR", Vector3(2.30, 1.2, -3.1), Vector3(0.06, 2.6, 1.1), Color(0.40, 0.32, 0.24))
+		_add_box(_room_root, "FrontPorchTop", Vector3(1.725, 2.4, -3.1), Vector3(1.2, 0.06, 1.1), Color(0.40, 0.32, 0.24))
 	# The camp looking in through the office window does not see these (they stand
 	# outside the room's front wall, in the way at a slant: the user 21. 10.).
 	for n in ["FrontStep", "FrontPorchL", "FrontPorchR", "FrontPorchTop"]:
@@ -1661,8 +1725,6 @@ func _crt_typing() -> bool:
 ## at its centre).
 func _crt_rest_rot(pos: Vector3) -> Vector3:
 	var pivot := _get_crt_orbit_pivot()
-	if _room_root != null and _interior_camera != null and _interior_camera.get_parent() is Node3D:
-		pivot = (_interior_camera.get_parent() as Node3D).to_local(pivot)
 	if pos.distance_to(pivot) < 0.01:
 		return CRT_SEAT_ROT
 	return Transform3D(Basis(), pos).looking_at(pivot, Vector3.UP).basis.get_euler()
@@ -2075,6 +2137,30 @@ func _apply_room_time_profile(animated: bool = false) -> void:
 		var fill := lerpf(0.55, 0.12, daylight)
 		_room_environment.ambient_light_color = _room_environment.ambient_light_color.lerp(Color(0.82, 0.88, 0.96), lerpf(0.6, 0.1, daylight))
 		_room_environment.ambient_light_energy = maxf(_room_environment.ambient_light_energy, fill)
+	# One world: the day comes in through the windows itself (the camp's own sun and its
+	# square on the counter and the door, the sky's light): the room's fill by day is what
+	# the walls throw back, not a second day of its own (at 1.8 the sun's square drowned in
+	# it). The tube and the sky's glow off the window are lamps; they are kept, a little less.
+	# The eye takes the room in as eyes do coming in from the day (_room_eye: its exposure up
+	# by day), so the room's own light is lower under it and the sun through the window
+	# stands out of it; the camp in the window is bright, as from inside it is.
+	# The room's day lasts as long as the sun shines in: in the late afternoon the hour's
+	# light is already the evening's, but the sun low over the camp comes in through the
+	# office window then (the counter at 16:50, the back door at 17:30), and the tube at its
+	# evening strength drowned it.
+	# Under a grey sky the tube is the room's light again and the eye opens for it: the
+	# day's dimming of the lamp and the eye go by how bright it is out there.
+	if ONE_WORLD:
+		var day := maxf(daylight, _camp_sun_shining())
+		var bright := day * wk
+		if _room_environment != null:
+			_room_environment.ambient_light_energy *= lerpf(1.0, day_fill, day)
+		if _window_light != null:
+			_window_light.light_energy *= lerpf(1.0, day_window, day)
+		if _ceiling_light != null:
+			_ceiling_light.light_energy *= lerpf(1.0, day_tube, bright)
+		if _room_eye != null:
+			_room_eye.exposure_multiplier = lerpf(1.0, day_exposure, bright)
 	_sync_reception_glass()
 	_apply_manual_office_light_profile(animated, was)
 	_sync_desk_lamp_look()
@@ -2332,6 +2418,126 @@ func _aim_portal(_cam: Camera3D, frame: Transform3D, _size: Vector2, eye_room: V
 	return (frame.affine_inverse() * eye_room).z >= 0.05
 
 
+## ── one world (W26) ───────────────────────────────────────────────────────────
+
+## The room where the reception stands: its rooms in the building's shell exactly (the
+## building is made from their plan: RL.room_to_local), every frame (a new camp, a load
+## move it). The viewport draws the camp's own world (own_world_3d off: the root's).
+func _bind_one_world() -> bool:
+	if _room_root == null:
+		return false
+	var shell := _reception_shell()
+	if shell == null:
+		return false
+	var x: Transform3D = shell.global_transform * RL.room_to_local()
+	if not _room_root.transform.is_equal_approx(x):
+		_room_root.transform = x
+	if _room_probe != null and _room_environment != null:
+		_room_probe.ambient_color = _room_environment.ambient_light_color
+		_room_probe.ambient_color_energy = _room_environment.ambient_light_energy
+	return true
+
+
+func _reception_shell() -> Node3D:
+	if _room_sun_shell != null and (not is_instance_valid(_room_sun_shell) or not _room_sun_shell.is_inside_tree()):
+		_room_sun_shell = null
+	if _room_sun_shell == null and Time.get_ticks_msec() - _room_sun_seek_ms > 1000:
+		_room_sun_seek_ms = Time.get_ticks_msec()
+		var scene := get_tree().current_scene if get_tree() != null else null
+		var reception := scene.find_child("MainBuilding", true, false) as Node3D if scene != null else null
+		_room_sun_shell = reception.get_node_or_null("Shell") as Node3D if reception != null else null
+	return _room_sun_shell
+
+
+## The views painted on the room's windows and doorway, and what stood behind them: gone,
+## the openings show the camp itself.
+func _hide_painted_views() -> void:
+	var back_quad = _extras.back.window_quad if _extras != null and _extras.back != null else null
+	for n in [_window_quad, _side_quad, _window_outdoor_sky, _door_quad, back_quad]:
+		if n is Node3D and is_instance_valid(n):
+			(n as Node3D).visible = false
+
+
+## In the room or out of it: the camp's environment takes the room's occlusion of corners
+## (one environment for the one world), and one ear hears the world, the room's eye's.
+func _one_world_inside(on: bool) -> void:
+	var w := _camp_world()
+	var env: Environment = w.environment if w != null else null
+	if env != null and _room_environment != null:
+		if on:
+			env.ssao_enabled = true
+			env.ssao_radius = _room_environment.ssao_radius
+			env.ssao_intensity = _room_environment.ssao_intensity
+			env.ssao_power = _room_environment.ssao_power
+			env.ssao_detail = _room_environment.ssao_detail
+			env.ssao_horizon = _room_environment.ssao_horizon
+			env.ssao_sharpness = _room_environment.ssao_sharpness
+			env.ssao_light_affect = _room_environment.ssao_light_affect
+		else:
+			env.ssao_enabled = false
+	var main := _resolve_main_runtime_host()
+	var w3d = main.get("_world_3d") if main != null else null
+	if w3d is Node3D and (w3d as Node3D).is_inside_tree():
+		var vp := (w3d as Node3D).get_viewport()
+		if vp != null:
+			vp.audio_listener_enable_3d = not on
+	_room_sounds_through_walls(not on)
+
+
+## The room's own sounds are the camp's now (the tube's hum, the bell, the stove, the set in
+## the back room): heard from the camp, they come through the walls.
+func _room_sounds_through_walls(walls: bool) -> void:
+	if _room_root == null:
+		return
+	for n in _room_root.find_children("*", "AudioStreamPlayer3D", true, false):
+		var a := n as AudioStreamPlayer3D
+		if not a.has_meta("bus_in"):
+			a.set_meta("bus_in", str(a.bus))
+		var bus_in := str(a.get_meta("bus_in"))
+		a.bus = StringName(WORLD_SOUNDS.wall_bus(bus_in) if walls else bus_in)
+
+
+## From the camp: the room is there through its openings (the building's glass and the
+## doorway's picture go); while it can be seen it goes on as when you are in it (a curtain
+## drawn by the other warden, the back room's set) and keeps the camp's hour's light.
+var _one_world_glass_done := false
+
+
+func _one_world_from_camp(delta: float) -> void:
+	# The room is always there to be seen from the camp (the other warden at the PC in it:
+	# interior_manager._coop_office_from_camp).
+	_inview_live = not visible
+	if not _one_world_glass_done or _glass_cache.is_empty() or not is_instance_valid(_glass_cache.get("office_glass")):
+		_sync_reception_glass()
+		_one_world_glass_done = not _glass_cache.is_empty()
+		# The shell's panes are glass seen from the camp now, the room behind them (they
+		# were the room's picture); the doorway's dark (the office's picture with the leaf
+		# open, door_anim shows it) is never drawn: the office itself is behind it.
+		for k in PANES:
+			var g = _glass_cache.get(k)
+			if g is MeshInstance3D and is_instance_valid(g):
+				if k == "door_way":
+					(g as MeshInstance3D).layers = 0
+				else:
+					(g as MeshInstance3D).material_override = _clear_glass()
+					(g as MeshInstance3D).visible = true
+	var im = get_parent()
+	if im != null and im.has_method("_coop_office_from_camp"):
+		im._coop_office_from_camp(delta)
+	if visible:
+		return
+	if _extras != null and _extras.tick_unseen(delta, _hour_now()):
+		_apply_room_time_profile()
+	_inview_light_t -= delta
+	if _inview_light_t <= 0.0:
+		_inview_light_t = 0.5
+		# (A sound the room has started since: a delivery's knock, a visit's steps.)
+		_room_sounds_through_walls(true)
+		var ll: Array = im.get("_last_light") if im != null and im.get("_last_light") != null else []
+		if ll.size() >= 4:
+			set_daylight_profile(ll[0], ll[1], ll[2], ll[3])
+
+
 ## The camp's sun in the room, every frame the room is drawn (in it, or seen into from the
 ## camp): its direction as it falls on the reception building, turned into the room; its
 ## colour and strength as the camp has them (the hour, the weather); off below the horizon.
@@ -2341,6 +2547,10 @@ var _room_sun_seek_ms := -100000
 
 
 func _update_room_sun() -> void:
+	if ONE_WORLD:
+		if _room_sun != null:
+			_room_sun.visible = false
+		return
 	if _room_sun == null or _room_root == null or _room_sun_debug:
 		return
 	if not visible and not _inview_live:
@@ -2376,6 +2586,17 @@ func _update_room_sun() -> void:
 	# A grey day has no sun to throw in (the camp's own sun dims in it only so far).
 	var wk: float = WEATHER_DAY_K.get(_weather_state, 1.0)
 	_room_sun.light_energy = s.light_energy * ROOM_SUN_K * pow(wk, 4.0)
+
+
+## How much the camp's sun shines now: 0 under the horizon and on a grey day, 1 a clear
+## day's sun, low or high.
+func _camp_sun_shining() -> float:
+	var main := _resolve_main_for_radio()
+	var sun = main.get("sun") if main != null else null
+	if not (sun is DirectionalLight3D) or not (sun as Node3D).is_inside_tree() or not (sun as Node3D).visible:
+		return 0.0
+	var wk: float = WEATHER_DAY_K.get(_weather_state, 1.0)
+	return clampf((sun as DirectionalLight3D).light_energy, 0.0, 1.0) * wk * wk
 
 
 ## Where the room lies in the camp: over the reception building, its window wall on the
@@ -2426,6 +2647,8 @@ func _place_window_camera() -> bool:
 
 ## Every frame while the room is open: the eye moved (looking about, walking to the PC).
 func _update_window_portal() -> void:
+	if ONE_WORLD:
+		return
 	if not _portal_ok or _window_cam == null or _interior_camera == null:
 		return
 	var eye_room := _room_root.to_local(_interior_camera.global_position) if _room_root != null else _interior_camera.position
@@ -2533,6 +2756,9 @@ func _tick_photo_flash(delta: float) -> void:
 
 
 func _set_window_view_live(on: bool) -> void:
+	if ONE_WORLD:
+		_hide_painted_views()
+		return
 	if _view == null:
 		return
 	if on and not _place_window_camera():
@@ -2633,6 +2859,9 @@ var _inview_reception: Node3D
 
 
 func _update_inview(delta: float) -> void:
+	if ONE_WORLD:
+		_one_world_from_camp(delta)
+		return
 	var cam: Camera3D = null
 	var on := false
 	if not visible and _room_root != null:
@@ -2773,6 +3002,9 @@ func _sync_reception_glass() -> void:
 		if reception == null or not reception.has_meta("reception_glass"):
 			return
 		_glass_cache = reception.get_meta("reception_glass")
+	# (In one world the room's own lamps light up behind the glass: no glow painted on it.)
+	if ONE_WORLD:
+		return
 	# The time of day, not the daylight (that is only kept up while the room is open).
 	var night := 1.0 if _time_state == TIME_NIGHT else (0.45 if _time_state == TIME_EVENING else 0.0)
 	var power := 1.0 if _grid_power_available else 0.0
@@ -2790,6 +3022,21 @@ func _sync_reception_glass() -> void:
 		back_lit = (0.7 if _extras.back.lamp_on else 0.0) + (0.25 if _extras.back.tv_on else 0.0)
 		back_open = _extras.back.curtain.open if _extras.back.curtain != null else 0.0
 	_glow_glass(_glass_cache.get("back_glass"), night * power * back_lit * lerpf(0.3, 1.0, back_open))
+
+
+var _clear_glass_mat: StandardMaterial3D
+
+
+## Window glass: a little grey-green, the sky and the sun's glint on it at a slant.
+func _clear_glass() -> StandardMaterial3D:
+	if _clear_glass_mat == null:
+		var m := StandardMaterial3D.new()
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.albedo_color = Color(0.6, 0.68, 0.68, 0.14)
+		m.roughness = 0.06
+		m.metallic_specular = 0.9
+		_clear_glass_mat = m
+	return _clear_glass_mat
 
 
 static func _glow_glass(g, amount: float) -> void:
@@ -3311,8 +3558,11 @@ func ring_phone(call: Dictionary, rings := 8, done := Callable()) -> void:
 var _bell_outdoor: AudioStreamPlayer3D
 
 
-## The bell heard from the camp, through the walls.
+## The bell heard from the camp, through the walls. (In one world the room's own bell is
+## heard there itself: _room_sounds_through_walls.)
 func ring_outdoor() -> void:
+	if ONE_WORLD:
+		return
 	var building := _resolve_main_building_node()
 	if building == null or not is_instance_valid(building):
 		return

@@ -366,6 +366,9 @@ func _ensure_camera() -> void:
 	_camera = camera
 	camera.fov = camera_fov
 	camera.far = camera_far
+	# What a room built in the camp's world shows only to its own eye (its front door, its
+	# rain on the glass): building_interior.INVIEW_HIDE_LAYER.
+	camera.cull_mask &= ~(1 << 17)
 	camera.near = camera_near
 	camera.current = true
 	_ensure_flashlight()

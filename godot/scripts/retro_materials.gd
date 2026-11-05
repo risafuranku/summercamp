@@ -463,10 +463,11 @@ static func bold(l: Label3D) -> void:
 		l.set_meta("bold_copies", true)
 
 
-## Drawn by a viewport with a world of its own: a room, the bus, the pipes.
+## Drawn by a viewport with a world of its own (the bus, the pipes), or a room's built in the
+## camp's world (meta "retro_room" on its viewport: building_interior.ONE_WORLD).
 func _in_room(n: Node) -> bool:
 	var vp := n.get_viewport()
-	return vp is SubViewport and (vp as SubViewport).own_world_3d
+	return vp is SubViewport and ((vp as SubViewport).own_world_3d or vp.has_meta("retro_room"))
 
 
 func _track_sprite(s: Sprite3D) -> void:

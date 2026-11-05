@@ -373,6 +373,9 @@ func _rain_layer(node_name: String, amount: int, box: Vector3, w: float, h: floa
 	pm.initial_velocity_min = 20.0
 	pm.initial_velocity_max = 24.0
 	pm.particle_flag_align_y = true
+	# Gone where a roof is over the room you are in (its GPUParticlesCollisionBox3D,
+	# building_interior's "Dry"): the rain fell through the reception's ceiling.
+	pm.collision_mode = ParticleProcessMaterial.COLLISION_HIDE_ON_CONTACT
 	var mesh := _rain_streak_mesh(w, h)
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -417,6 +420,7 @@ func setup_weather_particles() -> void:
 	spm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
 	spm.emission_box_extents = Vector3(9.0, 0.0, 9.0)
 	spm.gravity = Vector3.ZERO
+	spm.collision_mode = ParticleProcessMaterial.COLLISION_HIDE_ON_CONTACT
 	spm.initial_velocity_min = 0.0
 	spm.initial_velocity_max = 0.0
 	var curve := Curve.new()
