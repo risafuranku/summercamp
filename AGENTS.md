@@ -485,9 +485,23 @@ every night's sewer, toilets and frozen pipes the moment they broke).
  **Under the land nothing is drawn** (a room put below y 0 rendered as sky): bake a room's
  cubes far over the camp (`one_world_room.BAKE_UP`). Lamps without shadows in a room built in
  the camp light the grass outside its walls: `one_world_room.own_lights` (the room's own
- layer, 13). The service rooms (toilets, showers, the generator, the sewer) and the
- businesses' interiors are still worlds of their own: the businesses have a second copy of
- their room in their building for the camp to see (`business/room_outside.gd`).
+ layer, 13). **The businesses too** (5. 11.: the pub, the bistro, the Jednota, the
+ staffroom): `service_interior` switches its viewport to the camp's world for them
+ (`_set_one_world`: `world_3d` null = the root's world, the room's WorldEnvironment taken out;
+ the toilets, showers, generator and sewer get `_own_world` back) and binds the room where its
+ building's own copy stands (`ONE_WORLD_COPY`: PubRoom, BistroRoom, JednotaRoom, the
+ staffroom's `Inside`), the copy hidden while it does; the front room's walls are opened at
+ its windows and its door (`K.open_windows`), the windows glass; a room behind the front one
+ (the cellar, the kitchen, the storeroom) stands 60 m over the building (`BACK_ROOM_UP`, a
+ dark box round it); put away 2000 m up when shut. The fronts' painted doors are cut out
+ (`_glass_door_face`), the plinths are rings, the staffroom's under its walls only (its
+ block under the floors fought them). Only the toilets, showers, generator and sewer keep a
+ world of their own (no windows). **A room's probe is for its own things only**
+ (`reflection_mask` = `ROOM_LAYER`, the room's meshes marked by `one_world_room.own_layer`
+ now and then): its box takes in what stands outside the walls, and the room's dim ambient
+ darkened the reception's back wall and the lean-to's roof from outside. To see a room's
+ traces from outside: `onesun_check --part=recdiff` shoots the building with and without the
+ room from 96 places, `tools/room_diff.py` compares them: only its windows may differ.
 - **A room's windows share ONE view of the camp** (`scripts/ui/window_shared_view.gd`, the
   user 25. 10.: "shared like this in all interiors, and in every future one"): one camera
   at the room's eye mapped into the camp, the room camera's lens, the room's pixel size;
