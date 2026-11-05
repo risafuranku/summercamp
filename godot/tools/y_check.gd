@@ -4,6 +4,7 @@ extends "res://tools/onesun_check.gd"
 ## game. --y=<part>. Lines "Y ...".
 ##   godot --path godot --audio-driver Dummy --resolution 1280x720 res://tools/y_check.tscn -- --out=DIR --y=builder
 
+const LANG_S = preload("res://scripts/lang.gd")
 const UI := "_interior_manager._building_interior._crt_ui"
 const MAP := "debug_builder_map()"
 const BI := "_interior_manager._building_interior"
@@ -138,6 +139,8 @@ func _ready() -> void:
 			_steps = _letters()
 		"bench":
 			_steps = _bench()
+		"rooms2":
+			_steps = _rooms2()
 
 
 ## R turns what you are about to build, with the pointer anywhere (Y14).
@@ -438,6 +441,40 @@ func _bench() -> Array:
 	s += [["eval", C + ".bench_look(37.3, -8.4)"], ["wait", 0.8], ["eval", C + ".bench_state('on the switch')"], ["shot", "bench_switch"], ["lmb", true], ["wait", 0.08], ["lmb", false], ["wait", 0.6], ["eval", C + ".bench_state('clicked')"], ["shot", "bench_clicked"],
 		["lmb", true], ["wait", 0.08], ["lmb", false], ["wait", 0.6], ["eval", C + ".bench_state('clicked again')"]]
 	s += [["key", "SPACE"], ["wait", 3.0], ["eval", C + ".bench_state('after Space')"], ["eval", "get_tree().quit()"]]
+	return s
+
+
+## A guest with more rooms than one at the desk (Y9): all of them said, in both languages.
+func desk_lines() -> void:
+	var keys: Array = GuestManager.get_accommodation_states().keys()
+	var rooms: Array = []
+	for k in keys:
+		if str(GuestManager.get_room_state(str(k)).get("building_type", "")).begins_with("tent"):
+			rooms.append({"key": str(k), "label": GuestManager.room_label(str(k)), "ready": true})
+	var q: Array = [{"id": 0, "name": "Novak family", "party_size": 5, "rooms": rooms}]
+	var desk = _bi().get("_desk_room").get("desk")
+	desk.call("_set_guest", q[0])
+	say("DESK rooms %s" % str(q[0].get("rooms", [])))
+	for i in 2:
+		q[0]["id"] = i
+		desk.set("_guest", q[0])
+		say("DESK en: %s | %s" % [desk.call("_greeting"), LANG_S.f("That is not ours. We booked %s.", desk.call("_rooms_said"))])
+	var was: String = LANG_S.current
+	LANG_S.current = "cs"
+	TranslationServer.set_locale("cs")
+	for i in 2:
+		q[0]["id"] = i
+		desk.set("_guest", q[0])
+		say("DESK cs: %s | %s" % [desk.call("_greeting"), LANG_S.f("That is not ours. We booked %s.", desk.call("_rooms_said"))])
+	LANG_S.current = was
+	TranslationServer.set_locale("en")
+
+
+func _rooms2() -> Array:
+	var s: Array = BOOT.duplicate(true)
+	s += [["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0], ["money", 90000], ["clear", 12, 10, 8, 5],
+		["build", "tent_1", 13, 11, 0], ["build", "tent_1", 15, 11, 0], ["build", "tent_1", 17, 11, 0], ["wait", 1.0], ["prep_all"],
+		["book", "Novak family", "family", 5, 2, 0], ["hours", 0.5], ["wait", 2.0], ["eval", C + ".desk_lines()"], ["eval", "get_tree().quit()"]]
 	return s
 
 

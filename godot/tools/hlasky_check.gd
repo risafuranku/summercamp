@@ -9,7 +9,7 @@ extends "res://tools/shot_driver.gd"
 
 const C := "get_tree().root.get_node('HlaskyCheck')"
 const LANG_F = preload("res://scripts/lang.gd")
-const EVENTS := ["litter", "raccoons", "delivery", "lost_kid", "noise", "tree", "someone"]
+const EVENTS := ["litter", "raccoons", "delivery", "lost_kid", "noise", "tree"]
 
 
 func lines() -> String:

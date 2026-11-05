@@ -957,12 +957,7 @@ func _sync_dark_lamps() -> void:
 
 ## The generator shed is entered like any interior now: the distribution board is in
 ## its switch room (scripts/shed/generator_shed.gd), which calls open_breaker_board().
-func _on_structure_interact_override(structure: Node3D) -> bool:
-	# A guest waiting for you to look round their cabin (day_events "someone").
-	if _day_events != null and structure != null and structure.has_meta("grid_origin"):
-		var o = structure.get_meta("grid_origin")
-		if o is Vector2i and _day_events.on_knock(o):
-			return true
+func _on_structure_interact_override(_structure: Node3D) -> bool:
 	return false
 
 

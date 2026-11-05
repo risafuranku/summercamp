@@ -17,9 +17,9 @@ extends Node
 ##   lost_kid  a family's boy has wandered off (families only): find him, E
 ##   noise     tramps or lads keeping the quiet ones awake: talk to the loud party
 ##   tree      a branch down across a path after the wind: hold E to saw it up
-##   someone   a guest heard somebody else in their cabin last night: knock, look round
-##             (E at their door). From day 3. Whether you look or not, that cabin is one
-##             the night director remembers (`haunted`): at night, near it, it makes sounds.
+## From day 3 a lodging now and then is one the night director remembers (`haunted`): at
+## night, near it, it makes sounds. (There was a job to it, going to look under the bed on a
+## guest's word: taken out, the user 5. 11.)
 ## Each one pages you, shows in the HUD's TODAY list and gets the waypoint. The
 ## staffroom's hands (scripts/staff/staff_runtime.gd) take the litter, the raccoons, the
 ## van and the branches off you when their jobs are ticked (staff_jobs / staff_done); one
@@ -49,7 +49,6 @@ const RULES := {
 	"lost_kid": {"wait": 180, "hold": 0.0, "fail_mood": -20.0, "ok_mood": 12.0, "tip": 30},
 	"noise": {"wait": 120, "hold": 0.0, "fail_mood": -15.0, "ok_mood": 4.0},
 	"tree": {"wait": 240, "hold": 3.0, "fail_mood": -4.0, "ok_mood": 2.0},
-	"someone": {"wait": 240, "hold": 0.0, "fail_mood": -10.0, "ok_mood": 5.0},
 }
 
 ## Facility -> loop, who makes it, when.
@@ -98,7 +97,6 @@ var coop_follow := false
 const COOP_DONE_LINES := {
 	"litter": "Rubbish bagged.", "raccoons": "The raccoons are gone. For now.", "delivery": "Signed for the delivery.",
 	"lost_kid": "Found the boy.", "noise": "The noise is down. For tonight.", "tree": "The path is clear.",
-	"someone": "You look round with the torch while they watch. Nobody. Under the bed the boards are wet.",
 }
 
 
@@ -367,17 +365,6 @@ func try_interact() -> bool:
 
 
 ## The player talked to a guest (main._talk_to_guest): settles a noise complaint.
-## E at a lodging's door (main's interact override): if a guest is waiting for you to
-## look round, you do. True when it was that.
-func on_knock(coord: Vector2i) -> bool:
-	for ev in _events:
-		if str(ev["state"]) == "open" and str(ev["kind"]) == "someone" and _coord(ev) == coord:
-			_report("%s opens the door: \"Please. Have a look.\"" % str(ev.get("guest_name", "They")), 1)
-			_resolve(ev)
-			return true
-	return false
-
-
 ## A haunted lodging within `radius` m of `pos` (the night director's "room_sounds").
 func haunted_near(pos: Vector3, radius: float) -> Vector3:
 	for k in haunted.keys():
@@ -422,6 +409,9 @@ func import_state(data: Dictionary) -> void:
 	var carry := get_tree().get_first_node_in_group("carry") if is_inside_tree() else null
 	var held_ev := int(carry.held.get("ev", -1)) if carry != null and str(carry.held.get("kind", "")) == "sack" else -1
 	for e in data.get("events", []):
+		# (From an old save: a job since taken out of the game.)
+		if e is Dictionary and not RULES.has(str((e as Dictionary).get("kind", ""))):
+			continue
 		if e is Dictionary:
 			var ev_in := (e as Dictionary).duplicate(true)
 			if int(ev_in["id"]) == held_ev:
@@ -546,7 +536,8 @@ func _available_kinds(guests: Array) -> Array:
 	var day := int(CoreRoot.get_state().day) if CoreRoot.get_state() != null else 1
 	var lodged := guests.filter(func(g): return _lodging_of(g).x >= 0)
 	if day >= 3 and not lodged.is_empty() and _rng.randf() < 0.5:
-		out.append("someone")
+		var c := _lodging_of(lodged[_rng.randi_range(0, lodged.size() - 1)])
+		haunted["%d:%d" % [c.x, c.y]] = day
 	return out
 
 
@@ -608,14 +599,6 @@ func _make(kind: String, at: int, guests: Array) -> Dictionary:
 			if p.x < 0:
 				return {}
 			ev.merge({"title": "A branch across the path", "short": "Branch", "where": "Path %d:%d" % [p.x, p.y], "coord": [p.x, p.y]}, true)
-		"someone":
-			var lodged: Array = guests.filter(func(g): return _lodging_of(g).x >= 0)
-			if lodged.is_empty():
-				return {}
-			var g3: Dictionary = lodged[_rng.randi_range(0, lodged.size() - 1)]
-			var c3 := _lodging_of(g3)
-			ev.merge({"title": "Someone else in the cabin", "short": "Cabin", "where": "%s's %s: knock and look" % [str(g3.get("name", "A guest")), _label_at(c3)],
-				"coord": [c3.x, c3.y], "guest_id": int(g3.get("id", -1)), "guest_name": str(g3.get("name", ""))}, true)
 	return ev
 
 
@@ -636,8 +619,6 @@ func _start(ev: Dictionary, abs_minute: int) -> void:
 		return
 	ev["state"] = "open"
 	_spawn_props(ev)
-	if str(ev["kind"]) == "someone":
-		haunted["%d:%d" % [_coord(ev).x, _coord(ev).y]] = int(CoreRoot.get_state().day) if CoreRoot.get_state() != null else 1
 	_report("Pager: %s" % tr(_start_line(ev)), 2)
 	_page()
 	changed.emit()
@@ -658,8 +639,6 @@ func _start_line(ev: Dictionary) -> String:
 			line = "Complaint: \"%s are making a racket. Some of us came here for the quiet.\"" % str(ev.get("guest_name", "Somebody"))
 		"tree":
 			line = "A branch has come down across the path at %d:%d." % [_coord(ev).x, _coord(ev).y]
-		"someone":
-			line = "%s: \"There was someone else in our %s last night. Breathing. All of us were asleep.\"" % [str(ev.get("guest_name", "A guest")), _label_at(_coord(ev))]
 	return line
 
 
@@ -696,8 +675,6 @@ func _resolve(ev: Dictionary, by := "") -> void:
 			text = "The noise is down. For tonight."
 		"tree":
 			text = "The path is clear."
-		"someone":
-			text = "You look round with the torch while they watch. Nobody. Under the bed the boards are wet."
 	if str(ev["kind"]) != "lost_kid":
 		_mood_for(float(rules.get("ok_mood", 0.0)), "", [])
 	if by != "":
@@ -732,9 +709,6 @@ func _fail(ev: Dictionary) -> void:
 			text = "Nobody did anything about the noise."
 			thought = "Nobody did anything about the racket. Never again."
 			who = ["picker", "quiet_guy", "family"]
-		"someone":
-			text = "Nobody went to look at %s's %s." % [str(ev.get("guest_name", "a guest")), _label_at(_coord(ev))]
-			thought = "We told them someone was in here. Nobody came."
 		"tree":
 			text = "The branch is still across the path."
 			thought = "A tree across the path all day. Is anyone running this place?"
@@ -773,10 +747,10 @@ func _update_target(delta: float, can_act: bool) -> void:
 		var best_score := INF
 		var fwd := -cam.global_transform.basis.z
 		for ev in _events:
-			# Talked out (noise) or knocked for at the lodging (someone): not an E spot; the
+			# Talked out (noise): not an E spot; the
 			# rubbish bagged is in your arms (or set down), not where it lay.
 			# (The van's note is signed at the reception, not at the van: delivery_waiting.)
-			if str(ev["state"]) != "open" or str(ev["kind"]) in ["noise", "someone", "delivery"] or bool(ev.get("bagged", false)):
+			if str(ev["state"]) != "open" or str(ev["kind"]) in ["noise", "delivery"] or bool(ev.get("bagged", false)):
 				continue
 			var p := _event_pos(ev) + Vector3(0, 0.5, 0)
 			var to := p - cam.global_position

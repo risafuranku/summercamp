@@ -30846,3 +30846,9 @@ msgstr "WC %d levý"
 
 msgid "WC %d right"
 msgstr "WC %d pravý"
+
+msgid "%s and %s"
+msgstr "%s a %s"
+
+msgid "And %s."
+msgstr "A ještě %s."

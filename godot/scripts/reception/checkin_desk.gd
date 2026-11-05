@@ -476,14 +476,30 @@ func _set_guest(guest: Dictionary) -> void:
 func _greeting() -> String:
 	if bool(_guest.get("stranger", false)):
 		return "..."
-	var rooms: Array = _guest.get("rooms", [])
-	var lodging := str((rooms[0] as Dictionary).get("label", "a tent")) if not rooms.is_empty() else "a tent"
+	var lodging := _rooms_said()
+	var big := lodging.substr(0, 1).to_upper() + lodging.substr(1)
 	var n := int(_guest.get("party_size", 1))
 	var lines := [
-		LANG.f("Good evening. %s, we booked %s.", [str(_guest.get("name", "")), tr(lodging).to_lower()]) if not _is_day() else LANG.f("Hello. %s, we have a booking. %s.", [str(_guest.get("name", "")), tr(lodging)]),
-		LANG.f("%s. %s, %d of us.", [str(_guest.get("name", "")), tr(lodging), n]),
+		LANG.f("Good evening. %s, we booked %s.", [str(_guest.get("name", "")), lodging]) if not _is_day() else LANG.f("Hello. %s, we have a booking. %s.", [str(_guest.get("name", "")), big]),
+		LANG.f("%s. %s, %d of us.", [str(_guest.get("name", "")), big, n]),
 	]
 	return lines[absi(int(_guest.get("id", 0))) % lines.size()]
+
+
+## All they booked in one breath, but for the keys already handed over: "cabin 2, cabin 3
+## and tent 1" (the user 5. 11.: they named the first and the rest were to be looked up on
+## paper).
+func _rooms_said() -> String:
+	var said: Array = []
+	var given: Array = _p.get("keys_given", []) if _p != null else []
+	for r in _guest.get("rooms", []):
+		if not given.has(str((r as Dictionary).get("key", ""))):
+			said.append(tr(str((r as Dictionary).get("label", ""))).to_lower())
+	if said.is_empty():
+		return tr("a tent")
+	if said.size() == 1:
+		return str(said[0])
+	return LANG.f("%s and %s", [", ".join(PackedStringArray(said.slice(0, said.size() - 1))), str(said[said.size() - 1])])
 
 
 func _is_day() -> bool:
@@ -1053,8 +1069,7 @@ func _drop_key(key: String, p: Vector2) -> void:
 	for r in _guest.get("rooms", []):
 		wanted.append(str((r as Dictionary).get("key", "")))
 	if not wanted.has(key):
-		var mine := str(((_guest.get("rooms", []) as Array)[0] as Dictionary).get("label", "")) if not (_guest.get("rooms", []) as Array).is_empty() else "something else"
-		_say_line(LANG.f("That is not ours. We booked %s.", tr(mine)))
+		_say_line(LANG.f("That is not ours. We booked %s.", _rooms_said()))
 		_play("wrong", -4.0)
 		_hang_back(key, -10.0)
 		_shake = 1.0
@@ -1069,7 +1084,7 @@ func _drop_key(key: String, p: Vector2) -> void:
 	if _all_keys_given():
 		_say_line("Thank you.")
 	else:
-		_say_line("And the other one?")
+		_say_line(LANG.f("And %s.", _rooms_said()))
 
 
 # ── the labels ──────────────────────────────────────────────────────────────
