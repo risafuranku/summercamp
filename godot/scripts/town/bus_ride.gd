@@ -202,6 +202,8 @@ var _board_s := 0.0
 var _travelled := 0.0
 ## The cabin's frame: it rides in ride_bus, its floor on the bus's (bus_model.FLOOR_Y).
 var _rig: Node3D
+## The driver's wheel in the cabin, turned as the bus outside turns his (bus_model).
+var _cab_wheel: Node3D
 const CABIN_Y := 0.78
 ## The clickable things in the cabin are on their own physics layer (the world's walls
 ## and floors are not in the way of the mouse).
@@ -598,11 +600,17 @@ func _cruise_now() -> float:
 	return v
 
 
-## The bus and the cabin in it where the ride is.
+## The bus and the cabin in it where the ride is: leaning with the body in a bend, its
+## driver's wheel where his hands have it (bus_model, twelve steps a second).
 func _place_rig() -> void:
 	if line_mode:
 		if _rig != null and ride_bus != null and is_instance_valid(ride_bus):
-			_rig.global_transform = ride_bus.global_transform.translated_local(Vector3(0, CABIN_Y, 0))
+			var xf := ride_bus.global_transform.translated_local(Vector3(0, CABIN_Y, 0))
+			if ride_bus.has_method("lean"):
+				xf.basis = xf.basis * Basis(Vector3(0, 0, 1), -float(ride_bus.lean()))
+			_rig.global_transform = xf
+			if _cab_wheel != null and ride_bus.has_method("steer_shown"):
+				_cab_wheel.basis = Basis(Vector3.RIGHT, deg_to_rad(22.0)) * Basis(Vector3.UP, float(ride_bus.steer_shown()) * 17.0)
 		return
 	var t := _pose_at(_travelled)
 	if ride_bus != null and is_instance_valid(ride_bus):
@@ -2242,6 +2250,7 @@ func _build_cabin() -> void:
 	# The front under the windscreen (the bus's glass is in it); the driver's place.
 	_box(cabin, Vector3(0, 0.3, FLOOR_Z.x), Vector3(HALF_W * 2.0, 0.6, 0.08), _mat("front", "", Color(0.3, 0.3, 0.3)))
 	var cab: Dictionary = KAROSA_CAB.build(cabin, 0.0, _mats)
+	_cab_wheel = cabin.get_node_or_null("Wheel") as Node3D
 	# Seats: a cushion, the back with its cloth and its cover, a chrome grip.
 	var cloth := _mat("seat_cloth", TEX + "karosa_seat_cloth.png", Color(1, 1, 1), Vector2(4.0, 2.0))
 	var edge := _mat("seat_edge", "", Color(0.36, 0.24, 0.16))

@@ -18,6 +18,9 @@ extends Node3D
 ## At night the windows glow from inside and the headlights and the destination board are
 ## on. Wheels turn and the body rocks a little while it moves, in steps. town_trip.gd moves
 ## it along the roads and sets what it shows.
+## In a bend (the user 5. 11.: "the doors move in a gorgeous low-fps way on the ride, more
+## animations like that"), twelve steps a second like the rest: the driver turns his big flat
+## wheel hand over hand (`set_steer`, bus_line.steer_at), the body leans out of the bend.
 ##
 ## It is solid (you walk round it) and, while its door is open, clickable
 ## (building_type "trip_bus", meta "stop" = which stop it stands at).
@@ -84,6 +87,15 @@ var _lamp_in: OmniLight3D
 var _puffs: Array[Sprite3D] = []
 var _puff_t := 0.0
 var _glass: StandardMaterial3D
+## The front wheels' angle the line gives (+ left), as far as his hands have got it round,
+## his wheel, and the lean out of the bend; the step they were last moved on.
+const STEER_RATIO := 17.0
+const WHEEL_TILT := 22.0
+var _steer := 0.0
+var _steer_shown := 0.0
+var _steer_wheel: Node3D
+var _lean := 0.0
+var _step := -1
 
 
 func _ready() -> void:
@@ -167,6 +179,21 @@ func set_speed(v: float) -> void:
 	_speed = v
 
 
+## Its front wheels' angle (radians, + to the left): the driver turns his wheel to it.
+func set_steer(rad: float) -> void:
+	_steer = rad
+
+
+## As far as he has turned it (the ride's cabin turns its own wheel the same).
+func steer_shown() -> float:
+	return _steer_shown
+
+
+## How far the body leans out of the bend (radians, + leaning right).
+func lean() -> float:
+	return _lean
+
+
 func set_night(night: bool) -> void:
 	_night = night
 	for m in _sides:
@@ -238,7 +265,15 @@ func _process(delta: float) -> void:
 	else:
 		# Idling: the engine shakes it a hair.
 		rock = (0.002 if int(tick) % 2 == 0 else -0.002)
-	_body.rotation.z = rock
+	if int(tick) != _step:
+		_step = int(tick)
+		# Hand over hand, a bit each step; the lean out of the bend with the speed.
+		_steer_shown = move_toward(_steer_shown, _steer, 0.035)
+		if _steer_wheel != null:
+			_steer_wheel.basis = Basis(Vector3.RIGHT, deg_to_rad(WHEEL_TILT)) * Basis(Vector3.UP, _steer_shown * STEER_RATIO)
+		var lateral := _speed * _speed * tan(_steer_shown) / 5.3
+		_lean = clampf(lateral * 0.0065, -0.045, 0.045)
+	_body.rotation.z = rock - _lean
 	_idle.pitch_scale = 1.0 + minf(0.5, _speed / 20.0)
 	_face_driver()
 	# His smoke: a puff every couple of seconds, drifting out of his open window and up,
@@ -570,6 +605,7 @@ func _build_inside() -> void:
 	_quad(_body, Vector3(0, (FLOOR_Y + CEIL_Y) * 0.5, back_z), Vector2(WIDTH - 0.08, CEIL_Y - FLOOR_Y), Vector3(0, PI, 0), wall)
 	# The driver's place, as in the photo.
 	CAB.build(_body, FLOOR_Y, _inside_mats)
+	_steer_wheel = _body.get_node_or_null("Wheel") as Node3D
 	# The tan seats down both sides as the cabin has them (bus_ride.SEATS): none by the
 	# steps, none from the back door on.
 	for i in 8:

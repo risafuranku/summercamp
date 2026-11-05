@@ -1495,6 +1495,8 @@ func _show_round(bus: Node3D, key: String, e: Dictionary, xf: Transform3D) -> vo
 		bus.destination = board
 	bus.global_transform = xf
 	bus.set_speed(float(st.get("v", 0.0)))
+	if bus.has_method("set_steer"):
+		bus.set_steer(line.steer_at(float(st["s"])))
 	if stand != "":
 		bus.set_stop(str(UI_OF.get(stand, stand)))
 		# The doors open once it stands, shut a moment before it goes.

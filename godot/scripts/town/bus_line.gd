@@ -17,12 +17,25 @@ extends RefCounted
 ## there, a villager getting off (`request`, the round's own dice).
 ## How it drives (the bends, the villages, pulling in and away) is worked out once per
 ## stretch (`_simulate`) with the kinematics bus_ride.gd drove with.
+## How it takes a bend (the user 5. 11.: "it turns about its own middle, buses do not work
+## like that"): its front wheels keep to the lane and steer, its back wheels are dragged
+## after them a wheelbase behind and cut the bend on the inside, the body behind them
+## swinging out (`pose_at`; the back axle's track worked out once along the whole way,
+## `_build_rear`, so every machine has it the same).
 ## town_trip.gd owns it: builds it with the camp's road, asks where each round is, puts
 ## the buses there.
 
 const TIMES = preload("res://scripts/town/bus_timetable.gd")
 const GEO = preload("res://scripts/geo/geo_data.gd")
 
+## Its axles (bus_model.AXLES: the front 3.0 m ahead of its middle, the back 2.3 behind).
+const FRONT_AXLE := 3.0
+const WHEELBASE := 5.3
+## The back axle's track, a point every this many metres of the front's way.
+const REAR_STEP := 0.5
+## Pulling in to a stop the driver straightens it along the kerb over this many metres
+## (the camp's shelter is just past the loop's bend: it stood there 9 degrees askew).
+const PULL_IN := 16.0
 ## m/s the road allows: road 12, the villages, the open road between, the camp's own.
 const SPEED := {"road12": 24.0, "village": 13.5, "open": 19.0, "camp": 10.0}
 const CRUISE_MAX := 22.0
@@ -49,6 +62,7 @@ var stop_at := {}
 var live := {}
 
 var _built_for := 0
+var _rear := PackedVector3Array()
 var _legs := {}
 var _env := PackedFloat32Array()
 var _plans := {}
@@ -107,6 +121,7 @@ func build(road) -> bool:
 		"end": along[along.size() - 1],
 	}
 	_build_envelope()
+	_build_rear()
 	_built_for = road.get_instance_id()
 	return true
 
@@ -169,15 +184,79 @@ func point_at(s: float) -> Vector3:
 	return pts[i].lerp(pts[i + 1], (s - along[i]) / seg)
 
 
-## The bus `s` metres along: where, and facing the way it goes (eased over a few metres
-## either side so it turns, not snaps).
+## The bus `s` metres along (its middle, on a straight): its front axle on the lane
+## FRONT_AXLE further on, its back axle trailing where the front dragged it, the bus along
+## the two (on a straight its middle at `s` as ever, so it stands at its stops as before).
 func pose_at(s: float) -> Transform3D:
-	var p := point_at(s)
-	var dir := point_at(s + 3.0) - point_at(s - 3.0)
-	dir.y = 0.0
-	if dir.length() < 0.01:
-		dir = Vector3.FORWARD
-	return Transform3D(Basis.looking_at(dir.normalized(), Vector3.UP), p)
+	if _rear.size() < 2:
+		var p := point_at(s)
+		var dir := point_at(s + 3.0) - point_at(s - 3.0)
+		dir.y = 0.0
+		if dir.length() < 0.01:
+			dir = Vector3.FORWARD
+		return Transform3D(Basis.looking_at(dir.normalized(), Vector3.UP), p)
+	var f := point_at(s + FRONT_AXLE)
+	var r := _rear_at(s + FRONT_AXLE)
+	var h := f - r
+	h.y = 0.0
+	h = h.normalized() if h.length() > 0.01 else Vector3.FORWARD
+	var o := f - h * FRONT_AXLE
+	o.y = lerpf(f.y, r.y, FRONT_AXLE / WHEELBASE)
+	return Transform3D(Basis.looking_at(h, Vector3.UP), o)
+
+
+## How far its front wheels are turned at `s` (radians, + to the left): the lane's way at
+## the front axle against the bus's own.
+func steer_at(s: float) -> float:
+	if _rear.size() < 2:
+		return 0.0
+	var lane := point_at(s + FRONT_AXLE + 1.0) - point_at(s + FRONT_AXLE - 1.0)
+	var body := point_at(s + FRONT_AXLE) - _rear_at(s + FRONT_AXLE)
+	lane.y = 0.0
+	body.y = 0.0
+	if lane.length() < 0.01 or body.length() < 0.01:
+		return 0.0
+	return Vector2(body.x, body.z).angle_to(Vector2(lane.x, lane.z)) * -1.0
+
+
+## The back axle dragged after the front along the whole way: each step the front moves
+## on, the back comes after it along the line between them, a wheelbase behind; pulling in
+## to a stop, eased onto the lane so it stands straight at the kerb.
+func _build_rear() -> void:
+	var n := int(ceil(length() / REAR_STEP)) + 1
+	_rear.resize(n)
+	if n < 2:
+		return
+	var stands: Array = []
+	for key in stop_at:
+		if key != "start" and key != "end":
+			stands.append(float(stop_at[key]) + FRONT_AXLE)
+	var f0 := point_at(0.0)
+	var d0 := point_at(2.0) - f0
+	d0.y = 0.0
+	var r := f0 - (d0.normalized() if d0.length() > 0.01 else Vector3.FORWARD) * WHEELBASE
+	for k in n:
+		var sf := float(k) * REAR_STEP
+		var f := point_at(sf)
+		var to := f - r
+		to.y = 0.0
+		if to.length() > 0.001:
+			r = f - to.normalized() * WHEELBASE
+		for at in stands:
+			var a := float(at)
+			if sf > a - PULL_IN and sf <= a + REAR_STEP * 0.5:
+				# A little more each step as it comes up to the kerb; at the stop, on the lane.
+				var w := clampf((sf - (a - PULL_IN)) / PULL_IN, 0.0, 1.0)
+				var pull := 1.0 if sf >= a - REAR_STEP * 0.5 else 0.22 * w * w * (3.0 - 2.0 * w)
+				r = r.lerp(point_at(sf - WHEELBASE), pull)
+		r.y = f.y
+		_rear[k] = r
+
+
+func _rear_at(s: float) -> Vector3:
+	var x := clampf(s / REAR_STEP, 0.0, float(_rear.size() - 1))
+	var i := mini(int(x), _rear.size() - 2)
+	return _rear[i].lerp(_rear[i + 1], x - float(i))
 
 
 func limit_at(s: float) -> float:

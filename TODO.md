@@ -4,6 +4,15 @@
 
 ---
 
+## PLAYTEST 2026-11-05 (morning) — the user's notes (verbatim, then the note in brackets; tick with the commit)
+
+- [ ] X1 „prší i v interiéru 😃“ (W26 one world: the rain in the reception's room; sent to the session doing W26)
+- [ ] X2 „vnitřní textura pokojíčku clippuje ven z recepce“ (W26 one world: the back room's inside through the reception's outer walls; sent to the session doing W26)
+- [x] X3 „v builderu špatně otočený sprite recepce, není po změně rotace aktualizován“ (Builder: the reception's picture after the building is turned: since v18 it stands a quarter turn round in the world, but its build_rotation meta, which the map draws it by, was never set: building_manager.place_main_building sets 1; looked at from all four of the map's sides)
+- [ ] X4 „klíče ze zdi zmizí když opustím check in, měly by být vidět furt“ (the key board on the reception's wall: W26 one world; sent to the session doing W26)
+- [x] X5 „autobus zatáčí hrozně nepřirozně, točí se kolem svý osy veprostřed, takhle autobusy nefungujou“ (the 380 on its road turned about its middle: its middle on the lane, facing the chord. Now its front axle keeps to the lane and the back axle is dragged after it a wheelbase behind and cuts the bend, the body behind swinging out; straightened at the kerb of the camp's stop just past the loop's bend (it stood 9 degrees askew); tools/bus_turn_check, bus_line_check PASS)
+- [ ] X6 „za jízdy se hrozně hustě low fps animace hejbou dveře autobusu. víc takovejch animací do hry!“ (more things moving in steps, a few frames a second, like the Karosa's doors on the road; the doors rattle because the body rocks twelve steps a second round a cabin that does not. First: in a bend the driver turns his big flat wheel hand over hand and the body leans out of it, the ride's cabin with it, twelve steps a second; more to choose with the user)
+
 ## POLISH 2026-11-04 (evening) — the user: „ještě pořádnej overall gameplay polishment“ (a first day and night played through as a new warden, three days at a fast clock, every frame over 40 ms looked into: tools/pruchod_check, soak_check, trhnuti_check; tick with the commit)
 
 - [x] G1 A walk into a spruce put your eyes in its needles (only its trunk was solid): its lower branches hold you off at their tips, crouched you still get in under it, stood up there you are eased out (6a2daaf3; tools/smrk_check)

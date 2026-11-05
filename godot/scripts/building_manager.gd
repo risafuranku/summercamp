@@ -284,6 +284,9 @@ func place_main_building(origin: Vector2i, footprint: Vector2i = Vector2i(2, 2))
 	# degrees so the main door is right by the way in from the barrier"). Everything inside
 	# and every view in and out goes by its transform (ReceptionLayout.room_to_local).
 	building.rotation.y = PI * 0.5
+	# The turn the Builder draws it by, as for anything built turned (a quarter turn = 1):
+	# its picture stood the old way round (the user 5. 11.).
+	building.set_meta("build_rotation", 1)
 	var ground_y: float = -(size.y * 0.5 - 0.08)
 
 	var collider = CollisionShape3D.new()
