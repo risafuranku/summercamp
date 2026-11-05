@@ -1831,9 +1831,8 @@ func _window(r: Node3D, pos: Vector3, size: Vector2, yaw := 0.0, frame_mat: Mate
 	# Over the pane (a quad, pulled further than the frame's board by the retro look): with
 	# the frame's pull it went under the pane from a few metres off.
 	bar.set_meta("retro_pull", WINDOW_BAR_PULL)
-	# Not seen by the cameras that look out through this window from inside.
-	for m in frames + [glass, bar]:
-		(m as MeshInstance3D).layers = GLASS_LAYER
+	# (Seen from every room: a cabin's room makes its own cabin's panes glass while it stands
+	# in it, cabin_interior._host_panes; a neighbour's seen from in there are panes.)
 
 
 ## The bathroom of a better cabin, built on at the right where the room has its door

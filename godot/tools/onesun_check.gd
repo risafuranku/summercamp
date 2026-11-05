@@ -318,6 +318,26 @@ func tent_door(type: String, open: bool) -> void:
 	im.set_tent_door(im._room_key_for(st), open)
 
 
+## The cabins' first tier's cube as drawn (its six faces as PNGs in the out folder).
+func save_cubes() -> void:
+	var ci = _main.get("_interior_manager").get("_cabin_interior")
+	var cubes: Dictionary = ci.get("cubes")
+	print("ONESUN cubes tiers=", cubes.keys())
+	if not cubes.has(1):
+		return
+	var i := 0
+	for t in cubes[1]:
+		var img: Image = (t as Texture2D).get_image()
+		if img != null:
+			img.save_png(_out_dir + "/cube1_%d.png" % i)
+			var sum := 0.0
+			for y in range(0, img.get_height(), 8):
+				for x in range(0, img.get_width(), 8):
+					sum += img.get_pixel(x, y).get_luminance()
+			print("ONESUN cube1 face %d mean %.3f" % [i, sum / float((img.get_height() / 8) * (img.get_width() / 8))])
+		i += 1
+
+
 func cab_state(tag: String) -> void:
 	var ci = _main.get("_interior_manager").get("_cabin_interior")
 	var cab: Node3D = _main.debug_structure_of_type("cabin_1")
@@ -593,6 +613,12 @@ func _ready() -> void:
 			st += [["eval", "debug_jump_to(1, 22.0)"], ["wait", 1.5], ["eval", TI + "._look.set('yaw_deg', 0.0)"], ["wait", 0.7], ["shot", "e_night_in"],
 				["eval", "get_tree().quit()"]]
 			_steps = st
+			return
+		if a == "--part=cubes":
+			_steps = [
+				["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 4.0],
+				["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 8.0],
+				["eval", C + ".save_cubes()"], ["eval", "get_tree().quit()"]]
 			return
 		if a == "--part=out":
 			var st: Array = [

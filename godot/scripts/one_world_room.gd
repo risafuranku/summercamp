@@ -9,6 +9,9 @@ extends RefCounted
 ## The building's glass, its door leaf, its window frames (building_models.GLASS_LAYER): the
 ## room's eye leaves them out (the room has its own glass, frames and door in them).
 const GLASS_LAYER := 1 << 19
+## Where a room is put to have its cube drawn (scripts/ui/room_cube.gd): high over the camp,
+## past the camp's eye's far plane (under the land nothing is drawn at all).
+const BAKE_UP := 2000.0
 ## The camp's weather -> how much of the day's light it lets through (WEATHER_DAY_K, the
 ## reception's).
 const WEATHER_DAY_K := {1: 0.94, 2: 0.76, 3: 0.68, 4: 0.54, 5: 0.36}

@@ -610,6 +610,7 @@ func _bind_one_world(delta: float) -> void:
 		var x: Transform3D = cabin.global_transform * Transform3D(Basis(), CABIN_LAYOUT.ROOM_TO_MODEL)
 		if not _cabin_root.transform.is_equal_approx(x):
 			_cabin_root.transform = x
+	_host_panes(cabin if ok else null)
 	if _room_env != null:
 		for p in [_probe, _bath_probe]:
 			if p != null:
@@ -619,6 +620,38 @@ func _bind_one_world(delta: float) -> void:
 	if _walls_t <= 0.0:
 		_walls_t = 0.5
 		ONE_WORLD_ROOM.sounds_through_walls(_cabin_root, not _is_open)
+
+
+## The panes of the cabin the room stands in are glass (the room behind them, seen from
+## the camp; the camp beyond them, seen from the room); every other cabin's are window_lights'
+## (its cube, its glow): "inview_live" panes it leaves be.
+var _pane_host: Node3D
+var _pane_host_panes: Array = []
+
+
+func _host_panes(cabin: Node3D) -> void:
+	if cabin == _pane_host:
+		return
+	for p in _pane_host_panes:
+		if not is_instance_valid(p):
+			continue
+		var mi := p as MeshInstance3D
+		if mi.has_meta("inview_was"):
+			mi.material_override = mi.get_meta("inview_was")
+			mi.remove_meta("inview_was")
+		mi.remove_meta("inview_live")
+	_pane_host_panes.clear()
+	_pane_host = cabin
+	if cabin == null:
+		return
+	if _pane_glass == null:
+		_pane_glass = ONE_WORLD_ROOM.clear_glass()
+	_pane_host_panes = _panes_of(cabin)
+	for p in _pane_host_panes:
+		var mi := p as MeshInstance3D
+		mi.set_meta("inview_live", true)
+		mi.set_meta("inview_was", mi.material_override)
+		mi.material_override = _pane_glass
 
 
 func _camp_weather() -> int:
@@ -749,8 +782,9 @@ func bake_cubes() -> void:
 	var was_lights := _manual_lights_on
 	var was_guests := _guest_occupants.duplicate(true)
 	set_guest_occupants([])
-	# Drawn far under the camp (the room is in the camp's world): nothing round it.
-	_cabin_root.transform = Transform3D(Basis(), Vector3(0.0, -400.0, 0.0))
+	# Drawn far over the camp (the room is in the camp's world; under the land nothing is
+	# drawn: its cubes came out sky): nothing round it, past the camp's eye's reach.
+	_cabin_root.transform = Transform3D(Basis(), Vector3(0.0, ONE_WORLD_ROOM.BAKE_UP, 0.0))
 	for lv in [1, 2, 3]:
 		if _is_open:
 			break
@@ -815,30 +849,11 @@ func _take_inview(cabin: Node3D) -> void:
 	var by_room = im.get("_curtains_by_room") if im != null else null
 	if key != "" and by_room is Dictionary and (by_room as Dictionary).has(key):
 		take_curtains((by_room as Dictionary)[key])
-	# Its panes are glass while the room stands in it (one world: _bind_one_world puts it
-	# there); window_lights leaves "inview_live" panes be (their cube, their glow).
-	if _pane_glass == null:
-		_pane_glass = ONE_WORLD_ROOM.clear_glass()
-	for p in _inview_panes:
-		var mi := p as MeshInstance3D
-		mi.set_meta("inview_live", true)
-		mi.set_meta("inview_was", mi.material_override)
-		mi.material_override = _pane_glass
+	# (Its panes are glass while the room stands in it: _bind_one_world, _host_panes.)
 	_inview_light_t = 0.0
 
 
 func _release_inview() -> void:
-	for p in _inview_panes:
-		# (A cabin bulldozed while looked into: its panes are gone, a cast of them errs.)
-		if not is_instance_valid(p):
-			continue
-		var mi := p as MeshInstance3D
-		if mi == null:
-			continue
-		if mi.has_meta("inview_was"):
-			mi.material_override = mi.get_meta("inview_was")
-			mi.remove_meta("inview_was")
-		mi.remove_meta("inview_live")
 	_inview_panes.clear()
 	_inview_cabin = null
 
