@@ -30,6 +30,16 @@ extends "res://scripts/enemies/enemy_base.gd"
 ##   your heart      the pressure, the drone and the heart (nightmare_fx.set_presence) as
 ##                   she comes, more in a dead torch
 ##
+## You go in and she is still out there (the user 5. 11.: "make it real: when she is after
+## me and I slip inside and step straight back out she will still be there; the player
+## listens to her sounds, and when they stop it means she is far off; she simply loses
+## interest in the building"): she comes up to the door you went in by and stands a little
+## off it, tries the door and the window, then loses interest and goes off into the dark,
+## and all that time you follow her by ear through the walls, her humming and her heels,
+## nearer, further, gone. Out while you hear her and there she is; out after the quiet and
+## she is far off, and it is a while before she notices you (the user: "give the player a
+## chance to get out of the building, she is not to camp right at the door").
+##
 ## A loop, the same grammar as every night thing:
 ##   omen      far out, the eyes and the humming; the first time it is still the guest in
 ##             her own clothes, standing much too still
@@ -93,6 +103,29 @@ const TOO_CLOSE := 9.0
 ## Look away this long and she may be right behind you when you turn (once a loop).
 const BEHIND_AFTER := 3.5
 const BEHIND_DIST := 2.7
+## There behind you: this long more before her next step (her laugh, and time to turn round).
+const BEHIND_GRACE := 1.5
+## You go in with her this near and she comes for the door; further off she did not see.
+const INTEREST_FROM := 26.0
+## At the door this long, then she loses interest.
+const LOSES_INTEREST := Vector2(16.0, 26.0)
+const TO_DOOR_SPEED := 3.2
+const OFF_SPEED := 2.0
+## She stands out in front of the door you went in by, this far off it: stepping out you walk
+## straight at her, and have her before you (never closer than OUT_NEAR when you are out),
+## with this long more before her next step: the torch, or back in.
+const DOOR_STAND := 6.0
+const OUT_NEAR := 4.0
+const OUT_MOMENT := 1.5
+## She tries the door and the window from this near.
+const TRIES_NEAR := 9.0
+## You hear her through the walls to this far; past it she is gone.
+const HEARD_TO := 30.0
+## Out after the quiet: she is this far off, and it is OUT_GRACE before she notices you;
+## nearer, less, and from NOTICES_NEAR in, not at all.
+const OUT_DIST := Vector2(30.0, 38.0)
+const OUT_GRACE := 20.0
+const NOTICES_NEAR := 8.0
 
 enum { OMEN, STALK, STRIKE, GONE }
 
@@ -150,21 +183,42 @@ var _eye_tilt0 := 0.12
 ## flipped), and where its eyes are.
 var _upside_tex: ImageTexture
 ## The ring: under a lamp long enough, pairs of her eyes open one after another all
-## round the edge of its light, each blinking on its own, giggles over each other; then
+## round the edge of its light, each blinking on its own, her laugh from one of them; then
 ## all of them go out at once but one. Once a loop. ({eyes, at} each; only yours.)
 var _ring: Array = []
 var _ring_t := -1.0
 var _ring_done := false
 ## After the ring: her eyes, the pair that stayed, glow by themselves behind you a while.
 var _ring_stay_until := -1.0
-## Indoors (an outdoor hunter: she cannot hurt you in there, she wants you out): in
-## order, a pause between: her humming through the wall; heels going round outside;
-## a giggle and three slow knocks at the door; her at the window you look at, pressed to
-## the glass; her teeth chattering behind the wall; then one of your guests instead.
+## Indoors (an outdoor hunter: she cannot hurt you in there; see the top). From the door,
+## a pause between: her laugh and three slow knocks; her at the window you look at, pressed
+## to the glass; her teeth chattering behind the wall. Gone off, now and then one of your
+## guests instead, and nothing of that heard.
 var _in_room := false
 var _away_in := false
 var _lure_n := 0
 var _lure_next := -1.0
+## Where she is out there while you are in (INF: gone off, or she never came), the door you
+## went in by, when she loses interest, the way she goes then.
+var _out_pos := Vector3.INF
+var _door_at := Vector3.ZERO
+var _stand_at := Vector3.ZERO
+var _loses_at := -1.0
+var _off_dir := Vector3.ZERO
+## She has been after you out there since you last went in (a night that begins with you
+## in has not).
+var _after_you := false
+var _heel_next := 0.0
+var _guest_next := -1.0
+## Her humming through the walls, by how far she is (a warden on another machine: in phrases).
+var _wall_hum: AudioStreamPlayer
+var _hum_next := 0.0
+## Out of a door with her far off: till then she has not noticed you.
+var _out_until := -1.0
+## Her laugh is one voice (the user 5. 11.: "she lays several laughs over each other"; the
+## ring round the lamp had nine going at once): wherever it would come out while it is
+## still going, it does not. Till when; any of her.
+static var _voice_until := 0.0
 var _glass_until := -1.0
 var _glass_light: OmniLight3D
 var _sound2d: AudioStreamPlayer
@@ -241,6 +295,10 @@ func _on_start() -> void:
 	_wall2d = AudioStreamPlayer.new()
 	_wall2d.bus = WORLD_SOUNDS.wall_bus("Master")
 	_root.add_child(_wall2d)
+	_wall_hum = AudioStreamPlayer.new()
+	_wall_hum.bus = _wall2d.bus
+	_wall_hum.stream = load(SFX_HUM)
+	_root.add_child(_wall_hum)
 	_begin_loop()
 
 
@@ -249,6 +307,7 @@ func _on_stop() -> void:
 	_drop_decoy()
 	_drop_ring()
 	_hide_glass()
+	_hush_walls()
 	if not _strike_cam.is_empty():
 		_cam_set(0.0, 0.0)
 		_view_end()
@@ -272,8 +331,13 @@ func _begin_loop() -> void:
 	_phase = OMEN
 	_unseen_for = 0.0
 	_in_lamp_for = 0.0
+	# (Not looking the other way for a new loop's sake: it had her at your back within the
+	# second, every time.)
+	_away_for = 0.0
 	_stutter_next = _rng.randf_range(2.5, 4.5)
 	var dist := _rng.randf_range(18.0, 24.0) - 2.0 * float(mini(_round, 3))
+	if _elapsed < _out_until:
+		dist = _rng.randf_range(OUT_DIST.x, OUT_DIST.y)
 	_behind_done = false
 	_fake_done = false
 	_breath_done = false
@@ -315,6 +379,8 @@ func _on_tick(dt: float) -> void:
 	if not _body.visible:
 		_begin_loop()
 		return
+	_after_you = true
+	var noticed := _elapsed >= _out_until
 	var head := _body.global_position + Vector3(0, _head_height(), 0)
 	var d := _distance_to_player(_body.global_position)
 	var torch_on_her := _in_flashlight(head)
@@ -324,7 +390,7 @@ func _on_tick(dt: float) -> void:
 	var sees := looking and lit and not stuttering
 	_held = _lit_by_others(head)
 	_away_for = 0.0 if looking or _held else _away_for + dt
-	if not _behind_done and _away_for >= BEHIND_AFTER and d < 22.0 and _rng.randf() < dt * 1.5:
+	if noticed and not _behind_done and _away_for >= BEHIND_AFTER and d < 22.0 and _wall_clock() >= _voice_until and _rng.randf() < dt * 1.5:
 		_go_behind()
 		return
 	if sees and _jump_ready:
@@ -346,7 +412,8 @@ func _on_tick(dt: float) -> void:
 			if d < JAM_FROM:
 				_found(d)
 	elif not _held:
-		_unseen_for += dt * (2.5 if stuttering else 1.0)
+		if noticed:
+			_unseen_for += dt * (2.5 if stuttering else 1.0)
 		_tick_chatter(dt, d)
 	# Another warden's machine holds the cold till told: off the moment your torch is off her.
 	if _quarry_peer() != 0 and not (sees and torch_on_her):
@@ -355,7 +422,7 @@ func _on_tick(dt: float) -> void:
 	# Under a lamp you are out of her reach; long enough and she lets this loop go.
 	if _lamp_light_at(_player_pos()) > LAMP_SAFE:
 		_in_lamp_for += dt
-		if _in_lamp_for >= RING_AFTER and not _ring_done and _ring_t < 0.0:
+		if noticed and _in_lamp_for >= RING_AFTER and not _ring_done and _ring_t < 0.0:
 			_start_ring()
 		# (Not before your eyes: she lets it go when you look away.)
 		if _in_lamp_for >= GIVE_UP_IN_LAMP and not sees:
@@ -482,6 +549,7 @@ func _go_behind() -> void:
 	_set_pose(false)
 	_jump_ready = true
 	_moved_unseen = false
+	_unseen_for = -BEHIND_GRACE
 	_sound(SFX_LAUGH, p + Vector3(0, 1.5, 0), -6.0, 1.02)
 
 
@@ -569,21 +637,20 @@ func _round_the_light(from: Vector3, dist: float) -> Vector3:
 	return best
 
 
-## The base ticks nothing while you are indoors; she does her own work there. Back out,
-## she begins again far off (the door is not her mouth).
+## The base ticks nothing while you are indoors; she is still out there (_tick_room). Back
+## out, she is where she got to.
 func tick(delta: float) -> void:
 	if _night_active and _phase != STRIKE:
 		if not _is_ready():
 			if not _away_in:
 				_away_in = true
-				_drop_decoy()
-				_drop_ring()
-			_tick_room()
+				_went_in()
+			_tick_room(delta)
 		elif _away_in:
 			_away_in = false
 			_in_room = false
 			_hide_glass()
-			_begin_loop()
+			_came_out()
 	super(delta)
 	if _night_active and _away_in and _glass_until > 0.0 and _body != null:
 		_body.visible = true
@@ -598,19 +665,96 @@ func _indoors_now() -> bool:
 	return _quarry_indoors()
 
 
-func _tick_room() -> void:
-	if not _indoors_now():
-		_in_room = false
+## You went in: was she after you? Then she stays what she was, a woman out there.
+func _went_in() -> void:
+	_drop_decoy()
+	_drop_ring()
+	_set_audio(0.0, false)
+	_door_at = _player_pos()
+	_stand_at = _door_at - _forward_flat() * DOOR_STAND
+	_off_dir = Vector3.ZERO
+	var after := _after_you and _phase == STALK and _body.visible and _distance_to_player(_body.global_position) < INTEREST_FROM
+	_after_you = false
+	_out_pos = _body.global_position if after else Vector3.INF
+	_loses_at = _elapsed + _rng.randf_range(LOSES_INTEREST.x, LOSES_INTEREST.y)
+	# (_lure_n counts on over the night: going in and out does not start her over.)
+	_lure_next = _wall_clock() + _rng.randf_range(3.0, 5.0)
+	_heel_next = 0.0
+	_hum_next = 0.0
+	_guest_next = _wall_clock() + _rng.randf_range(70.0, 110.0)
+
+
+## Out again: she is where she got to. Near, the hunt goes on from there (she holds while
+## you have her in the light, as ever); gone off, she is out in the dark, and it is a while
+## before she notices you.
+func _came_out() -> void:
+	_hush_walls()
+	var p := _out_pos
+	_out_pos = Vector3.INF
+	var d := HEARD_TO if p == Vector3.INF else _distance_to_player(p)
+	_out_until = _elapsed + OUT_GRACE * clampf((d - NOTICES_NEAR) / (HEARD_TO - NOTICES_NEAR), 0.0, 1.0)
+	_away_for = 0.0
+	_jump_ready = false
+	# Her laugh, far off: where she is, when you step out into it.
+	if d > 15.0:
+		_far_laugh_next = minf(_far_laugh_next, _rng.randf_range(2.0, 5.0))
+	if p == Vector3.INF:
+		if _phase != GONE or _elapsed >= _gone_until:
+			_begin_loop()
 		return
-	if not _in_room:
-		_in_room = true
-		# (_lure_n counts on over the night: going in and out does not start her over.)
-		_lure_next = _wall_clock() + _rng.randf_range(9.0, 15.0)
+	# Not on top of you (hot on your heels as you went in, or a door that lets you out by
+	# another step than it took you in): ahead of you, where the door faces.
+	if d < OUT_NEAR + 1.5:
+		p = _player_pos() + _forward_flat() * (OUT_NEAR + 1.5)
+		d = OUT_NEAR + 1.5
+	var q := _stand(p)
+	for _i in 8:
+		if q != Vector3.INF and _lamp_light_at(q) <= LAMP_SAFE:
+			break
+		q = _point_from_player(d, _rng.randf_range(-150.0, 150.0))
+	if q == Vector3.INF or _lamp_light_at(q) > LAMP_SAFE:
+		_begin_loop()
+		return
+	_place_body(q)
+	_set_look(_round == 0 and not _guest_done, d)
+	_set_pose(false)
+	_phase = STALK
+	_unseen_for = -OUT_MOMENT
+	_moved_unseen = false
+	_behind_done = true
+	_last_d = d
+
+
+func _hush_walls() -> void:
+	if _wall_hum != null and is_instance_valid(_wall_hum):
+		_wall_hum.stop()
+
+
+func _tick_room(dt: float) -> void:
+	if not _indoors_now():
+		# (The boat, the town: not a door she stands at.)
+		_in_room = false
+		_out_pos = Vector3.INF
+		_hush_walls()
+		return
+	_in_room = true
 	if _glass_until > 0.0 and _wall_clock() >= _glass_until and not _glass_looked_at():
 		_hide_glass()
-	if _wall_clock() < _lure_next:
+	if _out_pos == Vector3.INF:
+		if _wall_clock() >= _guest_next:
+			_guest_next = _wall_clock() + _rng.randf_range(90.0, 150.0)
+			_visit_guest()
 		return
-	_lure_next = _wall_clock() + _rng.randf_range(14.0, 24.0)
+	var walking := _walk_out_there(dt)
+	var d := Vector2(_out_pos.x - _door_at.x, _out_pos.z - _door_at.z).length()
+	if d >= HEARD_TO:
+		_out_pos = Vector3.INF
+		_hush_walls()
+		return
+	_through_walls(d, walking)
+	if _elapsed >= _loses_at or d >= TRIES_NEAR or _glass_until > 0.0 or _wall_clock() < _lure_next:
+		return
+	_lure_next = _wall_clock() + _rng.randf_range(5.0, 8.0)
 	# Only the warden she hunts hears it (co-op).
 	if _fx() == null:
 		return
@@ -618,28 +762,65 @@ func _tick_room() -> void:
 	_lure_n += 1
 
 
+## Where she goes while you are in: up to the door and a little off it (or to the edge of its
+## lamp's light: she does not step into it), then, interest lost, away. Whether she walks.
+func _walk_out_there(dt: float) -> bool:
+	if _glass_until > 0.0:
+		return false
+	if _elapsed < _loses_at:
+		var to := _stand_at - _out_pos
+		to.y = 0.0
+		var d := to.length()
+		if d <= 0.05:
+			return false
+		var next := _out_pos + to / d * minf(TO_DOOR_SPEED * dt, d)
+		if _lamp_light_at(next) > LAMP_SAFE:
+			return false
+		_out_pos = next
+		return true
+	if _off_dir == Vector3.ZERO:
+		var out := _out_pos - _door_at
+		out.y = 0.0
+		out = out.normalized() if out.length() > 0.1 else Vector3.FORWARD
+		_off_dir = out.rotated(Vector3.UP, deg_to_rad(_rng.randf_range(-40.0, 40.0)))
+	_out_pos += _off_dir * OFF_SPEED * dt
+	return true
+
+
+## What comes of her through the walls, by how far she is from the door: her humming, her
+## heels, a step at a time while she walks, a shift of her weight while she stands.
+func _through_walls(d: float, walking: bool) -> void:
+	var k := clampf((d - DOOR_STAND) / (HEARD_TO - DOOR_STAND), 0.0, 1.0)
+	var hum_db := lerpf(-8.0, -40.0, k)
+	if _quarry_peer() != 0:
+		if _wall_clock() >= _hum_next:
+			_hum_next = _wall_clock() + 5.8
+			_room_2d(SFX_HUM_ONE, hum_db, 0.95, true)
+	elif _wall_hum != null:
+		_wall_hum.volume_db = hum_db
+		if not _wall_hum.playing:
+			_wall_hum.play()
+	if _wall_clock() >= _heel_next:
+		_heel_next = _wall_clock() + (_rng.randf_range(0.5, 0.75) if walking else _rng.randf_range(2.5, 5.0))
+		_room_2d(SFX_HEEL, lerpf(-9.0, -36.0, k), _rng.randf_range(0.9, 1.05), true)
+
+
+## From by the door: the three, in turn, a pause between.
 func _room_lure(n: int) -> void:
 	var scene := _world_root.get_tree().current_scene
 	var im = scene.get("_interior_manager") if scene != null else null
-	match n % 6:
+	match n % 3:
 		0:
-			_room_2d(SFX_HUM_ONE, -2.5, 0.95, true)
-		1:
-			for i in 5:
-				_later(0.55 * float(i), func(): _room_2d(SFX_HEEL, -10.0 - 2.0 * float(i), _rng.randf_range(0.9, 1.0), true))
-		2:
 			_room_2d(SFX_LAUGH, -7.0, 0.98, true)
 			for i in 3:
 				_later(1.3 + 0.9 * float(i), func(): _room_2d("res://assets/sfx/director/knock.mp3", -6.0, 0.85))
-		3:
+		1:
 			if not _at_glass(im):
 				_room_2d("res://assets/sfx/director/window_tap.mp3", -4.0, 0.9)
-		4:
+		_:
 			for i in 12:
 				_later(0.05 * float(i), func(): _room_2d(SFX_SNAP, -7.0, _rng.randf_range(2.2, 2.8), true))
 			_later(1.2, func(): _room_2d(SFX_DROOL, -9.5, 0.8, true))
-		_:
-			_visit_guest()
 
 
 func _later(seconds: float, f: Callable) -> void:
@@ -652,6 +833,8 @@ func _later(seconds: float, f: Callable) -> void:
 ## A sound of her while you are inside. `wall`: she is out there and it comes through the
 ## walls, muffled; not the knock, the tap on the glass or the sting.
 func _room_2d(file: String, db: float, pitch: float = 1.0, wall := false) -> void:
+	if not _voice_free(file, pitch):
+		return
 	if _play_2d_remote(file, db, pitch, wall):
 		return
 	var base := _wall2d if wall else _sound2d
@@ -717,6 +900,24 @@ func _at_glass(_im) -> bool:
 	return true
 
 
+## Her laugh and her giggle: not while one is still going. (Free: this one takes its turn.)
+func _voice_free(file: String, pitch: float) -> bool:
+	if file != SFX_LAUGH and file != SFX_GIGGLE:
+		return true
+	var now := _wall_clock()
+	if now < _voice_until:
+		return false
+	var s := load(file) as AudioStream
+	_voice_until = now + (s.get_length() if s != null else 4.0) / maxf(pitch, 0.1)
+	return true
+
+
+func _sound(path: String, at: Vector3, volume_db: float = 0.0, pitch: float = 1.0, max_dist: float = 40.0) -> AudioStreamPlayer3D:
+	if not _voice_free(path, pitch):
+		return null
+	return super(path, at, volume_db, pitch, max_dist)
+
+
 ## You look at the window she is at: she does not go while you watch her there.
 func _glass_looked_at() -> bool:
 	for w in _room_windows():
@@ -751,9 +952,7 @@ func _visit_guest() -> void:
 			if str(g.get("archetype", "")) == "cheap_chick":
 				break
 	if pick.is_empty():
-		_room_2d(SFX_GIGGLE, -10.0, 0.6, true)
 		return
-	_room_2d(SFX_GIGGLE, -16.0, 0.75, true)
 	GuestManager.apply_guest_event(int(pick.get("id", -1)), -18.0, "A woman stood outside all night, laughing at nothing. She knew my name.")
 
 
@@ -913,6 +1112,8 @@ func _tick_far_laugh(dt: float, d: float) -> void:
 	if _far_laugh_next > 0.0 or d < 9.0:
 		return
 	_far_laugh_next = lerpf(14.0, 7.0, clampf((d - 9.0) / 30.0, 0.0, 1.0)) * _rng.randf_range(0.8, 1.25)
+	# (Not noticed you yet: the next when she has.)
+	_far_laugh_next = maxf(_far_laugh_next, _out_until - _elapsed)
 	var slow := _rng.randf() < 0.18
 	var p := _sound(SFX_LAUGH, _body.global_position + Vector3(0, 1.5, 0), -6.0 if slow else -3.0,
 		_rng.randf_range(0.5, 0.6) if slow else _rng.randf_range(0.96, 1.04), 80.0)

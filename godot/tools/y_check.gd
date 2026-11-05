@@ -156,6 +156,8 @@ func _ready() -> void:
 			_steps = _music()
 		"girlout":
 			_steps = _girl_out()
+		"girlring":
+			_steps = _girl_ring()
 
 
 ## R turns what you are about to build, with the pointer anywhere (Y14).
@@ -681,8 +683,8 @@ func _music() -> Array:
 	return s
 
 
-## Out of a building with the Girl hunting (Y30): how far she is, second by second, and
-## whether she has you; her laughs at once (Y29).
+## Out of a building with the Girl hunting (Y30, Y31): where she is while you are in, what
+## comes through the walls, how far she is second by second out there; her laughs at once (Y29).
 func girl_state(tag: String) -> void:
 	var brains: Array = _main.get("_enemy_brains")
 	if brains.is_empty():
@@ -694,17 +696,50 @@ func girl_state(tag: String) -> void:
 	for n in (b.get("_root") as Node).get_children():
 		if n is AudioStreamPlayer3D and (n as AudioStreamPlayer3D).playing and (n as AudioStreamPlayer3D).stream != null and str((n as AudioStreamPlayer3D).stream.resource_path).contains("girl_laugh"):
 			laughs += 1
-	say("GIRL %s phase=%s d=%.1f visible=%s behind_done=%s jump_ready=%s laughs=%d health=%s" % [tag, str(b.get("_phase")), body.global_position.distance_to((_main.get("_player") as Node3D).global_position), str(body.visible), str(b.get("_behind_done")), str(b.get("_jump_ready")), laughs, str(_main.get("_player_health"))])
+	var out: Vector3 = b.get("_out_pos")
+	var door: Vector3 = b.get("_door_at")
+	var hum: AudioStreamPlayer = b.get("_wall_hum")
+	var at := "-" if out == Vector3.INF else "%.1f" % Vector2(out.x - door.x, out.z - door.z).length()
+	var seen: bool = body.visible and b.call("_is_seen", body.global_position + Vector3(0, 1.5, 0), -4.0)
+	var torch: bool = b.call("_in_flashlight", body.global_position + Vector3(0, 1.5, 0))
+	say("GIRL %s phase=%s d=%.1f visible=%s seen=%s torch=%s/%s out=%s hum=%s laughs=%d health=%s" % [tag, str(b.get("_phase")), body.global_position.distance_to((_main.get("_player") as Node3D).global_position), str(body.visible), str(seen), str(b.call("_flashlight_on")), str(torch), at, ("%.0f" % hum.volume_db) if hum.playing else "off", laughs, str(_main.get("_player_health"))])
+
+
+func _stay() -> float:
+	for a in OS.get_cmdline_user_args():
+		if str(a).begins_with("--stay="):
+			return float(str(a).trim_prefix("--stay="))
+	return 1.0
 
 
 func _girl_out() -> Array:
 	var s: Array = BOOT.duplicate(true)
 	s += [["wait", 2.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0], ["eval", "debug_jump_to(2, 22.0)"], ["wait", 1.0], ["call", "debug_spawn_enemy", ["girl", 3]], ["wait", 2.0],
-		["eval", C + ".girl_state('spawned')"], ["eval", "_enemy_brains.back().set('_round', 2)"], ["eval", "set('debug_camera', null)"], ["door_front", "main_building", 2.0], ["wait", 0.5],
-		["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('main_building'))"], ["wait", 8.0], ["eval", C + ".girl_state('inside')"],
-		["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 1.0], ["eval", "_interior_manager._building_interior._extras.handle_exit()"], ["wait", 3.0]]
-	for i in 34:
+		["eval", C + ".girl_state('spawned')"], ["eval", "_enemy_brains.back().set('_round', 2)"], ["door_front", "main_building", 2.0], ["wait", 2.0], ["eval", C + ".girl_state('at the door')"],
+		["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('main_building'))"], ["wait", 0.5]]
+	var t := 0.0
+	while t < _stay():
+		s += [["eval", C + ".girl_state('in %.0f s')" % t], ["wait", 2.0]]
+		t += 2.0
+	s += [["eval", C + ".girl_state('going out')"], ["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 1.0], ["eval", "_interior_manager._building_interior._extras.handle_exit()"], ["wait", 1.5]]
+	if OS.get_cmdline_user_args().has("--torch"):
+		s += [["wait", 0.6], ["eval", "_player.toggle_flashlight()"]]
+	s += [["shot", "girl_out_0"]]
+	for i in 44:
 		s += [["eval", C + ".girl_state('out %d')" % i], ["wait", 1.0]]
+		if i == 1:
+			s += [["shot", "girl_out_2"]]
+	s += [["eval", "get_tree().quit()"]]
+	return s
+
+
+## The ring round the lamp: nine pairs of eyes, and how many of her laughs at a time (Y29).
+func _girl_ring() -> Array:
+	var s: Array = BOOT.duplicate(true)
+	s += [["wait", 2.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0], ["eval", "debug_jump_to(2, 22.0)"], ["wait", 1.0], ["call", "debug_spawn_enemy", ["girl", 3]], ["wait", 2.0],
+		["eval", "_enemy_brains.back()._start_ring()"]]
+	for i in 30:
+		s += [["eval", C + ".girl_state('ring %d')" % i], ["wait", 0.25]]
 	s += [["eval", "get_tree().quit()"]]
 	return s
 
