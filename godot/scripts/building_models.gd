@@ -1065,13 +1065,22 @@ func _porch(r: Node3D, pw: float, pd: float, front: float, trim: Material, tin: 
 
 # ── tents (stan1/2/3.png): pegs, guy ropes, the door flap ─────────────────────
 
+## A tent's doorway (base, height): the room's front gable (tent_interior.gd: 2 x
+## (TENT_HALF_WIDTH + 0.02), TENT_RIDGE_HEIGHT + 0.02), an opening in the canvas's front
+## (building_manager._create_tent_prism) where the room stands in the camp's one world.
+const TENT_DOORWAY := Vector2(2.0, 1.28)
+
+
 ## Details for one A-frame tent of `w` x `h` x `d` (ridge along Z) placed at `at`.
 func tent_details(r: Node3D, w: float, h: float, d: float, at: Vector3, yaw: float, color: Color) -> void:
 	var t := Node3D.new()
 	t.position = at
 	t.rotation.y = yaw
 	r.add_child(t)
-	var flap := _prism_flap(w * 0.55, h * 0.8, color.darkened(0.45))
+	# The door flap over the whole doorway (the room's front: TENT_DOORWAY).
+	var da := minf(TENT_DOORWAY.x, w - 0.04)
+	var db := minf(TENT_DOORWAY.y, h - 0.04)
+	var flap := _prism_flap(da, db, color.darkened(0.45))
 	flap.name = "TentFlap"
 	flap.position = Vector3(0, 0, d * 0.5 + 0.015)
 	t.add_child(flap)
@@ -1080,14 +1089,14 @@ func tent_details(r: Node3D, w: float, h: float, d: float, at: Vector3, yaw: flo
 	# stays so for everybody till somebody zips it): the tent's inside in it near
 	# (tent_interior's view from the camp), its dark further off; the flap rolled up either
 	# side of it.
-	var way := _prism_flap(w * 0.55, h * 0.8, Color(0.03, 0.025, 0.02))
+	var way := _prism_flap(da, db, Color(0.03, 0.025, 0.02))
 	way.name = "TentDoorWay"
 	way.position = Vector3(0, 0, d * 0.5 + 0.01)
 	way.visible = false
 	way.set_meta("retro_skip", true)
 	t.add_child(way)
-	var b := w * 0.55
-	var rise := h * 0.8
+	var b := da
+	var rise := db
 	var lean := atan2(b * 0.5, rise)
 	for sx: float in [-1.0, 1.0]:
 		var roll := _box(t, "TentDoorRoll", Vector3(0.07, sqrt(b * b * 0.25 + rise * rise) * 0.9, 0.07), Vector3(sx * b * 0.27, rise * 0.48, d * 0.5 + 0.04), _flat(color.darkened(0.5)))

@@ -304,6 +304,20 @@ func bowl_state(tag: String) -> void:
 	print("ONESUN %s bowl viewport=%s cams: %s" % [tag, str(vp.get_path()).right(60), str(vp.get_camera_3d().get_path()).right(80) if vp.get_camera_3d() != null else "-"])
 
 
+## Tents of the three tiers side by side (the second and third put up straight, as an
+## upgrade would): `around` then finds them by type.
+func tents() -> void:
+	var bm = _main.get("building_manager")
+	bm.place_tent_at(Vector2i(15, 12), 2)
+	bm.place_tent_at(Vector2i(17, 12), 3)
+
+
+func tent_door(type: String, open: bool) -> void:
+	var st: Node3D = _main.debug_structure_of_type(type)
+	var im = _main.get("_interior_manager")
+	im.set_tent_door(im._room_key_for(st), open)
+
+
 func cab_state(tag: String) -> void:
 	var ci = _main.get("_interior_manager").get("_cabin_interior")
 	var cab: Node3D = _main.debug_structure_of_type("cabin_1")
@@ -561,6 +575,24 @@ func _ready() -> void:
 				["eval", BI + "._interior_camera.set('rotation_degrees', Vector3(0, 0, 0))"], ["wait", 0.3], ["shot", "w3_cellar_back"],
 				["eval", BI + "._interior_camera.set('rotation_degrees', Vector3(0, 180, 0))"], ["wait", 0.3], ["shot", "w4_cellar_front"],
 				["eval", "get_tree().quit()"]]
+			return
+		if a == "--part=tents":
+			var TI := "_interior_manager._tent_interior"
+			var st: Array = [
+				["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+				["eval", "_interior_manager._building_interior.close_interior()"],
+				["money", 40000], ["clear", 12, 10, 20, 15], ["build", "tent_1", 13, 12, 0], ["wait", 1.0], ["eval", C + ".tents()"], ["wait", 2.0],
+				["eval", "debug_jump_to(1, 13.0)"], ["wait", 1.5]]
+			for ty in ["tent_1", "tent_2", "tent_3"]:
+				st += [["eval", C + ".around('%s', 20.0, 5.0, 0.4)" % ty], ["wait", 0.6], ["shot", "a_%s_closed" % ty]]
+				st += [["eval", C + ".tent_door('%s', true)" % ty], ["wait", 1.0], ["eval", C + ".around('%s', 0.0, 3.2, -0.2)" % ty], ["wait", 1.2], ["shot", "b_%s_open" % ty],
+					["eval", C + ".around('%s', 160.0, 4.0, 0.3)" % ty], ["wait", 0.6], ["shot", "c_%s_back" % ty]]
+			st += [["eval", "set('debug_camera', null)"], ["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('tent_1'))"], ["wait", 4.0], ["mouse", 0.5, 0.5]]
+			for v in [[0.0, -7.5, "c"], [48.0, 0.0, "l"], [-48.0, 0.0, "r"], [178.0, 0.0, "door"]]:
+				st += [["eval", TI + "._look.set('yaw_deg', %s)" % v[0]], ["eval", TI + "._look.set('pitch_deg', %s)" % v[1]], ["wait", 0.7], ["shot", "d_in_%s" % v[2]]]
+			st += [["eval", "debug_jump_to(1, 22.0)"], ["wait", 1.5], ["eval", TI + "._look.set('yaw_deg', 0.0)"], ["wait", 0.7], ["shot", "e_night_in"],
+				["eval", "get_tree().quit()"]]
+			_steps = st
 			return
 		if a == "--part=out":
 			var st: Array = [

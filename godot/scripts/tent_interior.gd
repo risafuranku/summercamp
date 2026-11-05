@@ -12,6 +12,15 @@ const INTERIOR_PREP = preload("res://scripts/interior_prep.gd")
 const INTERIOR_KIT = preload("res://scripts/interior_kit.gd")
 const DOOR_ANIM = preload("res://scripts/attractions/door_anim.gd")
 const ROOM_WEATHER = preload("res://scripts/ambient/room_weather.gd")
+## One world (W26): the room stands in its tent in the camp's own world, its front gable in
+## the canvas's doorway (scripts/one_world_room.gd, building_models.TENT_DOORWAY).
+const ONE_WORLD_ROOM = preload("res://scripts/one_world_room.gd")
+var _probe: ReflectionProbe
+var _dry: GPUParticlesCollisionBox3D
+var _walls_t := 0.0
+## The doorway (TentDoorWay) of the tent the room stands in, and its layers before.
+var _host_way: MeshInstance3D
+var _host_way_layers := 0
 ## Node name prefix -> [camp texture, metres per repeat] (world mapped, see interior_kit).
 const SURFACES := {
 	"FloorMat": ["tent_floor", 0.8], "LeftWall": ["tarp_canvas", 0.9], "RightWall": ["tarp_canvas", 0.9],
@@ -147,6 +156,8 @@ func open_tent(level: int = 1) -> void:
 	_release_inview()
 	_is_open = true
 	visible = true
+	ONE_WORLD_ROOM.camp_view(get_tree(), false)
+	_viewport.audio_listener_enable_3d = true
 	_sync_viewport_to_window()
 	_interior_camera.position = Vector3(0.0, 0.50, 0.64)
 	_interior_camera.rotation_degrees = Vector3(-7.5, 0.0, 0.0)
@@ -172,6 +183,8 @@ func close_tent() -> void:
 	_set_torn(false)
 	_glint.clear()
 	visible = false
+	_viewport.audio_listener_enable_3d = false
+	ONE_WORLD_ROOM.camp_view(get_tree(), true)
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	request_close.emit()
 
@@ -179,6 +192,8 @@ func close_tent() -> void:
 func _process(delta: float) -> void:
 	if not _is_open:
 		_update_inview(delta)
+	_bind_one_world(delta)
+	if not _is_open:
 		return
 	if _interior_camera == null:
 		return
@@ -314,7 +329,8 @@ func _build_viewport() -> void:
 
 	_viewport = SubViewport.new()
 	_viewport.name = "TentViewport"
-	_viewport.own_world_3d = true
+	# The camp's own world: the room stands in its tent there (_bind_one_world).
+	ONE_WORLD_ROOM.viewport(_viewport)
 	_viewport.size = INTERIOR_RENDER_MIN_SIZE
 	_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_viewport.handle_input_locally = false
@@ -326,11 +342,9 @@ func _build_viewport() -> void:
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color(0.76, 0.80, 0.76)
 	env.ambient_light_energy = 0.92
+	# (The camp's world has its own environment: these are the room's numbers, its probe's
+	# ambient, _bind_one_world.)
 	_tent_env = env
-
-	var world_env = WorldEnvironment.new()
-	world_env.environment = env
-	_viewport.add_child(world_env)
 
 	_barrel_overlay = ColorRect.new()
 	_barrel_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -374,9 +388,12 @@ func _build_tent_room() -> void:
 	_interior_camera.rotation_degrees = Vector3(-7.5, 0.0, 0.0)
 	_interior_camera.fov = 68.0
 	_interior_camera.near = 0.05
-	_interior_camera.far = 10.0
 	_interior_camera.current = true
+	ONE_WORLD_ROOM.eye(_interior_camera)
 	_tent_root.add_child(_interior_camera)
+	_probe = ONE_WORLD_ROOM.probe(_tent_root, "TentLightInside")
+	_dry = ONE_WORLD_ROOM.dry(_tent_root, "Dry")
+	ONE_WORLD_ROOM.fit(_probe, _dry, Vector3(-TENT_HALF_WIDTH - 0.02, 0.0, -1.38), Vector3(TENT_HALF_WIDTH + 0.02, TENT_RIDGE_HEIGHT + 0.04, DOOR_PLANE_Z))
 
 	_tent_light = OmniLight3D.new()
 	_tent_light.name = "TentLight"
@@ -707,6 +724,9 @@ func _turn_to_door() -> void:
 func _tick_door(delta: float) -> void:
 	if _door_portal == null:
 		return
+	# (One world: the camp itself is out there, through the canvas's doorway.)
+	_door_portal.quad.visible = false
+	return
 	# (Not while you come in through it: the eye is out in front of it, the view behind you.)
 	# (Not while your eye is still on its far side, coming in: it filled the view, grey.)
 	_door_portal.quad.visible = _door_open and not door_walking and _tent_root.to_local(_interior_camera.global_position).z < 1.05
@@ -813,7 +833,7 @@ func _set_door_open(open: bool, tell := true) -> void:
 			roll.visible = false
 	var changed := open != _door_open
 	_door_open = open
-	_door_portal.quad.visible = open
+	_door_portal.quad.visible = false
 	for n in ["FrontWall", "ZipLine", "ZipHandle"]:
 		var m := _tent_root.get_node_or_null(n) as Node3D
 		if m != null:
@@ -876,9 +896,6 @@ const INVIEW_RANGE := 26.0
 const INVIEW_HIDE_LAYER := 1 << 17
 const COOP_FIGURE = preload("res://scripts/coop/remote_player.gd")
 const COOP_LOOKS = preload("res://scripts/coop/warden_looks.gd")
-var _inview_vp: SubViewport
-var _inview_cam: Camera3D
-var _inview_mat: ShaderMaterial
 var _inview_way: MeshInstance3D
 ## What you see in through: the doorway's pane, or the slit hole (TentTear).
 var _inview_opening: MeshInstance3D
@@ -887,6 +904,63 @@ var _inview_ways: Array = []
 var _inview_scan_t := 0.0
 var _inview_light_t := 0.0
 var _inview_figs: Dictionary = {}
+
+
+## The room in the tent you are in (its doorway the one you came in by), or out in the
+## camp in the one you look in at (_update_inview); none, it is put away (its lantern with
+## it). Its front gable in the canvas's doorway (TentDoorWay, never drawn while the room is
+## in it); its light inside is its probe's; heard from the camp its sounds come through.
+func _bind_one_world(delta: float) -> void:
+	if _tent_root == null:
+		return
+	var way: MeshInstance3D = null
+	if _is_open:
+		var im := get_parent()
+		var a = im.get("_active_tent_node") if im != null else null
+		if a != null and is_instance_valid(a) and (a as Node3D).is_inside_tree():
+			if _host_way == null or not is_instance_valid(_host_way) or not (a as Node).is_ancestor_of(_host_way):
+				way = _doorway_near(a as Node3D)
+			else:
+				way = _host_way
+	elif _inview_way != null and is_instance_valid(_inview_way) and _inview_way.is_inside_tree():
+		way = _inview_way
+	if way != _host_way:
+		if _host_way != null and is_instance_valid(_host_way):
+			_host_way.layers = _host_way_layers
+		_host_way = way
+		if way != null:
+			_host_way_layers = way.layers
+			way.layers = 0
+	var ok := way != null
+	if _tent_root.visible != (ok or _is_open):
+		_tent_root.visible = ok or _is_open
+	if ok:
+		var x := Transform3D(way.global_basis.orthonormalized(), way.global_position) * Transform3D(Basis(), Vector3(0.0, 0.0, -DOOR_PLANE_Z))
+		if not _tent_root.transform.is_equal_approx(x):
+			_tent_root.transform = x
+	if _probe != null and _tent_env != null:
+		_probe.ambient_color = _tent_env.ambient_light_color
+		_probe.ambient_color_energy = _tent_env.ambient_light_energy
+	_walls_t -= delta
+	if _walls_t <= 0.0:
+		_walls_t = 0.5
+		ONE_WORLD_ROOM.sounds_through_walls(_tent_root, not _is_open)
+
+
+## Of a tent's doorways (a pair's two) the one nearest your body in the camp: the one you
+## came in by.
+func _doorway_near(tent: Node3D) -> MeshInstance3D:
+	var scene := get_tree().current_scene if is_inside_tree() else null
+	var p = scene.get("_player") if scene != null else null
+	var at: Vector3 = (p as Node3D).global_position if p is Node3D else tent.global_position
+	var best: MeshInstance3D = null
+	var best_d := INF
+	for w in tent.find_children("TentDoorWay", "MeshInstance3D", true, false):
+		var dd := (w as Node3D).global_position.distance_to(at)
+		if dd < best_d:
+			best_d = dd
+			best = w
+	return best
 
 
 func _camp_camera() -> Camera3D:
@@ -957,21 +1031,6 @@ func _update_inview(delta: float) -> void:
 			_take_inview(tent, way, opening)
 	if _inview_way == null:
 		return
-	# The camp's eye in the room, the doors laid one on the other: the doorway's foot on
-	# the room's door plane.
-	var camp_frame := Transform3D(_inview_way.global_basis.orthonormalized(), _inview_way.global_position)
-	var room_frame := _tent_root.global_transform * Transform3D(Basis(), Vector3(0.0, 0.0, DOOR_PLANE_Z))
-	var t := room_frame * camp_frame.affine_inverse() * cam.global_transform
-	_inview_cam.global_transform = Transform3D(t.basis.orthonormalized(), t.origin)
-	_inview_cam.fov = cam.fov
-	_inview_cam.keep_aspect = cam.keep_aspect
-	_inview_cam.projection = cam.projection
-	var nk := _inview_cam.near / maxf(cam.near, 0.001)
-	_inview_cam.size = cam.size * nk
-	_inview_cam.frustum_offset = cam.frustum_offset * nk
-	var px := Vector2i(cam.get_viewport().get_visible_rect().size)
-	if _inview_vp.size != px and px.x > 0:
-		_inview_vp.size = px
 	_inview_light_t -= delta
 	if _inview_light_t <= 0.0:
 		_inview_light_t = 0.25
@@ -983,68 +1042,22 @@ func _update_inview(delta: float) -> void:
 
 
 func _take_inview(tent: Node3D, way: MeshInstance3D, opening: MeshInstance3D = null) -> void:
-	_ensure_inview()
 	_inview_tent = tent
 	_inview_way = way
 	_inview_opening = opening if opening != null else way
 	_make_up_as(tent)
-	if _inview_opening != way:
-		# The hole: its own torn edge, the room in it.
-		var tm := _inview_opening.material_override as ShaderMaterial
-		if tm != null:
-			tm.set_shader_parameter("room_tex", _inview_vp.get_texture())
-			tm.set_shader_parameter("live", 1.0)
-	else:
-		if not way.has_meta("dark_mat"):
-			way.set_meta("dark_mat", way.material_override)
-		way.material_override = _inview_mat
-	_inview_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_inview_light_t = 0.0
 
 
 func _release_inview() -> void:
-	if _inview_opening != null and is_instance_valid(_inview_opening) and _inview_opening != _inview_way:
-		var tm := _inview_opening.material_override as ShaderMaterial
-		if tm != null:
-			tm.set_shader_parameter("live", 0.0)
 	_inview_opening = null
-	if _inview_way != null and is_instance_valid(_inview_way) and _inview_way.material_override == _inview_mat and _inview_way.has_meta("dark_mat"):
-		_inview_way.material_override = _inview_way.get_meta("dark_mat")
 	_inview_way = null
 	_inview_tent = null
-	if _inview_vp != null:
-		_inview_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	for id in _inview_figs.keys():
 		var f = _inview_figs[id]
 		if f != null and is_instance_valid(f):
 			f.queue_free()
 	_inview_figs.clear()
-
-
-func _ensure_inview() -> void:
-	if _inview_vp != null:
-		return
-	_inview_vp = SubViewport.new()
-	_inview_vp.name = "TentFromCamp"
-	_inview_vp.size = Vector2i(426, 240)
-	_inview_vp.world_3d = _viewport.find_world_3d()
-	_inview_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
-	add_child(_inview_vp)
-	_inview_cam = Camera3D.new()
-	_inview_cam.near = 0.05
-	_inview_cam.far = 30.0
-	_inview_cam.cull_mask = 0xFFFFF & ~INVIEW_HIDE_LAYER
-	_inview_vp.add_child(_inview_cam)
-	_inview_mat = ShaderMaterial.new()
-	_inview_mat.shader = load("res://materials/window_into.gdshader")
-	_inview_mat.set_shader_parameter("room_tex", _inview_vp.get_texture())
-	_inview_mat.set_shader_parameter("live", 1.0)
-	_inview_mat.set_shader_parameter("tint", Vector3.ONE)
-	_inview_mat.set_shader_parameter("sheen", 0.0)
-	_inview_mat.set_shader_parameter("depth_pull", 0.009)
-	# The room's own view out through the doorway is for the inside.
-	if _door_portal != null:
-		_hide_from_camp(_door_portal.quad)
 
 
 static func _hide_from_camp(n: Node) -> void:

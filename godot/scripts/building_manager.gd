@@ -2,6 +2,10 @@ extends Node3D
 
 @export var placement_range: float = 24.0
 @export var tent_height: float = 1.8
+## A tent's size (width, ridge, length): the room inside it, tent_interior.gd's (1.96 m by
+## 1.26 m by 2.5 m), with its canvas round it; the best one bigger.
+const TENT_SIZE := Vector3(2.1, 1.4, 2.6)
+const TENT_SIZE_BIG := Vector3(2.4, 1.8, 2.8)
 @export var cabin_height: float = 2.8
 const CABIN_LAYOUT = preload("res://scripts/cabin_layout.gd")
 const TEXTURE_STYLE_SCRIPT = preload("res://scripts/texture_style.gd")
@@ -468,39 +472,38 @@ func place_tent_at(origin: Vector2i, level: int = 1) -> bool:
 	var center = _grid_manager.grid_to_world(origin)
 	tent_root.position = center + Vector3(0.0, -0.05, 0.0)
 
-	# Tent colors and counts per level.
+	# Tent colors, counts and sizes per level: every tent at least the room you crawl into
+	# (tent_interior.gd, its front gable the doorway: building_models.TENT_DOORWAY), the room
+	# standing in it in the camp's one world (W26); the best tent bigger round it.
 	var tent_color: Color
 	var count: int
-	var scale_mult: float
+	var size: Vector3 = TENT_SIZE
 	match level:
 		1:
 			tent_color = Color(1.00, 0.86, 0.16)  # Yellow — small
 			count = 1
-			scale_mult = 0.75
 		2:
 			tent_color = Color(0.96, 0.14, 0.10)  # Red — 2x baseline
 			count = 2
-			scale_mult = 0.62
 		3:
 			tent_color = Color(0.16, 0.42, 1.00)  # Blue — 1 big tent
 			count = 1
-			scale_mult = 1.0
+			size = TENT_SIZE_BIG
 		_:
 			tent_color = Color(0.90, 0.80, 0.40)
 			count = 1
-			scale_mult = 0.75
 
-	# Spawn tent(s) within the tile.
+	# Spawn tent(s) within the tile (the pair side by side, a hand apart).
 	var offsets: Array = []
 	if count == 1:
 		offsets = [Vector3(0.0, 0.0, 0.0)]
 	elif count == 2:
-		offsets = [Vector3(-tile_size * 0.18, 0.0, 0.0), Vector3(tile_size * 0.18, 0.0, 0.0)]
+		offsets = [Vector3(-size.x * 0.5 - 0.03, 0.0, 0.0), Vector3(size.x * 0.5 + 0.03, 0.0, 0.0)]
 
 	for i in range(count):
-		var tent_w = tile_size * 0.6 * scale_mult
-		var tent_h = tent_height * scale_mult
-		var tent_d = tile_size * 0.7 * scale_mult
+		var tent_w = size.x
+		var tent_h = size.y
+		var tent_d = size.z
 		var tent_mesh = _create_tent_prism(tent_w, tent_h, tent_d, tent_color)
 		tent_mesh.position = offsets[i]
 		tent_mesh.rotation.y = randf_range(-0.15, 0.15)
@@ -514,7 +517,7 @@ func place_tent_at(origin: Vector2i, level: int = 1) -> bool:
 
 	var collider = CollisionShape3D.new()
 	var shape = BoxShape3D.new()
-	shape.size = Vector3(tile_size * 0.7, tent_height, tile_size * 0.7)
+	shape.size = Vector3(maxf(tile_size * 0.7, count * size.x + 0.06), tent_height, tile_size * 0.7)
 	collider.shape = shape
 	collider.position = Vector3(0.0, tent_height * 0.5, 0.0)
 	tent_root.add_child(collider)
@@ -690,14 +693,19 @@ func _create_tent_prism(w: float, h: float, d: float, color: Color) -> MeshInsta
 	st.set_uv(Vector2(1.0, 0.0))
 	st.add_vertex(tf)
 
-	# Front face (triangle).
+	# Front face: the canvas round the doorway (the room's front gable, a real opening
+	# behind the door flap: building_models.tent_details).
+	var dw: Vector2 = BUILDING_MODELS.TENT_DOORWAY
+	var a := minf(dw.x * 0.5, w * 0.5 - 0.02)
+	var b := minf(dw.y, h - 0.04)
+	var hl := Vector3(-a, 0.0, d * 0.5)
+	var hr := Vector3(a, 0.0, d * 0.5)
+	var ht := Vector3(0.0, b, d * 0.5)
 	st.set_normal(Vector3(0.0, 0.0, 1.0))
-	st.set_uv(Vector2(0.0, 1.0))
-	st.add_vertex(fl)
-	st.set_uv(Vector2(1.0, 1.0))
-	st.add_vertex(fr)
-	st.set_uv(Vector2(0.5, 0.0))
-	st.add_vertex(tf)
+	for tri in [[fl, hl, tf], [hl, ht, tf], [ht, hr, tf], [hr, fr, tf]]:
+		for v in tri:
+			st.set_uv(Vector2((v as Vector3).x / w + 0.5, 1.0 - (v as Vector3).y / h))
+			st.add_vertex(v)
 
 	# Back face (triangle).
 	st.set_normal(Vector3(0.0, 0.0, -1.0))
