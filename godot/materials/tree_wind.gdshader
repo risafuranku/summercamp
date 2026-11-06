@@ -6,7 +6,9 @@ render_mode diffuse_lambert, specular_disabled, cull_disabled;
 // global (weather_visuals.gd sets them): a still clear day barely moves, a storm bends
 // the spruces and whips even the dead trunks. On the anomalous weather the wind stops.
 
-uniform sampler2D albedo_tex : source_color, filter_nearest, repeat_enable;
+// (Nearest, from a smaller picture far off where there is one: a spruce's boughs glittered
+// at every step from a distance.)
+uniform sampler2D albedo_tex : source_color, filter_nearest_mipmap, repeat_enable;
 uniform vec4 albedo_color : source_color = vec4(1.0);
 uniform vec2 uv_scale = vec2(1.0, 1.0);
 uniform float sway = 1.0;
@@ -16,6 +18,9 @@ uniform float height = 5.0;
 uniform float seasonal = 0.0;
 // Cards of leaves (a birch's crown): the picture's holes are holes.
 uniform bool alpha_cut = false;
+// A card lit by the normals it was made with, seen from either side (a spruce's boughs: the
+// engine turns a back face's normal round, and half the boughs went black).
+uniform bool own_normal = false;
 
 global uniform float wind_strength;
 global uniform vec2 wind_dir;
@@ -27,6 +32,7 @@ global uniform float season_snow;
 
 varying vec3 v_wpos;
 varying float v_up;
+varying vec3 v_normal;
 
 // A gust's front running over the ground with the wind (the user 21. 10.: "polishnout vitr
 // huste"): bands some forty metres apart, bent a little, going downwind faster the
@@ -60,6 +66,7 @@ void vertex() {
 	vec3 off_world = vec3(wind_dir.x * bend + f, -abs(bend) * 0.12, wind_dir.y * bend + f * 0.6);
 	v_wpos = wp;
 	v_up = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz).y;
+	v_normal = normalize(mat3(MODELVIEW_MATRIX) * NORMAL);
 	if (!shadow_pass) {
 		VERTEX += inverse(mat3(MODEL_MATRIX)) * off_world;
 	}
@@ -97,4 +104,7 @@ void fragment() {
 	c = mix(c, vec3(0.88, 0.90, 0.95), clamp(season_snow * smoothstep(-0.05, 0.45, v_up) * 1.1, 0.0, 0.92));
 	ALBEDO = c;
 	ROUGHNESS = 1.0;
+	if (own_normal) {
+		NORMAL = normalize(v_normal);
+	}
 }

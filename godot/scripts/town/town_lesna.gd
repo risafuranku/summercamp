@@ -2028,7 +2028,7 @@ func _fields() -> void:
 		var xf: Array[Transform3D] = group[0]
 		if xf.is_empty():
 			continue
-		for part in [[str(group[1]), worldgen._tree_material("bark", 0)], [str(group[2]), worldgen._tree_material("leaf", 0)]]:
+		for part in [[str(group[1]), worldgen._tree_material("bark", 0)], [str(group[2]), worldgen._tree_material("leaf", 0)], ["birch_cards", worldgen._tree_material("leaf_cards", 0)]]:
 			var mm := MultiMesh.new()
 			mm.transform_format = MultiMesh.TRANSFORM_3D
 			mm.mesh = worldgen._tree_mesh(str(part[0]))

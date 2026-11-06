@@ -279,8 +279,8 @@ func _build_trees() -> void:
 			continue
 		var sc := _rng.randf_range(1.0, 1.7)
 		xforms.append(Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3(sc, sc * _rng.randf_range(0.9, 1.3), sc)), Vector3(p.x, 0.0, p.z)))
-	var parts := [["spruce_trunk", _worldgen._tree_material("bark", 1), xforms], ["spruce_crown", _worldgen._tree_material("needles", 1), xforms],
-		["birch_trunk", _worldgen._tree_material("birch_bark", 0), birches], ["birch_crown", _worldgen._tree_material("leaf", 1), birches]]
+	var parts := [["spruce_trunk", _worldgen._tree_material("bark", 1), xforms], ["spruce_crown", _worldgen._tree_material("needles", 1), xforms], ["spruce_cards", _worldgen._tree_material("bough_cards", 1), xforms],
+		["birch_trunk", _worldgen._tree_material("birch_bark", 0), birches], ["birch_crown", _worldgen._tree_material("leaf", 1), birches], ["birch_cards", _worldgen._tree_material("leaf_cards", 1), birches]]
 	for part in parts:
 		var list: Array[Transform3D] = part[2]
 		var mm := MultiMesh.new()

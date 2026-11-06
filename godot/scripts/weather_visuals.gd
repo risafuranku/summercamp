@@ -2087,7 +2087,10 @@ func _update_weather_particles(_delta: float) -> void:
 		var gust := maxf(wind_gust, swell * 0.6)
 		intensity = 0.8 + 0.2 * gust; rain_speed = 30.0 + 8.0 * gust; alpha = 0.6; drop = 1.3
 	if not is_raining:
+		# Fewer and fainter, falling as they fell: going over to a drizzle's pace as it stopped,
+		# the last drops hung long and slow, sticks all over the meadow for half a minute.
 		intensity = 0.0; alpha = 0.0
+		rain_speed = float(_rain_now["speed"]); drop = float(_rain_now["drop"])
 	# Over to it slowly (a storm's gusts come at once: they are the storm's own).
 	var ease := clampf(maxf(_delta, 0.0) / RAIN_EASE_SEC, 0.0, 1.0)
 	var gusting := _weather_state == WEATHER_STORM and absf(float(_rain_now["i"]) - intensity) < 0.25

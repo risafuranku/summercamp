@@ -560,6 +560,9 @@ func _add_fence_segment(parent: Node3D, node_name: String, pos: Vector3, size: V
 	shape.size = size
 	collider.shape = shape
 	fence_body.add_child(collider)
+	if ResourceLoader.exists(FENCE_TEX):
+		_fence_pickets(fence_body, size)
+		return
 	var fence_mesh = MeshInstance3D.new()
 	var fence_box = BoxMesh.new()
 	fence_box.size = size
@@ -570,6 +573,35 @@ func _add_fence_segment(parent: Node3D, node_name: String, pos: Vector3, size: V
 		fence_base.uv1_scale = Vector3(max(1.0, size.x * 0.9), 1.0, max(1.0, size.z * 0.9))
 	fence_mesh.material_override = fence_mat
 	fence_body.add_child(fence_mesh)
+
+
+## The camp's fence: green pickets between posts, the paint coming off, the wood seen through
+## (the villages' own picture). It was one long dark slab round the camp, the forest cut off
+## behind it. A single card along the whole side, tiled.
+const FENCE_TEX := "res://assets/textury/town/fence_picket.png"
+const FENCE_TEX_ASPECT := 123.0 / 64.0
+
+
+func _fence_pickets(body: Node3D, size: Vector3) -> void:
+	var along := maxf(size.x, size.z)
+	var q := QuadMesh.new()
+	q.size = Vector2(along, size.y)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_texture = load(FENCE_TEX)
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	mat.alpha_scissor_threshold = 0.5
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
+	mat.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	mat.uv1_scale = Vector3(maxf(1.0, roundf(along / (size.y * FENCE_TEX_ASPECT))), 1.0, 1.0)
+	var mi := MeshInstance3D.new()
+	mi.name = "Pickets"
+	mi.mesh = q
+	mi.material_override = mat
+	mi.set_meta("retro_no_pull", true)
+	if size.z > size.x:
+		mi.rotation.y = PI * 0.5
+	body.add_child(mi)
 
 
 func _spawn_random_trees() -> void:
@@ -923,7 +955,11 @@ func _create_tree(pos: Vector3, dice: RandomNumberGenerator = null, wanted := -1
 			_add_tree_part(tree, _tree_mesh("dead"), _tree_material("bark", 1))
 		_:
 			_add_tree_part(tree, _tree_mesh("spruce_trunk"), _tree_material("bark", 0))
-			_add_tree_part(tree, _tree_mesh("spruce_crown"), _tree_material("needles", r.randi_range(0, 2)))
+			var needles := r.randi_range(0, 2)
+			_add_tree_part(tree, _tree_mesh("spruce_crown"), _tree_material("needles", needles))
+			# Boughs on cards across each tier: a spruce's outline, not a stack of cones.
+			if ResourceLoader.exists(SPRUCE_BOUGHS_TEX):
+				_add_tree_part(tree, _tree_mesh("spruce_cards"), _tree_material("bough_cards", needles))
 	# Ferns, mushrooms, a stump... at its foot (scripts/ambient/forest_floor.gd).
 	FOREST_FLOOR.dress(tree)
 	return tree
@@ -960,23 +996,33 @@ func _tree_mesh(id: String) -> Mesh:
 			# Stacked drooping tiers, each slightly rotated so the silhouette is jagged.
 			for i in SPRUCE_TIERS.size():
 				var t: Array = SPRUCE_TIERS[i]
-				_st_cone(st, Vector3(0.0, float(t[2]), 0.0), float(t[0]), 0.04, float(t[1]), 7, 1.6, float(i) * 0.45)
+				# (Round the tier as often as up it: wrapped once and a half the needles lay in long
+				# streaks across the skirt.)
+				_st_cone(st, Vector3(0.0, float(t[2]), 0.0), float(t[0]), 0.04, float(t[1]), 7, float(t[0]) * 3.4, float(i) * 0.45)
+		"spruce_cards":
+			# Three cards crossed through each tier, turned from the one under it. The picture's
+			# widest row (BOUGH_WIDEST) lies at the tier's rim and reaches past it, the tips hang
+			# under it. Their normals go out and up from the trunk as the tier's own do, so
+			# a bough is lit as the side of the tree it is on.
+			for i in SPRUCE_TIERS.size():
+				var t: Array = SPRUCE_TIERS[i]
+				var half: float = float(t[0]) * BOUGH_REACH
+				var tall: float = half * 2.0 / BOUGH_ASPECT
+				var top: float = float(t[2]) + tall * BOUGH_WIDEST
+				for k in 3:
+					_st_bough(st, top, half, tall, float(i) * 0.7 + TAU / 6.0 * float(k))
 		"birch_trunk":
 			_st_cone(st, Vector3.ZERO, 0.16, 0.08, 4.2, 6, 1.0)
+			# Its limbs, up into the crown: the crown thins and comes down in October and a bare
+			# pole was left standing.
+			for limb in BIRCH_LIMBS:
+				_st_branch(st, limb[0], limb[1], limb[2])
 		"birch_crown":
-			_st_blob(st, Vector3(0.0, 3.6, 0.0), Vector3(1.2, 1.3, 1.2))
-			_st_blob(st, Vector3(0.45, 4.4, 0.2), Vector3(0.85, 0.95, 0.85))
-			_st_blob(st, Vector3(-0.4, 3.2, -0.3), Vector3(0.8, 0.8, 0.8))
-		"birch_cards":
-			# Round each lump of the crown: three upright cards crossed, one tilted; about
-			# the lump's own size (at 2.5 times its radius the cards stuck out of the crown
-			# as flat sheets: the user 20. 10.).
+			# The dark inside of the crown, its leaves are the cards round it.
 			for blob in BIRCH_BLOBS:
-				var c: Vector3 = blob[0]
-				var size: float = float(blob[1]) * 1.95
-				for k in 3:
-					_st_card(st, c, size, deg_to_rad(60.0 * k + float(blob[1]) * 40.0), 0.0)
-				_st_card(st, c + Vector3(0.0, float(blob[1]) * 0.35, 0.0), size * 0.9, deg_to_rad(25.0), deg_to_rad(62.0))
+				_st_blob(st, blob[0], Vector3.ONE * float(blob[1]) * CROWN_CORE)
+		"birch_cards":
+			_st_clumps(st, BIRCH_BLOBS, 8)
 		"linden_trunk":
 			# A village linden: a short thick bole, three limbs up into the crown.
 			_st_cone(st, Vector3.ZERO, 0.42, 0.24, 4.6, 7, 1.0)
@@ -986,24 +1032,73 @@ func _tree_mesh(id: String) -> Mesh:
 		"linden_crown":
 			# Its crown: a broad dome down low, lumpy, a little taller than wide.
 			for blob in LINDEN_BLOBS:
-				var r: float = blob[1]
+				var r: float = float(blob[1]) * CROWN_CORE
 				_st_blob(st, blob[0], Vector3(r, r * 0.92, r))
 		"linden_cards":
-			for blob in LINDEN_BLOBS:
-				var c: Vector3 = blob[0]
-				var size: float = float(blob[1]) * 2.3
-				for k in 3:
-					_st_card(st, c, size, deg_to_rad(60.0 * k + float(blob[1]) * 40.0), 0.0)
-				_st_card(st, c + Vector3(0.0, float(blob[1]) * 0.35, 0.0), size * 0.9, deg_to_rad(25.0), deg_to_rad(62.0))
+			_st_clumps(st, LINDEN_BLOBS, 9)
 		"dead":
 			_st_cone(st, Vector3.ZERO, 0.2, 0.05, 4.6, 5, 1.0)
 			_st_branch(st, Vector3(0.0, 2.2, 0.0), Vector3(0.9, 0.9, 0.1), 0.07)
 			_st_branch(st, Vector3(0.0, 2.9, 0.0), Vector3(-0.7, 0.8, 0.4), 0.06)
 			_st_branch(st, Vector3(0.0, 3.5, 0.0), Vector3(0.2, 0.7, -0.6), 0.05)
-	st.generate_normals()
+	# (Cards bring their own: out from the crown, not across their faces.)
+	if not id.ends_with("_cards"):
+		st.generate_normals()
 	var mesh := st.commit()
 	_tree_meshes[id] = mesh
 	return mesh
+
+
+## A card through the trunk, `half` out either way, its top edge at `top`, `tall` high.
+func _st_bough(st: SurfaceTool, top: float, half: float, tall: float, yaw: float) -> void:
+	var out := Vector3(cos(yaw), 0.0, sin(yaw))
+	var left := (Vector3.UP * 0.8 - out).normalized()
+	var right := (Vector3.UP * 0.8 + out).normalized()
+	var mid := Vector3.UP
+	# Two halves, so the middle of it is lit from above and each end as its own side.
+	for side in 2:
+		var u0 := 0.0 if side == 0 else 0.5
+		var u1 := 0.5 if side == 0 else 1.0
+		var x0 := -half if side == 0 else 0.0
+		var x1 := 0.0 if side == 0 else half
+		var n0 := left if side == 0 else mid
+		var n1 := mid if side == 0 else right
+		var a := out * x0 + Vector3.UP * top
+		var b := out * x1 + Vector3.UP * top
+		var c := out * x1 + Vector3.UP * (top - tall)
+		var d := out * x0 + Vector3.UP * (top - tall)
+		st.set_normal(n0); st.set_uv(Vector2(u0, 0)); st.add_vertex(a)
+		st.set_normal(n1); st.set_uv(Vector2(u1, 0)); st.add_vertex(b)
+		st.set_normal(n1); st.set_uv(Vector2(u1, 1)); st.add_vertex(c)
+		st.set_normal(n0); st.set_uv(Vector2(u0, 0)); st.add_vertex(a)
+		st.set_normal(n1); st.set_uv(Vector2(u1, 1)); st.add_vertex(c)
+		st.set_normal(n0); st.set_uv(Vector2(u0, 1)); st.add_vertex(d)
+
+
+## Clumps of leaves all round a crown's lumps ([centre, radius] each): small cards turned every
+## way a little, standing off the dark core, lit as if they were the crown's own skin (their
+## normals go out from it). A few big cards through each lump read as a boulder with sheets
+## stuck in it (the user 20. 10., and the boulder was still there on 6. 11.). `rng_seed`: the
+## same crown on every machine.
+func _st_clumps(st: SurfaceTool, blobs: Array, rng_seed: int) -> void:
+	var dice := RandomNumberGenerator.new()
+	dice.seed = rng_seed
+	for blob in blobs:
+		var c: Vector3 = blob[0]
+		var r: float = blob[1]
+		var n := int(clampf(r * 15.0, 12.0, 34.0))
+		for i in n:
+			# Evenly round the lump: a golden-angle spiral, shaken.
+			var y := 1.0 - 2.0 * (float(i) + 0.5) / float(n)
+			var ring := sqrt(maxf(1.0 - y * y, 0.0))
+			var a := float(i) * 2.39996 + dice.randf_range(-0.3, 0.3)
+			var out := Vector3(cos(a) * ring, y, sin(a) * ring)
+			var at := c + out * r * dice.randf_range(0.62, 0.86)
+			var size := r * dice.randf_range(1.05, 1.4)
+			var yaw := atan2(out.x, out.z) + dice.randf_range(-0.8, 0.8)
+			var tilt := -asin(clampf(out.y, -1.0, 1.0)) * 0.6 + dice.randf_range(-0.35, 0.35)
+			st.set_normal((out + Vector3.UP * 0.45).normalized())
+			_st_card(st, at, size, yaw, tilt)
 
 
 ## A square card of leaves `size` across centred on `c`, turned `yaw` round the upright
@@ -1096,6 +1191,19 @@ func _st_branch(st: SurfaceTool, from: Vector3, dir: Vector3, r: float) -> void:
 ## A birch's crown: its lumps (centre, size), the cards of leaves round them.
 const BIRCH_BLOBS := [[Vector3(0.0, 3.6, 0.0), 1.25], [Vector3(0.45, 4.4, 0.2), 0.9], [Vector3(-0.4, 3.2, -0.3), 0.8]]
 const BIRCH_LEAVES_TEX := "res://assets/textury/world/spr_birch_leaves.png"
+const BIRCH_BARK_TEX := "res://assets/textury/world/tex_birch_bark.png"
+## A leaf tree's solid inside, as a share of its lumps: the cards go out past it.
+const CROWN_CORE := 0.68
+## A birch's limbs: [from, along, thickness].
+const BIRCH_LIMBS := [[Vector3(0.0, 2.5, 0.0), Vector3(0.75, 1.2, 0.25), 0.05], [Vector3(0.0, 2.9, 0.0), Vector3(-0.8, 1.1, -0.35), 0.05],
+	[Vector3(0.0, 3.2, 0.0), Vector3(0.2, 1.2, -0.7), 0.045], [Vector3(0.0, 3.5, 0.0), Vector3(0.55, 1.3, 0.45), 0.04],
+	[Vector3(0.0, 3.8, 0.0), Vector3(-0.45, 1.1, 0.4), 0.035]]
+## A spruce's boughs: one tier's fan (Grok, prompts_spruce.tsv), how far past the tier's rim it
+## reaches, the picture's width to its height, the share of its height where it is widest.
+const SPRUCE_BOUGHS_TEX := "res://assets/textury/world/spr_spruce_tier.png"
+const BOUGH_REACH := 1.32
+const BOUGH_ASPECT := 2.08
+const BOUGH_WIDEST := 0.42
 ## The linden's crown (scripts/geo/ and the villages): [centre, radius] of its lumps.
 const LINDEN_BLOBS := [[Vector3(0.0, 6.0, 0.0), 3.1], [Vector3(1.9, 5.0, 0.7), 2.1], [Vector3(-1.8, 5.2, -0.8), 2.2],
 	[Vector3(0.5, 4.8, -2.0), 2.0], [Vector3(-0.7, 4.7, 1.9), 2.0], [Vector3(0.3, 8.3, 0.2), 2.1],
@@ -1119,9 +1227,17 @@ func _tree_material(kind: String, variant: int) -> Material:
 			mat = StandardMaterial3D.new()
 			mat.albedo_texture = load(BIRCH_LEAVES_TEX)
 			mat.albedo_color = [Color(0.92, 0.96, 0.82), Color(1.0, 1.0, 0.78), Color(1.0, 0.9, 0.7)][variant % 3]
+		"bough_cards":
+			mat = StandardMaterial3D.new()
+			mat.albedo_texture = load(SPRUCE_BOUGHS_TEX)
+			mat.albedo_color = [Color(0.8, 0.86, 0.76), Color(0.68, 0.76, 0.66), Color(0.86, 0.88, 0.72)][variant % 3]
 		"birch_bark":
 			mat = _make_psx_material(Color(0.85, 0.83, 0.78), 0.0, 24.0, 6.0, 0.0, 0.0, 0.0, 0.0, "tree_bark", 0.58) as StandardMaterial3D
 			mat.albedo_color = Color(1.6, 1.58, 1.5)
+			if ResourceLoader.exists(BIRCH_BARK_TEX):
+				mat.albedo_texture = load(BIRCH_BARK_TEX)
+				mat.albedo_color = Color(0.96, 0.95, 0.9)
+				mat.uv1_scale = Vector3(1.0, 3.5, 1.0)
 		_:
 			mat = _make_psx_material(Color(0.58, 0.42, 0.30), 0.0, 24.0, 6.0, 0.0, 0.0, 0.0, 0.0, "tree_bark", 0.58) as StandardMaterial3D
 			mat.albedo_color = Color(0.9, 0.85, 0.8) if variant == 0 else Color(0.62, 0.6, 0.58)
@@ -1154,6 +1270,13 @@ func _wind_material(std: StandardMaterial3D, kind: String) -> Material:
 			m.set_shader_parameter("height", 5.0)
 			m.set_shader_parameter("seasonal", 1.0)
 			m.set_shader_parameter("alpha_cut", true)
+			m.set_shader_parameter("own_normal", true)
+		"bough_cards":
+			m.set_shader_parameter("sway", 1.0)
+			m.set_shader_parameter("flutter", 0.6)
+			m.set_shader_parameter("height", 6.0)
+			m.set_shader_parameter("alpha_cut", true)
+			m.set_shader_parameter("own_normal", true)
 		"birch_bark":
 			m.set_shader_parameter("sway", 1.0)
 			m.set_shader_parameter("height", 5.0)
@@ -1198,6 +1321,9 @@ func _spawn_horizon(map_size: Vector2, map_center: Vector3, grass_tex: Texture2D
 	var crown_mm := MultiMesh.new()
 	crown_mm.transform_format = MultiMesh.TRANSFORM_3D
 	crown_mm.mesh = _tree_mesh("spruce_crown")
+	var bough_mm := MultiMesh.new()
+	bough_mm.transform_format = MultiMesh.TRANSFORM_3D
+	bough_mm.mesh = _tree_mesh("spruce_cards")
 	var xforms: Array[Transform3D] = []
 	var tries := 0
 	while xforms.size() < HORIZON_TREE_COUNT and tries < HORIZON_TREE_COUNT * 4:
@@ -1223,9 +1349,11 @@ func _spawn_horizon(map_size: Vector2, map_center: Vector3, grass_tex: Texture2D
 		xforms.append(Transform3D(b, Vector3(p.x, 0.0, p.z)))
 	trunk_mm.instance_count = xforms.size()
 	crown_mm.instance_count = xforms.size()
+	bough_mm.instance_count = xforms.size()
 	for i in xforms.size():
 		trunk_mm.set_instance_transform(i, xforms[i])
 		crown_mm.set_instance_transform(i, xforms[i])
+		bough_mm.set_instance_transform(i, xforms[i])
 	var trunks := MultiMeshInstance3D.new()
 	trunks.multimesh = trunk_mm
 	trunks.material_override = _tree_material("bark", 1)
@@ -1236,6 +1364,12 @@ func _spawn_horizon(map_size: Vector2, map_center: Vector3, grass_tex: Texture2D
 	crowns.material_override = _tree_material("needles", 1)
 	crowns.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(crowns)
+	if ResourceLoader.exists(SPRUCE_BOUGHS_TEX):
+		var boughs := MultiMeshInstance3D.new()
+		boughs.multimesh = bough_mm
+		boughs.material_override = _tree_material("bough_cards", 1)
+		boughs.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		root.add_child(boughs)
 
 	# Hills: flattened faceted blobs far out, dark like distant forest.
 	var hill_mat := StandardMaterial3D.new()

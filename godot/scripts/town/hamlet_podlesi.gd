@@ -387,7 +387,7 @@ func _forest_h() -> void:
 			continue
 		var sc := _rng.randf_range(0.9, 1.8)
 		xf.append(Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3(sc, sc * _rng.randf_range(0.9, 1.3), sc)), p))
-	for part in [["spruce_trunk", worldgen._tree_material("bark", 1)], ["spruce_crown", worldgen._tree_material("needles", 1)]]:
+	for part in [["spruce_trunk", worldgen._tree_material("bark", 1)], ["spruce_crown", worldgen._tree_material("needles", 1)], ["spruce_cards", worldgen._tree_material("bough_cards", 1)]]:
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
 		mm.mesh = worldgen._tree_mesh(str(part[0]))

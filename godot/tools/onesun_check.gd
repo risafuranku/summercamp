@@ -691,6 +691,48 @@ func hover_cabin(what: String) -> void:
 	print("HOVER told %s at %s, the ray finds %s%s" % [what, str(at), str(col), more])
 
 
+## Which of a room's clickable things never come onto the screen.
+func reach(tag: String, room: String) -> void:
+	var it = _main.get("_interior_manager").get(room)
+	var cam: Camera3D = it.get("_interior_camera")
+	var vp: SubViewport = it.get("_viewport")
+	var look = it.get("_look")
+	if cam == null or look == null:
+		print("REACH %s: no camera or look" % tag)
+		return
+	var keep := cam.rotation
+	var base: Vector3 = it.get("_cam_base_rot")
+	var yaw_lim := float(look.get("yaw_limit_deg"))
+	var down := float(look.get("pitch_down_deg"))
+	var up := float(look.get("pitch_up_deg"))
+	var clicks: Array = []
+	for n in vp.find_children("*", "CollisionObject3D", true, false):
+		var node := n as Node3D
+		if node.has_meta("interior_click_type") and node.is_visible_in_tree():
+			clicks.append(node)
+	var seen := {}
+	var yaw := -yaw_lim
+	while yaw <= yaw_lim + 0.1:
+		var pitch := -down
+		while pitch <= up + 0.1:
+			cam.rotation = base + Vector3(deg_to_rad(pitch), deg_to_rad(yaw), 0.0)
+			for b in clicks:
+				var p: Vector3 = (b as Node3D).global_position
+				if cam.is_position_behind(p):
+					continue
+				var s: Vector2 = cam.unproject_position(p) / Vector2(vp.size)
+				if s.x > 0.03 and s.x < 0.84 and s.y > 0.04 and s.y < 0.86:
+					seen[b] = true
+			pitch += 5.0
+		yaw += 5.0
+	cam.rotation = keep
+	var lost := []
+	for b in clicks:
+		if not seen.has(b):
+			lost.append("%s (%s) at %s" % [(b as Node).name, str((b as Node).get_meta("interior_click_type")), str(cam.get_parent().to_local((b as Node3D).global_position) if cam.get_parent() is Node3D else (b as Node3D).global_position)])
+	print("REACH %s: %d clickable, yaw %.0f, down %.0f, up %.0f; out of reach: %s" % [tag, clicks.size(), yaw_lim, down, up, str(lost)])
+
+
 func switch_where() -> void:
 	var it = _main.get("_interior_manager").get("_cabin_interior")
 	var cam: Camera3D = it.get("_interior_camera")
@@ -1629,6 +1671,30 @@ func _ready() -> void:
 								st += [["eval", C + ".room_view('%s', %d, %d, %s, %s)" % [ty, wall, end, back, off]], ["wait", 0.45], ["shot", "a_" + n],
 									["eval", C + ".room_hidden(true)"], ["wait", 0.12], ["shot", "b_" + n], ["eval", C + ".room_hidden(false)"], ["wait", 0.05]]
 			st += [["eval", "set('debug_camera', null)"], ["eval", "get_tree().quit()"]]
+			_steps = st
+			return
+		if a == "--part=reach":
+			# What in a room can be clicked and can never be got on the screen: the head turned
+			# through all it can turn, every clickable body's place tried against the screen, the
+			# lodgings' list on the right kept clear. Lines "REACH ...".
+			var st: Array = [["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 3.0],
+				["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 2.0],
+				["money", 400000], ["clear", 4, 9, 5, 5], ["clear", 9, 9, 5, 5], ["clear", 9, 14, 5, 5], ["clear", 4, 14, 5, 5], ["clear", 14, 9, 5, 5], ["clear", 14, 14, 5, 5],
+				["build", "pub", 5, 10, 0], ["build", "restaurant", 10, 10, 0], ["build", "vecerka", 10, 15, 0], ["build", "staffroom", 5, 15, 0], ["build", "toilet_block", 15, 10, 0], ["build", "shower_block", 15, 15, 0], ["wait", 1.0],
+				["eval", "_build_test_camp('')"], ["wait", 1.0], ["eval", "debug_repair_ruined()"], ["wait", 2.0], ["eval", "debug_jump_to(1, 13.0)"], ["wait", 1.0]]
+			var CI2 := "_interior_manager._cabin_interior"
+			var TI := "_interior_manager._tent_interior"
+			st += [["door_front", "cabin_1", 1.6], ["wait", 0.5], ["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('cabin_1'))"], ["wait", 4.0]]
+			for lv in [1, 2, 3]:
+				st += [["eval", CI2 + ".open_cabin(%d)" % lv], ["wait", 0.8], ["eval", C + ".reach('cabin %d', '_cabin_interior')" % lv]]
+			st += [["eval", CI2 + ".close_cabin()"], ["wait", 2.0], ["door_front", "tent_1", 1.4], ["wait", 0.5], ["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('tent_1'))"], ["wait", 4.0]]
+			for lv in [1, 2, 3]:
+				st += [["eval", TI + ".open_tent(%d)" % lv], ["wait", 0.8], ["eval", C + ".reach('tent %d', '_tent_interior')" % lv]]
+			st += [["eval", TI + ".close_tent()"], ["wait", 2.0]]
+			for ty in ["pub", "restaurant", "vecerka", "staffroom", "toilet_block", "shower_block"]:
+				st += [["door_front", ty, 2.0], ["wait", 0.5], ["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('%s'))" % ty], ["wait", 4.0],
+					["eval", C + ".reach('%s', '_service_interior')" % ty], ["eval", "_interior_manager._service_interior.close_service()"], ["wait", 2.0]]
+			st += [["eval", "get_tree().quit()"]]
 			_steps = st
 			return
 		if a == "--part=cabinswitch":

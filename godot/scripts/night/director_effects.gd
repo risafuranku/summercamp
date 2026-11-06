@@ -150,7 +150,6 @@ func run(id: String, ctx: Dictionary) -> Vector3:
 
 ## A moment with your head not your own (it was a face for two frames: the user 5. 11.).
 func _face_flash() -> void:
-	var main: Node = director.get_tree().current_scene if director != null and director.is_inside_tree() else null
 	var fx: Node = NIGHTMARE_FX.get_for(main) if main != null else null
 	if fx != null and fx.has_method("fever_pulse"):
 		fx.fever_pulse(0.6, 2.2)

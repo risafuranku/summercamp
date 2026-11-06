@@ -679,7 +679,8 @@ func _shader(v: Dictionary) -> Shader:
 
 
 const BODY := """
-uniform sampler2D albedo_tex : source_color, filter_nearest, repeat_enable;
+// (From a smaller picture far off where it has one: pickets and boughs glittered at a distance.)
+uniform sampler2D albedo_tex : source_color, filter_nearest_mipmap, repeat_enable;
 uniform bool has_tex = false;
 uniform vec4 albedo_color : source_color = vec4(1.0);
 uniform vec3 uv_scale = vec3(1.0);

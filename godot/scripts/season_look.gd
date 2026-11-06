@@ -57,7 +57,8 @@ func setup(follow: Callable) -> void:
 	# The snow round you dense and the flakes big enough to see (2600 of 4 cm over forty
 	# metres were a pixel or less: snowfall did not show at noon, inventory 20. 10.), and
 	# beyond them bigger ones, as the rain has its far layer.
-	_snow = _make_particles("Snowfall", 4200, 7.0, Vector3(11, 7, 11), _flake_mesh(0.09, 0.0, 0.0))
+	# (Gone within a stride of the eye: a flake on the lens was a blue block a fifth of the screen.)
+	_snow = _make_particles("Snowfall", 4200, 7.0, Vector3(11, 7, 11), _flake_mesh(0.09, 0.25, 0.9))
 	_snow_far = _make_particles("SnowfallFar", 3200, 9.0, Vector3(30, 10, 30), _flake_mesh(0.16, 8.0, 14.0))
 	# Snow sinks at a steady metre a second (damped): falling faster and faster like the
 	# leaves it left the air round you within three seconds and hardly any showed.

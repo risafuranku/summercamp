@@ -1321,7 +1321,7 @@ func _multimesh(root: Node3D, xforms: Array[Transform3D], species: String, varia
 		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		root.add_child(mmi)
 	# Leaves on cards round the crowns' lumps, near to (a ragged outline, not a ball).
-	if species in ["birch", "linden"]:
+	if species in ["birch", "linden", "spruce"]:
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
 		mm.mesh = worldgen._tree_mesh("%s_cards" % species)
@@ -1330,7 +1330,7 @@ func _multimesh(root: Node3D, xforms: Array[Transform3D], species: String, varia
 			mm.set_instance_transform(i, xforms[i])
 		var cards := MultiMeshInstance3D.new()
 		cards.multimesh = mm
-		cards.material_override = worldgen._tree_material("leaf_cards", variant)
+		cards.material_override = worldgen._tree_material("bough_cards" if species == "spruce" else "leaf_cards", variant)
 		cards.visibility_range_end = 420.0
 		cards.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		root.add_child(cards)
