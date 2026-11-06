@@ -21,6 +21,21 @@ const PAY = preload("res://scripts/town/counter_pay.gd")
 const SEVEN = preload("res://scripts/ui/seven_seg.gd")
 const LANG = preload("res://scripts/lang.gd")
 const INVENTORY = preload("res://scripts/ui/inventory.gd")
+const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
+## The bill (the user 6. 11.: "a confirmation that now you really are buying a thing, it
+## costs so much, so much money goes; I felt I was just clicking about and bought nothing"):
+## while you have things on the counter, a bill at the right with each thing's picture and
+## price, the sum, the money you have and Pay (she rings them up: the till, then the money
+## close-up as before). Paid: the money going and what is left, a moment; the things go into
+## the bag. Left on the counter when you go, she puts them back.
+const BILL_PAPER := Color(0.88, 0.85, 0.76)
+const BILL_INK := Color(0.13, 0.11, 0.09)
+const BILL_PAY := Color(0.24, 0.52, 0.28)
+const BILL_PAID_SEC := 2.8
+var _bill: Control
+var _bill_pay := Rect2()
+var _bill_done := 0.0
+var _bill_spent := 0
 const SFX_TILL := "res://assets/sfx/bistro/till.mp3"
 const SFX_DRAWER := "res://assets/sfx/jednota/drawer.mp3"
 const STEP := 1.0 / 12.0
@@ -121,6 +136,16 @@ func begin(p_place: String, cfg: Dictionary) -> void:
 	_her_home = float(room._npc_base.x) if room._npc != null else 0.0
 	_her_x = _her_home
 	_her_wait = 0.0
+	if _bill == null or not is_instance_valid(_bill):
+		_bill = Control.new()
+		_bill.name = "ShopBill"
+		_bill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_bill.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		_bill.set_anchors_preset(Control.PRESET_FULL_RECT)
+		_bill.draw.connect(_draw_bill)
+		room.add_child(_bill)
+	_bill.visible = true
+	_bill_done = 0.0
 
 
 ## Out of the shop: what lay on the counter she puts back; a close-up up goes with you.
@@ -134,6 +159,9 @@ func end() -> void:
 	if not _paid:
 		_to_pay = []
 	_ringing = false
+	if _bill != null and is_instance_valid(_bill):
+		_bill.visible = false
+	_bill_pay = Rect2()
 
 
 func busy() -> bool:
@@ -332,6 +360,8 @@ func _on_pay_closed() -> void:
 		_clear_digits()
 		_say("cancel")
 		return
+	_bill_spent = _total
+	_bill_done = BILL_PAID_SEC
 	_deliver(false)
 	_clear_digits()
 	var lines: Array = _lines.get("thanks", [""])
@@ -377,6 +407,9 @@ func _process(delta: float) -> void:
 		n.position.y = maxf(float(f["y"]), n.position.y - DROP_STEP)
 		if n.position.y <= float(f["y"]):
 			_falling.erase(f)
+	_bill_done = maxf(0.0, _bill_done - STEP)
+	if _bill != null and is_instance_valid(_bill) and _bill.visible:
+		_bill.queue_redraw()
 	if _her_wait > 0.0 and not busy():
 		_her_wait -= STEP
 		if _her_wait <= 0.0:
@@ -388,6 +421,89 @@ func _process(delta: float) -> void:
 			_idle = -1.0
 			room._npc_nod = 0.5
 			_say("more")
+
+
+## The bill's Pay clicked (town_room asks before anything in the room): she rings it up.
+func bill_hit(pos: Vector2) -> bool:
+	if place == "" or _on.is_empty() or busy() or not _bill_pay.has_point(pos):
+		return false
+	_ring()
+	return true
+
+
+## The things' pictures on the bill (TextureRects: drawn by hand they came out white).
+var _bill_icons: Array = []
+
+
+func _bill_icon(i: int, tex: Texture2D, r: Rect2) -> void:
+	while _bill_icons.size() <= i:
+		var tr_ := TextureRect.new()
+		tr_.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		tr_.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tr_.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		tr_.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		_bill.add_child(tr_)
+		_bill_icons.append(tr_)
+	var t: TextureRect = _bill_icons[i]
+	t.texture = tex
+	t.position = r.position
+	t.size = r.size
+	t.visible = true
+
+
+func _draw_bill() -> void:
+	_bill_pay = Rect2()
+	for t in _bill_icons:
+		(t as TextureRect).visible = false
+	if place == "" or (_on.is_empty() and _bill_done <= 0.0):
+		return
+	var vp := _bill.get_viewport_rect().size
+	var s := maxf(1.0, floorf(vp.y / 300.0))
+	var font: Font = RETRO_UI.FONT_LABEL
+	var fs := int(8.0 * s)
+	var w := 112.0 * s
+	var row := 16.0 * s
+	var paid := _bill_done > 0.0 and _on.is_empty()
+	var lines := 1 if paid else _on.size()
+	var h := 14.0 * s + row * float(lines) + 44.0 * s
+	var x := vp.x - w - 14.0 * s
+	# (Under the camp's cards on the right.)
+	var y := vp.y * 0.42
+	_bill.draw_rect(Rect2(x + 2.0 * s, y + 2.0 * s, w, h), Color(0, 0, 0, 0.45))
+	_bill.draw_rect(Rect2(x, y, w, h), BILL_PAPER)
+	var yy := y + 6.0 * s
+	if paid:
+		_bill.draw_string(font, Vector2(x + 6.0 * s, yy + 9.0 * s), tr("PAID"), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, BILL_PAY)
+		_bill.draw_string(font, Vector2(x + 6.0 * s, yy + 9.0 * s), "-$%d" % _bill_spent, HORIZONTAL_ALIGNMENT_RIGHT, w - 12.0 * s, fs, Color(0.62, 0.12, 0.08))
+		yy += row
+	else:
+		var total := 0
+		var shown := 0
+		for g in _on:
+			var id := str(g["id"])
+			var price := int(GOODS.STOCK.get(place, {}).get(id, {}).get("price", 0))
+			total += price
+			var kind: Dictionary = INVENTORY.KINDS.get(id, {})
+			var icon: Texture2D = null
+			if kind.has("tex") and ResourceLoader.exists(INVENTORY.TEX + str(kind["tex"])):
+				icon = load(INVENTORY.TEX + str(kind["tex"])) as Texture2D
+			if icon != null:
+				# The thing's own picture, in whole pixels, as the bag shows it.
+				var k := floorf(maxf(1.0, 13.0 * s / float(icon.get_height())))
+				_bill_icon(shown, icon, Rect2(x + 6.0 * s, yy - 1.0 * s, float(icon.get_width()) * k, float(icon.get_height()) * k))
+				shown += 1
+			_bill.draw_string(font, Vector2(x + 6.0 * s, yy + 9.0 * s), "$%d" % price, HORIZONTAL_ALIGNMENT_RIGHT, w - 12.0 * s, fs, BILL_INK)
+			yy += row
+		_bill.draw_line(Vector2(x + 5.0 * s, yy), Vector2(x + w - 5.0 * s, yy), BILL_INK, s)
+		yy += 4.0 * s
+		_bill.draw_string(font, Vector2(x + 6.0 * s, yy + 9.0 * s), "= $%d" % total, HORIZONTAL_ALIGNMENT_RIGHT, w - 12.0 * s, fs, BILL_INK)
+		yy += row
+		var short := CoreRoot.get_money() < total
+		_bill_pay = Rect2(x + 6.0 * s, yy, w - 12.0 * s, 16.0 * s)
+		_bill.draw_rect(_bill_pay, Color(0.55, 0.2, 0.15) if short else BILL_PAY)
+		_bill.draw_string(font, Vector2(_bill_pay.position.x, yy + 11.5 * s), tr("Pay"), HORIZONTAL_ALIGNMENT_CENTER, _bill_pay.size.x, fs, BILL_PAPER)
+		return
+	_bill.draw_string(font, Vector2(x + 6.0 * s, yy + 9.0 * s), "$%d" % CoreRoot.get_money(), HORIZONTAL_ALIGNMENT_RIGHT, w - 12.0 * s, fs, BILL_INK)
 
 
 ## She goes to `x`; back to her place when it has been quiet for `stay` seconds.

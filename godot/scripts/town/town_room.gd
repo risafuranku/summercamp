@@ -516,6 +516,9 @@ func _input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		get_viewport().set_input_as_handled()
+		# The shop's bill: its Pay before anything in the room.
+		if _counter != null and (place == "jednota" or place == "kiosk") and _counter.bill_hit((event as InputEventMouseButton).position):
+			return
 		if _shown >= 0 and _shown < _text.length() and _hover == "":
 			_shown = -1
 			return
