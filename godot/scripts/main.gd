@@ -1210,6 +1210,17 @@ func _ensure_hud_manager() -> void:
 
 
 func _setup_interior_manager() -> void:
+	_ensure_interior_manager()
+	if _interior_manager.has_method("setup_all"):
+		_interior_manager.setup_all()
+
+
+func _ensure_interior_manager() -> void:
+	_bind_or_create_managers()
+	if legacy_ui_adapter == null:
+		legacy_ui_adapter = LEGACY_UI_ADAPTER_SCRIPT.new()
+		legacy_ui_adapter.name = "LegacyUIAdapter"
+		add_child(legacy_ui_adapter)
 	if _interior_manager == null:
 		_interior_manager = INTERIOR_MANAGER_SCRIPT.new()
 		_interior_manager.name = "InteriorManager"
@@ -1232,8 +1243,6 @@ func _setup_interior_manager() -> void:
 		_audio_manager,
 		economy_manager
 	)
-	if _interior_manager.has_method("setup_all"):
-		_interior_manager.setup_all()
 
 
 func _setup_interaction_controller() -> void:
@@ -3475,6 +3484,42 @@ func _generate_grid_world() -> void:
 		world_generator.create_emergency_ground(_world_3d)
 
 
+## A new camp's land a step at a time, the loading screen saying which: in one go the bar
+## stood still for a second.
+func _generate_new_camp() -> void:
+	if grid_manager == null or building_manager == null or world_generator == null:
+		_generate_grid_world()
+		return
+	grid_manager.initialize_grid(Vector2i(28, 28), 4.0)
+	building_manager.setup(grid_manager)
+	world_generator.setup(grid_manager, building_manager)
+	world_generator.world_seed = _pending_world_seed
+	_pending_world_seed = 0
+	await world_generator.generate_world_stepped(_menu_step)
+	if world_generator.get_node_or_null("Terrain") == null:
+		push_error("World generation failed: Terrain node was not created.")
+		world_generator.create_emergency_ground(_world_3d)
+
+
+## The rooms built behind the loading bar, one at a time: all at once as the game started,
+## the bar stood still for a second and more. (Nothing to do when they stand already: the
+## second camp of a run. The start's own setup_all finds them and goes on.)
+func _furnish_rooms_stepped() -> void:
+	_ensure_interior_manager()
+	if not _interior_manager.has_method("room_jobs"):
+		return
+	for job: Callable in _interior_manager.room_jobs():
+		await _menu_step("Furnishing the rooms", 0.0)
+		job.call()
+
+
+func _menu_step(text: String, _progress: float) -> void:
+	if _main_menu != null:
+		_main_menu.show_loading(text)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+
 ## Tools (screenshot driver) may park a camera here to look at the camp from outside;
 ## old Vondra's Skoda (town/skoda_ride.gd) parks its passenger seat's here for the drive.
 var debug_camera: Camera3D
@@ -4923,7 +4968,7 @@ func _start_new_camp(sandbox: bool, test_enemy: String = "", camp_name: String =
 			_week_ledger.reset(int(_camp_rules["money"]))
 	_test_night = test_enemy
 	_pending_world_seed = seed
-	_generate_grid_world()
+	await _generate_new_camp()
 	# The warden's new camp (scripts/profiles.gd), its saves from now on (a test night's
 	# camp and the tools' are nobody's).
 	if test_enemy.is_empty() and camp_name != "":
@@ -4941,6 +4986,7 @@ func _start_new_camp(sandbox: bool, test_enemy: String = "", camp_name: String =
 	if weather_system != null and weather_system.has_method("set_weather"):
 		weather_system.set_weather(WEATHER_CLEAR)
 	_sync_runtime_state_from_systems(true)
+	await _furnish_rooms_stepped()
 	await _hide_menu_loading_after(started, 520, false)
 	_pending_quest_state_loaded = false
 	if sandbox:

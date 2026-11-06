@@ -1673,6 +1673,17 @@ func _ready() -> void:
 			st += [["eval", "set('debug_camera', null)"], ["eval", "get_tree().quit()"]]
 			_steps = st
 			return
+		if a == "--part=dayscost":
+			# What a frame costs by the date alone: the same camp at noon on days through the
+			# month, no time played between them. Lines "VP ...".
+			var st: Array = [["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 6.0],
+				["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 2.0],
+				["eval", "_build_test_camp('')"], ["wait", 2.0], ["eval", "debug_repair_ruined()"], ["wait", 1.0]]
+			for day in [1, 3, 6, 10, 15, 20, 27]:
+				st += [["eval", "debug_jump_to(%d, 12.0)" % day], ["wait", 5.0], ["eval", C + ".vp_measure()"], ["wait", 3.0], ["eval", C + ".vp_print('day %d')" % day], ["shot", "day_%02d" % day]]
+			st += [["eval", "get_tree().quit()"]]
+			_steps = st
+			return
 		if a == "--part=reach":
 			# What in a room can be clicked and can never be got on the screen: the head turned
 			# through all it can turn, every clickable body's place tried against the screen, the

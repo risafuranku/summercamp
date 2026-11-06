@@ -1938,6 +1938,9 @@ func _prism(size: Vector3, mat: Material) -> MeshInstance3D:
 func _gable_triangle(base: float, rise: float, mat: StandardMaterial3D) -> MeshInstance3D:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	# Flat: smoothed, the two faces' normals on the same corners cancelled out, no light reached
+	# a gable and it stood dark blue from the sky alone, its picture gone.
+	st.set_smooth_group(-1)
 	var hz := base * 0.5
 	for tri in [[Vector3(0, 0, -hz), Vector3(0, 0, hz), Vector3(0, rise, 0)], [Vector3(0, 0, hz), Vector3(0, 0, -hz), Vector3(0, rise, 0)]]:
 		for p: Vector3 in tri:
@@ -2463,7 +2466,7 @@ func reception(r: Node3D) -> Dictionary:
 
 	# The roof: corrugated tin over the lot, the ridge along the front.
 	var tin := _camp("corrugated_roof.png", Color(0.74, 0.7, 0.66), Vector3(1.6, 1.6, 1.0))
-	_gable_roof(r, Vector3((x0 + x1) * 0.5, h, (z0 + z1) * 0.5), b.size.x + 0.7, b.size.y + 0.9, L.ROOF_RISE, tin)
+	_gable_roof(r, Vector3((x0 + x1) * 0.5, h, (z0 + z1) * 0.5), b.size.x + 0.7, b.size.y + 0.9, L.ROOF_RISE, tin, planks)
 	# The stove's pipe out through the roof over the office's back corner, where the
 	# stove stands inside (scripts/reception/office_dressing.gd).
 	var stove: Vector3 = L.local(Vector3(2.12, 0.0, 2.16))

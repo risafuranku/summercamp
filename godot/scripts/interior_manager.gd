@@ -387,6 +387,16 @@ func _guest_visuals_for_structure(structure: Node) -> Array:
 	return visuals_any if visuals_any is Array else []
 
 
+## setup_all's steps that are still to do (the loading bar's, main._furnish_rooms_stepped).
+func room_jobs() -> Array:
+	var jobs: Array = []
+	for pair in [[_building_interior, _setup_building_interior], [_cabin_interior, _setup_cabin_interior], [_tent_interior, _setup_tent_interior],
+			[_caravan_interior, _setup_caravan_interior], [_service_interior, _setup_service_interior], [_bowling_interior, _setup_bowling_interior]]:
+		if pair[0] == null or not is_instance_valid(pair[0]):
+			jobs.append(pair[1])
+	return jobs
+
+
 func setup_all() -> void:
 	_setup_building_interior()
 	_setup_cabin_interior()

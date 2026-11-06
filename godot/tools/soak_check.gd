@@ -20,6 +20,11 @@ var _last_us := 0
 var _running := false
 
 
+var _real_from := 0
+var _real_frames := 0
+var _real_worst := 0.0
+
+
 func pl() -> Node3D:
 	return _main.get("_player")
 
@@ -49,6 +54,13 @@ func _process(delta: float) -> void:
 		return
 	var now := Time.get_ticks_usec()
 	_worst = maxf(_worst, float(now - _last_us))
+	if _real_from > 0:
+		_real_frames += 1
+		_real_worst = maxf(_real_worst, float(now - _last_us))
+		if now - _real_from > 3000000:
+			print("SOAK cost day %d: at the real speed %.0f fps, worst %.0f ms" % [int(_main.get("_day_index")), float(_real_frames) / (float(now - _real_from) / 1000000.0), _real_worst / 1000.0])
+			_real_from = 0
+			Engine.time_scale = _speed
 	_last_us = now
 	_frames += 1
 	var p := pl()
@@ -75,11 +87,61 @@ func _process(delta: float) -> void:
 	_since = now
 	if h in [12, 19, 0]:
 		_shot_now("soak_d%d_%02d" % [day, h])
+	if h == 12:
+		_costs(day)
+		# Three seconds of it at the real speed: a fast clock runs every fixed step twelve
+		# times a frame, the fps above say little about a player's.
+		_real_from = Time.get_ticks_usec()
+		_real_frames = 0
+		_real_worst = 0.0
+		Engine.time_scale = 1.0
 	if day >= _start_day + _days and h >= 7:
 		_running = false
 		Engine.time_scale = 1.0
 		print("SOAK: done")
 		get_tree().quit()
+
+
+## What has grown: at noon every day the engine's counts and each node's own frame, biggest
+## first ("SOAK cost ...", the fps falling day by day means something piles up).
+func _costs(day: int) -> void:
+	print("SOAK cost day %d: objects %d, nodes %d, draws %d, primitives %d, bodies %d, video %.0f MB" % [day, int(Performance.get_monitor(Performance.OBJECT_COUNT)), int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)),
+		int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)), int(Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)), int(Performance.get_monitor(Performance.PHYSICS_3D_ACTIVE_OBJECTS)), Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0])
+	var vps: Array = [get_tree().root]
+	vps.append_array(get_tree().root.find_children("*", "SubViewport", true, false))
+	for v in vps:
+		var vp := v as Viewport
+		var rid := vp.get_viewport_rid()
+		RenderingServer.viewport_set_measure_render_time(rid, true)
+		var mode := int(vp.get("render_target_update_mode")) if vp is SubViewport else -1
+		var draws := RenderingServer.viewport_get_render_info(rid, RenderingServer.VIEWPORT_RENDER_INFO_TYPE_VISIBLE, RenderingServer.VIEWPORT_RENDER_INFO_DRAW_CALLS_IN_FRAME)
+		var shadow := RenderingServer.viewport_get_render_info(rid, RenderingServer.VIEWPORT_RENDER_INFO_TYPE_SHADOW, RenderingServer.VIEWPORT_RENDER_INFO_DRAW_CALLS_IN_FRAME)
+		var prim := RenderingServer.viewport_get_render_info(rid, RenderingServer.VIEWPORT_RENDER_INFO_TYPE_VISIBLE, RenderingServer.VIEWPORT_RENDER_INFO_PRIMITIVES_IN_FRAME)
+		if mode != 0 and draws + shadow > 0:
+			print("SOAK cost day %d: view %s mode %d draws %d shadows %d primitives %d cpu %.1f gpu %.1f" % [day, str(vp.get_path()).right(46), mode, draws, shadow, prim,
+				RenderingServer.viewport_get_measured_render_time_cpu(rid), RenderingServer.viewport_get_measured_render_time_gpu(rid)])
+	var rows: Array = []
+	var total := 0
+	for n in get_tree().root.find_children("*", "Node", true, false):
+		var node := n as Node
+		if node == self or node.get_script() == null:
+			continue
+		var us := 0
+		if node.is_processing() and node.has_method("_process"):
+			var t0 := Time.get_ticks_usec()
+			node.call("_process", 0.02)
+			us += Time.get_ticks_usec() - t0
+		if node.is_physics_processing() and node.has_method("_physics_process"):
+			var t1 := Time.get_ticks_usec()
+			node.call("_physics_process", 0.0166)
+			us += Time.get_ticks_usec() - t1
+		if us > 0:
+			rows.append([us, str(node.name), (node.get_script() as Script).resource_path.get_file()])
+			total += us
+	rows.sort_custom(func(a, b): return a[0] > b[0])
+	print("SOAK cost day %d: game code %.1f ms in %d nodes" % [day, float(total) / 1000.0, rows.size()])
+	for i in mini(rows.size(), 8):
+		print("SOAK cost day %d: %.2f ms %s (%s)" % [day, float(rows[i][0]) / 1000.0, rows[i][1], rows[i][2]])
 
 
 func _shot_now(name: String) -> void:

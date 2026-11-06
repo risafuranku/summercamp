@@ -4,6 +4,17 @@
 
 ---
 
+## OVERALL POLISH 2026-11-06 (night) — „pokračuj v overall polishmentu gameplaye, vibu, ui ux, vizualu" (found on a tour of 8 places x 5 weathers x 3 hours, a soak, logs)
+
+- [x] N1 Spruces were stacked cones, the forest round the camp a row of them: three cards of boughs across each tier (Grok `spr_spruce_tier`, `tools/artgen/spruce_art.py`), in the camp, the belt, the land, the south road, Podlesi. `ae8ef7f7`
+- [x] N2 Birches and lindens were dark boulders on sticks: clumps of leaf cards round a smaller core (`_st_clumps`), real birch bark (Grok `tex_birch_bark`), limbs for when the leaves are down. `ae8ef7f7`
+- [x] N3 The fence round the camp was one long dark slab with the forest cut off behind it: the villages' green pickets on a tiled card. `ae8ef7f7`
+- [x] N4 Rain stopping stood in the meadow as sticks for half a minute (it went over to a drizzle's pace at full length); the near snowflakes on the lens were blue blocks a fifth of the screen. `ae8ef7f7`
+- [x] N5 The night director's face flash crashed every time and never played (soak_check). `ae8ef7f7`
+- [x] N6 Every gable stood dark blue with no picture: the triangle's two faces shared smoothed corners, the normals cancelled, no light reached it. Flat now; the reception's gables are its planks, not the tin.
+- [x] N7 A new camp's start: the land in steps and the rooms built one at a time behind the loading bar, which says what it is doing (it stood still for 1 s, then 0.4 s twice; the worst frame 1009 -> 624 ms, the rest 250 ms or less). `trhnuti_check --part=start`
+- [ ] N8 The cabin's own build is still 600 ms in one go; a level's shell at a time would halve it.
+
 ## UX POLISH 2026-11-06 (evening) — „pokračuj v ux polishmentu" (measured, then fixed; tick with the commit)
 
 - [x] P1 The frame. Rooms nobody is in were drawn all game (cabin, tent, caravan, service room: 3000 draws a frame, half the graphics card's time), retro_materials compared every material through a text (7 ms a frame). Now shut (`interior_manager._tick_eyes`, each room's open and close) and compared by value. At the PC, in the reception and in the camp 33-37 fps -> 49-50 (the cap); draws 6100 / 7800 / 5900 -> 900 / 1950 / 650; with no cap and no vsync 90-96 fps. A first day played through (`pruchod_check`): 49 fps in every stretch from the desk on (26-33 before). `onesun_check --part=vptime`.
