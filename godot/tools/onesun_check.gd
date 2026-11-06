@@ -473,6 +473,193 @@ func rec_room(on: bool) -> void:
 	(_bi().get("_room_root") as Node3D).visible = on
 
 
+## The room standing in a building of `type` (roomsgraze): kept hidden every frame while
+## room_hidden(true), the room's own code showing it otherwise.
+var _room_node: Node3D
+var _room_hide := false
+
+
+func room_target(type: String) -> void:
+	var im = _main.get("_interior_manager")
+	_room_node = null
+	if type.begins_with("cabin"):
+		_room_node = im.get("_cabin_interior").get("_cabin_root")
+	elif type.begins_with("tent"):
+		_room_node = im.get("_tent_interior").get("_tent_root")
+	elif type.begins_with("caravan"):
+		_room_node = im.get("_caravan_interior").get("_root")
+	else:
+		var st: Node3D = _main.debug_structure_of_type(type)
+		for n in ["PubRoom", "BistroRoom", "JednotaRoom", "StaffRooms"]:
+			var c = st.find_child(n, true, false) if st != null else null
+			if c != null:
+				_room_node = c
+	print("ONESUN room_target %s -> %s" % [type, str(_room_node.get_path()) if _room_node != null else "-"])
+
+
+## The first building of `from` is `to` now, as the upgrade menu does it.
+func tier_up(from: String, to: String) -> void:
+	var st: Node3D = _main.debug_structure_of_type(from)
+	if st != null:
+		_main.get("_interior_manager").call("_handle_replace_upgrade", st.get_meta("grid_origin"), from, to, 0)
+	print("ONESUN tier_up %s -> %s: %s" % [from, to, str(_main.debug_structure_of_type(to) != null)])
+
+
+func room_hidden(on: bool) -> void:
+	_room_hide = on
+	if not on and _room_node != null:
+		_room_node.visible = true
+
+
+## The camp's eye by a wall of the first building of `type`, looking along it (wall 0 +z,
+## 1 -z, 2 +x, 3 -x of its box; `end` which end it looks from; `back` m short of that end,
+## `off` m off the wall).
+func room_view(type: String, wall: int, end: int, back: float, off: float) -> void:
+	var st: Node3D = _main.debug_structure_of_type(type)
+	if st == null:
+		print("ONESUN no ", type)
+		return
+	var inv := st.global_transform.affine_inverse()
+	var box := AABB()
+	var first := true
+	for m in st.find_children("*", "MeshInstance3D", true, false):
+		var g := m as MeshInstance3D
+		if not g.is_visible_in_tree():
+			continue
+		var b: AABB = (inv * g.global_transform) * g.get_aabb()
+		if b.size.length() > 40.0:
+			continue
+		box = b if first else box.merge(b)
+		first = false
+	var lo := box.position
+	var hi := box.end
+	var ends: Array = [[Vector3(lo.x, 0, hi.z), Vector3(hi.x, 0, hi.z), Vector3(0, 0, 1)], [Vector3(lo.x, 0, lo.z), Vector3(hi.x, 0, lo.z), Vector3(0, 0, -1)],
+		[Vector3(hi.x, 0, lo.z), Vector3(hi.x, 0, hi.z), Vector3(1, 0, 0)], [Vector3(lo.x, 0, lo.z), Vector3(lo.x, 0, hi.z), Vector3(-1, 0, 0)]]
+	var p0: Vector3 = ends[wall][0]
+	var p1: Vector3 = ends[wall][1]
+	var out: Vector3 = ends[wall][2]
+	var along := (p1 - p0).normalized()
+	var from: Vector3 = p0 if end == 0 else p1
+	var dir: Vector3 = along if end == 0 else -along
+	var far_end: Vector3 = p1 if end == 0 else p0
+	var at: Vector3 = from - dir * back + out * off + Vector3(0, lo.y + 1.6, 0)
+	var look: Vector3 = far_end + Vector3(0, lo.y + 1.5, 0)
+	_camp_eye(st.global_transform * at, st.global_transform * look)
+
+
+func _camp_eye(at: Vector3, look: Vector3) -> Camera3D:
+	var eye := _main.get("_player").get("_camera") as Camera3D
+	var cam := Camera3D.new()
+	(_main.get("_world_3d") as Node3D).add_child(cam)
+	cam.fov = eye.fov
+	cam.near = eye.near
+	cam.far = eye.far
+	cam.cull_mask = eye.cull_mask
+	cam.global_position = at
+	cam.look_at(look, Vector3.UP)
+	var old = _main.get("debug_camera")
+	if old != null and is_instance_valid(old):
+		old.queue_free()
+	_main.set("debug_camera", cam)
+	cam.current = true
+	return cam
+
+
+## What the reception's panes and curtains are now.
+func rec_state(tag: String) -> void:
+	var bi = _bi()
+	var cache: Dictionary = bi.get("_glass_cache")
+	var out := []
+	for k in cache:
+		var g = cache[k]
+		if g is MeshInstance3D and is_instance_valid(g):
+			var mo := (g as MeshInstance3D).material_override
+			out.append("%s vis=%s L=%d over=%s" % [k, str((g as MeshInstance3D).is_visible_in_tree()), (g as MeshInstance3D).layers, mo.get_class() if mo != null else "-"])
+	print("ONESUN %s panes %s room_vis=%s open=%s hour=%.2f" % [tag, str(out), str((bi.get("_room_root") as Node3D).is_visible_in_tree()), str(bi.visible), float(bi.call("_hour_now"))])
+	for n in ["_curtains_open", "_office_curtain", "_side_curtain", "_office_lights_on", "_desk_lamp_on", "_inview_live"]:
+		print("ONESUN %s   %s = %s" % [tag, n, str(bi.get(n))])
+
+
+## A step's Vector3 for an eval.
+func _v3(v: Vector3) -> String:
+	return "Vector3(%.3f, %.3f, %.3f)" % [v.x, v.y, v.z]
+
+
+## The camp's eye at `at`, looking at `look`, both in the reception's own space (front +Z),
+## with the player's lens. `shot`: what the walls and openings are on the screen in that shot
+## goes in views.json (room_diff.py counts only the walls: nothing of the room may be on them).
+func rec_cam_at(at: Vector3, look: Vector3, shot := "") -> void:
+	var shell: Node3D = _bi().call("_reception_shell")
+	var cam := _camp_eye(shell.global_transform * at, shell.global_transform * look)
+	if shot != "":
+		_rec_views[shot] = _rec_polys(cam, shell)
+
+
+var _rec_views := {}
+
+
+func rec_views_save() -> void:
+	var f := FileAccess.open(_out_dir + "/views.json", FileAccess.WRITE)
+	f.store_string(JSON.stringify(_rec_views))
+	f.close()
+
+
+## The reception's walls that face the eye and its openings as parts of the screen.
+func _rec_polys(cam: Camera3D, shell: Node3D) -> Dictionary:
+	var b: Rect2 = RL.local_bounds()
+	var x0 := b.position.x - 0.12
+	var x1 := b.end.x + 0.12
+	var z0 := b.position.y - 0.12
+	var z1 := b.end.y + 0.12
+	var h := float(RL.WALL_H)
+	var lo := 0.25
+	var walls := [
+		[Vector3(0, 0, 1), [Vector3(x0, lo, z1), Vector3(x1, lo, z1), Vector3(x1, h, z1), Vector3(x0, h, z1)]],
+		[Vector3(0, 0, -1), [Vector3(x0, lo, z0), Vector3(x1, lo, z0), Vector3(x1, h, z0), Vector3(x0, h, z0)]],
+		[Vector3(1, 0, 0), [Vector3(x1, lo, z0), Vector3(x1, lo, z1), Vector3(x1, h, z1), Vector3(x1, h, z0)]],
+		[Vector3(-1, 0, 0), [Vector3(x0, lo, z0), Vector3(x0, lo, z1), Vector3(x0, h, z1), Vector3(x0, h, z0)]]]
+	var eye: Vector3 = shell.global_transform.affine_inverse() * cam.global_position
+	var out := {"walls": [], "holes": []}
+	for w in walls:
+		if (w[0] as Vector3).dot(eye - (w[1] as Array)[0]) > 0.0:
+			out["walls"].append(_rec_poly(cam, shell, w[1]))
+	var d0: Vector3 = RL.local(Vector3(RL.DOOR_X.x, 0, -2.55))
+	var d1: Vector3 = RL.local(Vector3(RL.DOOR_X.y, 0, -2.55))
+	var holes: Array = [[Vector3(d0.x, 0, z1), Vector3(d1.x, 0, z1), Vector3(d1.x, RL.DOOR_H, z1), Vector3(d0.x, RL.DOOR_H, z1)]]
+	# (The walls' holes are the frames' size, a little over the glass.)
+	var c: Vector3 = RL.local(RL.OFFICE_WINDOW_CENTER)
+	var s: Vector2 = RL.OFFICE_WINDOW_SIZE * 0.5 + Vector2(0.1, 0.1)
+	holes.append([Vector3(c.x - s.x, c.y - s.y, z1), Vector3(c.x + s.x, c.y - s.y, z1), Vector3(c.x + s.x, c.y + s.y, z1), Vector3(c.x - s.x, c.y + s.y, z1)])
+	c = RL.local(RL.SIDE_WINDOW_CENTER)
+	s = RL.SIDE_WINDOW_SIZE * 0.5 + Vector2(0.1, 0.1)
+	holes.append([Vector3(x0, c.y - s.y, c.z - s.x), Vector3(x0, c.y - s.y, c.z + s.x), Vector3(x0, c.y + s.y, c.z + s.x), Vector3(x0, c.y + s.y, c.z - s.x)])
+	c = RL.local(RL.BACK_WINDOW_CENTER)
+	s = RL.BACK_WINDOW_SIZE * 0.5 + Vector2(0.1, 0.1)
+	holes.append([Vector3(x1, c.y - s.y, c.z - s.x), Vector3(x1, c.y - s.y, c.z + s.x), Vector3(x1, c.y + s.y, c.z + s.x), Vector3(x1, c.y + s.y, c.z - s.x)])
+	for p in holes:
+		out["holes"].append(_rec_poly(cam, shell, p))
+	return out
+
+
+## A polygon of the building's space cut at the eye's near plane, as shares of the screen.
+func _rec_poly(cam: Camera3D, shell: Node3D, pts: Array) -> Array:
+	var inv := cam.global_transform.affine_inverse()
+	var cut: Array = []
+	for i in pts.size():
+		var a: Vector3 = inv * (shell.global_transform * (pts[i] as Vector3))
+		var b: Vector3 = inv * (shell.global_transform * (pts[(i + 1) % pts.size()] as Vector3))
+		if a.z < -0.2:
+			cut.append(a)
+		if (a.z < -0.2) != (b.z < -0.2):
+			cut.append(a.lerp(b, (-0.2 - a.z) / (b.z - a.z)))
+	var size := cam.get_viewport().get_visible_rect().size
+	var out: Array = []
+	for p in cut:
+		var sp := cam.unproject_position(cam.global_transform * (p as Vector3))
+		out.append([sp.x / size.x, sp.y / size.y])
+	return out
+
+
 ## What a ray through the picture's pixel `px` (of 1280 x 720) meets, nearest first, by box.
 func ray_list(tag: String, px: Vector2) -> void:
 	var cam := _main.get("debug_camera") as Camera3D
@@ -685,6 +872,8 @@ func _process(delta: float) -> void:
 			img.save_png(_out_dir + "/d%03d.png" % _dump_i)
 		rec_cam("d%03d" % _dump_i)
 		_dump_i += 1
+	if _room_hide and _room_node != null:
+		_room_node.visible = false
 	var bi0 = _bi() if _main.get("_interior_manager") != null else null
 	if _green and bi0 != null and bi0.get("_room_probe") != null:
 		var pr0 = bi0.get("_room_probe")
@@ -1091,6 +1280,127 @@ func _ready() -> void:
 						st += [["eval", C + ".around('main_building', %s, %s, %s)" % [ang, d, h]], ["wait", 0.25], ["shot", "a_" + n],
 							["eval", C + ".rec_room(false)"], ["wait", 0.12], ["shot", "b_" + n], ["eval", C + ".rec_room(true)"], ["wait", 0.05]]
 			st += [["eval", "set('debug_camera', null)"], ["eval", "get_tree().quit()"]]
+			_steps = st
+			return
+		if a == "--part=rechis":
+			# Somebody's own last camp (copied into this run's APPDATA with their settings.cfg),
+			# as it was left: the reception from where they stood, then at each window.
+			var st: Array = [["wait_menu"], ["call", "_on_menu_continue_pressed", []], ["wait_gameplay"], ["wait", 3.0], ["shot", "h0_as_left"],
+				["eval", C + ".rec_state('loaded')"], ["eval", C + ".structures()"]]
+			for pane in ["office_glass", "side_glass", "back_glass"]:
+				for d in [1.2, 3.5, 9.0, 16.0]:
+					st += [["glass", pane, d], ["wait", 0.5], ["shot", "h1_%s_%02d" % [pane.substr(0, 4), int(d)]]]
+			# Whatever else stands in it, with its windows, as it was left.
+			for ty in ["cabin_1", "cabin_2", "cabin_3", "caravan_1", "caravan_2", "caravan_3", "tent_1", "tent_2", "tent_3", "pub", "restaurant", "vecerka", "bowling", "staffroom"]:
+				for ang in [0.0, 120.0, 240.0]:
+					st += [["eval", C + ".around('%s', %s, 7.0, 0.3)" % [ty, ang]], ["wait", 0.5], ["shot", "h2_%s_%03d" % [ty, int(ang)]]]
+			st += [["eval", C + ".rec_state('after')"], ["eval", "get_tree().quit()"]]
+			_steps = st
+			return
+		if a == "--part=recwin":
+			# Into the reception through its windows from outside, out of it on foot as a player
+			# goes (the user 6. 11.: "you cannot see in through the windows"), by the hour.
+			var BI := "_interior_manager._building_interior"
+			var st: Array = [["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 3.0],
+				["eval", BI + "._exit_crt_view()"], ["wait", 2.0], ["eval", "debug_jump_to(1, 12.0)"], ["wait", 1.0],
+				["eval", BI + "._extras.go_back_room()"], ["wait", 3.0], ["eval", BI + "._extras.go_office()"], ["wait", 3.0],
+				["eval", "_interior_manager.close_main_interior_if_open()"], ["wait", 2.0]]
+			for hour in [12.0, 17.0, 19.6, 21.0, 0.5]:
+				var day := 1 if hour > 1.0 else 2
+				st += [["eval", "debug_jump_to(%d, %s)" % [day, hour]], ["wait", 2.0]]
+				for pane in ["office_glass", "side_glass", "back_glass"]:
+					for d in [1.2, 3.5, 9.0, 22.0]:
+						st += [["glass", pane, d], ["wait", 0.4], ["shot", "w_%02d_%s_%02d" % [int(hour), pane.substr(0, 4), int(d)]]]
+				st += [["eval", C + ".lights_near('h%02d')" % int(hour)]]
+			st += [["eval", "get_tree().quit()"]]
+			_steps = st
+			return
+		if a == "--part=roomsgraze":
+			# Every other building a room stands in, seen along its walls, with its room and
+			# without (the reception's --part=recgraze): python tools/room_diff.py DIR <type>_
+			var st: Array = [["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+				["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
+				["money", 900000], ["clear", 4, 9, 5, 5], ["clear", 9, 9, 5, 5], ["clear", 9, 14, 5, 5],
+				["build", "pub", 5, 10, 0], ["build", "restaurant", 10, 10, 0], ["build", "vecerka", 10, 15, 0], ["wait", 2.0],
+				["clear", 4, 14, 5, 5], ["build", "staffroom", 5, 15, 0], ["wait", 1.0],
+				["clear", 15, 9, 10, 9], ["build", "tent_1", 16, 11, 0], ["build", "caravan_1", 20, 11, 0], ["wait", 1.0],
+				["eval", "debug_repair_ruined()"], ["wait", 2.0],
+				["eval", "debug_jump_to(1, 12.0)"], ["wait", 3.0], ["eval", C + ".structures()"]]
+			var only := ""
+			for a2 in OS.get_cmdline_user_args():
+				if str(a2).begins_with("--rooms="):
+					only = str(a2).substr(8)
+			var from_tier := {"cabin_2": "cabin_1", "cabin_3": "cabin_2", "caravan_2": "caravan_1", "caravan_3": "caravan_2", "tent_2": "tent_1", "tent_3": "tent_2"}
+			for ty in ["cabin_1", "cabin_2", "cabin_3", "caravan_1", "caravan_2", "caravan_3", "tent_1", "tent_2", "tent_3", "pub", "restaurant", "vecerka", "staffroom"]:
+				if from_tier.has(ty):
+					st += [["eval", C + ".tier_up('%s', '%s')" % [from_tier[ty], ty]], ["wait", 2.0]]
+				if only != "" and not ty in only.split(","):
+					continue
+				st += [["eval", "debug_jump_to(1, 12.0)"], ["wait", 1.5], ["eval", C + ".room_target('%s')" % ty]]
+				for wall in 4:
+					for end in 2:
+						for back in [1.0, 6.0]:
+							for off in [0.6, 2.5]:
+								var n := "%s_%d_%d_%d_%d" % [ty, wall, end, int(back), int(off * 10.0)]
+								st += [["eval", C + ".room_view('%s', %d, %d, %s, %s)" % [ty, wall, end, back, off]], ["wait", 0.45], ["shot", "a_" + n],
+									["eval", C + ".room_hidden(true)"], ["wait", 0.12], ["shot", "b_" + n], ["eval", C + ".room_hidden(false)"], ["wait", 0.05]]
+			st += [["eval", "set('debug_camera', null)"], ["eval", "get_tree().quit()"]]
+			_steps = st
+			return
+		if a == "--part=recwalk":
+			# Along every wall at a walking pace, close and a little off, a pair every half a
+			# metre: the wall seen slide by as you go.
+			var st: Array = [["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+				["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0], ["eval", "debug_jump_to(1, 12.0)"], ["wait", 7.0]]
+			var hx := 4.25
+			var fz := 2.72
+			var bz := -2.78
+			for w in [["front", Vector3(-hx, 0, fz), Vector3(hx, 0, fz), Vector3(0, 0, 1)], ["back", Vector3(-hx, 0, bz), Vector3(hx, 0, bz), Vector3(0, 0, -1)],
+					["east", Vector3(hx, 0, bz), Vector3(hx, 0, fz), Vector3(1, 0, 0)], ["west", Vector3(-hx, 0, bz), Vector3(-hx, 0, fz), Vector3(-1, 0, 0)]]:
+				var p0: Vector3 = w[1]
+				var p1: Vector3 = w[2]
+				var out: Vector3 = w[3]
+				var along := (p1 - p0).normalized()
+				var length := p0.distance_to(p1)
+				for off in [1.1, 2.6]:
+					for k in 14:
+						var at: Vector3 = p0 - along * 3.0 + along * (length + 6.0) * float(k) / 13.0 + out * off + Vector3(0, 1.6, 0)
+						var look: Vector3 = at + along * 6.0 - out * off * 0.9
+						look.y = 1.5
+						var n := "%s_%02d_%02d" % [w[0], int(off * 10.0), k]
+						st += [["eval", C + ".rec_cam_at(%s, %s, '%s')" % [_v3(at), _v3(look), n]], ["wait", 0.2], ["shot", "a_" + n],
+							["eval", C + ".rec_room(false)"], ["wait", 0.1], ["shot", "b_" + n], ["eval", C + ".rec_room(true)"], ["wait", 0.04]]
+			st += [["eval", C + ".rec_views_save()"], ["eval", "set('debug_camera', null)"], ["eval", "get_tree().quit()"]]
+			_steps = st
+			return
+		if a == "--part=recgraze":
+			# The reception from along its walls, as you walk by it (the user 6. 11.: the back
+			# room's textures seen from outside; --part=recdiff only ever looked straight at
+			# it): pairs with and without the room, tools/room_diff.py compares them.
+			var st: Array = [["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+				["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0], ["eval", "debug_jump_to(1, 12.0)"], ["wait", 2.0]]
+			var hx := 4.25
+			var fz := 2.72
+			var bz := -2.78
+			# Each wall: a line along it, `s` the side it faces.
+			for w in [["front", Vector3(-hx, 0, fz), Vector3(hx, 0, fz), Vector3(0, 0, 1)], ["back", Vector3(-hx, 0, bz), Vector3(hx, 0, bz), Vector3(0, 0, -1)],
+					["east", Vector3(hx, 0, bz), Vector3(hx, 0, fz), Vector3(1, 0, 0)], ["west", Vector3(-hx, 0, bz), Vector3(-hx, 0, fz), Vector3(-1, 0, 0)]]:
+				var p0: Vector3 = w[1]
+				var p1: Vector3 = w[2]
+				var out: Vector3 = w[3]
+				var along := (p1 - p0).normalized()
+				for end in [0, 1]:
+					var from: Vector3 = p0 - along * 1.0 if end == 0 else p1 + along * 1.0
+					var dir := along if end == 0 else -along
+					var far_end: Vector3 = p1 if end == 0 else p0
+					for back in [0.0, 3.0, 8.0, 18.0, 40.0]:
+						for off in [0.25, 0.7, 1.6, 3.5]:
+							var at: Vector3 = from - dir * back + out * off + Vector3(0, 1.6, 0)
+							var look: Vector3 = far_end + Vector3(0, 1.5, 0)
+							var n := "%s_%d_%02d_%02d" % [w[0], end, int(back), int(off * 10.0)]
+							st += [["eval", C + ".rec_cam_at(%s, %s, '%s')" % [_v3(at), _v3(look), n]], ["wait", 0.2], ["shot", "a_" + n],
+								["eval", C + ".rec_room(false)"], ["wait", 0.1], ["shot", "b_" + n], ["eval", C + ".rec_room(true)"], ["wait", 0.04]]
+			st += [["eval", C + ".rec_views_save()"], ["eval", "set('debug_camera', null)"], ["eval", "get_tree().quit()"]]
 			_steps = st
 			return
 		if a == "--part=recray":

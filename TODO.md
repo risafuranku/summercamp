@@ -4,6 +4,11 @@
 
 ---
 
+## PLAYTEST 2026-11-06 (afternoon) — the reception from outside (the user's notes, verbatim, then the note in brackets; tick with the commit)
+
+- [x] Z1 „pořád clippujou textury z pokojíčku a jsou vidět z venku recepce..“ (third time, X2 and Y2 looked straight at the walls. Seen along them: the walls snapped on the screen and the room did not, a whole triangle of wallpaper out on the front wall; slits at the corners; the lean-to's wedge inside out, the store's ceiling through it. `retro_materials.HOLDS_ROOM`, the walls to the corners, `_prism`, `_corner_beads` on the pub, bistro and Jednota, the cabins' annex over its bathroom's ceiling; `onesun_check --part=recgraze`, `recwalk`, `roomsgraze`)
+- [x] Z2 „a oknama pro změnu nejde taky vidět dovnitř. ach jo“ (a camp loaded with you outside: the room never opened, its painted panes stood pale over all three windows; hidden when the room is built now; his own camp, `--part=rechis`)
+
 ## PLAYTEST 2026-11-06 — LIBLICE: „tohle je celý broken, to je k smíchu“ (the user's notes, verbatim, then the note in brackets; tick with the commit)
 
 The plan, in this order (the rooms' look and walk are one piece of code, town_room.gd, so the chapel and the motel get them together): L1-L3 the Jednota and the motel's way in (small, whole bugs) -> L4-L5 the look in Liblice's rooms -> L6-L7 hover, cursors, walking by clicking the floor -> L8-L10 the chapel -> L11 the motel's way about -> L12-L15 the street. Check each with a shot or a harness in the state the user had it (walk there, click, turn), not just by reading the code. If this list outlives the session: the next one starts at the first unticked line.

@@ -139,7 +139,10 @@ python godot/tools/window_coop.py [OUT_DIR] # the reception's windows for two: f
 #   res://tools/onesun_check.tscn    sweep: the reception by the hour, three views held still; ratio: the sun's square on the counter
 #                                    and the back door, with and without the sun (scratchpad patch_stat); out / glass: the reception
 #                                    from the camp; rain: 35 s of rain inside; weather; lights (every light near the room); perf (what
-#                                    each viewport draws); cabin (--quick: noon only): cabin_1 inside and out
+#                                    each viewport draws); cabin (--quick: noon only): cabin_1 inside and out;
+#                                    recgraze, recwalk: the reception along its walls, roomsgraze (--rooms=pub,cabin_2): the other
+#                                    buildings, with their room and without, then python godot/tools/room_diff.py DIR [type_];
+#                                    recwin: into its windows by the hour after walking out; rechis: somebody's own last camp
 ```
 
 - On some PCs the headless run segfaults once the title screen is up (1. 11., at HEAD too:
@@ -526,6 +529,32 @@ every night's sewer, toilets and frozen pipes the moment they broke).
  darkened the reception's back wall and the lean-to's roof from outside. To see a room's
  traces from outside: `onesun_check --part=recdiff` shoots the building with and without the
  room from 96 places, `tools/room_diff.py` compares them: only its windows may differ.
+ **That is not enough: look along the walls** (`--part=recgraze`, the user's "the back room's
+ textures seen from outside" came back twice after recdiff found nothing). Straight on a wall
+ hides what a slant shows: **a building a room stands in does not snap**
+ (`retro_materials.HOLDS_ROOM`, a new kind of building with a room goes on that list): its
+ wall's corners moved on the screen and the room's did not, and at 15 degrees a whole
+ triangle of the wall fell behind the wallpaper (over 160 views along the walls 40 000 px of
+ the room on them before, after it what moves by itself: birds, a leaf, the porch bulb, the
+ day's title). A room's own quads and boards are not pulled for the camp's eye
+ (`room_thing`; the camp's eye is the one camera with bit 19 and without bit 17). **Two walls
+ or two faces meet at a corner**: a slit of a few centimetres between them and the corner
+ post showed a line of wallpaper down the corner (the reception's walls run to the corners'
+ outer faces; the pub's, bistro's and Jednota's faces end at the room's corners, 1 cm off it:
+ `_corner_beads`). **A wedge faces out** (`_prism` was inside out: you saw its far face, in
+ one plane with the store's ceiling). **A room's ceiling ends under the model's top** (the
+ cabins' bathroom: its edge stood out under the annex's roof, `annex_box`). **A freed object
+ equals null**: `if v != null and not is_instance_valid(v)` lets it through, test
+ `is_instance_valid` alone (a van upgraded under the room). **A room looks right from the camp before it is ever
+ opened**: a camp loaded with you outside never opens the reception, and its painted panes,
+ hidden only on the way in, stood pale over all three windows (`_hide_painted_views` is in
+ the build now). A new camp starts at the PC and never shows this: test a load too. **The
+ user's own state is on this machine**: `%APPDATA%/Godot/app_userdata/icloud ccs2`:
+ `settings.cfg` (the look: `retro_preset` crisp, 360 lines, not the default a fresh APPDATA
+ gets), `logs/` (what his last run printed), `profiles/last.json` and
+ `profiles/<p>/camps/<c>/` (`thumb.png` is what he last saw, `saves/`). Copy those into a
+ run's own APPDATA (`window_mode` windowed, never over his screen) and `--part=rechis` is his
+ camp as he left it: the windows were found this way in one run.
 - **A room's windows share ONE view of the camp** (`scripts/ui/window_shared_view.gd`, the
   user 25. 10.: "shared like this in all interiors, and in every future one"): one camera
   at the room's eye mapped into the camp, the room camera's lens, the room's pixel size;

@@ -93,7 +93,9 @@ static func has_bath(level: int) -> bool:
 static func annex_box(level: int) -> AABB:
 	var a: Vector3 = ANNEX.get(clampi(level, 2, 3), ANNEX[2])
 	var s := size(level)
-	return AABB(Vector3(s.x * 0.5, 0.0, a.z - a.y * 0.5), Vector3(a.x, wall_h(level) * 0.82, a.y))
+	# (Over the bathroom's ceiling, 2.25 m in the model: at 82 % of the wall the ceiling's edge
+	# stood out under the annex's roof, a light line along it, the user 6. 11.)
+	return AABB(Vector3(s.x * 0.5, 0.0, a.z - a.y * 0.5), Vector3(a.x, maxf(wall_h(level) * 0.82, 2.2), a.y))
 
 
 ## The bathroom door's middle along z in the right wall: in the front half of the annex,

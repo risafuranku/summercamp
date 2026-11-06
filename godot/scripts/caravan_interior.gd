@@ -516,8 +516,9 @@ func _bind_one_world(delta: float) -> void:
 	if _root == null or _cube_baking:
 		return
 	# (A van replaced by its upgrade: the old one freed under us.)
+	# (A freed van equals null: `v != null` let it through to the typed line below.)
 	var v = _anchor() if _is_open else _inview_van
-	if v != null and (not is_instance_valid(v) or not (v as Node3D).is_inside_tree()):
+	if not is_instance_valid(v) or not (v as Node3D).is_inside_tree():
 		v = null
 	var van: Node3D = v
 	_host_shell_of(van)

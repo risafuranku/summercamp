@@ -57,10 +57,11 @@ static func camp_material() -> ShaderMaterial:
 	return _mat_camp
 
 
-## In a room (a viewport of its own world, retro_materials._in_room): nothing snaps there.
+## In a room (retro_materials._in_room: its own world, or built in the camp's): nothing
+## snaps there, and a glint that did slid off what it lay on.
 static func _in_room(n: Node) -> bool:
 	var vp := n.get_viewport()
-	return vp is SubViewport and (vp as SubViewport).own_world_3d
+	return vp is SubViewport and ((vp as SubViewport).own_world_3d or vp.has_meta("retro_room"))
 
 
 ## The overlay for this mesh: the shared one, or for a sprite its own copy.

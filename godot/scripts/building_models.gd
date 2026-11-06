@@ -240,6 +240,7 @@ func _pub(r: Node3D, _w: float, _d: float) -> Dictionary:
 	_quad(r, "PubSide", Vector2(sz, h), Vector3(cx - sx * 0.5 - 0.012, h * 0.5 + 0.1, cz), -PI * 0.5, _glass_face("camp_pub_side_glass.png", "camp_pub_side.png"))
 	_side_quad(r, "PubBack", Vector2(sx, h), Vector3(cx, h * 0.5 + 0.1, cz - sz * 0.5 - 0.012), PI, plaster)
 	_side_quad(r, "PubRight", Vector2(sz, h), Vector3(cx + sx * 0.5 + 0.012, h * 0.5 + 0.1, cz), PI * 0.5, plaster)
+	_corner_beads(r, Vector3(cx, 0.1, cz), sx, sz, h, plaster)
 	# The glass in the windows, on the walls' outside; the side window's bars in front.
 	var iron := _flat(Color(0.12, 0.11, 0.1))
 	for wd in lay.WINDOWS:
@@ -271,6 +272,16 @@ func _pub(r: Node3D, _w: float, _d: float) -> Dictionary:
 	_cyl(r, "Aerial", 0.02, 1.6, Vector3(-1.6, h + 1.8, cz), _metal())
 	_box(r, "AerialBar", Vector3(0.9, 0.03, 0.03), Vector3(-1.6, h + 2.3, cz), _metal())
 	return {"size": Vector3(sx + 1.6, h + 1.0, sz + 0.6), "target": Vector3(door_x, 1.2, front + 0.2)}
+
+
+## The corners of a house whose walls are pictures on the room's own walls (the pub, the
+## bistro, the Jednota): the faces stand a centimetre off the room and end at its corners, and
+## through the slit between two of them the room's wall showed, a bright line down the corner
+## of the house (the user 6. 11. at the reception). `at`: the room's middle on the floor.
+func _corner_beads(r: Node3D, at: Vector3, sx: float, sz: float, h: float, mat: Material) -> void:
+	for x: float in [-0.5, 0.5]:
+		for z: float in [-0.5, 0.5]:
+			_box(r, "CornerBead", Vector3(0.03, h, 0.03), at + Vector3(x * sx, h * 0.5, z * sz), mat)
 
 
 ## A business's room in its building (one plan: its layout builds it here as in the service
@@ -502,6 +513,7 @@ func _restaurant(r: Node3D, _w: float, _d: float) -> Dictionary:
 		var off: Vector3 = at + (side[1] as Vector3)
 		_side_quad(r, "Upper", Vector2(width, h - 1.0), Vector3(off.x, 1.1 + (h - 1.0) * 0.5, off.z), float(side[2]), concrete)
 		_side_quad(r, "Tiles", Vector2(width, 1.0), Vector3(off.x, 0.6, off.z), float(side[2]), tiles)
+	_corner_beads(r, Vector3(at.x, 0.1, at.z), sx, sz, h, concrete)
 	# The flat roof over the room's ceiling.
 	_box(r, "Roof", Vector3(sx + 0.3, 0.2, sz + 0.3), Vector3(at.x, h + 0.31, at.z), _camp_or("concrete.png", Color(0.6, 0.6, 0.58), "roof"))
 	for wd in lay.WINDOWS:
@@ -1903,7 +1915,9 @@ func _prism(size: Vector3, mat: Material) -> MeshInstance3D:
 	var hx := size.x * 0.5
 	var hz := size.z * 0.5
 	var pts := [Vector3(-hx, 0, -hz), Vector3(-hx, 0, hz), Vector3(-hx, size.y, hz), Vector3(hx, 0, -hz), Vector3(hx, 0, hz), Vector3(hx, size.y, hz)]
-	for tri in [[0, 1, 2], [3, 5, 4], [1, 4, 5], [1, 5, 2], [0, 2, 5], [0, 5, 3]]:
+	# (Clockwise from outside: inside out, what you saw of the lean-to's gable was its far face,
+	# in one plane with the store's ceiling, the ceiling's dark edge through the boards.)
+	for tri in [[0, 2, 1], [3, 4, 5], [1, 5, 4], [1, 2, 5], [0, 5, 2], [0, 3, 5]]:
 		for k in tri:
 			var p: Vector3 = pts[k]
 			st.set_uv(Vector2(p.z / size.z + 0.5, 1.0 - p.y / maxf(0.01, size.y)))
@@ -2143,6 +2157,7 @@ func _jednota(r: Node3D, _w: float, _d: float) -> Dictionary:
 		_quad(r, "JednotaSideR", Vector2(sz, h), Vector3(sx * 0.5 + 0.012, h * 0.5 + 0.1, 0), PI * 0.5, _face_mat("jednota_side.png"))
 	if ResourceLoader.exists(CAMP + "jednota_back.png"):
 		_quad(r, "JednotaBack", Vector2(sx, h), Vector3(0, h * 0.5 + 0.1, -front - 0.012), PI, _face_mat("jednota_back.png"))
+	_corner_beads(r, Vector3(0, 0.1, 0), sx, sz, h, _camp_or("concrete.png", Color(0.42, 0.36, 0.32), "wall"))
 	# The letters on the red board along the top of the front.
 	var letters := "res://assets/textury/town/sign_jednota.png"
 	if ResourceLoader.exists(letters):
@@ -2415,24 +2430,26 @@ func reception(r: Node3D) -> Dictionary:
 	var sy0 := sc.y - ss.y * 0.5
 	var sy1 := sc.y + ss.y * 0.5
 
-	# Front wall (z1), around the door and the office window.
+	# Front wall (z1), around the door and the office window. Every wall to the corner's outer
+	# face: the slit left between two of them and the corner post showed a line of the
+	# rooms' wallpaper down each corner of the building (the user 6. 11.).
 	var fz := z1 + off + tw * 0.5
-	_wall_x(r, "FrontA", x0, dx0, 0.0, h, fz, tw, planks)
+	_wall_x(r, "FrontA", x0 - t, dx0, 0.0, h, fz, tw, planks)
 	_wall_x(r, "FrontDoorTop", dx0, dx1, L.DOOR_H, h, fz, tw, planks)
 	_wall_x(r, "FrontB", dx1, wx0, 0.0, h, fz, tw, planks)
 	_wall_x(r, "FrontUnder", wx0, wx1, 0.0, wy0, fz, tw, planks)
 	_wall_x(r, "FrontOver", wx0, wx1, wy1, h, fz, tw, planks)
-	_wall_x(r, "FrontC", wx1, x1, 0.0, h, fz, tw, planks)
+	_wall_x(r, "FrontC", wx1, x1 + t, 0.0, h, fz, tw, planks)
 	# Back wall: whole. West wall (the office's end), around its side window.
 	_wall_x(r, "Back", x0 - t, x1 + t, 0.0, h, z0 - off - tw * 0.5, tw, planks)
 	var wx := x0 - off - tw * 0.5
-	_wall_z(r, "WestA", z0, sz0, 0.0, h, wx, tw, planks)
+	_wall_z(r, "WestA", z0 - t, sz0, 0.0, h, wx, tw, planks)
 	_wall_z(r, "WestUnder", sz0, sz1, 0.0, sy0, wx, tw, planks)
 	_wall_z(r, "WestOver", sz0, sz1, sy1, h, wx, tw, planks)
-	_wall_z(r, "WestB", sz1, z1, 0.0, h, wx, tw, planks)
+	_wall_z(r, "WestB", sz1, z1 + t, 0.0, h, wx, tw, planks)
 	# East wall (the gate lane side), around the back room's window.
 	var ex := x1 + off + tw * 0.5
-	_wall_z(r, "EastA", z0, bz0, 0.0, h, ex, tw, planks)
+	_wall_z(r, "EastA", z0 - t, bz0, 0.0, h, ex, tw, planks)
 	_wall_z(r, "EastUnder", bz0, bz1, 0.0, by0, ex, tw, planks)
 	_wall_z(r, "EastOver", bz0, bz1, by1, h, ex, tw, planks)
 	_wall_z(r, "EastB", bz1, z1 + t, 0.0, h, ex, tw, planks)

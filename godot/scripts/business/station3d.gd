@@ -522,7 +522,17 @@ func _screen_rect(n: Node3D) -> Rect2:
 	return r
 
 
+## What was lit can go from under the pointer (a cup served, a guest gone): an `is` on it
+## stops the script (84 times in one sitting at the corn stand, the log of 6. 11.).
+func _forget_gone() -> void:
+	if typeof(_glint_on) == TYPE_OBJECT and not is_instance_valid(_glint_on):
+		_glint_on = null
+	if typeof(_hint_on) == TYPE_OBJECT and not is_instance_valid(_hint_on):
+		_hint_on = null
+
+
 func _set_hover(id: String, verb: String, what = null) -> void:
+	_forget_gone()
 	_hover = id
 	_hover_verb = verb
 	if what == null or id == "":
@@ -551,6 +561,7 @@ static var _hint_mats: Dictionary = {}
 
 
 func show_hint(h: Dictionary) -> void:
+	_forget_gone()
 	var n = h.get("node", null)
 	if n is Sprite3D and is_instance_valid(n) and (n as Sprite3D).texture != null:
 		if _hint_on is Sprite3D and _hint_on == n:
@@ -587,6 +598,7 @@ func show_hint(h: Dictionary) -> void:
 
 
 func _hint_off() -> void:
+	_forget_gone()
 	if _hint_on is Sprite3D and is_instance_valid(_hint_on) and not (_glint_on is Sprite3D and _glint_on == _hint_on):
 		(_hint_on as Sprite3D).material_overlay = null
 	_hint_on = null
@@ -599,7 +611,7 @@ func _hint_off() -> void:
 ## glint must do the same or the two fight (the corn stand, 4. 11.).
 static func _snap_of(s: Sprite3D) -> float:
 	var vp := s.get_viewport()
-	if vp is SubViewport and (vp as SubViewport).own_world_3d:
+	if vp is SubViewport and ((vp as SubViewport).own_world_3d or vp.has_meta("retro_room")):
 		return 0.0
 	var flat := s.billboard == BaseMaterial3D.BILLBOARD_DISABLED and absf(s.global_basis.z.normalized().y) > 0.9
 	return 0.0 if flat else 150.0
@@ -633,6 +645,7 @@ var _glint_place: Array = []
 
 
 func _glint_off() -> void:
+	_forget_gone()
 	for sp in _glint_place:
 		if is_instance_valid(sp) and _sprite_glint_mats.values().has((sp as Sprite3D).material_overlay):
 			(sp as Sprite3D).material_overlay = null

@@ -41,6 +41,12 @@ const AFFINE_TRIPLANAR := [AFFINE * 0.7, AFFINE * 0.2, 0.0, 0.0, 0.0, 0.0]
 ## a poster: meta "retro_text" from the code that makes it, or a picture named for it.
 const B_TEXT := 5
 const TEXT_PICTURES := ["sign", "poster", "noticeboard", "lettering", "label", "menu_board", "timetable"]
+## The buildings a room stands in (W26, one world), its walls a few centimetres inside
+## theirs. Nothing of them snaps: a wall's corners moved on the screen while the room behind
+## them did not, and seen along the wall a whole triangle of it went behind the room's
+## wallpaper, the room's textures out on the building (the user 5. and 6. 11.). They keep
+## their swim, a texture's and not a corner's.
+const HOLDS_ROOM := ["main_building", "cabin", "caravan", "tent", "pub", "restaurant", "vecerka", "staffroom", "bowling"]
 
 var enabled := true
 var _shaders: Dictionary = {}       # variant key -> Shader
@@ -357,10 +363,11 @@ func _apply_mesh(mi: MeshInstance3D, rec: Dictionary) -> void:
 		big = B_TEXT
 	# (A flat thing's own say counts too: the rain's puddles over the bumps of the ground.)
 	var pull := _pull_of(mi) if big != B_FLAT or mi.has_meta("retro_pull") else 0.0
+	var still := _holds_room(mi)
 	var over := mi.material_override
 	rec["over"] = over
 	if over != null:
-		var m := _converted(over, big, pull)
+		var m := _converted(over, big, pull, still)
 		RenderingServer.instance_geometry_set_material_override(rid, m.get_rid() if m != null else (over as Material).get_rid())
 		return
 	RenderingServer.instance_geometry_set_material_override(rid, RID())
@@ -370,7 +377,7 @@ func _apply_mesh(mi: MeshInstance3D, rec: Dictionary) -> void:
 		if src == null:
 			src = mi.mesh.surface_get_material(i)
 		slots.append(src)
-		var m := _converted(src, big, pull)
+		var m := _converted(src, big, pull, still)
 		if m != null:
 			RenderingServer.instance_set_surface_override_material(rid, i, m.get_rid())
 		elif src != null:
@@ -491,6 +498,19 @@ func _in_room(n: Node) -> bool:
 	return vp is SubViewport and ((vp as SubViewport).own_world_3d or vp.has_meta("retro_room"))
 
 
+## Part of a building a room stands in (HOLDS_ROOM).
+func _holds_room(n: Node) -> bool:
+	while n != null:
+		if n.has_meta("building_type"):
+			var t := str(n.get_meta("building_type"))
+			for kind in HOLDS_ROOM:
+				if t.begins_with(kind):
+					return true
+			return false
+		n = n.get_parent()
+	return false
+
+
 func _track_sprite(s: Sprite3D) -> void:
 	var rid := s.get_instance()
 	if not rid.is_valid() or s.material_override != null:
@@ -528,17 +548,17 @@ func _sprite_variant(s: Sprite3D) -> Dictionary:
 
 ## The ShaderMaterial for a StandardMaterial3D (made once, kept), or null when it is not
 ## one we can stand in for.
-func _converted(src, big: int, pull := 0.0) -> ShaderMaterial:
+func _converted(src, big: int, pull := 0.0, still := false) -> ShaderMaterial:
 	var std := src as StandardMaterial3D
 	if std == null or not _supported(std):
 		return null
-	var key := "%d|%d|%d" % [std.get_instance_id(), big, roundi(pull * 10000.0)]
+	var key := "%d|%d|%d|%d" % [std.get_instance_id(), big, roundi(pull * 10000.0), int(still)]
 	if _conv.has(key):
 		return _conv[key]["mat"]
 	var m := ShaderMaterial.new()
 	m.shader = _shader(_variant(std))
 	m.render_priority = std.render_priority
-	var c := {"std": weakref(std), "mat": m, "sig": "", "hot": 0.0, "big": big, "pull": pull}
+	var c := {"std": weakref(std), "mat": m, "sig": "", "hot": 0.0, "big": big, "pull": pull, "still": still}
 	_conv[key] = c
 	if not _by_std.has(std.get_instance_id()):
 		_by_std[std.get_instance_id()] = []
@@ -617,7 +637,8 @@ func _sync(c: Dictionary, force := false) -> void:
 	m.set_shader_parameter("has_emission_tex", std.emission_texture != null)
 	var big: int = c["big"]
 	m.set_shader_parameter("depth_pull", float(c.get("pull", 0.0)))
-	m.set_shader_parameter("snap_lines", SNAP_LINES if big < 2 else 0.0)
+	m.set_shader_parameter("room_thing", big == B_ROOM)
+	m.set_shader_parameter("snap_lines", SNAP_LINES if big < 2 and not bool(c.get("still", false)) else 0.0)
 	m.set_shader_parameter("affine", AFFINE_BY_BUCKET[big] if not std.uv1_triplanar else AFFINE_TRIPLANAR[big])
 
 
@@ -667,6 +688,11 @@ uniform float snap_lines = 150.0;
 // fought. (A plain uniform: an instance uniform took a slot for every instance drawn with
 // this shader, ran out of them and crashed the game on quitting.)
 uniform float depth_pull = 0.0;
+// A room's own thing: pulled only for the room's eye. From the camp (a room built in the
+// camp's world) a share of its distance took it out through the wall in front of it. The
+// camp's eye alone sees the building's glass (bit 19) and not what lies over a room's windows
+// from inside (bit 17, player_controller): a room in a world of its own sees both.
+uniform bool room_thing = false;
 uniform float affine = 0.8;
 // The light as the hands have it (materials/hand_ps1.gdshader): each lamp's, the torch's
 // and the sun's light in steps, the steps dithered with a 4x4 Bayer matrix on the game's
@@ -717,7 +743,7 @@ void vertex() {
 	// The sun's shadow pass (an orthographic view): no snap and no pull there. Snapped to
 	// the shadow map's grid every shadow jumped as the sun moved (it flickered).
 	bool ortho = PROJECTION_MATRIX[3][3] > 0.5;
-	if (!ortho) {
+	if (!ortho && !(room_thing && (CAMERA_VISIBLE_LAYERS & 655360u) == 524288u)) {
 		vpos.xyz *= 1.0 - depth_pull;
 	}
 	vec4 clip = PROJECTION_MATRIX * vpos;

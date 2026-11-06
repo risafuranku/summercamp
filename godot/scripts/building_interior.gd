@@ -500,7 +500,6 @@ func open_interior() -> void:
 		_viewport.audio_listener_enable_3d = true
 	_bind_one_world()
 	_one_world_inside(true)
-	_set_window_view_live(true)
 	_update_window_texture()
 	visible = true
 	_sync_interior_viewport_to_window()
@@ -568,7 +567,6 @@ func close_interior() -> void:
 		_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 		_viewport.audio_listener_enable_3d = false
 	_one_world_inside(false)
-	_set_window_view_live(false)
 	visible = false
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
@@ -1450,6 +1448,10 @@ func _build_room() -> void:
 	_desk_room = DESK_ROOM.new()
 	_desk_room.build(self, _extras, _room_root)
 	_setup_door_view()
+	# From the first frame: a camp loaded with you out in it never opens the room, and the
+	# panes stood pale and blind over the windows, nothing of the room seen from outside
+	# (the user 6. 11.; they went only with the first time in).
+	_hide_painted_views()
 	_dressing = OFFICE_DRESSING.new()
 	_dressing.build(_room_root)
 	for id in _dressing.hot.keys():
@@ -2559,10 +2561,6 @@ func _tick_photo_flash(delta: float) -> void:
 		return
 	_photo_t = maxf(0.0, _photo_t - delta)
 	_photo_light.light_energy = float(_photo_light.get_meta("peak", 0.0)) * pow(_photo_t / 0.45, 1.6)
-
-
-func _set_window_view_live(_on: bool) -> void:
-	_hide_painted_views()
 
 
 func _update_window_texture() -> void:
