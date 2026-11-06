@@ -17,5 +17,12 @@
  "Pager: CampGrid cut the mains, the bill is overdue. The UPS holds six minutes.": "Pager: CampGrid odpojil proud, účet je po splatnosti. UPS vydrží šest minut.",
  "Put into the camp": "Vloženo do kempu",
  "none": "žádné",
- "once": "jednou"
+ "once": "jednou",
+ "UNPAID": "K ÚHRADĚ",
+ "WORN": "CHATRNÉ",
+ "$/day": "Kč/den",
+ "kWh/day": "kWh/den",
+ "Refresh": "Obnovit",
+ "Left click opens, right click flags.": "Levé odkrývá, pravé značí.",
+ "Not connected. Click Refresh to dial again.": "Nepřipojeno. Pro nové vytáčení klepněte na Obnovit."
 }

@@ -30,6 +30,8 @@ global uniform vec3 season_leaf_tint;
 global uniform float season_leaves;
 global uniform float season_snow;
 
+const float BAYER[16] = { 0.03, 0.53, 0.16, 0.66, 0.78, 0.28, 0.91, 0.41, 0.22, 0.72, 0.09, 0.59, 0.97, 0.47, 0.84, 0.34 };
+
 varying vec3 v_wpos;
 varying float v_up;
 varying vec3 v_normal;
@@ -89,6 +91,14 @@ void fragment() {
 	vec4 t = texture(albedo_tex, UV * uv_scale);
 	if (alpha_cut && t.a < 0.5) {
 		discard;
+	}
+	// Right at your eye a card's picture is a wall of squares a hand wide: it comes apart in steps
+	// there and you look through it, as you would hold a bough aside.
+	if (alpha_cut) {
+		float keep = (length(VERTEX) - 0.25) / 0.5;
+		if (keep < BAYER[(int(FRAGCOORD.x) % 4) + (int(FRAGCOORD.y) % 4) * 4]) {
+			discard;
+		}
 	}
 	vec3 c = t.rgb * albedo_color.rgb;
 	if (seasonal > 0.5) {

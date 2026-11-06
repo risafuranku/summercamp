@@ -1011,6 +1011,11 @@ func _tree_mesh(id: String) -> Mesh:
 				var top: float = float(t[2]) + tall * BOUGH_WIDEST
 				for k in 3:
 					_st_bough(st, top, half, tall, float(i) * 0.7 + TAU / 6.0 * float(k))
+				# And down its slope, hanging off the cone: those three reach out past the rim and
+				# between them the cone stood bare, a dark triangle a tier high from anywhere near.
+				for row in BOUGH_ROWS:
+					for k in int(row[1]):
+						_st_shingle(st, t, float(row[0]), float(i) * 1.1 + float(row[0]) * 3.0 + TAU / float(row[1]) * float(k))
 		"birch_trunk":
 			_st_cone(st, Vector3.ZERO, 0.16, 0.08, 4.2, 6, 1.0)
 			# Its limbs, up into the crown: the crown thins and comes down in October and a bare
@@ -1073,6 +1078,45 @@ func _st_bough(st: SurfaceTool, top: float, half: float, tall: float, yaw: float
 		st.set_normal(n0); st.set_uv(Vector2(u0, 0)); st.add_vertex(a)
 		st.set_normal(n1); st.set_uv(Vector2(u1, 1)); st.add_vertex(c)
 		st.set_normal(n0); st.set_uv(Vector2(u0, 1)); st.add_vertex(d)
+
+
+## How far a spruce's boughs hold you off at `ly` (its own metres up the trunk). Under the lowest
+## rim they hang at full reach, down to where you duck under them (`ducked`).
+static func spruce_reach(ly: float, ducked: bool) -> float:
+	var first: Array = SPRUCE_TIERS[0]
+	if ly < float(first[2]):
+		return 0.0 if ducked else float(first[0]) * BOUGH_THICK
+	var out := 0.0
+	for tier in SPRUCE_TIERS:
+		var y0 := float(tier[2])
+		var h := float(tier[1])
+		if ly >= y0 and ly <= y0 + h:
+			out = maxf(out, lerpf(float(tier[0]) * BOUGH_THICK, 0.04, (ly - y0) / h))
+	return out
+
+
+## A bough hanging off a tier's slope: a fan with its stem at `up` (0 the rim, 1 the tip) of the
+## tier [radius, height, foot], flat against the cone and standing off it at its sides. Lit as
+## the side of the tree it is on.
+func _st_shingle(st: SurfaceTool, tier: Array, up: float, yaw: float) -> void:
+	var r: float = tier[0]
+	var h: float = tier[1]
+	var out := Vector3(cos(yaw), 0.0, sin(yaw))
+	var side := Vector3(-out.z, 0.0, out.x)
+	var down := (out * (r / h) * 1.3 - Vector3.UP).normalized()
+	var ring := r * (1.0 - up)
+	var half := maxf(ring * 1.05, 0.2)
+	var tall := half * 2.0 / BOUGH_ASPECT
+	var stem := out * (ring + 0.06) + Vector3.UP * (float(tier[2]) + h * up)
+	var a := stem - side * half
+	var b := stem + side * half
+	var n := (out + Vector3.UP * 0.7).normalized()
+	st.set_normal(n); st.set_uv(Vector2(0, 0)); st.add_vertex(a)
+	st.set_normal(n); st.set_uv(Vector2(1, 0)); st.add_vertex(b)
+	st.set_normal(n); st.set_uv(Vector2(1, 1)); st.add_vertex(b + down * tall)
+	st.set_normal(n); st.set_uv(Vector2(0, 0)); st.add_vertex(a)
+	st.set_normal(n); st.set_uv(Vector2(1, 1)); st.add_vertex(b + down * tall)
+	st.set_normal(n); st.set_uv(Vector2(0, 1)); st.add_vertex(a + down * tall)
 
 
 ## Clumps of leaves all round a crown's lumps ([centre, radius] each): small cards turned every
@@ -1204,6 +1248,10 @@ const SPRUCE_BOUGHS_TEX := "res://assets/textury/world/spr_spruce_tier.png"
 const BOUGH_REACH := 1.32
 const BOUGH_ASPECT := 2.08
 const BOUGH_WIDEST := 0.42
+## Where a bough stops being a thick wall of needles, of its tier's radius: past it are the tips.
+const BOUGH_THICK := 1.12
+## The boughs hanging down each tier's slope: [how far up it, how many round it].
+const BOUGH_ROWS := [[0.24, 5], [0.52, 5], [0.74, 3]]
 ## The linden's crown (scripts/geo/ and the villages): [centre, radius] of its lumps.
 const LINDEN_BLOBS := [[Vector3(0.0, 6.0, 0.0), 3.1], [Vector3(1.9, 5.0, 0.7), 2.1], [Vector3(-1.8, 5.2, -0.8), 2.2],
 	[Vector3(0.5, 4.8, -2.0), 2.0], [Vector3(-0.7, 4.7, 1.9), 2.0], [Vector3(0.3, 8.3, 0.2), 2.1],

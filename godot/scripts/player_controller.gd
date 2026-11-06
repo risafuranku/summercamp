@@ -538,11 +538,14 @@ func _physics_process(delta: float) -> void:
 	_after_physics(delta)
 
 
-## A spruce's lower branches hold you off (world_generator.SPRUCE_TIERS): only its trunk
+## A spruce's lower branches hold you off (world_generator.spruce_reach): only its trunk
 ## is solid, so a walk into one put your eyes in its needles (4. 11.). Its skirt's reach at
 ## your eyes (and a hand lower) and a little more: you stop at the tips as at a wall; stood
-## up under one you are eased out. Crouched you still get in under it.
+## up under one you are eased out. Crouched you still get in under it. (A tall one's lowest
+## rim is over your head: its boughs hang past it, and it let you walk in up to the trunk.)
 const BRANCH_MARGIN := 0.14
+## Your eyes under this over the tree's foot: you have ducked under its boughs.
+const BRANCH_DUCK := 1.1
 const BRANCH_EASE := 3.5
 var _branch_q: PhysicsShapeQueryParameters3D
 
@@ -552,7 +555,7 @@ func _hold_off_branches(delta: float) -> void:
 		return
 	if _branch_q == null:
 		var ball := SphereShape3D.new()
-		ball.radius = 2.8
+		ball.radius = 3.4
 		_branch_q = PhysicsShapeQueryParameters3D.new()
 		_branch_q.shape = ball
 		_branch_q.exclude = [get_rid()]
@@ -567,12 +570,8 @@ func _hold_off_branches(delta: float) -> void:
 		var base: Vector3 = (tree as Node3D).global_position
 		var reach := 0.0
 		for dy in [0.0, -0.18]:
-			var ly: float = (eye_y + dy - base.y) / maxf(b.y.length(), 0.01)
-			for tier in WORLD_GEN.SPRUCE_TIERS:
-				var y0 := float(tier[2])
-				var h := float(tier[1])
-				if ly >= y0 and ly <= y0 + h:
-					reach = maxf(reach, lerpf(float(tier[0]), 0.04, (ly - y0) / h))
+			var over: float = eye_y + dy - base.y
+			reach = maxf(reach, WORLD_GEN.spruce_reach(over / maxf(b.y.length(), 0.01), over < BRANCH_DUCK))
 		if reach <= 0.0:
 			continue
 		reach = reach * b.x.length() + BRANCH_MARGIN

@@ -6,7 +6,7 @@ extends Control
 ## Games, Shops, saving and loading.
 ##
 ##   godot --headless --path godot res://tools/os98_check.tscn
-##   godot --path godot res://tools/os98_check.tscn -- --shots=<dir>   (screenshots)
+##   godot --path godot res://tools/os98_check.tscn -- --shots=<dir> [--lang=cs]   (screenshots)
 
 const SHELL = preload("res://scripts/os98/os_shell.gd")
 const WEB = preload("res://scripts/os98/web_pages.gd")
@@ -19,6 +19,8 @@ var _installed: Array = []
 
 
 func _ready() -> void:
+	# (English, unless -- --lang=cs: the screens as the Czech game has them.)
+	preload("res://scripts/lang.gd").apply("en")
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--shots="):
 			_shots = a.trim_prefix("--shots=")

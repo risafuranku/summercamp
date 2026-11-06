@@ -57,4 +57,4 @@ func _cover_lines(id: String) -> Array:
 
 
 func _cover_button(id: String) -> String:
-	return "Sign up and download  (%d KB)" % int(_shell.PROGRAMS[id]["kb"])
+	return LANG.f("Sign up and download  (%d KB)", int(_shell.PROGRAMS[id]["kb"]))

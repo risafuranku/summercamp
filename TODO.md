@@ -50,6 +50,9 @@
 - [x] M3 A job left for ten days counted ten jobs in the books: one.
 - [x] M4 DAY 31 OF 30 on the inspection's morning.
 - [x] M5 THE BOOKS, the game's last screen: on a 240-line screen the title went off the top and the two ways on lay over Vera's count; half of it English in the Czech game. It fits at 1280x720 to 1920x1080 with all seven on it (`noc_check --part=report`), all of it Czech.
+- [x] M7 The PC's own screens looked at in Czech (`os98_check --shots=DIR --lang=cs`, which never set the language): UNPAID and WORN cut in their chips, $/day in crowns, the browser's Stop and Refresh run together, the mines' line cut, Sign up and download left half English, Builder's Keys title.
+- [x] N10 Spruces close to: boughs hang down each tier's slope as well as out from its rim (`_st_shingle`, BOUGH_ROWS), they were dark cones with tips round the edge wherever you stood near one, the far shore worst. The same 47-49 fps.
+- [x] N11 Walking into a spruce: the hold-off went by the cone at your eyes and a tall one's lowest rim is over your head: up to the trunk, the screen one wall of squares. It goes by where the boughs thicken now (`spruce_reach`, under the lowest rim too; ducked you still get in, 3 m2 of the camp are shut standing, smrk_check). Right at your eye a card comes apart in steps and you look through it (`tree_wind`).
 - [ ] M6 Should a poor month end the run instead of offering Stay on? DESIGN section 11, question 1: Richard's.
 
 ## UX POLISH 2026-11-06 (evening) — „pokračuj v ux polishmentu" (measured, then fixed; tick with the commit)

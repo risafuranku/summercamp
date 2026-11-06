@@ -1049,7 +1049,7 @@ msgstr "BÍDA"
 #: core/systems/maintenance_rules.gd:123 scripts/os98/apps/campstat_app.gd:906
 #. uses 2
 msgid "WORN"
-msgstr "OPOTŘEB."
+msgstr "CHATRNÉ"
 
 #: core/systems/maintenance_rules.gd:124 scripts/business/station_hud.gd:727 scripts/os98/apps/campstat_app.gd:620 scripts/os98/apps/campstat_app.gd:897
 #. uses 4
@@ -17683,7 +17683,7 @@ msgstr "Web"
 msgid "Shops"
 msgstr "Podniky"
 
-#: scripts/os98/os_shell.gd:57 scripts/os98/apps/jobs_app.gd:22
+#: scripts/os98/os_shell.gd:57 scripts/os98/apps/jobs_app.gd:24
 #. uses 2
 msgid "Jobs"
 msgstr "Práce"
@@ -20948,7 +20948,7 @@ msgstr "Zastavit"
 #: scripts/os98/apps/browser_app.gd:155 scripts/os98/apps/browser_app.gd:563
 #. uses 2
 msgid "Refresh"
-msgstr "Aktualizovat"
+msgstr "Obnovit"
 
 #: scripts/os98/apps/browser_app.gd:156 scripts/staff/staff_ledger.gd:97
 #. uses 2
@@ -21131,7 +21131,7 @@ msgstr ""
 "\n"
 "\n"
 "[b]Zkuste následující:[/b]\n"
-" * Klepněte na tlačítko Aktualizovat nebo to zkuste později.\n"
+" * Klepněte na tlačítko Obnovit nebo to zkuste později.\n"
 " * Pokud jste adresu stránky zadali do řádku Adresa, zkontrolujte, zda je napsána správně.\n"
 " * Klepnutím na tlačítko Zpět zkuste jiný odkaz.\n"
 "\n"
@@ -22091,7 +22091,7 @@ msgstr "Připojit"
 
 #: scripts/os98/apps/browser_app.gd:1739
 msgid "Not connected. Click Refresh to dial again."
-msgstr "Nepřipojeno. Pro nové vytáčení klepněte na Aktualizovat."
+msgstr "Nepřipojeno. Pro nové vytáčení klepněte na Obnovit."
 
 #: scripts/os98/apps/browser_app.gd:1741
 msgid ""
@@ -22821,7 +22821,7 @@ msgstr "PO SPLAT."
 
 #: scripts/os98/apps/campstat_app.gd:751
 msgid "UNPAID"
-msgstr "NEZAPLAC."
+msgstr "K ÚHRADĚ"
 
 #: scripts/os98/apps/campstat_app.gd:755
 msgid "Pay now"
@@ -24472,76 +24472,76 @@ msgstr "Na prosvětlovacím stole není žádný snímek."
 msgid "No. %04d   %s   scale 1:2000"
 msgstr "Č. %04d   %s   měřítko 1:2000"
 
-#: scripts/os98/apps/jobs_app.gd:29
+#: scripts/os98/apps/jobs_app.gd:31
 msgid "Tonight: %d cards"
 msgstr "Dnes v noci: %d {karta|karty|karet}"
 
-#: scripts/os98/apps/jobs_app.gd:31
+#: scripts/os98/apps/jobs_app.gd:33
 msgid "Today: $%d"
 msgstr "Dnes: $%d"
 
-#: scripts/os98/apps/jobs_app.gd:33
+#: scripts/os98/apps/jobs_app.gd:35
 msgid "Today: %d photos"
 msgstr "Dnes: %d {fotka|fotky|fotek}"
 
-#: scripts/os98/apps/jobs_app.gd:48
+#: scripts/os98/apps/jobs_app.gd:50
 msgid "WORK AT HOME ON YOUR COMPUTER."
 msgstr "PRÁCE DOMA NA POČÍTAČI."
 
-#: scripts/os98/apps/jobs_app.gd:48
+#: scripts/os98/apps/jobs_app.gd:50
 msgid "The District Office pays $4 for every register card"
 msgstr "Okresní úřad platí $4 za každou kartu evidence,"
 
-#: scripts/os98/apps/jobs_app.gd:48
+#: scripts/os98/apps/jobs_app.gd:50
 msgid "you type in. The old register of everyone who"
 msgstr "kterou přepíšeš. Starou evidenci všech, kdo"
 
-#: scripts/os98/apps/jobs_app.gd:49
+#: scripts/os98/apps/jobs_app.gd:51
 msgid "stayed by the reservoir, 1961-1989."
 msgstr "bydleli u přehrady v letech 1961-1989."
 
-#: scripts/os98/apps/jobs_app.gd:49
+#: scripts/os98/apps/jobs_app.gd:51
 msgid "Okresni urad Hlubocany, room 12."
 msgstr "Okresní úřad Hlubočany, kancelář č. 12."
 
-#: scripts/os98/apps/jobs_app.gd:51
+#: scripts/os98/apps/jobs_app.gd:53
 msgid "EARN MONEY WITH YOUR MOUSE!"
 msgstr "VYDĚLÁVEJ MYŠÍ!"
 
-#: scripts/os98/apps/jobs_app.gd:51
+#: scripts/os98/apps/jobs_app.gd:53
 msgid "Bohemia Online pays $1 for every advert you confirm."
 msgstr "Bohemia Online platí $1 za každou potvrzenou reklamu."
 
-#: scripts/os98/apps/jobs_app.gd:51
+#: scripts/os98/apps/jobs_app.gd:53
 msgid "Click OK on a real advert. Close (x) what is not one:"
 msgstr "Skutečnou reklamu potvrď OK. Zavři (x), co reklama není:"
 
-#: scripts/os98/apps/jobs_app.gd:52
+#: scripts/os98/apps/jobs_app.gd:54
 msgid "prizes, viruses, chain letters. A wrong click costs."
 msgstr "výhry, viry, řetězové dopisy. Chyba se strhává."
 
-#: scripts/os98/apps/jobs_app.gd:52 scripts/os98/apps/jobs_app.gd:55
+#: scripts/os98/apps/jobs_app.gd:54 scripts/os98/apps/jobs_app.gd:57
 #. uses 2
 msgid "Paid at once."
 msgstr "Proplácí se hned."
 
-#: scripts/os98/apps/jobs_app.gd:54
+#: scripts/os98/apps/jobs_app.gd:56
 msgid "THE DISTRICT COUNTS ITS PROPERTY."
 msgstr "OKRES SČÍTÁ SVŮJ MAJETEK."
 
-#: scripts/os98/apps/jobs_app.gd:54
+#: scripts/os98/apps/jobs_app.gd:56
 msgid "Count what the aerial photograph asks for: tents,"
 msgstr "Spočítej, na co se ptá letecký snímek: stany,"
 
-#: scripts/os98/apps/jobs_app.gd:54
+#: scripts/os98/apps/jobs_app.gd:56
 msgid "cows, boats. Type the number. $3 for the right count,"
 msgstr "krávy, lodě. Napiš číslo. $3 za správný počet,"
 
-#: scripts/os98/apps/jobs_app.gd:55
+#: scripts/os98/apps/jobs_app.gd:57
 msgid "$1 if you are one out."
 msgstr "$1, když se spleteš o jednu."
 
-#: scripts/os98/apps/jobs_app.gd:60
+#: scripts/os98/apps/jobs_app.gd:62
 msgid "Sign up and download  (%d KB)"
 msgstr "Přihlásit a stáhnout  (%d KB)"
 
@@ -24815,7 +24815,7 @@ msgstr "[lb]"
 
 #: scripts/os98/apps/mines_app.gd:68
 msgid "Left click opens, right click flags."
-msgstr "Levé tlačítko odkrývá, pravé označuje."
+msgstr "Levé odkrývá, pravé značí."
 
 #: scripts/os98/apps/mines_app.gd:70
 msgid "Best Times"
@@ -32553,3 +32553,11 @@ msgstr "žádné"
 #. manual
 msgid "once"
 msgstr "jednou"
+
+#. manual
+msgid "$/day"
+msgstr "Kč/den"
+
+#. manual
+msgid "kWh/day"
+msgstr "kWh/den"

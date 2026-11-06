@@ -59,12 +59,8 @@ func reach_at_eye() -> float:
 	var p := pl()
 	var cam: Camera3D = p.get_node("Head/Camera3D")
 	var b := _tree.global_transform.basis
-	var ly := (cam.global_position.y - _tree.global_position.y) / b.y.length()
-	var r := 0.0
-	for tier in WG.SPRUCE_TIERS:
-		if ly >= float(tier[2]) and ly <= float(tier[2]) + float(tier[1]):
-			r = maxf(r, lerpf(float(tier[0]), 0.04, (ly - float(tier[2])) / float(tier[1])))
-	return r * b.x.length()
+	var over := cam.global_position.y - _tree.global_position.y
+	return WG.spruce_reach(over / b.y.length(), over < 1.1) * b.x.length()
 
 
 func eye_off() -> float:
@@ -120,12 +116,9 @@ func reach_map() -> void:
 		hi = Vector2(maxf(hi.x, c.x), maxf(hi.y, c.y))
 		trunks.append([c, 0.24 * b.x.length() + 0.35])
 		if int(t.get_meta("tree_kind", -1)) == WG.TREE_KIND_SPRUCE:
-			var ly := eye_h / b.y.length()
 			var r := 0.0
-			for dy in [0.0, -0.18 / b.y.length()]:
-				for tier in WG.SPRUCE_TIERS:
-					if ly + dy >= float(tier[2]) and ly + dy <= float(tier[2]) + float(tier[1]):
-						r = maxf(r, lerpf(float(tier[0]), 0.04, (ly + dy - float(tier[2])) / float(tier[1])))
+			for dy in [0.0, -0.18]:
+				r = maxf(r, WG.spruce_reach((eye_h + dy) / b.y.length(), eye_h + dy < 1.1))
 			if r > 0.0:
 				skirts.append([c, r * b.x.length() + 0.14])
 	lo -= Vector2(4, 4)
