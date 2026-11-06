@@ -393,7 +393,10 @@ var _jednota_lit := -1
 
 
 func _jednota(at: Vector3) -> void:
-	var wall := _mat(TEX_CAMP + "concrete.png", Color(0.86, 0.84, 0.8), Vector2(3.0, 1.0))
+	# Its sides and back in the light render of its front, as the houses' (they were the
+	# camp's raw concrete: dark and blotched, a bunker beside the chapel; L15).
+	# (The grey roughcast brought up to the front's own render, 181/176/162 of its picture.)
+	var wall := _mat(_first([TEX_CAMP + "roughcast_wall.png", TEX_CAMP + "concrete.png"]), Color(1.5, 1.48, 1.42), Vector2(3.0, 1.0))
 	if ResourceLoader.exists(TEX + "lib_jednota_front_glass.png") and not _front_meta("lib_jednota_front").is_empty():
 		var shop := _jednota_hollow(at, wall)
 		var hh: float = _front_meta("lib_jednota_front")["m"][1]
@@ -1832,7 +1835,9 @@ func _farm_wall(cx: float, front_z: float, facing: float) -> void:
 	var root := Node3D.new()
 	root.position = Vector3(cx, 0, front_z - facing * 0.2)
 	add_child(root)
-	_box(root, Vector3(0, H * 0.5 - 0.3, 0), Vector3(W, H - 0.6, 0.4), _mat(_first([TEX + "village_plaster.png"]), Color(0.95, 0.88, 0.7)), true)
+	# (Its back and ends in the render at its size: one stretched picture made a flat
+	# yellow board seen from behind; L15.)
+	_box(root, Vector3(0, H * 0.5 - 0.3, 0), Vector3(W, H - 0.6, 0.4), _tiled(_mat(_first([TEX + "village_plaster.png"]), Color(0.95, 0.88, 0.7)), Vector3(W, H - 0.6, 0.4)), true)
 	_front_quad(root, "lib_farm_gate", Vector3(0, H * 0.5, facing * 0.2), facing, Vector2(W, H))
 
 

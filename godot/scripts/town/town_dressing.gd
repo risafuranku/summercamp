@@ -46,6 +46,7 @@ func build(p_town: Node3D) -> void:
 	_pavements()
 	_houses()
 	_street()
+	_jednota_back()
 	_poles()
 	_cars()
 
@@ -322,6 +323,48 @@ func _yard_dog(at: Vector3, yaw: float) -> void:
 		bark.visible = false
 	_dog = {"lie": lie, "bark": bark, "t": 0.0, "cool": 0.0, "at": at,
 		"snd": _audio3d(SFX + "dog_bark.mp3", -4.0, at + Vector3(0, 0.6, 0), false, 50.0)}
+
+
+## The Jednota's other walls (town_lesna._jednota_hollow: 12 x 10 m round (-6, -15), its
+## front to the street): they were bare concrete all round, a blank slab beside the chapel
+## (playtest 6. 11., L15: "the whole town is broken"). Glass-block windows of the store
+## rooms high in the sides and the back, the delivery door at the back on its concrete
+## ramp with the bread crates out and the bin by it, downpipes at the back corners.
+func _jednota_back() -> void:
+	var c := Vector3(-6.0, 0, -15.0)
+	var hw := 6.0
+	var back := c.z - 5.0
+	var blocks := _mat(TEX_CAMP + "wc_window.png")
+	var tin := _mat("", Color(0.44, 0.46, 0.45))
+	for side in [-1.0, 1.0]:
+		var x: float = c.x + side * hw
+		var yaw: float = side * PI * 0.5
+		for z in ([-13.0, -17.0] if side < 0.0 else [-16.5]):
+			_quad(blocks, Vector2(1.1, 1.1), Vector3(x + side * 0.03, 2.9, z), yaw)
+		_box(Vector3(x + side * 0.08, 2.45, back + 0.12), Vector3(0.1, 4.9, 0.1), tin)
+	_quad(blocks, Vector2(1.1, 1.1), Vector3(c.x - 3.0, 2.9, back - 0.03), PI)
+	# The delivery door, up its ramp.
+	var ramp := Vector3(c.x + 2.8, 0.25, back - 0.8)
+	_box(ramp, Vector3(3.6, 0.5, 1.6), _mat(TEX_CAMP + "concrete.png", Color(0.74, 0.73, 0.7), Vector2(3.0, 1.0)))
+	_solid(ramp, Vector3(3.6, 0.5, 1.6))
+	_box(Vector3(ramp.x, 1.5, back - 0.02), Vector3(2.9, 2.2, 0.04), _mat("", Color(0.25, 0.25, 0.25)))
+	_quad(_mat(TEX + "garage_door.png"), Vector2(2.6, 1.95), Vector3(ramp.x, 1.49, back - 0.05), PI)
+	_sprite("crates_bread", 0.85, Vector3(ramp.x - 1.15, 0.5, back - 0.75), false, PI)
+	_sprite("crates_bread", 0.85, Vector3(ramp.x - 0.55, 0.5, back - 1.15), false, PI + 0.3)
+	_sprite("street_bin", 0.95, Vector3(ramp.x + 2.6, 0, back - 0.7), true)
+
+
+## A quad of `mat` (`size`) at `pos` facing `yaw` (0 = +z).
+func _quad(mat: Material, size: Vector2, pos: Vector3, yaw: float) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var q := QuadMesh.new()
+	q.size = size
+	mi.mesh = q
+	mi.material_override = mat
+	mi.position = pos
+	mi.rotation.y = yaw
+	add_child(mi)
+	return mi
 
 
 # ── the street ───────────────────────────────────────────────────────────────
