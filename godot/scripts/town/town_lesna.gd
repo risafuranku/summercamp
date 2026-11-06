@@ -63,6 +63,7 @@ func build(p_worldgen: Node) -> void:
 	_station(Vector3(48.0, 0, 13.0))
 	_houses()
 	_side_street()
+	_south_end()
 	_stop_north()
 	_stop_south()
 	_lamps()
@@ -1039,7 +1040,12 @@ func _pond_light(h: float) -> void:
 func _lamps() -> void:
 	var lights: Array = []
 	var pic := TEX + "sodium_lamp.png"
-	for x in [-40.0, -12.0, 18.0, 44.0]:
+	var xs: Array = [-40.0, -12.0, 18.0, 44.0]
+	if GEO_MODE:
+		# Down the south end too, the stop's shelter lit (_south_end).
+		var sx := unw(GEO.stop_point("liblice")["p"]).x
+		xs = [sx - 40.0, sx - 14.0, sx + 18.0] + xs
+	for x in xs:
 		var at := Vector3(x, 0, -4.2)
 		var l := OmniLight3D.new()
 		l.light_color = Color(1.0, 0.62, 0.3)
@@ -1308,6 +1314,55 @@ func _side_street() -> void:
 	spots["houses"] = houses
 	_farm_wall(23.0, -55.0, 1.0)
 	_park_bench(self, Vector3(-30.2, 0, -14.0), PI * 0.5)
+
+
+## Where Liblice starts (the user 6. 11.: "I feel the houses are not there till I get off the
+## bus as I come in"): in the real land the stop is south of the street, and the street
+## began thirty metres past it; the bus pulled in with grass at every window and you got
+## off facing a field. Bylanska is built up all the way down past the stop: gabled houses
+## and a cube house or two from the sign on, both sides, fronts to the road and set back a
+## step further than in the street, with their gardens, fences and washing like the rest
+## (town_dressing.gd); the ruin and old Vondra's track keep their places between them.
+## [front, metres along the road from the stop, side (+1 the side the bus from the camp
+## lets you off), depth, number by the door]
+const SOUTH_END := [
+	["lib_gable_ochre", -42.0, 1.0, 14.0, 141], ["lib_kostka", -30.0, 1.0, 9.0, 150],
+	["lib_gable_white", -17.0, 1.0, 13.0, 152], ["lib_gable_red", 12.0, 1.0, 13.0, 160],
+	["lib_gable_grey", -30.0, -1.0, 13.0, 148], ["lib_gable_red", -17.0, -1.0, 12.0, 133],
+	["lib_gable_white", 11.0, -1.0, 13.0, 154], ["lib_kostka", 24.0, -1.0, 9.0, 158],
+]
+const SOUTH_SET_BACK := 10.5
+
+
+func _south_end() -> void:
+	if not GEO_MODE:
+		return
+	var sx := unw(GEO.stop_point("liblice")["p"]).x
+	var walls := {
+		"ochre": _mat(_first([TEX + "village_plaster.png", TEX_CAMP + "plaster_stone.png"]), Color(1.0, 0.92, 0.7), Vector2(3.0, 1.0)),
+		"white": _mat(_first([TEX + "village_plaster.png", TEX_CAMP + "plaster_stone.png"]), Color(1.0, 1.0, 1.0), Vector2(3.0, 1.0)),
+		"red": _mat(_first([TEX + "village_plaster.png", TEX_CAMP + "plaster_stone.png"]), Color(0.86, 0.5, 0.42), Vector2(3.0, 1.0)),
+		"grey": _mat(_first([TEX_CAMP + "roughcast_wall.png", TEX + "village_plaster.png"]), Color(0.82, 0.82, 0.8), Vector2(3.0, 1.0)),
+	}
+	var houses: Array = spots.get("houses", [])
+	var gi := houses.size()
+	for row in SOUTH_END:
+		var fid: String = row[0]
+		var x: float = sx + float(row[1])
+		var side: float = row[2]
+		# A house on the +z side looks to -z (at the road), and the other way.
+		var f := -side
+		var opts := {"kind": gi, "number": int(row[4])}
+		var house := {}
+		if fid == "lib_kostka":
+			house = _hip_house(fid, x, side * SOUTH_SET_BACK, f, float(row[3]), walls["grey"], opts)
+		else:
+			var colour := fid.trim_prefix("lib_gable_")
+			house = _gable_house(fid, x, side * SOUTH_SET_BACK, f, float(row[3]), walls.get(colour, walls["white"]), dict_merge(opts, {"eternit": colour == "grey"}))
+		if not house.is_empty():
+			houses.append(house)
+			gi += 1
+	spots["houses"] = houses
 
 
 ## The bell pillar on the green: a white plastered pillar, an open belfry with the little

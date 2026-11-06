@@ -2011,6 +2011,8 @@ func _clearings() -> Array:
 	var stop_local := tb.inverse() * (stop_p - TOWN.ORIGIN)
 	out.append(_rect_poly(Rect2(-82.0, -62.0, 166.0, 112.0), TOWN.ORIGIN, tb))
 	out.append(_rect_poly(Rect2(stop_local.x - 14.0, -10.0, 28.0, 20.0), TOWN.ORIGIN, tb))
+	# Down from the sign past the stop to the street, both sides (town_lesna._south_end).
+	out.append(_rect_poly(Rect2(stop_local.x - 62.0, -34.0, 92.0, 68.0), TOWN.ORIGIN, tb))
 	var hb := Basis(Vector3.UP, HAMLET_PLACE.HAMLET_YAW)
 	for r in [Rect2(-46.0, 5.0, 92.0, 152.0), Rect2(-84.0, -18.0, 28.0, 16.0)]:
 		out.append(_rect_poly(r, HAMLET_PLACE.HAMLET_ORIGIN, hb))

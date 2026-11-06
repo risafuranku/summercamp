@@ -78,7 +78,8 @@ SIGNS = {
                     face=(190, 36, 30), shadow=(236, 230, 214), track=0.08, wear=0.14, seed=31),
 }
 # Numbers painted by the doors.
-for n in ["12", "27", "31", "44", "58", "63", "71", "89", "95", "103", "116", "128"]:
+for n in ["12", "27", "31", "44", "58", "63", "71", "89", "95", "103", "116", "128",
+          "133", "141", "148", "150", "152", "154", "158", "160"]:
     SIGNS["cp_" + n] = dict(text=n, font=("ARIALNB.TTF", None), cap=0.15, style="painted",
                             face=(30, 30, 30), shadow=None, track=0.02, wear=0.05, seed=int(n))
 
