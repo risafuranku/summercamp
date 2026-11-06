@@ -542,7 +542,9 @@ every night's sewer, toilets and frozen pipes the moment they broke).
  post showed a line of wallpaper down the corner (the reception's walls run to the corners'
  outer faces; the pub's, bistro's and Jednota's faces end at the room's corners, 1 cm off it:
  `_corner_beads`). **A wedge faces out** (`_prism` was inside out: you saw its far face, in
- one plane with the store's ceiling). **A room's ceiling ends under the model's top** (the
+ one plane with the store's ceiling), **its faces flat** (`set_smooth_group(-1)`: a triplanar
+ material goes by the normal, smoothed corners took the picture from different sides and
+ the boards came out as grain; look at a turned mesh up close, `--part=wedges`). **A room's ceiling ends under the model's top** (the
  cabins' bathroom: its edge stood out under the annex's roof, `annex_box`). **A freed object
  equals null**: `if v != null and not is_instance_valid(v)` lets it through, test
  `is_instance_valid` alone (a van upgraded under the room). **A room looks right from the camp before it is ever

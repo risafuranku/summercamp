@@ -1347,6 +1347,21 @@ func _ready() -> void:
 			st += [["eval", "set('debug_camera', null)"], ["eval", "get_tree().quit()"]]
 			_steps = st
 			return
+		if a == "--part=wedges":
+			# The wedges under the lean-to roofs (building_models._prism), up close from every
+			# side: the reception's store, the pub's annex.
+			var st: Array = [["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+				["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
+				["money", 900000], ["clear", 4, 9, 5, 5], ["build", "pub", 5, 10, 0], ["wait", 1.0],
+				["eval", "debug_jump_to(1, 12.0)"], ["wait", 5.0]]
+			for v in [["store_same", Vector3(-5.25, 1.6, -4.38), Vector3(4.25, 1.5, -2.78)], ["store_l", Vector3(-4.5, 1.6, -3.6), Vector3(-1.5, 2.4, -3.6)], ["store_r", Vector3(1.6, 1.6, -3.6), Vector3(-1.5, 2.4, -3.6)],
+					["store_back", Vector3(-1.5, 1.6, -7.5), Vector3(-1.5, 2.2, -3.6)]]:
+				st += [["eval", C + ".rec_cam_at(%s, %s)" % [_v3(v[1]), _v3(v[2])]], ["wait", 0.5], ["shot", "w_" + v[0]]]
+			for ang in [60.0, 90.0, 120.0, 150.0]:
+				st += [["eval", C + ".around('pub', %s, 7.5, 0.6)" % ang], ["wait", 0.5], ["shot", "w_pub_%03d" % int(ang)]]
+			st += [["eval", "set('debug_camera', null)"], ["eval", "get_tree().quit()"]]
+			_steps = st
+			return
 		if a == "--part=recwalk":
 			# Along every wall at a walking pace, close and a little off, a pair every half a
 			# metre: the wall seen slide by as you go.

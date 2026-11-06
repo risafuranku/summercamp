@@ -1912,6 +1912,9 @@ func _gable_roof(r: Node3D, at: Vector3, sx: float, sz: float, rise: float, mat:
 func _prism(size: Vector3, mat: Material) -> MeshInstance3D:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	# Flat faces: smoothed, a face's corners took the picture from different sides (the
+	# triplanar goes by the normal) and the boards came out as grain.
+	st.set_smooth_group(-1)
 	var hx := size.x * 0.5
 	var hz := size.z * 0.5
 	var pts := [Vector3(-hx, 0, -hz), Vector3(-hx, 0, hz), Vector3(-hx, size.y, hz), Vector3(hx, 0, -hz), Vector3(hx, 0, hz), Vector3(hx, size.y, hz)]
