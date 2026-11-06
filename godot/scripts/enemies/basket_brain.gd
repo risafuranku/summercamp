@@ -1586,6 +1586,16 @@ func _on_stop() -> void:
 		_force_window(str(_target["key"]), "")
 	_end_strike()
 	_clear_rings()
+	# Her bulbs are in again by morning: "an hour" of the real clock was six nights dark, and
+	# nothing here ever put one back.
+	if _building_manager != null and _building_manager.has_method("relight_lamp_near"):
+		for at in bulbs:
+			_building_manager.call("relight_lamp_near", at, 1.0)
+	bulbs.clear()
+
+
+func holds_player() -> bool:
+	return _strike_t >= 0.0 and _quarry_peer() == 0
 
 
 func get_debug_snapshot() -> Dictionary:

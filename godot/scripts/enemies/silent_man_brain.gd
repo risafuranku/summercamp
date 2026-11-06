@@ -1315,6 +1315,10 @@ func _update_seq_worse(kind: String, t: float, st: float, fx, cam: Camera3D) -> 
 
 ## After the hit: black, then (a catch, not a kill) the world back, him gone for a while.
 func _fade_out(fx, t: float, from: float, to: float) -> void:
+	# (The hit just before this was the last one: the night is over and _on_stop cleared the
+	# screen. Going on put the black back for good, over the menu and the loaded save.)
+	if _seq.is_empty():
+		return
 	if fx != null and t >= from:
 		if t >= from + 0.05:
 			fx.close_up_off()
@@ -1328,6 +1332,10 @@ func _fade_out(fx, t: float, from: float, to: float) -> void:
 			_feed("He was right behind you. Turn round. Put a light on him.")
 		if not kill:
 			_reset_far(_rng.randf_range(12.0, 18.0))
+
+
+func holds_player() -> bool:
+	return not _seq.is_empty() and _quarry_peer() == 0
 
 
 func _end_seq() -> void:

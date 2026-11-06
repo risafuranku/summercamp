@@ -67,12 +67,18 @@ func _on_start() -> void:
 	_dad_next = _rng.randf_range(15.0, 30.0)
 
 
+## His job is out there whether you are or not. (The base ticks nothing in a room: a night
+## sat out in the office had no job and no pager, and in the morning the family was gone.)
+func tick(delta: float) -> void:
+	if _night_active and place != "" and not _job_made:
+		_job_made = _make_job()
+	super(delta)
+
+
 func _on_tick(dt: float) -> void:
 	if place == "":
 		super._on_tick(dt)
 		return
-	if not _job_made:
-		_job_made = _make_job()
 	# His job done (the board on, the sewer mended, out of the corn): found.
 	if not found and _job_made:
 		var m := _main()

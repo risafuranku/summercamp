@@ -816,13 +816,27 @@ func _show_week_report() -> void:
 		return
 	_week_ledger.closed = true
 	_week_report_screen = WEEK_REPORT_SCREEN_SCRIPT.new()
-	_week_report_screen.setup(_week_ledger.report(CoreRoot.get_state()))
+	_week_report_screen.setup(_week_ledger.report(CoreRoot.get_state(), _camp_value()))
 	_week_report_screen.stay_requested.connect(_on_week_report_stay)
 	_week_report_screen.main_menu_requested.connect(_on_week_report_menu)
 	add_child(_week_report_screen)
 	if _hud_manager != null:
 		_hud_manager.set_world_hud_visible(false)
 	get_tree().paused = true
+
+
+## What stands in the camp, at what it costs to build (the month's books: what was put into the
+## camp is not money lost).
+func _camp_value() -> int:
+	var state = CoreRoot.get_state()
+	if state == null or state.grid == null or economy_manager == null:
+		return 0
+	var total := 0
+	for c in state.grid.cells:
+		var cell: Dictionary = state.grid.cells[c]
+		if cell.get("root_coord", c) == c:
+			total += int(economy_manager.get_cost(str(cell.get("type", ""))))
+	return total
 
 
 func _close_week_report() -> void:
@@ -1654,6 +1668,9 @@ func _apply_pending_loaded_player_state() -> void:
 	var loaded_yaw := float(_pending_loaded_player_state.get("yaw", _player.rotation.y))
 	if not is_nan(loaded_yaw) and not is_inf(loaded_yaw):
 		_player.rotation.y = loaded_yaw
+	# (Hurt, saved and loaded was a hundred again.)
+	if _pending_loaded_player_state.has("health"):
+		_set_player_health(clampi(int(_pending_loaded_player_state["health"]), 1, PLAYER_MAX_HEALTH), false)
 	_pending_loaded_player_state.clear()
 
 
@@ -2981,7 +2998,7 @@ func _on_day_phase_started() -> void:
 	_settle_goggle()
 	if _night_jobs != null:
 		if _week_ledger != null:
-			_week_ledger.note_jobs_left(_night_jobs.open_jobs().size())
+			_week_ledger.note_jobs_left(_night_jobs.take_left_count())
 		_night_jobs.on_dawn()
 	if _player != null and _player.has_method("recharge_flashlight"):
 		_player.recharge_flashlight()
@@ -3917,6 +3934,9 @@ func _bind_billing() -> void:
 	_billing.setup(economy_manager)
 	_billing.state_changed.connect(_emit_state_update)
 	_billing.power_cut_changed.connect(func(_cut: bool) -> void:
+		# Out in the camp the lamps go and that is all you know: the clock has started.
+		if _cut and _gameplay_started and _hud_manager != null:
+			_hud_manager.push_status("Pager: CampGrid cut the mains, the bill is overdue. The UPS holds six minutes.", 2)
 		_note_grid_power(_is_grid_powered())
 		if GuestManager != null and GuestManager.has_method("set_camp_power_available"):
 			GuestManager.set_camp_power_available(_is_grid_powered())
@@ -4059,7 +4079,7 @@ func _setup_audio() -> void:
 
 
 func _try_interact() -> void:
-	if _pause_menu != null and _pause_menu.is_open() or _coop_down:
+	if _pause_menu != null and _pause_menu.is_open() or _coop_down or _enemy_holding_player():
 		return
 	if _coop_partner_down_near():
 		_coop_lift_partner()
@@ -4145,9 +4165,19 @@ func _is_structure_interior_open() -> bool:
 func _update_player_control_lock() -> void:
 	if _player == null or not _player.has_method("set_controls_enabled"):
 		return
-	_player.set_controls_enabled(not _is_any_interior_open() and not (_lake_trip != null and _lake_trip.is_active()) and not _coop_menu_up() and not _in_attraction() and not _coop_down)
+	_player.set_controls_enabled(not _is_any_interior_open() and not (_lake_trip != null and _lake_trip.is_active()) and not _coop_menu_up() and not _in_attraction() and not _coop_down and not _enemy_holding_player())
 	# The camp's torch is not spent while you are in a room (player_controller.in_room).
 	_player.in_room = _is_any_interior_open()
+
+
+## A catch playing out, its close-up, its black: your legs and hands are not yours till it ends.
+## (The lock above gave them back the next frame, and a door opened in the middle of one froze it
+## over the room.)
+func _enemy_holding_player() -> bool:
+	for b in _enemy_brains:
+		if b != null and b.has_method("holds_player") and bool(b.holds_player()):
+			return true
+	return false
 
 
 ## Sat by the fire, on the swing, at the net... (scripts/attractions/warden_play.gd).
@@ -5037,6 +5067,8 @@ func _start_new_camp(sandbox: bool, test_enemy: String = "", camp_name: String =
 	if sandbox:
 		_pending_loaded_crt_state = {"unlock_registry": {"builder": true, "camp_status": true, "guestrack": true, "datapunch": true}}
 	_start_game_from_menu()
+	if _week_ledger != null:
+		_week_ledger.start_built = _camp_value()
 	# A sandbox camp has no story: no mails from Vera or Nela, no checklist. The district
 	# writes how a camp starts, and the first booking comes once a bed is free.
 	if not sandbox and _quest_manager != null:
@@ -6563,7 +6595,8 @@ func _build_save_snapshot(slot_name: String, kind: String) -> Dictionary:
 				"y": _player.global_position.y,
 				"z": _player.global_position.z
 			},
-			"yaw": _player.rotation.y
+			"yaw": _player.rotation.y,
+			"health": _player_health
 		}
 	return snapshot
 

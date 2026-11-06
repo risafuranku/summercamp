@@ -2530,8 +2530,12 @@ func photo_windows() -> Array:
 		var cur = sp[2]
 		var at := _room_root.global_transform * c
 		var to := (at - _interior_camera.global_position).normalized()
+		# At the PC or over a close-up your eyes are on that, whatever the camera's angle to the
+		# glass: the flash came through a window you were not looking at, a hit every ten seconds
+		# through the mail.
+		var away: bool = _crt_active or (_extras != null and _extras.is_modal())
 		out.append({"pos": _portal_xform * c, "out": (_portal_xform.basis * o).normalized(),
-			"facing": (-_interior_camera.global_transform.basis.z).dot(to),
+			"facing": -1.0 if away else (-_interior_camera.global_transform.basis.z).dot(to),
 			"open": float(cur.open) if cur != null else 1.0,
 			"flash": _photo_flash.bind(c, o, cur),
 			"room_world": _viewport.find_world_3d() if _viewport != null else null,

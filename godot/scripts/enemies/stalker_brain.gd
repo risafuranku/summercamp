@@ -54,7 +54,12 @@ func _build_perimeter() -> void:
 
 
 func _on_tick(dt: float) -> void:
-	if _perimeter.size() < 2 or _elapsed < _rest_until:
+	if _perimeter.size() < 2:
+		return
+	# (The base hides him while you are in a room and nothing showed him again: on a night begun
+	# at the PC he walked the fence and came at you unseen, his eyes with him.)
+	_body.visible = true
+	if _elapsed < _rest_until:
 		return
 	var pos := _body.global_position
 	var player := _player_pos()
@@ -93,6 +98,11 @@ func _on_tick(dt: float) -> void:
 	if _distance_to_player(pos) < NOTICE_RANGE and light <= GIVE_UP_LIGHT and _rng.randf() < dt * 0.6:
 		_charging = true
 		_announce("Heavy footsteps along the fence. They stopped. Now they are coming.")
+
+
+## Getting indoors makes him lose interest, as it says at the top.
+func _on_back() -> void:
+	_charging = false
 
 
 func _move(step: Vector3, step_interval: float, dt: float) -> void:

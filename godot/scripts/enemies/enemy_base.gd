@@ -44,6 +44,8 @@ var _remote_fx: Node
 ## The view when a turn of it began (_view_begin): yaw, pitch, roll; and the turn now.
 var _view0 := {}
 var _view_now := Vector3.ZERO
+## It has not been ticking: the warden is in a room (_on_back when they come out).
+var _off_tick := false
 ## Lamp light round the eyes at which they no longer glow (you see it instead).
 const EYES_GONE_IN_LIGHT := 0.4
 
@@ -70,6 +72,7 @@ func start_night(seed: int, difficulty: int, references: Dictionary) -> void:
 	_night_active = true
 	_elapsed = 0.0
 	_announced = false
+	_off_tick = false
 	_on_start()
 	# The night's screen and ears there from the start (the ears go when you are hurt too).
 	NIGHTMARE_FX.get_for(_world_root)
@@ -81,11 +84,15 @@ func tick(delta: float) -> void:
 	var dt := maxf(delta, 0.0)
 	_elapsed += dt
 	if not _is_ready():
+		_off_tick = true
 		if _body != null:
 			_body.visible = false
 		if _eyes != null:
 			_eyes.call("_hide")
 		return
+	if _off_tick:
+		_off_tick = false
+		_on_back()
 	_on_tick(dt)
 	_tick_eyes(dt)
 
@@ -126,6 +133,18 @@ func _on_tick(_dt: float) -> void:
 
 func _on_stop() -> void:
 	pass
+
+
+## The warden it hunts is back out of a room (or whatever kept this from ticking): a chase
+## frozen at the door does not go on from there.
+func _on_back() -> void:
+	pass
+
+
+## A catch of this one's playing out on this machine: the warden's legs and hands are not
+## theirs till it ends (main._enemy_holding_player).
+func holds_player() -> bool:
+	return false
 
 
 # ── context ───────────────────────────────────────────────────────────────────

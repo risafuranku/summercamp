@@ -1537,7 +1537,7 @@ func _announce_phase(phase: int) -> void:
 		PHASE_DAY:
 			# A sandbox camp has no month (main._sandbox): its day alone.
 			var main := get_tree().current_scene
-			var month: bool = main == null or main.get("_sandbox") != true
+			var month: bool = (main == null or main.get("_sandbox") != true) and _day <= Season.CAMPAIGN_DAYS
 			show_banner("DAY %d OF %d" % [_day, Season.CAMPAIGN_DAYS] if month else "DAY %d" % _day, Season.date_long(_day), RETRO_UI.C_AMBER, 3.2)
 		PHASE_NIGHT:
 			show_banner("NIGHT %d" % _day, "Until 06:30", RETRO_UI.C_RED_LIGHT, 4.2)

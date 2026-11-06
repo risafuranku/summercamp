@@ -11,6 +11,9 @@ signal main_menu_requested
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 const RETRO_MENU = preload("res://scripts/ui/retro_menu.gd")
 
+## The two ways on, a row each (px of the 240-line screen).
+const LIST_ROW := 16
+
 var _scale: int = 3
 var _report: Dictionary = {}
 var _root: Control
@@ -55,18 +58,21 @@ func _rebuild() -> void:
 	shade.color = Color(0.05, 0.035, 0.01, 0.86)
 	_root.add_child(shade)
 
+	# (All of it on a 240-line screen: the title went off the top, its accents with it, and the
+	# two ways on lay over Vera's count at the bottom.)
 	var box := VBoxContainer.new()
 	box.alignment = BoxContainer.ALIGNMENT_CENTER
-	box.add_theme_constant_override("separation", int(_vp(3)))
+	box.add_theme_constant_override("separation", int(_vp(1)))
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.set_anchors_preset(Control.PRESET_FULL_RECT)
-	box.offset_left = _vp(40)
-	box.offset_right = -_vp(40)
-	box.offset_bottom = -_vp(56)
+	box.offset_left = _vp(10)
+	box.offset_right = -_vp(10)
+	box.offset_top = _vp(4)
+	box.offset_bottom = -_vp(LIST_ROW * 2 + 6)
 	_root.add_child(box)
 
 	var title := RETRO_UI.PixelTitle.new()
-	title.configure(RETRO_UI.FONT_BIG, RETRO_UI.SIZE_BIG * 3, _scale)
+	title.configure(RETRO_UI.FONT_BIG, RETRO_UI.SIZE_BIG * 2, _scale)
 	title.set_colors(RETRO_UI.C_AMBER_LIGHT, RETRO_UI.C_AMBER_DIM)
 	title.set_text("THE BOOKS")
 	title.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -74,12 +80,12 @@ func _rebuild() -> void:
 	var sub := RETRO_UI.label("%s, 08:00. THE INSPECTION." % Season.date_long(Season.RETURN_DAY).to_upper(), RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_BONE_DIM, _scale, false)
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(sub)
-	box.add_child(_gap(6))
+	box.add_child(_gap(3))
 
 	var grid := GridContainer.new()
 	grid.columns = 2
-	grid.add_theme_constant_override("h_separation", int(_vp(10)))
-	grid.add_theme_constant_override("v_separation", int(_vp(2)))
+	grid.add_theme_constant_override("h_separation", int(_vp(8)))
+	grid.add_theme_constant_override("v_separation", 0)
 	grid.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	for row in _report.get("rows", []):
@@ -87,29 +93,30 @@ func _rebuild() -> void:
 		k.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		grid.add_child(k)
 		var v := RETRO_UI.label(str(row[1]), RETRO_UI.FONT_TEXT, RETRO_UI.SIZE_TEXT, RETRO_UI.C_BONE, _scale, false)
-		v.custom_minimum_size.x = _vp(250)
+		v.custom_minimum_size.x = _vp(270)
 		v.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		grid.add_child(v)
 	box.add_child(grid)
-	box.add_child(_gap(8))
+	box.add_child(_gap(3))
 
 	var grade := str(_report.get("grade", "fair"))
 	var verdict_color: Color = RETRO_UI.C_GREEN_LIGHT if grade == "good" else (RETRO_UI.C_RED_LIGHT if grade == "poor" else RETRO_UI.C_QUOTE)
 	box.add_child(_paragraph(str(_report.get("verdict", "")), verdict_color))
-	box.add_child(_gap(3))
+	box.add_child(_gap(1))
 	box.add_child(_paragraph(str(_report.get("coda", "")) + "  - V.", RETRO_UI.C_BONE_DIM))
 
 	_list = RETRO_MENU.MenuList.new()
 	_list.ui_scale = _scale
-	_list.row_height_vp = 22
+	_list.row_height_vp = LIST_ROW
+	_list.size_vp = 12
 	var items: Array[Dictionary] = [
 		{"id": "stay", "text": "Stay on"},
 		{"id": "menu", "text": "Main menu"},
 	]
 	_list.set_items(items)
 	var list_w: float = _list.content_width()
-	_list.size = Vector2(list_w + _vp(8), _vp(44))
-	_list.position = Vector2(floorf((vp.x - list_w) * 0.5 / _scale) * _scale - _vp(4), vp.y - _vp(54))
+	_list.size = Vector2(list_w + _vp(8), _vp(LIST_ROW * 2))
+	_list.position = Vector2(floorf((vp.x - list_w) * 0.5 / _scale) * _scale - _vp(4), vp.y - _vp(LIST_ROW * 2 + 3))
 	_root.add_child(_list)
 	_list.activated.connect(func(id: String) -> void:
 		if id == "stay":
@@ -124,7 +131,7 @@ func _paragraph(text: String, color: Color) -> Label:
 	var l := RETRO_UI.label(text, RETRO_UI.FONT_TEXT, RETRO_UI.SIZE_TEXT, color, _scale, false)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	l.custom_minimum_size.x = _vp(380)
+	l.custom_minimum_size.x = _vp(396)
 	l.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	return l
 

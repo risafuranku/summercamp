@@ -11,6 +11,7 @@ extends Node
 ## The verdict is a plain grade of money, reviews and nights. The coda under it is the
 ## found-CD part: Vera counts the guests herself, and the count depends on what you let in.
 
+const LANG := preload("res://scripts/lang.gd")
 const RETURN_DAY := Season.RETURN_DAY
 const RETURN_HOUR := 8.0
 
@@ -25,6 +26,8 @@ const ENEMY_NAMES := {
 }
 
 var start_money := 0
+## What stood in the camp the day it was yours, at what it costs to build (main._camp_value).
+var start_built := 0
 var closed := false          # the report has been shown; the camp runs on (endless)
 var _nights: Dictionary = {} # night index (String) -> Array of enemy ids
 var _hits := 0
@@ -35,6 +38,7 @@ var _paged := false
 
 func reset(money: int) -> void:
 	start_money = money
+	start_built = 0
 	closed = false
 	_nights.clear()
 	_hits = 0
@@ -91,8 +95,9 @@ func is_due(day: int, hours: float) -> bool:
 	return not closed and (day > RETURN_DAY or (day == RETURN_DAY and hours >= RETURN_HOUR))
 
 
-## Everything the report screen needs. `state` is the GameState.
-func report(state) -> Dictionary:
+## Everything the report screen needs. `state` is the GameState, `built` what stands in the
+## camp now at what it costs to build.
+func report(state, built := 0) -> Dictionary:
 	var money := int(state.money) if state != null else 0
 	var reviews: Array = state.guest_reviews if state != null else []
 	var hosted := 0
@@ -130,18 +135,25 @@ func report(state) -> Dictionary:
 	for id in ["silent_man", "tourist", "girl", "whistler", "child", "basket", "stalker"]:
 		if tally.has(id):
 			var n := int(tally[id])
-			came.append("%s%s" % [ENEMY_NAMES[id], (" x%d" % n) if n > 1 else ""])
+			came.append("%s%s" % [tr(str(ENEMY_NAMES[id])), (" x%d" % n) if n > 1 else ""])
 	var nights := RETURN_DAY - 1
 
 	var delta := money - start_money
+	# Open and paying: money put into the camp is not money lost (a full camp that spent its
+	# takings on cabins was graded under an empty one that never spent a crown).
+	var put_in := maxi(0, built - start_built)
+	var worth := delta + put_in
 	var score := 0
-	score += 2 if delta >= 4000 else (1 if delta >= 0 else -1)
+	score += 2 if worth >= 4000 else (1 if worth >= 0 else -1)
 	if rated > 0:
 		score += 2 if avg >= 3.8 else (1 if avg >= 3.0 else (-1 if avg < 2.3 else 0))
 	score -= 1 if gave_up + stormed >= 8 else 0
 	score -= 1 if _hits >= 20 else 0
 	score -= 1 if _jobs_left >= 10 else 0
 	var grade := "good" if score >= 3 else ("poor" if score <= 0 else "fair")
+	# Nobody ever stayed: that is no open camp, whatever is in the till.
+	if hosted == 0:
+		grade = "poor"
 
 	var verdict := ""
 	match grade:
@@ -154,30 +166,32 @@ func report(state) -> Dictionary:
 
 	var coda := ""
 	if visited == 0:
-		coda = "I counted them myself. %d in the book, %d at breakfast. I counted twice, because it is never right." % [hosted, hosted]
+		coda = LANG.f("I counted them myself. %d in the book, %d at breakfast. I counted twice, because it is never right.", [hosted, hosted])
 	elif tally.has("stalker"):
-		coda = "I counted them myself. %d in the book, %d at breakfast. One of them was standing by the fence, facing the office. He was your uncle's too." % [hosted, hosted + 1]
+		coda = LANG.f("I counted them myself. %d in the book, %d at breakfast. One of them was standing by the fence, facing the office. He was your uncle's too.", [hosted, hosted + 1])
 	else:
-		coda = "I counted them myself. %d in the book, %d at breakfast. It was like that when your uncle ran it." % [hosted, hosted + 1]
+		coda = LANG.f("I counted them myself. %d in the book, %d at breakfast. It was like that when your uncle ran it.", [hosted, hosted + 1])
 
 	var rows: Array = [
 		["Takings", "%s$%d   (started with $%d, $%d in the till)" % ["+" if delta >= 0 else "-", absi(delta), start_money, money]],
-		["Guests hosted", "%d   reviews %s   turned away %d   stormed off %d" % [hosted, ("%.1f stars" % avg) if rated > 0 else "none", gave_up, stormed]],
+		["Put into the camp", "$%d" % put_in],
+		["Guests hosted", "%d   reviews %s   turned away %d   stormed off %d" % [hosted, LANG.f("%.1f stars", avg) if rated > 0 else tr("none"), gave_up, stormed]],
 		["Nights", "%d   something came on %d   quiet %d" % [nights, mini(visited, nights), maxi(0, nights - visited)]],
 		["What came", ", ".join(came) if not came.is_empty() else "nothing you could see"],
-		["You were hurt", "%d times" % _hits if _hits != 1 else "once"],
+		["You were hurt", LANG.f("%d times", _hits) if _hits != 1 else tr("once")],
 		["Left for morning", "%d night jobs" % _jobs_left if _jobs_left != 1 else "1 night job"],
 	]
 	return {"grade": grade, "rows": rows, "verdict": verdict, "coda": coda}
 
 
 func export_state() -> Dictionary:
-	return {"start_money": start_money, "closed": closed, "nights": _nights.duplicate(true),
+	return {"start_money": start_money, "start_built": start_built, "closed": closed, "nights": _nights.duplicate(true),
 		"hits": _hits, "damage": _damage, "jobs_left": _jobs_left, "paged": _paged}
 
 
 func import_state(data: Dictionary) -> void:
 	start_money = int(data.get("start_money", start_money))
+	start_built = int(data.get("start_built", 0))
 	closed = bool(data.get("closed", false))
 	var n = data.get("nights", {})
 	_nights = (n as Dictionary).duplicate(true) if n is Dictionary else {}

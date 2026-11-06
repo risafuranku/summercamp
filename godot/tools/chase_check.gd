@@ -129,6 +129,8 @@ func _ready() -> void:
 	(_player as FakePlayer).torch = true
 	for i in 30 * 60:
 		_face(g._body.global_position)
+		# (Her voice waits for the wall clock, which stands still in this loop.)
+		g._voice_until = 0.0
 		g.tick(1.0 / 30.0)
 		for n in find_children("*", "AudioStreamPlayer3D", true, false):
 			var a := n as AudioStreamPlayer3D

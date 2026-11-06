@@ -213,6 +213,10 @@ func is_private_now() -> bool:
 	return _phase == Phase.RUSH or _killing or not _win.is_empty()
 
 
+func holds_player() -> bool:
+	return _killing and _quarry_peer() == 0
+
+
 ## The night is over (dawn, death, the menu): his picture layer goes, a last picture
 ## still coming does not hurt you after it, your controls are yours, his lamps go out.
 func _on_stop() -> void:

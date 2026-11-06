@@ -118,6 +118,11 @@ func on_dawn() -> void:
 			if _main != null and _main.has_method("end_corn_hunt"):
 				_main.end_corn_hunt()
 			job["state"] = "cancelled"
+		elif job.has("boy"):
+			# Dawn ends his game: what is left is a plain job. (By day at the board and in the
+			# pipes he went on playing, and hurting you.)
+			job.erase("boy")
+			job.erase("boy_of")
 	_jobs = _jobs.filter(func(j): return str(j["state"]) == "open")
 	changed.emit()
 
@@ -163,6 +168,16 @@ func open_jobs() -> Array:
 		if str(job["state"]) == "open":
 			out.append(job.duplicate())
 	return out
+
+
+## Open jobs the month's books have not heard of yet: one left for ten days is one job left.
+func take_left_count() -> int:
+	var n := 0
+	for job in _jobs:
+		if str(job["state"]) == "open" and not job.has("in_books"):
+			job["in_books"] = true
+			n += 1
+	return n
 
 
 func hud_rows() -> Array:

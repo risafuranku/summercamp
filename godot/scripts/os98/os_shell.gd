@@ -1570,7 +1570,14 @@ func _start_boot() -> void:
 ## on working, music and all, through a blackout), and boots again only when you sit at
 ## it with the power back.
 func _has_power() -> bool:
-	return _host == null or _host.get("_grid_power_available") != false
+	if _host == null or _host.get("_grid_power_available") != false:
+		return true
+	# The bill unpaid: the mains are cut and the UPS under the desk runs this machine. CampStat is
+	# the one place to pay, and with the PC dead the six minutes on its monitor were a death
+	# sentence nobody could see.
+	var m: Node = main_node()
+	var billing = m.get("_billing") if m != null else null
+	return billing != null and bool(billing.ups_active)
 
 
 var _power_t := 0.0

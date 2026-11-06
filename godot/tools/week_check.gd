@@ -79,6 +79,25 @@ func _init() -> void:
 	if JSON.stringify(copy.report(st2)) != JSON.stringify(r2):
 		failures.append("export/import changes the report")
 
+	# A full camp that put its takings into cabins is paying; nobody ever staying is no open camp.
+	var spent = LEDGER.new()
+	spent.reset(850)
+	spent.start_built = 500
+	var st3 := FakeState.new()
+	st3.money = 300
+	for i in 6:
+		st3.guest_reviews.append({"rating": 3 if i % 2 else 4})
+	var r3: Dictionary = spent.report(st3, 3000)
+	if str(r3["grade"]) != "fair":
+		failures.append("a camp that spent its till on buildings graded %s" % r3["grade"])
+	var shut = LEDGER.new()
+	shut.reset(850)
+	var st4 := FakeState.new()
+	st4.money = 900
+	var r4: Dictionary = shut.report(st4)
+	if str(r4["grade"]) != "poor":
+		failures.append("a camp nobody stayed in graded %s" % r4["grade"])
+
 	print("WEEK CHECK: good=%s poor=%s" % [r["grade"], r2["grade"]])
 	for f in failures:
 		print("WEEK CHECK FAIL: " + f)

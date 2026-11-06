@@ -15,5 +15,7 @@
  "B  bulldozer        P  path        L  lamp\nF1 housing   F2 washrooms   F3 food   F4 fun   F5 decor\nR  turn the building     T  turn the view     X  put the tool away\nO  overlay (wear, power, rooms, light)\nW A S D, arrows  move the map (Shift faster)     +/-  zoom     Ctrl+Z  undo today's build\n\nNo tool in hand: click a building for its card.": "B  buldozer        P  cesta        L  lampa\nF1 ubytování   F2 umývárny   F3 jídlo   F4 zábava   F5 dekorace\nR  otočit stavbu     T  otočit pohled     X  odložit nástroj\nO  vrstva (opotřebení, proud, pokoje, světlo)\nW A S D, šipky  posun mapy (Shift rychleji)     +/-  přiblížení     Ctrl+Z  vrátit dnešní stavbu\n\nBez nástroje v ruce: klikni na stavbu a ukáže se její karta.",
  "Builder 98 - Keys": "Builder 98 - Klávesy",
  "Pager: CampGrid cut the mains, the bill is overdue. The UPS holds six minutes.": "Pager: CampGrid odpojil proud, účet je po splatnosti. UPS vydrží šest minut.",
- "Put into the camp": "Vloženo do kempu"
+ "Put into the camp": "Vloženo do kempu",
+ "none": "žádné",
+ "once": "jednou"
 }

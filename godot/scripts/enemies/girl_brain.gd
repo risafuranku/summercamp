@@ -1478,6 +1478,10 @@ func _end_strike() -> void:
 	_leave(_rng.randf_range(20.0, 30.0) * maxf(0.45, 1.0 - 0.18 * float(_round)))
 
 
+func holds_player() -> bool:
+	return _phase == STRIKE and _quarry_peer() == 0
+
+
 ## She is gone for `seconds`, leaving one red heel where she stood.
 func _leave(seconds: float) -> void:
 	if ResourceLoader.exists(HEEL) and _body != null:

@@ -773,6 +773,9 @@ INSPECTION" (`scripts/week_ledger.gd`, `scripts/ui/week_report_screen.gd`):
 - **The verdict.** A plain grade of money, reviews and nights: *good* (the district
   withdraws the sale, "the winter is yours"), *fair* ("the sale is off, for now"), *poor*
   (they will recommend the sale, Agrostroj's pegs are in, "your bus is at ten").
+  Money put into the camp is not money lost (what stands now against what stood on day 1,
+  at what it costs to build, counts with the till); a camp nobody ever stayed in is *poor*,
+  whatever is in the till.
 - **The count at breakfast.** If nothing ever came, the number in the book and at
   breakfast agree ("I counted twice, because it is never right"). If anything came there
   is one more at breakfast than in the book, "like when your uncle ran it". The verdict

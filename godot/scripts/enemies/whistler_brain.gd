@@ -398,6 +398,23 @@ func get_tree_timer(seconds: float, f: Callable) -> void:
 
 func _on_stop() -> void:
 	_put_out()
+	# (The night over with the string round your neck: his face stayed on the screen.)
+	if _strike_t >= 0.0:
+		_strike_t = -1.0
+		var fx := _fx()
+		if fx != null:
+			fx.close_up_off()
+
+
+## In through a door with him at a run: he has lost you, he does not wait at the door.
+func _on_back() -> void:
+	if _phase == "rush":
+		_pos = Vector3.INF
+		_enter("rest", _rng.randf_range(15.0, 25.0))
+
+
+func holds_player() -> bool:
+	return _strike_t >= 0.0 and _quarry_peer() == 0
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────

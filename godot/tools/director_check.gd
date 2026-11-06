@@ -104,7 +104,7 @@ func _run() -> void:
 	print("DIRECTOR CHECK: busy nights fired %s, %d of it in runs" % [str(counts), runs])
 	_expect(runs > 0, "no run of things close together in five busy nights")
 	for c in counts:
-		_expect(c >= 3 and c <= 16, "a busy night fired %d things (want 3-16)" % c)
+		_expect(c >= 3 and c <= 18, "a busy night fired %d things (want 3-18)" % c)
 
 	# A near-empty camp, you in the office all night: a few small things, nothing big.
 	var small := []

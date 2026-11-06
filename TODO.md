@@ -35,6 +35,23 @@
 - [x] G15 The catalogue says UPGRADE AT 20 GUESTS, not a bare 20 GUESTS by a grey button; its close hint is the keys that work. The corn stand's and the alley's Z REPORT button opens the report (nothing was hooked to it there). E and Space row back from the far shore, with a hint. A made bed answers by day. The ticket and the motel key say what they are. Builder's Rotate (R) and its Keys dialog as the keys are.
 - [x] G16 The books, every page of every place looked at in Czech (`smycka_check --part=books`): the six tabs ran off the picture, Z REPORT cut in half; the shop's seventeen goods packed into a smear (sheets of ten now, 1/2 at the foot of the page, the bistro's eleven too); a long Czech name ran into its price; the note on the menu page lay under the pencil and the stamp. The receipt's stars sat on the dashes and it said -0 Kc. The catalogue's grey line ran under its button, and the hacek on VYLEPSENI stood out over the plate.
 
+### The night as you meet it, the month's end (a third audit, each one read and then played: `tools/noc_check`)
+
+- [x] H1 The Antlered Man was hidden for good by a night begun indoors (the base hides what is in the dark while you are in a room, nothing showed him again): he came at you unseen, 40-55 a hit. A door now does lose him, as it says; the Whistler's rush too (`_on_back`).
+- [x] H2 The flash through a window you were not looking at: at the PC the glass is 33 degrees off the screen and counted as looked at, a hit every ten seconds through the mail. At the PC or over a close-up no window is looked at.
+- [x] H3 Killed by the Silent Man's bite: the black came back after the night stopped and stayed over the menu and the loaded save.
+- [x] H4 The boy's job came only out of doors: a night sat out in the office had no job, no pager, and in the morning the family was gone. It comes wherever you are.
+- [x] H5 The granny's bulbs were out for an hour of the real clock, six nights, nothing put one back: back with the morning.
+- [x] H6 A catch holds you (`holds_player`): main gave the legs back every frame, a door opened in the middle of one froze its face or its black over the room.
+- [x] H7 Dawn ends the boy's game: at the board and in the pipes he went on playing by day, and hurting you. What he left is a plain job.
+- [x] H8 Your health is in the save: hurt and loaded was a hundred again.
+- [x] M1 A bill overdue killed the PC at once and CampStat is the one place to pay: one missed bill was a certain POWER LOST, its six minutes on a monitor nobody could see. The PC runs on the UPS as it says; a pager line when the mains go.
+- [x] M2 The month's grade: money put into the camp is not money lost (a full camp that spent its takings on cabins was graded under an empty one); nobody ever stayed is poor, whatever is in the till.
+- [x] M3 A job left for ten days counted ten jobs in the books: one.
+- [x] M4 DAY 31 OF 30 on the inspection's morning.
+- [x] M5 THE BOOKS, the game's last screen: on a 240-line screen the title went off the top and the two ways on lay over Vera's count; half of it English in the Czech game. It fits at 1280x720 to 1920x1080 with all seven on it (`noc_check --part=report`), all of it Czech.
+- [ ] M6 Should a poor month end the run instead of offering Stay on? DESIGN section 11, question 1: Richard's.
+
 ## UX POLISH 2026-11-06 (evening) — „pokračuj v ux polishmentu" (measured, then fixed; tick with the commit)
 
 - [x] P1 The frame. Rooms nobody is in were drawn all game (cabin, tent, caravan, service room: 3000 draws a frame, half the graphics card's time), retro_materials compared every material through a text (7 ms a frame). Now shut (`interior_manager._tick_eyes`, each room's open and close) and compared by value. At the PC, in the reception and in the camp 33-37 fps -> 49-50 (the cap); draws 6100 / 7800 / 5900 -> 900 / 1950 / 650; with no cap and no vsync 90-96 fps. A first day played through (`pruchod_check`): 49 fps in every stretch from the desk on (26-33 before). `onesun_check --part=vptime`.
