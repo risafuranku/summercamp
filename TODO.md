@@ -4,6 +4,26 @@
 
 ---
 
+## PLAYTEST 2026-11-06 — LIBLICE: „tohle je celý broken, to je k smíchu“ (the user's notes, verbatim, then the note in brackets; tick with the commit)
+
+The plan, in this order (the rooms' look and walk are one piece of code, town_room.gd, so the chapel and the motel get them together): L1-L3 the Jednota and the motel's way in (small, whole bugs) -> L4-L5 the look in Liblice's rooms -> L6-L7 hover, cursors, walking by clicking the floor -> L8-L10 the chapel -> L11 the motel's way about -> L12-L15 the street. Check each with a shot or a harness in the state the user had it (walk there, click, turn), not just by reading the code. If this list outlives the session: the next one starts at the first unticked line.
+
+- [ ] L1 „v té jednotě jsem měl jeden velký problém, že ty věci, co si kupuju, se mi nějak nepřidávají do inventáře. Nakoupil jsem si úplně všechno a v inventáři jsem neměl nic.“ (what is bought in the Jednota must land in the inventory: find where the sale goes)
+- [ ] L2 „A taky tam chybí nějaké potvrzení, že vlastně, hej, teďka si fakt kupuješ věc, stojí to tolik a tolik, odečíti to tolik peněz. Připadal jsem si, že tam jen tak něco klikám a vůbec jsem neměl pocit, že vlastně nakupuju něco za peníze“ (a real purchase: the price shown before, a yes, the money going, the till; Czech in cs.po)
+- [ ] L3 „když jsem kliknul těm dveřím do chodby v místnosti recepce a pak jsem šel třeba ven, tak pokaždý když přijdu dovnitř, tak už se objevuju u těch dveří do chodby. To je špatně. ... Vždycky, když odejdu, tak vždycky začínám ze startu recepce.“ (the motel's lobby: every way in starts at its start spot)
+- [ ] L4 „ten movement je vlastně hrozně zničenej. Ty mě necháš se rozlížet myší, ale kdykoliv někam kliknu, tak ta postava se vlastně jako by otočí, protože ty tam nějaký jako by bejstý postavy a zároveň mi to otáčí už i tím otočeným pohledem. ... aby mi to prostě netrhalo ten obraz“ (the walk turns the base and the mouse offset stays on top: the picture jumps. One heading: the walk starts from where you are looking and turns from there, smoothly)
+- [ ] L5 „nemůžu se otáčet furt do strany do nekonečna. Takže kolikrát při otáčení do strany narazím prostě na hranici. ... Já chci doleva, tam nemůžu, musím se otočit o 360 stupní úplně doprava.“ (the look free all the way round in Liblice's rooms, no stop at the sides, in the chapel and the motel alike)
+- [ ] L6 „vůbec nepoužíváš hover, highlighty, jako jsou všude ve hře ... Neměníš tam ten kurzor na očíčko a na ruku, aby bylo jasné, na co se jde podívat a na co jde kliknout.“ (the game's hover glint and HandCursor eye/hand in every Liblice room, as in the camp's interiors)
+- [ ] L7 „Vždycky dělají v interiárech možnost jít si stoupnout k oknu, tím, že kliknu třeba nějak pod něj ... na tu podlahu nebo na tu zeď. ... Klikáš prostě na hover zvýrazněný místa, prostě třeba na zemi před těma dveřma, nebo nahoru směrem do těch schodů, prostě nějak logicky to udělej“ (walking by clicking hover-lit places on the floor, in front of doors, up the stairs; not by knocking on doors)
+- [ ] L8 „Když kliknu třeba nahoru na ten vlastně, já nevím, co to je, ten balkónek, tak jsem čekal, že třeba bude animace, jak jdu postupně po těch schodech. Ale moc mi to jenom tak divně přiblíží.“ (the chapel's gallery: you walk up its stairs step by step, then you are there)
+- [ ] L9 „Hodně věcí, na které kliknu, tak mi to jenom divně prostě přiblíží pohled a vlastně nic.“ (every click in the chapel does something you can see or it is not clickable; no bare zoom)
+- [ ] L10 „chci pořádnej rework. Ať tam jde hezky chodit, ať tam neklipujete textura toho oltáře, ať je všechno prostě srozumitelný, jednoduchý, pochopitelný“ (the altar's texture clipping; the whole room's walk checked)
+- [ ] L11 „To stejné je i u toho motelu ... Je tam skoro úplně dokonale udělaný movement, ale prostě to ovládání je skurvený. ... teďka se můžu pohybovat po motelu, jenom tím, že klikám na dveře a zaťukám na ně. ... bylo strašně skurvený se dostat do horní místnosti ... na ty horní dveře můžu kliknout skrz strop“ (the motel's hall and upstairs reached by floor spots and the stairs; nothing clickable through a ceiling)
+- [ ] L12 „Všim jsem si na ulici, že autobus tam třeba přejede kluka, že nejde po chodníku ten kluk.“ (Liblice's walkers on the pavement, off the bus's lane)
+- [ ] L13 „je v hospodě tam posazenej týpek na tom pultu, ta textura toho pultu je vlastně neková zničená.“ (the pub: the man sat on the counter, the counter's texture)
+- [ ] L14 „mám pocit, že baráky nejsou vidět do té doby, než vystoupím z autobusu, když přijíždím“ (the houses must stand before you get off)
+- [ ] L15 „pořádně potřebujeme to město polišnout, tohle je fakt celý zničený, to je celý broken, to je celý k smíchu.“ (after the above, the village walked through again as a player and what is still broken listed here)
+
 ## PLAYTEST 2026-11-05 (afternoon) — the user's notes (verbatim, then the note in brackets; tick with the commit)
 
 - [x] Y1 „při skipnutí boot splash undo a godot se to actually neskipne, loading čeká až v pozadí dohraje celé intro (je slyšet zvuk)“ (the skip must really end the intro, its sound too) `8ff0d7b2`
