@@ -2391,10 +2391,17 @@ func _reception_shell() -> Node3D:
 
 
 ## The views painted on the room's windows and doorway, and what stood behind them: gone,
-## the openings show the camp itself.
+## the openings show the camp itself. The windows' quads are the room's glass now (as the
+## cabin's): the rain on it and the lightning through it hang under them (room_weather), hidden
+## with them they were gone from the office since one world. For the inside: from the camp
+## the building's own panes are seen.
 func _hide_painted_views() -> void:
 	var back_quad = _extras.back.window_quad if _extras != null and _extras.back != null else null
-	for n in [_window_quad, _side_quad, _window_outdoor_sky, _door_quad, back_quad]:
+	for n in [_window_quad, _side_quad, back_quad]:
+		if n is MeshInstance3D and is_instance_valid(n):
+			(n as MeshInstance3D).material_override = ONE_WORLD_ROOM.clear_glass()
+			_hide_from_camp(n)
+	for n in [_window_outdoor_sky, _door_quad]:
 		if n is Node3D and is_instance_valid(n):
 			(n as Node3D).visible = false
 
@@ -2460,7 +2467,7 @@ func _one_world_from_camp(delta: float) -> void:
 			var g = _glass_cache.get(k)
 			if g is MeshInstance3D and is_instance_valid(g):
 				if k == "door_way":
-					(g as MeshInstance3D).layers = 0
+					(g as MeshInstance3D).layers = ONE_WORLD_ROOM.NO_EYE
 				else:
 					(g as MeshInstance3D).material_override = _clear_glass()
 					(g as MeshInstance3D).visible = true

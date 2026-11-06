@@ -42,6 +42,8 @@ const PLANE_DEPTH := 0.35
 ## What lies over the room's windows inside (the camp in the glass, its rain): the rooms'
 ## INVIEW_HIDE_LAYER.
 const OVER_WINDOWS := 1 << 17
+## No eye's layer (one_world_room.NO_EYE).
+const NO_EYE := 1 << 20
 ## Metres a second through a door, and seconds for turning right round.
 const PACE := 1.5
 const TURN_SEC := 0.75
@@ -437,14 +439,14 @@ func _restore_panes() -> void:
 func _clear_doorway() -> void:
 	for d in _doors_of(_way):
 		var p := DOOR_ANIM.way_of(d)
-		if p != null and p.layers != 0:
+		if p != null and p.layers != NO_EYE:
 			_panes.append([p, p.material_override, p.layers])
-			p.layers = 0
+			p.layers = NO_EYE
 	if _way.get("pane", null) is MeshInstance3D:
 		var p2 := _way["pane"] as MeshInstance3D
-		if p2.layers != 0:
+		if p2.layers != NO_EYE:
 			_panes.append([p2, p2.material_override, p2.layers])
-			p2.layers = 0
+			p2.layers = NO_EYE
 
 
 ## The doorway from inside: a pane showing the camp, hidden till the door opens.

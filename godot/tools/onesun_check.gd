@@ -511,6 +511,28 @@ func room_hidden(on: bool) -> void:
 		_room_node.visible = true
 
 
+## Every light in the scene taken out one by one, its name on the error stream first: the
+## engine's "did not unpair geometries from light" that follows names the one it was.
+func free_lights() -> void:
+	for n in get_tree().root.find_children("*", "Light3D", true, false):
+		var l := n as Light3D
+		if l is DirectionalLight3D:
+			continue
+		printerr("ONESUN light ", str(l.get_path()).right(90), " vis=", str(l.is_visible_in_tree()), " mask=", l.light_cull_mask, " shadow=", str(l.shadow_enabled), " energy=", l.light_energy)
+		l.free()
+	printerr("ONESUN lights done")
+
+
+## The lamps in a business's own copy of its room, and what lights it.
+func biz_light(type: String, hour: float) -> void:
+	var st: Node3D = _main.debug_structure_of_type(type)
+	var out := []
+	for n in st.find_children("*", "Light3D", true, false):
+		var l := n as Light3D
+		out.append("%s:%s:%.2f" % [l.name, str(l.is_visible_in_tree()), l.light_energy])
+	print("ONESUN biz %s %.1f %s" % [type, hour, str(out)])
+
+
 ## The camp's eye by a wall of the first building of `type`, looking along it (wall 0 +z,
 ## 1 -z, 2 +x, 3 -x of its box; `end` which end it looks from; `back` m short of that end,
 ## `off` m off the wall).
@@ -563,6 +585,26 @@ func _camp_eye(at: Vector3, look: Vector3) -> Camera3D:
 	_main.set("debug_camera", cam)
 	cam.current = true
 	return cam
+
+
+## Lightning held on (weather_visuals' flash, every frame till `on` goes off).
+var _flash_on := false
+
+
+func flash(on: bool) -> void:
+	_flash_on = on
+
+
+## The room's own panes and what hangs under them.
+func rec_panes(tag: String) -> void:
+	var bi = _bi()
+	var back = bi.get("_extras").get("back").get("window_quad")
+	for q in [bi.get("_window_quad"), bi.get("_side_quad"), back]:
+		var m := q as MeshInstance3D
+		var rain := m.get_node_or_null("RainOnGlass") as MeshInstance3D
+		var mat := rain.material_override as ShaderMaterial if rain != null else null
+		print("ONESUN %s pane %s vis=%s L=%d rain vis=%s amount=%s flash=%s" % [tag, m.name, str(m.is_visible_in_tree()), m.layers, str(rain.is_visible_in_tree()) if rain != null else "-",
+			str(mat.get_shader_parameter("rain")) if mat != null else "-", str(mat.get_shader_parameter("flash")) if mat != null else "-"])
 
 
 ## What the reception's panes and curtains are now.
@@ -874,6 +916,8 @@ func _process(delta: float) -> void:
 		_dump_i += 1
 	if _room_hide and _room_node != null:
 		_room_node.visible = false
+	if _flash_on:
+		_main.get("_weather_visuals").set("_storm_flash_strength", 1.0)
 	var bi0 = _bi() if _main.get("_interior_manager") != null else null
 	if _green and bi0 != null and bi0.get("_room_probe") != null:
 		var pr0 = bi0.get("_room_probe")
@@ -1158,6 +1202,16 @@ func _ready() -> void:
 			if "caravan" in b:
 				st += [["clear", 12, 14, 4, 3], ["build", "caravan_1", 13, 15, 0]]
 			st += [["eval", "debug_jump_to(1, 13.0)"], ["wait", 3.0]]
+			if "cabin_fix" in b:
+				st += [["eval", "debug_repair_ruined()"], ["wait", 3.0]]
+			if "cabin_near" in b:
+				st += [["eval", "debug_repair_ruined()"], ["door_front", "cabin_1", 1.6], ["wait", 5.0]]
+			if "cabin_in" in b:
+				st += [["eval", "debug_repair_ruined()"], ["door_front", "cabin_1", 1.6], ["wait", 0.5],
+					["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('cabin_1'))"], ["wait", 4.0]]
+			if "cabin_open" in b:
+				st += [["eval", "debug_repair_ruined()"], ["wait", 1.0], ["eval", "_interior_manager._cabin_interior.set_world_anchor(debug_structure_of_type('cabin_1'))"],
+					["eval", "_interior_manager._cabin_interior.open_cabin(1)"], ["wait", 3.0], ["eval", "_interior_manager._cabin_interior.close_cabin()"], ["wait", 2.0]]
 			if "cabin_walk" in b:
 				st += [["eval", "debug_repair_ruined()"], ["door_front", "cabin_1", 1.6], ["wait", 0.5],
 					["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('cabin_1'))"], ["wait", 4.0],
@@ -1166,7 +1220,7 @@ func _ready() -> void:
 				st += [["door_front", "tent_1", 1.4], ["wait", 0.5],
 					["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('tent_1'))"], ["wait", 4.0],
 					["eval", C + ".walk_out2('_tent_interior', 'close_tent', 'tent_1')"], ["wait", 4.0]]
-			st += [["wait", 2.0], ["eval", "get_tree().quit()"]]
+			st += [["wait", 2.0], ["eval", C + ".free_lights()"], ["wait", 0.5], ["eval", "get_tree().quit()"]]
 			_steps = st
 			return
 		if a == "--part=recdoor":
@@ -1344,6 +1398,42 @@ func _ready() -> void:
 								var n := "%s_%d_%d_%d_%d" % [ty, wall, end, int(back), int(off * 10.0)]
 								st += [["eval", C + ".room_view('%s', %d, %d, %s, %s)" % [ty, wall, end, back, off]], ["wait", 0.45], ["shot", "a_" + n],
 									["eval", C + ".room_hidden(true)"], ["wait", 0.12], ["shot", "b_" + n], ["eval", C + ".room_hidden(false)"], ["wait", 0.05]]
+			st += [["eval", "set('debug_camera', null)"], ["eval", "get_tree().quit()"]]
+			_steps = st
+			return
+		if a == "--part=recrain":
+			# The rain on the reception's glass and the lightning through it, from inside by
+			# day and at night, and the glass from outside (the rain is for the inside).
+			var BI := "_interior_manager._building_interior"
+			var st: Array = [["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 3.0],
+				["eval", BI + "._exit_crt_view()"], ["wait", 2.0], ["mouse", 0.5, 0.5]]
+			for h in [12.0, 22.5]:
+				st += [["eval", "debug_jump_to(1, %s)" % h], ["wait", 1.0], ["eval", "weather_system.set_weather(5)"], ["eval", "_set_weather_state(5)"], ["wait", 12.0],
+					["eval", C + ".rec_panes('h%d')" % int(h)]]
+				for v in [["office", Vector3(-0.4, 1.6, -2.5)], ["side", Vector3(2.5, 1.6, 1.37)]]:
+					st += [["eval", C + ".rec_face(%s)" % _v3(v[1])], ["wait", 1.2], ["shot", "r%02d_%s" % [int(h), v[0]]]]
+				st += [["eval", C + ".flash(true)"], ["wait", 0.5], ["shot", "r%02d_side_flash" % int(h)], ["eval", C + ".flash(false)"], ["wait", 0.5],
+					["eval", BI + "._extras.go_back_room()"], ["wait", 3.0], ["eval", C + ".rec_face(%s)" % _v3(Vector3(-5.6, 1.42, -1.54))], ["wait", 1.2], ["shot", "r%02d_back" % int(h)],
+					["eval", C + ".flash(true)"], ["wait", 0.5], ["shot", "r%02d_back_flash" % int(h)], ["eval", C + ".flash(false)"], ["wait", 0.5],
+					["eval", BI + "._extras.go_office()"], ["wait", 3.0]]
+			st += [["eval", "_interior_manager.close_main_interior_if_open()"], ["wait", 2.0], ["glass", "office_glass", 2.2], ["wait", 1.0], ["shot", "r_outside"],
+				["eval", C + ".rec_panes('out')"], ["eval", "get_tree().quit()"]]
+			_steps = st
+			return
+		if a == "--part=bizday":
+			# The businesses' windows from the path, straight on, by the hour (the user 6. 11.:
+			# the pub dark through its windows by day).
+			var st: Array = [["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+				["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
+				["money", 900000], ["clear", 4, 9, 5, 5], ["clear", 9, 9, 5, 5], ["clear", 9, 14, 5, 5],
+				["build", "pub", 5, 10, 0], ["build", "restaurant", 10, 10, 0], ["build", "vecerka", 10, 15, 0], ["wait", 2.0]]
+			for h in [7.5, 12.0, 16.5, 18.2, 21.5]:
+				st += [["eval", "debug_jump_to(1, %s)" % h], ["wait", 2.5]]
+				for ty in ["pub", "restaurant", "vecerka"]:
+					for d in [4.5, 9.0]:
+						st += [["eval", C + ".around('%s', 0.0, %s, 0.3)" % [ty, d]], ["wait", 0.6], ["shot", "b%02d_%s_%d" % [int(h), ty, int(d)]]]
+					st += [["eval", C + ".around('%s', 38.0, 6.5, 0.3)" % ty], ["wait", 0.6], ["shot", "b%02d_%s_slant" % [int(h), ty]]]
+					st += [["eval", C + ".biz_light('%s', %s)" % [ty, h]]]
 			st += [["eval", "set('debug_camera', null)"], ["eval", "get_tree().quit()"]]
 			_steps = st
 			return

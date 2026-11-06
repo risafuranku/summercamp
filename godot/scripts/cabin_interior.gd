@@ -233,6 +233,10 @@ func set_daylight_profile(daylight_factor: float, sun_color: Color, _ambient_col
 
 
 func set_grid_power_available(power_available: bool) -> void:
+	# (Main sends it with every tick of the clock: lit afresh each time, the lamp started from
+	# its base over and over, a pulse in the room and the lit cabins dark from outside.)
+	if power_available == _grid_power_available:
+		return
 	_grid_power_available = power_available
 	_apply_time_profile(true)
 
@@ -624,11 +628,13 @@ func _bind_one_world(delta: float) -> void:
 			_cabin_root.transform = x
 	_host_panes(cabin if ok else null)
 	_host_doorways(cabin if ok else null, delta)
+	var lit := _time_state != TIME_DAY and _manual_lights_on and _grid_power_available and not _derelict
+	_glow = ONE_WORLD_ROOM.glow_step(_glow, lit and not _is_open and not door_walking, delta, _camp_lamp)
 	if _room_env != null:
 		for p in [_probe, _bath_probe]:
 			if p != null:
 				(p as ReflectionProbe).ambient_color = _room_env.ambient_light_color
-				(p as ReflectionProbe).ambient_color_energy = _room_env.ambient_light_energy
+				(p as ReflectionProbe).ambient_color_energy = ONE_WORLD_ROOM.glow_fill(_room_env.ambient_light_energy, _glow)
 	_walls_t -= delta
 	if _walls_t <= 0.0:
 		_walls_t = 0.5
@@ -641,6 +647,9 @@ func _bind_one_world(delta: float) -> void:
 ## (its cube, its glow): "inview_live" panes it leaves be.
 var _pane_host: Node3D
 var _pane_host_panes: Array = []
+## The room lit for the eye out in the dark (one_world_room.glow_step).
+var _glow := 0.0
+var _camp_lamp: OmniLight3D
 
 
 func _host_panes(cabin: Node3D) -> void:
@@ -1302,6 +1311,7 @@ func _build_cabin_room() -> void:
 	_main_light.omni_attenuation = 1.2
 	_main_light.shadow_enabled = true
 	_cabin_root.add_child(_main_light)
+	_camp_lamp = ONE_WORLD_ROOM.camp_lamp(_cabin_root, _main_light.position)
 	_probe = ONE_WORLD_ROOM.probe(_cabin_root, "RoomLight")
 	_dry = ONE_WORLD_ROOM.dry(_cabin_root, "Dry")
 	_bath_probe = ONE_WORLD_ROOM.probe(_bathroom_root, "BathLight")
@@ -2198,6 +2208,7 @@ func _set_node_color(node_name: String, color: Color) -> void:
 
 
 func _apply_time_profile(animated: bool = false) -> void:
+	var lamp_was: float = _main_light.light_energy if _main_light != null else 0.0
 	if _room_env != null:
 		match _time_state:
 			TIME_DAY:
@@ -2284,7 +2295,7 @@ func _apply_time_profile(animated: bool = false) -> void:
 		_main_light.light_energy *= lerpf(1.0, DAY_LAMP, dw.y)
 	if _eye != null:
 		_eye.exposure_multiplier = lerpf(1.0, DAY_EXPOSURE, dw.y)
-	_apply_manual_light_profile(animated)
+	_apply_manual_light_profile(animated, lamp_was)
 
 
 func _refresh_guest_visuals() -> void:
@@ -2366,7 +2377,8 @@ func _fit_sprite_height(sprite: Sprite3D, texture: Texture2D, target_height: flo
 	sprite.scale = Vector3.ONE * scale_factor
 
 
-func _apply_manual_light_profile(animated: bool) -> void:
+## `from`: the lamp as it was, an animated change goes on from there.
+func _apply_manual_light_profile(animated: bool, from := -1.0) -> void:
 	if _main_light == null:
 		return
 	var target_energy = _main_light.light_energy
@@ -2384,6 +2396,8 @@ func _apply_manual_light_profile(animated: bool) -> void:
 	if animated:
 		if _manual_light_tween != null and is_instance_valid(_manual_light_tween):
 			_manual_light_tween.kill()
+		if from >= 0.0:
+			_main_light.light_energy = from
 		_manual_light_tween = create_tween()
 		_manual_light_tween.set_ease(Tween.EASE_IN_OUT)
 		_manual_light_tween.set_trans(Tween.TRANS_SINE)

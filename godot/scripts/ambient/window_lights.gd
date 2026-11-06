@@ -535,8 +535,10 @@ func _cube_of(rec: Dictionary) -> ShaderMaterial:
 		return null
 	var m := ROOM_CUBE.material(spec["tex"], spec["box"], spec["eye"], spec["world_to_room"])
 	# Between a cabin's window frame and its bar, as the retro look pulls them (its live
-	# view's own pull, cabin_interior._ensure_inview).
-	m.set_shader_parameter("depth_pull", 0.009 if kind == "cabin" else 0.0)
+	# view's own pull, cabin_interior._ensure_inview); a van's over its skin, a quad pulled
+	# too: not pulled, from a few metres off the skin stood in front of every pane, a van with
+	# no windows by day and by night (the user 6. 11.).
+	m.set_shader_parameter("depth_pull", 0.009)
 	# Its curtains open at the sides of the glass, as they hang inside.
 	var spec_room: Dictionary = ROOMS[kind]
 	var cpath: String = CAMP + str(spec_room["curtain"]) + ".png"
@@ -581,7 +583,8 @@ func _show(rec: Dictionary, on: bool, tv: bool, powered: bool, dark := false, ho
 	if cube != null:
 		if dark and on:
 			cube.set_shader_parameter("light", Vector3(col.r, col.g, col.b) if col != LIT_TINT else Vector3(LAMP.r, LAMP.g, LAMP.b))
-			cube.set_shader_parameter("energy", clampf(amount * (0.5 if kind == "cabin" else 0.4), 0.2, 1.1))
+			# (Far off a pane is a few pixels: the room drawn by day, lit up past its day.)
+			cube.set_shader_parameter("energy", clampf(amount * 1.1, 0.2, 2.4))
 		elif dark:
 			cube.set_shader_parameter("light", Vector3(MOON.r, MOON.g, MOON.b))
 			cube.set_shader_parameter("energy", 0.07)
@@ -591,6 +594,9 @@ func _show(rec: Dictionary, on: bool, tv: bool, powered: bool, dark := false, ho
 			# by the evening), so the one fades into the other unseen.
 			cube.set_shader_parameter("light", Vector3(1.0, 0.97, 0.92))
 			cube.set_shader_parameter("energy", DAY_ROOM if hour >= 6.5 and hour < 19.5 else 0.42)
+	# (The colour of the lamp in the glass of the one with the room in it, pane_figure's glow.)
+	var lamp_col: Color = LAMP if col == LIT_TINT else col
+	var in_glass := Vector3(lamp_col.r, lamp_col.g, lamp_col.b) * clampf(amount / 1.6, 0.0, 1.0)
 	for w in rec["windows"]:
 		var mi := w as MeshInstance3D
 		if mi == null or not is_instance_valid(mi):
@@ -600,6 +606,7 @@ func _show(rec: Dictionary, on: bool, tv: bool, powered: bool, dark := false, ho
 				mi.set_meta("wl_lit", amount)
 				mi.set_meta("wl_candle", candle)
 				mi.set_meta("wl_tv", tv)
+				mi.set_instance_shader_parameter("glow", in_glass)
 			elif mi.material_override != cube:
 				mi.material_override = cube
 			continue
@@ -609,6 +616,7 @@ func _show(rec: Dictionary, on: bool, tv: bool, powered: bool, dark := false, ho
 			mi.set_meta("wl_lit", amount)
 			mi.set_meta("wl_candle", candle)
 			mi.set_meta("wl_tv", tv)
+			mi.set_instance_shader_parameter("glow", in_glass)
 			continue
 		var m := mi.get_meta("wl_mat", null) as StandardMaterial3D
 		if m == null:

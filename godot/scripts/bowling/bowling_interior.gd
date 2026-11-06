@@ -262,6 +262,8 @@ func set_daylight_profile(daylight_factor: float, _sun: Color, _ambient: Color, 
 
 
 func set_grid_power_available(on: bool) -> void:
+	if on == _power:
+		return
 	_power = on
 	_apply_light()
 

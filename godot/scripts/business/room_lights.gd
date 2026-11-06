@@ -11,6 +11,13 @@ const CURTAIN := preload("res://scripts/reception/curtain.gd")
 ## The place's records group -> its guests' profile (service_life.gd).
 const PROFILE := {"taprooms": "pub", "kitchens": "rest", "jednotas": "vecerka"}
 
+## The room's own light, by the place: the pub's dark boards take more of it to show through
+## its windows than the bistro's and the shop's pale paint (the user 6. 11.: dark windows).
+const MAIN_BY_PLACE := {"taprooms": 14.0}
+const MAIN := 6.0
+## Shut by day the sun still comes in: this share of the room's own light at full day.
+const SHUT_DAY := 0.6
+
 ## The room's own light (as the service interior's room has), and its lamps.
 var main: OmniLight3D
 var lamps: Array = []
@@ -86,11 +93,12 @@ func _process(delta: float) -> void:
 	if sign != _sign and door_sign != null and is_instance_valid(door_sign):
 		_sign = sign
 		door_sign.texture = load("res://assets/textury/camp/door_sign_%s.png" % sign)
+	if main != null and is_instance_valid(main):
+		var full: float = float(MAIN_BY_PLACE.get(records_group, MAIN))
+		main.light_energy = full if on == 1 else full * SHUT_DAY * _daylight()
 	if on == _on:
 		return
 	_on = on
-	if main != null and is_instance_valid(main):
-		main.light_energy = 6.0 if on == 1 else 0.0
 	for l in lamps:
 		if is_instance_valid(l):
 			(l as OmniLight3D).light_energy = 2.5 if on == 1 else 0.0
@@ -99,6 +107,13 @@ func _process(delta: float) -> void:
 			var m := (sh as MeshInstance3D).material_override as StandardMaterial3D
 			if m != null:
 				m.emission_energy_multiplier = 0.7 if on == 1 else 0.0
+
+
+## How much of the day there is out there (weather_visuals), 0 at night.
+func _daylight() -> float:
+	var scene := get_tree().current_scene
+	var wv = scene.get("_weather_visuals") if scene != null else null
+	return clampf(float(wv.compute_daylight_factor()), 0.0, 1.0) if wv != null and wv.has_method("compute_daylight_factor") else 0.0
 
 
 ## The curtains at the windows, as window_portal.gd hangs them inside (open).

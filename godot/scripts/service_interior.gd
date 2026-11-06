@@ -278,6 +278,8 @@ func set_daylight_profile(daylight_factor: float, sun_color: Color, _ambient_col
 
 
 func set_grid_power_available(power_available: bool) -> void:
+	if power_available == _grid_power_available:
+		return
 	_grid_power_available = power_available
 	_apply_time_profile(true)
 

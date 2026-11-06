@@ -148,6 +148,12 @@ func _ready() -> void:
 			_steps = _curtains()
 		"curtains2":
 			_steps = _curtains2()
+		"nightlit":
+			_steps = _night_lit()
+		"duskpath":
+			_steps = _dusk_path()
+		"callrec":
+			_steps = _call_rec()
 		"sound":
 			_steps = _sound_trail()
 		"call":
@@ -631,7 +637,7 @@ func _lock() -> Array:
 func _fever_rec() -> Array:
 	var s: Array = BOOT.duplicate(true)
 	s += [["wait", 2.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0], ["eval", "debug_jump_to(2, 22.0)"], ["wait", 2.0],
-		["eval", C + ".fever_try(0.95, 0.0)"], ["eval", C + ".fever_at(0.95, 22.0)"], ["wait", 22.0], ["eval", C + ".fever_state('at its worst')"], ["eval", C + ".fever_try(0.0, 0.0)"], ["wait", 8.0], ["eval", C + ".fever_state('over')"], ["eval", "get_tree().quit()"]]
+		["eval", C + ".frame_mark('fever')"], ["eval", C + ".fever_try(0.95, 0.0)"], ["eval", C + ".fever_at(0.95, 22.0)"], ["wait", 22.0], ["eval", C + ".frame_mark('fever_end')"], ["eval", C + ".fever_state('at its worst')"], ["eval", C + ".fever_try(0.0, 0.0)"], ["wait", 8.0], ["eval", C + ".fever_state('over')"], ["eval", "get_tree().quit()"]]
 	return s
 
 
@@ -718,6 +724,59 @@ func _lodge() -> String:
 		if str(a).begins_with("--lodge="):
 			return str(a).substr(8)
 	return "cabin_1"
+
+
+## What was heard at which frame of a recording (--write-movie, --fixed-fps 30).
+func frame_mark(tag: String) -> void:
+	say("FRAME %s %d" % [tag, Engine.get_process_frames()])
+
+
+## His call as you hear it sitting in the reception at night, for a recording: the room's
+## quiet first, then the call, the second one nearer.
+func _call_rec() -> Array:
+	var s: Array = BOOT.duplicate(true)
+	s += [["wait", 3.0], ["eval", BI + "._exit_crt_view()"], ["wait", 1.0], ["eval", "debug_jump_to(2, 22.0)"], ["wait", 1.0], ["call", "debug_spawn_enemy", ["silent_man", 3]], ["wait", 2.0],
+		["eval", C + ".frame_mark('quiet')"], ["wait", 8.0], ["eval", "_enemy_brains.back().set('_calls', 2)"], ["eval", "_enemy_brains.back().set('_call_next', 0.0)"], ["wait", 0.3],
+		["eval", C + ".frame_mark('call')"], ["eval", C + ".call_state('called')"], ["wait", 11.0], ["eval", C + ".frame_mark('after')"], ["wait", 2.0], ["eval", "get_tree().quit()"]]
+	return s
+
+
+## On the path itself at eye height, from before the red hour to after it (Y17 was measured
+## from above, over the corn): a picture every 0.28 s, python tools/dusk_flicker.py DIR.
+func _dusk_path() -> Array:
+	var s: Array = BOOT.duplicate(true)
+	s += [["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0], ["eval", "_player.set_controls_enabled(false)"], ["door_front", "main_building", 9.0], ["wait", 0.5],
+		["eval", "_player.set('torch_carried', false)"], ["eval", "_player._refresh_flashlight_state()"], ["eval", "debug_jump_to(1, %s)" % str(_from_hour())], ["wait", 1.0]]
+	for i in 130:
+		s += [["wait", 0.28], ["shot", "p_%03d" % i]]
+	# Every frame for a while at the very hour, the sun's two-minute steps among them: a
+	# flash of a frame or two falls between pictures taken every 0.28 s.
+	s += [["eval", "debug_jump_to(1, 18.8)"], ["wait", 1.5], ["eval", C + ".dump_frames(300)"], ["wait", 16.0], ["eval", "get_tree().quit()"]]
+	return s
+
+
+## A lit lodging from the path at night, near and far, no torch (--lodge=): the live room
+## under 40 m, its cube past it (the user 6. 11.: the lit cabins too dark).
+func _night_lit() -> Array:
+	var s: Array = BOOT.duplicate(true)
+	s += [["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0], ["money", 90000], ["clear", 12, 10, 8, 5], ["build", _lodge(), 13, 11, 0], ["build", "power_generator", 17, 11, 0], ["wait", 2.0],
+		["eval", "debug_repair_ruined()"], ["eval", "debug_jump_to(1, 21.0)"], ["wait", 3.5], ["eval", C + ".lit_all(true)"], ["wait", 1.0], ["eval", "set('debug_camera', null)"], ["eval", "_player.set_controls_enabled(false)"],
+		["eval", "_player.set('torch_carried', false)"], ["eval", "_player._refresh_flashlight_state()"], ["eval", "['Y power', _is_grid_powered()]"]]
+	for d in [9.5, 14.0, 22.0, 32.0, 46.0, 70.0]:
+		s += [["eval", C + ".stand_before('13:11', %s)" % d], ["wait", 1.6], ["shot", "n_%s_%02d" % [_lodge(), int(d)]], ["eval", C + ".night_lit_state('%s')" % d]]
+	s += [["eval", "get_tree().quit()"]]
+	return s
+
+
+func night_lit_state(tag: String) -> void:
+	var wl := get_tree().root.find_child("WindowLights", true, false)
+	var r: Dictionary = (wl.get("_lodgings") as Dictionary)["13:11"]
+	var ci = _main.get("_interior_manager").get("_cabin_interior")
+	var cube: ShaderMaterial = r.get("cube", null)
+	var w0 := (r["windows"] as Array)[0] as MeshInstance3D if not (r["windows"] as Array).is_empty() else null
+	say("NIGHT %s on=%s mat=%s energy=%s lights=%s main=%s env=%s" % [tag, str(r.get("on")), w0.material_override.get_class() if w0 != null and w0.material_override != null else "-",
+		str(cube.get_shader_parameter("energy")) if cube != null else "-", str(ci.get("_manual_lights_on")), str(ci.get("_main_light").light_energy) if ci.get("_main_light") != null else "-",
+		str(ci.get("_room_env").ambient_light_energy) if ci.get("_room_env") != null else "-"])
 
 
 func _curtains2() -> Array:

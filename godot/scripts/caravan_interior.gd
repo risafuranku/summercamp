@@ -163,6 +163,8 @@ func set_daylight_profile(daylight_factor: float, sun_color: Color, _ambient_col
 
 
 func set_grid_power_available(power_available: bool) -> void:
+	if power_available == _grid_power_available:
+		return
 	_grid_power_available = power_available
 	_apply_light()
 
@@ -532,9 +534,10 @@ func _bind_one_world(delta: float) -> void:
 			var x: Transform3D = model.global_transform * Transform3D(Basis(), Vector3(0.0, VAN_FLOOR, 0.0))
 			if not _root.transform.is_equal_approx(x):
 				_root.transform = x
+	_glow = ONE_WORLD_ROOM.glow_step(_glow, _inview_lit and _grid_power_available and _time_state != TIME_DAY and not _is_open and not door_walking, delta, _camp_lamp)
 	if _probe != null and _env != null:
 		_probe.ambient_color = _env.ambient_light_color
-		_probe.ambient_color_energy = _env.ambient_light_energy
+		_probe.ambient_color_energy = ONE_WORLD_ROOM.glow_fill(_env.ambient_light_energy, _glow)
 	_walls_t -= delta
 	if _walls_t <= 0.0:
 		_walls_t = 0.5
@@ -1238,6 +1241,7 @@ func _build_room() -> void:
 	_lamp.light_color = Color(1.0, 0.9, 0.72)
 	_lamp.shadow_enabled = true
 	_root.add_child(_lamp)
+	_camp_lamp = ONE_WORLD_ROOM.camp_lamp(_root, _lamp.position)
 	# The brochure on the worktop: next year's accessories (a click: the upgrade).
 	_brochure = K.slab(_root, Vector3(0.22, 0.012, 0.3), Vector3(kx - 0.02, 0.907, kz + 0.06), INTERIOR_PREP.flat(Color(0.94, 0.9, 0.78)), "Brochure")
 	_brochure.rotation_degrees.y = 12.0
@@ -1422,6 +1426,11 @@ func _set_visible(n: String, on: bool) -> void:
 
 ## Shut, looked into from the camp: lit as window_lights has the van (its guests up).
 var _inview_lit := false
+## The room lit for the eye out in the dark (one_world_room.glow_step).
+var _glow := 0.0
+var _camp_lamp: OmniLight3D
+## True while the eye is on its way through the door (door_through sets it).
+var door_walking := false
 
 
 func _apply_light() -> void:

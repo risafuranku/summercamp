@@ -199,7 +199,8 @@ func _cut_window(walls: Dictionary) -> void:
 	var rw = ROOM_WEATHER.new()
 	rw.gloom = false
 	rw.sounds = false
-	rw.is_open = func(): return is_instance_valid(window_quad) and window_quad.is_visible_in_tree()
+	# (You in the room, not the pane shown: from the camp the pane is there too.)
+	rw.is_open = func(): return is_instance_valid(window_quad) and window_quad.get_viewport() != null and (window_quad.get_viewport() as SubViewport).render_target_update_mode != SubViewport.UPDATE_DISABLED
 	root.add_child(rw)
 	rw.add_window(window_quad)
 	# The heavy drapes: drawn back (playtest 18. 10.); click to shut them.

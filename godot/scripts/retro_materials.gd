@@ -798,7 +798,9 @@ void fragment() {
 	c *= COLOR;
 #endif
 	v_texel = floor(FRAGCOORD.xy);
-	if (build_vis_dark > 0.0) {
+	// (Not a room seen from the camp: what is lit in there does not go with the night's
+	// distance, the lit lodgings went out as you walked away.)
+	if (build_vis_dark > 0.0 && !(room_thing && (CAMERA_VISIBLE_LAYERS & 655360u) == 524288u)) {
 		const float BV[16] = float[16](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0, 3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0);
 		vec2 bm = mod(v_texel, 4.0);
 		float bd = (BV[int(bm.x) + int(bm.y) * 4] + 0.5) / 16.0 - 0.5;

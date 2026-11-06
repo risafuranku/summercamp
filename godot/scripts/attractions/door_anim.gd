@@ -207,6 +207,8 @@ static func _hang(door: MeshInstance3D) -> bool:
 		# In the leaf's plane, a hair out: in front of the frame the models put behind it.
 		hole.transform = Transform3D(door.basis, door.position + door.basis.z * 0.004 + door.basis.x * shift)
 		hole.visible = false
+		# (A hole: hidden on no eye's layer the sun would still have met it in the doorway.)
+		hole.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		parent.add_child(hole)
 	# What is fixed on the leaf (the handle, the wired glass, the heart, the M / Z plaque)
 	# goes round with it, or it stays hanging in the air when the door opens.

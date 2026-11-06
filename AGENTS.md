@@ -142,7 +142,12 @@ python godot/tools/window_coop.py [OUT_DIR] # the reception's windows for two: f
 #                                    each viewport draws); cabin (--quick: noon only): cabin_1 inside and out;
 #                                    recgraze, recwalk: the reception along its walls, roomsgraze (--rooms=pub,cabin_2): the other
 #                                    buildings, with their room and without, then python godot/tools/room_diff.py DIR [type_];
-#                                    recwin: into its windows by the hour after walking out; rechis: somebody's own last camp
+#                                    recwin: into its windows by the hour after walking out; rechis: somebody's own last camp;
+#                                    recrain: the rain on its glass, a held flash; bizday: the businesses' windows by the hour;
+#                                    wedges; unpair (--build=cabin_walk ...: free_lights names the light of the engine's message)
+#   res://tools/y_check.tscn         nightlit (--lodge=): a lit lodging from 9 to 70 m; duskpath (--from=18.55): the path at eye
+#                                    height, then python tools/dusk_flicker.py and dusk_frames.py DIR (every frame at 18:48);
+#                                    callrec, feverrec: for --write-movie (--fixed-fps 30), frame marks in the log
 ```
 
 - On some PCs the headless run segfaults once the title screen is up (1. 11., at HEAD too:
@@ -545,7 +550,22 @@ every night's sewer, toilets and frozen pipes the moment they broke).
  one plane with the store's ceiling), **its faces flat** (`set_smooth_group(-1)`: a triplanar
  material goes by the normal, smoothed corners took the picture from different sides and
  the boards came out as grain; look at a turned mesh up close, `--part=wedges`). **A room's ceiling ends under the model's top** (the
- cabins' bathroom: its edge stood out under the annex's roof, `annex_box`). **A freed object
+ cabins' bathroom: its edge stood out under the annex's roof, `annex_box`). **A mesh on no layer at
+ all** (`layers = 0`) shown while lamps are in reach pairs with them and never lets go: the
+ engine's "BUG, indexing did not unpair geometries from light" when the game is shut, and
+ a crash after it (the doorway's dark behind a cabin's door). Hide on `one_world_room.NO_EYE`
+ (bit 20, no camera has it); a hole casts no shadow, it would still stand in the sun's way.
+ **A room's lit side is its inside**: the camp's eye sees a curtain's back, unlit, a lit
+ window was the darkest thing on the wall. For the eye out in the dark a lit room has more
+ fill and a lamp more (`one_world_room.camp_lamp`, `glow_step`, `glow_fill`, gone as you
+ come in at the door) and the lamp's colour in the glass, more of it from further off
+ (`pane_figure`'s `glow`, from window_lights). **Main calls `set_grid_power_available` every
+ tick of the clock**: a room that lights itself afresh on it, from its base, pulsed all
+ night: only on a change. **Everything over a pulled skin is pulled** (a van's panes had no
+ `depth_pull`: from a few metres the skin stood in front of every window). **A pane's quad
+ under a hidden view**: what hangs under it (`RainOnGlass`, `LightningIn`) goes with it; hide
+ the material, not the node (the reception's, `_hide_painted_views`: clear glass on
+ `INVIEW_HIDE_LAYER`). **A freed object
  equals null**: `if v != null and not is_instance_valid(v)` lets it through, test
  `is_instance_valid` alone (a van upgraded under the room). **A room looks right from the camp before it is ever
  opened**: a camp loaded with you outside never opens the reception, and its painted panes,

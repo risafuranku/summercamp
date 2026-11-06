@@ -134,6 +134,8 @@ func set_daylight_profile(daylight_factor: float, sun_color: Color, _ambient_col
 
 
 func set_grid_power_available(power_available: bool) -> void:
+	if power_available == _grid_power_available:
+		return
 	_grid_power_available = power_available
 	_apply_time_profile()
 
@@ -951,7 +953,7 @@ func _bind_one_world(delta: float) -> void:
 			_poles_of(way, true)
 	# (Kept so: a door's walk puts back what it took away.)
 	if _host_way != null and is_instance_valid(_host_way):
-		_host_way.layers = 0
+		_host_way.layers = ONE_WORLD_ROOM.NO_EYE
 	var ok := way != null
 	if _tent_root.visible != (ok or _is_open):
 		_tent_root.visible = ok or _is_open

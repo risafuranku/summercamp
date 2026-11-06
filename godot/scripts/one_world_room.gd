@@ -107,6 +107,44 @@ static func day_of(daylight: float, tree: SceneTree, weather: int) -> Vector2:
 	return Vector2(day, day * float(WEATHER_DAY_K.get(weather, 1.0)))
 
 
+## A lit room seen from out in the dark: its fill this many times what it is from inside, a
+## lamp of this much more beside its own. To the eye used to the night a lit window is the
+## brightest thing on the path (the user 6. 11.: the lit cabins darker than the grass in
+## front of them); in the room the eye has come round and the lamp is the lamp.
+const CAMP_GLOW := 2.6
+const CAMP_LAMP := 1.9
+## How quickly it goes as you come in at the door and is back as you walk off (a share a second).
+const GLOW_SPEED := 2.5
+
+
+## The lamp for the eye outside: on the room's own layer, no shadows.
+static func camp_lamp(parent: Node3D, at: Vector3) -> OmniLight3D:
+	var l := OmniLight3D.new()
+	l.name = "CampGlow"
+	l.position = at
+	l.light_color = Color(1.0, 0.86, 0.64)
+	l.omni_range = 6.0
+	l.light_energy = 0.0
+	l.light_cull_mask = ROOM_LAYER
+	l.visible = false
+	parent.add_child(l)
+	return l
+
+
+## This frame's glow, from `now` (0 you in the room, 1 lit and seen from the dark), its lamp set.
+static func glow_step(now: float, want: bool, delta: float, lamp: OmniLight3D) -> float:
+	now = move_toward(now, 1.0 if want else 0.0, delta * GLOW_SPEED)
+	if lamp != null:
+		lamp.light_energy = CAMP_LAMP * now
+		lamp.visible = now > 0.0
+	return now
+
+
+## The room's fill at that glow.
+static func glow_fill(energy: float, glow: float) -> float:
+	return lerpf(energy, maxf(energy, 0.3) * CAMP_GLOW, glow)
+
+
 ## The room's sounds are the camp's now (a fridge, a stove, a telly): heard from the camp,
 ## they come through the walls.
 static func sounds_through_walls(root: Node, walls: bool) -> void:
@@ -126,6 +164,10 @@ static func sounds_through_walls(root: Node, walls: bool) -> void:
 ## building through them). Every mesh under `root` on the camp's layer gets it, every lamp
 ## lights only it; again now and then for what comes in later (guests, things).
 const ROOM_LAYER := 1 << 13
+## A layer no camera has (their masks end at bit 19). Not 0: a mesh on no layer at all, shown
+## as a door opened, was paired with the lamps in reach and never let go of them: the engine's
+## "indexing did not unpair geometries from light" when the game was shut, and a crash after it.
+const NO_EYE := 1 << 20
 
 
 static func own_lights(root: Node) -> void:
@@ -165,11 +207,11 @@ static func doorways(structure: Node3D) -> Array:
 	return out
 
 
-## Every way in `ways` hidden (layers 0) or back (the camp's layer).
+## Every way in `ways` hidden (on no eye's layer) or back (the camp's layer).
 static func hide_ways(ways: Array, hide: bool) -> void:
 	for w in ways:
 		if w != null and is_instance_valid(w):
-			(w as MeshInstance3D).layers = 0 if hide else 1
+			(w as MeshInstance3D).layers = NO_EYE if hide else 1
 
 
 ## Window glass: a little grey-green, the sky and the sun's glint on it at a slant.
