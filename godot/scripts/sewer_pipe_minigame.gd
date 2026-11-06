@@ -336,6 +336,7 @@ func open_repair(coord: Vector2i, building_type: String, _label_text: String = "
 	_black.color.a = 0.0
 	_active = true
 	visible = true
+	_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_rebuild_hud()
 	_set_status("")
 	_play(_ambience)
@@ -399,6 +400,7 @@ func close_repair(cancelled: bool = true) -> void:
 		return
 	_active = false
 	visible = false
+	_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	mate.clear()
 	for a in [_ambience, _pipes_bed, _pant, _heart]:
 		if a != null:
@@ -696,7 +698,7 @@ func _build_shell() -> void:
 	RETRO_RENDER.register(_container)
 	_viewport = SubViewport.new()
 	_viewport.own_world_3d = true
-	_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS if visible else SubViewport.UPDATE_DISABLED
 	_viewport.handle_input_locally = false
 	# Its 3D sounds (the leaks down the pipes) heard from its camera.
 	_viewport.audio_listener_enable_3d = true

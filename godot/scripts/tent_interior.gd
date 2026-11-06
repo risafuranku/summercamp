@@ -163,6 +163,7 @@ func open_tent(level: int = 1) -> void:
 	_release_inview()
 	_is_open = true
 	visible = true
+	_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	ONE_WORLD_ROOM.camp_view(get_tree(), false)
 	_viewport.audio_listener_enable_3d = true
 	_sync_viewport_to_window()
@@ -190,6 +191,8 @@ func close_tent() -> void:
 	_set_torn(false)
 	_glint.clear()
 	visible = false
+	# Shut, nobody looks through its eye (interior_manager._tick_eyes).
+	_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	_viewport.audio_listener_enable_3d = false
 	ONE_WORLD_ROOM.camp_view(get_tree(), true)
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
@@ -247,6 +250,8 @@ func _update_hover() -> void:
 	_glint.show_on(lit)
 	if not lit.is_empty():
 		HandCursor.want(HandCursor.POINT)
+	elif not door_walking and INTERIOR_LOOK.in_exit_zone(vp):
+		HandCursor.want(HandCursor.WALK)
 
 
 func _apply_idle_mouse_look(delta: float) -> void:

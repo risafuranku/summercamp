@@ -266,6 +266,7 @@ func open_cabin(level: int = 1) -> void:
 		return
 	_is_open = true
 	visible = true
+	_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	ONE_WORLD_ROOM.camp_view(get_tree(), false)
 	# (The room's eye is the ear in here: the camp is heard from where you stand in it.)
 	_viewport.audio_listener_enable_3d = true
@@ -538,26 +539,39 @@ func _set_smash_heard(on: bool) -> void:
 		am.set_room_leak(0.35 if on else 0.0)
 
 
-## The curtain under the cursor glints, the finger over it; the bathroom's door glints
-## under the walking feet.
+## What can be used glints under the cursor, the finger over it (a curtain, the light switch,
+## the catalogue on the table: both clicked blind till 6. 11.); the bathroom's door under
+## the walking feet, and the feet on the way out, as in every room.
 func _update_hover() -> void:
 	var meshes: Array = []
 	if not _prep.is_busy() and _active_room == "main" and not _walking():
-		var hit := _raycast_world(get_viewport().get_mouse_position())
+		var mouse := get_viewport().get_mouse_position()
+		var hit := _raycast_world(mouse)
 		var n = hit.get("collider", null) as Node
 		if n != null and _node_has_click_type(n, "cabin_bath_door"):
 			HandCursor.want(HandCursor.WALK)
 			_glint.show_on(_bath_door_now().get("meshes", []))
 			return
-		while n != null and not n.has_meta("portal_index"):
-			n = n.get_parent()
-		if n != null:
-			var portals := _portals_now()
-			var i := int(n.get_meta("portal_index"))
-			if i < portals.size() and portals[i].get("curtain") != null:
-				meshes = portals[i]["curtain"].meshes
-				HandCursor.want(HandCursor.POINT)
+		if n != null and _node_has_click_type(n, "cabin_light_switch"):
+			var knob := _light_switch_body.get_node_or_null("SwitchVisual") if _light_switch_body != null else null
+			if knob != null:
+				meshes = [knob]
+			HandCursor.want(HandCursor.POINT)
+		elif _catalog_screen_rect().has_point(mouse / get_viewport().get_visible_rect().size):
+			meshes = [_catalog_mesh]
+			HandCursor.want(HandCursor.POINT)
+		else:
+			while n != null and not n.has_meta("portal_index"):
+				n = n.get_parent()
+			if n != null:
+				var portals := _portals_now()
+				var i := int(n.get_meta("portal_index"))
+				if i < portals.size() and portals[i].get("curtain") != null:
+					meshes = portals[i]["curtain"].meshes
+					HandCursor.want(HandCursor.POINT)
 	_glint.show_on(meshes)
+	if meshes.is_empty() and not _prep.is_busy() and not _walking() and INTERIOR_LOOK.in_exit_zone(get_viewport()):
+		HandCursor.want(HandCursor.WALK)
 
 
 func close_cabin() -> void:
@@ -574,6 +588,8 @@ func close_cabin() -> void:
 	_glint.clear()
 	_set_smash_heard(false)
 	visible = false
+	# Shut, nobody looks through its eye (interior_manager._tick_eyes).
+	_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	_viewport.audio_listener_enable_3d = false
 	ONE_WORLD_ROOM.camp_view(get_tree(), true)
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
@@ -1885,7 +1901,11 @@ func _apply_level_variant() -> void:
 	if _catalog != null and _level_tables.has(_cabin_level):
 		_catalog.position = (_level_tables[_cabin_level] as Vector3) + Vector3(0.05, 0.0, 0.0)
 	if _light_switch_body != null:
-		_light_switch_body.position = Vector3(0.62, CL.ROOM_FLOOR + 1.2, inner.y * 0.5 - 0.02)
+		# On the right wall by the front corner, where the head turns to: by the door it hung
+		# behind you, at the end of the turn on the screen's very edge under the list of
+		# lodgings, and nobody ever reached it (6. 11.).
+		_light_switch_body.position = Vector3(inner.x * 0.5 - 0.02, CL.ROOM_FLOOR + 1.2, inner.y * 0.5 - 0.75)
+		_light_switch_body.rotation = Vector3.ZERO
 	_set_node_visible("SlopBucket", _cabin_level == 1)
 	ONE_WORLD_ROOM.fit(_probe, _dry, Vector3(-inner.x * 0.5, 0.0, -inner.y * 0.5), Vector3(inner.x * 0.5, CL.ROOM_FLOOR + h + 0.1, inner.y * 0.5))
 	if _bath_probe != null:

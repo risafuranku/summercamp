@@ -6,8 +6,14 @@ extends Node
 ## again warm the land takes 25 ms, a bus 25-38 ms; tools/trhnuti_check). Main starts it
 ## with the boot: the loader's threads read them while the boot and the title are up and
 ## keep them, so town_trip and the village find them in the cache. Then it goes.
+## After them the businesses' stations and pictures (taken from the end of the list): the first
+## step into the restaurant froze for 1.3 s, the pub's 0.8 s, the Jednota's 0.5 s, built again
+## warm 70-270 ms, nearly all of it compiling their scripts (tools/trhnuti_check --part=bizrooms).
 
-const ROOTS := ["res://assets/textury/town/", "res://assets/sfx/bus/", "res://assets/sfx/town/"]
+const ROOTS := ["res://assets/sfx/pub/", "res://assets/sfx/bistro/", "res://assets/textury/closeup/food/",
+	"res://assets/textury/jednota/", "res://assets/textury/pub/", "res://assets/textury/bistro/",
+	"res://scripts/jednota/", "res://scripts/pub/", "res://scripts/bistro/",
+	"res://assets/textury/town/", "res://assets/sfx/bus/", "res://assets/sfx/town/"]
 const FILES := ["res://assets/textury/npc/town_pumpar.png", "res://assets/fonts/jersey10.fnt"]
 ## How many asked for at once (the loader queues the rest; the boot goes on drawing).
 const BATCH := 16
@@ -50,5 +56,5 @@ func _collect(dir: String) -> void:
 	for e in ResourceLoader.list_directory(dir):
 		if e.ends_with("/"):
 			_collect(dir + e)
-		elif e.get_extension().to_lower() in ["png", "jpg", "webp", "mp3", "ogg", "wav"]:
+		elif e.get_extension().to_lower() in ["png", "jpg", "webp", "mp3", "ogg", "wav", "gd"]:
 			_todo.append(dir + e)

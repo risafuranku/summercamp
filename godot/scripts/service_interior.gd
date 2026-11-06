@@ -411,6 +411,7 @@ func open_service(service_type: String) -> void:
 		return
 	_is_open = true
 	visible = true
+	_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	if _one:
 		_bind_one_world()
 		ONE_WORLD_ROOM.camp_view(get_tree(), false)
@@ -464,6 +465,8 @@ func close_service() -> void:
 		_upkeep_prep.tasks._scrub.close()
 	_is_open = false
 	visible = false
+	# Shut, nobody looks through its eye (interior_manager._tick_eyes).
+	_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	if _one:
 		ONE_WORLD_ROOM.camp_view(get_tree(), true)
 		_viewport.audio_listener_enable_3d = false

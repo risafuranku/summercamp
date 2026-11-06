@@ -598,7 +598,7 @@ func _make(kind: String, at: int, guests: Array) -> Dictionary:
 			var p := _pick(["path"])
 			if p.x < 0:
 				return {}
-			ev.merge({"title": "A branch across the path", "short": "Branch", "where": "Path %d:%d" % [p.x, p.y], "coord": [p.x, p.y]}, true)
+			ev.merge({"title": "A branch across the path", "short": "Branch", "where": "On the path", "coord": [p.x, p.y]}, true)
 	return ev
 
 
@@ -638,7 +638,7 @@ func _start_line(ev: Dictionary) -> String:
 		"noise":
 			line = "Complaint: \"%s are making a racket. Some of us came here for the quiet.\"" % str(ev.get("guest_name", "Somebody"))
 		"tree":
-			line = "A branch has come down across the path at %d:%d." % [_coord(ev).x, _coord(ev).y]
+			line = "A branch has come down across the path."
 	return line
 
 
@@ -1469,7 +1469,7 @@ func _report(text: String, kind: int) -> void:
 		# Looked up whole (the feed's lines are not: "Pager: %s" and the line in it were
 		# shown in English in a Czech game, the van's page on 1. 11.). A line with values of
 		# its own inside "Pager: %s" is looked up before it goes in (a lookup does not go two
-		# deep: "A branch has come down across the path at 9:12" stayed English, 4. 11.).
+		# deep: a branch's line with its place in it stayed English, 4. 11.).
 		hud.push_status(tr(text), kind, "day_events")
 
 

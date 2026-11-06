@@ -58,6 +58,7 @@ var _queue: Array = []
 var _cursor := 0
 var _sprites: Array = []            # {node wr, mat, tex}
 var _multis: Array = []             # {node wr, over}
+var _checked: Dictionary = {}       # std ids looked at this frame
 ## Forgetting the stand-ins of originals nobody holds any more (a room's materials, made
 ## anew each time it is built: kept, they piled up visit after visit, hundreds of
 ## materials and their pictures each time, until the graphics memory ran out and rooms,
@@ -206,6 +207,7 @@ func _process(delta: float) -> void:
 		if n != null and is_instance_valid(n) and (n as Node).is_inside_tree() and not (n as Node).has_meta("retro_skip"):
 			_track(n)
 	# The rolling check: material swaps on the nodes, changes on the originals.
+	_checked.clear()
 	var count := mini(CHECK_PER_FRAME, _nodes.size())
 	for i in count:
 		if _nodes.is_empty():
@@ -409,7 +411,12 @@ func _check_node(i: int) -> void:
 	var mats: Array = [rec["over"]] if rec["over"] != null else rec["slots"]
 	for over in mats:
 		if over is StandardMaterial3D:
-			for c in _by_std.get((over as Object).get_instance_id(), []):
+			# (Once a frame: a fence's planks and a wall's boards are one material.)
+			var id := (over as Object).get_instance_id()
+			if _checked.has(id):
+				continue
+			_checked[id] = true
+			for c in _by_std.get(id, []):
 				_sync(c)
 
 
@@ -558,7 +565,7 @@ func _converted(src, big: int, pull := 0.0, still := false) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.shader = _shader(_variant(std))
 	m.render_priority = std.render_priority
-	var c := {"std": weakref(std), "mat": m, "sig": "", "hot": 0.0, "big": big, "pull": pull, "still": still}
+	var c := {"std": weakref(std), "mat": m, "sig": [], "hot": 0.0, "big": big, "pull": pull, "still": still}
 	_conv[key] = c
 	if not _by_std.has(std.get_instance_id()):
 		_by_std[std.get_instance_id()] = []
@@ -606,15 +613,17 @@ func _variant(std: StandardMaterial3D) -> Dictionary:
 	}
 
 
-## Copies what the game changes on the original (colour, picture, glow, tiling).
+## Copies what the game changes on the original (colour, picture, glow, tiling). Told by the
+## values themselves: all of them written out as text for each of 400 nodes a frame took
+## 7 ms of every frame, a quarter of it (measured 6. 11., onesun_check --part=vptime).
 func _sync(c: Dictionary, force := false) -> void:
 	var std := (c["std"] as WeakRef).get_ref() as StandardMaterial3D
 	if std == null:
 		return
-	var sig := "%s|%s|%s|%s|%s|%s|%s|%s" % [std.albedo_color, std.albedo_texture, std.emission_enabled, std.emission, std.emission_energy_multiplier, std.emission_texture, std.uv1_scale, std.uv1_offset]
+	var sig := [std.albedo_color, std.albedo_texture, std.emission_enabled, std.emission, std.emission_energy_multiplier, std.emission_texture, std.uv1_scale, std.uv1_offset]
 	if sig == c["sig"] and not force:
 		return
-	if c["sig"] != "" and not force:
+	if not (c["sig"] as Array).is_empty() and not force:
 		# Something about it is changing: watch it every frame for a while.
 		if float(c["hot"]) <= 0.0:
 			_hot.append(c)

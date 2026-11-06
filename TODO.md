@@ -4,6 +4,16 @@
 
 ---
 
+## UX POLISH 2026-11-06 (evening) — „pokračuj v ux polishmentu" (measured, then fixed; tick with the commit)
+
+- [x] P1 The frame. Rooms nobody is in were drawn all game (cabin, tent, caravan, service room: 3000 draws a frame, half the graphics card's time), retro_materials compared every material through a text (7 ms a frame). Now shut (`interior_manager._tick_eyes`, each room's open and close) and compared by value. At the PC, in the reception and in the camp 33-37 fps -> 49-50 (the cap); draws 6100 / 7800 / 5900 -> 900 / 1950 / 650; with no cap and no vsync 90-96 fps. A first day played through (`pruchod_check`): 49 fps in every stretch from the desk on (26-33 before). `onesun_check --part=vptime`.
+- [x] P2 The first step into a business froze (restaurant 1.3 s, pub 0.8 s, Jednota 0.5 s), nearly all of it compiling the stations' scripts. LandWarmup reads them and the pictures in its threads at the boot: 190 / 90 / 100 ms. `trhnuti_check --part=bizrooms`.
+- [x] P3 The cabin's light switch hung behind you by the door, at the end of the turn on the screen's very edge under the list of lodgings: nobody could reach it. On the right wall by the front corner now, all three cabins. `onesun_check --part=cabinswitch`.
+- [x] P4 What can be clicked says so: the cabin's catalogue and switch have the hand and the glint (they clicked blind), the cabin's and the tent's way out the feet, as every other room. `onesun_check --part=hover`.
+- [x] P5 Menus: the controls in pages (Outdoors, Indoors), a save's row with how long ago, the co-op page in the big rows with this machine's addresses, Pause per place, the key names through the lookup (Shift read as a work shift in Czech), PŘED 1 DNEM.
+- [x] P7 Every Czech game crashed as it closed (exit 139, English never): the translation, a script's object, stayed with the server past the end of the scripting. `LANG.release()` from GameSettings on the way out. (Written up on 6. 11. as a crash after loading a save: wrong, those runs were Czech.)
+- [x] P6 Lines with coordinates nobody can read (a branch at 9:12, Lamp 3:14): where it is shows on the map, the line says what to do. "[E] SIT AT THE TABLE" in a Czech game: looked up.
+
 ## PLAYTEST 2026-11-06 (afternoon) — the reception from outside (the user's notes, verbatim, then the note in brackets; tick with the commit)
 
 - [x] Z1 „pořád clippujou textury z pokojíčku a jsou vidět z venku recepce..“ (third time, X2 and Y2 looked straight at the walls. Seen along them: the walls snapped on the screen and the room did not, a whole triangle of wallpaper out on the front wall; slits at the corners; the lean-to's wedge inside out, the store's ceiling through it. `retro_materials.HOLDS_ROOM`, the walls to the corners, `_prism`, `_corner_beads` on the pub, bistro and Jednota, the cabins' annex over its bathroom's ceiling; `onesun_check --part=recgraze`, `recwalk`, `roomsgraze`)

@@ -24,11 +24,11 @@ func lines() -> String:
 		out += 1
 	var jobs := [
 		["Power out", "Generator: the distribution board"],
-		["A lamp went out", "Lamp %d:%d, hold R" % [3, 14]],
+		["A lamp went out", "Hold R at the lamp"],
 		["Sewer leaking", "The sewer hatch: crawl in"],
 		["Someone is in the corn", "The wicket gate in the west fence"],
-		["%s froze" % "The shower", "%d:%d: thaw the pipes" % [7, 9]],
-		["Toilets blocked", "Toilet block %d:%d: go in and unblock it" % [6, 11]],
+		["%s froze" % "The showers", "Thaw the pipes"],
+		["Toilets blocked", "Go in and unblock them"],
 	]
 	for j in jobs:
 		var shown2 := tr("Pager: %s. %s." % [nj.tr(str(j[0])), nj.tr(str(j[1]))])

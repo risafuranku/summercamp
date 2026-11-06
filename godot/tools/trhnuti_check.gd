@@ -101,6 +101,62 @@ func guests() -> void:
 		gm.call("debug_check_in_party", "Test " + k, k, 2, 4)
 
 
+## What getting a business's room ready at its door costs.
+func make_up(ty: String, round: int) -> void:
+	var si = _main.get("_interior_manager").get("_service_interior")
+	var st: Node3D = _main.call("debug_structure_of_type", ty)
+	var o0 := int(Performance.get_monitor(Performance.OBJECT_COUNT))
+	var v0 := Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED)
+	var before := _cached()
+	var t := Time.get_ticks_usec()
+	si.call("door_ready", st)
+	var ms := float(Time.get_ticks_usec() - t) / 1000.0
+	var fresh := PackedStringArray()
+	for p in _cached():
+		if not before.has(p):
+			fresh.append(p)
+	print("TRHNUTI make up %s, round %d: %.0f ms, %d objects, %.0f MB, %d files loaded" % [ty, round, ms,
+		int(Performance.get_monitor(Performance.OBJECT_COUNT)) - o0, (Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) - v0) / 1048576.0, fresh.size()])
+	for p in fresh:
+		print("LOADED %s %s" % [ty, p])
+
+
+## Everything the loader holds now, of what is in the project.
+var _all_files := PackedStringArray()
+
+
+func _cached() -> Dictionary:
+	if _all_files.is_empty():
+		for r in ["res://assets", "res://scripts", "res://data", "res://materials"]:
+			_walk(r)
+	var out := {}
+	for p in _all_files:
+		if ResourceLoader.has_cached(p):
+			out[p] = true
+	return out
+
+
+func _walk(dir: String) -> void:
+	for d in DirAccess.get_directories_at(dir):
+		_walk(dir + "/" + d)
+	for f in DirAccess.get_files_at(dir):
+		if f.ends_with(".import"):
+			_all_files.append(dir + "/" + f.trim_suffix(".import"))
+		elif not f.ends_with(".uid"):
+			_all_files.append(dir + "/" + f)
+
+
+## Which rooms' eyes are open now (each room's viewport, 0 shut, 4 drawing).
+func eyes(tag: String) -> void:
+	var im: Node = _main.get("_interior_manager")
+	var out := []
+	for k in ["_building_interior", "_cabin_interior", "_tent_interior", "_caravan_interior", "_service_interior", "_bowling_interior"]:
+		var it = im.get(k)
+		var vp = it.get("_viewport") if it != null else null
+		out.append("%s %s" % [k.replace("_interior", "").trim_prefix("_"), str(vp.render_target_update_mode) if vp != null else "-"])
+	print("TRHNUTI eyes %s: %s" % [tag, ", ".join(out)])
+
+
 ## What one autosave costs on its own, its parts apart.
 func time_save() -> void:
 	var t := Time.get_ticks_usec()
@@ -169,6 +225,58 @@ func _ready() -> void:
 		if a.begins_with("--part="):
 			part = a.substr(7)
 	var steps: Array = [["wait_menu"], ["wait", 1.0]]
+	if part == "bizrooms":
+		# The businesses, each room built the first time and the second: what it costs at the
+		# door (door_ready), then each walked into. "TRHNUTI make up ...".
+		var bt: Array = ["pub", "restaurant", "vecerka", "staffroom", "toilet_block", "shower_block"]
+		var st: Array = steps + [["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 8.0],
+			["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 2.0],
+			["money", 400000], ["clear", 4, 9, 5, 5], ["clear", 9, 9, 5, 5], ["clear", 9, 14, 5, 5], ["clear", 4, 14, 5, 5], ["clear", 14, 9, 5, 5], ["clear", 14, 14, 5, 5],
+			["build", "pub", 5, 10, 0], ["build", "restaurant", 10, 10, 0], ["build", "vecerka", 10, 15, 0], ["build", "staffroom", 5, 15, 0], ["build", "toilet_block", 15, 10, 0], ["build", "shower_block", 15, 15, 0],
+			["wait", 2.0], ["eval", "debug_jump_to(1, 13.0)"], ["wait", 2.0]]
+		for round in 2:
+			for ty in bt:
+				st += [["eval", C + ".make_up('%s', %d)" % [ty, round + 1]], ["wait", 1.0]]
+		for ty in bt:
+			st += [["door_front", ty, 2.0], ["wait", 1.5], ["eval", C + ".log_frames(true)"],
+				["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('%s'))" % ty], ["wait", 5.0],
+				["eval", C + ".log_frames(false, '%s in')" % ty], ["shot", ty], ["eval", C + ".eyes('%s')" % ty],
+				["eval", C + ".log_frames(true)"], ["eval", "_interior_manager._service_interior.close_service()"], ["wait", 3.0],
+				["eval", C + ".log_frames(false, '%s out')" % ty], ["eval", C + ".eyes('%s out')" % ty]]
+		_steps = st + [["eval", "get_tree().quit()"]]
+		return
+	if part == "firstrooms":
+		# Every kind of room walked into by its door, the first time and the second, its eye
+		# shut till then (interior_manager._tick_eyes): the worst frames in and out, a picture.
+		var st: Array = steps + [["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 8.0],
+			["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 2.0],
+			["money", 400000], ["clear", 4, 9, 5, 5], ["clear", 9, 9, 5, 5], ["clear", 9, 14, 5, 5], ["clear", 4, 14, 5, 5],
+			["build", "caravan_1", 5, 10, 0], ["build", "pub", 10, 10, 0], ["build", "restaurant", 10, 15, 0], ["build", "toilet_block", 5, 15, 0],
+			["eval", "_build_test_camp('')"], ["wait", 1.0], ["eval", "debug_repair_ruined()"], ["wait", 2.0], ["eval", "debug_jump_to(1, 13.0)"], ["wait", 2.0]]
+		var rooms := [["tent_1", 1.4, "_tent_interior.close_tent()"], ["cabin_1", 1.6, "_cabin_interior.close_cabin()"], ["caravan_1", 1.6, "_caravan_interior.close_caravan()"],
+			["pub", 2.0, "_service_interior.close_service()"], ["restaurant", 2.0, "_service_interior.close_service()"], ["toilet_block", 2.0, "_service_interior.close_service()"]]
+		for r in rooms:
+			for visit in 2:
+				var tag := "%s %d" % [r[0], visit + 1]
+				st += [["door_front", r[0], r[1]], ["wait", 1.5], ["eval", C + ".log_frames(true)"],
+					["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('%s'))" % r[0]], ["wait", 5.0],
+					["eval", C + ".log_frames(false, '%s in')" % tag], ["shot", "%s_%d" % [r[0], visit + 1]],
+					["eval", C + ".eyes('%s')" % tag],
+					["eval", C + ".log_frames(true)"], ["eval", "_interior_manager." + str(r[2])], ["wait", 3.0],
+					["eval", C + ".log_frames(false, '%s out')" % tag], ["eval", C + ".eyes('%s out')" % tag]]
+		_steps = st + [["eval", "get_tree().quit()"]]
+		return
+	if part == "walkout":
+		# The way everybody first leaves: up from the PC, out by the door, in and out again.
+		var bi := "_interior_manager._building_interior"
+		_steps = steps + [["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 10.0],
+			["eval", C + ".log_frames(true)"], ["eval", bi + "._exit_crt_view()"], ["wait", 3.0], ["eval", C + ".log_frames(false, 'up from the pc')"],
+			["eval", C + ".log_frames(true)"], ["eval", bi + "._extras.handle_exit()"], ["wait", 6.0], ["eval", C + ".log_frames(false, 'out by the door')"],
+			["eval", C + ".log_frames(true)"], ["door_front", "main_building", 2.0], ["wait", 0.5],
+			["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('main_building'))"], ["wait", 6.0], ["eval", C + ".log_frames(false, 'in by the door')"],
+			["eval", C + ".log_frames(true)"], ["eval", bi + "._extras.handle_exit()"], ["wait", 6.0], ["eval", C + ".log_frames(false, 'out again')"],
+			["eval", "get_tree().quit()"]]
+		return
 	if part != "night" and part != "nightstart" and part != "latenight":
 		steps += [
 			["eval", C + ".log_frames(true)"],

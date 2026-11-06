@@ -436,7 +436,7 @@ func _make(kind: String, at: int) -> Dictionary:
 			job.merge({"title": "Power out", "short": "Breaker", "where": "Generator: the distribution board", "coord": [g.x, g.y]}, true)
 		"lamp":
 			var l := _pick(["lamp_post"])
-			job.merge({"title": "A lamp went out", "short": "Lamp", "where": "Lamp %d:%d, hold R" % [l.x, l.y], "coord": [l.x, l.y]}, true)
+			job.merge({"title": "A lamp went out", "short": "Lamp", "where": "Hold R at the lamp", "coord": [l.x, l.y]}, true)
 		"sewer":
 			var s := _pick(["sewer"])
 			job.merge({"title": "Sewer leaking", "short": "Sewer", "where": "The sewer hatch: crawl in", "coord": [s.x, s.y]}, true)
@@ -457,10 +457,10 @@ func _make(kind: String, at: int) -> Dictionary:
 			var state = CoreRoot.get_state()
 			if f.x >= 0 and state != null and state.grid.cells.has(f):
 				what = {"water_pump": "The water pump", "shower_block": "The showers", "toilet_block": "The toilets"}.get(str(state.grid.cells[f].get("type", "")), "The pipes")
-			job.merge({"title": "%s froze" % what, "short": "Frozen", "where": "%d:%d: thaw the pipes" % [f.x, f.y], "coord": [f.x, f.y]}, true)
+			job.merge({"title": "%s froze" % what, "short": "Frozen", "where": "Thaw the pipes", "coord": [f.x, f.y]}, true)
 		"toilet":
 			var t := _pick(["toilet_block"])
-			job.merge({"title": "Toilets blocked", "short": "Toilets", "where": "Toilet block %d:%d: go in and unblock it" % [t.x, t.y], "coord": [t.x, t.y]}, true)
+			job.merge({"title": "Toilets blocked", "short": "Toilets", "where": "Go in and unblock them", "coord": [t.x, t.y]}, true)
 	return job
 
 

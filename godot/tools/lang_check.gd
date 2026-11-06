@@ -112,6 +112,9 @@ func _catalogue() -> void:
 			if bad <= 20:
 				print("FAIL values differ: %s -> %s" % [JSON.stringify(id), JSON.stringify(to)])
 	_fails += bad
+	_expect("a day ago", String(t._get_message(&"A DAY AGO", &"")), "PŘED DNEM")
+	_expect("days ago", String(t._get_message(&"%d DAYS AGO", &"")) % 3, "PŘED 3 DNY")
+	_expect("the key, not a shift", String(t._get_message(&"Shift", &"")).to_upper(), "SHIFT")
 	print("catalogue: %d translations, %d templates, %d plurals" % [t._exact.size(), t._templates.size(), t._plural.size()])
 
 

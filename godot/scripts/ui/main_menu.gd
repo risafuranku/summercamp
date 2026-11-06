@@ -109,6 +109,7 @@ var _coop_page: Control
 var _coop_list
 var _coop_notice: Label
 var _coop_address := ""
+var _coop_here: Label
 var _coop_caret_t := 0.0
 var _coop_preview: TextureRect
 var _coop_who: Label
@@ -412,9 +413,13 @@ func _rebuild() -> void:
 	_coop_page = _page_frame("CO-OP", plate_h)
 	_coop_list = RETRO_MENU.MenuList.new()
 	_coop_list.ui_scale = _scale
-	_coop_list.row_height_vp = 22
-	_coop_list.position = Vector2(_vp(2), _vp(30))
-	_coop_list.size = Vector2(_coop_page.size.x * 0.66, _vp(22 * 6))
+	# The main page's single-size letters: at twice the size "Host a saved camp" ran out of
+	# the plate in Czech, and the addresses beside "Host" off the screen.
+	_coop_list.size_vp = RETRO_UI.SIZE_BIG
+	_coop_list.row_height_vp = 17
+	_coop_list.indent_vp = 10
+	_coop_list.position = Vector2(_vp(6), _vp(32))
+	_coop_list.size = Vector2(_coop_page.size.x * 0.76, _vp(17 * 4))
 	_coop_page.add_child(_coop_list)
 	_coop_list.activated.connect(_on_coop_activated)
 	_lantern(_coop_list)
@@ -425,6 +430,10 @@ func _rebuild() -> void:
 		{"id": "back", "text": "Back"},
 	]
 	_coop_list.set_items(coop_items)
+	# Where the other warden finds you.
+	_coop_here = RETRO_UI.label("", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_AMBER_DIM, _scale)
+	_coop_here.position = Vector2(_vp(16), _vp(32 + 17 * 4 + 6))
+	_coop_page.add_child(_coop_here)
 	# Your warden, as the other one will see you (chosen on the WARDENS page).
 	var pv_top := _vp(28 + 22 * 3)
 	var pv_h := plate_h - pv_top - _vp(28)
@@ -614,6 +623,14 @@ func _make_save_row(i: int, width: float) -> Control:
 	info.name = "Info"
 	info.position = Vector2(_vp(5), _vp(11))
 	row.add_child(info)
+	# When, up at the right on the name's line (in the one line with the day and the money it
+	# ran out of the row and the plate in Czech).
+	var ago := RETRO_UI.label("", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_BONE_DIM, _scale, false)
+	ago.name = "Ago"
+	ago.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	ago.position = Vector2(_vp(5), _vp(3))
+	ago.size = Vector2(width - _vp(10), _vp(9))
+	row.add_child(ago)
 	row.mouse_entered.connect(func() -> void: _select_save(_save_scroll + i))
 	row.gui_input.connect(func(ev: InputEvent) -> void:
 		var mb := ev as InputEventMouseButton
@@ -648,13 +665,16 @@ func _refresh_save_rows() -> void:
 		row.queue_redraw()
 		var n := row.get_node("Name") as Label
 		var info := row.get_node("Info") as Label
+		var ago := row.get_node("Ago") as Label
 		n.text = "%s%s" % ["> " if selected else "", str(entry.get("slot_name", "Save"))]
 		n.add_theme_color_override("font_color", RETRO_UI.C_AMBER_LIGHT if selected else RETRO_UI.C_BONE)
+		ago.text = _ago(int(entry.get("updated_unix", 0)))
+		ago.add_theme_color_override("font_color", RETRO_UI.C_AMBER_DIM if selected else RETRO_UI.C_BONE_DIM)
 		if selected and _save_delete_armed:
-			info.text = "PRESS DEL AGAIN TO DELETE THIS SAVE"
+			info.text = "PRESS DEL AGAIN TO DELETE"
 			info.add_theme_color_override("font_color", RETRO_UI.C_RED_LIGHT)
 		else:
-			info.text = "%s   %s" % [_summary(entry), _ago(int(entry.get("updated_unix", 0)))]
+			info.text = _summary(entry)
 			info.add_theme_color_override("font_color", RETRO_UI.C_AMBER_DIM if selected else RETRO_UI.C_BONE_DIM)
 	if _save_hint != null:
 		if _save_entries.is_empty():
@@ -847,7 +867,8 @@ func _refresh_coop() -> void:
 	if _coop_address.is_empty() and Coop != null:
 		_coop_address = Coop.last_address
 	var here: Array[String] = Coop.local_addresses() if Coop != null else []
-	_coop_list.set_item_sub("host", "  ".join(here.slice(0, 2)))
+	if _coop_here != null:
+		_coop_here.text = "   ".join(here.slice(0, 2))
 	# The camp last hosted in co-op: its day and till.
 	_coop_list.set_item_enabled("host_last", PROFILES.list_camps().any(func(c: Dictionary) -> bool: return bool(c.get("sandbox", false))))
 	_coop_list.set_item_sub("host_last", "")
@@ -1042,6 +1063,9 @@ func _ago(unix: int) -> String:
 		return tr("%d MIN AGO") % (delta / 60)
 	if delta < 86400:
 		return tr("%d H AGO") % (delta / 3600)
+	# (One day apart: "1 DAYS AGO", and a filled-in lookup would not choose Czech's form.)
+	if delta < 172800:
+		return tr("A DAY AGO")
 	return tr("%d DAYS AGO") % (delta / 86400)
 
 

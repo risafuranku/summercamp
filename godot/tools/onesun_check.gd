@@ -587,6 +587,229 @@ func _camp_eye(at: Vector3, look: Vector3) -> Camera3D:
 	return cam
 
 
+var _tp_sum := 0.0
+var _tp_n := 0
+
+
+## The knock-out profile (--part=knockout).
+var _kn_nodes: Array = []
+var _kn_i := -1
+var _kn_tag := ""
+var _kn_was := 0
+var _kn_sum := 0.0
+var _kn_n := 0
+var _kn_base := 0.0
+var _kn_last := 0
+
+
+func knock_list() -> void:
+	_kn_nodes.clear()
+	for parent in [_main, _main.get("_interior_manager"), _main.get("_world_3d")]:
+		for c in (parent as Node).get_children():
+			if c is Viewport:
+				continue
+			_kn_nodes.append(c)
+	for n in get_tree().root.get_children():
+		if n != _main and n != self and not n in _kn_nodes:
+			_kn_nodes.append(n)
+	print("KNOCK nodes ", _kn_nodes.size())
+
+
+func knock_base(tag: String) -> void:
+	_kn_tag = tag
+	_kn_sum = 0.0
+	_kn_n = 0
+
+
+func knock_run(tag: String) -> void:
+	_kn_base = _kn_sum / maxf(_kn_n, 1)
+	print("KNOCK %s base %.1f ms a frame (%d frames)" % [tag, _kn_base, _kn_n])
+	_kn_i = -1
+	knock_next()
+
+
+func knock_next() -> void:
+	if _kn_i >= 0 and _kn_i < _kn_nodes.size():
+		var n: Node = _kn_nodes[_kn_i]
+		if is_instance_valid(n):
+			n.process_mode = _kn_was
+			var avg := _kn_sum / maxf(_kn_n, 1)
+			print("KNOCK %s %+.1f ms without %s (%s, %d frames)" % [_kn_tag, avg - _kn_base, n.name, n.get_class(), _kn_n])
+	_kn_i += 1
+	while _kn_i < _kn_nodes.size() and not is_instance_valid(_kn_nodes[_kn_i]):
+		_kn_i += 1
+	if _kn_i < _kn_nodes.size():
+		var n2: Node = _kn_nodes[_kn_i]
+		_kn_was = n2.process_mode
+		n2.process_mode = Node.PROCESS_MODE_DISABLED
+	_kn_sum = 0.0
+	_kn_n = 0
+
+
+func knock_stop() -> void:
+	if _kn_i >= 0 and _kn_i < _kn_nodes.size() and is_instance_valid(_kn_nodes[_kn_i]):
+		(_kn_nodes[_kn_i] as Node).process_mode = _kn_was
+	_kn_i = _kn_nodes.size()
+
+
+## The game told the mouse is over `what` in the cabin: the head turned to it first (the
+## cursor at the screen's right edge), then the cursor on it as the head settles.
+func hover_cabin(what: String) -> void:
+	var it = _main.get("_interior_manager").get("_cabin_interior")
+	var cam: Camera3D = it.get("_interior_camera")
+	var vp: SubViewport = it.get("_viewport")
+	var at := Vector2(0.5, 0.5)
+	var target: Node3D = null
+	match what:
+		"switch":
+			target = it.get("_light_switch_body")
+		"catalog":
+			target = it.get("_catalog_mesh")
+		"exit":
+			at = Vector2(0.5, 0.985)
+		"ceiling":
+			at = Vector2(0.75, 0.05)
+	if target != null:
+		at = Vector2(0.99, 0.5)
+		if not cam.is_position_behind(target.global_position):
+			var p := cam.unproject_position(target.global_position) / Vector2(vp.size)
+			if p.x > 0.02 and p.x < 0.98 and p.y > 0.02 and p.y < 0.98:
+				at = p
+	var ev := InputEventMouseMotion.new()
+	var size := get_viewport().get_visible_rect().size
+	ev.position = at * size
+	ev.global_position = at * size
+	Input.parse_input_event(ev)
+	var hit: Dictionary = it.call("_raycast_world", at * size) if it.get("_is_open") else {}
+	var col = hit.get("collider", null)
+	var more := ""
+	if col is Node3D:
+		var names := []
+		for k in (col as Node).get_meta_list():
+			names.append("%s=%s" % [k, str((col as Node).get_meta(k))])
+		more = " under %s at %s (room %s), hit at %s, metas %s, children %s" % [(col as Node).get_parent().name, str((col as Node3D).global_position), str((it.get("_cabin_root") as Node3D).to_local((col as Node3D).global_position)), str(hit.get("position")), str(names), str((col as Node).get_children().map(func(c): return str(c.name)))]
+	print("HOVER told %s at %s, the ray finds %s%s" % [what, str(at), str(col), more])
+
+
+func switch_where() -> void:
+	var it = _main.get("_interior_manager").get("_cabin_interior")
+	var cam: Camera3D = it.get("_interior_camera")
+	var body: Node3D = it.get("_light_switch_body")
+	var root: Node3D = it.get("_cabin_root")
+	print("HOVER switch: behind %s, on the screen %s, room-local %s, eye room-local %s, yaw %.0f, room level %s" % [str(cam.is_position_behind(body.global_position)),
+		str(cam.unproject_position(body.global_position) / Vector2((it.get("_viewport") as SubViewport).size)), str(root.to_local(body.global_position)), str(root.to_local(cam.global_position)), float(it.get("_look").get("yaw_deg")), str(it.get("_cabin_level"))])
+
+
+func hover_read(tag: String, glint) -> void:
+	var it = _main.get("_interior_manager").get("_cabin_interior")
+	print("HOVER %s: cursor %d (arrow 0), glint on %d; cabin open %s room %s walking %s busy %s, at %s, %s" % [tag, HandCursor._shown, (glint.get("_meshes") as Array).size(),
+		str(it.get("_is_open")), str(it.get("_active_room")), str(it.call("_walking")), str(it.get("_prep").is_busy()), str(load("res://scripts/interior_look.gd").cursor_of(get_viewport())), str(get_viewport().get_mouse_position())])
+
+
+func _vp_all() -> Array:
+	var out: Array = [get_tree().root]
+	out.append_array(get_tree().root.find_children("*", "SubViewport", true, false))
+	return out
+
+
+## Each node's own _process and _physics_process, called by hand and timed: what game code
+## costs a frame, biggest first ("NODE ...").
+func node_parts(tag: String) -> void:
+	var rows: Array = []
+	var total := 0.0
+	for n in get_tree().root.find_children("*", "Node", true, false):
+		var node := n as Node
+		if node == self or node.get_script() == null:
+			continue
+		var us := 0
+		if node.is_processing() and node.has_method("_process"):
+			var t0 := Time.get_ticks_usec()
+			node.call("_process", 0.02)
+			us += Time.get_ticks_usec() - t0
+		if node.is_physics_processing() and node.has_method("_physics_process"):
+			var t1 := Time.get_ticks_usec()
+			node.call("_physics_process", 0.0166)
+			us += Time.get_ticks_usec() - t1
+		if us > 0:
+			rows.append([us, str(node.name), (node.get_script() as Script).resource_path.get_file()])
+			total += float(us) / 1000.0
+	rows.sort_custom(func(a, b): return a[0] > b[0])
+	print("NODE %s total %.2f ms in %d nodes" % [tag, total, rows.size()])
+	for i in mini(rows.size(), 28):
+		print("NODE %s %.2f ms %s (%s)" % [tag, float(rows[i][0]) / 1000.0, rows[i][1], rows[i][2]])
+
+
+func vp_measure() -> void:
+	_tp_sum = 0.0
+	_tp_n = 0
+	for v in _vp_all():
+		RenderingServer.viewport_set_measure_render_time((v as Viewport).get_viewport_rid(), true)
+
+
+func vp_print(tag: String) -> void:
+	var sum_gpu := 0.0
+	for v in _vp_all():
+		var vp := v as Viewport
+		var rid := vp.get_viewport_rid()
+		var cpu := RenderingServer.viewport_get_measured_render_time_cpu(rid)
+		var gpu := RenderingServer.viewport_get_measured_render_time_gpu(rid)
+		sum_gpu += gpu
+		var mode := int(vp.get("render_target_update_mode")) if vp is SubViewport else -1
+		var size := (vp as SubViewport).size if vp is SubViewport else Vector2i(vp.get_visible_rect().size)
+		var draws := RenderingServer.viewport_get_render_info(rid, RenderingServer.VIEWPORT_RENDER_INFO_TYPE_VISIBLE, RenderingServer.VIEWPORT_RENDER_INFO_DRAW_CALLS_IN_FRAME)
+		var objs := RenderingServer.viewport_get_render_info(rid, RenderingServer.VIEWPORT_RENDER_INFO_TYPE_VISIBLE, RenderingServer.VIEWPORT_RENDER_INFO_OBJECTS_IN_FRAME)
+		var shadow := RenderingServer.viewport_get_render_info(rid, RenderingServer.VIEWPORT_RENDER_INFO_TYPE_SHADOW, RenderingServer.VIEWPORT_RENDER_INFO_DRAW_CALLS_IN_FRAME)
+		if cpu + gpu > 0.01 or mode == 3 or mode == 4:
+			print("VP %s cpu %.2f gpu %.2f draws %d objects %d shadow-draws %d mode %d %s %s" % [tag, cpu, gpu, draws, objs, shadow, mode, str(size), str(vp.get_path()).right(70)])
+	print("VP %s total: gpu %.2f, process %.2f ms, physics %.2f ms, fps %.0f, %d draws" % [tag, sum_gpu, _tp_sum / maxf(_tp_n, 1) * 1000.0,
+		Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0, Performance.get_monitor(Performance.TIME_FPS), int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))])
+
+
+func _part(name: String, job: Callable) -> void:
+	var t0 := Time.get_ticks_usec()
+	for i in 40:
+		job.call()
+	print("PART %.3f ms %s" % [float(Time.get_ticks_usec() - t0) / 1000.0 / 40.0, name])
+
+
+func room_parts() -> void:
+	var bi: Node = _main.get("_interior_manager").get("_building_interior")
+	var ex = bi.get("_extras")
+	var dr = bi.get("_dressing")
+	var dk = bi.get("_desk_room")
+	var d := 0.016
+	var hour: float = bi.call("_hour_now")
+	_part("bind", func(): bi.call("_bind_one_world"))
+	_part("from_camp", func(): bi.call("_one_world_from_camp", d))
+	_part("radio_mix", func(): bi.call("_update_radio_mix", d))
+	_part("radio_greetings", func(): bi.call("_tick_radio_greetings"))
+	_part("music_duck", func(): bi.call("_tick_music_duck", d))
+	_part("crt_sharp", func(): bi.call("_update_crt_sharp"))
+	_part("coop_screen", func(): bi.call("_coop_screen_tick", d))
+	_part("ring", func(): ex.tick_ring(d))
+	_part("delivery_note", func(): bi.call("_tick_delivery_note", d))
+	_part("photo_flash", func(): bi.call("_tick_photo_flash", d))
+	_part("torch", func(): bi.call("_update_torch", d))
+	_part("crt_light", func(): bi.call("_update_crt_monitor_light", d))
+	if dr != null:
+		_part("dressing", func(): dr.update(d, hour, true))
+	if dk != null:
+		_part("desk_room", func(): dk.process(d, true))
+	if ex != null:
+		_part("extras", func(): ex.process(d, hour))
+	_part("hover", func(): bi.call("_update_office_hover"))
+	_part("mouse_look", func(): bi.call("_apply_idle_mouse_look", d))
+	_part("whole _process", func(): bi.call("_process", d))
+	var by_script := {}
+	for n in get_tree().root.find_children("*", "Node", true, false):
+		if not (n as Node).is_processing() and not (n as Node).is_physics_processing():
+			continue
+		var s = (n as Node).get_script()
+		var k: String = (s as Script).resource_path.get_file() if s != null else n.get_class()
+		by_script[k] = int(by_script.get(k, 0)) + 1
+	print("PART processing nodes ", by_script)
+
+
 ## Lightning held on (weather_visuals' flash, every frame till `on` goes off).
 var _flash_on := false
 
@@ -918,6 +1141,13 @@ func _process(delta: float) -> void:
 		_room_node.visible = false
 	if _flash_on:
 		_main.get("_weather_visuals").set("_storm_flash_strength", 1.0)
+	_tp_sum += Performance.get_monitor(Performance.TIME_PROCESS)
+	_tp_n += 1
+	var now_us := Time.get_ticks_usec()
+	if _kn_last > 0:
+		_kn_sum += float(now_us - _kn_last) / 1000.0
+		_kn_n += 1
+	_kn_last = now_us
 	var bi0 = _bi() if _main.get("_interior_manager") != null else null
 	if _green and bi0 != null and bi0.get("_room_probe") != null:
 		var pr0 = bi0.get("_room_probe")
@@ -1399,6 +1629,67 @@ func _ready() -> void:
 								st += [["eval", C + ".room_view('%s', %d, %d, %s, %s)" % [ty, wall, end, back, off]], ["wait", 0.45], ["shot", "a_" + n],
 									["eval", C + ".room_hidden(true)"], ["wait", 0.12], ["shot", "b_" + n], ["eval", C + ".room_hidden(false)"], ["wait", 0.05]]
 			st += [["eval", "set('debug_camera', null)"], ["eval", "get_tree().quit()"]]
+			_steps = st
+			return
+		if a == "--part=cabinswitch":
+			# The cabin's light switch from where you stand, the head as far right as it goes.
+			var CI := "_interior_manager._cabin_interior"
+			var st: Array = [["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 3.0],
+				["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 2.0],
+				["eval", "_build_test_camp('')"], ["wait", 1.0], ["eval", "debug_repair_ruined()"], ["wait", 2.0],
+				["door_front", "cabin_1", 1.6], ["wait", 0.5], ["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('cabin_1'))"], ["wait", 5.0],
+				["eval", CI + "._look.set('yaw_deg', -72.0)"], ["wait", 0.6], ["shot", "right_1"], ["eval", C + ".switch_where()"],
+				["eval", CI + ".open_cabin(2)"], ["wait", 1.0], ["eval", CI + "._look.set('yaw_deg', -72.0)"], ["wait", 0.6], ["shot", "right_2"], ["eval", C + ".switch_where()"],
+				["eval", CI + ".open_cabin(3)"], ["wait", 1.0], ["eval", CI + "._look.set('yaw_deg', -72.0)"], ["wait", 0.6], ["shot", "right_3"], ["eval", C + ".switch_where()"],
+				["eval", "get_tree().quit()"]]
+			_steps = st
+			return
+		if a == "--part=hover":
+			# What the cursor does over a room's things, headless: there the mouse is only what the
+			# game is told, the real one stays where it is. Lines "HOVER ...".
+			var st: Array = [["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 3.0],
+				["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 2.0],
+				["eval", "_build_test_camp('')"], ["wait", 1.0], ["eval", "debug_repair_ruined()"], ["wait", 2.0],
+				# (Headless nothing is drawn: a room's cubes never finish, the rooms stay up where they are baked.)
+				["eval", "_interior_manager._cabin_interior.set('_cube_baking', false)"], ["eval", "_interior_manager._caravan_interior.set('_cube_baking', false)"],
+				["door_front", "cabin_1", 1.6], ["wait", 0.5], ["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('cabin_1'))"], ["wait", 5.0]]
+			for what in ["catalog", "switch", "exit", "ceiling"]:
+				for i in 10:
+					st += [["eval", C + ".hover_cabin('%s')" % what], ["wait", 0.5]]
+				st += [["eval", C + ".hover_read('cabin %s', _interior_manager._cabin_interior._glint)" % what]]
+			st += [["eval", "_interior_manager._cabin_interior.close_cabin()"], ["wait", 2.0],
+				["door_front", "tent_1", 1.4], ["wait", 0.5], ["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('tent_1'))"], ["wait", 5.0]]
+			for what in ["exit", "ceiling"]:
+				st += [["eval", C + ".hover_cabin('%s')" % what], ["wait", 1.2], ["eval", C + ".hover_read('tent %s', _interior_manager._tent_interior._glint)" % what]]
+			st += [["eval", "get_tree().quit()"]]
+			_steps = st
+			return
+		if a == "--part=vptime":
+			# Where a frame goes, at the PC, in the reception and in the camp: each viewport's
+			# time on the CPU and the graphics card and what it draws, then the reception's own
+			# jobs of a frame, one by one. Lines "VP ..." and "PART ...".
+			var bi := "_interior_manager._building_interior"
+			_steps = [["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 12.0],
+				["eval", C + ".vp_measure()"], ["wait", 3.0], ["eval", C + ".vp_print('pc')"],
+				["eval", bi + "._exit_crt_view()"], ["wait", 4.0], ["eval", C + ".vp_measure()"], ["wait", 3.0], ["eval", C + ".vp_print('room')"],
+				["eval", C + ".room_parts()"], ["eval", C + ".node_parts('room')"], ["wait", 0.5],
+				["eval", "_interior_manager.close_main_interior_if_open()"], ["wait", 4.0], ["eval", C + ".vp_measure()"], ["wait", 3.0], ["eval", C + ".vp_print('camp')"],
+				["eval", C + ".node_parts('camp')"], ["wait", 0.5],
+				["eval", "get_tree().quit()"]]
+			return
+		if a == "--part=knockout":
+			# What each part of the game costs a frame, out in the camp and in the reception:
+			# each child of Main and of the interior manager stopped for a moment, the time a
+			# frame takes with it and without. Lines "KNOCK ...".
+			var st: Array = [["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 12.0],
+				["eval", C + ".knock_list()"], ["wait", 0.2]]
+			st += [["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 3.0], ["eval", C + ".knock_base('room')"], ["wait", 2.6], ["eval", C + ".knock_run('room')"]]
+			for i in 70:
+				st += [["wait", 1.1], ["eval", C + ".knock_next()"]]
+			st += [["eval", C + ".knock_stop()"], ["eval", "_interior_manager.close_main_interior_if_open()"], ["wait", 3.0], ["eval", C + ".knock_base('camp')"], ["wait", 2.6], ["eval", C + ".knock_run('camp')"]]
+			for i in 70:
+				st += [["wait", 1.1], ["eval", C + ".knock_next()"]]
+			st += [["eval", C + ".knock_stop()"], ["eval", "get_tree().quit()"]]
 			_steps = st
 			return
 		if a == "--part=recrain":

@@ -20,9 +20,10 @@ const CONTROL_REFERENCE := [
 	["Look", "Mouse"],
 	["Interact / use", "E  or  Left Mouse"],
 	["Service / repair building (hold)", "R"],
-	["Pause", "Esc (outdoors), P or F10 (anywhere)"],
+	["Pause", "Esc, P  or  F10"],
 	["Leave a room or a job", "Esc  or  Space"],
 	["Leave the PC", "Esc"],
+	["Pause", "P  or  F10"],
 	["Look in rooms and jobs", "W A S D  or  the pointer"],
 	["Office lights (reception)", "L"],
 	["Service room: previous / next", "A / D"],
@@ -30,6 +31,9 @@ const CONTROL_REFERENCE := [
 	["Builder: pan", "W A S D  or  Right-drag"],
 	["Builder: zoom", "Mouse wheel  or  + / -"],
 ]
+
+## How many of those are for out in the camp, the rest for indoors (the menu's two pages).
+const OUTDOOR_ROWS := 10
 
 const DEBUG_CONTROL_REFERENCE := [
 	["Skip one hour", "T / U"],

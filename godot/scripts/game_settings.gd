@@ -41,6 +41,10 @@ func _ready() -> void:
 	get_tree().node_added.connect(_nearest_in_viewport)
 
 
+func _exit_tree() -> void:
+	load("res://scripts/lang.gd").release()
+
+
 func _nearest_in_viewport(node: Node) -> void:
 	if node is SubViewport:
 		(node as SubViewport).canvas_item_default_texture_filter = Viewport.DEFAULT_CANVAS_ITEM_TEXTURE_FILTER_NEAREST

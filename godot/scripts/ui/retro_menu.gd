@@ -772,30 +772,59 @@ class ControlsPage:
 	## The key being changed (GameSettings.REBINDABLE), "" none; what it said after.
 	var _waiting := ""
 	var _note := ""
+	## The list in pages, out in the camp and indoors (one list ran off the plate and under
+	## the footer, the keys you can change with it, the user 6. 11.: a menu does not scroll).
+	var _tab := 0
+	var _tabs := 1
+	var _sfx: AudioStreamPlayer
 
 	func _init() -> void:
 		mouse_filter = Control.MOUSE_FILTER_STOP
 
+	func _ready() -> void:
+		_sfx = AudioStreamPlayer.new()
+		_sfx.bus = "Master"
+		_sfx.volume_db = -10.0
+		if ResourceLoader.exists(SFX_MOVE_PATH):
+			_sfx.stream = load(SFX_MOVE_PATH)
+		add_child(_sfx)
+
 	func build() -> void:
 		for child in get_children():
+			if child == _sfx:
+				continue
 			remove_child(child)
 			child.queue_free()
 		var s := float(ui_scale)
 		var y := 0.0
-		var entries: Array = SETTINGS_PANEL.CONTROL_REFERENCE.duplicate()
+		var rows: Array = SETTINGS_PANEL.CONTROL_REFERENCE
+		var pages: Array = [rows.slice(0, SETTINGS_PANEL.OUTDOOR_ROWS), rows.slice(SETTINGS_PANEL.OUTDOOR_ROWS)]
+		var names: Array = ["Outdoors", "Indoors"]
 		# The keys you can change: click one, then press the new key.
 		for action in GameSettings.REBINDABLE.keys():
 			var shown := "PRESS A KEY..." if _waiting == action else "%s  [CHANGE]" % GameSettings.key_name(action)
-			entries.append([str(GameSettings.REBINDABLE[action][0]), shown, action])
+			(pages[1] as Array).append([str(GameSettings.REBINDABLE[action][0]), shown, action])
 		if OS.is_debug_build():
-			entries.append(["", ""])
+			var debug: Array = []
 			for e in SETTINGS_PANEL.DEBUG_CONTROL_REFERENCE:
-				entries.append(["(debug) " + str(e[0]), e[1]])
+				debug.append(["(debug) " + str(e[0]), e[1]])
+			pages.append(debug)
+			names.append("Debug")
+		_tabs = pages.size()
+		_tab = clampi(_tab, 0, _tabs - 1)
+		var x := 6.0 * s
+		for i in _tabs:
+			x += _tab_label(str(names[i]), i, x) + 10.0 * s
+		y += 15.0 * s
+		var entries: Array = pages[_tab]
 		for entry in entries:
 			var action := RETRO_UI.label(str(entry[0]), RETRO_UI.FONT_TEXT, RETRO_UI.SIZE_TEXT, RETRO_UI.C_BONE, ui_scale)
 			action.position = Vector2(6.0 * s, y)
 			add_child(action)
-			var keys := RETRO_UI.label(str(entry[1]).to_upper(), RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_AMBER, ui_scale)
+			# Looked up as written, then upper-cased: "SHIFT" is a work shift in the catalogue,
+			# the key read SMĚNA in Czech.
+			var keys := RETRO_UI.label(tr(str(entry[1])).to_upper(), RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_AMBER, ui_scale)
+			keys.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 			keys.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 			keys.anchor_right = 1.0
 			keys.offset_left = size.x * 0.4
@@ -826,6 +855,40 @@ class ControlsPage:
 		add_child(hint)
 		custom_minimum_size = Vector2(0.0, y + 18.0 * s)
 
+	## A page's name at `x`, the one you are on amber on its rule: its width.
+	func _tab_label(text: String, index: int, x: float) -> float:
+		var s := float(ui_scale)
+		var on := index == _tab
+		var tab := RETRO_UI.label(text.to_upper(), RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_AMBER if on else RETRO_UI.C_BONE_DIM, ui_scale)
+		tab.position = Vector2(x, 0.0)
+		tab.mouse_filter = Control.MOUSE_FILTER_STOP
+		tab.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		tab.gui_input.connect(func(ev: InputEvent) -> void:
+			var mb := ev as InputEventMouseButton
+			if mb != null and mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
+				_to_tab(index)
+				accept_event()
+		)
+		add_child(tab)
+		var w := tab.get_minimum_size().x
+		if on:
+			var rule := ColorRect.new()
+			rule.color = RETRO_UI.C_AMBER_DIM
+			rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			rule.position = Vector2(x, 11.0 * s)
+			rule.size = Vector2(w, s)
+			add_child(rule)
+		return w
+
+	func _to_tab(index: int) -> void:
+		_waiting = ""
+		_note = ""
+		_tab = posmod(index, _tabs)
+		if _sfx != null and _sfx.stream != null and _sfx.is_inside_tree():
+			_sfx.pitch_scale = 1.0
+			_sfx.play()
+		build()
+
 	func handle_input(event: InputEvent) -> bool:
 		# Waiting for the new key: that key (Esc leaves it as it was).
 		if _waiting != "":
@@ -840,6 +903,12 @@ class ControlsPage:
 				build()
 				return true
 			return event is InputEventKey
+		if event.is_action_pressed("ui_left", true):
+			_to_tab(_tab - 1)
+			return true
+		if event.is_action_pressed("ui_right", true):
+			_to_tab(_tab + 1)
+			return true
 		if event.is_action_pressed("ui_cancel") or event.is_action_pressed("ui_accept"):
 			back_requested.emit()
 			return true

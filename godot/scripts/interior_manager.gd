@@ -161,6 +161,33 @@ func town_trip() -> Node:
 func _process(delta: float) -> void:
 	_tick_tent_doors(delta)
 	_tick_cubes(delta)
+	_tick_eyes(delta)
+
+
+## A room nobody is in is not drawn: the cabin's, the tent's, the van's and the service room's
+## eyes stayed open all game, a quarter of every frame on the processor and half of it on the
+## graphics card for pictures nobody saw (measured 6. 11., onesun_check --part=vptime). Open
+## for the game's first seconds, so that what they show is compiled before anyone walks in;
+## from then on each room opens its eye as it opens, door_through as you walk up to it.
+var _eyes_t := 5.0
+
+
+func _tick_eyes(delta: float) -> void:
+	if _eyes_t < 0.0:
+		return
+	_eyes_t -= delta
+	if _eyes_t > 0.0:
+		return
+	if through != null and through.get("_state") != "":
+		_eyes_t = 0.5
+		return
+	_eyes_t = -1.0
+	for it in [_cabin_interior, _tent_interior, _caravan_interior, _service_interior]:
+		if it == null or not is_instance_valid(it) or it.is_open():
+			continue
+		var vp := it.get("_viewport") as SubViewport
+		if vp != null:
+			vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
 
 
 ## The cabins' and the vans' rooms drawn into their cubes for their windows from far off

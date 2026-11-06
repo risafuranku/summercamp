@@ -133,6 +133,17 @@ python godot/tools/window_coop.py [OUT_DIR] # the reception's windows for two: f
 #   res://tools/trhnuti_check.tscn   every frame over 40 ms from a new camp's first frame (script time, pipelines), the autosave's,
 #                                    the line's and the land's parts; --part=night: each thing made and seen; --part=nightstart: 20:00 with every kind in
 #   res://tools/soak_check.tscn      three days and nights of every kind of guest at a fast clock (--days=N --speed=K): an hourly line; grep SCRIPT ERROR / ERROR:
+# Where a frame goes (6. 11.; windowed unless said, --audio-driver Dummy, -- --out=DIR --part=...):
+#   res://tools/onesun_check.tscn    vptime: at the PC, in the reception and in the camp, each viewport's time on the processor and
+#                                    the graphics card and what it draws ("VP ..."), each node's own _process, biggest first
+#                                    ("NODE ..."), the reception's jobs of a frame ("PART ..."). Start here when the game feels slow:
+#                                    TIME_PROCESS is the worst frame of the last second, not an average. knockout: each child of
+#                                    Main stopped in turn (+-4 ms of noise: a first look at best). hover (headless, the real mouse
+#                                    stays put, the mouse is what the game is told): the cursor over the cabin's catalogue and
+#                                    switch, on the way out, the tent's way out; cabinswitch: the switch in all three cabins.
+#   res://tools/trhnuti_check.tscn   walkout: up from the PC, out and in by the door. firstrooms: tent, cabin, caravan, toilets walked
+#                                    into twice, the worst frames, which eyes are open. bizrooms: what a business's room
+#                                    costs at its door, cold and warm, and which files it loaded ("TRHNUTI make up", "LOADED").
 #   res://tools/smrk_check.tscn      a walk into a spruce: held off at its branches' tips, crouched in under it, eased out standing up; what the branches cut off on the map
 #   res://tools/smrt_check.tscn      dead and back: a warden's camp saved, killed, LOAD LAST SAVE straight in (run with its own empty APPDATA: it makes a warden)
 # W26 one world (5. 11.; windowed, --audio-driver Dummy, -- --out=DIR --part=...):
@@ -555,6 +566,18 @@ every night's sewer, toilets and frozen pipes the moment they broke).
  engine's "BUG, indexing did not unpair geometries from light" when the game is shut, and
  a crash after it (the doorway's dark behind a cabin's door). Hide on `one_world_room.NO_EYE`
  (bit 20, no camera has it); a hole casts no shadow, it would still stand in the sun's way.
+ **A room nobody is in is not drawn**: `render_target_update_mode` ALWAYS in its open,
+ DISABLED in its close (door_through opens it as you walk up), and interior_manager's
+ `_tick_eyes` shuts them all 5 s in, once what they show is compiled. The cabin, the tent, the
+ van and the service room were left on: 3000 draws and a quarter of every frame for pictures
+ nobody saw, in the camp and at the PC alike (33-37 fps, 50 without them and the next
+ line). A new room does the same. **Nothing makes text per node per frame**: retro_materials'
+ rolling check wrote eight values of each material out as a string to compare them, 400
+ nodes a frame, 7 ms. **The first step into a business**: its stations' scripts compile in
+ LandWarmup's threads while the boot is up (the restaurant froze for 1.3 s, 190 ms now);
+ a business in a new folder goes on `land_warmup.ROOTS`. **Headless nothing is drawn**, so a
+ room's cubes never finish and the rooms stay up at `BAKE_UP` on top of each other: a ray from
+ one finds another's curtains (`--part=hover` clears `_cube_baking`).
  **A room's lit side is its inside**: the camp's eye sees a curtain's back, unlit, a lit
  window was the darkest thing on the wall. For the eye out in the dark a lit room has more
  fill and a lamp more (`one_world_room.camp_lamp`, `glow_step`, `glow_fill`, gone as you
@@ -1080,6 +1103,11 @@ textures (§7) before shipping.
 ---
 
 ## 8. Languages (English and Czech)
+
+**The catalogue goes before the scripting does**: `lang.gd` is a Translation made from a script
+and the server keeps it to the end, past the scripting's own: every Czech game crashed as it
+closed (exit 139, nothing in the log, English never), until GameSettings' `_exit_tree` called
+`LANG.release()`. A run that crashes on quitting only in one language: look here first.
 
 The user, 21. 10.: "the language is the warden's, flags when a warden is made; the whole
 game in Czech; from now on everything we make, in English and Czech".

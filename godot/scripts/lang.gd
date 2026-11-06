@@ -145,6 +145,16 @@ static func _ensure() -> void:
 	TranslationServer.add_translation(_cs)
 
 
+## Let go of the catalogue as the game shuts: the server holds it, an object of a script,
+## past the end of the scripting, and letting go of it there brought every Czech game down
+## as it closed (exit 139; English never makes one). GameSettings, on its way out.
+static func release() -> void:
+	if _cs == null:
+		return
+	TranslationServer.remove_translation(_cs)
+	_cs = null
+
+
 ## Read again (after the catalogue changed on disk, the tools' reload).
 static func reload() -> void:
 	if _cs == null:

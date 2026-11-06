@@ -90,7 +90,9 @@ func hint() -> String:
 	if is_active():
 		return str(_att.warden_hint(_key)) if _att.has_method("warden_hint") else ""
 	var o := _offer()
-	return "" if o.is_empty() else "[E] %s" % str(o["verb"])
+	# (Looked up here: the lookup of the whole line does not go two deep, a Czech game read
+	# "[E] SIT AT THE TABLE", the user's camp 6. 11.)
+	return "" if o.is_empty() else "[E] %s" % tr(str(o["verb"]))
 
 
 ## E: into the attraction at hand (or a log on the fire); true when it was for us.
