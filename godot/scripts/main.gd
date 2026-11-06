@@ -848,7 +848,16 @@ func _on_week_report_menu() -> void:
 	_enter_main_menu()
 
 
+## The morning the goods came by themselves (a sandbox camp with no day events).
+var _goods_day := 0
+
+
 func _tick_day_events() -> void:
+	if _day_events != null and not camp_rule("events") and Coop.sim_here() and _gameplay_started and _day_index != _goods_day and _time_of_day_hours >= 8.0:
+		# No delivery van to sign for without them: what was ordered and paid comes all the same.
+		_goods_day = _day_index
+		if CoreRoot.actions != null:
+			CoreRoot.actions.biz_receive(_day_index)
 	if _day_events == null or not camp_rule("events"):
 		return
 	var minute_of_day := _clock_minutes_from_hours(_time_of_day_hours)
@@ -1408,6 +1417,22 @@ func _process(delta: float) -> void:
 	if sim:
 		_tick_autosave(delta)
 
+
+
+## The left button is E out in the camp, as the controls page says. A click never reaches
+## _unhandled_input here (the world's viewport container takes it): the hand went out to the
+## door and nothing came of it. What takes a click of its own (carrying, the seats) has it
+## first and marks it handled.
+func _input(event: InputEvent) -> void:
+	var mb := event as InputEventMouseButton
+	if mb == null or not mb.pressed or mb.button_index != MOUSE_BUTTON_LEFT:
+		return
+	if Input.get_mouse_mode() != Input.MOUSE_MODE_CAPTURED or not _gameplay_started or _menu_mode or _game_over_active or get_tree().paused:
+		return
+	if _is_any_interior_open() or _in_attraction() or (_lake_trip != null and _lake_trip.is_active()):
+		return
+	if _hud_manager != null and str(_hud_manager.get("_hint_text")).strip_edges() != "":
+		_try_interact()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -1970,6 +1995,14 @@ func _sync_liminal_forecast_hud(force: bool = false) -> void:
 	elif _hud_manager != null and _hud_manager.has_method("set_liminal_forecast_count"):
 		_hud_manager.set_liminal_forecast_count(_liminal_forecast_hud_level)
 	_refresh_liminal_debug_window()
+
+
+## A camp loaded in the dark: the night goes on. What starts it is the clock passing 20:00
+## (time_system), and a save comes back at night already: no tick, nothing out there till
+## morning and a death undone for free. After midnight it is still yesterday's night.
+func _resume_night_after_load() -> void:
+	if CoreRoot.is_night():
+		_on_night_tick(_day_index if _time_of_day_hours >= 12.0 else _day_index - 1)
 
 
 func _on_night_tick(night_index: int) -> void:
@@ -3928,7 +3961,10 @@ func request_pay_electricity_bill(bill_id: String) -> Dictionary:
 			Coop.send_request("pay_bill", [bill_id.strip_edges()])
 			return {"ok": true, "amount": amount}
 		return {"ok": false, "reason": "not_found"}
-	return _billing.pay(bill_id)
+	var paid: Dictionary = _billing.pay(bill_id)
+	if bool(paid.get("ok", false)) and _quest_manager != null:
+		_quest_manager.notify("bill_paid")
+	return paid
 
 
 func _apply_time_from_clock(force_interior_sync: bool = false, force_sky_snap: bool = false) -> void:
@@ -4133,6 +4169,13 @@ const RUINED_CABIN_CONDITION := 0.06
 
 
 func ruined_cabin_key() -> String:
+	# Bulldozed (Builder is yours from the first mail): nothing left to mend or clean, the
+	# checklist's steps about it are done, not waiting for good.
+	if not _ruined_cabin_key.is_empty():
+		var parts := _ruined_cabin_key.split(":")
+		var state = CoreRoot.get_state()
+		if state != null and state.grid != null and state.grid.is_cell_free(Vector2i(int(parts[0]), int(parts[1]))):
+			return ""
 	return _ruined_cabin_key
 
 
@@ -4686,6 +4729,7 @@ func _on_menu_load_requested(path: String) -> void:
 		return
 	await _hide_menu_loading_after(started, 520, false)
 	_start_game_from_menu()
+	_resume_night_after_load.call_deferred()
 
 
 func _start_loaded_game_from_path(path: String) -> bool:
@@ -4723,6 +4767,7 @@ func _on_menu_continue_pressed() -> void:
 	_active_save_path = latest
 	await _hide_menu_loading_after(started, 520, false)
 	_start_game_from_menu()
+	_resume_night_after_load.call_deferred()
 
 
 ## A new camp for the tools (screenshot driver, harnesses): not one of the warden's camps

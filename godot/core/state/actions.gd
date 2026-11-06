@@ -96,6 +96,10 @@ func remove_building(cell: Vector2i) -> bool:
 			
 	for c in cells_to_clear:
 		_state.grid.free_cell(c)
+	# (Its trouble goes with it: the night's job on a lamp bulldozed, its plate and mark, stayed
+	# for good, over the checklist's.)
+	if root is Vector2i:
+		_state.failures.erase("%d:%d" % [root.x, root.y])
 		
 	_state.money += refund
 	

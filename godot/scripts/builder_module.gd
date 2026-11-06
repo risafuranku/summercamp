@@ -347,7 +347,7 @@ func _build_menu() -> void:
 	add_child(row)
 	var menus := {
 		"File": ["Site report", "New site...", "-", "Exit"],
-		"View": ["Zoom in", "Zoom out", "Rotate building  (Q)", "Turn the view  (T)", "-", "Overlay: off", "Overlay: wear", "Overlay: power", "Overlay: rooms", "Overlay: light at night"],
+		"View": ["Zoom in", "Zoom out", "Rotate building  (R)", "Turn the view  (T)", "-", "Overlay: off", "Overlay: wear", "Overlay: power", "Overlay: rooms", "Overlay: light at night"],
 		"Help": ["Keys", "Help topics", "Register...", "-", "About Builder 98"],
 	}
 	for name in menus:
@@ -373,7 +373,7 @@ func _menu(item: String) -> void:
 			_map_panel.apply_zoom_step(1)
 		"Zoom out":
 			_map_panel.apply_zoom_step(-1)
-		"Rotate building  (Q)":
+		"Rotate building  (R)":
 			_map_panel.rotate_selected_building(1)
 		"Turn the view  (T)":
 			turn_view(1)
@@ -392,7 +392,7 @@ func _menu(item: String) -> void:
 		"Overlay: light at night":
 			_set_overlay("light")
 		"Keys":
-			message_requested.emit("Builder 98 - Keys", "B  bulldozer        P  path        L  lamp\nF1 housing   F2 services   F3 fun   F4 decor   F5 utilities\nR  turn the building     T  turn the view     X  put the tool away\nO  overlay (wear, power, rooms, light)\nW A S D, arrows  move the map (Shift faster)     +/-  zoom     Ctrl+Z  undo today's build\n\nNo tool in hand: click a building for its card.", "info")
+			message_requested.emit("Builder 98 - Keys", "B  bulldozer        P  path        L  lamp\nF1 housing   F2 washrooms   F3 food   F4 fun   F5 decor\nR  turn the building     T  turn the view     X  put the tool away\nO  overlay (wear, power, rooms, light)\nW A S D, arrows  move the map (Shift faster)     +/-  zoom     Ctrl+Z  undo today's build\n\nNo tool in hand: click a building for its card.", "info")
 		"Help topics":
 			message_requested.emit("Builder 98 Help", "Cannot open BUILDER.HLP.\n\nThe file is missing or damaged.\n\n(Help > Keys still works.)", "error")
 		"Register...":

@@ -305,6 +305,10 @@ func _advance_guest(guest: Dictionary, now_abs: int, is_night_at: Callable, weir
 		if not night_sleep:
 			_track_unhappiness(guest, int(minutes), t, night_now)
 		t = seg_end
+		# Stormed off just now: the walk to the gate is what they are doing. Written back from
+		# `act` below it was undone: "We're leaving", and they stayed and paid to the end.
+		if not is_same(guest.get("activity"), act):
+			continue
 
 		if not bool(act.get("arrived", false)) and t >= int(act.get("arrive", t)):
 			act["arrived"] = true

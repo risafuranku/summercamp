@@ -520,7 +520,6 @@ func _update_arrivals(now_abs: int) -> bool:
 	if state == null:
 		return false
 	var changed := false
-	var queue := 0
 	for i in range(state.guests.size() - 1, -1, -1):
 		var g_any = state.guests[i]
 		if not (g_any is Dictionary):
@@ -546,9 +545,15 @@ func _update_arrivals(now_abs: int) -> bool:
 			guest["gate_complained"] = true
 			guest["thought"] = "We have been standing at this desk for ages. Is anyone even here?"
 			guest["thought_abs"] = now_abs
-		guest["gate_queue_index"] = queue
-		queue += 1
 		state.guests[i] = guest
+	# First at the desk, first in line (counted down the list the newest stood at the front).
+	var line: Array = state.guests.filter(func(g): return g is Dictionary and str(g.get("status", "")) == STATUS_WAITING)
+	line.sort_custom(func(a, b):
+		var sa := int(a.get("gate_since_abs", now_abs))
+		var sb := int(b.get("gate_since_abs", now_abs))
+		return sa < sb if sa != sb else int(a.get("id", 0)) < int(b.get("id", 0)))
+	for k in line.size():
+		(line[k] as Dictionary)["gate_queue_index"] = k
 	return changed
 
 

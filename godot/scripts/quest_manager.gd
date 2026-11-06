@@ -94,8 +94,8 @@ const STEPS: Array[Dictionary] = [
 	},
 	{
 		"id": "feed_guests",
-		"text": "Guests get hungry. Build a Bistro or a Pub.",
-		"hint": "Builder: Services. Food needs power.",
+		"text": "Guests get hungry. Put up a corn stand.",
+		"hint": "Builder: Services.",
 		"reward": 120,
 	},
 	{
@@ -234,6 +234,7 @@ func _process(delta: float) -> void:
 		_poll = POLL_SEC
 		_check_current()
 		_sync_waypoint()
+		_keep_first_booking()
 
 
 # ── progression ───────────────────────────────────────────────────────────────
@@ -245,6 +246,10 @@ func _advance() -> void:
 		var skip_id := str(STEPS[_index]["id"])
 		if not _completed.has(skip_id):
 			_completed.append(skip_id)
+			# (Done before it was asked is done: its money all the same.)
+			var early := int(STEPS[_index].get("reward", 0))
+			if early > 0 and CoreRoot.actions != null and CoreRoot.actions.has_method("add_money"):
+				CoreRoot.actions.add_money(early)
 		_index += 1
 	if _index >= STEPS.size():
 		_finish_all()
@@ -341,18 +346,22 @@ func _is_satisfied(step_id: String) -> bool:
 		"accept_booking":
 			return bool(_flags.get("booking_accepted", false))
 		"make_up_room":
-			return bool(_flags.get("room_prepared", false)) or _first_guest_in()
+			return bool(_flags.get("room_prepared", false)) or _first_guest_in() or _arrivals_rooms_ready()
 		"check_in_guest":
 			return _first_guest_in()
 		"feed_guests":
-			return _count_buildings(["vecerka", "restaurant", "pub"]) > 0
+			# (The pub and the bistro open with 10 and 20 guests in: asked for here, the checklist,
+			# the lamps and the night's mail stood waiting behind them.)
+			return _count_buildings(["corn_stand", "vecerka", "restaurant", "pub"]) > 0
 		"light_paths":
 			return _count_buildings(["lamp_post"]) >= 2
 		"survive_night":
 			var start_day := int(_flags.get("survive_start_day", _day()))
 			return _day() > start_day and not _is_night_now()
 		"pay_bill":
-			return _bills_all_paid_and_some_exist()
+			# (Paid, a bill is gone from the list: that nothing unpaid is left says nothing, and
+			# this step stood open for good at 13 of 15.)
+			return bool(_flags.get("bill_paid", false))
 		"good_review":
 			return bool(_flags.get("good_review", false))
 		"grow_camp":
@@ -381,6 +390,21 @@ func _on_room_prepared(_key: String) -> void:
 	if current_step_id() == "make_up_room":
 		_flags["room_prepared"] = true
 	_check_current()
+
+
+## Whoever is on the way has a made-up room (made up before the step asked: no event comes).
+func _arrivals_rooms_ready() -> bool:
+	var rows: Array = GuestManager.get_arrivals()
+	if rows.is_empty():
+		return false
+	for row in rows:
+		var rooms: Array = (row as Dictionary).get("rooms", [])
+		if rooms.is_empty():
+			return false
+		for room in rooms:
+			if not bool((room as Dictionary).get("ready", false)):
+				return false
+	return true
 
 
 func _first_guest_in() -> bool:
@@ -421,19 +445,6 @@ func _crt_shell() -> Node:
 	if bi == null:
 		return null
 	return bi.get("_crt_ui")
-
-
-func _bills_all_paid_and_some_exist() -> bool:
-	if _main == null or not _main.has_method("get_electricity_ui_snapshot"):
-		return false
-	var snap: Dictionary = _main.get_electricity_ui_snapshot()
-	var bills: Array = snap.get("bills", []) if snap.get("bills", []) is Array else []
-	if bills.is_empty():
-		return false
-	for bill_any in bills:
-		if bill_any is Dictionary and str((bill_any as Dictionary).get("status", "")) != "paid":
-			return false
-	return true
 
 
 func _count_buildings(types: Array) -> int:
@@ -478,8 +489,34 @@ func _send_task_mail(step: Dictionary) -> void:
 	})
 
 
-func _send_first_booking() -> void:
-	if EmailManager == null or not EmailManager.find_mail("task_id", "accept_booking").is_empty():
+## Mirek's letter refused or thrown away, or he gave up at the counter: the checklist goes on
+## talking of him and nothing moves. After a while he writes again.
+const REBOOK_AFTER_SEC := 45.0
+var _rebook_t := 0.0
+
+
+func _keep_first_booking() -> void:
+	if EmailManager == null or not (current_step_id() in ["accept_booking", "make_up_room", "check_in_guest"]):
+		_rebook_t = 0.0
+		return
+	if not GuestManager.get_arrivals().is_empty() or _first_guest_in() or _booking_letter_open():
+		_rebook_t = 0.0
+		return
+	_rebook_t += POLL_SEC
+	if _rebook_t >= REBOOK_AFTER_SEC:
+		_rebook_t = 0.0
+		_send_first_booking(true)
+
+
+func _booking_letter_open() -> bool:
+	for mail in EmailManager.inbox:
+		if str(mail.get("task_id", "")) == "accept_booking" and not bool(mail.get("_actioned", false)) and str(mail.get("_folder", "inbox")) != "deleted":
+			return true
+	return false
+
+
+func _send_first_booking(again := false) -> void:
+	if EmailManager == null or (not again and not EmailManager.find_mail("task_id", "accept_booking").is_empty()):
 		return
 	var sender := "%s <mirek.dvorak@seznam.cz>" % FIRST_BOOKING_NAME
 	EmailManager.push_system_mail({

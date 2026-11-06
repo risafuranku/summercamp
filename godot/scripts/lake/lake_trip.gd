@@ -192,6 +192,9 @@ func active_hint() -> String:
 		PASSENGER:
 			if _by_camp_jetty():
 				return tr("[E] Get out")
+		FAR_SHORE:
+			if not _passenger:
+				return tr("[E] Row back")
 	return ""
 
 
@@ -789,6 +792,11 @@ func _input(event: InputEvent) -> void:
 	if _state != FAR_SHORE or _moving:
 		return
 	if _logbook != null and _logbook.visible:
+		return
+	# (The boat behind you took only a click: E and Space did nothing over here.)
+	if not _passenger and event is InputEventKey and (event.is_action_pressed("interact") or INTERIOR_LOOK.is_space(event)):
+		_start_rowing("camp")
+		get_viewport().set_input_as_handled()
 		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		match _hover:

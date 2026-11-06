@@ -12,6 +12,7 @@ const TENT_INTERIOR_SCRIPT = preload("res://scripts/tent_interior.gd")
 const CARAVAN_INTERIOR_SCRIPT = preload("res://scripts/caravan_interior.gd")
 const SERVICE_INTERIOR_SCRIPT = preload("res://scripts/service_interior_generator.gd")
 const BUILDING_UPGRADE_MENU_SCRIPT = preload("res://scripts/building_upgrade_menu.gd")
+const LANG := preload("res://scripts/lang.gd")
 const GUEST_DIALOG_SCRIPT = preload("res://scripts/guest_dialog.gd")
 const MAINT_RULES = preload("res://core/systems/maintenance_rules.gd")
 ## Through the door and back: the frozen frame breaking up in steps (twelve a second).
@@ -1323,6 +1324,10 @@ func _refuse_if_occupied(structure: Node3D, kind: String) -> bool:
 	knock.global_position = structure.global_position + Vector3(0, 1.2, 0)
 	knock.finished.connect(knock.queue_free)
 	knock.play()
+	# The complaint's mark leads here when the noisy lot are in: the knock is the word with them.
+	var de = get_tree().current_scene.get("_day_events") if get_tree().current_scene != null else null
+	if de != null and de.has_method("on_knocked") and bool(de.on_knocked(key)):
+		return true
 	var replies := ["\"Occupied!\"", "\"We're asleep!\"", "\"Come back later.\"", "\"Who is it?\""]
 	# Each whole, looked up (the kind put into "The %s is taken. %s" stayed English, and
 	# a Czech room is of its own gender: the playtest of 4. 11., "check the messages").
@@ -1692,7 +1697,7 @@ func _open_upgrade_menu(title_text: String, desc_text: String, cost_text: String
 	var need := _upgrade_locked(str(_pending_upgrade_context.get("new_type", "")))
 	if need > 0.0:
 		_pending_upgrade_context.clear()
-		cost_text = "%d GUESTS" % int(need)
+		cost_text = LANG.f("UPGRADE AT %d GUESTS", int(need))
 		enabled = false
 	if _building_upgrade_menu == null:
 		return

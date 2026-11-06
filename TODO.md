@@ -14,6 +14,26 @@
 - [x] N6 Every gable stood dark blue with no picture: the triangle's two faces shared smoothed corners, the normals cancelled, no light reached it. Flat now; the reception's gables are its planks, not the tin.
 - [x] N7 A new camp's start: the land in steps and the rooms built one at a time behind the loading bar, which says what it is doing (it stood still for 1 s, then 0.4 s twice; the worst frame 1009 -> 624 ms, the rest 250 ms or less). `trhnuti_check --part=start`
 - [ ] N8 The cabin's own build is still 600 ms in one go; a level's shell at a time would halve it.
+- [x] N9 Feed lines and the waypoint's words on a dark plate: pale letters and their shadow over a bright cloud could not be read. The display settings' tabs in Czech.
+
+### The core loop's holes (two code audits, each one read and then played: `tools/smycka_check`)
+
+- [x] G1 The checklist stood at 13 of 15 for good: a paid bill leaves the list, so "all paid and some exist" could never be true. A flag from the payment.
+- [x] G2 The checklist asked for a Pub or a Bistro, which open at 10 and 20 guests at once: the lamps, the night's mail and everything after waited. The corn stand, there from day one, does it.
+- [x] G3 An upset guest said "We're leaving", stayed and paid to the end: the loop wrote the old activity back over the walk to the gate.
+- [x] G4 Booking letters in Deleted Items counted as unanswered: delete enough and no letter came again, free beds or not.
+- [x] G5 A camp loaded in the dark had no night: nothing out there till morning, a death undone for free (the night starts on the clock passing 20:00). `_resume_night_after_load`.
+- [x] G6 A broken lamp or the old cabin bulldozed kept its failure: the night's job and its mark for good, the checklist stuck on the cabin.
+- [x] G7 A room made up before Mirek's step came never counted till he was in, "The book" came after the check-in. Steps done early still pay their reward.
+- [x] G8 Mirek's letter refused or deleted, or Mirek gone from the counter: nothing moved. He writes again after 45 s.
+- [x] G9 A noise complaint whose party was indoors could not be settled: the mark led to their door, the knock did nothing. The knock settles it.
+- [x] G10 The line at the desk was numbered from the newest. First come, first in line.
+- [x] G11 The granny's mess in a room was lost in a save. (Lamps' wear and a toilet's halves still come back as new after a load: harmless, left.)
+- [x] G12 A sandbox with day events off never got its paid orders: no van to sign for. They come at eight.
+- [x] G13 The left button is E out in the camp as the controls say: it never got to `_unhandled_input`, the hand went to the door and nothing came of it. The seats' `[LMB]` and their look the same (`warden_play`, `_input` now).
+- [x] G14 F by day or with full hands: silent, and it flipped the torch's state unseen. It clicks and stays as it was.
+- [x] G15 The catalogue says UPGRADE AT 20 GUESTS, not a bare 20 GUESTS by a grey button; its close hint is the keys that work. The corn stand's and the alley's Z REPORT button opens the report (nothing was hooked to it there). E and Space row back from the far shore, with a hint. A made bed answers by day. The ticket and the motel key say what they are. Builder's Rotate (R) and its Keys dialog as the keys are.
+- [x] G16 The books, every page of every place looked at in Czech (`smycka_check --part=books`): the six tabs ran off the picture, Z REPORT cut in half; the shop's seventeen goods packed into a smear (sheets of ten now, 1/2 at the foot of the page, the bistro's eleven too); a long Czech name ran into its price; the note on the menu page lay under the pencil and the stamp. The receipt's stars sat on the dashes and it said -0 Kc. The catalogue's grey line ran under its button, and the hacek on VYLEPSENI stood out over the plate.
 
 ## UX POLISH 2026-11-06 (evening) — „pokračuj v ux polishmentu" (measured, then fixed; tick with the commit)
 

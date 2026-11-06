@@ -242,4 +242,7 @@ static func _mess_dict(raw) -> Dictionary:
 	# The old cabin's mess (mess_rules: its own pool, the cobwebs) stays the old cabin's.
 	if bool(d.get("derelict", false)):
 		out["derelict"] = true
+	# And the granny's (mess_rules: every floor spot hers).
+	if bool(d.get("carnage", false)):
+		out["carnage"] = true
 	return out

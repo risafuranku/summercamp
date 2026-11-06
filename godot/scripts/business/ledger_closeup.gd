@@ -70,6 +70,7 @@ func open_for(key: String, btype: String, page := "") -> void:
 	building_key = key
 	building_type = btype
 	_start_page = page if page in PAGES else _last_page
+	_sheet = 0
 	_order = {}
 	_picked = ""
 	_gear_pick = ""
@@ -117,20 +118,36 @@ func _opened() -> void:
 func _tab_rect(i: int) -> Rect2:
 	var x := 38.0
 	for j in i:
-		x += _tab_w(j) + 2.0
+		x += _tab_w(j) + 1.0
 	return Rect2(x, 24, _tab_w(i), 13)
 
 
+## (Close round the word: the six in Czech ran off the picture, Z REPORT cut in half.)
 func _tab_w(i: int) -> float:
 	var w := RETRO_UI.FONT_LABEL.get_string_size(tr(str(PAGE_LABEL[PAGES[i]])), HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
-	return maxf(30.0, w + 8.0)
+	return maxf(26.0, w + 5.0)
+
+
+## The goods on the sheet open now. A page holds SHEET_ROWS; more than that (the shop has
+## seventeen, packed to fit they ran into each other) go on sheets of their own.
+const SHEET_ROWS := 10
+var _sheet := 0
 
 
 func _goods_keys() -> Array:
-	return RULES.goods(_kind()).keys()
+	var all: Array = RULES.goods(_kind()).keys()
+	var n := _sheets()
+	if n <= 1:
+		return all
+	var per := ceili(float(all.size()) / float(n))
+	return all.slice(mini(_sheet, n - 1) * per, (mini(_sheet, n - 1) + 1) * per)
 
 
-## The rows of a page: as many as the place has goods, packed to fit the page.
+func _sheets() -> int:
+	return ceili(float(RULES.goods(_kind()).size()) / float(SHEET_ROWS))
+
+
+## The rows of a page: as many as the sheet has goods, packed to fit the page.
 func _pitch() -> float:
 	return minf(15.0, 96.0 / float(maxi(1, _goods_keys().size())))
 
@@ -159,7 +176,11 @@ func _hotspots() -> Array:
 		"stock":
 			if _spoiled_n(site) > 0:
 				out.append({"id": "bin", "rect": _rbutton(0)})
+			if _sheets() > 1:
+				out.append({"id": "sheet", "rect": _lbutton(0)})
 		"order":
+			if _sheets() > 1:
+				out.append({"id": "sheet", "rect": _lbutton(0)})
 			var keys: Array = _goods_keys()
 			for i in keys.size():
 				var y := _row_y(i)
@@ -242,6 +263,10 @@ func _clicked(id: String) -> void:
 		_last_page = _page
 		play(SFX_PAGE, -10.0)
 		say("", "")
+		return
+	if id == "sheet":
+		_sheet = (_sheet + 1) % maxi(1, _sheets())
+		play(SFX_PAGE, -10.0)
 		return
 	var site := _site()
 	if site.is_empty():
@@ -365,7 +390,29 @@ func _clicked(id: String) -> void:
 			CoreRoot.actions.biz_set_late(building_key, not bool(site.get("late", false)))
 			_stamp("OPEN LATE" if bool(site.get("late", false)) else "SHUT AT 8")
 		"zreport":
-			want_zreport.emit(building_key)
+			if want_zreport.get_connections().is_empty():
+				_open_zreport()
+			else:
+				want_zreport.emit(building_key)
+
+
+## The corn stand's and the alley's books: no room behind them to open the receipt, it opens
+## over them from here (the button did nothing there, "The Z report is in the books" or not).
+var _zreport: Node
+
+
+func _open_zreport() -> void:
+	var site: Dictionary = (CoreRoot.get_state().biz.get("sites", {}) as Dictionary).get(building_key, {})
+	var z: Dictionary = site.get("zreport", {})
+	if z.is_empty():
+		return
+	close_view()
+	if _zreport == null or not is_instance_valid(_zreport):
+		_zreport = load("res://scripts/business/zreport_closeup.gd").new()
+		_zreport.name = "ZReport"
+		get_parent().add_child(_zreport)
+	_zreport.set("layer", layer)
+	_zreport.call("open_report", building_key, z)
 
 
 func _stamp(text: String) -> void:
@@ -524,7 +571,10 @@ func _paint_menu(c: Control, site: Dictionary, kind: String) -> void:
 			for p in [Vector2(2, 4), Vector2(3, 5), Vector2(4, 6), Vector2(5, 5), Vector2(6, 4), Vector2(7, 3), Vector2(7, 2)]:
 				c.draw_rect(Rect2(box.position + p, Vector2(1, 1)), col)
 		_text(c, Vector2(r.position.x + 12, r.position.y + 9), tr(str(rows[i][1])), INK if on else PENCIL)
-	_wrap_at(c, Vector2(RIGHT.position.x, 150 if rows.size() <= 7 else 172), tr("Tick off what you have no time for: nobody will order it."), RIGHT.size.x, PENCIL)
+	# (Under the stamp and the pencil down by the foot of the page it could not be read: at the
+	# head of the right page, or under the second column.)
+	var note_y := LEFT.position.y + 21.0 if rows.size() <= 7 else TOP + (rows.size() - 7) * 13.0 + 6.0
+	_wrap_at(c, Vector2(RIGHT.position.x, note_y), tr("Tick off what you have no time for: nobody will order it."), RIGHT.size.x, PENCIL)
 
 
 func _paint_stock(c: Control, site: Dictionary, kind: String) -> void:
@@ -567,6 +617,7 @@ func _paint_stock(c: Control, site: Dictionary, kind: String) -> void:
 		_text(c, Vector2(RIGHT.position.x, 140), LANG.f("Van due: %d", due), INK)
 	if _spoiled_n(site) > 0:
 		_pencil_button(c, _rbutton(0), "THROW OUT", RED, "bin")
+	_paint_sheet(c)
 
 
 func _paint_order(c: Control, site: Dictionary, kind: String) -> void:
@@ -579,8 +630,9 @@ func _paint_order(c: Control, site: Dictionary, kind: String) -> void:
 		var g: String = keys[i]
 		var d: Dictionary = gd[g]
 		var y := _row_y(i)
-		_text(c, Vector2(LEFT.position.x, y), tr(str(d["label"])), INK)
-		_right(c, LEFT.end.x, y, LANG.money("$%d/%d" % [int(d["pack_cost"]), int(d["pack"])]), PENCIL)
+		var pack := LANG.money("$%d/%d" % [int(d["pack_cost"]), int(d["pack"])])
+		_text(c, Vector2(LEFT.position.x, y), _fit(tr(str(d["label"])), LEFT.size.x - _width(pack) - 4.0), INK)
+		_right(c, LEFT.end.x, y, pack, PENCIL)
 		var mr := _minus_rect(y)
 		var pr := _plus_rect(y)
 		for b in [["minus:", mr, "-"], ["plus:", pr, "+"]]:
@@ -599,6 +651,27 @@ func _paint_order(c: Control, site: Dictionary, kind: String) -> void:
 	_pencil_button(c, _rbutton(0), "SEND ORDER", RED, "send")
 	if hovered() == "stamp":
 		c.draw_rect(STAMP, Color(1, 0.9, 0.5, 0.12))
+	_paint_sheet(c)
+
+
+## Which sheet of the goods, at the foot of the left page; a click turns it.
+func _paint_sheet(c: Control) -> void:
+	if _sheets() > 1:
+		_pencil_button(c, _lbutton(0), "%d/%d" % [mini(_sheet, _sheets() - 1) + 1, _sheets()], INK, "sheet")
+
+
+func _width(s: String) -> float:
+	return _font().get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
+
+
+## `s` cut to `room` (a long Czech name ran into its price).
+func _fit(s: String, room: float) -> String:
+	if _width(s) <= room:
+		return s
+	var out := s
+	while out.length() > 3 and _width(out + ".") > room:
+		out = out.left(-1)
+	return out.strip_edges() + "."
 
 
 func _paint_staff(c: Control, site: Dictionary, kind: String) -> void:

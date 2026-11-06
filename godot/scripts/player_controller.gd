@@ -875,11 +875,20 @@ func toggle_flashlight() -> void:
 		return
 	if _flashlight_user_enabled or flashlight_battery > 0.02:
 		var was := _flashlight_active
+		var wanted := _flashlight_user_enabled
+		var chose_off := _flashlight_user_chose_off
 		_flashlight_user_enabled = not _flashlight_user_enabled
 		_flashlight_user_chose_off = not _flashlight_user_enabled
 		_refresh_flashlight_state()
 		if _flashlight_active != was and not in_room:
 			torch_click(_flashlight_active)
+		elif _flashlight_active == was and not in_room:
+			# By day, or with both hands full: the switch goes, nothing comes (it was dead
+			# silent), and the torch stays as you had it for the dark.
+			_flashlight_user_enabled = wanted
+			_flashlight_user_chose_off = chose_off
+			_refresh_flashlight_state()
+			torch_click(true)
 	elif (_flashlight_allowed or _raining) and not in_room:
 		# A flat cell: the switch goes, nothing comes.
 		torch_click(true)

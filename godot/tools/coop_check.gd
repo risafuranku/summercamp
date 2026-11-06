@@ -311,6 +311,12 @@ var _kick_cd := 0.0
 
 func _process(delta: float) -> void:
 	super._process(delta)
+	# The test's camp has no washroom and an upset guest really goes now: the one who gets lost
+	# in the corn tonight stays for it.
+	if _main != null and Coop.is_host() and CoreRoot.get_state() != null:
+		for g in CoreRoot.get_state().guests:
+			if g is Dictionary:
+				g["unhappy_minutes"] = 0
 	if _track_left > 0.0:
 		_track_left -= delta
 		_track_job()

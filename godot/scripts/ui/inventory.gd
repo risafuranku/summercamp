@@ -314,6 +314,12 @@ func use(it: Dictionary) -> void:
 				player.toggle_flashlight()
 		"key_shed":
 			_say("On the tag, in pen: SHED - BACK.")
+		"ticket":
+			_say("Line 380. The driver clips it.")
+		"ticket_used":
+			_say("Clipped. It got you there.")
+		"key_motel":
+			_say("The tag says which door. It is at the motel.")
 		"megaphone":
 			_say("The camp's megaphone. Hold %s and shout: the whole camp hears you." % GameSettings.key_name("megaphone_talk"))
 		"matches":

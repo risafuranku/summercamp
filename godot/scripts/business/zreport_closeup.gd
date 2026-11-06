@@ -81,6 +81,9 @@ func _paint(c: Control) -> void:
 		var big: bool = l.size() > 2 and bool(l[2])
 		var f: Font = RETRO_UI.FONT_BIG if big else RETRO_UI.FONT_TEXT
 		var size := 10 if big else 8
+		# (The big line's letters stand higher than a line's step: the stars sat on the dashes.)
+		if big and y > 12.0:
+			y += 4.0
 		if text.contains("\t"):
 			var parts := text.split("\t")
 			c.draw_string(f, Vector2(r.position.x + 6, y), parts[0], HORIZONTAL_ALIGNMENT_LEFT, -1, size, col)
@@ -125,8 +128,8 @@ func _lines() -> Array:
 	out.append(["- - - - - - - - - -", FADED])
 	var cost := int(round(float(z.get("cost", 0.0))))
 	out.append([LANG.f("TAKINGS\t$%d", int(z.get("takings", 0))), INK, false])
-	out.append([LANG.f("GOODS\t-$%d", cost)])
-	out.append([LANG.f("WAGES\t-$%d", int(z.get("wages", 0)))])
+	out.append([_no_minus(LANG.f("GOODS\t-$%d", cost))])
+	out.append([_no_minus(LANG.f("WAGES\t-$%d", int(z.get("wages", 0))))])
 	var net := int(z.get("takings", 0)) - cost - int(z.get("wages", 0))
 	out.append([LANG.f("NET\t%s$%d", ["-" if net < 0 else "", absi(net)]), Color(0.6, 0.15, 0.2) if net < 0 else INK])
 	# All the camp's places today, to set this one against.
@@ -142,6 +145,11 @@ func _lines() -> Array:
 		stars = 0
 	out.append([("* ".repeat(stars).strip_edges() if stars > 0 else "-") + ("  %.1f" % (float(z.get("stars", 0)) / float(n)) if n > 0 and z.has("stars") else ""), INK, true])
 	return out
+
+
+## Nothing paid out is no minus: -$0 on a till's slip, in either language's way of writing it.
+func _no_minus(line: String) -> String:
+	return line.replace("\t-$0", "\t$0").replace("\t-0 ", "\t0 ")
 
 
 ## The shift's mark and the one thing to mend: the report's own, or worked out now.

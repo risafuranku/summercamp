@@ -293,8 +293,10 @@ func _aim_cam(k: float) -> void:
 	_cam.global_transform = Transform3D(base, eye)
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if _att == null:
+## (In _input: out in the camp the world's viewport container takes the mouse, and "[LMB] Kick"
+## over the seats did nothing.)
+func _input(event: InputEvent) -> void:
+	if _att == null or get_tree().paused:
 		return
 	if event is InputEventMouseMotion and Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
 		var sens := GameSettings.get_mouse_sensitivity() if GameSettings != null else 1.0

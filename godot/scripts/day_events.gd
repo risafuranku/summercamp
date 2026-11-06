@@ -382,6 +382,22 @@ func on_talked_to(guest: Dictionary) -> void:
 			_report("%s: \"Fine, fine. We'll keep it down.\"" % str(guest.get("name", "They")), 1)
 
 
+## A knock on the door of `key`, a lodging: a noise complaint about whoever is in it is
+## settled, as a word with them outdoors is. Whether it was.
+func on_knocked(key: String) -> bool:
+	for ev in _events:
+		if str(ev["state"]) != "open" or str(ev["kind"]) != "noise":
+			continue
+		for g in _active_guests():
+			if int(g.get("id", -2)) != int(ev.get("guest_id", -1)):
+				continue
+			var at := _lodging_of(g)
+			if "%d:%d" % [at.x, at.y] == key:
+				on_talked_to(g)
+				return true
+	return false
+
+
 func export_state() -> Dictionary:
 	var evs: Array = []
 	for ev in _events:

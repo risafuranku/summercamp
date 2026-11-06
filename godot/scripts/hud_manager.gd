@@ -1404,11 +1404,22 @@ func _rebuild_feed() -> void:
 		_feed_box.remove_child(child)
 		child.queue_free()
 	var width := _vp(_feed_width_vp())
+	# A dark plate as long as the line: over a bright cloud the pale letters and their shadow
+	# ran together and the line could not be read.
+	var plate := StyleBoxFlat.new()
+	plate.bg_color = Color(0.03, 0.026, 0.02, 0.6)
+	plate.anti_aliasing = false
+	plate.content_margin_left = _vp(2)
+	plate.content_margin_right = _vp(2)
 	for entry in _feed:
 		var l := _body(str(entry["text"]), entry["color"])
-		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		l.custom_minimum_size = Vector2(width, 0)
+		l.add_theme_stylebox_override("normal", plate)
+		l.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 		_feed_box.add_child(l)
+		# (Measured in the box, translated; a long one wraps at the box's width.)
+		if l.get_minimum_size().x > width:
+			l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			l.custom_minimum_size = Vector2(width, 0)
 		entry["label"] = l
 	_feed_box.size = Vector2(width, 0)
 
@@ -1622,6 +1633,9 @@ func _draw_waypoint() -> void:
 	# A mark in view by the plates: its line goes to their left.
 	if plates.has_area() and Rect2(tx, ty - fsize, w, fsize + s).intersects(plates):
 		tx = floorf(maxf(s * 2.0, minf(tx, plates.position.x - w - s * 2.0)) / s) * s
+	# (On the feed's plate: amber over the sky's bright clouds could not be read.)
+	var asc := font.get_ascent(fsize)
+	_waypoint_marker.draw_rect(Rect2(tx - s * 2.0, ty - asc - s, w + s * 4.0, asc + font.get_descent(fsize) + s * 2.0), Color(0.03, 0.026, 0.02, 0.6))
 	_waypoint_marker.draw_string(font, Vector2(tx + s, ty + s), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize, RETRO_UI.C_SHADOW)
 	_waypoint_marker.draw_string(font, Vector2(tx, ty), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize, c)
 

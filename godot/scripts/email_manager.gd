@@ -676,7 +676,9 @@ func _active_guest_difficulty_pressure() -> float:
 func _count_unactioned_customer_mails() -> int:
 	var count := 0
 	for mail in inbox:
-		if _is_customer_mail(mail) and not bool(mail.get("_actioned", false)):
+		# (Deleted Items can be neither accepted nor refused: a few thrown away there held the
+		# booking letters back for good, free beds or not.)
+		if _is_customer_mail(mail) and not bool(mail.get("_actioned", false)) and str(mail.get("_folder", "inbox")) != "deleted":
 			count += 1
 	return count
 

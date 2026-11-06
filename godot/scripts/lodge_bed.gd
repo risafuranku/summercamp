@@ -94,9 +94,9 @@ func _process(_delta: float) -> void:
 		if it != null:
 			_attach(it, kind)
 	if _it != null and _body != null:
-		# Only a made bed is for sleeping in (an unmade one is a job, room prep's click),
-		# and only from the evening: by day it is not in the way of anything else.
-		var live := _bed_made() and bool(_office_call("bedtime", [], true))
+		# Only a made bed is for sleeping in (an unmade one is a job, room prep's click). By day
+		# it says why not (_try_sleep's refusal), as the bed behind the office does.
+		var live := _bed_made()
 		_body.get_child(0).disabled = not live
 		_body.collision_layer = 1 if live else 0
 

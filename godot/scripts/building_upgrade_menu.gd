@@ -129,7 +129,8 @@ func _rebuild() -> void:
 	title.configure(RETRO_UI.FONT_BIG, RETRO_UI.SIZE_BIG * 2, _scale)
 	title.set_colors(RETRO_UI.C_AMBER_LIGHT, RETRO_UI.C_AMBER)
 	title.set_text(_title_text.to_upper())
-	title.position = Vector2(_vp(6), _vp(4))
+	# (Low enough for the Czech's hacek on capitals: VYLEPSENI's stood out over the plate.)
+	title.position = Vector2(_vp(6), _vp(8))
 	title.size = title.custom_minimum_size
 	plate.add_child(title)
 
@@ -142,8 +143,9 @@ func _rebuild() -> void:
 	var priced := _cost_text.begins_with("$")
 	var cost_line := ("COST " + _cost_text) if priced else _cost_text
 	var cost_col := RETRO_UI.C_GREEN if _enabled else (RETRO_UI.C_RED_LIGHT if priced else RETRO_UI.C_BONE_DIM)
-	var cost := RETRO_UI.label(cost_line, RETRO_UI.FONT_BIG, RETRO_UI.SIZE_BIG, cost_col, _scale)
-	cost.position = Vector2(_vp(8), _vp(64))
+	var cost := RETRO_UI.label(cost_line, RETRO_UI.FONT_BIG if priced else RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_BIG if priced else RETRO_UI.SIZE_LABEL, cost_col, _scale)
+	# (A line that is no price is longer than the room left of the buttons: over them.)
+	cost.position = Vector2(_vp(8), _vp(64 if priced else 52))
 	plate.add_child(cost)
 	if priced and not _enabled:
 		var short := RETRO_UI.label("NOT ENOUGH MONEY", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_RED_LIGHT, _scale)
@@ -158,7 +160,7 @@ func _rebuild() -> void:
 	close_btn.pressed.connect(close_menu)
 	plate.add_child(close_btn)
 
-	var hint := RETRO_UI.label("S / RIGHT CLICK  CLOSE", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_BONE_DIM, _scale, false)
+	var hint := RETRO_UI.label("ESC / RIGHT CLICK  CLOSE", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_BONE_DIM, _scale, false)
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	hint.position = Vector2(_vp(8), _vp(90))
 	hint.size = Vector2(plate_size.x - _vp(16), _vp(10))

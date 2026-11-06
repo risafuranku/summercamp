@@ -144,6 +144,7 @@ python godot/tools/window_coop.py [OUT_DIR] # the reception's windows for two: f
 #   res://tools/trhnuti_check.tscn   walkout: up from the PC, out and in by the door. firstrooms: tent, cabin, caravan, toilets walked
 #                                    into twice, the worst frames, which eyes are open. bizrooms: what a business's room
 #                                    costs at its door, cold and warm, and which files it loaded ("TRHNUTI make up", "LOADED").
+#   res://tools/smycka_check.tscn    the core loop's holes played one by one (the checklist's bill, the corn stand, Mirek writing again, a building bulldozed, a guest storming off, deleted letters, the line at the desk, the left button on a door, the torch by day, a night loaded): "SMYCKA: PASS"; --part=hands (the made bed by day, the catalogue's grey line, the stand's Z report, the left button at the fire, E and Space on the far shore), --part=books (every page of every place's books as shots, --lang=cs)
 #   res://tools/smrk_check.tscn      a walk into a spruce: held off at its branches' tips, crouched in under it, eased out standing up; what the branches cut off on the map
 #   res://tools/smrt_check.tscn      dead and back: a warden's camp saved, killed, LOAD LAST SAVE straight in (run with its own empty APPDATA: it makes a warden)
 # W26 one world (5. 11.; windowed, --audio-driver Dummy, -- --out=DIR --part=...):
