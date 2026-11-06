@@ -24,6 +24,11 @@ var _end_rot := Vector3.ZERO
 var _then: Callable
 var _t := 0.0
 var _tw: Tween
+## The floor's lit places (floor_spots): walked to by a click, "walk:<spot>".
+var _floor: Dictionary = {}
+## Each patch's own spot (a stair's patch walks you elsewhere, but stands where it stands).
+var _floor_of: Dictionary = {}
+const EYE := 1.6
 ## Told where you set off to (co-op: the other wardens see you go).
 var on_go: Callable
 
@@ -42,6 +47,10 @@ func _init(p_room, p_spots: Dictionary, p_ways: Array, start: String, steps_path
 			s.loop = true
 		_steps.stream = s
 	room.add_child(_steps)
+	room.walker = self
+	# All the way round (the user 6. 11.: "I cannot turn to the side for ever, I run into a
+	# stop"): Liblice's rooms you walk about in are not a desk.
+	room._look.yaw_limit_deg = 180.0
 
 
 func at_rot(name: String) -> Vector3:
@@ -83,9 +92,13 @@ func path_to(to: String) -> Array:
 
 ## On foot to spot `to`, then `then`. `look` (pitch, yaw, 0) turns you at the end to what
 ## you went for instead of the spot's own look.
+## From where you are looking (the user 6. 11.: "whenever I click somewhere the figure
+## turns, and the turned look on top of it: it tears the picture"): the head's turn is taken
+## into the base first, then the walk turns from there, the short way round, the head held.
 func go(to: String, then := Callable(), look = null) -> void:
 	if busy:
 		return
+	_take_look()
 	var legs := path_to(to)
 	var end_rot: Vector3 = look if look != null else at_rot(to)
 	if legs.is_empty():
@@ -106,6 +119,7 @@ func go(to: String, then := Callable(), look = null) -> void:
 	_end_rot = end_rot
 	_then = then
 	busy = true
+	room._look.hold = true
 	_t = 0.0
 	if _steps.stream != null:
 		_steps.play()
@@ -115,15 +129,83 @@ func go(to: String, then := Callable(), look = null) -> void:
 	_tw.tween_callback(_arrive)
 
 
-## Just turned where you stand (to what you clicked).
+## Just turned where you stand (to what you clicked), the short way round.
 func _turn(rot: Vector3, then: Callable) -> void:
 	busy = true
+	room._look.hold = true
+	var from: Vector3 = room._base_rot
 	_tw = room.create_tween()
-	_tw.tween_property(room, "_base_rot", rot, 0.45).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_tw.tween_method(func(k: float):
+		var e := k * k * (3.0 - 2.0 * k)
+		room._base_rot = Vector3(lerpf(from.x, rot.x, e), lerp_angle(from.y, rot.y, e), 0.0), 0.0, 1.0, 0.45)
 	_tw.tween_callback(func():
 		busy = false
+		room._look.hold = false
 		if then.is_valid():
 			then.call())
+
+
+## The head's own turn taken into where you face: the picture does not move.
+func _take_look() -> void:
+	var lk = room._look
+	room._base_rot = Vector3(clampf(room._base_rot.x + deg_to_rad(lk.pitch_deg), deg_to_rad(-60.0), deg_to_rad(60.0)), wrapf(room._base_rot.y + deg_to_rad(lk.yaw_deg), -PI, PI), 0.0)
+	lk.yaw_deg = 0.0
+	lk.pitch_deg = 0.0
+
+
+## The places on the floor you walk to by clicking them (the user 6. 11.: "click hover-lit
+## places, on the floor in front of the doors, up the stairs"): under each spot named, a
+## patch of floor that lights up under the pointer like any thing. `stairs`: spot -> the
+## spot a click on its patch walks to instead (a stair's patch takes you up or down).
+func floor_spots(names: Array, size := Vector2(0.9, 0.9), stairs := {}) -> void:
+	for n in names:
+		if not spots.has(n):
+			continue
+		var at := at_pos(str(n))
+		var floor_y := at.y - EYE
+		var q := QuadMesh.new()
+		q.size = size
+		q.orientation = PlaneMesh.FACE_Y
+		var mi := MeshInstance3D.new()
+		mi.name = "Floor_" + str(n)
+		mi.mesh = q
+		var m := StandardMaterial3D.new()
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.albedo_color = Color(1, 1, 1, 0)
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mi.material_override = m
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mi.position = Vector3(at.x, floor_y + 0.03, at.z)
+		room._root.add_child(mi)
+		var id := "walk:" + str(stairs.get(n, n))
+		if room._hot.has(id):
+			id += "#" + str(n)
+		room._hot_box(id, Vector3(at.x, floor_y + 0.04, at.z), Vector3(size.x, 0.08, size.y), [mi])
+		_floor[n] = mi
+		_floor_of[id] = str(n)
+
+
+## A lit place on the floor clicked: on foot there, looking the way you went.
+func go_floor(to: String) -> void:
+	to = to.get_slice("#", 0)
+	if busy or to == here or not spots.has(to):
+		return
+	_take_look()
+	var legs := path_to(to)
+	var last: Vector3 = at_pos(str(legs[legs.size() - 2])) if legs.size() > 1 else (room._cam.position as Vector3)
+	var way: Vector3 = at_pos(to) - last
+	var look = null
+	if Vector2(way.x, way.z).length() > 0.3:
+		look = Vector3(deg_to_rad(-6.0) if absf(way.y) < 0.3 else at_rot(to).x, atan2(-way.x, -way.z), 0.0)
+	go(to, Callable(), look)
+
+
+## Can this floor's patch be clicked from where you are (not through a ceiling)?
+func floor_near(id: String) -> bool:
+	var n := str(_floor_of.get(id, id.trim_prefix("walk:").get_slice("#", 0)))
+	if not spots.has(n):
+		return true
+	return absf(at_pos(n).y - room._cam.position.y) < 1.9
 
 
 ## Put at a spot at once (the room opened there, a debug step).
@@ -151,7 +233,8 @@ func _walk(k: float) -> void:
 	room._cam.position = at
 	var way := b - a
 	var way_yaw := atan2(-way.x, -way.z) if Vector2(way.x, way.z).length() > 0.01 else _end_rot.y
-	var turn := clampf(k / 0.12, 0.0, 1.0)
+	# Turning to the way takes longer the further round it is (a half turn is not a flick).
+	var turn := clampf(k / clampf(0.12 + 0.3 * absf(angle_difference(_from_rot.y, way_yaw)) / PI, 0.12, 0.42), 0.0, 1.0)
 	var settle := clampf((k - 0.7) / 0.3, 0.0, 1.0)
 	settle = settle * settle * (3.0 - 2.0 * settle)
 	var yaw := lerp_angle(lerp_angle(_from_rot.y, way_yaw, turn), _end_rot.y, settle)
@@ -172,6 +255,7 @@ static func _even(k: float) -> float:
 
 func _arrive() -> void:
 	busy = false
+	room._look.hold = false
 	_steps.stop()
 	room._cam.position = _path.back()
 	room._base_rot = _end_rot
@@ -183,6 +267,8 @@ func _arrive() -> void:
 
 func stop() -> void:
 	busy = false
+	if room != null and room.get("_look") != null:
+		room._look.hold = false
 	if _tw != null and _tw.is_valid():
 		_tw.kill()
 	if _steps != null and is_instance_valid(_steps):

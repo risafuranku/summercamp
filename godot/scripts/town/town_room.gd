@@ -96,6 +96,8 @@ var motel_keys: Array = []
 ## came through from the next place in the building (no greeting, the door is behind you).
 var motel_n := MOTEL_VIEW.PLAN.YOURS
 var arrive_spot := ""
+## The room's walker (room_walk.gd sets it): the floor's lit places are walked to through it.
+var walker
 var _through := false
 var _open := false
 var _vpc: SubViewportContainer
@@ -215,6 +217,7 @@ func open(p_place: String, p_hour: float) -> void:
 	_root = Node3D.new()
 	_vp.add_child(_root)
 	_hot.clear()
+	walker = null
 	_tubes.clear()
 	_regulars.clear()
 	_npc = null
@@ -273,6 +276,9 @@ func open(p_place: String, p_hour: float) -> void:
 			_view.build_inside(hour)
 	_look.reset()
 	_cam.rotation = _base_rot
+	# Once used: come in again from outside and it is the room's start (the user 6. 11.: "I
+	# went out from the corridor's door and every time I came back I was at that door").
+	arrive_spot = ""
 	_open = true
 	visible = true
 	RETRO_RENDER.apply_to(_vpc)
@@ -433,7 +439,7 @@ func _process(delta: float) -> void:
 		if not _hot.has(_hover):
 			_hover = ""
 		if _hover != "":
-			HandCursor.want(HandCursor.WALK if _hover == "door" else HandCursor.POINT)
+			HandCursor.want(_cursor_for(_hover))
 			_glint.show_on(_hot[_hover]["meshes"])
 		else:
 			_glint.clear()
@@ -517,7 +523,36 @@ func _input(event: InputEvent) -> void:
 			_clicked(_hover)
 
 
+## The eye for what you only look at, the hand for what you use, the feet for where you go
+## (the user 6. 11.: as everywhere else in the game).
+func _cursor_for(id: String) -> int:
+	if id == "door" or id.begins_with("walk:") or (_view != null and _view.has_method("walks") and bool(_view.walks(id))):
+		return HandCursor.WALK
+	if _view != null and _view.has_method("only_look") and bool(_view.only_look(id)):
+		return HandCursor.LOOK
+	return HandCursor.POINT
+
+
 func _hover_at(mouse: Vector2) -> String:
+	var id := _hover_hit(mouse)
+	if id == "":
+		return ""
+	# Not through a floor or a ceiling: the patch on another floor is not yours to click,
+	# nor what stands up there (the user 6. 11.: "I could click the upper doors through the
+	# ceiling, that is how I got up").
+	if id.begins_with("walk:") and walker != null and not walker.floor_near(id):
+		return ""
+	if _view != null and _view.has_method("hot_ok") and not bool(_view.hot_ok(id)):
+		return ""
+	# In a place you walk about in, what stands on another floor is not within reach.
+	if walker != null and not id.begins_with("walk:"):
+		var b = _hot.get(id, {}).get("body")
+		if b != null and absf((b as Node3D).position.y - _cam.position.y) > 2.0:
+			return ""
+	return id
+
+
+func _hover_hit(mouse: Vector2) -> String:
 	if INTERIOR_LOOK.in_exit_zone(get_viewport()):
 		return ""
 	var screen := get_viewport().get_visible_rect().size
@@ -537,6 +572,10 @@ func _hover_at(mouse: Vector2) -> String:
 
 
 func _clicked(id: String) -> void:
+	if id.begins_with("walk:"):
+		if walker != null and not walker.busy:
+			walker.go_floor(id.substr(5))
+		return
 	if _view != null:
 		if id == "door":
 			# A place you walk about in (room_walk.gd): you go to the door first.
@@ -727,6 +766,22 @@ func _hot_box(id: String, pos: Vector3, size: Vector3, meshes: Array) -> void:
 	b.add_child(cs)
 	b.position = pos
 	_root.add_child(b)
+	# Nothing to light up given: its box, unseen but under the glint (every thing you can
+	# click lights up under the pointer, the user 6. 11.).
+	if meshes.is_empty():
+		var bm := BoxMesh.new()
+		bm.size = size
+		var mi := MeshInstance3D.new()
+		mi.name = "Hot_" + id
+		mi.mesh = bm
+		var m := StandardMaterial3D.new()
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.albedo_color = Color(1, 1, 1, 0)
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mi.material_override = m
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		b.add_child(mi)
+		meshes = [mi]
 	_hot[id] = {"body": b, "meshes": meshes}
 
 

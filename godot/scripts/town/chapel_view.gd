@@ -126,7 +126,12 @@ const HRUBA_LINES := [
 	"Your camp had a priest come up once. In seventy-one. He did not stay the night either.",
 ]
 const WAYS := [["door", "nave"], ["nave", "pews"], ["pews", "seat_w"], ["pews", "seat_e"], ["pews", "front"],
-	["front", "rail"], ["rail", "altar"], ["door", "confess"], ["door", "candles"]]
+	["front", "rail"], ["rail", "altar"], ["door", "confess"], ["door", "candles"],
+	# Up the steep stair by the east wall to the gallery (the user 6. 11.: "I expected to go
+	# up the stairs step by step").
+	["door", "stair_foot"], ["stair_foot", "stair_mid"], ["stair_mid", "stair_top"], ["stair_top", "loft"]]
+## What is only looked at (the eye for the cursor); what is walked to (the feet).
+const ONLY_LOOK := ["stations", "window", "bucket", "sheet", "altar", "saint", "confess"]
 
 var room
 var parts: Dictionary = {}
@@ -322,7 +327,10 @@ func build(hour: float, candles: int) -> void:
 		_mrs_hruba()
 	_walker = WALK.new(room, _spots(), WAYS, "door", SFX + "rooms/steps_wood.mp3", -13.0)
 	_walker.put("door")
-	room._look.yaw_limit_deg = 160.0
+	# Where you can walk to, lit under the pointer on the floor; the stair's foot takes you up
+	# to the gallery, its top back down.
+	_walker.floor_spots(["door", "nave", "pews", "front", "rail", "altar", "stair_foot", "stair_top", "loft"], Vector2(1.0, 1.0), {"stair_foot": "loft", "stair_top": "door"})
+	room._look.yaw_limit_deg = 180.0
 	room._look.pitch_up_deg = 52.0
 	room._look.pitch_down_deg = 34.0
 	room._hot_box("door", Vector3(0, 1.3, D * 0.5 - 0.05), Vector3(1.6, 2.6, 0.12), [])
@@ -347,6 +355,10 @@ static func _spots() -> Dictionary:
 		"altar": {"at": Vector3(0.0, 1.6 + PRES_Y, -7.6), "rot": r.call(-4.0, 0.0)},
 		"confess": {"at": Vector3(-0.55, 1.6, 4.15), "rot": r.call(-8.0, 90.0)},
 		"candles": {"at": Vector3(1.55, 1.6, 4.02), "rot": r.call(-16.0, -162.0)},
+		"stair_foot": {"at": Vector3(W * 0.5 - 0.36, 1.6, LOFT_Z - 0.25), "rot": r.call(24.0, 180.0)},
+		"stair_mid": {"at": Vector3(W * 0.5 - 0.36, 1.6 + LOFT_Y * 0.5, LOFT_Z + 0.15 + 0.85), "rot": r.call(18.0, 180.0)},
+		"stair_top": {"at": Vector3(W * 0.5 - 0.4, 1.6 + LOFT_Y, LOFT_Z + 1.9), "rot": r.call(-6.0, 90.0)},
+		"loft": {"at": Vector3(0.3, 1.6 + LOFT_Y, LOFT_Z + 0.75), "rot": r.call(-14.0, 0.0)},
 	}
 
 
@@ -462,7 +474,9 @@ func _presbytery(root: Node3D) -> void:
 		_quad("chapel_altar_front", Vector2(table.x + 0.06, table.y), tpos + Vector3(0, 0, table.z * 0.5 + 0.006), Vector3(0, 0, 1), "AltarFront")
 	K.slab(root, Vector3(table.x + 0.1, 0.03, table.z + 0.06), tpos + Vector3(0, table.y * 0.5 + 0.015, 0), K.surface("paper_old", 0.4, Color(0.78, 0.76, 0.7)), "AltarCloth")
 	var rs := _size("chapel_retable", 2.25) if _exists("chapel_retable") else Vector2(3.2, 2.4)
-	var retable := _quad("chapel_retable" if _exists("chapel_retable") else "chapel_altar", rs, Vector3(0, PRES_Y + table.y + rs.y * 0.5, zb + 0.004), Vector3(0, 0, 1), "Retable")
+	# (Two centimetres off the wall: at four millimetres it lay in the damp's streaks on the
+	# same wall and the two flickered through each other, the user 6. 11.)
+	var retable := _quad("chapel_retable" if _exists("chapel_retable") else "chapel_altar", rs, Vector3(0, PRES_Y + table.y + rs.y * 0.5, zb + 0.02), Vector3(0, 0, 1), "Retable")
 	parts["altar"] = retable
 	room._hot_box("altar", Vector3(0, PRES_Y + table.y + 0.9, zb + 0.3), Vector3(rs.x, rs.y, 0.4), [retable])
 	# The flowers nobody has changed since spring, either end of the table.
@@ -1974,7 +1988,10 @@ func click(id: String, hour: float) -> bool:
 				# Behind the curtain, now and then, the worse you are: a breath.
 				if _rng.randf() < 0.12 + 0.45 * _low():
 					_breath_t = _rng.randf_range(1.2, 2.6))
-		"stations", "window", "bucket", "sheet", "loft":
+		"loft":
+			# Up the stair to the gallery, step by step.
+			_walker.go("loft")
+		"stations", "window", "bucket", "sheet":
 			_look_at(id)
 		_:
 			return false
@@ -2037,10 +2054,11 @@ func _ring() -> void:
 	room.wants_closeup.emit("bell")
 
 
-## The eye goes to the thing (narrower, turned to it); any click lets it go.
+## You turn to the thing, the short way round (the user 6. 11.: "a lot of what I click only
+## zooms in oddly and nothing": no zoom any more, no state to click out of).
 func _look_at(id: String) -> void:
 	var body = room._hot.get(id, {}).get("body")
-	if body == null:
+	if body == null or _walker == null:
 		return
 	var target: Vector3 = (body as Node3D).position
 	if id == "loft" and _watch_on and _watcher != null:
@@ -2048,12 +2066,19 @@ func _look_at(id: String) -> void:
 	var eye: Vector3 = room._cam.position
 	var d := target - eye
 	var yaw := atan2(-d.x, -d.z)
-	var pitch := atan2(d.y, Vector2(d.x, d.z).length())
-	_looking = id
-	_look_back = {"rot": room._base_rot, "fov": room._cam.fov}
-	var tw: Tween = room.create_tween().set_parallel(true)
-	tw.tween_property(room, "_base_rot", Vector3(pitch, yaw, 0.0), 0.6).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	tw.tween_property(room._cam, "fov", clampf(66.0 * 2.4 / maxf(2.4, d.length()), 20.0, 56.0), 0.6).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	var pitch := clampf(atan2(d.y, Vector2(d.x, d.z).length()), deg_to_rad(-40.0), deg_to_rad(50.0))
+	_walker._take_look()
+	_walker._turn(Vector3(pitch, yaw, 0.0), Callable())
+
+
+## The eye for the cursor over what is only looked at (town_room._cursor_for).
+func only_look(id: String) -> bool:
+	return id in ONLY_LOOK
+
+
+## The feet: the gallery, walked up to.
+func walks(id: String) -> bool:
+	return id == "loft"
 
 
 func _unlook() -> void:

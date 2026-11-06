@@ -294,8 +294,10 @@ func _lobby_things(hour: float) -> void:
 	_walker = WALK.new(room, sp, WAYS_LOBBY, "door", SFX + "rooms/steps_wood.mp3", -17.0)
 	_walker.on_go = func(to: String): _went(to)
 	_walker.put(str(room.arrive_spot) if sp.has(str(room.arrive_spot)) else "door")
+	# Where you can walk to, lit on the floor under the pointer (the user 6. 11.).
+	_walker.floor_spots(["door", "desk", "end", "hall"], Vector2(0.8, 0.8))
 	_crew = MATES.new(room, sp, WAYS_LOBBY, "door")
-	room._look.yaw_limit_deg = 110.0
+	room._look.yaw_limit_deg = 180.0
 	if parts.get("zapper") != null:
 		var zl := OmniLight3D.new()
 		zl.light_color = Color(0.45, 0.6, 1.0)
@@ -413,11 +415,17 @@ func _room_things(hour: float) -> void:
 	_walker = WALK.new(room, sp, _ways(), "door", SFX + "rooms/steps_wood.mp3", -17.0)
 	_walker.on_go = func(to: String): _went(to)
 	_walker.put("door")
+	# Every place you stand in the room, lit on the floor under the pointer (the user 6. 11.).
+	var standing: Array = []
+	for k in sp:
+		if absf(float((sp[k]["at"] as Vector3).y) - 1.6) < 0.05:
+			standing.append(k)
+	_walker.floor_spots(standing, Vector2(0.62, 0.62))
 	_crew = MATES.new(room, sp, _ways(), "door")
 	if quirk != null:
 		quirk.things(hour)
 	_stand_rot = room._base_rot
-	room._look.yaw_limit_deg = 170.0
+	room._look.yaw_limit_deg = 180.0
 	room._look.pitch_up_deg = 40.0
 	room._look.pitch_down_deg = 45.0
 	room._cam.cull_mask = 0xFFFFF & ~ROOMS.ONLY_MIRROR
@@ -1571,7 +1579,7 @@ func get_up(then := Callable()) -> void:
 	var tw: Tween = room.create_tween().set_parallel(true)
 	tw.tween_property(room._cam, "position", spot["at"], 0.8).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	tw.tween_property(room, "_base_rot", spot["rot"], 0.8).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	room._look.yaw_limit_deg = 170.0
+	room._look.yaw_limit_deg = 180.0
 	room._look.pitch_down_deg = 45.0
 	room._look.pitch_up_deg = 40.0
 	if _walker != null:

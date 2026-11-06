@@ -48,6 +48,9 @@ const BREATH_HZ := 0.22
 const SOFT_ZONE_DEG := 14.0
 
 var yaw_limit_deg: float = 60.0
+## Held still (a walk under way in Liblice's rooms: room_walk.gd turns the base, the head
+## does not turn on top of it): no turning by the edges or the keys, the sway stays.
+var hold := false
 ## This look's dead middle (a desk's work fills the picture: a wider one there), and
 ## whether W and S tilt the head (not where they row a boat).
 var dead: float = STICK_DEAD
@@ -111,6 +114,9 @@ func update(delta: float, cursor: Vector2, key_axis: float = 0.0) -> Vector3:
 	want_yaw -= clampf(key_axis, -1.0, 1.0) * KEY_YAW_SPEED_DEG
 	if keys_tilt:
 		want_pitch += tilt_axis() * KEY_PITCH_SPEED_DEG
+	if hold:
+		want_yaw = 0.0
+		want_pitch = 0.0
 	_yaw_speed = _follow(_yaw_speed, want_yaw, dt)
 	_pitch_speed = _follow(_pitch_speed, want_pitch, dt)
 
