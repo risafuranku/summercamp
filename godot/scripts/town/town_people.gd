@@ -140,11 +140,14 @@ func update(hour: float, delta: float) -> void:
 				(p["body"] as StaticBody3D).process_mode = Node.PROCESS_MODE_DISABLED
 				continue
 			(p["body"] as StaticBody3D).process_mode = Node.PROCESS_MODE_INHERIT
+			var appeared := false
 			if was == "" or not root.visible:
 				root.position = _first_point(place)
 				root.visible = true
-			p["path"] = _route_to(place)
-			p["loop_i"] = 0
+				appeared = true
+			p["path"] = _route_to(place, was)
+			# (Turned up where they are going: there already, no way to walk.)
+			p["loop_i"] = (p["path"] as Array).size() - 1 if appeared else 0
 		if place == "":
 			continue
 		if LOOPS.has(place):
@@ -196,10 +199,18 @@ func _first_point(place: String) -> Vector3:
 	return SPOTS.get(place, Vector3.ZERO)
 
 
-func _route_to(place: String) -> Array:
+## The chapel's yard has its low wall (town_lesna._chapel_yard, L18): in and out by its
+## gate on the pavement, not over the wall.
+const CHAPEL_GATE := Vector3(-28.0, 0, -5.9)
+
+
+func _route_to(place: String, from := "") -> Array:
 	if LOOPS.has(place):
 		return (LOOPS[place] as Array).duplicate()
-	return [SPOTS.get(place, Vector3.ZERO)]
+	var to: Vector3 = SPOTS.get(place, Vector3.ZERO)
+	if place == "chapel" or from == "chapel":
+		return [CHAPEL_GATE, to]
+	return [to]
 
 
 func _walk(p: Dictionary, place: String, delta: float) -> void:
@@ -215,6 +226,9 @@ func _walk(p: Dictionary, place: String, delta: float) -> void:
 	var moving := to.length() > 0.08
 	if moving:
 		root.position += to.normalized() * minf(to.length(), speed * delta)
+	elif i < path.size() - 1:
+		# On to the next point of the way (the chapel's gate, then its door).
+		p["loop_i"] = i + 1
 	_bob(p, moving)
 
 

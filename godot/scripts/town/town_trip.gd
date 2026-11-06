@@ -2009,7 +2009,7 @@ func _clearings() -> Array:
 	var tb := Basis(Vector3.UP, TOWN.YAW)
 	var stop_p: Vector3 = GEO.stop_point("liblice")["p"]
 	var stop_local := tb.inverse() * (stop_p - TOWN.ORIGIN)
-	out.append(_rect_poly(Rect2(-82.0, -62.0, 166.0, 112.0), TOWN.ORIGIN, tb))
+	out.append(_rect_poly(Rect2(-82.0, -72.0, 166.0, 122.0), TOWN.ORIGIN, tb))
 	out.append(_rect_poly(Rect2(stop_local.x - 14.0, -10.0, 28.0, 20.0), TOWN.ORIGIN, tb))
 	# Down from the sign past the stop to the street, both sides (town_lesna._south_end).
 	out.append(_rect_poly(Rect2(stop_local.x - 62.0, -34.0, 92.0, 68.0), TOWN.ORIGIN, tb))

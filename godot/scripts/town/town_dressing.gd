@@ -45,6 +45,7 @@ func build(p_town: Node3D) -> void:
 	_rng.seed = 1998
 	_pavements()
 	_houses()
+	_back_gardens()
 	_street()
 	_jednota_back()
 	_poles()
@@ -281,6 +282,85 @@ func _houses() -> void:
 					tv.emission = Color(0.55, 0.7, 1.0)
 					_tv.append({"mesh": mesh, "lit": d["lit"], "mat": tv})
 					break
+
+
+## The back gardens (L16, walk-through of 6. 11.: behind the houses the fields started
+## straight away, the pub's and the street's backs on bare ground): behind each house its
+## garden fifteen metres deep to a wire fence, two or three fruit trees in its far half and
+## now and then a spruce, a plank shed with a tin lean-to behind every other house (the
+## washing hangs behind the rest).
+const GARDEN_DEEP := 15.0
+
+
+## And the pub's yard behind it (pub_view.gd: 11.5 x 10 m round (16, -15.5)).
+const YARDS := [[Vector3(16.0, 0, -15.5), Vector3(11.5, 5.3, 10.0), 1.0]]
+
+
+func _back_gardens() -> void:
+	var houses: Array = (town.spots.get("houses", []) as Array).duplicate()
+	for y in YARDS:
+		houses.append({"at": y[0], "size": y[1], "facing": y[2]})
+	var fruit: Array[Transform3D] = []
+	var spruce: Array[Transform3D] = []
+	var planks := _mat(TEX_CAMP + "planks_grey.png", Color(0.74, 0.66, 0.54), Vector2(3.0, 2.0))
+	var tin := _mat(TEX_CAMP + "corrugated_roof.png", Color(0.66, 0.64, 0.6), Vector2(3.0, 2.0))
+	var door := _mat(TEX_CAMP + "door_wood.png", Color(0.62, 0.52, 0.42))
+	for i in houses.size():
+		var hd: Dictionary = houses[i]
+		var at: Vector3 = hd["at"]
+		var size: Vector3 = hd["size"]
+		var f: float = hd["facing"]
+		var back := at.z - size.z * 0.5 * f
+		var half := size.x * 0.5 + 1.0
+		var n := 3 if i % 3 == 0 else 2
+		for k in n:
+			var x := at.x + lerpf(-half + 1.4, half - 1.4, (float(k) + 0.5) / float(n)) + _rng.randf_range(-0.5, 0.5)
+			var z := back - f * _rng.randf_range(7.5, GARDEN_DEEP - 1.8)
+			var xf := Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3.ONE * _rng.randf_range(0.85, 1.12)), Vector3(x, 0, z))
+			if _rng.randf() < 0.14:
+				spruce.append(xf.scaled_local(Vector3(0.7, 0.85, 0.7)))
+			else:
+				# Apple and plum trees: small and round (geo_world's gardens' size).
+				fruit.append(xf.scaled_local(Vector3(0.45, 0.38, 0.45)))
+		if i % 2 == 0:
+			_shed(Vector3(at.x + size.x * 0.28, 0, back - f * 3.4), f, planks, tin, door)
+		_fence("fence_mesh", Vector3(at.x - half, 0, back - f * GARDEN_DEEP), Vector3(at.x + half, 0, back - f * GARDEN_DEEP), 1.0)
+	_garden_trees(fruit, "linden")
+	_garden_trees(spruce, "spruce")
+
+
+## A plank shed 2.6 x 2.2 m, its door to the house (f: the house's facing), the tin
+## lean-to falling away from it.
+func _shed(at: Vector3, f: float, planks: Material, tin: Material, door: Material) -> void:
+	_box(at + Vector3(0, 1.0, 0), Vector3(2.6, 2.0, 2.2), planks)
+	_solid(at + Vector3(0, 1.0, 0), Vector3(2.6, 2.0, 2.2))
+	var roof := _box(at + Vector3(0, 2.16, 0), Vector3(2.95, 0.06, 2.65), tin)
+	roof.rotation.x = -0.14 * f
+	_quad(door, Vector2(0.86, 1.75), at + Vector3(-0.4, 0.88, f * 1.115), 0.0 if f > 0.0 else PI)
+
+
+## Trees from the world's kit (world_generator.gd, as geo_world's gardens), one multimesh
+## a part.
+func _garden_trees(xforms: Array[Transform3D], species: String) -> void:
+	var wg = town.get("worldgen")
+	if xforms.is_empty() or wg == null or not wg.has_method("_tree_mesh"):
+		return
+	var parts: Array = [["%s_trunk" % species, "bark", 0], ["%s_crown" % species, "needles" if species == "spruce" else "leaf", 0]]
+	if species != "spruce":
+		parts.append(["%s_cards" % species, "leaf_cards", 1])
+	for part in parts:
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = wg._tree_mesh(str(part[0]))
+		mm.instance_count = xforms.size()
+		for i in xforms.size():
+			mm.set_instance_transform(i, xforms[i])
+		var mmi := MultiMeshInstance3D.new()
+		mmi.name = "Garden_" + str(part[0])
+		mmi.multimesh = mm
+		mmi.material_override = wg._tree_material(str(part[1]), int(part[2]))
+		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(mmi)
 
 
 func _laundry(at: Vector3, yaw: float) -> void:

@@ -63,6 +63,7 @@ func build(p_worldgen: Node) -> void:
 	_station(Vector3(48.0, 0, 13.0))
 	_houses()
 	_side_street()
+	_chapel_yard()
 	_south_end()
 	_stop_north()
 	_stop_south()
@@ -1317,6 +1318,57 @@ func _side_street() -> void:
 	spots["houses"] = houses
 	_farm_wall(23.0, -55.0, 1.0)
 	_park_bench(self, Vector3(-30.2, 0, -14.0), PI * 0.5)
+	# Where it bends (L17, walk-through of 6. 11.: down the side street from the main one you
+	# looked straight out into the field): a farm's barn across the end of the view, its
+	# long side to you, past the bend.
+	_eaves_house("lib_barn", Vector3(-33.0, 0, -62.5), 1.0, 10.0, _mat(TEX_CAMP + "brick_red.png", Color(0.86, 0.78, 0.7), Vector2(3.0, 1.0)), 0.2)
+
+
+## The chapel's yard (L18, walk-through of 6. 11.: the chapel stood on bare ground): a low
+## whitewashed wall with a tiled cap round it, open where the path from the pavement comes
+## in to the door between two pillars, the side street along its west side; two lindens
+## in the yard. The chapel is 6 m wide round x = -28, its front at z = -18.5.
+func _chapel_yard() -> void:
+	var plaster := _mat(_first([TEX + "village_plaster.png", TEX_CAMP + "plaster_stone.png"]), Color(1.0, 0.97, 0.9), Vector2(3.0, 1.0))
+	var x0 := -30.85
+	var x1 := -19.5
+	var zf := -7.2
+	var zb := -27.8
+	var gap := 0.95
+	var runs := [[Vector3(x0, 0, zf), Vector3(-28.0 - gap, 0, zf)], [Vector3(-28.0 + gap, 0, zf), Vector3(x1, 0, zf)],
+		[Vector3(x1, 0, zf), Vector3(x1, 0, zb)], [Vector3(x1, 0, zb), Vector3(x0, 0, zb)],
+		[Vector3(x0, 0, zf), Vector3(x0, 0, -18.3)], [Vector3(x0, 0, -25.7), Vector3(x0, 0, zb)]]
+	for r in runs:
+		_low_wall(r[0], r[1], plaster)
+	# The gate's two pillars.
+	for sx in [-1.0, 1.0]:
+		var p := Vector3(-28.0 + sx * (gap + 0.22), 0, zf)
+		_box(self, p + Vector3(0, 0.6, 0), Vector3(0.44, 1.2, 0.44), _tiled(plaster, Vector3(0.44, 1.2, 0.44)), true)
+		_box(self, p + Vector3(0, 1.26, 0), Vector3(0.54, 0.12, 0.54), _house_mats()["sill"])
+	# The path from the pavement to the door.
+	var dirt := _mat(_first([TEX + "dirt_path.png", TEX_CAMP + "gravel_road.png"]), Color(0.92, 0.88, 0.8))
+	var m := (dirt as StandardMaterial3D).duplicate() as StandardMaterial3D
+	var a := -5.3
+	var b := -18.5
+	m.uv1_scale = Vector3(1.0, absf(b - a) / 1.4, 1.0)
+	_plane(self, Vector3(-28.0, 0.035, (a + b) * 0.5), Vector2(1.6, absf(b - a)), m)
+	if worldgen != null and worldgen.has_method("_tree_mesh"):
+		for t in [[Vector3(-22.3, 0, -10.6), 0.8], [Vector3(-22.0, 0, -24.4), 0.9]]:
+			_linden(self, t[0], float(t[1]), _rng.randf() * TAU)
+			_solid(self, (t[0] as Vector3) + Vector3(0, 1.5, 0), Vector3(0.7, 3.0, 0.7))
+
+
+## A low wall from `a` to `b` (along x or z): 0.75 m of plaster, a cap of tiles.
+func _low_wall(a: Vector3, b: Vector3, plaster: Material) -> void:
+	var length := a.distance_to(b)
+	if length < 0.2:
+		return
+	var along_x := absf(b.x - a.x) > absf(b.z - a.z)
+	var mid := (a + b) * 0.5
+	var size := Vector3(length, 0.75, 0.36) if along_x else Vector3(0.36, 0.75, length)
+	_box(self, mid + Vector3(0, 0.375, 0), size, _tiled(plaster, size), true)
+	var cap := Vector3(size.x + (0.0 if along_x else 0.14), 0.1, size.z + (0.14 if along_x else 0.0))
+	_box(self, mid + Vector3(0, 0.8, 0), cap, _roof_mat(false, cap))
 
 
 ## Where Liblice starts (the user 6. 11.: "I feel the houses are not there till I get off the
