@@ -29,7 +29,9 @@ const SPOTS := {
 }
 const LOOPS := {
 	"patrol": [Vector3(-52.0, 0, -4.6), Vector3(26.0, 0, -4.6), Vector3(26.0, 0, 4.4), Vector3(60.0, 0, 4.4), Vector3(26.0, 0, 4.4), Vector3(26.0, 0, -4.6)],
-	"bike": [Vector3(-62.0, 0, -2.6), Vector3(72.0, 0, -2.6), Vector3(72.0, 0, 2.6), Vector3(-62.0, 0, 2.6)],
+	# Pepik on his bike up and down the south pavement (it was the road's lanes: the 380 ran
+	# him over, the user 6. 11.).
+	"bike": [Vector3(-62.0, 0, 4.6), Vector3(31.0, 0, 4.6)],
 }
 ## Who: their name, sprite, day ([from, to, place or loop]) and what they say.
 const PEOPLE := {

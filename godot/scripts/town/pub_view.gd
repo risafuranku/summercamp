@@ -183,7 +183,10 @@ static func build(root: Node3D, room = null, lit := false) -> Dictionary:
 	room._mug_node = K.cutout(root, "mug_full", Vector2(0.2, 0.2), Vector3(0.35, top, -1.2), 0.0, true, "Mug")
 	room._mug_node.visible = false
 	room._hot_box("mug", Vector3(0.35, top + 0.1, -1.2), Vector3(0.26, 0.24, 0.24), [room._mug_node])
-	room._regular("regular_track", Vector2(0.95, 1.75), Vector3(-1.9, 0.0, -0.85), "track")
+	# His picture has a counter of its own he leans on: flat at the bar's end, just behind
+	# its front, so the real bar hides the drawn one and he stands at its end with his glass
+	# on it (the user 6. 11.: "a man sat on the counter, its texture broken").
+	room._regular("regular_track", Vector2(0.95, 1.75), Vector3(-1.52, 0.0, -1.13), "track", false)
 	room._regular("regular_cap", Vector2(1.1, 1.45), Vector3(TABLES[1].x - 0.15, 0.0, TABLES[1].z), "cap")
 	room._hot_box("machine", Vector3(w * 0.5 - 0.6, 0.9, -0.6), Vector3(0.2, 1.75, 0.7), [mface])
 	room._omni(Vector3(w * 0.5 - 1.0, 1.5, -0.6), Color(1.0, 0.5, 0.6), 0.35, 2.0)

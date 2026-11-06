@@ -887,8 +887,8 @@ func _npc_sprite(tex: String, height: float, pos: Vector3, who: String) -> void:
 	_hot_box(who, pos + Vector3(0, height * 0.6, 0), Vector3(0.6, height * 0.8, 0.4), [])
 
 
-func _regular(tex: String, size: Vector2, pos: Vector3, id: String) -> void:
-	var s := _sprite(tex, size, pos, 0.0, true, "Regular")
+func _regular(tex: String, size: Vector2, pos: Vector3, id: String, billboard := true) -> void:
+	var s := _sprite(tex, size, pos, 0.0, billboard, "Regular")
 	_regulars.append({"node": s, "base": pos, "phase": randf() * 9.0})
 	_hot_box(id, pos + Vector3(0, size.y * 0.5, 0), Vector3(size.x * 0.8, size.y, 0.5), [s])
 
