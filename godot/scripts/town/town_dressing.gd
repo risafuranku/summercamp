@@ -39,6 +39,7 @@ var _far_dog_t := 20.0
 var _hens_snd: AudioStreamPlayer3D
 var _pub_murmur: AudioStreamPlayer3D
 var _pub_glow: StandardMaterial3D
+var _wire_mat: ShaderMaterial
 var _pub_dark: Material
 
 
@@ -505,7 +506,8 @@ func _poles() -> void:
 			spans.append_array(WIRES.hang(Vector3(xs[i], 6.95, z + wz), Vector3(xs[i + 1], 6.95, z + wz), 0.55, 4))
 	var wires := MeshInstance3D.new()
 	wires.mesh = WIRES.mesh(spans)
-	wires.material_override = WIRES.material(Color(0.16, 0.16, 0.17), 0.01)
+	_wire_mat = WIRES.material(Color(0.16, 0.16, 0.17), 0.01)
+	wires.material_override = _wire_mat
 	wires.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(wires)
 
@@ -545,6 +547,10 @@ func _face_on(root: Node3D, name: String, size: Vector2, pos: Vector3, yaw: floa
 
 func set_hour(h: float) -> void:
 	_hour = h
+	# They are drawn unlit: dark by day, and in the dark as dark as the night round them.
+	if _wire_mat != null:
+		var dusk := clampf((h - 18.0) / 2.0, 0.0, 1.0) if h >= 12.0 else clampf((7.0 - h) / 2.0, 0.0, 1.0)
+		_wire_mat.set_shader_parameter("light", lerpf(1.0, 0.1, dusk))
 	_pub_evening(h)
 	# The loudspeaker at seven, noon and five, once each.
 	for slot in [7, 12, 17]:

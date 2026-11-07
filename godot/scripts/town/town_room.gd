@@ -884,7 +884,24 @@ func _npc_sprite(tex: String, height: float, pos: Vector3, who: String) -> void:
 	_npc.position = pos
 	_npc_who = who
 	_root.add_child(_npc)
-	_hot_box(who, pos + Vector3(0, height * 0.6, 0), Vector3(0.6, height * 0.8, 0.4), [])
+	# The glint in their own shape: on the box round them it was a lit rectangle behind the head.
+	var shape := MeshInstance3D.new()
+	shape.name = "Hot_" + who
+	var q := QuadMesh.new()
+	q.size = Vector2(t.get_width(), t.get_height()) * _npc.pixel_size
+	q.center_offset = Vector3(0, q.size.y * 0.5, 0)
+	shape.mesh = q
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = t
+	m.albedo_color = Color(1, 1, 1, 0)
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y
+	shape.material_override = m
+	shape.position = pos
+	shape.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_root.add_child(shape)
+	_hot_box(who, pos + Vector3(0, height * 0.6, 0), Vector3(0.6, height * 0.8, 0.4), [shape])
 
 
 func _regular(tex: String, size: Vector2, pos: Vector3, id: String, billboard := true) -> void:

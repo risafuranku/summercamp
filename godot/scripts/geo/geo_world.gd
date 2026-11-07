@@ -141,6 +141,10 @@ func build_all_near(eye: Vector3) -> void:
 
 ## The windows of an evening: how many are lit at hour `h`.
 func set_hour(h: float) -> void:
+	# The wires are drawn unlit: in the dark as dark as the night round them.
+	if _wire_material != null:
+		var dusk := clampf((h - 18.0) / 2.0, 0.0, 1.0) if h >= 12.0 else clampf((7.0 - h) / 2.0, 0.0, 1.0)
+		_wire_material.set_shader_parameter("light", lerpf(1.0, 0.1, dusk))
 	var lit := 0.0
 	if h >= 17.0 and h < 23.5:
 		lit = clampf((h - 17.0) / 2.0, 0.0, 0.75) - clampf((h - 21.5) / 2.0, 0.0, 0.6)
