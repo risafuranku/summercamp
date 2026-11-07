@@ -13,7 +13,9 @@ extends Node
 const ROOTS := ["res://assets/sfx/pub/", "res://assets/sfx/bistro/", "res://assets/textury/closeup/food/",
 	"res://assets/textury/jednota/", "res://assets/textury/pub/", "res://assets/textury/bistro/",
 	"res://scripts/jednota/", "res://scripts/pub/", "res://scripts/bistro/",
-	"res://assets/textury/town/", "res://assets/sfx/bus/", "res://assets/sfx/town/"]
+	"res://assets/textury/town/", "res://assets/sfx/bus/", "res://assets/sfx/town/",
+	# The skies, each read the first time the clock needs it: a hitch at 16:00, 17:45, 18:27...
+	"res://assets/textury/skybox/"]
 const FILES := ["res://assets/textury/npc/town_pumpar.png", "res://assets/fonts/jersey10.fnt"]
 ## How many asked for at once (the loader queues the rest; the boot goes on drawing).
 const BATCH := 16

@@ -47,6 +47,8 @@ var _ripple_acc := 0.0
 var _rng_fx := RandomNumberGenerator.new()
 var _mist: Array[MeshInstance3D] = []  # mist puffs over the water
 var _mist_t := 0.0
+## The light on the water, 0 to 1 (its mist goes by it too).
+var _light_now := 1.0
 ## The water's material, and how often it is told the world's light and weather.
 var _water_mat: ShaderMaterial
 ## The mirror: the world drawn from under the water (the camera's mirror image) into a
@@ -101,7 +103,9 @@ func build(main_node: Node, shore_z: float, north_z: float, west: float, east: f
 
 	# The shore: the water outline grown by 3 m, mud and sand, just under the water.
 	var shore_poly: PackedVector2Array = Geometry2D.offset_polygon(poly, 3.2)[0]
-	var shore := _flat_mesh(shore_poly, 0.02, "LakeShore")
+	# (Over the grass's overlay: at 2 cm it lay under it, and on the camp's side the grass ran
+	# ruler-straight into the water.)
+	var shore := _flat_mesh(shore_poly, 0.04, "LakeShore")
 	var shore_mat := StandardMaterial3D.new()
 	shore_mat.albedo_texture = load(SHORE_TEX)
 	shore_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
@@ -358,12 +362,15 @@ func _process(delta: float) -> void:
 	var h := float(_main.get("_time_of_day_hours")) if _main.get("_time_of_day_hours") != null else 12.0
 	# Thick at dawn (04:30-08:30), a breath of it at night, gone by day.
 	var dawn := clampf(1.0 - absf(h - 6.3) / 2.2, 0.0, 1.0)
-	var night := 0.3 if (h >= 21.5 or h < 4.5) else 0.0
+	# (Comes up over half an hour: all twenty-six banks were there in one frame at half past nine.)
+	var night := 0.3 * (1.0 if h < 4.5 else clampf((h - 21.0) / 0.5, 0.0, 1.0))
 	var amount := maxf(dawn, night)
 	_update_ripples(delta, h)
+	# As bright as the hour: at its daytime grey it glowed over black water.
+	var lit := lerpf(0.16, 1.0, clampf(_light_now, 0.0, 1.0))
 	for m in _mist:
 		var mm := m.material_override as StandardMaterial3D
-		mm.albedo_color.a = amount * 0.55
+		mm.albedo_color = Color(0.82 * lit, 0.85 * lit, 0.84 * lit, amount * 0.55)
 		m.visible = amount > 0.01
 		if m.visible:
 			var span: float = m.get_meta("span")
@@ -399,11 +406,15 @@ func _water_look() -> void:
 		_water_mat.set_shader_parameter("sun_col", col)
 		sun_lum = clampf(col.get_luminance() * (1.0 if -dir.y > 0.0 else 0.0), 0.0, 1.0)
 	_water_mat.set_shader_parameter("sky_col", sky)
-	_water_mat.set_shader_parameter("light_level", clampf(maxf(sun_lum, ambient), 0.0, 1.0))
+	_light_now = clampf(maxf(sun_lum, ambient), 0.0, 1.0)
+	_water_mat.set_shader_parameter("light_level", _light_now)
 	var w := int(scene.get("_weather_state")) if scene.get("_weather_state") != null else 0
 	# Clear, windy, fog, light rain, rain, storm, the night's own.
 	var wind: float = [0.15, 0.65, 0.05, 0.3, 0.45, 1.0, 0.25][clampi(w, 0, 6)]
 	var rain: float = [0.0, 0.0, 0.0, 0.35, 0.7, 1.0, 0.0][clampi(w, 0, 6)]
+	# Snow makes no rings.
+	if scene.has_method("is_snowing") and scene.call("is_snowing"):
+		rain = 0.0
 	_water_mat.set_shader_parameter("wind", wind)
 	_water_mat.set_shader_parameter("rain", rain)
 

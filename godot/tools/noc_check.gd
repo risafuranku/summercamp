@@ -259,6 +259,30 @@ func report_measure() -> void:
 	_ok("the books fit the screen", need <= room and box.global_position.y >= 0.0, "%.0f of %.0f" % [need, room])
 
 
+## A poor month has one way on, and it ends the run.
+func report_one_way() -> void:
+	var scr: Node = _main.get("_week_report_screen")
+	_ok("a poor month has no Stay on", (scr.get("_list").get("items") as Array).size() == 1, str(scr.get("_list").get("items")))
+	scr.call("_take_the_bus")
+
+
+func report_ended() -> void:
+	_ok("the bus ends the run at the title", bool(_main.get("_menu_mode")) and _main.get("_week_report_screen") == null)
+	_ok("nothing stopped the game after it", not get_tree().paused)
+
+
+## The other warden's copy: there, staying on is not theirs to say, and the host's closes it.
+func report_follower() -> void:
+	_main.call("_coop_show_books", {"grade": "fair", "rows": [], "verdict": "v", "coda": "c"})
+
+
+func report_follower_read() -> void:
+	var scr: Node = _main.get("_week_report_screen")
+	_ok("the other warden reads the books without Stay on", bool(scr.get("follower")) and (scr.get("_list").get("items") as Array).size() == 1)
+	_main.call("_coop_books_closed")
+	_ok("the host's Stay on closes them", _main.get("_week_report_screen") == null)
+
+
 func verdict() -> void:
 	print("NOC: %s" % ("PASS" if fails == 0 else "%d FAILURE(S)" % fails))
 
@@ -270,6 +294,8 @@ func _ready() -> void:
 			["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.5]]
 		for g in ["good", "fair", "poor"]:
 			s.append_array([["eval", C + ".report_full('%s')" % g], ["wait", 1.0], ["eval", C + ".report_measure()"], ["shot", "report_" + g], ["eval", C + ".report_shut()"], ["wait", 0.4]])
+		s.append_array([["eval", C + ".report_follower()"], ["wait", 0.6], ["eval", C + ".report_follower_read()"], ["wait", 0.4]])
+		s.append_array([["eval", C + ".report_full('poor')"], ["wait", 1.0], ["eval", C + ".report_one_way()"], ["wait", 3.4], ["eval", C + ".report_ended()"]])
 		s.append_array([["eval", C + ".verdict()"], ["eval", "get_tree().quit()"]])
 		_steps = s
 		return

@@ -21,6 +21,7 @@ const TEX_DIR := "res://assets/textury/camp/"
 const TOWN_TEX := "res://assets/textury/town/"
 const GEO = preload("res://scripts/geo/geo_data.gd")
 const ROAD_POST = preload("res://scripts/town/road_post.gd")
+const ONE_WORLD_ROOM = preload("res://scripts/one_world_room.gd")
 const ROAD_WIDTH := 4.4
 ## The verge walls stand this far from the middle of the road.
 const WALL_OFF := 5.0
@@ -330,7 +331,11 @@ func _build_stop() -> void:
 	_box(root, Vector3(sx, 1.2, -2.0), Vector3(1.9, 2.4, 0.16), concrete)
 	_box(root, Vector3(sx, 1.2, 2.0), Vector3(1.9, 2.4, 0.16), concrete)
 	_box(root, Vector3(sx - 0.1, 2.5, 0.0), Vector3(2.5, 0.18, 4.7), concrete)
-	_box(root, Vector3(sx, 0.04, 0.0), Vector3(2.0, 0.08, 4.1), _paint(Color(0.42, 0.41, 0.39)))
+	_box(root, Vector3(sx, 0.04, 0.0), Vector3(2.0, 0.08, 4.1), concrete)
+	# Under the slab no rain falls.
+	var dry := ONE_WORLD_ROOM.dry(root, "ShelterDry")
+	dry.position = Vector3(sx - 0.1, 1.2, 0.0)
+	dry.size = Vector3(2.5, 2.5, 4.7)
 	# The bench: planks on two concrete feet.
 	var planks := _material(TEX_DIR + "planks_grey.png", "wood", Color(0.5, 0.45, 0.38))
 	_box(root, Vector3(sx + 0.5, 0.45, 0.0), Vector3(0.45, 0.06, 3.4), planks)
@@ -576,8 +581,8 @@ func _process(delta: float) -> void:
 	if _lamp_t <= 0.0:
 		_lamp_t = 1.0
 		var main := get_tree().current_scene
-		var h := float(main.get("_time_of_day_hours")) if main != null and main.get("_time_of_day_hours") != null else 12.0
-		_night = h >= 19.8 or h < 6.2
+		var h: float = main.call("season_hour") if main != null and main.has_method("season_hour") else 12.0
+		_night = h >= 19.0 or h < 6.5
 		# Now and then the old lamp gives up for a moment.
 		if _night and _rng.randf() < 0.06:
 			_lamp_flicker = _rng.randf_range(0.4, 2.2)

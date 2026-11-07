@@ -781,7 +781,10 @@ INSPECTION" (`scripts/week_ledger.gd`, `scripts/ui/week_report_screen.gd`):
   is one more at breakfast than in the book, "like when your uncle ran it". The verdict
   answers *how well*, the count answers *what you let in*.
 - **Then:** *Stay on* closes the month and the camp runs on with no end (Vera takes the noon
-  bus back to town: "You know the way."), or back to the main menu.
+  bus back to town: "You know the way."), or back to the main menu. A **poor** month has no
+  *Stay on*: the district sells, your bus is at ten, and that is the end of the run (the one
+  way on is the bus: its door, its engine going off into the black, the title). Co-op: the
+  other wardens read the same page; staying on is the host's to say.
 
 ## 5f. Work you can see
 
@@ -2089,8 +2092,8 @@ frames, really like Doom... the people must look the same all the time, no artef
 
 ## 11. Open questions
 
-1. ~~Win condition~~: answered in §5d (the books on day 8). Still open: should a poor
-   week end the run outright instead of offering Stay on?
+1. ~~Win condition~~: answered in §5d (the books on day 8). A poor month ends the run
+   outright (Richard 7. 11.).
 2. How much may the terminal lie? (Section 2 rules apply: specific, never numeric.)
 3. The raccoon thing: tie it to waste (dumpsters overflowing) as a fifth threat?
 

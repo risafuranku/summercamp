@@ -322,15 +322,21 @@ func _sync_party_plan(party: Dictionary, entry: Dictionary) -> void:
 	var to_tile := _parse_key(str(act.get("to", entry.get("tile", ""))))
 	var start_world := _stand_point(from_tile, Vector2i(-1, -1))
 	var last_pos: Vector3 = party.get("last_pos", Vector3.INF)
-	# Picks up where they stand (the reception door after check-in is 12-13 m from the gate).
-	if last_pos != Vector3.INF and last_pos.distance_to(start_world) < 16.0:
+	# Picks up where they stand (the reception door after check-in is 12-13 m from the gate),
+	# and always if you can see them: at eight a guest in mid walk jumped back across the camp
+	# to the last place they had arrived at.
+	if last_pos != Vector3.INF and (last_pos.distance_to(start_world) < 16.0 or bool(party.get("was_seen", false))):
 		start_world = last_pos
 	if str(act.get("kind", "")) != "wait_gate":
 		for k in ["wg_pos", "wg_route", "wg_target", "wg_dir"]:
 			party.erase(k)
-	var goal_tile := _stand_tile(to_tile, _grid_manager.world_to_grid(start_world))
+	# (From the walkable tile they are by: a door's step and an attraction's spot are on their
+	# own solid tiles, no path started there and they went dead straight through whatever
+	# stood between, tents, cabins, tables and trees.)
+	var from_free := _free_tile_by(start_world)
+	var goal_tile := _stand_tile(to_tile, from_free)
 	var goal_world := _tile_center(goal_tile)
-	var path := _find_path(_grid_manager.world_to_grid(start_world), goal_tile)
+	var path := _find_path(from_free, goal_tile)
 	var points := PackedVector3Array()
 	# Coming in from the barrier: walk from the waiting spot through the gap first.
 	if str(act.get("kind", "")) == "arrive" and last_pos != Vector3.INF and _grid_manager.world_to_grid(last_pos).y < 0:
@@ -444,15 +450,21 @@ func _update_party(party: Dictionary, now: float, _delta: float) -> void:
 			lead_pos = entry["outside"]
 			party["entering"] = e
 		elif going_in:
-			visible_now = (now - arrive) < 0.6
+			# (Off along the fence or the shore: not in front of you. They stood there and
+			# blinked out half a second after they got there.)
+			visible_now = (now - arrive) < 0.6 or (kind == "away" and _in_sight(lead_pos))
 		elif kind == "leave":
 			visible_now = (now - arrive) < 1.0
+		elif queued and not entry.is_empty():
+			# In the queue: from the door out, where they walked to.
+			lead_pos = entry["outside"]
 		else:
 			lead_pos = party.get("dwell_spot", lead_pos)
 	if str(info.get("status", "")) == "sleep" and kind == "sleep" and dwell_phase:
 		visible_now = false
 
 	party["last_pos"] = lead_pos
+	party["was_seen"] = visible_now
 	var side := Vector3.RIGHT
 	var heading := Vector3.ZERO
 	if walking and kind == "wait_gate":
@@ -507,7 +519,15 @@ func _update_party(party: Dictionary, now: float, _delta: float) -> void:
 			var ang := turn + TAU * float(i) / float(members.size())
 			offset = Vector3(cos(ang), 0.0, sin(ang)) * (0.55 + 0.12 * float(members.size()))
 		if dwell_phase and bool(act.get("queued", false)):
-			offset = Vector3(float(i) * 0.4, 0.0, 0.9 + float(int(info.get("id", 0)) % 3) * 0.7)
+			# Out from the door, whichever way it faces (always towards +z they stood in a wall
+			# now and then), easing back from it as they fall in. With no door, as they were.
+			var line_out := Vector3.BACK
+			var q_door: Dictionary = party.get("entry", {})
+			if not q_door.is_empty():
+				line_out = ((q_door["outside"] as Vector3) - (q_door["inside"] as Vector3)).normalized()
+			offset = line_out.cross(Vector3.UP) * float(i) * 0.4 + line_out * (0.9 + float(int(info.get("id", 0)) % 3) * 0.7)
+			offset *= clampf((now - arrive) / 0.9, 0.0, 1.0)
+			member.set_meta("queue_at", lead_pos + offset)
 		var pos := lead_pos + offset
 		var sprite := member.get_node_or_null("Sprite") as Sprite3D
 		if dwell_phase and party.has("entering") and not (party.get("entry", {}) as Dictionary).is_empty():
@@ -519,7 +539,14 @@ func _update_party(party: Dictionary, now: float, _delta: float) -> void:
 			# A beat at the door (the leaf swings open, a hand to the flap), then in.
 			var k := clampf((ei - ENTER_REACH) / (1.0 - ENTER_REACH), 0.0, 1.0)
 			k = k * k * (3.0 - 2.0 * k)
+			var from_queue: Vector3 = member.get_meta("queue_at", Vector3.INF)
 			pos = (en["outside"] as Vector3).lerp(en["inside"], k) + (en["outside"] - en["inside"]).normalized() * 0.45 * maxf(0.0, -ei) * 2.0
+			# From their place in the queue, not from a standing start at the door.
+			if from_queue != Vector3.INF:
+				var walked := clampf(ei / maxf(ENTER_REACH, 0.01), 0.0, 1.0)
+				pos = from_queue.lerp(pos, walked)
+				if walked >= 1.0:
+					member.remove_meta("queue_at")
 			var fig_in := _figure(sprite)
 			if fig_in != null:
 				fig_in.face((en["inside"] as Vector3) - (en["outside"] as Vector3))
@@ -874,6 +901,39 @@ func _find_path(from: Vector2i, to: Vector2i) -> Array[Vector2i]:
 	return out
 
 
+## The walkable tile nearest to a point on the map, whatever stands there: its own tile, or
+## the closest one round the thing it is on.
+func _free_tile_by(world: Vector3) -> Vector2i:
+	var t: Vector2i = _grid_manager.world_to_grid(world)
+	if _astar.is_in_boundsv(t) and not _astar.is_point_solid(t):
+		return t
+	for r in range(1, 6):
+		var best := t
+		var best_d := INF
+		for dy in range(-r, r + 1):
+			for dx in range(-r, r + 1):
+				if maxi(absi(dx), absi(dy)) != r:
+					continue
+				var n := t + Vector2i(dx, dy)
+				if not _astar.is_in_boundsv(n) or _astar.is_point_solid(n):
+					continue
+				var d := _tile_center(n).distance_squared_to(world)
+				if d < best_d:
+					best_d = d
+					best = n
+		if best_d < INF:
+			return best
+	return t
+
+
+## In the eye of whoever is looking, near enough to matter.
+func _in_sight(p: Vector3) -> bool:
+	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
+	if cam == null:
+		return false
+	return cam.global_position.distance_to(p) < 70.0 and cam.is_position_in_frustum(p + Vector3.UP)
+
+
 ## Nearest walkable tile next to `tile` (a building's root, a tree...), closest to `near`.
 func _stand_tile(tile: Vector2i, near: Vector2i) -> Vector2i:
 	if _astar.is_in_boundsv(tile) and not _astar.is_point_solid(tile):
@@ -1017,7 +1077,10 @@ func _make_shadow() -> MeshInstance3D:
 	var shadow := MeshInstance3D.new()
 	shadow.name = "BlobShadow"
 	shadow.mesh = _shadow_mesh
-	shadow.position = Vector3(0.0, 0.03, 0.0)
+	# Over the grass's overlay (3.2 cm): at 3 cm it lay under it, and with the walk's bob of a
+	# centimetre it showed on every other frame.
+	shadow.position = Vector3(0.0, 0.05, 0.0)
+	shadow.set_meta("retro_pull", 0.006)
 	shadow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return shadow
 

@@ -881,8 +881,10 @@ every night's sewer, toilets and frozen pipes the moment they broke).
   `light` as its modulate and add `motion`; never rotate a hand sprite.
 - **Trees are cone or blob plus cards**: `world_generator._tree_mesh` `spruce_cards`, `birch_cards`, `linden_cards` go with their crowns everywhere a tree is drawn (the crowns are only a dark core now: a crown without its cards is a dark lump). A new planting takes all three parts. Cards carry their own normals (out from the crown; `own_normal` in `tree_wind.gdshader`, the engine turns a back face's round) and their pictures have mipmaps (`filter_nearest_mipmap`: nearest, from a smaller picture far off, no glitter; only pictures imported with mipmaps change, set it in the `.import`).
 - **Two faces on the same corners cancel**: a double-sided triangle through `generate_normals()` without `st.set_smooth_group(-1)` has zero normals, no light reaches it and it stands in the sky's colour (every gable did).
-- **Frames at 50, physics at 60** (`run/max_fps=50`): anything moved in `_physics_process`
-  judders whenever it moves (a double step every fifth frame). The player's head is drawn in
+- **Frames are not the physics' 60** (`GameSettings.frame_cap`: a whole share of the screen's
+  refresh, 72 at 144 Hz, 60 at 60 Hz, never over 100; `run/max_fps` only holds till the settings
+  load): anything moved in `_physics_process` judders whenever it moves (a step missed or
+  doubled every few frames). The player's head is drawn in
   `_process` between the last two physics positions (`Engine.get_physics_interpolation_fraction`);
   a new camera that follows a physics body must do the same.
 - **A body walked with its collisions off** (`collision_mask = 0`: the door walks in

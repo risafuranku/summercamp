@@ -85,6 +85,8 @@ func process(delta: float, hour: float = -1.0) -> void:
 	if not auto_cycle_enabled:
 		return
 	_anomaly_cooldown = maxf(0.0, _anomaly_cooldown - delta)
+	if Season.first_snow_now(season_day, _hour) and current_weather not in [WEATHER_LIGHT_RAIN, WEATHER_RAIN, WEATHER_STORM, WEATHER_EVENT]:
+		_enter(WEATHER_LIGHT_RAIN)
 	_state_minutes += delta
 	if upcoming < 0 and _target_minutes - _state_minutes <= PRE_STORM_MINUTES:
 		upcoming = _pick_ordinary(current_weather)

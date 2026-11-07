@@ -143,6 +143,10 @@ var _side_hints: Control
 var _prep = INTERIOR_PREP.new()
 
 
+## The better two tiers are built by build_level, not with the rest (set before it is added).
+var levels_later := false
+
+
 func _ready() -> void:
 	_texture_style = TEXTURE_STYLE_SCRIPT.new()
 	# Under the HUD (65), whose messages show over a room.
@@ -1336,7 +1340,9 @@ func _build_cabin_room() -> void:
 	# The room of each tier, built from the cabin's plan (scripts/cabin_layout.gd) the way
 	# the model outside is: its walls with the real openings, every window a view out with
 	# a curtain, its own furniture. The three stand ready; the cabin's level shows one.
-	for lv in [1, 2, 3]:
+	# (Behind the loading bar the better two come as jobs of their own, build_level: all
+	# three in one go were the longest frame of a new camp's start, 600 ms.)
+	for lv in ([1] if levels_later else [1, 2, 3]):
 		_build_level_shell(lv)
 
 	# Shared by every tier, at the same place in all of them: the bed (lodge_bed.gd lies in
@@ -1365,6 +1371,14 @@ func _build_cabin_room() -> void:
 	_build_prep_props()
 	_apply_level_variant()
 	_apply_time_profile()
+
+
+## A tier left for later (levels_later): one job of the loading bar's.
+func build_level(lv: int) -> void:
+	if _level_shells.has(lv):
+		return
+	_build_level_shell(lv)
+	_apply_level_variant()
 
 
 ## One tier's room: the walls round the openings the plan has (the door you came in by

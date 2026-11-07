@@ -103,7 +103,8 @@ func setup(p_model: int, p_color: int, p_manual := false) -> void:
 	sm.albedo_color = Color(0.0, 0.0, 0.0, 0.42)
 	q.material = sm
 	_shadow.mesh = q
-	_shadow.position = Vector3(0.0, 0.03, 0.0)
+	_shadow.position = Vector3(0.0, 0.05, 0.0)
+	_shadow.set_meta("retro_pull", 0.006)
 	_shadow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_shadow)
 	# Their torch: the same beam and halo as yours (player_controller.gd), a little

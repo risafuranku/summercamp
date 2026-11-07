@@ -13,7 +13,7 @@
 - [x] N5 The night director's face flash crashed every time and never played (soak_check). `ae8ef7f7`
 - [x] N6 Every gable stood dark blue with no picture: the triangle's two faces shared smoothed corners, the normals cancelled, no light reached it. Flat now; the reception's gables are its planks, not the tin.
 - [x] N7 A new camp's start: the land in steps and the rooms built one at a time behind the loading bar, which says what it is doing (it stood still for 1 s, then 0.4 s twice; the worst frame 1009 -> 624 ms, the rest 250 ms or less). `trhnuti_check --part=start`
-- [ ] N8 The cabin's own build is still 600 ms in one go; a level's shell at a time would halve it.
+- [x] N8 The longest frame behind the loading bar was the reception, not the cabin: both a piece a frame now (`room_jobs`, `build_job`, `build_level`): 485 ms -> 300, the cabin 90 + 25 + 20.
 - [x] N9 Feed lines and the waypoint's words on a dark plate: pale letters and their shadow over a bright cloud could not be read. The display settings' tabs in Czech.
 
 ### The core loop's holes (two code audits, each one read and then played: `tools/smycka_check`)
@@ -53,7 +53,7 @@
 - [x] M7 The PC's own screens looked at in Czech (`os98_check --shots=DIR --lang=cs`, which never set the language): UNPAID and WORN cut in their chips, $/day in crowns, the browser's Stop and Refresh run together, the mines' line cut, Sign up and download left half English, Builder's Keys title.
 - [x] N10 Spruces close to: boughs hang down each tier's slope as well as out from its rim (`_st_shingle`, BOUGH_ROWS), they were dark cones with tips round the edge wherever you stood near one, the far shore worst. The same 47-49 fps.
 - [x] N11 Walking into a spruce: the hold-off went by the cone at your eyes and a tall one's lowest rim is over your head: up to the trunk, the screen one wall of squares. It goes by where the boughs thicken now (`spruce_reach`, under the lowest rim too; ducked you still get in, 3 m2 of the camp are shut standing, smrk_check). Right at your eye a card comes apart in steps and you look through it (`tree_wind`).
-- [ ] M6 Should a poor month end the run instead of offering Stay on? DESIGN section 11, question 1: Richard's.
+- [x] M6 A poor month ends the run (Richard 7. 11.): no Stay on, one way on, To the bus: its door, its engine going off into the black, the title. The other warden reads the same page (they stood in a stopped camp with nothing to read); the host's Stay on closes it for both.
 
 ## UX POLISH 2026-11-06 (evening) — „pokračuj v ux polishmentu" (measured, then fixed; tick with the commit)
 

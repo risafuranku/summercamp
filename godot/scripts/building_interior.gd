@@ -352,7 +352,32 @@ func _ready() -> void:
 	_build_viewport()
 	_sync_interior_viewport_to_window()
 	_build_crt_viewport() # Build CRT internal UI
-	_build_room()
+	# (Nothing runs till it is whole: the radio, asked for its tracks before _setup_radio had
+	# listed them, took none for the rest of the game.)
+	set_process(false)
+	if not build_later:
+		for i in BUILD_JOBS:
+			build_job(i)
+
+
+## Behind the loading bar the room is built a piece a frame (interior_manager.room_jobs): in one
+## go it was the longest frame of a new camp's start, half a second. Set before it is added.
+var build_later := false
+const BUILD_JOBS := 3
+
+
+func build_job(i: int) -> void:
+	match i:
+		0:
+			_build_room()
+		1:
+			_build_room_things()
+		2:
+			_finish_ready()
+
+
+func _finish_ready() -> void:
+	set_process(true)
 	_configure_crt_ui()
 	_post = POST_DELIVERY.new()
 	_post.name = "PostDelivery"
@@ -1201,6 +1226,9 @@ func _build_room() -> void:
 		if outdoor != null:
 			outdoor.visible = false
 
+
+## What is in the room, once it stands.
+func _build_room_things() -> void:
 	# ── THE PC CORNER: the old work desk, the computer, the fan and the radio, on the
 	# low desk at the left end of the counter (PC_OFFSET from where they were made).
 	var pc_root := Node3D.new()

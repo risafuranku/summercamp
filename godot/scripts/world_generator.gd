@@ -761,9 +761,16 @@ func _create_corn_patch(pos: Vector3, dice: RandomNumberGenerator = null) -> Nod
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(size, size)
 	soil.mesh = plane
-	soil.position = Vector3(0, 0.012, 0)
+	# (Over the grass's overlay: at 1.2 cm the corn stood on lawn.)
+	soil.position = Vector3(0, 0.04, 0)
 	var sm := StandardMaterial3D.new()
-	sm.albedo_color = Color(0.26, 0.2, 0.13)
+	sm.albedo_color = Color(0.82, 0.74, 0.62)
+	if ResourceLoader.exists("res://assets/textury/town/dirt_path.png"):
+		sm.albedo_texture = load("res://assets/textury/town/dirt_path.png")
+		sm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		sm.uv1_scale = Vector3(size * 0.5, size * 0.5, 1.0)
+	else:
+		sm.albedo_color = Color(0.26, 0.2, 0.13)
 	soil.material_override = sm
 	patch.add_child(soil)
 	return patch

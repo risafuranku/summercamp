@@ -3,7 +3,9 @@ extends CanvasLayer
 ## Day 31, 08:00: the district's inspection, Vera out on the first bus for it, the books
 ## (scripts/week_ledger.gd). Dark amber dither over the frozen frame, the ledger rows, her
 ## verdict and the count at breakfast.
-## Two ways on: stay on (the camp runs on without an end) or the main menu.
+## Two ways on: stay on (the camp runs on without an end) or the main menu. A poor month has
+## one: the district sells, your bus is at ten, and that is the end of the run. The door, the
+## engine pulling off, the black, the title.
 
 signal stay_requested
 signal main_menu_requested
@@ -13,6 +15,9 @@ const RETRO_MENU = preload("res://scripts/ui/retro_menu.gd")
 
 ## The two ways on, a row each (px of the 240-line screen).
 const LIST_ROW := 16
+const BUS_SFX := "res://assets/sfx/bus/"
+## The last bus: the door, then the engine, over this long a black.
+const LEAVE_SEC := 2.6
 
 var _scale: int = 3
 var _report: Dictionary = {}
@@ -20,6 +25,9 @@ var _root: Control
 var _list
 var _built_for: Vector2 = Vector2.ZERO
 var _t: float = 0.0
+## Co-op: the warden who joined reads the books too; staying on is the host's to say.
+var follower := false
+var _leaving := false
 
 
 func _init() -> void:
@@ -30,6 +38,10 @@ func _init() -> void:
 
 func setup(report: Dictionary) -> void:
 	_report = report
+
+
+func report_data() -> Dictionary:
+	return _report
 
 
 func _ready() -> void:
@@ -109,22 +121,59 @@ func _rebuild() -> void:
 	_list.ui_scale = _scale
 	_list.row_height_vp = LIST_ROW
 	_list.size_vp = 12
-	var items: Array[Dictionary] = [
-		{"id": "stay", "text": "Stay on"},
-		{"id": "menu", "text": "Main menu"},
-	]
+	var items: Array[Dictionary] = []
+	if grade == "poor":
+		items.append({"id": "bus", "text": "To the bus"})
+	else:
+		if not follower:
+			items.append({"id": "stay", "text": "Stay on"})
+		items.append({"id": "menu", "text": "Main menu"})
 	_list.set_items(items)
 	var list_w: float = _list.content_width()
-	_list.size = Vector2(list_w + _vp(8), _vp(LIST_ROW * 2))
-	_list.position = Vector2(floorf((vp.x - list_w) * 0.5 / _scale) * _scale - _vp(4), vp.y - _vp(LIST_ROW * 2 + 3))
+	_list.size = Vector2(list_w + _vp(8), _vp(LIST_ROW * items.size()))
+	var list_y: float = vp.y - _vp(LIST_ROW * 2 + 3) + _vp(LIST_ROW * (2 - items.size())) * 0.5
+	_list.position = Vector2(floorf((vp.x - list_w) * 0.5 / _scale) * _scale - _vp(4), list_y)
 	_root.add_child(_list)
 	_list.activated.connect(func(id: String) -> void:
 		if id == "stay":
 			stay_requested.emit()
+		elif id == "bus":
+			_take_the_bus()
 		else:
 			main_menu_requested.emit()
 	)
 	_t = 0.0
+
+
+## The month was poor and the run is over: the bus's door behind you, the engine going off
+## into the black, then the title.
+func _take_the_bus() -> void:
+	if _leaving:
+		return
+	_leaving = true
+	var black := ColorRect.new()
+	black.color = Color(0, 0, 0, 0)
+	black.set_anchors_preset(Control.PRESET_FULL_RECT)
+	black.mouse_filter = Control.MOUSE_FILTER_STOP
+	_root.add_child(black)
+	_sound("door_close.mp3", -6.0)
+	var tw := create_tween()
+	tw.tween_property(black, "color:a", 1.0, LEAVE_SEC * 0.5)
+	tw.tween_callback(func() -> void: _sound("depart.mp3", -8.0))
+	tw.tween_interval(LEAVE_SEC * 0.5)
+	tw.tween_callback(func() -> void: main_menu_requested.emit())
+
+
+func _sound(file: String, db: float) -> void:
+	if not ResourceLoader.exists(BUS_SFX + file):
+		return
+	var p := AudioStreamPlayer.new()
+	p.stream = load(BUS_SFX + file)
+	p.volume_db = db
+	p.bus = "SFX" if AudioServer.get_bus_index("SFX") >= 0 else "Master"
+	p.process_mode = Node.PROCESS_MODE_ALWAYS
+	add_child(p)
+	p.play()
 
 
 func _paragraph(text: String, color: Color) -> Label:
@@ -151,7 +200,7 @@ func _process(delta: float) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	# A moment of grace so a key held from play does not pick an option.
-	if _list == null or _t < 1.2:
+	if _list == null or _t < 1.2 or _leaving:
 		return
 	if not (event is InputEventKey or event is InputEventJoypadButton or event is InputEventJoypadMotion):
 		return

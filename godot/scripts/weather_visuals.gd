@@ -43,7 +43,9 @@ const SKY_TEX_NIGHT_PATHS := ["res://assets/textury/skybox/skynight.png"]
 ## A clear (or windy) night: the stars and the milky way (Grok, tools/artgen/night_sky.py;
 ## the inventory of 20. 10.: every night had the overcast sky, and the ten code-drawn
 ## stars on it hardly showed).
-const SKY_TEX_NIGHT_CLEAR_PATHS := ["res://assets/textury/skybox/skystars.png"]
+## (skyf_night: the same without the stars, tools/artgen/night_sky_clean.py: they are the sky
+## shader's, points the size of the render's own pixel.)
+const SKY_TEX_NIGHT_CLEAR_PATHS := ["res://assets/textury/skybox/skyf_night.png", "res://assets/textury/skybox/skystars.png"]
 ## A clear morning before the sun (Grok `sky_dawn`): the peach and rose glow low along the
 ## horizon; the clear night turns into it from 5:15 and it into the day by 7:15 (season
 ## hours; the dawn was the night fading straight into noon's sky: inventory 20. 10.).
@@ -673,7 +675,7 @@ func update_celestial_bodies() -> void:
 	_sun_sprite_3d.visible = sun_alpha > 0.01
 	_set_sprite_tint(_sun_sprite_3d, Color(1.0, 1.0, 1.0), sun_alpha)
 	# Měsíc: postupný fade přes celé okno rozbřesku místo binárního přepínání
-	var h_now = _normalized_hour(_time_of_day_hours)
+	var h_now = _season_hour(_time_of_day_hours)
 	var moon_alpha: float
 	if h_now >= NIGHT_SKY_FADE_END_HOUR or h_now <= DAY_SKY_FADE_START_HOUR:
 		moon_alpha = 1.0
@@ -836,23 +838,28 @@ func apply_weather_profile(force_sky_snap: bool = false) -> void:
 	_apply_weather_skybox(force_sky_snap)
 	set_cloud_targets_from_weather()
 
-	var sky_phase = _current_sky_phase()
-	var night: bool = sky_phase == SKY_PHASE_NIGHT
-	var target := _weather_params(_weather_state, night)
+	# Into the night and out of it by degrees: as a switch the whole picture jumped in one frame
+	# (a clear evening's light fell by two fifths at 19:30, and in the rain the fog's colour
+	# went over with it).
+	var night_k := _weather_night_k()
+	var dusk_k := _weather_dusk_k() * (1.0 - night_k)
+	var night: bool = night_k >= 0.5
+	var target := _weather_params(_weather_state, false)
+	if night_k > 0.0:
+		target = _lerp_weather_params(target, _weather_params(_weather_state, true), night_k)
 	if force_sky_snap or _weather_blend_from.is_empty():
 		_weather_blend_t = 1.0
 	var w := target
 	if _weather_blend_t < 1.0:
 		w = _lerp_weather_params(_weather_blend_from, target, smoothstep(0.0, 1.0, _weather_blend_t))
 	if storm_build > 0.0 and _weather_state != WEATHER_STORM and _weather_state != WEATHER_EVENT:
-		w = _lerp_weather_params(w, _pre_storm_params(w, night), smoothstep(0.0, 1.0, storm_build))
+		w = _lerp_weather_params(w, _lerp_weather_params(_pre_storm_params(w, false), _pre_storm_params(w, true), night_k), smoothstep(0.0, 1.0, storm_build))
 	_weather_blend_now = w
 
 	var fog_enabled: bool = _base_fog_enabled or float(w["fog_mix"]) > 0.001
 	var fog_density: float = lerpf(_base_fog_density, maxf(_base_fog_density, float(w["fog_density"])), float(w["fog_mix"]))
 	var fog_sky_affect: float = lerpf(_base_fog_sky_affect, maxf(_base_fog_sky_affect, float(w["fog_sky_affect"])), float(w["fog_mix"]))
-	if night:
-		fog_sky_affect = minf(fog_sky_affect, float(w["night_sky_affect_cap"]))
+	fog_sky_affect = lerpf(fog_sky_affect, minf(fog_sky_affect, float(w["night_sky_affect_cap"])), night_k)
 	var fog_color: Color = _base_fog_light_color.lerp(w["fog_color"], float(w["fog_mix"]))
 	var sun_multiplier: float = float(w["sun"])
 	var ambient_multiplier: float = float(w["ambient"])
@@ -861,9 +868,8 @@ func apply_weather_profile(force_sky_snap: bool = false) -> void:
 	var grain_boost: float = float(w["grain"])
 	var vignette_boost: float = float(w["vignette"])
 
-	if sky_phase == SKY_PHASE_DUSK:
-		ambient_multiplier *= 0.88
-		sky_darkening = min(0.92, sky_darkening + 0.08)
+	ambient_multiplier *= lerpf(1.0, 0.88, dusk_k)
+	sky_darkening = min(0.92, sky_darkening + 0.08 * dusk_k)
 
 	var flash = _storm_flash_strength if _weather_state == WEATHER_STORM else 0.0
 	var base_profile = sample_time_profile(_time_of_day_hours)
@@ -871,9 +877,7 @@ func apply_weather_profile(force_sky_snap: bool = false) -> void:
 	var sky_luma = (sky_color.r * 0.2126) + (sky_color.g * 0.7152) + (sky_color.b * 0.0722)
 	var sky_gray = Color(sky_luma, sky_luma, sky_luma, sky_color.a)
 	var weather_sky = sky_color.lerp(sky_gray, clampf(sky_desaturation, 0.0, 1.0))
-	var dark_target = Color(0.06, 0.07, 0.09, sky_color.a)
-	if sky_phase == SKY_PHASE_NIGHT:
-		dark_target = Color(0.035, 0.042, 0.060, sky_color.a)
+	var dark_target = Color(0.06, 0.07, 0.09, sky_color.a).lerp(Color(0.035, 0.042, 0.060, sky_color.a), night_k)
 	weather_sky = weather_sky.lerp(dark_target, clampf(sky_darkening, 0.0, 0.999))
 	weather_sky = weather_sky.lerp(w["tint"], float(w["tint_mix"]))
 	env.background_color = weather_sky
@@ -890,6 +894,20 @@ func apply_weather_profile(force_sky_snap: bool = false) -> void:
 	if _psx_post_mat != null:
 		_psx_post_mat.set_shader_parameter("vhs_grain_strength", _base_vhs_grain_strength + grain_boost + (0.003 * flash))
 		_psx_post_mat.set_shader_parameter("horror_vignette_strength", _base_horror_vignette_strength + vignette_boost + (0.03 * flash))
+
+
+## How far into the night's overlay the hour is, 0 to 1: full by the time the sky is half way
+## through its own fade (eased, so the end of the ramp shows no corner).
+func _weather_night_k() -> float:
+	return smoothstep(0.0, 1.0, minf(1.0, _night_overlay_factor(_season_hour(_time_of_day_hours)) * 2.0))
+
+
+func _weather_dusk_k() -> float:
+	return smoothstep(DUSK_SKY_FADE_START_HOUR, DUSK_SKY_FADE_START_HOUR + 0.4, _season_hour(_time_of_day_hours))
+
+
+func _weather_evening_k() -> float:
+	return smoothstep(EVENING_SKY_FADE_START_HOUR, EVENING_SKY_FADE_START_HOUR + 0.5, _season_hour(_time_of_day_hours))
 
 
 ## Overlay parameters for one weather state. `fog_mix` 0 keeps the time-of-day fog,
@@ -1710,6 +1728,26 @@ func _push_sky() -> void:
 	_sky_param("to_b", _load_cached_sky_texture(str(_sky_now[1])))
 	_sky_param("to_t", roundf(float(_sky_now[2]) * SKY_BLEND_STEPS) / SKY_BLEND_STEPS)
 	_sky_param("blend", roundf(blend * SKY_BLEND_STEPS) / SKY_BLEND_STEPS)
+	_sky_param("stars", roundf(_starry(from, _sky_now, blend) * SKY_BLEND_STEPS) / SKY_BLEND_STEPS)
+	_sky_param("pixel_rad", _sky_pixel_rad())
+
+
+## How much of what is shown is the clear night (it alone has stars).
+func _starry(from: Array, to: Array, blend: float) -> float:
+	var night := _sky_path(SKY_TEX_NIGHT_CLEAR_PATHS)
+	var a := (1.0 - float(from[2])) * (1.0 if str(from[0]) == night else 0.0) + float(from[2]) * (1.0 if str(from[1]) == night else 0.0)
+	var b := (1.0 - float(to[2])) * (1.0 if str(to[0]) == night else 0.0) + float(to[2]) * (1.0 if str(to[1]) == night else 0.0)
+	return lerpf(a, b, blend)
+
+
+## A pixel of the render on the sky (radians), for a star to be one of them. Its lines the
+## camp's world view's; the lens a walker's.
+func _sky_pixel_rad() -> float:
+	var vp := _world_3d.get_viewport() if _world_3d != null and _world_3d.is_inside_tree() else get_viewport()
+	var lines := float(vp.get_visible_rect().size.y) if vp != null else 360.0
+	var cam := _get_active_world_camera()
+	var fov := float(cam.fov) if cam != null else 75.0
+	return roundf(2.0 * tan(deg_to_rad(fov) * 0.5) / maxf(lines, 120.0) * 20000.0) / 20000.0
 
 
 func _sky_param(param: String, value: Variant) -> void:
@@ -1858,10 +1896,8 @@ func _update_cloud_layers(cam_pos: Vector3) -> void:
 	var tint = _cloud_tint_for_time_weather().lerp(dp["tint"] as Color, 0.42)
 	var flash_tint = tint.lerp(Color(0.92, 0.95, 1.0), _storm_flash_strength * 0.35)
 	var time_alpha_mul = dp["alpha_mul"] as float
-	var sky_phase = _current_sky_phase()
-	if sky_phase == SKY_PHASE_EVENING: time_alpha_mul *= 0.94
-	elif sky_phase == SKY_PHASE_DUSK: time_alpha_mul *= 0.90
-	elif sky_phase == SKY_PHASE_NIGHT: time_alpha_mul *= 0.86
+	var night_k := _weather_night_k()
+	time_alpha_mul *= lerpf(lerpf(lerpf(1.0, 0.94, _weather_evening_k()), 0.90, _weather_dusk_k()), 0.86, night_k)
 	var denom = max(1.0, float(_cloud_sprites.size() - 1))
 	for i in range(_cloud_sprites.size()):
 		var cloud = _cloud_sprites[i] as MeshInstance3D
@@ -1918,14 +1954,8 @@ func _cloud_daylight_profile() -> Dictionary:
 
 
 func _cloud_tint_for_time_weather() -> Color:
-	var time_tint = Color(0.94, 0.95, 0.94)
-	var sky_phase = _current_sky_phase()
-	if sky_phase == SKY_PHASE_EVENING:
-		time_tint = Color(0.98, 0.76, 0.60)
-	elif sky_phase == SKY_PHASE_DUSK:
-		time_tint = Color(0.84, 0.42, 0.40)
-	elif sky_phase == SKY_PHASE_NIGHT:
-		time_tint = Color(0.52, 0.58, 0.72)
+	var time_tint = Color(0.94, 0.95, 0.94).lerp(Color(0.98, 0.76, 0.60), _weather_evening_k())
+	time_tint = time_tint.lerp(Color(0.84, 0.42, 0.40), _weather_dusk_k()).lerp(Color(0.52, 0.58, 0.72), _weather_night_k())
 	var dark_mix = 0.0
 	match _weather_state:
 		WEATHER_WINDY: dark_mix = 0.10
@@ -1962,15 +1992,13 @@ func _weather_fog_color(dark_mix: float) -> Color:
 		WEATHER_LIGHT_RAIN: weather_tint = Color(0.55, 0.55, 0.55)
 		WEATHER_RAIN: weather_tint = Color(0.47, 0.47, 0.47)
 		WEATHER_STORM: weather_tint = Color(0.34, 0.34, 0.34)
-	var sky_phase = _current_sky_phase()
-	if sky_phase == SKY_PHASE_EVENING or sky_phase == SKY_PHASE_DUSK:
-		weather_tint = weather_tint.lerp(Color(0.56, 0.40, 0.34), 0.22)
-	elif sky_phase == SKY_PHASE_NIGHT:
-		match _weather_state:
-			WEATHER_LIGHT_RAIN: weather_tint = Color(0.09, 0.11, 0.16)
-			WEATHER_RAIN: weather_tint = Color(0.06, 0.08, 0.12)
-			WEATHER_STORM: weather_tint = Color(0.03, 0.04, 0.07)
-			_: weather_tint = weather_tint.lerp(Color(0.14, 0.18, 0.24), 0.65)
+	var night_tint: Color = weather_tint.lerp(Color(0.14, 0.18, 0.24), 0.65)
+	match _weather_state:
+		WEATHER_LIGHT_RAIN: night_tint = Color(0.09, 0.11, 0.16)
+		WEATHER_RAIN: night_tint = Color(0.06, 0.08, 0.12)
+		WEATHER_STORM: night_tint = Color(0.03, 0.04, 0.07)
+	weather_tint = weather_tint.lerp(Color(0.56, 0.40, 0.34), 0.22 * _weather_evening_k())
+	weather_tint = weather_tint.lerp(night_tint, _weather_night_k())
 	# The weather's fog is lit no brighter than the hour's own fog: at its daytime grey it
 	# glowed over a dark red evening and a black night (playtest 18. 10.).
 	var lb := _base_fog_light_color.get_luminance()

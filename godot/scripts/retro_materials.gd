@@ -366,10 +366,11 @@ func _apply_mesh(mi: MeshInstance3D, rec: Dictionary) -> void:
 	# (A flat thing's own say counts too: the rain's puddles over the bumps of the ground.)
 	var pull := _pull_of(mi) if big != B_FLAT or mi.has_meta("retro_pull") else 0.0
 	var still := _holds_room(mi)
+	var no_snow := _bare(mi)
 	var over := mi.material_override
 	rec["over"] = over
 	if over != null:
-		var m := _converted(over, big, pull, still)
+		var m := _converted(over, big, pull, still, no_snow)
 		RenderingServer.instance_geometry_set_material_override(rid, m.get_rid() if m != null else (over as Material).get_rid())
 		return
 	RenderingServer.instance_geometry_set_material_override(rid, RID())
@@ -379,7 +380,7 @@ func _apply_mesh(mi: MeshInstance3D, rec: Dictionary) -> void:
 		if src == null:
 			src = mi.mesh.surface_get_material(i)
 		slots.append(src)
-		var m := _converted(src, big, pull, still)
+		var m := _converted(src, big, pull, still, no_snow)
 		if m != null:
 			RenderingServer.instance_set_surface_override_material(rid, i, m.get_rid())
 		elif src != null:
@@ -505,6 +506,15 @@ func _in_room(n: Node) -> bool:
 	return vp is SubViewport and ((vp as SubViewport).own_world_3d or vp.has_meta("retro_room"))
 
 
+## Out of the snow: the 380 (its floor and seats face up as a roof does).
+func _bare(n: Node) -> bool:
+	while n != null:
+		if n.is_in_group("bus_380"):
+			return true
+		n = n.get_parent()
+	return false
+
+
 ## Part of a building a room stands in (HOLDS_ROOM).
 func _holds_room(n: Node) -> bool:
 	while n != null:
@@ -555,17 +565,17 @@ func _sprite_variant(s: Sprite3D) -> Dictionary:
 
 ## The ShaderMaterial for a StandardMaterial3D (made once, kept), or null when it is not
 ## one we can stand in for.
-func _converted(src, big: int, pull := 0.0, still := false) -> ShaderMaterial:
+func _converted(src, big: int, pull := 0.0, still := false, no_snow := false) -> ShaderMaterial:
 	var std := src as StandardMaterial3D
 	if std == null or not _supported(std):
 		return null
-	var key := "%d|%d|%d|%d" % [std.get_instance_id(), big, roundi(pull * 10000.0), int(still)]
+	var key := "%d|%d|%d|%d|%d" % [std.get_instance_id(), big, roundi(pull * 10000.0), int(still), int(no_snow)]
 	if _conv.has(key):
 		return _conv[key]["mat"]
 	var m := ShaderMaterial.new()
 	m.shader = _shader(_variant(std))
 	m.render_priority = std.render_priority
-	var c := {"std": weakref(std), "mat": m, "sig": [], "hot": 0.0, "big": big, "pull": pull, "still": still}
+	var c := {"std": weakref(std), "mat": m, "sig": [], "hot": 0.0, "big": big, "pull": pull, "still": still, "no_snow": no_snow}
 	_conv[key] = c
 	if not _by_std.has(std.get_instance_id()):
 		_by_std[std.get_instance_id()] = []
@@ -647,6 +657,7 @@ func _sync(c: Dictionary, force := false) -> void:
 	var big: int = c["big"]
 	m.set_shader_parameter("depth_pull", float(c.get("pull", 0.0)))
 	m.set_shader_parameter("room_thing", big == B_ROOM)
+	m.set_shader_parameter("bare", bool(c.get("no_snow", false)))
 	m.set_shader_parameter("snap_lines", SNAP_LINES if big < 2 and not bool(c.get("still", false)) else 0.0)
 	m.set_shader_parameter("affine", AFFINE_BY_BUCKET[big] if not std.uv1_triplanar else AFFINE_TRIPLANAR[big])
 
@@ -679,6 +690,9 @@ func _shader(v: Dictionary) -> Shader:
 
 
 const BODY := """
+global uniform float season_snow;
+// Under cover from the sky: the bus's seats and floor (retro_materials _bare).
+uniform bool bare = false;
 // (From a smaller picture far off where it has one: pickets and boughs glittered at a distance.)
 uniform sampler2D albedo_tex : source_color, filter_nearest_mipmap, repeat_enable;
 uniform bool has_tex = false;
@@ -723,6 +737,17 @@ varying vec2 v_uv;
 varying vec2 v_texel;
 varying vec2 v_uv_w;
 varying float v_w;
+
+float snow_hash(vec2 p) {
+	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+float snow_noise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(snow_hash(i), snow_hash(i + vec2(1.0, 0.0)), f.x), mix(snow_hash(i + vec2(0.0, 1.0)), snow_hash(i + vec2(1.0, 1.0)), f.x), f.y);
+}
 
 void vertex() {
 #if BILLBOARD == 1
@@ -806,6 +831,22 @@ void fragment() {
 	}
 #ifdef VCOLOR
 	c *= COLOR;
+#endif
+#if defined(LIT) && !defined(SPRITE_LIGHT) && ALPHA_MODE != 2
+	// The snow lies on whatever faces up, in drifts that join as it goes on lying (only the
+	// trees and the grass took it: every roof, fence and bench stood bare and dark in a white
+	// meadow, and the meadow itself went white in one frame at eight in the morning).
+	if (season_snow > 0.005 && !room_thing && !bare) {
+		float up = (INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).y;
+		if (up > 0.3) {
+			vec3 wp = (INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).xyz;
+			float n = snow_noise(wp.xz * 0.35 + wp.y) * 0.55 + snow_noise(wp.xz * 1.7) * 0.3 + snow_hash(floor(wp.xz * 6.0)) * 0.15;
+			float cov = clamp(season_snow * 1.7, 0.0, 1.0);
+			if (cov >= 0.99 || n < smoothstep(0.0, 1.0, cov) * 0.62 + 0.2) {
+				c.rgb = mix(c.rgb, vec3(0.88, 0.9, 0.95), smoothstep(0.3, 0.6, up) * 0.94);
+			}
+		}
+	}
 #endif
 	v_texel = floor(FRAGCOORD.xy);
 	// (Not a room seen from the camp: what is lit in there does not go with the night's

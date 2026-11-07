@@ -21,6 +21,7 @@ extends Node3D
 
 const GEO = preload("res://scripts/geo/geo_data.gd")
 const ROAD_POST = preload("res://scripts/town/road_post.gd")
+const ONE_WORLD_ROOM = preload("res://scripts/one_world_room.gd")
 const PUMP_JOB = preload("res://scripts/town/pump_job.gd")
 const TEX := "res://assets/textury/town/"
 const TEX_CAMP := "res://assets/textury/camp/"
@@ -420,6 +421,18 @@ func _ground() -> void:
 		body.add_child(shape)
 		body.position = Vector3(r.get_center().x, -0.5, r.get_center().y)
 		add_child(body)
+	# And no further: past the floor's edge you fell for ever.
+	var tall := 60.0
+	for e in [Rect2(a.position.x - 2.0, a.position.y - 2.0, a.size.x + 4.0, 2.0), Rect2(a.position.x - 2.0, a.end.y, a.size.x + 4.0, 2.0),
+			Rect2(a.position.x - 2.0, a.position.y, 2.0, a.size.y), Rect2(a.end.x, a.position.y, 2.0, a.size.y)]:
+		var wall := StaticBody3D.new()
+		var ws := CollisionShape3D.new()
+		var wb := BoxShape3D.new()
+		wb.size = Vector3(e.size.x, tall, e.size.y)
+		ws.shape = wb
+		wall.add_child(ws)
+		wall.position = Vector3(e.get_center().x, tall * 0.5 - 1.0, e.get_center().y)
+		add_child(wall)
 
 
 ## The camp's lake reaches past its fenced map (camp_lake.gd): its water, its shore and
@@ -701,6 +714,10 @@ func _benzina() -> void:
 	for p in [Vector2(-6, -3), Vector2(6, -3), Vector2(-6, 3), Vector2(6, 3)]:
 		steel.box(Vector3(p.x, 2.4, p.y), Vector3(0.3, 4.8, 0.3), 0.0, Color.WHITE)
 	conc.box(Vector3(0, 5.0, 0), Vector3(14.0, 0.5, 8.0), 0.0, Color.WHITE, 3.0)
+	# Under the canopy no rain falls.
+	var dry := ONE_WORLD_ROOM.dry(root, "CanopyDry")
+	dry.position = Vector3(0, 2.5, 0)
+	dry.size = Vector3(14.0, 5.0, 8.0)
 	# The fascia deep enough for the letters, red all round.
 	red.box(Vector3(0, 4.95, -4.03), Vector3(14.1, 0.9, 0.06), 0.0, Color.WHITE)
 	red.box(Vector3(0, 4.95, 4.03), Vector3(14.1, 0.9, 0.06), 0.0, Color.WHITE)

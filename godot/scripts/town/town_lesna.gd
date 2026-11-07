@@ -14,6 +14,7 @@ extends Node3D
 ## Local frame: x east, z south (the road along x at z = 0, north side -z).
 
 const TEX := "res://assets/textury/town/"
+const TRODDEN := preload("res://scripts/town/trodden.gd")
 const PEOPLE_SCRIPT = preload("res://scripts/town/town_people.gd")
 const PUMP_JOB = preload("res://scripts/town/pump_job.gd")
 ## Pavements, paths, fences, the street's things and the life in the yards.
@@ -1052,7 +1053,7 @@ func _lamps() -> void:
 	for x in xs:
 		var at := Vector3(x, 0, -4.2)
 		var l := OmniLight3D.new()
-		l.light_color = Color(1.0, 0.62, 0.3)
+		l.light_color = Color(1.0, 0.72, 0.42)
 		l.light_energy = 4.2
 		l.omni_range = 15.0
 		l.omni_attenuation = 1.05
@@ -1194,15 +1195,13 @@ func _green() -> void:
 	spots["pond"] = w(pond)
 	# Trodden paths across the grass: from the stop to the memorial, from the road down
 	# to the pond, round to the houses beyond.
-	var dirt := _mat(_first([TEX + "dirt_path.png", TEX_CAMP + "gravel_road.png"]), Color(0.92, 0.88, 0.8))
+	var dirt := _mat(_first([TEX + "dirt_path.png", TEX_CAMP + "gravel_road.png"]), TRODDEN.TINT)
+	var nth := 0
 	for p in [[Vector3(1.0, 0, 6.0), Vector3(25.0, 0, 11.2)], [Vector3(13.0, 0, 5.4), Vector3(9.0, 0, 15.6)], [Vector3(15.0, 0, 21.0), Vector3(26.0, 0, 28.6)], [Vector3(-5.0, 0, 9.0), Vector3(-3.0, 0, 28.6)]]:
-		var a: Vector3 = p[0]
-		var b: Vector3 = p[1]
-		var length := a.distance_to(b)
-		var m := (dirt as StandardMaterial3D).duplicate() as StandardMaterial3D
-		m.uv1_scale = Vector3(1.0, length / 1.4, 1.0)
-		var pl := _plane(self, (a + b) * 0.5 + Vector3(0, 0.03, 0), Vector2(1.3, length), m)
-		pl.rotation.y = atan2(b.x - a.x, b.z - a.z)
+		# (A hair apart in height: where two cross they would fight.)
+		var up := Vector3(0, 0.03 + 0.004 * float(nth), 0)
+		nth += 1
+		TRODDEN.lay(self, (p[0] as Vector3) + up, (p[1] as Vector3) + up, 1.25, dirt, TRODDEN.dice(nth))
 	# The memorial to the fallen, facing the road: a stone with a cross and the names.
 	var mem := Vector3(26.0, 0, 13.0)
 	_box(self, mem + Vector3(0, 0.15, 0), Vector3(2.0, 0.3, 1.4), stone, true)
@@ -1346,12 +1345,8 @@ func _chapel_yard() -> void:
 		_box(self, p + Vector3(0, 0.6, 0), Vector3(0.44, 1.2, 0.44), _tiled(plaster, Vector3(0.44, 1.2, 0.44)), true)
 		_box(self, p + Vector3(0, 1.26, 0), Vector3(0.54, 0.12, 0.54), _house_mats()["sill"])
 	# The path from the pavement to the door.
-	var dirt := _mat(_first([TEX + "dirt_path.png", TEX_CAMP + "gravel_road.png"]), Color(0.92, 0.88, 0.8))
-	var m := (dirt as StandardMaterial3D).duplicate() as StandardMaterial3D
-	var a := -5.3
-	var b := -18.5
-	m.uv1_scale = Vector3(1.0, absf(b - a) / 1.4, 1.0)
-	_plane(self, Vector3(-28.0, 0.035, (a + b) * 0.5), Vector2(1.6, absf(b - a)), m)
+	var dirt := _mat(_first([TEX + "dirt_path.png", TEX_CAMP + "gravel_road.png"]), TRODDEN.TINT)
+	TRODDEN.lay(self, Vector3(-28.0, 0.035, -5.3), Vector3(-28.0, 0.035, -18.5), 1.5, dirt, TRODDEN.dice(9), 0.07)
 	if worldgen != null and worldgen.has_method("_tree_mesh"):
 		for t in [[Vector3(-22.3, 0, -10.6), 0.8], [Vector3(-22.0, 0, -24.4), 0.9]]:
 			_linden(self, t[0], float(t[1]), _rng.randf() * TAU)

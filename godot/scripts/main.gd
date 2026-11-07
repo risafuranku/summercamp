@@ -823,6 +823,8 @@ func _show_week_report() -> void:
 	if _hud_manager != null:
 		_hud_manager.set_world_hud_visible(false)
 	get_tree().paused = true
+	# The other wardens read the same page (they stood in a stopped camp with nothing to read).
+	Coop.send_fact("books", [_week_report_screen.report_data()])
 
 
 ## What stands in the camp, at what it costs to build (the month's books: what was put into the
@@ -846,8 +848,33 @@ func _close_week_report() -> void:
 	get_tree().paused = false
 
 
+## The other warden's copy of the books: the host says whether the camp goes on.
+func _coop_show_books(report: Dictionary) -> void:
+	if _week_report_screen != null:
+		return
+	_week_report_screen = WEEK_REPORT_SCREEN_SCRIPT.new()
+	_week_report_screen.setup(report)
+	_week_report_screen.follower = true
+	_week_report_screen.main_menu_requested.connect(_on_week_report_menu)
+	add_child(_week_report_screen)
+	if _hud_manager != null:
+		_hud_manager.set_world_hud_visible(false)
+
+
+func _coop_books_closed() -> void:
+	if _week_report_screen == null:
+		return
+	_week_report_screen.queue_free()
+	_week_report_screen = null
+	if _hud_manager != null:
+		_hud_manager.set_world_hud_visible(true)
+	if not _is_any_interior_open():
+		Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+
+
 ## Stay on: the week is closed, the camp runs on with no end (sandbox from here).
 func _on_week_report_stay() -> void:
+	Coop.send_fact("books_shut", [])
 	_close_week_report()
 	if _hud_manager != null:
 		_hud_manager.set_world_hud_visible(true)
@@ -1296,6 +1323,7 @@ func _sync_season() -> void:
 	if _season_look != null:
 		_season_look.day = _day_index
 		_season_look.hour = _time_of_day_hours
+		_season_look.indoors = _is_any_interior_open()
 		var p := 0
 		match _weather_state:
 			WEATHER_LIGHT_RAIN:
@@ -1363,6 +1391,7 @@ func _process(delta: float) -> void:
 	var build: float = (weather_system.storm_build() if weather_system != null and camp_rule("weather") else 0.0) if sim else _coop_storm_build
 	if _audio_manager != null:
 		_audio_manager.set("storm_build", 0.0 if is_snowing() else build)
+		_audio_manager.set("season_day", _day_index)
 	if _weather_visuals != null:
 		_weather_visuals.storm_build = build
 		_weather_visuals.update_state(_time_state, _time_of_day_hours, _weather_state)
@@ -3987,10 +4016,17 @@ func request_pay_electricity_bill(bill_id: String) -> Dictionary:
 	return paid
 
 
+## The hour as the sky has it (weather_visuals._season_hour): what lights lamps goes by this.
+func season_hour() -> float:
+	return _weather_visuals._season_hour(_time_of_day_hours) if _weather_visuals != null else _time_of_day_hours
+
+
 func _apply_time_from_clock(force_interior_sync: bool = false, force_sky_snap: bool = false) -> void:
 	var state_changed = force_interior_sync
 	var is_night = (_time_state == TIME_NIGHT)
-	var lamp_and_flashlight_active = _is_hour_in_window(_time_of_day_hours, LAMP_FLASHLIGHT_START_HOUR, float(BALANCE_CONFIG.DAY_START_HOUR))
+	# By the sky's clock: in October it darkens earlier than the hour says (the sky was at night
+	# at 18:22 with the lamps and the torch still off till seven).
+	var lamp_and_flashlight_active = _is_hour_in_window(season_hour(), LAMP_FLASHLIGHT_START_HOUR, float(BALANCE_CONFIG.DAY_START_HOUR))
 	var grid_power_available = _is_grid_powered()
 	if CoreRoot.is_night() != is_night:
 		CoreRoot.apply_changes({"is_night": is_night})
@@ -4649,6 +4685,7 @@ func _emit_state_update() -> void:
 
 
 func _enter_main_menu() -> void:
+	_close_week_report()
 	# Leaving a co-op camp closes the line (the other warden goes back to their menu).
 	Coop.leave()
 	# Whatever room, job or close-up was open is shut, or it stays under the menu taking
@@ -5870,6 +5907,12 @@ func coop_apply_fact(kind: String, data: Array) -> void:
 		return
 	if kind == "room":
 		coop_room_state(str(data[0]), data[1])
+		return
+	if kind == "books":
+		_coop_show_books(data[0])
+		return
+	if kind == "books_shut":
+		_coop_books_closed()
 		return
 	var state = CoreRoot.get_state()
 	var keep := int(state.money)

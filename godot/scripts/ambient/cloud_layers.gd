@@ -72,6 +72,8 @@ const SEEN := {2: 0.35}
 const DARK := {1: 0.10, 2: 0.20, 3: 0.35, 4: 0.58, 5: 0.80}
 ## A late autumn day under the grey lid (weather_visuals._late_grey_day): the deck's cover
 ## at least this, no high streaks, a little scud.
+## What the clouds take from the moon: a little blue.
+const NIGHT_CLOUD := Color(0.8, 0.94, 1.22)
 const GREY_DAY_COVER := 0.72
 const GREY_DAY_AMOUNT := [0.0, 0.20]
 ## How fast the amounts follow the weather (per second; a cloud fades over FADE of it).
@@ -326,6 +328,11 @@ func _update_deck(delta: float, cp: Vector3, wd: Vector2, pace: float, tint: Col
 	_deck_scroll = Vector2(fposmod(_deck_scroll.x, 11000.0), fposmod(_deck_scroll.y, 11000.0))
 	var top := tint * bright * 1.04 * (1.0 - dark * 0.5)
 	var belly := tint * bright * 0.6 * (1.0 - dark * 0.8)
+	# By night the moon's blue: a dark grey went through the palette plum, the thick of each
+	# cloud a dark red eye in the stars.
+	var moon := clampf((0.05 - sun.y) / 0.25, 0.0, 1.0) * (1.0 - float(STORMY.get(ws, 0.0)))
+	top = top.lerp(top * NIGHT_CLOUD, moon)
+	belly = belly.lerp(belly * NIGHT_CLOUD, moon)
 	# The sun low: its light on the belly from below, the top in shade (rose at dawn,
 	# red-orange at sunset).
 	var low := clampf(1.0 - absf(sun.y + 0.02) / 0.16, 0.0, 1.0) * (1.0 - dark)

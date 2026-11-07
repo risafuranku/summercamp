@@ -282,7 +282,7 @@ func _car_park() -> void:
 	for at in [Vector3(-1.2, 0.0, fz - 7.2), Vector3(7.4, 0.0, fz - 7.2)]:
 		_yard_sprite("sodium_lamp", 6.2, at)
 		var l := OmniLight3D.new()
-		l.light_color = Color(1.0, 0.62, 0.3)
+		l.light_color = Color(1.0, 0.72, 0.42)
 		l.light_energy = 4.4
 		l.omni_range = 15.0
 		l.omni_attenuation = 1.1

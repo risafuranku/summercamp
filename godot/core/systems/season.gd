@@ -111,7 +111,13 @@ static func snow_cover(day: int, hour: float = 12.0) -> float:
 	var since := float(day - FIRST_SNOW_DAY) + (hour - 20.0) / 24.0
 	if since <= 0.0:
 		return 0.0
-	return clampf(since / 3.2, 0.0, 1.0) * 0.9 + (0.1 if since > 0.5 else 0.0)
+	return clampf(since / 3.2, 0.0, 1.0) * 0.9 + 0.1 * _smooth(0.0, 0.6, since)
+
+
+## The first snow's hours: it lies from that night on, so that night it falls, whatever the
+## dice said (it was there one morning out of a clear sky).
+static func first_snow_now(day: int, hour: float) -> bool:
+	return (day == FIRST_SNOW_DAY and hour >= 20.0) or (day == FIRST_SNOW_DAY + 1 and hour < 7.0)
 
 
 ## Degrees C: the day's high and the night's low.
@@ -133,7 +139,8 @@ static func precip_is_snow(day: int, hour: float) -> bool:
 	if day > FIRST_SNOW_DAY + 1:
 		return true
 	if day >= FIRST_SNOW_DAY:
-		return hour >= 18.0 or hour < 9.0 or day > FIRST_SNOW_DAY
+		# (From that evening: its morning fell as snow, then went back to rain.)
+		return hour >= 18.0 or day > FIRST_SNOW_DAY
 	return false
 
 

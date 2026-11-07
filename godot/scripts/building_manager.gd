@@ -1023,13 +1023,19 @@ func place_lamp_post_at(origin: Vector2i) -> bool:
 	beam_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	beam_mat.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
 	beam_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	beam_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	# (Smooth in the picture: the screen's own pass gives it its dither.)
+	beam_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
 	beam_mat.albedo_texture = _get_lamp_beam_texture()
 	# Light adds to what is behind it: laid over it, through the distance shading, the cone
 	# was a grey column (inventory 20. 10.). Its alpha is how much it adds.
 	beam_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	beam_mat.albedo_color = Color(1.0, 1.0, 1.0, 0.55)
+	beam_mat.albedo_color = Color(1.0, 1.0, 1.0, 0.5)
 	beam_mat.set_meta("beam_base_alpha", beam_mat.albedo_color.a)
+	# Only near: from across the camp every lamp stood on a tan pyramid. (Min over max: the
+	# material's fade the other way round, gone by the far end.)
+	beam_mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_ALPHA
+	beam_mat.distance_fade_max_distance = 9.0
+	beam_mat.distance_fade_min_distance = 34.0
 	beam_mesh.material_override = beam_mat
 	beam_mesh.set_meta("retro_skip", true)
 	beam_mesh.visible = beam_mat.albedo_texture != null
@@ -1525,13 +1531,13 @@ func _update_lamp_beam_orientation(entry: Dictionary) -> void:
 
 ## How much the lamps' light shows in the air: a clear night a little, fog, rain and the
 ## storm (light catching in the wet) fully. Set once a frame (_process).
-var _lamp_air := 0.35
+var _lamp_air := 0.3
 
 
 func _update_lamp_air() -> void:
 	var main := get_tree().current_scene if is_inside_tree() else null
 	var w = main.get("_weather_state") if main != null else null
-	_lamp_air = 1.0 if w != null and int(w) in [2, 3, 4, 5] else 0.35
+	_lamp_air = 1.0 if w != null and int(w) in [2, 3, 4, 5] else 0.3
 
 
 ## The bulb, the shade's inside and the cone at `level` of the lamp's light (1 steady, less

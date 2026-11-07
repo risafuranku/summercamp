@@ -979,7 +979,8 @@ func _process(delta: float) -> void:
 	_night_poll -= delta
 	if _night_poll <= 0.0:
 		_night_poll = 1.0
-		_night = h >= 19.0 or h < 6.0
+		var sky_h: float = _main().call("season_hour") if _main() != null and _main().has_method("season_hour") else h
+		_night = sky_h >= 19.0 or sky_h < 6.0
 		# Every 380 on the road lights up at dusk and stays lit till the morning: the
 		# stop's, the ones passing, the other warden's, the one you ride (the user 4. 11.:
 		# "the bus has no lights, in the evening you cannot see it going along the road").

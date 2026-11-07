@@ -60,12 +60,12 @@ msgstr "%s@%d:%d"
 msgid "root_%d"
 msgstr "root_%d"
 
-#: core/systems/business_rules.gd:38 scripts/builder_module.gd:87 scripts/main.gd:1817 scripts/builder/graphs_window.gd:13 (+3)
+#: core/systems/business_rules.gd:38 scripts/builder_module.gd:87 scripts/main.gd:1846 scripts/builder/graphs_window.gd:13 (+3)
 #. uses 7
 msgid "Pub"
 msgstr "Hospoda"
 
-#: core/systems/business_rules.gd:38 core/systems/business_rules.gd:437 scripts/main.gd:4972 scripts/main.gd:5025 (+6)
+#: core/systems/business_rules.gd:38 core/systems/business_rules.gd:437 scripts/main.gd:5009 scripts/main.gd:5062 (+6)
 #. uses 10
 msgid "Lojza"
 msgstr "Lojza"
@@ -95,7 +95,7 @@ msgstr "Pivo"
 msgid "Rum"
 msgstr "Rum"
 
-#: core/systems/business_rules.gd:49 scripts/builder_module.gd:76 scripts/builder_module.gd:87 scripts/main.gd:1817 (+2)
+#: core/systems/business_rules.gd:49 scripts/builder_module.gd:76 scripts/builder_module.gd:87 scripts/main.gd:1846 (+2)
 #. uses 6
 msgid "Bistro"
 msgstr "Bistro"
@@ -105,7 +105,7 @@ msgstr "Bistro"
 msgid "Mrs Dvorakova"
 msgstr "Paní Dvořáková"
 
-#: core/systems/business_rules.gd:49 core/systems/business_rules.gd:435 scripts/main.gd:2649 scripts/main.gd:2685 (+3)
+#: core/systems/business_rules.gd:49 core/systems/business_rules.gd:435 scripts/main.gd:2678 scripts/main.gd:2714 (+3)
 #. uses 7
 msgid "Pepa"
 msgstr "Pepa"
@@ -154,7 +154,7 @@ msgstr "Nakrájené hranolky (hotové)"
 msgid "Breaded cheese (ready)"
 msgstr "Obalený sýr (hotový)"
 
-#: core/systems/business_rules.gd:71 scripts/builder_module.gd:87 scripts/main.gd:1817 scripts/builder/graphs_window.gd:13 (+3)
+#: core/systems/business_rules.gd:71 scripts/builder_module.gd:87 scripts/main.gd:1846 scripts/builder/graphs_window.gd:13 (+3)
 #. uses 7
 msgid "Jednota"
 msgstr "Jednota"
@@ -521,7 +521,7 @@ msgstr "Boty se vracejí suché a svěží. U pultu se nestříká."
 msgid "Pass"
 msgstr "Výdej"
 
-#: core/systems/business_rules.gd:411 scripts/building_interior.gd:1101 scripts/cabin_interior.gd:1391 scripts/interior_kit.gd:80 (+8)
+#: core/systems/business_rules.gd:411 scripts/building_interior.gd:1126 scripts/cabin_interior.gd:1405 scripts/interior_kit.gd:80 (+8)
 #. uses 12
 msgid "Floor"
 msgstr "Plac"
@@ -561,7 +561,7 @@ msgstr "Lahve"
 msgid "Washer"
 msgstr "Myčka"
 
-#: core/systems/business_rules.gd:413 core/systems/business_rules.gd:415 scripts/building_interior.gd:1401 scripts/building_models.gd:2086 (+6)
+#: core/systems/business_rules.gd:413 core/systems/business_rules.gd:415 scripts/building_interior.gd:1429 scripts/building_models.gd:2086 (+6)
 #. uses 10
 msgid "Counter"
 msgstr "Pult"
@@ -1300,7 +1300,7 @@ msgstr "#bill"
 msgid "Roll out the sleeping bag"
 msgstr "Rozbalit spacák"
 
-#: core/systems/room_rules.gd:29 scripts/interior_manager.gd:2311
+#: core/systems/room_rules.gd:29 scripts/interior_manager.gd:2331
 #. uses 2
 msgid "Rolling out"
 msgstr "Rozbalování"
@@ -1309,7 +1309,7 @@ msgstr "Rozbalování"
 msgid "Make the bed"
 msgstr "Ustlat postel"
 
-#: core/systems/room_rules.gd:30 scripts/interior_manager.gd:2311
+#: core/systems/room_rules.gd:30 scripts/interior_manager.gd:2331
 #. uses 2
 msgid "Making the bed"
 msgstr "Stlaní"
@@ -1446,52 +1446,52 @@ msgstr "Křeslo"
 msgid "An old armchair in the lounge for a break between jobs. A hand with nowhere to sit lies down in a guest's bed."
 msgstr "Staré křeslo ve světnici na pauzu mezi pracemi. Kdo si nemá kam sednout, lehne si hostovi do postele."
 
-#: core/systems/weather_system.gd:201 scripts/os98/apps/business_app.gd:567 scripts/town/gbook_os.gd:32 scripts/ui/debug_menu.gd:10
+#: core/systems/weather_system.gd:203 scripts/os98/apps/business_app.gd:567 scripts/town/gbook_os.gd:32 scripts/ui/debug_menu.gd:10
 #. uses 4
 msgid "Clear"
 msgstr "Vymazat"
 
-#: core/systems/weather_system.gd:202 scripts/ui/debug_menu.gd:10
+#: core/systems/weather_system.gd:204 scripts/ui/debug_menu.gd:10
 #. uses 2
 msgid "Windy"
 msgstr "Větrno"
 
-#: core/systems/weather_system.gd:203 scripts/ui/debug_menu.gd:10
+#: core/systems/weather_system.gd:205 scripts/ui/debug_menu.gd:10
 #. uses 2
 msgid "Fog"
 msgstr "Mlha"
 
-#: core/systems/weather_system.gd:204
+#: core/systems/weather_system.gd:206
 msgid "Light snow"
 msgstr "Slabé sněžení"
 
-#: core/systems/weather_system.gd:204
+#: core/systems/weather_system.gd:206
 msgid "Drizzle"
 msgstr "Mrholení"
 
-#: core/systems/weather_system.gd:205
+#: core/systems/weather_system.gd:207
 msgid "Snow"
 msgstr "Sněžení"
 
-#: core/systems/weather_system.gd:205 scripts/ui/debug_menu.gd:10
+#: core/systems/weather_system.gd:207 scripts/ui/debug_menu.gd:10
 #. uses 2
 msgid "Rain"
 msgstr "Déšť"
 
-#: core/systems/weather_system.gd:206
+#: core/systems/weather_system.gd:208
 msgid "Blizzard"
 msgstr "Vánice"
 
-#: core/systems/weather_system.gd:206 scripts/ui/debug_menu.gd:10
+#: core/systems/weather_system.gd:208 scripts/ui/debug_menu.gd:10
 #. uses 2
 msgid "Storm"
 msgstr "Bouřka"
 
-#: core/systems/weather_system.gd:207
+#: core/systems/weather_system.gd:209
 msgid "Anomaly"
 msgstr "Anomálie"
 
-#: core/systems/weather_system.gd:208 scripts/electricity_billing.gd:311 scripts/electricity_billing.gd:416 scripts/main.gd:2075 (+2)
+#: core/systems/weather_system.gd:210 scripts/electricity_billing.gd:311 scripts/electricity_billing.gd:416 scripts/main.gd:2104 (+2)
 #. uses 6
 msgid "Unknown"
 msgstr "Neznámé"
@@ -3915,17 +3915,17 @@ msgstr ""
 "\n"
 "- Teta Věra"
 
-#: scripts/aid_cabinet.gd:72 scripts/aid_cabinet.gd:72 scripts/reception/diploma_view.gd:77 scripts/reception/diploma_view.gd:77 (+2)
-#. uses 6
+#: scripts/aid_cabinet.gd:72 scripts/aid_cabinet.gd:72 scripts/reception/diploma_view.gd:77 scripts/reception/diploma_view.gd:77 (+4)
+#. uses 8
 msgid "SFX"
 msgstr "SFX"
 
-#: scripts/aid_cabinet.gd:72 scripts/audio_manager.gd:181 scripts/building_interior.gd:3481 scripts/cabin_interior.gd:956 (+38)
-#. uses 42
+#: scripts/aid_cabinet.gd:72 scripts/audio_manager.gd:181 scripts/building_interior.gd:3509 scripts/cabin_interior.gd:960 (+39)
+#. uses 43
 msgid "Master"
 msgstr "Master"
 
-#: scripts/audio_manager.gd:760
+#: scripts/audio_manager.gd:761
 msgid "Skipping oversized audio stream on startup: %s (%d MB > %d MB)."
 msgstr "Skipping oversized audio stream on startup: %s (%d MB > %d MB)."
 
@@ -4253,7 +4253,7 @@ msgstr "Květiny"
 msgid "WC"
 msgstr "WC"
 
-#: scripts/builder_module.gd:76 scripts/builder_module.gd:87 scripts/main.gd:1935 scripts/service_interior.gd:2707 (+2)
+#: scripts/builder_module.gd:76 scripts/builder_module.gd:87 scripts/main.gd:1964 scripts/service_interior.gd:2707 (+2)
 #. uses 6
 msgid "Showers"
 msgstr "Sprchy"
@@ -4262,7 +4262,7 @@ msgstr "Sprchy"
 msgid "Pingpong"
 msgstr "Pingpong"
 
-#: scripts/builder_module.gd:77 scripts/main.gd:1817 scripts/night_jobs.gd:460 scripts/corn/cornstand.gd:232 (+2)
+#: scripts/builder_module.gd:77 scripts/main.gd:1846 scripts/night_jobs.gd:460 scripts/corn/cornstand.gd:232 (+2)
 #. uses 6
 msgid "Corn"
 msgstr "Kukuřice"
@@ -4292,7 +4292,7 @@ msgstr "Chatka"
 msgid "Caravan"
 msgstr "Karavan"
 
-#: scripts/builder_module.gd:86 scripts/main.gd:1935 scripts/night_jobs.gd:478 scripts/service_interior.gd:2707 (+2)
+#: scripts/builder_module.gd:86 scripts/main.gd:1964 scripts/night_jobs.gd:478 scripts/service_interior.gd:2707 (+2)
 #. uses 6
 msgid "Toilets"
 msgstr "Záchody"
@@ -4866,12 +4866,12 @@ msgstr "  a %d {další|další|dalších}"
 msgid "No room"
 msgstr "Bez pokoje"
 
-#: scripts/builder_module.gd:1127 scripts/main.gd:1837 scripts/builder/graphs_window.gd:12
+#: scripts/builder_module.gd:1127 scripts/main.gd:1866 scripts/builder/graphs_window.gd:12
 #. uses 3
 msgid "Guests"
 msgstr "Hosté"
 
-#: scripts/builder_module.gd:1129 scripts/cabin_interior.gd:956 scripts/cabin_interior.gd:956 scripts/guest_manager.gd:968 (+5)
+#: scripts/builder_module.gd:1129 scripts/cabin_interior.gd:960 scripts/cabin_interior.gd:960 scripts/guest_manager.gd:968 (+5)
 #. uses 9
 msgid "Room"
 msgstr "Pokoj"
@@ -5388,99 +5388,99 @@ msgstr "KKKK.KKKK.KK"
 msgid "KKK.KKKK.KKK"
 msgstr "KKK.KKKK.KKK"
 
-#: scripts/building_interior.gd:610
+#: scripts/building_interior.gd:635
 msgid "Stand up"
 msgstr "Vstát"
 
-#: scripts/building_interior.gd:1103
+#: scripts/building_interior.gd:1128
 msgid "FloorTileX%d"
 msgstr "FloorTileX%d"
 
-#: scripts/building_interior.gd:1105
+#: scripts/building_interior.gd:1130
 msgid "FloorTileZ%d"
 msgstr "FloorTileZ%d"
 
-#: scripts/building_interior.gd:1106
+#: scripts/building_interior.gd:1131
 msgid "FloorScatter26_A"
 msgstr "FloorScatter26_A"
 
-#: scripts/building_interior.gd:1107
+#: scripts/building_interior.gd:1132
 msgid "FloorScatter27_A"
 msgstr "FloorScatter27_A"
 
-#: scripts/building_interior.gd:1108
+#: scripts/building_interior.gd:1133
 msgid "FloorScatter26_B"
 msgstr "FloorScatter26_B"
 
-#: scripts/building_interior.gd:1109
+#: scripts/building_interior.gd:1134
 msgid "FloorScatter27_B"
 msgstr "FloorScatter27_B"
 
-#: scripts/building_interior.gd:1112 scripts/cabin_interior.gd:1392 scripts/interior_kit.gd:81 scripts/town/jednota_view.gd:119 (+6)
+#: scripts/building_interior.gd:1137 scripts/cabin_interior.gd:1406 scripts/interior_kit.gd:81 scripts/town/jednota_view.gd:119 (+6)
 #. uses 10
 msgid "Ceiling"
 msgstr "Ceiling"
 
-#: scripts/building_interior.gd:1175
+#: scripts/building_interior.gd:1200
 msgid "OutdoorGravelStrip%d"
 msgstr "OutdoorGravelStrip%d"
 
-#: scripts/building_interior.gd:1211 scripts/town/motel_furnish.gd:309 scripts/town/town_room.gd:1066
+#: scripts/building_interior.gd:1239 scripts/town/motel_furnish.gd:309 scripts/town/town_room.gd:1066
 #. uses 3
 msgid "Desk"
 msgstr "Desk"
 
-#: scripts/building_interior.gd:1287
+#: scripts/building_interior.gd:1315
 msgid "PCTower"
 msgstr "PCTower"
 
-#: scripts/building_interior.gd:1289
+#: scripts/building_interior.gd:1317
 msgid "PCDriveBay"
 msgstr "PCDriveBay"
 
-#: scripts/building_interior.gd:1290
+#: scripts/building_interior.gd:1318
 msgid "PCFloppySlot"
 msgstr "PCFloppySlot"
 
-#: scripts/building_interior.gd:1291
+#: scripts/building_interior.gd:1319
 msgid "PCCdBay"
 msgstr "PCCdBay"
 
-#: scripts/building_interior.gd:1292
+#: scripts/building_interior.gd:1320
 msgid "PCPowerLed"
 msgstr "PCPowerLed"
 
-#: scripts/building_interior.gd:1293
+#: scripts/building_interior.gd:1321
 msgid "PCPowerButton"
 msgstr "PCPowerButton"
 
-#: scripts/building_interior.gd:1294
+#: scripts/building_interior.gd:1322
 msgid "Keyboard"
 msgstr "Keyboard"
 
-#: scripts/building_interior.gd:1296 scripts/settings_panel.gd:20
+#: scripts/building_interior.gd:1324 scripts/settings_panel.gd:20
 #. uses 2
 msgid "Mouse"
 msgstr "Myš"
 
-#: scripts/building_interior.gd:1301
+#: scripts/building_interior.gd:1329
 msgid "PCCableMonitorToTower"
 msgstr "PCCableMonitorToTower"
 
-#: scripts/building_interior.gd:1312
+#: scripts/building_interior.gd:1340
 msgid "PCCableKeyboardToTower"
 msgstr "PCCableKeyboardToTower"
 
-#: scripts/building_interior.gd:1323
+#: scripts/building_interior.gd:1351
 msgid "PCCableMouse"
 msgstr "PCCableMouse"
 
-#: scripts/building_interior.gd:1378 scripts/cabin_interior.gd:1445 scripts/caravan_life.gd:191 scripts/bistro/bistro_layout.gd:298 (+10)
+#: scripts/building_interior.gd:1406 scripts/cabin_interior.gd:1459 scripts/caravan_life.gd:191 scripts/bistro/bistro_layout.gd:298 (+10)
 #. uses 14
 msgid "Calendar"
 msgstr "Calendar"
 
-#: scripts/building_interior.gd:2261
+#: scripts/building_interior.gd:2289
 msgid ""
 "\n"
 "shader_type spatial;\n"
@@ -5498,35 +5498,35 @@ msgstr ""
 "\tALBEDO = texture(view, SCREEN_UV).rgb;\n"
 "}\n"
 
-#: scripts/building_interior.gd:2749
+#: scripts/building_interior.gd:2777
 msgid "CRTPowerButton"
 msgstr "CRTPowerButton"
 
-#: scripts/building_interior.gd:4248
+#: scripts/building_interior.gd:4276
 msgid "Player"
 msgstr "Player"
 
-#: scripts/building_interior.gd:4841
+#: scripts/building_interior.gd:4869
 msgid "CRTFront"
 msgstr "CRTFront"
 
-#: scripts/building_interior.gd:4844
+#: scripts/building_interior.gd:4872
 msgid "CRTBody"
 msgstr "CRTBody"
 
-#: scripts/building_interior.gd:4845
+#: scripts/building_interior.gd:4873
 msgid "CRTBack"
 msgstr "CRTBack"
 
-#: scripts/building_interior.gd:4846
+#: scripts/building_interior.gd:4874
 msgid "CRTNeck"
 msgstr "CRTNeck"
 
-#: scripts/building_interior.gd:4847
+#: scripts/building_interior.gd:4875
 msgid "CRTFoot"
 msgstr "CRTFoot"
 
-#: scripts/building_interior.gd:4901 scripts/world_generator.gd:1214
+#: scripts/building_interior.gd:4929 scripts/world_generator.gd:1269
 #. uses 2
 msgid "%s_%d"
 msgstr "%s_%d"
@@ -5539,11 +5539,11 @@ msgstr "tent_%d"
 msgid "cabin_%d"
 msgstr "cabin_%d"
 
-#: scripts/building_manager.gd:1127
+#: scripts/building_manager.gd:1133
 msgid "caravan_%d"
 msgstr "caravan_%d"
 
-#: scripts/building_manager.gd:2070
+#: scripts/building_manager.gd:2076
 msgid "Structures"
 msgstr "Structures"
 
@@ -5645,7 +5645,7 @@ msgstr "Door1"
 msgid "Awning"
 msgstr "Awning"
 
-#: scripts/building_models.gd:261 scripts/building_models.gd:1758 scripts/building_models.gd:2099 scripts/camp_lake.gd:425 (+1)
+#: scripts/building_models.gd:261 scripts/building_models.gd:1758 scripts/building_models.gd:2099 scripts/camp_lake.gd:436 (+1)
 #. uses 5
 msgid "Post"
 msgstr "Post"
@@ -5695,7 +5695,7 @@ msgstr "Lid"
 msgid "Back"
 msgstr "Zpět"
 
-#: scripts/building_models.gd:417 scripts/cabin_interior.gd:1537 scripts/ui/window_portal.gd:111
+#: scripts/building_models.gd:417 scripts/cabin_interior.gd:1551 scripts/ui/window_portal.gd:111
 #. uses 3
 msgid "Side"
 msgstr "Side"
@@ -5786,7 +5786,7 @@ msgstr "Fin%d"
 msgid "Insulator%d"
 msgstr "Insulator%d"
 
-#: scripts/building_models.gd:575 scripts/cabin_interior.gd:1535 scripts/corn/stand_layout.gd:93 scripts/jednota/jednota_layout.gd:327 (+1)
+#: scripts/building_models.gd:575 scripts/cabin_interior.gd:1549 scripts/corn/stand_layout.gd:93 scripts/jednota/jednota_layout.gd:327 (+1)
 #. uses 5
 msgid "Top"
 msgstr "Top"
@@ -5836,7 +5836,7 @@ msgstr "End"
 msgid "Handle"
 msgstr "Handle"
 
-#: scripts/building_models.gd:706 scripts/cabin_interior.gd:1568
+#: scripts/building_models.gd:706 scripts/cabin_interior.gd:1582
 #. uses 2
 msgid "Head"
 msgstr "Head"
@@ -5881,7 +5881,7 @@ msgstr "Cross"
 msgid "Platform"
 msgstr "Platform"
 
-#: scripts/building_models.gd:886 scripts/camp_lake.gd:427 scripts/cornfield.gd:391 scripts/town/chapel_view.gd:467 (+1)
+#: scripts/building_models.gd:886 scripts/camp_lake.gd:438 scripts/cornfield.gd:391 scripts/town/chapel_view.gd:467 (+1)
 #. uses 5
 msgid "Rail"
 msgstr "Rail"
@@ -6013,7 +6013,7 @@ msgstr "Step2"
 msgid "Bulb%d"
 msgstr "Bulb%d"
 
-#: scripts/building_models.gd:1498 scripts/cabin_interior.gd:1830 scripts/service_interior.gd:2222
+#: scripts/building_models.gd:1498 scripts/cabin_interior.gd:1844 scripts/service_interior.gd:2222
 #. uses 3
 msgid "Newspaper"
 msgstr "Newspaper"
@@ -6086,7 +6086,7 @@ msgstr "Bat%d"
 msgid "Cloth%d"
 msgstr "Cloth%d"
 
-#: scripts/building_models.gd:1780 scripts/cabin_interior.gd:1346 scripts/caravan_interior.gd:1297 scripts/tent_interior.gd:441 (+3)
+#: scripts/building_models.gd:1780 scripts/cabin_interior.gd:1352 scripts/caravan_interior.gd:1297 scripts/tent_interior.gd:441 (+3)
 #. uses 7
 msgid "Pillow"
 msgstr "Pillow"
@@ -6161,97 +6161,97 @@ msgstr "ZAVŘÍT"
 msgid "ESC / RIGHT CLICK  CLOSE"
 msgstr "ESC / PRAVÉ TLAČÍTKO  ZAVŘÍT"
 
-#: scripts/cabin_interior.gd:205
+#: scripts/cabin_interior.gd:209
 msgid "bed:%d:%d"
 msgstr ""
 
-#: scripts/cabin_interior.gd:326 scripts/town/motel_furnish.gd:246 scripts/town/motel_rooms.gd:236
+#: scripts/cabin_interior.gd:330 scripts/town/motel_furnish.gd:246 scripts/town/motel_rooms.gd:236
 #. uses 3
 msgid "Glass"
 msgstr "Glass"
 
-#: scripts/cabin_interior.gd:615 scripts/bowling/bowling_interior.gd:439
+#: scripts/cabin_interior.gd:619 scripts/bowling/bowling_interior.gd:439
 #. uses 2
 msgid "Back   [Esc]"
 msgstr "Zpět   [Esc]"
 
-#: scripts/cabin_interior.gd:623
+#: scripts/cabin_interior.gd:627
 msgid "Room  [A]"
 msgstr "Pokoj  [A]"
 
-#: scripts/cabin_interior.gd:625
+#: scripts/cabin_interior.gd:629
 msgid "Bathroom  [D]"
 msgstr "Koupelna  [D]"
 
-#: scripts/cabin_interior.gd:1332 scripts/caravan_interior.gd:1142 scripts/service_interior.gd:1467 scripts/tent_interior.gd:407 (+1)
+#: scripts/cabin_interior.gd:1336 scripts/caravan_interior.gd:1142 scripts/service_interior.gd:1467 scripts/tent_interior.gd:407 (+1)
 #. uses 5
 msgid "Dry"
 msgstr ""
 
-#: scripts/cabin_interior.gd:1353
+#: scripts/cabin_interior.gd:1359
 msgid "UpgradeCatalogInk%d"
 msgstr "UpgradeCatalogInk%d"
 
-#: scripts/cabin_interior.gd:1355
+#: scripts/cabin_interior.gd:1361
 msgid "CATALOGUE"
 msgstr "KATALOG"
 
-#: scripts/cabin_interior.gd:1413 scripts/cabin_interior.gd:1416 scripts/interior_kit.gd:97 scripts/interior_kit.gd:98 (+3)
+#: scripts/cabin_interior.gd:1427 scripts/cabin_interior.gd:1430 scripts/interior_kit.gd:97 scripts/interior_kit.gd:98 (+3)
 #. uses 7
 msgid "Skirting"
 msgstr "Skirting"
 
-#: scripts/cabin_interior.gd:1414
+#: scripts/cabin_interior.gd:1428
 msgid "Cornice"
 msgstr "Cornice"
 
-#: scripts/cabin_interior.gd:1444 scripts/reception/office_dressing.gd:68 scripts/ui/main_menu.gd:1128
+#: scripts/cabin_interior.gd:1458 scripts/reception/office_dressing.gd:68 scripts/ui/main_menu.gd:1128
 #. uses 3
 msgid "Jacket"
 msgstr "Bunda"
 
-#: scripts/cabin_interior.gd:1513 scripts/caravan_interior.gd:1386
+#: scripts/cabin_interior.gd:1527 scripts/caravan_interior.gd:1386
 #. uses 2
 msgid "Wall%s%d"
 msgstr "Wall%s%d"
 
-#: scripts/cabin_interior.gd:1534 scripts/caravan_interior.gd:1166 scripts/bistro/bistro_layout.gd:287 scripts/jednota/jednota_layout.gd:259 (+2)
+#: scripts/cabin_interior.gd:1548 scripts/caravan_interior.gd:1166 scripts/bistro/bistro_layout.gd:287 scripts/jednota/jednota_layout.gd:259 (+2)
 #. uses 6
 msgid "Sill"
 msgstr "Sill"
 
-#: scripts/cabin_interior.gd:1538 scripts/ui/window_portal.gd:112
+#: scripts/cabin_interior.gd:1552 scripts/ui/window_portal.gd:112
 #. uses 2
 msgid "Mullion"
 msgstr "Mullion"
 
-#: scripts/cabin_interior.gd:1539
+#: scripts/cabin_interior.gd:1553
 msgid "Transom"
 msgstr "Transom"
 
-#: scripts/cabin_interior.gd:1543
+#: scripts/cabin_interior.gd:1557
 msgid "View_"
 msgstr "View_"
 
-#: scripts/cabin_interior.gd:1567
+#: scripts/cabin_interior.gd:1581
 msgid "Jamb"
 msgstr ""
 
-#: scripts/cabin_interior.gd:1584 scripts/staff/staffroom_plan.gd:220
+#: scripts/cabin_interior.gd:1598 scripts/staff/staffroom_plan.gd:220
 #. uses 2
 msgid "Threshold"
 msgstr "Threshold"
 
-#: scripts/cabin_interior.gd:1664 scripts/caravan_interior.gd:118 scripts/caravan_interior.gd:1212 scripts/tent_interior.gd:94 (+3)
+#: scripts/cabin_interior.gd:1678 scripts/caravan_interior.gd:118 scripts/caravan_interior.gd:1212 scripts/tent_interior.gd:94 (+3)
 #. uses 7
 msgid "Rug"
 msgstr "Rug"
 
-#: scripts/cabin_interior.gd:1768
+#: scripts/cabin_interior.gd:1782
 msgid "Board"
 msgstr "Board"
 
-#: scripts/cabin_interior.gd:1958
+#: scripts/cabin_interior.gd:1972
 msgid "cabin_lv%d_%s"
 msgstr "cabin_lv%d_%s"
 
@@ -6273,16 +6273,16 @@ msgstr "KEMP"
 msgid "RECEPTION - STOP"
 msgstr "RECEPCE - STOP"
 
-#: scripts/camp_lake.gd:419 scripts/bowling/bowling_layout.gd:198
+#: scripts/camp_lake.gd:430 scripts/bowling/bowling_layout.gd:198
 #. uses 2
 msgid "Deck"
 msgstr "Deck"
 
-#: scripts/camp_lake.gd:500
+#: scripts/camp_lake.gd:511
 msgid "Rod"
 msgstr "Rod"
 
-#: scripts/camp_lake.gd:503
+#: scripts/camp_lake.gd:514
 msgid ""
 "STAVIDLO\n"
 "sluice - no entry\n"
@@ -6292,7 +6292,7 @@ msgstr ""
 "vstup zakázán\n"
 "P. Hrubý, hlídač"
 
-#: scripts/camp_lake.gd:578
+#: scripts/camp_lake.gd:589
 msgid "ducks %d"
 msgstr "ducks %d"
 
@@ -6363,7 +6363,7 @@ msgstr "Fakt jen na malou, přísahám."
 msgid "Faster. Please, faster."
 msgstr "Rychlejc. Prosím, rychlejc."
 
-#: scripts/corn_hunt.gd:120 scripts/main.gd:624 scripts/main.gd:1954 scripts/main.gd:1962 (+8)
+#: scripts/corn_hunt.gd:120 scripts/main.gd:624 scripts/main.gd:1983 scripts/main.gd:1991 (+8)
 #. uses 12
 msgid "A guest"
 msgstr "Host"
@@ -7854,7 +7854,7 @@ msgstr "Ondřej"
 msgid "Adam"
 msgstr "Adam"
 
-#: scripts/email_manager.gd:131 scripts/main.gd:4974
+#: scripts/email_manager.gd:131 scripts/main.gd:5011
 #. uses 2
 msgid "Marek"
 msgstr "Marek"
@@ -7933,7 +7933,7 @@ msgstr "Šedý Vlk"
 msgid "Kojot"
 msgstr "Kojot"
 
-#: scripts/email_manager.gd:141 scripts/main.gd:4973 scripts/main.gd:5025
+#: scripts/email_manager.gd:141 scripts/main.gd:5010 scripts/main.gd:5062
 #. uses 3
 msgid "Bobr"
 msgstr "Bobr"
@@ -7971,7 +7971,7 @@ msgstr "Pavel"
 msgid "Martin"
 msgstr "Martin"
 
-#: scripts/email_manager.gd:144 scripts/main.gd:4974 scripts/coop/warden_looks.gd:21 scripts/enemies/basket_brain.gd:1548 (+1)
+#: scripts/email_manager.gd:144 scripts/main.gd:5011 scripts/coop/warden_looks.gd:21 scripts/enemies/basket_brain.gd:1548 (+1)
 #. uses 5
 msgid "Jana"
 msgstr "Jana"
@@ -8001,7 +8001,7 @@ msgstr "Bohumil"
 msgid "Jaroslava"
 msgstr "Jaroslava"
 
-#: scripts/email_manager.gd:147 scripts/main.gd:2685
+#: scripts/email_manager.gd:147 scripts/main.gd:2714
 #. uses 2
 msgid "Vlasta"
 msgstr "Vlasta"
@@ -8027,7 +8027,7 @@ msgstr "Božena"
 msgid "Karel"
 msgstr "Karel"
 
-#: scripts/email_manager.gd:150 scripts/main.gd:4972 scripts/main.gd:5025
+#: scripts/email_manager.gd:150 scripts/main.gd:5009 scripts/main.gd:5062
 #. uses 3
 msgid "Novak"
 msgstr "Novák"
@@ -8048,7 +8048,7 @@ msgstr "Bartoš"
 msgid "Kral"
 msgstr "Král"
 
-#: scripts/email_manager.gd:150 scripts/main.gd:4973 scripts/main.gd:5025
+#: scripts/email_manager.gd:150 scripts/main.gd:5010 scripts/main.gd:5062
 #. uses 3
 msgid "Dvorak"
 msgstr "Dvořák"
@@ -8470,7 +8470,7 @@ msgstr "Kniha návštěv <guestbook@cerne-jezero.cz>"
 msgid "New guest book entry [%s] %s"
 msgstr "Nový zápis v knize návštěv [%s] %s"
 
-#: scripts/email_manager.gd:1222 scripts/email_manager.gd:1223 scripts/main.gd:2193 scripts/os98/apps/atlas_app.gd:299
+#: scripts/email_manager.gd:1222 scripts/email_manager.gd:1223 scripts/main.gd:2222 scripts/os98/apps/atlas_app.gd:299
 #. uses 4
 msgid "a guest"
 msgstr "host"
@@ -8510,7 +8510,7 @@ msgstr "Vysílačka: mluvit (držet, co-op)"
 msgid "Megaphone: shout (hold)"
 msgstr "Megafon: křičet (držet)"
 
-#: scripts/guest_agents.gd:317 scripts/geo/geo_world.gd:249
+#: scripts/guest_agents.gd:317 scripts/geo/geo_world.gd:250
 #. uses 2
 msgid "%s|%s|%s|%s"
 msgstr "%s|%s|%s|%s"
@@ -9467,118 +9467,118 @@ msgstr "Jít do kuželny"
 msgid "Paint a new name"
 msgstr "Přemalovat název"
 
-#: scripts/interior_manager.gd:677
+#: scripts/interior_manager.gd:690
 msgid " - filthy, clean it"
 msgstr " - špinavé, ukliď to"
 
-#: scripts/interior_manager.gd:679
+#: scripts/interior_manager.gd:692
 msgid " - needs cleaning"
 msgstr " - chce to uklidit"
 
-#: scripts/interior_manager.gd:1176
+#: scripts/interior_manager.gd:1195
 msgid "Caravan: Max Level"
 msgstr "Karavan: max. úroveň"
 
-#: scripts/interior_manager.gd:1176
+#: scripts/interior_manager.gd:1195
 msgid "This caravan is already Lv3."
 msgstr "Tenhle karavan už má úroveň 3."
 
-#: scripts/interior_manager.gd:1176 scripts/interior_manager.gd:1632 scripts/interior_manager.gd:1674
+#: scripts/interior_manager.gd:1195 scripts/interior_manager.gd:1652 scripts/interior_manager.gd:1694
 #. uses 3
 msgid "MAX"
 msgstr "MAX"
 
-#: scripts/interior_manager.gd:1182
+#: scripts/interior_manager.gd:1201
 msgid "The bunk at the end: a third bed. The big striped awning with a table and two chairs out front. Families love a bunk."
 msgstr "Palanda vzadu: třetí postel. Velká pruhovaná markýza a před ní stolek se dvěma židlemi. Rodiny palandy milujou."
 
-#: scripts/interior_manager.gd:1184
+#: scripts/interior_manager.gd:1203
 msgid "The top bunk: a fourth bed. A gas heater: warm on frost nights. The telly, flowers and fairy lights."
 msgstr "Horní palanda: čtvrtá postel. Plynová kamínka: teplo i v mrazivé noci. Televizor, kytky a světýlka."
 
-#: scripts/interior_manager.gd:1185
+#: scripts/interior_manager.gd:1204
 msgid "Caravan: Upgrade"
 msgstr "Karavan: vylepšení"
 
-#: scripts/interior_manager.gd:1331
+#: scripts/interior_manager.gd:1351
 msgid "\"Occupied!\""
 msgstr "„Obsazeno!“"
 
-#: scripts/interior_manager.gd:1331
+#: scripts/interior_manager.gd:1351
 msgid "\"We're asleep!\""
 msgstr "„Spíme!“"
 
-#: scripts/interior_manager.gd:1331
+#: scripts/interior_manager.gd:1351
 msgid "\"Come back later.\""
 msgstr "„Přijďte později.“"
 
-#: scripts/interior_manager.gd:1331
+#: scripts/interior_manager.gd:1351
 msgid "\"Who is it?\""
 msgstr "„Kdo je tam?“"
 
 #. manual
-#: scripts/interior_manager.gd:1334
+#: scripts/interior_manager.gd:1354
 msgid "The cabin is taken."
 msgstr "Chatka je obsazená."
 
 #. manual
-#: scripts/interior_manager.gd:1334
+#: scripts/interior_manager.gd:1354
 msgid "The tent is taken."
 msgstr "Stan je obsazený."
 
 #. manual
-#: scripts/interior_manager.gd:1334
+#: scripts/interior_manager.gd:1354
 msgid "The caravan is taken."
 msgstr "Maringotka je obsazená."
 
 #. manual
-#: scripts/interior_manager.gd:1334
+#: scripts/interior_manager.gd:1354
 msgid "The room is taken."
 msgstr "Pokoj je obsazený."
 
-#: scripts/interior_manager.gd:1632
+#: scripts/interior_manager.gd:1652
 msgid "Tent: Max Level"
 msgstr "Stan: max. úroveň"
 
-#: scripts/interior_manager.gd:1632
+#: scripts/interior_manager.gd:1652
 msgid "This tent is already Lv3. No further upgrade available."
 msgstr "Tenhle stan už má úroveň 3. Dál vylepšit nejde."
 
-#: scripts/interior_manager.gd:1637 scripts/interior_manager.gd:1650
+#: scripts/interior_manager.gd:1657 scripts/interior_manager.gd:1670
 #. uses 2
 msgid "Tent: Upgrade"
 msgstr "Stan: vylepšení"
 
-#: scripts/interior_manager.gd:1637
+#: scripts/interior_manager.gd:1657
 msgid "Invalid tent level."
 msgstr "Neplatná úroveň stanu."
 
-#: scripts/interior_manager.gd:1649
+#: scripts/interior_manager.gd:1669
 msgid "Upgrade %s -> %s (better comfort + capacity)."
 msgstr "Vylepšení %s -> %s (větší pohodlí + kapacita)."
 
-#: scripts/interior_manager.gd:1674
+#: scripts/interior_manager.gd:1694
 msgid "Cabin: Max Level"
 msgstr "Chatka: max. úroveň"
 
-#: scripts/interior_manager.gd:1674
+#: scripts/interior_manager.gd:1694
 msgid "This cabin is already Lv3. No further upgrade available."
 msgstr "Tahle chatka už má úroveň 3. Dál vylepšit nejde."
 
-#: scripts/interior_manager.gd:1679 scripts/interior_manager.gd:1692
+#: scripts/interior_manager.gd:1699 scripts/interior_manager.gd:1712
 #. uses 2
 msgid "Cabin: Upgrade"
 msgstr "Chatka: vylepšení"
 
-#: scripts/interior_manager.gd:1679
+#: scripts/interior_manager.gd:1699
 msgid "Invalid cabin level."
 msgstr "Neplatná úroveň chatky."
 
-#: scripts/interior_manager.gd:1691
+#: scripts/interior_manager.gd:1711
 msgid "Upgrade %s -> %s (bigger comfort + capacity)."
 msgstr "Vylepšení %s -> %s (víc pohodlí + kapacita)."
 
-#: scripts/interior_manager.gd:1700
+#: scripts/interior_manager.gd:1720
 msgid "UPGRADE AT %d GUESTS"
 msgstr "VYLEPŠENÍ OD %d {HOSTA|HOSTŮ|HOSTŮ}"
 
@@ -9744,360 +9744,360 @@ msgstr "Proud zase jde. S jističem je hotovo."
 msgid "Pager: Vera came in on the first bus. The district at eight. Books on the desk."
 msgstr "Pager: Věra přijela prvním autobusem. Okres v osm. Knihy na stůl."
 
-#: scripts/main.gd:857
+#: scripts/main.gd:884
 msgid "Vera took the noon bus back to town. \"You know the way,\" she said."
 msgstr "Věra odjela poledním autobusem zpátky do města. „Cestu znáš,“ řekla."
 
-#: scripts/main.gd:929
+#: scripts/main.gd:956
 msgid "Pager: Sewer leaking. The sewer hatch: crawl in."
 msgstr "Pager: Kanalizace teče. Poklop kanálu: vlez dovnitř."
 
-#: scripts/main.gd:995
+#: scripts/main.gd:1022
 msgid "Every breaker is up and the main holds."
 msgstr "Všechny jističe jsou nahoře a hlavní drží."
 
-#: scripts/main.gd:995
+#: scripts/main.gd:1022
 msgid "The main holds. One circuit stays down until Novotny has looked at it."
 msgstr "Hlavní drží. Jeden okruh zůstane bez proudu, dokud se na něj nepodívá Novotný."
 
-#: scripts/main.gd:1151 scripts/town/bus_ride.gd:1220 scripts/town/bus_ride.gd:1300
+#: scripts/main.gd:1178 scripts/town/bus_ride.gd:1220 scripts/town/bus_ride.gd:1300
 #. uses 3
 msgid "%s: \"%s\""
 msgstr "%s: „%s“"
 
-#: scripts/main.gd:1165
+#: scripts/main.gd:1192
 msgid "Checked in: %s -> %s"
 msgstr "Ubytováno: %s -> %s"
 
-#: scripts/main.gd:1172
+#: scripts/main.gd:1199
 msgid "%s: \"Our room is not ready.\" Make up %s first."
 msgstr "%s: „Náš pokoj není připravený.“ Nejdřív nachystej: %s."
 
-#: scripts/main.gd:1185
+#: scripts/main.gd:1212
 msgid "Nice evening."
 msgstr "Pěkný večer."
 
-#: scripts/main.gd:1185
+#: scripts/main.gd:1212
 msgid "Just looking around."
 msgstr "Jen se rozhlížím."
 
-#: scripts/main.gd:1189
+#: scripts/main.gd:1216
 msgid "  [needs %s]"
 msgstr "  [potřebuje: %s]"
 
-#: scripts/main.gd:1190
+#: scripts/main.gd:1217
 msgid "%s (%s): \"%s\"%s"
 msgstr "%s (%s): „%s“%s"
 
-#: scripts/main.gd:1779 scripts/town/newspaper_closeup.gd:29
+#: scripts/main.gd:1808 scripts/town/newspaper_closeup.gd:29
 #. uses 2
 msgid "THE CAMP"
 msgstr "KEMP"
 
-#: scripts/main.gd:1806 scripts/os98/apps/campstat_app.gd:593 scripts/os98/apps/job_adclick.gd:245 scripts/os98/apps/job_census.gd:227 (+1)
+#: scripts/main.gd:1835 scripts/os98/apps/campstat_app.gd:593 scripts/os98/apps/job_adclick.gd:245 scripts/os98/apps/job_census.gd:227 (+1)
 #. uses 5
 msgid "TODAY"
 msgstr "DNES"
 
-#: scripts/main.gd:1833
+#: scripts/main.gd:1862
 msgid "n%s@%d"
 msgstr "n%s@%d"
 
-#: scripts/main.gd:1837
+#: scripts/main.gd:1866
 msgid "b%s"
 msgstr "b%s"
 
-#: scripts/main.gd:1909 scripts/main.gd:1935
+#: scripts/main.gd:1938 scripts/main.gd:1964
 #. uses 2
 msgid "w%s"
 msgstr "w%s"
 
-#: scripts/main.gd:1929
+#: scripts/main.gd:1958
 msgid "w%s%s"
 msgstr ""
 
-#: scripts/main.gd:1942
+#: scripts/main.gd:1971
 msgid "WC %d left"
 msgstr "WC %d levý"
 
-#: scripts/main.gd:1942
+#: scripts/main.gd:1971
 msgid "WC %d right"
 msgstr "WC %d pravý"
 
-#: scripts/main.gd:1943
+#: scripts/main.gd:1972
 msgid "WC left"
 msgstr "WC levý"
 
-#: scripts/main.gd:1943
+#: scripts/main.gd:1972
 msgid "WC right"
 msgstr "WC pravý"
 
-#: scripts/main.gd:1954
+#: scripts/main.gd:1983
 msgid "%s is at reception."
 msgstr "%s čeká na recepci."
 
-#: scripts/main.gd:1956
+#: scripts/main.gd:1985
 msgid " %s not ready."
 msgstr " Nepřipraveno: %s."
 
-#: scripts/main.gd:1962
+#: scripts/main.gd:1991
 msgid "%s checked in."
 msgstr "Ubytováno: %s."
 
-#: scripts/main.gd:1967
+#: scripts/main.gd:1996
 msgid "%s gave up waiting at reception and drove off."
 msgstr "Odjezd: %s. Na recepci se čekalo moc dlouho."
 
-#: scripts/main.gd:1972
+#: scripts/main.gd:2001
 msgid "%s is ready."
 msgstr "Připraveno: %s."
 
-#: scripts/main.gd:2193
+#: scripts/main.gd:2222
 msgid "Morning: %s is gone. The bed was not slept in."
 msgstr "Ráno: %s je pryč. V posteli nikdo nespal."
 
-#: scripts/main.gd:2318
+#: scripts/main.gd:2347
 msgid "The boy"
 msgstr "Kluk"
 
-#: scripts/main.gd:2333
+#: scripts/main.gd:2362
 msgid "A child is lost in the corn"
 msgstr "V kukuřici se ztratilo dítě"
 
-#: scripts/main.gd:2333
+#: scripts/main.gd:2362
 msgid "%s is lost in the corn"
 msgstr "%s bloudí v kukuřici"
 
-#: scripts/main.gd:2333
+#: scripts/main.gd:2362
 msgid "Someone"
 msgstr "Někdo"
 
-#: scripts/main.gd:2361
+#: scripts/main.gd:2390
 msgid "You came for me. In the dark. Thank you."
 msgstr "{g:Přišel|Přišla} jsi pro mě. Potmě. Děkuju."
 
-#: scripts/main.gd:2363
+#: scripts/main.gd:2392
 msgid "%s is back in the camp, shaking. (mood +15)"
 msgstr "%s je zpátky v kempu a třese se. (nálada +15)"
 
-#: scripts/main.gd:2365
+#: scripts/main.gd:2394
 msgid "Nobody came. Something stood by me all night."
 msgstr "Nikdo nepřišel. Celou noc u mě něco stálo."
 
-#: scripts/main.gd:2367
+#: scripts/main.gd:2396
 msgid "At first light %s walked out of the corn alone. They won't say what they saw."
 msgstr "Za svítání se %s vrací z kukuřice bez pomoci. Co tam bylo, neřekne."
 
-#: scripts/main.gd:2470
+#: scripts/main.gd:2499
 msgid "%s<%s> %s"
 msgstr "%s<%s> %s"
 
-#: scripts/main.gd:2498
+#: scripts/main.gd:2527
 msgid "LAYER "
 msgstr "LAYER "
 
-#: scripts/main.gd:2533
+#: scripts/main.gd:2562
 msgid "no event"
 msgstr "no event"
 
-#: scripts/main.gd:2550 scripts/main.gd:2561 scripts/main.gd:2803
+#: scripts/main.gd:2579 scripts/main.gd:2590 scripts/main.gd:2832
 #. uses 3
 msgid "Control"
 msgstr "Control"
 
-#: scripts/main.gd:2606
+#: scripts/main.gd:2635
 msgid "%s %s t=%.2f b=%.1f place=%s last=%s hp=%d hunters=%d near=%.0f p=%.2f arch=[%.2f %.2f %.2f %.2f] guests=%s"
 msgstr "%s %s t=%.2f b=%.1f place=%s last=%s hp=%d hunters=%d near=%.0f p=%.2f arch=[%.2f %.2f %.2f %.2f] guests=%s"
 
-#: scripts/main.gd:2663
+#: scripts/main.gd:2692
 msgid "no os"
 msgstr "no os"
 
-#: scripts/main.gd:2667
+#: scripts/main.gd:2696
 msgid "Roundtrip"
 msgstr "Roundtrip"
 
-#: scripts/main.gd:2685
+#: scripts/main.gd:2714
 msgid "Novak family"
 msgstr "Novákovi"
 
-#: scripts/main.gd:2685
+#: scripts/main.gd:2714
 msgid "Cabin 10:6"
 msgstr "Chatka 10:6"
 
-#: scripts/main.gd:2685
+#: scripts/main.gd:2714
 msgid "Tent 16:6"
 msgstr "Stan 16:6"
 
-#: scripts/main.gd:2685
+#: scripts/main.gd:2714
 msgid "Cabin 13:6"
 msgstr "Chatka 13:6"
 
-#: scripts/main.gd:2832
+#: scripts/main.gd:2861
 msgid "<none>"
 msgstr "<none>"
 
-#: scripts/main.gd:3114
+#: scripts/main.gd:3143
 msgid "Liminal Forecast Debug [L]"
 msgstr "Liminal Forecast Debug [L]"
 
-#: scripts/main.gd:3115
+#: scripts/main.gd:3144
 msgid "Day %d | %s | phase=%s"
 msgstr "Day %d | %s | phase=%s"
 
-#: scripts/main.gd:3120
+#: scripts/main.gd:3149
 msgid "Forecast: unavailable"
 msgstr "Forecast: unavailable"
 
-#: scripts/main.gd:3125
+#: scripts/main.gd:3154
 msgid "Forecast Summary:"
 msgstr "Forecast Summary:"
 
-#: scripts/main.gd:3126
+#: scripts/main.gd:3155
 msgid "Guests=%d | expected transforms=%.2f | guaranteed=%d | pressure archetypes=%d | HUD=%d/4"
 msgstr "Guests=%d | expected transforms=%.2f | guaranteed=%d | pressure archetypes=%d | HUD=%d/4"
 
-#: scripts/main.gd:3133
+#: scripts/main.gd:3162
 msgid "Archetypes:"
 msgstr "Archetypes:"
 
-#: scripts/main.gd:3147
+#: scripts/main.gd:3176
 msgid "- %s | guests=%d (+%d over safe) | should transform=%.2f | guaranteed=%d | chance=%d%% (%s)"
 msgstr "- %s | guests=%d (+%d over safe) | should transform=%.2f | guaranteed=%d | chance=%d%% (%s)"
 
-#: scripts/main.gd:3158
+#: scripts/main.gd:3187
 msgid "Night Roll:"
 msgstr "Night Roll:"
 
-#: scripts/main.gd:3160
+#: scripts/main.gd:3189
 msgid "No night roll yet."
 msgstr "No night roll yet."
 
-#: scripts/main.gd:3162
+#: scripts/main.gd:3191
 msgid "Night #%d at %s | spawned=%d (guaranteed=%d + chance=%d/%d) | expected=%.2f"
 msgstr "Night #%d at %s | spawned=%d (guaranteed=%d + chance=%d/%d) | expected=%.2f"
 
-#: scripts/main.gd:3179
+#: scripts/main.gd:3208
 msgid "- %s | spawned=%d | guaranteed=%d | chance=%d%% | roll=%s"
 msgstr "- %s | spawned=%d | guaranteed=%d | chance=%d%% | roll=%s"
 
-#: scripts/main.gd:3187
+#: scripts/main.gd:3216
 msgid "Recent nights:"
 msgstr "Recent nights:"
 
-#: scripts/main.gd:3190
+#: scripts/main.gd:3219
 msgid "- night #%d: spawned %d (expected %.2f)"
 msgstr "- night #%d: spawned %d (expected %.2f)"
 
-#: scripts/main.gd:3200
+#: scripts/main.gd:3229
 msgid "Runtime Enemies Active=%d (virtual=%d, scene=%d)"
 msgstr "Runtime Enemies Active=%d (virtual=%d, scene=%d)"
 
-#: scripts/main.gd:3205
+#: scripts/main.gd:3234
 msgid "Runtime target this night (quiet guy): %d"
 msgstr "Runtime target this night (quiet guy): %d"
 
-#: scripts/main.gd:3210
+#: scripts/main.gd:3239
 msgid "Active brain: %s | state=%s"
 msgstr "Active brain: %s | state=%s"
 
-#: scripts/main.gd:3211
+#: scripts/main.gd:3240
 msgid "- scares=%d (recent=%d) | peeks=%d | attack_hits=%d"
 msgstr "- scares=%d (recent=%d) | peeks=%d | attack_hits=%d"
 
-#: scripts/main.gd:3217
+#: scripts/main.gd:3246
 msgid "- footsteps=%d | visual_spawns=%d | entity_visible=%s"
 msgstr "- footsteps=%d | visual_spawns=%d | entity_visible=%s"
 
-#: scripts/main.gd:3223
+#: scripts/main.gd:3252
 msgid "Last day-start despawn: day %d -> removed %d enemies"
 msgstr "Last day-start despawn: day %d -> removed %d enemies"
 
-#: scripts/main.gd:3414 scripts/ui/game_over_screen.gd:13
+#: scripts/main.gd:3443 scripts/ui/game_over_screen.gd:13
 #. uses 2
 msgid "YOU DIED"
 msgstr "{g:ZEMŘEL|ZEMŘELA} JSI"
 
-#: scripts/main.gd:3415
+#: scripts/main.gd:3444
 msgid "You collapsed in the dark. Something was standing over you."
 msgstr "{g:Zhroutil|Zhroutila} ses ve tmě. Něco nad tebou stálo."
 
-#: scripts/main.gd:3417
+#: scripts/main.gd:3446
 msgid "POWER LOST"
 msgstr "VÝPADEK PROUDU"
 
-#: scripts/main.gd:3418
+#: scripts/main.gd:3447
 msgid "The UPS ran dry. The camp went dark, and so did you."
 msgstr "Záložní zdroj se vybil. Kemp zhasl a ty s ním."
 
-#: scripts/main.gd:3425
+#: scripts/main.gd:3454
 msgid "Survived to day %d   $%d in the till   %d guests hosted"
 msgstr "Přežito do %d. dne   v pokladně $%d   hostů celkem %d"
 
-#: scripts/main.gd:3562
+#: scripts/main.gd:3591
 msgid "Furnishing the rooms"
 msgstr "Zařizují se pokoje"
 
 #. manual
-#: scripts/main.gd:3631
+#: scripts/main.gd:3660
 msgid "Left behind in %s by %s: %s."
 msgstr "Zapomenuté (%s, %s): %s."
 
 #. manual
-#: scripts/main.gd:3633
+#: scripts/main.gd:3662
 msgid "Left behind by %s: %s."
 msgstr "Zapomenuté (%s): %s."
 
-#: scripts/main.gd:3645
+#: scripts/main.gd:3674
 msgid "Bazaar: the red shoe sold for $1. The buyer left no name."
 msgstr "Bazar: červená bota šla za $1. Kupec nenechal jméno."
 
-#: scripts/main.gd:3647
+#: scripts/main.gd:3676
 msgid "Bazaar: the %s sold. $%d."
 msgstr "Bazar: prodáno (%s). $%d."
 
-#: scripts/main.gd:3650
+#: scripts/main.gd:3679
 msgid "The red shoe is in the lost and found again."
 msgstr "Červená bota je zase ve ztrátách a nálezech."
 
-#: scripts/main.gd:3652
+#: scripts/main.gd:3681
 msgid "In the lost and found this morning: %s. Nobody left it."
 msgstr "Ráno ve ztrátách a nálezech: %s. Nikdo to tam nedal."
 
-#: scripts/main.gd:3691
+#: scripts/main.gd:3720
 msgid "%d guests in the camp. Builder 98 has new blueprints."
 msgstr "V kempu: %d {host|hosté|hostů}. Builder 98 má nové plány."
 
-#: scripts/main.gd:3781
+#: scripts/main.gd:3810
 msgid "SpotlessName Ltd: %s's review is gone."
 msgstr "SpotlessName Ltd: recenze zmizela (%s)."
 
-#: scripts/main.gd:3783
+#: scripts/main.gd:3812
 msgid "Atlas caught the removal of %s's review. It stays, and so does the fee."
 msgstr "Atlas přišel na smazání recenze (%s). Recenze zůstává a poplatek taky."
 
-#: scripts/main.gd:3785
+#: scripts/main.gd:3814
 msgid "Atlas: %s added a star to their review."
 msgstr "Atlas: %s přidává k recenzi hvězdičku."
 
-#: scripts/main.gd:3824
+#: scripts/main.gd:3853
 msgid "Atlas: your campaign (%s) has ended."
 msgstr "Atlas: vaše kampaň (%s) skončila."
 
-#: scripts/main.gd:3828
+#: scripts/main.gd:3857
 msgid "Atlas s.r.o. <reklama@atlas.cz>"
 msgstr "Atlas s.r.o. <reklama@atlas.cz>"
 
-#: scripts/main.gd:3828 scripts/os98/apps/atlas_app.gd:322
+#: scripts/main.gd:3857 scripts/os98/apps/atlas_app.gd:322
 #. uses 2
 msgid "Atlas s.r.o."
 msgstr "Atlas s.r.o."
 
-#: scripts/main.gd:3829
+#: scripts/main.gd:3858
 msgid "Your campaign on Atlas has ended"
 msgstr "Vaše kampaň na Atlasu skončila"
 
-#: scripts/main.gd:3830
+#: scripts/main.gd:3859
 msgid ""
 "Dear customer,\n"
 "\n"
@@ -10125,253 +10125,253 @@ msgstr ""
 "Atlas s.r.o., oddělení reklamy\n"
 "Na Poříčí 12, Praha 1"
 
-#: scripts/main.gd:3831 scripts/os98/apps/atlas_app.gd:323 scripts/os98/apps/atlas_app.gd:624
+#: scripts/main.gd:3860 scripts/os98/apps/atlas_app.gd:323 scripts/os98/apps/atlas_app.gd:624
 #. uses 3
 msgid "%d day%s"
 msgstr "%d {den|dny|dní}"
 
 #. manual
-#: scripts/main.gd:3939
+#: scripts/main.gd:3968
 msgid "Pager: CampGrid cut the mains, the bill is overdue. The UPS holds six minutes."
 msgstr "Pager: CampGrid odpojil proud, účet je po splatnosti. UPS vydrží šest minut."
 
-#: scripts/main.gd:4108 scripts/main.gd:6096
+#: scripts/main.gd:4144 scripts/main.gd:6139
 #. uses 2
 msgid "%s: \"We are waiting for the desk. Is anyone in there?\""
 msgstr "%s: „Čekáme na recepci. Je tam někdo?“"
 
-#: scripts/main.gd:4418
+#: scripts/main.gd:4454
 msgid "[E] Get %s up"
 msgstr "[E] Zvednout: %s"
 
-#: scripts/main.gd:4459 scripts/main.gd:6120
+#: scripts/main.gd:4495 scripts/main.gd:6163
 #. uses 2
 msgid "[E] Check in %s"
 msgstr "[E] Ubytovat: %s"
 
-#: scripts/main.gd:4461 scripts/main.gd:6120
+#: scripts/main.gd:4497 scripts/main.gd:6163
 #. uses 2
 msgid "[E] Talk to %s"
 msgstr "[E] Promluvit si: %s"
 
-#: scripts/main.gd:4560 scripts/night_jobs.gd:457 scripts/ui/main_menu.gd:73
+#: scripts/main.gd:4596 scripts/night_jobs.gd:457 scripts/ui/main_menu.gd:73
 #. uses 3
 msgid "Sewer"
 msgstr "Kanalizace"
 
-#: scripts/main.gd:4756
+#: scripts/main.gd:4793
 msgid "Loading save file..."
 msgstr "Nahrávám uložení..."
 
-#: scripts/main.gd:4782
+#: scripts/main.gd:4819
 msgid "Resuming your last save..."
 msgstr "Navazuji na poslední uložení..."
 
-#: scripts/main.gd:4815 scripts/main.gd:5208 scripts/main.gd:5222
+#: scripts/main.gd:4852 scripts/main.gd:5245 scripts/main.gd:5259
 #. uses 3
 msgid "Port %d is taken."
 msgstr "Port %d je obsazený."
 
-#: scripts/main.gd:4856
+#: scripts/main.gd:4893
 msgid "Test night: the sewer breaks again whenever it is mended."
 msgstr "Testovací noc: kanalizace se po každé opravě zase rozbije."
 
-#: scripts/main.gd:4885
+#: scripts/main.gd:4922
 msgid "Test night: the boy is lost in the corn."
 msgstr "Testovací noc: kluk se ztratil v kukuřici."
 
-#: scripts/main.gd:4886
+#: scripts/main.gd:4923
 msgid "Test night: the boy is at the generator's board."
 msgstr "Testovací noc: kluk je u rozvaděče u generátoru."
 
-#: scripts/main.gd:4887
+#: scripts/main.gd:4924
 msgid "Test night: the boy is down the sewer."
 msgstr "Testovací noc: kluk je dole v kanálu."
 
-#: scripts/main.gd:4889
+#: scripts/main.gd:4926
 msgid "Test night: the %s is out."
 msgstr "Testovací noc: venku je %s."
 
-#: scripts/main.gd:4911
+#: scripts/main.gd:4948
 msgid "Test: the 380 is coming up the road. Ticket from the yellow machine by the stop, punch it on board."
 msgstr "Test: po silnici přijíždí třistaosmdesátka. Jízdenka ze žlutého automatu u zastávky, označit v autobuse."
 
-#: scripts/main.gd:4972 scripts/main.gd:5025
+#: scripts/main.gd:5009 scripts/main.gd:5062
 #. uses 2
 msgid "Kristyna"
 msgstr "Kristýna"
 
-#: scripts/main.gd:4972 scripts/main.gd:5025
+#: scripts/main.gd:5009 scripts/main.gd:5062
 #. uses 2
 msgid "Denisa"
 msgstr "Denisa"
 
-#: scripts/main.gd:4973 scripts/main.gd:5025
+#: scripts/main.gd:5010 scripts/main.gd:5062
 #. uses 2
 msgid "Svoboda family"
 msgstr "Svobodovi"
 
-#: scripts/main.gd:4973 scripts/main.gd:5025
+#: scripts/main.gd:5010 scripts/main.gd:5062
 #. uses 2
 msgid "Kral family"
 msgstr "Královi"
 
-#: scripts/main.gd:4973 scripts/main.gd:5025
+#: scripts/main.gd:5010 scripts/main.gd:5062
 #. uses 2
 msgid "Mr Prochazka"
 msgstr "pan Procházka"
 
-#: scripts/main.gd:4974 scripts/main.gd:5025
+#: scripts/main.gd:5011 scripts/main.gd:5062
 #. uses 2
 msgid "Kecal"
 msgstr "Kecal"
 
-#: scripts/main.gd:4974 scripts/main.gd:5025
+#: scripts/main.gd:5011 scripts/main.gd:5062
 #. uses 2
 msgid "Mrs Benesova"
 msgstr "paní Benešová"
 
-#: scripts/main.gd:4974
+#: scripts/main.gd:5011
 msgid "Horak family"
 msgstr "Horákovi"
 
-#: scripts/main.gd:4974
+#: scripts/main.gd:5011
 msgid "Vesely"
 msgstr "Veselý"
 
-#: scripts/main.gd:4975
+#: scripts/main.gd:5012
 msgid "Fiala family"
 msgstr "Fialovi"
 
-#: scripts/main.gd:4975
+#: scripts/main.gd:5012
 msgid "Zeman"
 msgstr "Zeman"
 
-#: scripts/main.gd:4984
+#: scripts/main.gd:5021
 msgid "Test: every business open and a full camp. The work is at their stations."
 msgstr "Test: všechny podniky otevřené a plný kemp. Práce je u jejich stanovišť."
 
-#: scripts/main.gd:5028
+#: scripts/main.gd:5065
 msgid "Mr Vesely"
 msgstr "pan Veselý"
 
-#: scripts/main.gd:5036
+#: scripts/main.gd:5073
 msgid "Generating a fresh camp..."
 msgstr "Vytvářím nový kemp..."
 
-#: scripts/main.gd:5218
+#: scripts/main.gd:5255
 msgid "A story camp cannot be hosted. Only sandbox camps are for two."
 msgstr "Kemp z příběhu nejde hostit. Ve dvou jde hrát jen sandbox."
 
-#: scripts/main.gd:5225
+#: scripts/main.gd:5262
 msgid "Opening the camp..."
 msgstr "Otevírám kemp..."
 
-#: scripts/main.gd:5230
+#: scripts/main.gd:5267
 msgid "That camp would not open."
 msgstr "Ten kemp nejde otevřít."
 
-#: scripts/main.gd:5239
+#: scripts/main.gd:5276
 msgid "Calling the camp..."
 msgstr "Volám do kempu..."
 
-#: scripts/main.gd:5254
+#: scripts/main.gd:5291
 msgid "The camp came through garbled."
 msgstr "Z kempu přišel jen šum."
 
 #. manual
-#: scripts/main.gd:5270
+#: scripts/main.gd:5307
 msgid "You came in by the barrier. %s is about."
 msgstr "{g:Přišel|Přišla} jsi od závory. %s je někde poblíž."
 
 #. manual
-#: scripts/main.gd:5270
+#: scripts/main.gd:5307
 msgid "You came in by the barrier. %s are about."
 msgstr "{g:Přišel|Přišla} jsi od závory. %s jsou někde poblíž."
 
-#: scripts/main.gd:5292
+#: scripts/main.gd:5329
 msgid "%s came in by the barrier."
 msgstr "Od závory přichází %s."
 
-#: scripts/main.gd:5305
+#: scripts/main.gd:5342
 msgid "%s has gone home."
 msgstr "%s jde domů."
 
-#: scripts/main.gd:5331
+#: scripts/main.gd:5368
 msgid "%s has turned in."
 msgstr "%s jde spát."
 
-#: scripts/main.gd:5372
+#: scripts/main.gd:5409
 msgid "You go down. The grass is cold against your face."
 msgstr "Padáš k zemi. Tráva studí do tváře."
 
-#: scripts/main.gd:5395
+#: scripts/main.gd:5432
 msgid "%s hauls you up by the jacket. \"Come on. Not here.\""
 msgstr "%s tě za bundu vytáhne na nohy. „No tak. Tady ne.“"
 
-#: scripts/main.gd:5397
+#: scripts/main.gd:5434
 msgid "You come to on the office step. You don't remember getting here."
 msgstr "Probereš se na schodu před kanceláří. Nevíš, jak ses sem {g:dostal|dostala}."
 
-#: scripts/main.gd:5426
+#: scripts/main.gd:5463
 msgid "You get %s up. They are shaking."
 msgstr "%s je zase na nohou. Třese se."
 
-#: scripts/main.gd:6085
+#: scripts/main.gd:6128
 msgid "They grab your sleeve. \"Get me out of here.\""
 msgstr "Chytí tě za rukáv. „Dostaň mě odsud.“"
 
-#: scripts/main.gd:6114
+#: scripts/main.gd:6157
 msgid "[E] Take them by the arm"
 msgstr "[E] Vzít za ruku"
 
-#: scripts/main.gd:6161 scripts/ui/main_menu.gd:600
+#: scripts/main.gd:6204 scripts/ui/main_menu.gd:600
 #. uses 2
 msgid "Co-op"
 msgstr "Co-op"
 
-#: scripts/main.gd:6374 scripts/main.gd:6465 scripts/main.gd:7218 scripts/main.gd:7352
+#: scripts/main.gd:6417 scripts/main.gd:6508 scripts/main.gd:7261 scripts/main.gd:7395
 #. uses 4
 msgid "Autosave"
 msgstr "Autouložení"
 
-#: scripts/main.gd:6474
+#: scripts/main.gd:6517
 msgid "Manual Save"
 msgstr "Ruční uložení"
 
-#: scripts/main.gd:7064
+#: scripts/main.gd:7107
 msgid "structure_%d"
 msgstr "structure_%d"
 
-#: scripts/main.gd:7315
+#: scripts/main.gd:7358
 msgid "DAY %d   %s"
 msgstr "DEN %d   %s"
 
-#: scripts/main.gd:7320
+#: scripts/main.gd:7363
 msgid "   SAVED JUST NOW"
 msgstr "   ULOŽENO PRÁVĚ TEĎ"
 
-#: scripts/main.gd:7322
+#: scripts/main.gd:7365
 msgid "   SAVED %d MIN AGO"
 msgstr "   ULOŽENO PŘED %d MIN"
 
-#: scripts/main.gd:7324
+#: scripts/main.gd:7367
 msgid "   SAVED %d H AGO"
 msgstr "   ULOŽENO PŘED %d H"
 
-#: scripts/main.gd:7327
+#: scripts/main.gd:7370
 msgid "   WITH %s"
 msgstr "   SPOLU: %s"
 
-#: scripts/main.gd:7331
+#: scripts/main.gd:7374
 msgid "   OPEN AT %s"
 msgstr "   OTEVŘENO NA %s"
 
-#: scripts/main.gd:7344
+#: scripts/main.gd:7387
 msgid "SAVE FAILED"
 msgstr "ULOŽENÍ SELHALO"
 
-#: scripts/main.gd:7348
+#: scripts/main.gd:7391
 msgid "Game saved."
 msgstr "Hra uložena."
 
@@ -11014,67 +11014,70 @@ msgstr ""
 "\n"
 "- Mirek"
 
-#: scripts/retro_materials.gd:525
+#: scripts/retro_materials.gd:535
 msgid "sprite|%d|%d|%d|%d|%d"
 msgstr "sprite|%d|%d|%d|%d|%d"
 
-#: scripts/retro_materials.gd:562
-msgid "%d|%d|%d|%d"
+#: scripts/retro_materials.gd:572
+msgid "%d|%d|%d|%d|%d"
 msgstr ""
 
-#: scripts/retro_materials.gd:668
+#: scripts/retro_materials.gd:679
 msgid ""
 "#define LIT\n"
 msgstr ""
 "#define LIT\n"
 
-#: scripts/retro_materials.gd:669
+#: scripts/retro_materials.gd:680
 msgid ""
 "#define ALPHA_MODE %d\n"
 msgstr ""
 "#define ALPHA_MODE %d\n"
-
-#: scripts/retro_materials.gd:670
-msgid ""
-"#define BILLBOARD %d\n"
-msgstr ""
-"#define BILLBOARD %d\n"
-
-#: scripts/retro_materials.gd:671
-msgid ""
-"#define TRIPLANAR\n"
-msgstr ""
-"#define TRIPLANAR\n"
-
-#: scripts/retro_materials.gd:672
-msgid ""
-"#define EMISSION_MODE %d\n"
-msgstr ""
-"#define EMISSION_MODE %d\n"
-
-#: scripts/retro_materials.gd:673
-msgid ""
-"#define SPRITE_LIGHT\n"
-msgstr ""
-"#define SPRITE_LIGHT\n"
-
-#: scripts/retro_materials.gd:674
-msgid ""
-"#define VCOLOR\n"
-msgstr ""
-"#define VCOLOR\n"
-
-#: scripts/retro_materials.gd:676
-msgid ""
-"shader_type spatial;\n"
-"render_mode "
-msgstr ""
-"shader_type spatial;\n"
-"render_mode "
 
 #: scripts/retro_materials.gd:681
 msgid ""
+"#define BILLBOARD %d\n"
+msgstr ""
+"#define BILLBOARD %d\n"
+
+#: scripts/retro_materials.gd:682
+msgid ""
+"#define TRIPLANAR\n"
+msgstr ""
+"#define TRIPLANAR\n"
+
+#: scripts/retro_materials.gd:683
+msgid ""
+"#define EMISSION_MODE %d\n"
+msgstr ""
+"#define EMISSION_MODE %d\n"
+
+#: scripts/retro_materials.gd:684
+msgid ""
+"#define SPRITE_LIGHT\n"
+msgstr ""
+"#define SPRITE_LIGHT\n"
+
+#: scripts/retro_materials.gd:685
+msgid ""
+"#define VCOLOR\n"
+msgstr ""
+"#define VCOLOR\n"
+
+#: scripts/retro_materials.gd:687
+msgid ""
+"shader_type spatial;\n"
+"render_mode "
+msgstr ""
+"shader_type spatial;\n"
+"render_mode "
+
+#: scripts/retro_materials.gd:692
+msgid ""
 "\n"
+"global uniform float season_snow;\n"
+"// Under cover from the sky: the bus's seats and floor (retro_materials _bare).\n"
+"uniform bool bare = false;\n"
 "// (From a smaller picture far off where it has one: pickets and boughs glittered at a distance.)\n"
 "uniform sampler2D albedo_tex : source_color, filter_nearest_mipmap, repeat_enable;\n"
 "uniform bool has_tex = false;\n"
@@ -11119,6 +11122,17 @@ msgid ""
 "varying vec2 v_texel;\n"
 "varying vec2 v_uv_w;\n"
 "varying float v_w;\n"
+"\n"
+"float snow_hash(vec2 p) {\n"
+"\treturn fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);\n"
+"}\n"
+"\n"
+"float snow_noise(vec2 p) {\n"
+"\tvec2 i = floor(p);\n"
+"\tvec2 f = fract(p);\n"
+"\tf = f * f * (3.0 - 2.0 * f);\n"
+"\treturn mix(mix(snow_hash(i), snow_hash(i + vec2(1.0, 0.0)), f.x), mix(snow_hash(i + vec2(0.0, 1.0)), snow_hash(i + vec2(1.0, 1.0)), f.x), f.y);\n"
+"}\n"
 "\n"
 "void vertex() {\n"
 "#if BILLBOARD == 1\n"
@@ -11202,6 +11216,22 @@ msgid ""
 "\t}\n"
 "#ifdef VCOLOR\n"
 "\tc *= COLOR;\n"
+"#endif\n"
+"#if defined(LIT) && !defined(SPRITE_LIGHT) && ALPHA_MODE != 2\n"
+"\t// The snow lies on whatever faces up, in drifts that join as it goes on lying (only the\n"
+"\t// trees and the grass took it: every roof, fence and bench stood bare and dark in a white\n"
+"\t// meadow, and the meadow itself went white in one frame at eight in the morning).\n"
+"\tif (season_snow > 0.005 && !room_thing && !bare) {\n"
+"\t\tfloat up = (INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).y;\n"
+"\t\tif (up > 0.3) {\n"
+"\t\t\tvec3 wp = (INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).xyz;\n"
+"\t\t\tfloat n = snow_noise(wp.xz * 0.35 + wp.y) * 0.55 + snow_noise(wp.xz * 1.7) * 0.3 + snow_hash(floor(wp.xz * 6.0)) * 0.15;\n"
+"\t\t\tfloat cov = clamp(season_snow * 1.7, 0.0, 1.0);\n"
+"\t\t\tif (cov >= 0.99 || n < smoothstep(0.0, 1.0, cov) * 0.62 + 0.2) {\n"
+"\t\t\t\tc.rgb = mix(c.rgb, vec3(0.88, 0.9, 0.95), smoothstep(0.3, 0.6, up) * 0.94);\n"
+"\t\t\t}\n"
+"\t\t}\n"
+"\t}\n"
 "#endif\n"
 "\tv_texel = floor(FRAGCOORD.xy);\n"
 "\t// (Not a room seen from the camp: what is lit in there does not go with the night's\n"
@@ -11314,7 +11344,7 @@ msgstr "BLÝSKÁ SE"
 msgid "CLEAN %d%%"
 msgstr "ČISTO %d%%"
 
-#: scripts/season_look.gd:61
+#: scripts/season_look.gd:62
 msgid "Snowfall"
 msgstr "Snowfall"
 
@@ -11947,11 +11977,11 @@ msgstr "%d|%d|%d"
 msgid "corn%d:%d"
 msgstr "corn%d:%d"
 
-#: scripts/world_generator.gd:1444
+#: scripts/world_generator.gd:1499
 msgid "Terrain"
 msgstr "Terrain"
 
-#: scripts/world_generator.gd:1446
+#: scripts/world_generator.gd:1501
 msgid "Nature"
 msgstr "Nature"
 
@@ -16131,7 +16161,7 @@ msgstr "Lstiboř"
 msgid "Jednota u Marků"
 msgstr "Jednota u Marků"
 
-#: scripts/geo/geo_world.gd:38
+#: scripts/geo/geo_world.gd:39
 msgid ""
 "\n"
 "shader_type spatial;\n"
@@ -16165,12 +16195,12 @@ msgstr ""
 "\tEMISSION = vec3(1.0, 0.74, 0.4) * on * glass * 1.4;\n"
 "}\n"
 
-#: scripts/geo/geo_world.gd:277 scripts/geo/geo_world.gd:1029 scripts/geo/geo_world.gd:1142
+#: scripts/geo/geo_world.gd:278 scripts/geo/geo_world.gd:1046 scripts/geo/geo_world.gd:1159
 #. uses 3
 msgid "win|"
 msgstr "win|"
 
-#: scripts/geo/geo_world.gd:732
+#: scripts/geo/geo_world.gd:749
 msgid ""
 "BENZINA\n"
 "SPECIAL  21,90\n"
@@ -16182,17 +16212,17 @@ msgstr ""
 "NATURAL  23,40\n"
 "NAFTA  19,80"
 
-#: scripts/geo/geo_world.gd:1310 scripts/town/town_dressing.gd:348
+#: scripts/geo/geo_world.gd:1327 scripts/town/town_dressing.gd:346
 #. uses 2
 msgid "%s_trunk"
 msgstr "%s_trunk"
 
-#: scripts/geo/geo_world.gd:1310 scripts/town/town_dressing.gd:348
+#: scripts/geo/geo_world.gd:1327 scripts/town/town_dressing.gd:346
 #. uses 2
 msgid "%s_crown"
 msgstr "%s_crown"
 
-#: scripts/geo/geo_world.gd:1327 scripts/town/town_dressing.gd:350
+#: scripts/geo/geo_world.gd:1344 scripts/town/town_dressing.gd:348
 #. uses 2
 msgid "%s_cards"
 msgstr "%s_cards"
@@ -17683,7 +17713,7 @@ msgstr "Web"
 msgid "Shops"
 msgstr "Podniky"
 
-#: scripts/os98/os_shell.gd:57 scripts/os98/apps/jobs_app.gd:24
+#: scripts/os98/os_shell.gd:57 scripts/os98/apps/jobs_app.gd:22
 #. uses 2
 msgid "Jobs"
 msgstr "Práce"
@@ -24472,76 +24502,76 @@ msgstr "Na prosvětlovacím stole není žádný snímek."
 msgid "No. %04d   %s   scale 1:2000"
 msgstr "Č. %04d   %s   měřítko 1:2000"
 
-#: scripts/os98/apps/jobs_app.gd:31
+#: scripts/os98/apps/jobs_app.gd:29
 msgid "Tonight: %d cards"
 msgstr "Dnes v noci: %d {karta|karty|karet}"
 
-#: scripts/os98/apps/jobs_app.gd:33
+#: scripts/os98/apps/jobs_app.gd:31
 msgid "Today: $%d"
 msgstr "Dnes: $%d"
 
-#: scripts/os98/apps/jobs_app.gd:35
+#: scripts/os98/apps/jobs_app.gd:33
 msgid "Today: %d photos"
 msgstr "Dnes: %d {fotka|fotky|fotek}"
 
-#: scripts/os98/apps/jobs_app.gd:50
+#: scripts/os98/apps/jobs_app.gd:48
 msgid "WORK AT HOME ON YOUR COMPUTER."
 msgstr "PRÁCE DOMA NA POČÍTAČI."
 
-#: scripts/os98/apps/jobs_app.gd:50
+#: scripts/os98/apps/jobs_app.gd:48
 msgid "The District Office pays $4 for every register card"
 msgstr "Okresní úřad platí $4 za každou kartu evidence,"
 
-#: scripts/os98/apps/jobs_app.gd:50
+#: scripts/os98/apps/jobs_app.gd:48
 msgid "you type in. The old register of everyone who"
 msgstr "kterou přepíšeš. Starou evidenci všech, kdo"
 
-#: scripts/os98/apps/jobs_app.gd:51
+#: scripts/os98/apps/jobs_app.gd:49
 msgid "stayed by the reservoir, 1961-1989."
 msgstr "bydleli u přehrady v letech 1961-1989."
 
-#: scripts/os98/apps/jobs_app.gd:51
+#: scripts/os98/apps/jobs_app.gd:49
 msgid "Okresni urad Hlubocany, room 12."
 msgstr "Okresní úřad Hlubočany, kancelář č. 12."
 
-#: scripts/os98/apps/jobs_app.gd:53
+#: scripts/os98/apps/jobs_app.gd:51
 msgid "EARN MONEY WITH YOUR MOUSE!"
 msgstr "VYDĚLÁVEJ MYŠÍ!"
 
-#: scripts/os98/apps/jobs_app.gd:53
+#: scripts/os98/apps/jobs_app.gd:51
 msgid "Bohemia Online pays $1 for every advert you confirm."
 msgstr "Bohemia Online platí $1 za každou potvrzenou reklamu."
 
-#: scripts/os98/apps/jobs_app.gd:53
+#: scripts/os98/apps/jobs_app.gd:51
 msgid "Click OK on a real advert. Close (x) what is not one:"
 msgstr "Skutečnou reklamu potvrď OK. Zavři (x), co reklama není:"
 
-#: scripts/os98/apps/jobs_app.gd:54
+#: scripts/os98/apps/jobs_app.gd:52
 msgid "prizes, viruses, chain letters. A wrong click costs."
 msgstr "výhry, viry, řetězové dopisy. Chyba se strhává."
 
-#: scripts/os98/apps/jobs_app.gd:54 scripts/os98/apps/jobs_app.gd:57
+#: scripts/os98/apps/jobs_app.gd:52 scripts/os98/apps/jobs_app.gd:55
 #. uses 2
 msgid "Paid at once."
 msgstr "Proplácí se hned."
 
-#: scripts/os98/apps/jobs_app.gd:56
+#: scripts/os98/apps/jobs_app.gd:54
 msgid "THE DISTRICT COUNTS ITS PROPERTY."
 msgstr "OKRES SČÍTÁ SVŮJ MAJETEK."
 
-#: scripts/os98/apps/jobs_app.gd:56
+#: scripts/os98/apps/jobs_app.gd:54
 msgid "Count what the aerial photograph asks for: tents,"
 msgstr "Spočítej, na co se ptá letecký snímek: stany,"
 
-#: scripts/os98/apps/jobs_app.gd:56
+#: scripts/os98/apps/jobs_app.gd:54
 msgid "cows, boats. Type the number. $3 for the right count,"
 msgstr "krávy, lodě. Napiš číslo. $3 za správný počet,"
 
-#: scripts/os98/apps/jobs_app.gd:57
+#: scripts/os98/apps/jobs_app.gd:55
 msgid "$1 if you are one out."
 msgstr "$1, když se spleteš o jednu."
 
-#: scripts/os98/apps/jobs_app.gd:62
+#: scripts/os98/apps/jobs_app.gd:60
 msgid "Sign up and download  (%d KB)"
 msgstr "Přihlásit a stáhnout  (%d KB)"
 
@@ -26668,7 +26698,7 @@ msgstr "Řidič: „%s“"
 msgid "Passenger"
 msgstr "Cestující"
 
-#: scripts/town/bus_ride.gd:1507 scripts/town/bus_ride.gd:1557 scripts/town/town_trip.gd:1679
+#: scripts/town/bus_ride.gd:1507 scripts/town/bus_ride.gd:1557 scripts/town/town_trip.gd:1680
 #. uses 3
 msgid "%s|%d|%d"
 msgstr "%s|%d|%d"
@@ -28844,7 +28874,7 @@ msgstr "JÍZDENKA"
 msgid "NEPŘESTUPNÍ"
 msgstr "NEPŘESTUPNÍ"
 
-#: scripts/town/road_south.gd:43
+#: scripts/town/road_south.gd:44
 msgid "CERNE JEZERO, KEMP"
 msgstr "ČERNÉ JEZERO, KEMP"
 
@@ -29178,7 +29208,7 @@ msgstr "ČSAD KOLÍN"
 msgid "platí od 31.5.1998"
 msgstr "platí od 31.5.1998"
 
-#: scripts/town/town_lesna.gd:345
+#: scripts/town/town_lesna.gd:346
 msgid "%s|tiled|%s|%s"
 msgstr "%s|tiled|%s|%s"
 
@@ -29590,40 +29620,40 @@ msgstr "Ty peníze na pultě neleží. Lavička u rybníka je zadarmo."
 msgid "Keys are on the board. Take your pick."
 msgstr "Klíče jsou na tabuli. Vyberte si."
 
-#: scripts/town/town_trip.gd:1322 scripts/town/town_trip.gd:1332 scripts/town/town_trip.gd:1493
+#: scripts/town/town_trip.gd:1323 scripts/town/town_trip.gd:1333 scripts/town/town_trip.gd:1494
 #. uses 3
 msgid "SLUZEBNI"
 msgstr "SLUŽEBNÍ"
 
-#: scripts/town/town_trip.gd:1522
+#: scripts/town/town_trip.gd:1523
 msgid "LSTIBOR"
 msgstr "LSTIBOŘ"
 
-#: scripts/town/town_trip.gd:1570
+#: scripts/town/town_trip.gd:1571
 msgid "%d|%s"
 msgstr ""
 
-#: scripts/town/town_trip.gd:1716
+#: scripts/town/town_trip.gd:1717
 msgid "motel_room:%d"
 msgstr ""
 
-#: scripts/town/town_trip.gd:1724
+#: scripts/town/town_trip.gd:1725
 msgid "Driver: \"Lstibor. Yours is the other side, to the camp.\""
 msgstr "Řidič: „Lstiboř. Váš jede z druhé strany, do kempu.“"
 
-#: scripts/town/town_trip.gd:1738
+#: scripts/town/town_trip.gd:1739
 msgid "Driver: \"Staff only. Yours is the 380.\""
 msgstr "Řidič: „Služební, jen pro personál. Vy jedete třistaosmdesátkou.“"
 
-#: scripts/town/town_trip.gd:1853
+#: scripts/town/town_trip.gd:1854
 msgid "No room in the bag for a ticket."
 msgstr "V brašně není místo na jízdenku."
 
-#: scripts/town/town_trip.gd:1856
+#: scripts/town/town_trip.gd:1857
 msgid "Two dollars. You have not got two dollars."
 msgstr "Dvacet korun. Dvacet korun nemáš."
 
-#: scripts/town/town_trip.gd:1867
+#: scripts/town/town_trip.gd:1868
 msgid "A ticket for the 380. Punch it on the bus, in the orange box."
 msgstr "Jízdenka na třistaosmdesátku. Označ ji v autobuse v oranžovém štípači."
 
@@ -29753,7 +29783,7 @@ msgstr ""
 msgid "Load last save"
 msgstr "Nahrát poslední uložení"
 
-#: scripts/ui/game_over_screen.gd:93 scripts/ui/week_report_screen.gd:114
+#: scripts/ui/game_over_screen.gd:93 scripts/ui/week_report_screen.gd:130
 #. uses 2
 msgid "Main menu"
 msgstr "Hlavní menu"
@@ -30480,19 +30510,23 @@ msgstr "neon_tick_%d"
 msgid "torch#%d"
 msgstr "torch#%d"
 
-#: scripts/ui/week_report_screen.gd:77
+#: scripts/ui/week_report_screen.gd:89
 msgid "THE BOOKS"
 msgstr "ÚČETNICTVÍ"
 
-#: scripts/ui/week_report_screen.gd:80
+#: scripts/ui/week_report_screen.gd:92
 msgid "%s, 08:00. THE INSPECTION."
 msgstr "%s, 08:00. INSPEKCE."
 
-#: scripts/ui/week_report_screen.gd:106
+#: scripts/ui/week_report_screen.gd:118
 msgid "  - V."
 msgstr "  - V."
 
-#: scripts/ui/week_report_screen.gd:113
+#: scripts/ui/week_report_screen.gd:126
+msgid "To the bus"
+msgstr "Na autobus"
+
+#: scripts/ui/week_report_screen.gd:129
 msgid "Stay on"
 msgstr "Zůstat"
 

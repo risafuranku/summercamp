@@ -135,16 +135,16 @@ func _skies(failures: Array[String]) -> void:
 	# After the sunset the blood-red sky (35ac52b), then the blue hour.
 	var blood := _first_sky(WEATHER_VISUALS.SKY_TEX_BLOOD_PATHS)
 	var want := {
-		[0, 3.0]: ["skystars", "skystars"],
-		[0, 5.6]: ["skystars", dawn],
+		[0, 3.0]: ["skyf_night", "skyf_night"],
+		[0, 5.6]: ["skyf_night", dawn],
 		[0, 6.1]: [dawn, dawn],
 		[0, 6.8]: [dawn, "sky1"],
 		[0, 12.0]: ["sky1", "sky1"],
 		[0, 17.2]: [golden, golden],
 		[0, 18.4]: [sunset, sunset],
 		[0, 19.05]: [blood, blood],
-		[0, 23.0]: ["skystars", "skystars"],
-		[1, 23.0]: ["skystars", "skystars"],
+		[0, 23.0]: ["skyf_night", "skyf_night"],
+		[1, 23.0]: ["skyf_night", "skyf_night"],
 		[4, 12.0]: ["rrsky4", "rrsky4"],
 		[4, 23.0]: ["skynight", "skynight"],
 		[2, 6.1]: ["skynight", "skynight"],

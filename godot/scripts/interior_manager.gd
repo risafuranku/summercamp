@@ -389,12 +389,25 @@ func _guest_visuals_for_structure(structure: Node) -> Array:
 
 
 ## setup_all's steps that are still to do (the loading bar's, main._furnish_rooms_stepped).
+var _cabin_levels_later := false
+var _office_later := false
+
+
 func room_jobs() -> Array:
 	var jobs: Array = []
 	for pair in [[_building_interior, _setup_building_interior], [_cabin_interior, _setup_cabin_interior], [_tent_interior, _setup_tent_interior],
 			[_caravan_interior, _setup_caravan_interior], [_service_interior, _setup_service_interior], [_bowling_interior, _setup_bowling_interior]]:
 		if pair[0] == null or not is_instance_valid(pair[0]):
 			jobs.append(pair[1])
+			if pair[1] == _setup_building_interior:
+				_office_later = true
+				for i in BUILDING_INTERIOR_SCRIPT.BUILD_JOBS:
+					jobs.append(func() -> void: _building_interior.build_job(i))
+				jobs.append(_finish_building_interior)
+			if pair[1] == _setup_cabin_interior:
+				_cabin_levels_later = true
+				jobs.append(func() -> void: _cabin_interior.build_level(2))
+				jobs.append(func() -> void: _cabin_interior.build_level(3))
 	return jobs
 
 
@@ -818,11 +831,17 @@ func _setup_building_interior() -> void:
 		return
 	_building_interior = BUILDING_INTERIOR_SCRIPT.new()
 	_building_interior.name = "BuildingInterior"
+	_building_interior.build_later = _office_later
 	# Here, not in the world: the world is drawn small and scaled up (render style),
 	# and so was everything 2D in a room (its prompts, lists, close-ups) with it
 	# (playtest 2026-10-17: "render scale makes the HUD huge"). Rooms have their own 3D.
 	add_child(_building_interior)
 	_register_interior_instance(INTERIOR_MODULE_MAIN, _building_interior)
+	if not _office_later:
+		_finish_building_interior()
+
+
+func _finish_building_interior() -> void:
 	if _building_interior.has_method("setup"):
 		_building_interior.setup(_grid_manager, _building_manager, _legacy_ui_adapter, _player)
 	if _building_interior.has_method("import_crt_desktop_state"):
@@ -1240,6 +1259,7 @@ func _setup_cabin_interior() -> void:
 		return
 	_cabin_interior = CABIN_INTERIOR_SCRIPT.new()
 	_cabin_interior.name = "CabinInterior"
+	_cabin_interior.levels_later = _cabin_levels_later
 	# Here, not in the world: the world is drawn small and scaled up (render style),
 	# and so was everything 2D in a room (its prompts, lists, close-ups) with it
 	# (playtest 2026-10-17: "render scale makes the HUD huge"). Rooms have their own 3D.

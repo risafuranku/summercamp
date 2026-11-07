@@ -323,9 +323,6 @@ func _process(delta: float) -> void:
 	var p: Node3D = player_getter.call() if player_getter.is_valid() else null
 	var inside: bool = indoors.is_valid() and indoors.call()
 	visible = p != null and not inside
-	if not visible:
-		return
-	_t += delta
 	var wtr := int(weather_getter.call()) if weather_getter.is_valid() else 0
 	var h := float(hour_getter.call()) if hour_getter.is_valid() else 12.0
 	# 3 light rain, 4 rain, 5 storm.
@@ -337,6 +334,11 @@ func _process(delta: float) -> void:
 		_rain = 0.0
 	_frozen = Season.snow_cover(day, h) >= 0.2 or (Season.progress(day, h) >= 0.7 and (h < 8.0 or h >= 21.0))
 	_wet = clampf(_wet + delta * (_rain * 0.012 if _rain > 0.0 else -0.004), 0.0, 1.0)
+	# (The ground dries and soaks with you in a room too: you walked out to full puddles at a
+	# dry noon.)
+	if not visible:
+		return
+	_t += delta
 	var night := h >= 21.0 or h < 5.0
 	var small_hours := h >= 1.0 and h < 5.0
 	var want_mist := 0.0

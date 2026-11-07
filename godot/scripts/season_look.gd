@@ -20,7 +20,8 @@ const REFRESH_SEC := 2.0
 const AUTUMN_TEX := "res://assets/textury/world/grass_autumn.png"
 const SNOW_TEX := "res://assets/textury/world/snow_ground.png"
 const AUTUMN_DAY := 10
-const SNOW_SETTLED := 0.2
+## (When the drifts of retro_materials have closed over the ground: the picture changes unseen.)
+const SNOW_SETTLED := 0.62
 ## The leaves in the air and the snowflakes (Grok, assets/textury/world/).
 const LEAF_TEX := ["res://assets/textury/world/leaf_oak.png", "res://assets/textury/world/leaf_maple.png", "res://assets/textury/world/leaf_birch.png"]
 const FLAKE_TEX := "res://assets/textury/world/snowflake.png"
@@ -78,6 +79,10 @@ func _process(delta: float) -> void:
 		_leaves.global_position = c.global_position + Vector3(0, 5.5, 0)
 		_snow.global_position = c.global_position + Vector3(0, 6.0, 0)
 		_snow_far.global_position = c.global_position + Vector3(0, 9.0, 0)
+	# Not in a room: nothing stops them, and a room stands in this world. (The far flakes start
+	# eight metres off: the windows keep them.)
+	_snow.visible = not indoors
+	_leaves.visible = not indoors
 	var soak: float = [0.0, 0.55, 0.85, 1.0][clampi(precip, 0, 3)] if not is_snowing() else 0.0
 	wet = move_toward(wet, soak, delta / (SOAK_SEC if soak > wet else DRY_SEC))
 	_wet_t -= delta
@@ -87,6 +92,10 @@ func _process(delta: float) -> void:
 	if _t >= REFRESH_SEC:
 		_t = 0.0
 		apply(false)
+
+
+## The warden is in a room (main, every frame).
+var indoors := false
 
 
 func is_snowing() -> bool:

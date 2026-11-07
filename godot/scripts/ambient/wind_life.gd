@@ -221,7 +221,8 @@ func _read_weather() -> void:
 		var day := int(sd.x)
 		fall = clampf(Season.leaf_turn(day, sd.y) * 1.3, 0.45, 1.0) * clampf(Season.leaves_on(day, sd.y) + 0.35, 0.2, 1.0)
 		_tint = Season.leaf_tint(day, sd.y)
-		snow = Season.precip_is_snow(day, sd.y) and wtr >= 3 and wtr <= 5
+		# (Nor over snow lying.)
+		snow = (Season.precip_is_snow(day, sd.y) and wtr >= 3 and wtr <= 5) or Season.snow_cover(day, sd.y) >= 0.3
 	if _tint.r + _tint.g + _tint.b < 0.6 or _tint.g > _tint.r * 1.1:
 		_tint = Color(0.78, 0.48, 0.18)
 	_strength = 0.0 if snow else base * fall

@@ -168,6 +168,27 @@ func reset_defaults() -> void:
 	_emit_changed()
 
 
+## The frame cap: a whole share of the screen's refresh, so every frame stays on it the same
+## number of refreshes (96 frames on a 144 Hz screen come 7 and 14 ms by turns, 72 come even),
+## and no more than the camp holds with room to spare: 144 Hz 72, 60 Hz 60, 75 Hz 75, 240 Hz 80.
+## It was 50 flat, under any screen there is, with 90-96 to give.
+const FRAME_CAP_MAX := 100.0
+
+
+static func frame_cap(refresh: float) -> int:
+	if refresh < 30.0:
+		return 60
+	var share := 1
+	while refresh / float(share) > FRAME_CAP_MAX:
+		share += 1
+	return int(round(refresh / float(share)))
+
+
+func apply_frame_cap() -> void:
+	var at := DisplayServer.window_get_current_screen() if DisplayServer.get_name() != "headless" else 0
+	Engine.max_fps = frame_cap(DisplayServer.screen_get_refresh_rate(at))
+
+
 func apply_settings() -> void:
 	_apply_window()
 	_apply_audio()
@@ -239,6 +260,7 @@ func _apply_window() -> void:
 		_:
 			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
 			DisplayServer.window_set_size(_resolution)
+	apply_frame_cap()
 
 
 ## The key an action is on (a physical keycode).

@@ -19,6 +19,7 @@ const TEX_CAMP := "res://assets/textury/camp/"
 const SFX := "res://assets/sfx/town/"
 const CLOTH := preload("res://materials/cloth_wind.gdshader")
 const STEP_MOTION := preload("res://scripts/ambient/step_motion.gd")
+const TRODDEN := preload("res://scripts/town/trodden.gd")
 
 var town: Node3D
 var _rng := RandomNumberGenerator.new()
@@ -231,7 +232,7 @@ func _pavements() -> void:
 ## Paths up to the houses, their fences with a gate gap, wood piles, window boxes,
 ## washing behind, and life in a couple of yards.
 func _houses() -> void:
-	var dirt := _mat(TEX + "dirt_path.png", Color(0.95, 0.92, 0.88))
+	var dirt := _mat(TEX + "dirt_path.png", TRODDEN.TINT)
 	var houses: Array = town.spots.get("houses", [])
 	for i in houses.size():
 		var hd: Dictionary = houses[i]
@@ -242,10 +243,7 @@ func _houses() -> void:
 		var fence_z := front + 3.0 * f
 		# The path from the door to the pavement.
 		var walk_end := 5.3 * signf(front) if absf(front) > 5.3 else fence_z
-		var pm := dirt.duplicate() as StandardMaterial3D
-		var plen := absf(walk_end - front)
-		pm.uv1_scale = Vector3(1.0, plen / 1.2, 1.0)
-		_plane(Vector3(at.x, 0.035, (front + walk_end) * 0.5), Vector2(1.1, plen), pm)
+		TRODDEN.lay(self, Vector3(at.x, 0.035, front), Vector3(at.x, 0.035, walk_end), 1.05, dirt, TRODDEN.dice(i), 0.05)
 		# The fence along the garden's front, a gap for the gate.
 		var fence := "fence_picket" if i % 3 != 1 else "fence_mesh"
 		var half := size.x * 0.5 + 1.0

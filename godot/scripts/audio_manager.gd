@@ -332,6 +332,7 @@ func process_runtime(
 	should_play_rain_inside: bool = false,
 	is_service_sewer_active: bool = false
 ) -> void:
+	_weather_now = weather_state
 	_update_weather_layers(delta, weather_state, should_play_rain_inside, should_duck_outdoor_ambience)
 	_update_storm_thunder(delta, weather_state)
 	_update_redneck_wind_short(delta, weather_state)
@@ -926,8 +927,19 @@ func _play_one_shot_sfx(player: AudioStreamPlayer, fallback_stream_path: String)
 	player.play()
 
 
+## The day (main, every frame): the insects go with the cold.
+var season_day := 1
+var _weather_now := 0
+
+
+## Crickets at seven below in the snow: from a night's low of 4 degrees they are gone; and in
+## the rain they keep quiet.
+func _insects_out() -> bool:
+	return Season.temp_low(season_day) >= 4 and _weather_now < 3
+
+
 func _update_ambient_audio() -> void:
-	var should_play = _is_hour_in_window(_time_of_day_hours, CRICKETS_START_HOUR, CRICKETS_END_HOUR)
+	var should_play = _is_hour_in_window(_time_of_day_hours, CRICKETS_START_HOUR, CRICKETS_END_HOUR) and _insects_out()
 	if _sfx_crickets != null and _sfx_crickets.stream != null:
 		if should_play:
 			if not _sfx_crickets.playing:
@@ -1080,7 +1092,7 @@ func _update_dynamic_ambience_layers(
 		and _is_hour_in_window(_time_of_day_hours, BALANCE_CONFIG.DAY_START_HOUR, AMBIENCE_NIGHT_START_HOUR)
 	)
 	var dusk_birds_active = outside_active and _is_hour_in_window(_time_of_day_hours, DUSK_BIRDS_START_HOUR, DUSK_BIRDS_END_HOUR)
-	var lake_window_active = outside_active and _is_hour_in_window(_time_of_day_hours, LAKE_INSECTS_START_HOUR, LAKE_INSECTS_END_HOUR)
+	var lake_window_active = outside_active and _is_hour_in_window(_time_of_day_hours, LAKE_INSECTS_START_HOUR, LAKE_INSECTS_END_HOUR) and _insects_out()
 	if not lake_window_active:
 		_lake_proximity_is_active = false
 		_lake_proximity_check_cooldown_seconds = 0.0
@@ -1204,7 +1216,7 @@ func _play_night_wildlife_call() -> void:
 
 
 func _is_night_window_active() -> bool:
-	return _is_hour_in_window(_time_of_day_hours, CRICKETS_START_HOUR, CRICKETS_END_HOUR)
+	return _is_hour_in_window(_time_of_day_hours, CRICKETS_START_HOUR, CRICKETS_END_HOUR) and _insects_out()
 
 
 func _update_random_cricket_variants(delta: float) -> void:
