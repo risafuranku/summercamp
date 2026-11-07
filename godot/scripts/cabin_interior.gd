@@ -556,6 +556,12 @@ func _update_hover() -> void:
 			HandCursor.want(HandCursor.WALK)
 			_glint.show_on(_bath_door_now().get("meshes", []))
 			return
+		if n != null and _node_has_click_type(n, "cabin_window_spot"):
+			var spot := _spot_by_id(str(n.get_meta("spot_id", "")))
+			if not spot.is_empty():
+				HandCursor.want(HandCursor.WALK)
+				_glint.show_on([spot["mesh"]])
+				return
 		if n != null and _node_has_click_type(n, "cabin_light_switch"):
 			var knob := _light_switch_body.get_node_or_null("SwitchVisual") if _light_switch_body != null else null
 			if knob != null:
@@ -672,9 +678,21 @@ var _glow := 0.0
 var _camp_lamp: OmniLight3D
 
 
+## The annex is one box round the bathroom, its near side across the doorway: seen from in here
+## it stood a hand in front of your face, a pink wall, the bathroom behind it (found turning
+## round in it, 7. 11.). The camp's eye has it, the room's does not.
+func _annex_layers(cabin, layers: int) -> void:
+	if cabin == null or not is_instance_valid(cabin):
+		return
+	for a in (cabin as Node).find_children("BathAnnex", "MeshInstance3D", true, false):
+		(a as MeshInstance3D).layers = layers
+
+
 func _host_panes(cabin: Node3D) -> void:
 	if cabin == _pane_host:
 		return
+	_annex_layers(_pane_host, 1)
+	_annex_layers(cabin, GLASS_LAYER)
 	for p in _pane_host_panes:
 		if not is_instance_valid(p):
 			continue
@@ -780,9 +798,9 @@ static func _panes_of(cabin: Node3D) -> Array:
 	return out
 
 
-static func _pane_turned_to(p: MeshInstance3D, eye: Vector3) -> bool:
+static func _pane_turned_to(p: MeshInstance3D, eye: Vector3, held := false) -> bool:
 	var to := eye - p.global_position
-	return to.length() > 0.05 and p.global_basis.z.normalized().dot(to.normalized()) > 0.1
+	return to.length() > 0.05 and p.global_basis.z.normalized().dot(to.normalized()) > (-0.12 if held else 0.1)
 
 
 func _update_inview(delta: float) -> void:
@@ -801,10 +819,11 @@ func _update_inview(delta: float) -> void:
 			if not is_instance_valid(c) or not (c as Node3D).is_inside_tree():
 				continue
 			var d := (c as Node3D).global_position.distance_to(cam.global_position)
-			if d >= best:
+			var held: bool = c == _inview_cabin
+			if d >= best + (3.0 if held else 0.0):
 				continue
 			for p in _panes_of(c):
-				if _pane_turned_to(p, cam.global_position):
+				if _pane_turned_to(p, cam.global_position, held):
 					best = d
 					cabin = c
 					break
@@ -1099,6 +1118,9 @@ func _try_click_world(event: InputEventMouseButton) -> bool:
 	if _node_has_click_type(collider, "cabin_bath_door"):
 		_walk_to("bathroom")
 		return true
+	if _node_has_click_type(collider, "cabin_window_spot"):
+		_walk_spot(str(collider.get_meta("spot_id", "")))
+		return true
 	if _node_has_click_type(collider, "cabin_curtain"):
 		var n: Node = collider
 		while n != null and not n.has_meta("portal_index"):
@@ -1367,6 +1389,7 @@ func _build_cabin_room() -> void:
 	var bucket := K.prop(_cabin_root, "slop_bucket", SLOP_BUCKET_POS)
 	bucket.name = "SlopBucket"
 	_build_light_switch()
+	_build_window_spots()
 	_build_bathroom_room()
 	_build_prep_props()
 	_apply_level_variant()
@@ -2070,8 +2093,12 @@ func _bath_door_now() -> Dictionary:
 
 ## Where you stand in the room: just in by the front door, looking in at the back window.
 func _main_stand() -> Dictionary:
+	return _main_stand_of(_cabin_level)
+
+
+func _main_stand_of(lv: int) -> Dictionary:
 	var CL := CABIN_LAYOUT
-	return {"pos": Vector3(0.0, CL.ROOM_FLOOR + 1.47, CL.inner(_cabin_level).y * 0.5 - 0.42),
+	return {"pos": Vector3(0.0, CL.ROOM_FLOOR + 1.47, CL.inner(lv).y * 0.5 - 0.42),
 		"rot": Vector3(deg_to_rad(MAIN_PITCH_DEG), 0.0, 0.0)}
 
 
@@ -2085,6 +2112,7 @@ func _bath_stand() -> Dictionary:
 
 ## The bathroom's door takes a click from the room, shut, not on the way.
 func _update_bath_doors() -> void:
+	_update_window_spots()
 	var on := _active_room == "main" and not _walking()
 	for lv in _bath_doors.keys():
 		(_bath_doors[lv]["body"] as StaticBody3D).collision_layer = 1 if on and int(lv) == _cabin_level else 0
@@ -2140,6 +2168,7 @@ func _walk_to(room: String) -> void:
 ## There: the head free to look round (the bathroom behind its shut door not drawn).
 func _walked_into(room: String) -> void:
 	_active_room = room
+	_stood = ""
 	_bathroom_root.visible = room == "bathroom"
 	var r := _interior_camera.rotation
 	r.y = wrapf(r.y, -PI, PI)
@@ -2151,18 +2180,129 @@ func _walked_into(room: String) -> void:
 		_prep.tasks.pause(false)
 
 
-## How far the head turns. In the bathroom's doorway only so far that the screen's edge
-## stays in the bathroom (the room's 72 degrees saw back through the doorway past its
-## jambs, grey while the room was not drawn there); the whole little room is in front.
-const ROOM_YAW_DEG := 72.0
+## How far the head turns: all the way round, the room you have just come from behind you too
+## (the user 7. 11.: "let me turn 360 in the cabin, don't block my turning in ANY interior").
+const ROOM_YAW_DEG := 180.0
 
 
-func _yaw_limit(room: String) -> float:
-	if room != "bathroom" or _viewport == null:
-		return ROOM_YAW_DEG
-	var aspect := float(_viewport.size.x) / maxf(float(_viewport.size.y), 1.0)
-	var half_w := rad_to_deg(atan(tan(deg_to_rad(BATH_FOV * 0.5)) * aspect))
-	return clampf(86.0 - half_w, 6.0, ROOM_YAW_DEG)
+func _yaw_limit(_room: String) -> float:
+	return ROOM_YAW_DEG
+
+
+# -- to the windows (the user 7. 11.: "in the cabin let the player walk to the windows, by a click
+# into the space by them; don't forget the hover"): a place on the floor before each, and the
+# one by the door to go back. On foot, as to the bathroom. --
+
+const SPOT_SIZE := Vector2(0.9, 0.8)
+const SPOT_FRONT_Z := 0.55
+const SPOT_BACK_M := 0.75
+const SPOT_SIDE_M := 0.75
+## level -> [{id, stand, rot, body, mesh}]
+var _window_spots: Dictionary = {}
+## The spot you stand at ("" by the door).
+var _stood := ""
+
+
+func _spots_of(lv: int) -> Array:
+	var CL := CABIN_LAYOUT
+	var eye: float = CL.ROOM_FLOOR + 1.47
+	var out: Array = []
+	var front_z: float = CL.inner(lv).y * 0.5 - SPOT_FRONT_Z
+	for win in CL.windows(lv):
+		var at: Vector3 = CL.to_room(win["centre"])
+		var o: Vector3 = win["out"]
+		var stand := at - o * (SPOT_BACK_M if str(win["id"]) == "back" else SPOT_SIDE_M)
+		match str(win["id"]):
+			"front_l":
+				stand = Vector3(-1.2, 0.0, front_z)
+			"front_r":
+				stand = Vector3(0.85, 0.0, front_z)
+		stand.y = eye
+		var to := at - stand
+		out.append({"id": str(win["id"]), "stand": stand, "rot": Vector3(deg_to_rad(-3.0), atan2(-to.x, -to.z), 0.0)})
+	var home := _main_stand_of(lv)
+	out.append({"id": "door", "stand": home["pos"], "rot": home["rot"]})
+	return out
+
+
+func _build_window_spots() -> void:
+	for lv in [1, 2, 3]:
+		var list: Array = _spots_of(lv)
+		for s in list:
+			var stand: Vector3 = s["stand"]
+			var floor_at := Vector3(stand.x, CABIN_LAYOUT.ROOM_FLOOR + 0.03, stand.z)
+			var q := QuadMesh.new()
+			q.size = SPOT_SIZE
+			q.orientation = PlaneMesh.FACE_Y
+			var mi := MeshInstance3D.new()
+			mi.name = "WindowSpot_%d_%s" % [lv, str(s["id"])]
+			mi.mesh = q
+			var m := StandardMaterial3D.new()
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			m.albedo_color = Color(1, 1, 1, 0)
+			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			mi.material_override = m
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			mi.position = floor_at
+			_cabin_root.add_child(mi)
+			var body := StaticBody3D.new()
+			body.name = "WindowSpotBody"
+			body.set_meta("interior_click_type", "cabin_window_spot")
+			body.set_meta("spot_id", str(s["id"]))
+			body.position = floor_at
+			body.collision_layer = 0
+			var shape := CollisionShape3D.new()
+			var box := BoxShape3D.new()
+			box.size = Vector3(SPOT_SIZE.x, 0.1, SPOT_SIZE.y)
+			shape.shape = box
+			body.add_child(shape)
+			_cabin_root.add_child(body)
+			s["body"] = body
+			s["mesh"] = mi
+		_window_spots[lv] = list
+
+
+## Clickable in the room, this tier's, not where you stand, not on the way.
+func _update_window_spots() -> void:
+	var on := _active_room == "main" and not _walking()
+	for lv in _window_spots.keys():
+		for s in _window_spots[lv]:
+			var mine: bool = on and int(lv) == _cabin_level and str(s["id"]) != (_stood if _stood != "" else "door")
+			(s["body"] as StaticBody3D).collision_layer = 1 if mine else 0
+
+
+func _spot_by_id(id: String) -> Dictionary:
+	for s in _window_spots.get(_cabin_level, []):
+		if str(s["id"]) == id:
+			return s
+	return {}
+
+
+func _walk_spot(id: String) -> void:
+	if not _is_open or lodge_sleeping or _walking() or _interior_camera == null:
+		return
+	var s := _spot_by_id(id)
+	if s.is_empty():
+		return
+	var cam := _interior_camera
+	var to: Vector3 = s["stand"]
+	_glint.clear()
+	if _prep.tasks != null:
+		_prep.tasks.pause(true)
+	_sfx(_steps_player, SFX_STEPS, -13.0)
+	_walk = WALK_PATH.play(self, cam, [{"pos": cam.position, "rot": cam.rotation}, {"pos": to, "rot": s["rot"]}], clampf(cam.position.distance_to(to) / 1.1, 0.7, 2.8))
+	_walk.tween_callback(_walked_to_spot.bind(id))
+
+
+func _walked_to_spot(id: String) -> void:
+	_stood = "" if id == "door" else id
+	var r := _interior_camera.rotation
+	r.y = wrapf(r.y, -PI, PI)
+	_interior_camera.rotation = r
+	_cam_base_rot = r
+	_look.reset()
+	if _prep.tasks != null:
+		_prep.tasks.pause(false)
 
 
 ## On the spot (a walk cut short, the room opened or closed): the doors shut.
@@ -2209,6 +2349,8 @@ func _set_cabin_room(room: String, update_camera: bool = true) -> void:
 	if room != _active_room:
 		_look.reset()
 	_active_room = room
+	if update_camera:
+		_stood = ""
 	_cabin_root.visible = true
 	_bathroom_root.visible = (room == "bathroom")
 	_look.yaw_limit_deg = _yaw_limit(room)

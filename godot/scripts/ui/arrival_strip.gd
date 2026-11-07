@@ -45,6 +45,7 @@ const WS_NOTE_TEX := "res://assets/textury/ui/ws_note.png"
 const WS_WHITE := Color(0.88, 0.86, 0.8)
 var van: Dictionary = {}
 const ICON_BOX := Vector2(13, 9)
+const HAND_FACE := preload("res://scripts/ui/hand_face.gd")
 
 var font: Font
 var ui_scale := 2
@@ -150,13 +151,18 @@ func _plate(row: Dictionary, at: Vector2, u: float, f: Font, fs: int) -> void:
 	else:
 		var whole := maxf(1.0, float(_trip.get(id, row.get("minutes", 0))))
 		left = clampf(1.0 - float(row.get("minutes", 0)) / whole, 0.0, 1.0)
-	# The bell rings (a pixel either way, twice a second) while they wait; the car drives.
+	# The bell rings (a pixel either way, twice a second) while they wait; the car drives. One of
+	# the hands at the desk has them: their face, and it keeps still.
 	var wiggle := 0.0
 	if at_desk:
 		wiggle = (1.0 if int(_t * 4.0) % 2 == 0 else -1.0) if int(_t * 0.5) % 3 == 0 else 0.0
 	else:
 		wiggle = 0.0 if int(_t * 3.0) % 2 == 0 else -1.0
-	_icon(BELL_TEX if at_desk else CAR_TEX, at + (ICON_AT + Vector2(wiggle if at_desk else 0.0, wiggle if not at_desk else 0.0)) * u, u)
+	var hand: Texture2D = HAND_FACE.of(str(row.get("who", ""))) if at_desk else null
+	if hand != null:
+		draw_texture_rect(hand, Rect2(at + (ICON_AT + Vector2(1, -1)) * u, Vector2(hand.get_size()) * u), false)
+	else:
+		_icon(BELL_TEX if at_desk else CAR_TEX, at + (ICON_AT + Vector2(wiggle if at_desk else 0.0, wiggle if not at_desk else 0.0)) * u, u)
 	var bar := Rect2(at + BAR.position * u, BAR.size * u)
 	draw_rect(bar.grow(u), SLOT)
 	var seg_w := floorf((BAR.size.x + 1.0) / float(SEGMENTS)) - 1.0
@@ -180,7 +186,8 @@ func _plate(row: Dictionary, at: Vector2, u: float, f: Font, fs: int) -> void:
 func _post_plate(s: Array, at: Vector2, u: float) -> void:
 	var row: Dictionary = s[0]
 	var box := Rect2(at, PLATE * u)
-	draw_rect(box, FILL)
+	var who := str(row.get("who", ""))
+	draw_rect(box, Color(FILL, 0.6) if who != "" else FILL)
 	draw_rect(Rect2(box.position, Vector2(box.size.x, u)), LIGHT)
 	draw_rect(Rect2(box.position, Vector2(u, box.size.y)), LIGHT)
 	draw_rect(Rect2(box.position + Vector2(0, box.size.y - u), Vector2(box.size.x, u)), DARK)
@@ -195,7 +202,12 @@ func _post_plate(s: Array, at: Vector2, u: float) -> void:
 		wiggle = (1.0 if int(_t * 4.0) % 2 == 0 else -1.0) if int(_t * 0.5) % 3 == 0 else 0.0
 	else:
 		wiggle = 0.0 if int(_t * 3.0) % 2 == 0 else -1.0
-	_icon(str(s[3]) if waiting else str(s[2]), at + (ICON_AT + Vector2(wiggle if waiting else 0.0, wiggle if not waiting else 0.0)) * u, u)
+	# One of the hands has it: their face, and it keeps still.
+	var face: Texture2D = HAND_FACE.of(who) if who != "" else null
+	if face != null:
+		draw_texture_rect(face, Rect2(at + (ICON_AT + Vector2(1, -1)) * u, Vector2(face.get_size()) * u), false)
+	else:
+		_icon(str(s[3]) if waiting else str(s[2]), at + (ICON_AT + Vector2(wiggle if waiting else 0.0, wiggle if not waiting else 0.0)) * u, u)
 	var bar := Rect2(at + BAR.position * u, BAR.size * u)
 	draw_rect(bar.grow(u), SLOT)
 	var seg_w := floorf((BAR.size.x + 1.0) / float(SEGMENTS)) - 1.0

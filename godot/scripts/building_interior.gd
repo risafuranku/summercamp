@@ -1007,12 +1007,14 @@ func _build_viewport() -> void:
 	# desk and the shelves, a little of the lamps' light too.
 	env.ssao_enabled = true
 	env.ssao_radius = 0.9
-	env.ssao_intensity = 2.6
+	# (Not much on the lamps' light: the camp's eye has no occlusion, and the room went a shade
+	# darker the moment you were in it.)
+	env.ssao_intensity = 2.0
 	env.ssao_power = 1.6
 	env.ssao_detail = 0.4
 	env.ssao_horizon = 0.06
 	env.ssao_sharpness = 0.9
-	env.ssao_light_affect = 0.35
+	env.ssao_light_affect = 0.1
 	env.fog_enabled = false
 	env.fog_mode = Environment.FOG_MODE_EXPONENTIAL
 	env.fog_light_color = Color(0.78, 0.82, 0.84)
@@ -3570,6 +3572,9 @@ func _setup_radio() -> void:
 	_ensure_radio_bus()
 	if _dread == null:
 		_dread = RADIO_DREAD_SCRIPT.new()
+		_dread.on_event = func(ev: int, seed_n: int) -> void:
+			if Coop.is_host():
+				Coop.send_sync("radio_ev", [ev, seed_n])
 		_dread.name = "RadioDread"
 		add_child(_dread)
 	_radio_load_paths = _collect_audio_paths_in_dir("res://assets/sfx/radio")

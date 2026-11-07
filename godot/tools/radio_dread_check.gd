@@ -58,12 +58,14 @@ func _run() -> void:
 	_check(rising, "dread rises with every NIGHT RISK lamp")
 	var crit := night.duplicate()
 	crit["risk"] = 1.0
+	# (Night after night: the first ones are held down, night_ladder.gd.)
+	crit["day"] = 9
 	_check(DREAD.compute_target(crit) > 0.85, "critical at 02:00 is near the top (%.2f)" % DREAD.compute_target(crit))
 	var noon := {"night": false, "hours": 12.0, "day": 4, "tonight": [], "risk": 1.0}
 	_check(DREAD.compute_target(noon) < 0.3, "by day the lamps only make the set sick (%.2f)" % DREAD.compute_target(noon))
 	var first := crit.duplicate()
 	first["day"] = 1
-	_check(DREAD.compute_target(first) <= DREAD.QUIET_NIGHT_CAP + 0.001, "the first night only frets")
+	_check(DREAD.compute_target(first) <= DREAD.NIGHT_LADDER.dread_cap(0) + 0.001, "the first night only frets")
 	var visited := night.duplicate()
 	visited["risk"] = 0.25
 	visited["tonight"] = ["girl", "stalker"]

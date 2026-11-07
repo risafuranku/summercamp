@@ -6,8 +6,7 @@ extends "res://scripts/closeup/closeup_view.gd"
 ## frame's BOOKS, B, as well as from the book in the room):
 ##   MENU    what is sold: a pencilled box ticked for each dish, drink or good on the
 ##           menu; untick it and the guests do not order it (the place's own is always on)
-##   STOCK   what is on the shelves, a bar each, red when it is running low; what has
-##           gone off in red, THROW OUT; the days before the oldest lot goes
+##   STOCK   what is on the shelves, a bar each, red when it is running low
 ##   ORDER   packs to order (- / +), what is already on order, the cost; the stamp sends
 ##           it, the van brings it in the morning
 ##   STAFF   who works here (their job, their shift, away today, owed) and who is asking

@@ -141,6 +141,47 @@ static func on_duty(p: Dictionary, hour: float, index: int, day := -1) -> bool:
 	return hour >= start_hour(index) and hour < HOME_HOUR
 
 
+## What the hands have taken on just now, for the plates on the right: {"ev:<id>": slug,
+## "room:<key>": slug (a lodging, "block:x:y", "desk")}. On their way to it counts.
+static func taken(staff: Dictionary) -> Dictionary:
+	var out := {}
+	var acts: Dictionary = staff.get("act", {}) if staff.get("act", {}) is Dictionary else {}
+	for slug in acts:
+		var a: Dictionary = acts[slug]
+		var next: Dictionary = a.get("next", {}) if a.get("next", {}) is Dictionary else {}
+		var doing := str(a.get("do", "")) == "work" or (str(a.get("do", "")) == "walk" and str(next.get("do", "")) == "work")
+		if not doing:
+			continue
+		if int(a.get("ev", -1)) >= 0:
+			out["ev:%d" % int(a["ev"])] = str(slug)
+		if str(a.get("room", "")) != "":
+			out["room:" + str(a["room"])] = str(slug)
+	return out
+
+
+## The hands' day on the clock's line (the user 7. 11.: "what I miss in the HUD is a time line:
+## when the staff come to work and when their shift ends"): [[from hour, to hour, late?], ...],
+## the camp's own and each business's, those who are off today left out. `biz`: state.biz.
+static func day_bands(biz: Dictionary, day: int, late_close: float) -> Array:
+	var out: Array = []
+	var staff: Dictionary = biz.get("staff", {}) if biz.get("staff", {}) is Dictionary else {}
+	var crew: Array = staff.get("crew", []) if staff.get("crew", []) is Array else []
+	for i in crew.size():
+		var p: Dictionary = crew[i]
+		if int(p.get("since", 0)) <= day and int(p.get("absent", -1)) != day:
+			out.append([start_hour(i), HOME_HOUR, false])
+	var sites: Dictionary = biz.get("sites", {}) if biz.get("sites", {}) is Dictionary else {}
+	for key in sites:
+		for p in (sites[key] as Dictionary).get("crew", []):
+			if int((p as Dictionary).get("since", 0)) > day or int((p as Dictionary).get("absent", -1)) == day:
+				continue
+			if str((p as Dictionary).get("shift", "day")) == "late":
+				out.append([HOME_HOUR, late_close, true])
+			else:
+				out.append([START_HOUR, HOME_HOUR, false])
+	return out
+
+
 ## The applicants at the staffroom today: business_rules' people who ask for this kind,
 ## those already working anywhere in the camp left out.
 static func applicants(day: int, taken: Array, seed := 0) -> Array:

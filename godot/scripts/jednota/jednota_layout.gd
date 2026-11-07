@@ -10,8 +10,7 @@ extends RefCounted
 ##          door, the storeroom's door in the back wall.
 ##   store  the storeroom behind: concrete under a bare bulb; the packing table at the
 ##          back (the storeroom's station: the cartons off the van, the box cutter, the
-##          price gun, the trolley), the cartons on their rack, the locker, the empties,
-##          the corner where what went off waits to be thrown out.
+##          price gun, the trolley), the cartons on their rack, the locker, the empties.
 ## Every station is a click box with meta "bistro_station" (STATIONS), the things worth a
 ## look meta "bistro_look" (room_sentence.gd). SURFACES is where each station is worked
 ## (scripts/business/station3d.gd); the shelves' station is a wall the width of the rack

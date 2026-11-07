@@ -201,7 +201,7 @@ static func build(root: Node3D, room = null, lit := false) -> Dictionary:
 	room._cam.position = STAND
 	# Turned to the counter and Mrs Lojzova behind it, the door at your back.
 	room._base_rot = Vector3(deg_to_rad(-6.0), deg_to_rad(40.0), 0.0)
-	room._look.yaw_limit_deg = 150.0
+	room._look.yaw_limit_deg = 180.0
 	return out
 
 

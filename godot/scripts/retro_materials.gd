@@ -46,7 +46,7 @@ const TEXT_PICTURES := ["sign", "poster", "noticeboard", "lettering", "label", "
 ## them did not, and seen along the wall a whole triangle of it went behind the room's
 ## wallpaper, the room's textures out on the building (the user 5. and 6. 11.). They keep
 ## their swim, a texture's and not a corner's.
-const HOLDS_ROOM := ["main_building", "cabin", "caravan", "tent", "pub", "restaurant", "vecerka", "staffroom", "bowling"]
+const HOLDS_ROOM := ["main_building", "cabin", "caravan", "tent", "pub", "restaurant", "vecerka", "staffroom", "bowling", "corn_stand"]
 
 var enabled := true
 var _shaders: Dictionary = {}       # variant key -> Shader

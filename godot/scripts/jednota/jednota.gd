@@ -583,8 +583,8 @@ func _save(key: String) -> void:
 ##                change counted right, or a coin over now and then
 ##   shelves      a box off the trolley onto the emptiest place it has a box for (one
 ##                dropped now and then: broken)
-##   store        a box made up for the place that will run out first; what went off
-##                thrown out (the pallet truck, gear: twice as quick)
+##   store        a box made up for the place that will run out first (the pallet truck,
+##                gear: twice as quick)
 ##   deli         cuts the oldest deli order to about its weight and wraps it
 const ROLE_AT := {"till": "till", "till2": "till2", "shelves": "shelves", "store": "store", "deli": "deli"}
 ## Where a hand may go to help, the queue first.
@@ -601,8 +601,8 @@ func crew_places(key: String) -> Dictionary:
 
 
 ## How much a station of the Jednota wants doing now (0 nothing): the queue at the tills,
-## deli orders, boxes on the trolley for places with room (more for an empty one), what
-## went off and the places that will run out first.
+## deli orders, boxes on the trolley for places with room (more for an empty one), and the
+## places that will run out first.
 func station_need(key: String, st: String) -> float:
 	match st:
 		"till":

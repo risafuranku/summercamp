@@ -1400,10 +1400,18 @@ func _aim_beam(delta: float) -> void:
 		_flashlight_halo.global_transform = xf
 
 
+## Stepping in over a sill the torch goes down (interior_manager._walk_up_first): at arm's length
+## from the walls of a lit room it burnt them white, and went out as the room took over: the
+## room seen in one light and entered in another (the user 7. 11.). Back with the keys.
+var torch_fade := 1.0
+
+
 func _update_flashlight_effect(delta: float) -> void:
 	_aim_beam(delta)
 	if _flashlight == null or not _flashlight_active:
 		return
+	if controls_enabled and torch_fade < 1.0:
+		torch_fade = move_toward(torch_fade, 1.0, delta * 3.0)
 
 	_flashlight_flicker_time += delta * flashlight_flicker_speed
 	var flicker = 1.0
@@ -1431,6 +1439,7 @@ func _update_flashlight_effect(delta: float) -> void:
 		var step := int(now * 12.0)
 		var on := ((step * 7 + 3) % 10) < int(2.0 + k * 8.0)
 		flicker *= (0.3 + 0.7 * k) if on else 0.0
+	flicker *= torch_fade
 	_flashlight.light_energy = flashlight_energy * flicker
 	if _flashlight_halo != null:
 		_flashlight_halo.light_energy = flashlight_halo_energy * flicker

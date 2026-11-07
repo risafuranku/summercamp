@@ -203,7 +203,7 @@ static func build(root: Node3D, room = null, lit := false) -> Dictionary:
 	env.fog_density = 0.035
 	room._cam.position = STAND
 	room._base_rot = Vector3(deg_to_rad(-6.0), 0.0, 0.0)
-	room._look.yaw_limit_deg = 150.0
+	room._look.yaw_limit_deg = 180.0
 	return out
 
 

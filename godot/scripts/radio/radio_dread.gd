@@ -55,8 +55,11 @@ const NEAR_FAR := 24.0
 const NEAR_CLOSE := 9.0
 const DREAD_RISE_PER_SEC := 0.02
 const DREAD_FALL_PER_SEC := 0.01
-## The first night is quiet (main.QUIET_NIGHTS): the radio only frets.
-const QUIET_NIGHT_CAP := 0.15
+## How bad it may get is worked up to, night by night (core/systems/night_ladder.gd; the first
+## night is quiet, main.QUIET_NIGHTS: the radio only frets). No hell splinters on the first bad
+## night either: "straight to the hell waltz, a mad peak" (the user 7. 11.).
+const NIGHT_LADDER = preload("res://core/systems/night_ladder.gd")
+const HELLS_FROM_DAY := 3
 ## Between two interludes at least this long, so the songs are still the station.
 const INTERLUDE_COOLDOWN_SEC := 170.0
 
@@ -317,9 +320,7 @@ static func compute_target(ctx: Dictionary) -> float:
 	if night:
 		t += 0.06 + minf(0.3, 0.12 * tonight.size())
 	t += float(ctx.get("near", 0.0)) * 0.35
-	if int(ctx.get("day", 2)) <= 1:
-		t = minf(t, QUIET_NIGHT_CAP)
-	return clampf(t, 0.0, 1.0)
+	return clampf(minf(t, NIGHT_LADDER.dread_cap(int(ctx.get("day", 2)) - 1)), 0.0, 1.0)
 
 
 static func near_from_distance(d: float) -> float:
@@ -574,6 +575,8 @@ func _apply_bus(_dt: float) -> void:
 ## it does to the song: an event goes over with a seed, so the two play it out the same.
 var host_dread := -1.0
 var host_tonight: Array = []
+## Told of each event on the set's own machine (building_interior: it goes over).
+var on_event: Callable
 
 
 func tonight_now() -> Array:
@@ -593,10 +596,10 @@ func _update_events(dt: float) -> void:
 		if _next_event_in <= 0.0:
 			_next_event_in = lerpf(110.0, 16.0, dread) * _rng.randf_range(0.6, 1.4)
 			var ev := _pick_event()
-			if ev != Ev.NONE and Coop.is_host():
+			if ev != Ev.NONE and on_event.is_valid():
 				var seed_n := randi()
 				_rng.seed = seed_n
-				Coop.send_sync("radio_ev", [ev, seed_n])
+				on_event.call(ev, seed_n)
 			_begin_event(ev)
 		return
 	_event_t += dt
@@ -695,7 +698,7 @@ func _pick_event() -> int:
 		if dread > 0.5 and not bool(_ctx.get("client", false)):
 			bag.append([Ev.NEEDLE, 1.5])
 		return int(bag[_rng.randi() % bag.size()][0])
-	if night and dread >= FLASH_FROM:
+	if night and dread >= FLASH_FROM and int(_ctx.get("day", 2)) >= HELLS_FROM_DAY:
 		bag.append([Ev.FLASH, 0.5 + 1.5 * dread])
 	if _break_ready():
 		bag.append([Ev.BREAK, 3.0 if dread >= RADIO_TIERS.PEKLO else 0.8])

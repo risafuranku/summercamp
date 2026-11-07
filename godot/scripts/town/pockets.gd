@@ -741,21 +741,19 @@ func _layout_left(vp: Vector2, s: float, bar: float, bob: Vector2, step: float) 
 		CIG.PACK:
 			frame = "hand2_pack"
 		CIG.LIPS:
-			# The lighter and the cigarette in your mouth as one picture when there is one;
-			# its tip catches (the same picture, the end glowing) as you draw on the flame.
-			if tex("hand4_lighting") != null:
-				frame = "hand4_lighting"
-			else:
-				frame = "hand2_lighter"
-				mouth = true
+			# The lighter brought up to the one in your mouth, two pictures: the one picture of
+			# both had a cigarette as long as your forearm and the arm ending in mid-air (the
+			# user 7. 11.: "how does he even hold that").
+			frame = "hand2_lighter"
+			mouth = true
 		CIG.DRAG:
 			frame = "hand2_v_mouth"
 		CIG.EXHALE:
 			frame = "hand2_v_mouth" if cig.t < 0.18 else "hand2_v"
+	# (At your mouth the two fingers over the one in your lips: the fist that stood there filled
+	# the lower half of the picture, a filter under it: "what is he doing with it", 7. 11.)
 	if frame == "hand2_v" and _hold_tex() != null:
 		frame = "hold"
-	elif frame == "hand2_v_mouth" and tex("hand4_cig_mouth") != null:
-		frame = "hand4_cig_mouth"
 	if cig.state == CIG.THROW and frame == "hold" and tex("hand5_cig_flick") != null:
 		# Held a beat (cocked back by its offset), then the flick: the butt gone from the
 		# fingers (a wind-up picture of its own when there is one).
@@ -1089,8 +1087,8 @@ func _offer_cig() -> void:
 const FRAME_TICKS := 2
 ## (from, to) -> the pictures between them.
 const BETWEEN := {
-	"hold>hand4_cig_mouth": ["hand5_cig_mid"], "hand4_cig_mouth>hold": ["hand5_cig_mid"],
-	"hand2_pack>hand4_lighting": ["hand5_pack_mouth"],
+	"hold>hand2_v_mouth": ["hand5_cig_mid"], "hand2_v_mouth>hold": ["hand5_cig_mid"],
+	"hand2_pack>hand2_lighter": ["hand5_pack_mouth"],
 	"hand4_lighting>hand4_cig_mouth": [], "hand4_cig_mouth>hand4_lighting": [],
 	"hand2_beer_open>hand4_beer_raise": [], "hand4_beer_drink>hand2_beer_open": ["hand4_beer_raise"],
 }

@@ -44,6 +44,10 @@ const STOCK_CRATE := "crate"
 const CAT := {"day": AMBER, "night": RED, "biz": GREEN, "work": WORK, "stock": STOCK}
 const TEX := "res://assets/textury/ui/trouble_%s.png"
 const NEW_SEC := 3.0
+const HAND_FACE := preload("res://scripts/ui/hand_face.gd")
+## Somebody has it: the plate goes back, their face instead of the picture.
+const TAKEN_FILL := Color(0.05, 0.05, 0.05, 0.6)
+const TAKEN_WORD := Color(0.93, 0.89, 0.78, 0.55)
 
 var font: Font
 var ui_scale := 2
@@ -138,29 +142,34 @@ func _draw() -> void:
 
 func _plate(row: Dictionary, at: Vector2, u: float, f: Font, fs: int) -> void:
 	var stock := str(row.get("cat", "")) == "stock"
+	var who := str(row.get("who", ""))
 	var wider := STOCK_WIDER if stock else 0.0
 	at.x -= wider * u
 	var box := Rect2(at, (PLATE + Vector2(wider, 0.0)) * u)
-	var fresh := _t - float(_seen.get(str(row.get("id", "")), _t)) < NEW_SEC
+	var fresh := who == "" and _t - float(_seen.get(str(row.get("id", "")), _t)) < NEW_SEC
 	var flash := fresh and int(_t * 4.0) % 2 == 0
-	draw_rect(box, STOCK_FILL if stock else FILL)
+	draw_rect(box, TAKEN_FILL if who != "" else (STOCK_FILL if stock else FILL))
 	var lt := BONE if flash else (STOCK_LIGHT if stock else LIGHT)
 	draw_rect(Rect2(box.position, Vector2(box.size.x, u)), lt)
 	draw_rect(Rect2(box.position, Vector2(u, box.size.y)), lt)
 	draw_rect(Rect2(box.position + Vector2(0, box.size.y - u), Vector2(box.size.x, u)), BONE if flash else DARK)
 	draw_rect(Rect2(box.position + Vector2(box.size.x - u, 0), Vector2(u, box.size.y)), BONE if flash else DARK)
 	var cat_col: Color = CAT.get(str(row.get("cat", "day")), AMBER)
-	draw_rect(Rect2(box.position + Vector2(u, u), Vector2(u, box.size.y - 2.0 * u)), cat_col)
-	# The picture nods now and then (a pixel), so the eye goes to it.
-	var nod := -1.0 if int(_t * 2.0 + float(hash(str(row.get("id", ""))) % 7)) % 6 == 0 else 0.0
-	_icon(TEX % str(row.get("kind", "")), at + (ICON_AT + Vector2(0, nod)) * u, u)
+	draw_rect(Rect2(box.position + Vector2(u, u), Vector2(u, box.size.y - 2.0 * u)), Color(cat_col, 0.45) if who != "" else cat_col)
+	# The picture nods now and then (a pixel), so the eye goes to it; seen to, it keeps still.
+	var nod := -1.0 if who == "" and int(_t * 2.0 + float(hash(str(row.get("id", ""))) % 7)) % 6 == 0 else 0.0
+	var face: Texture2D = HAND_FACE.of(who) if who != "" and who != "@" else null
+	if face != null:
+		draw_texture_rect(face, Rect2(at + (ICON_AT + Vector2(1, 0)) * u, Vector2(face.get_size()) * u), false)
+	else:
+		_icon(TEX % str(row.get("kind", "")), at + (ICON_AT + Vector2(0, nod)) * u, u, Color(1, 1, 1, 0.5) if who != "" else Color.WHITE)
 	var word := tr(str(row.get("word", ""))).to_upper()
 	var room := (PLATE.x + wider - WORD_AT.x - 2.0 - (ICON_BOX.x if stock else 0.0)) * u
 	if stock:
 		_icon(TEX % STOCK_CRATE, at + Vector2(PLATE.x + wider - ICON_BOX.x - 2.0, ICON_AT.y + nod) * u, u)
 	while word.length() > 1 and f.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > room:
 		word = word.substr(0, word.length() - 1)
-	_text(f, word, at + WORD_AT * u, fs, u, BONE)
+	_text(f, word, at + WORD_AT * u, fs, u, TAKEN_WORD if who != "" else BONE)
 	var n := int(row.get("n", 0))
 	if n > 0:
 		# How many wait: a badge on the picture's lower right corner.
@@ -179,7 +188,7 @@ func _plate(row: Dictionary, at: Vector2, u: float, f: Font, fs: int) -> void:
 
 
 ## The picture at its own pixels (u screen pixels each), in the middle of its box.
-func _icon(path: String, at: Vector2, u: float) -> void:
+func _icon(path: String, at: Vector2, u: float, tint := Color.WHITE) -> void:
 	if not _icons.has(path):
 		_icons[path] = load(path) if ResourceLoader.exists(path) else null
 	var t: Texture2D = _icons[path]
@@ -187,7 +196,7 @@ func _icon(path: String, at: Vector2, u: float) -> void:
 		return
 	var sz := t.get_size()
 	var off := ((ICON_BOX - sz) * 0.5).floor()
-	draw_texture_rect(t, Rect2(at + off * u, sz * u), false)
+	draw_texture_rect(t, Rect2(at + off * u, sz * u), false, tint)
 
 
 func _text(f: Font, s: String, at: Vector2, fs: int, u: float, c: Color) -> void:

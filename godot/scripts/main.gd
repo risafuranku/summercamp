@@ -1819,7 +1819,14 @@ func _poll_arrivals(delta: float) -> void:
 	if not Coop.sim_here():
 		# The host's guests by the host's clock (GuestManager keeps no time of its own here).
 		GuestManager._on_time_tick(int(_time_of_day_hours), int(fposmod(_time_of_day_hours, 1.0) * 60.0))
-	_hud_manager.set_arrivals(GuestManager.get_arrivals())
+	var arrivals: Array = GuestManager.get_arrivals()
+	# Who is at the desk has the guests at the counter (the same mark as the jobs' plates).
+	var at_desk := str(_jobs_taken().get("room:desk", ""))
+	if at_desk != "":
+		for r in arrivals:
+			if bool((r as Dictionary).get("at_gate", false)):
+				(r as Dictionary)["who"] = at_desk
+	_hud_manager.set_arrivals(arrivals)
 	# The post on its way with what you ordered (reception/post_delivery.gd).
 	var bi_p = _interior_manager.get("_building_interior") if _interior_manager != null else null
 	var post_p = bi_p.get("_post") if bi_p != null else null
@@ -1828,7 +1835,13 @@ func _poll_arrivals(delta: float) -> void:
 	# The wholesaler's van on its way with the businesses' orders, likewise.
 	if _hud_manager.has_method("set_van"):
 		var abs_now := (maxi(1, _day_index) - 1) * 1440 + _clock_minutes_from_hours(_time_of_day_hours)
-		_hud_manager.set_van(_day_events.van_hud_row(abs_now) if _day_events != null and camp_rule("events") else {})
+		var van_row: Dictionary = _day_events.van_hud_row(abs_now) if _day_events != null and camp_rule("events") else {}
+		if van_row.has("ev"):
+			van_row["who"] = str(_jobs_taken().get("ev:%d" % int(van_row["ev"]), ""))
+		_hud_manager.set_van(van_row)
+	var state_now = CoreRoot.get_state()
+	if _hud_manager.has_method("set_shift_bands") and state_now != null and state_now.biz is Dictionary:
+		_hud_manager.set_shift_bands(STAFF_RULES_M.day_bands(state_now.biz, _day_index, float(BIZ_RULES_M.LATE_CLOSE)))
 	var day_rows: Array = _day_events.hud_rows() if _day_events != null else []
 	var biz = _interior_manager.get("business") if _interior_manager != null else null
 	var serve_rows: Array = []
@@ -1842,7 +1855,52 @@ func _poll_arrivals(delta: float) -> void:
 	elif _night_jobs != null:
 		_hud_manager.set_jobs(serve_rows + _night_jobs.hud_rows())
 	if _hud_manager.has_method("set_troubles"):
-		_hud_manager.set_troubles(_trouble_rows(biz))
+		_hud_manager.set_troubles(_mark_taken(_trouble_rows(biz)))
+
+
+const STAFF_RULES_M = preload("res://core/systems/staff_rules.gd")
+const CREW_PLACES_M = preload("res://scripts/business/crew_places.gd")
+
+
+func _jobs_taken() -> Dictionary:
+	var state = CoreRoot.get_state() if CoreRoot != null else null
+	if state == null or not (state.biz is Dictionary):
+		return {}
+	var staff = (state.biz as Dictionary).get("staff", {})
+	return STAFF_RULES_M.taken(staff) if staff is Dictionary else {}
+
+
+## What is seen to: who has it on the row ("who": a hand's slug; "@" another warden at the
+## counter), those plates after the ones still waiting for somebody.
+func _mark_taken(rows: Array) -> Array:
+	var taken := _jobs_taken()
+	var free: Array = []
+	var seen_to: Array = []
+	for row_any in rows:
+		var r: Dictionary = row_any
+		var id := str(r.get("id", ""))
+		var who := ""
+		match str(r.get("cat", "")):
+			"day":
+				who = str(taken.get("ev:" + id.substr(1), ""))
+			"work":
+				var key := id.substr(1)
+				who = str(taken.get("room:" + key, ""))
+				if who == "":
+					# A block's ("x:y", its halves "x:yl"): the hand cleans it all.
+					var block := key.rstrip("lr")
+					who = str(taken.get("room:block:" + block, ""))
+			"biz":
+				var site_key := id.substr(1)
+				var t := "corn" if str(r.get("kind", "")) == "corn" else "service"
+				if not CREW_PLACES_M.wardens_at(get_tree(), site_key, t).is_empty():
+					who = "@"
+		if who != "":
+			r["who"] = who
+			seen_to.append(r)
+		else:
+			free.append(r)
+	return free + seen_to
 
 
 ## The camp's troubles for the HUD's plates (scripts/ui/trouble_strip.gd): the day's open
@@ -2073,6 +2131,15 @@ func _sync_liminal_forecast_hud(force: bool = false) -> void:
 		return
 
 	_liminal_forecast_snapshot = payload.duplicate(true)
+	# A bad night brings something while anybody is in the camp to turn (night_ladder): the lamps
+	# do not say CLEAR over it.
+	if hud_level == 0 and _day_index > QUIET_NIGHTS:
+		for e in payload.get("archetypes", []):
+			if e is Dictionary and int((e as Dictionary).get("count", 0)) > 0:
+				hud_level = 1
+				payload = payload.duplicate(true)
+				payload["hud_level"] = 1
+				break
 	_liminal_forecast_hud_level = hud_level
 	if _hud_manager != null and _hud_manager.has_method("set_liminal_forecast"):
 		_hud_manager.set_liminal_forecast(payload)
@@ -2177,7 +2244,10 @@ func _activate_runtime_enemy_for_night(night_index: int) -> void:
 		_active_enemy_spawned_this_night = 0
 		return
 	var entries_any = _liminal_night_roll_snapshot.get("entries", [])
-	var entries: Array = entries_any if entries_any is Array else []
+	var step := night_index - QUIET_NIGHTS
+	# What the night may have of what the camp brings (the nights follow on: night_ladder.gd).
+	var entries: Array = NIGHT_LADDER.shape(entries_any if entries_any is Array else [], step, _last_night_kinds, ENEMY_FOR_ARCHETYPE)
+	var came: Array = []
 	var total_spawned := 0
 	var kinds := 0
 	var worst := 1
@@ -2189,8 +2259,9 @@ func _activate_runtime_enemy_for_night(night_index: int) -> void:
 		var script = ENEMY_FOR_ARCHETYPE.get(str(entry.get("archetype", "")), null)
 		if spawned <= 0 or script == null:
 			continue
-		var difficulty := maxi(_resolve_silent_man_difficulty(entry), _night_difficulty_floor())
+		var difficulty := mini(maxi(_resolve_silent_man_difficulty(entry), _night_difficulty_floor()), NIGHT_LADDER.difficulty_cap(step))
 		worst = maxi(worst, difficulty)
+		came.append(str(entry.get("archetype", "")))
 		var turned := entry.duplicate()
 		turned["guest"] = _pick_turned_guest(str(entry.get("archetype", "")))
 		_start_enemy_brain(script, night_index, difficulty, turned)
@@ -2198,7 +2269,7 @@ func _activate_runtime_enemy_for_night(night_index: int) -> void:
 		# to choose whom to light"), each one of them, up to three.
 		if script == SILENT_MAN_BRAIN_SCRIPT and spawned >= 2:
 			var taken: Array = [int((turned["guest"] as Dictionary).get("id", -1))]
-			for nth in range(1, mini(spawned, SILENT_MEN_MAX)):
+			for nth in range(1, mini(mini(spawned, SILENT_MEN_MAX), NIGHT_LADDER.silent_cap(step))):
 				var more := entry.duplicate()
 				more["nth"] = nth
 				more["guest"] = _pick_turned_guest(str(entry.get("archetype", "")), taken)
@@ -2206,11 +2277,16 @@ func _activate_runtime_enemy_for_night(night_index: int) -> void:
 				_start_enemy_brain(script, night_index, difficulty, more)
 		total_spawned += spawned
 		kinds += 1
-	if _antlered_comes(kinds):
+	if step >= NIGHT_LADDER.ANTLERED_FROM and _antlered_comes(kinds):
 		_start_enemy_brain(STALKER_BRAIN_SCRIPT, night_index, mini(5, worst + 1), {})
+	_last_night_kinds = came
 	_active_enemy_spawned_this_night = total_spawned
 	var claimed_virtual = mini(total_spawned, _liminal_virtual_enemy_count)
 	_liminal_virtual_enemy_count = maxi(0, _liminal_virtual_enemy_count - claimed_virtual)
+
+
+const NIGHT_LADDER = preload("res://core/systems/night_ladder.gd")
+var _last_night_kinds: Array = []
 
 
 ## The boss night: three kinds turned at once, or a camp this full.

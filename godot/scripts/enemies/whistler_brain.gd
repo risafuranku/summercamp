@@ -2,24 +2,26 @@ extends "res://scripts/enemies/enemy_base.gd"
 
 ## The Whistler (Tramps; DESIGN §5a.3). The tramp turned: his hat and flannel, the
 ## guitar on his back, his mouth gone into a black horn like a megaphone's. He hears and
-## does not see, and the night with him is musical chairs:
-##   play     he plays the campfire song out in the dark and whistles it through the horn.
-##            While he plays he does not listen: you may move. He creeps nearer song by
-##            song. The music is thrown (from medium on): it comes from where he is not;
-##            what is really him is the creak of a string, a twig, and, when the music
-##            stops, his eyes, two pale slits where he really stands.
-##   listen   the music stops dead in the middle of a bar (a hand on the strings). Now he
-##            listens: running anywhere, walking on gravel, boards or in a puddle, gives
-##            you away (walking on grass does not, unless you are near him). Heavy, a guest's voice calls
-##            for help out of the dark to make you move.
+## does not see, and the rule is one line (the user 7. 11.: "when you hear his whistling you
+## must not move, and ideally hide somewhere indoors"; he used to listen in the silence):
+##   whistle  ("play") he plays the campfire song out in the dark and whistles it through the
+##            horn, and while it sounds he is listening: move and he has you. The first notes
+##            come up out of nothing: that is your time to stop. Stand still and he only
+##            comes nearer, a song at a time, a shape in the dark from close by.
+##   quiet    ("gap") a hand flat on the strings: the music stops dead, his eyes a moment,
+##            two pale slits where he stands. Now you can move: go, get indoors.
 ##   rush     he heard you: boots through the grass, the guitar jangling, straight at
-##            where you were; there he listens again. Under a lamp he stops at the edge
+##            where you were; there he whistles again. Under a lamp he stops at the edge
 ##            of its light and goes.
+##   lean     ("lean") after his third song, if you stood through them all: he walks right up
+##            to you and whistles into your ear. Stand it out and he goes; move and he has you.
 ##   strike   at your back: the string round your neck, his horn at your ear.
 ##   fire     (medium on) a campfire burning out by the trees that nobody lit, him on a
 ##            log by it playing. Its light is not safe: go near and the fire dies and he
 ##            is behind you.
-## Indoors he cannot reach you: his song under the window, then nothing.
+##   Heavy, a guest's voice calls for help out of the dark in the middle of a song, to make
+##   you move. Indoors he cannot reach you: his song under the window, then nothing, and when
+##   you come out he has gone off for a while.
 
 const N := "res://assets/textury/npc/"
 const SPRITE := N + "whistler_t1.png"
@@ -28,30 +30,38 @@ const FACE := N + "whistler_face.png"
 const OLD := N + "enemy_whistler.png"
 const S := "res://assets/sfx/npc/whistler/"
 const SFX_PLAY := [S + "play_1.mp3", S + "play_2.mp3"]
-const SFX_TUNE := "res://assets/sfx/npc/whistler_tune.mp3"
 const SFX_TWIG := "res://assets/sfx/npc/twig_snap.mp3"
 const SFX_CALLS := [S + "call_1.mp3", S + "call_2.mp3", S + "call_3.mp3"]
 ## The flames are the camp fire's own (materials/pixel_fire.gdshader).
 const FIRE_SHADER = preload("res://materials/pixel_fire.gdshader")
 const LAMP_SAFE := 0.22
 const GIVE_UP_IN_LIGHT := 14.0
-## How long he plays (s), how long he listens (s, light .. heavy), how far he hears (m).
-const PLAY_SEC := Vector2(10.0, 17.0)
-const LISTEN_SEC := Vector2(4.0, 7.0)
+## How long a song is (s), the quiet between songs (s, light .. heavy), how far he hears (m).
+const SONG_SEC := Vector2(9.0, 14.0)
+const QUIET_SEC := Vector2(24.0, 13.0)
 const HEAR_RANGE := 38.0
-## What he hears (m/s of you): on grass and snow only a run; on gravel, boards and in
-## puddles a walk.
-const LOUD_SOFT := 3.6
-const LOUD_HARD := 0.7
-const HARD := ["gravel", "wood", "puddle", "path", "stone"]
+## The first notes coming up, when he is not yet listening (s, light .. heavy), after a rush.
+const WARN_SEC := Vector2(2.0, 1.2)
+const WARN_AFTER_RUSH := 0.7
+const WARN_DB := -16.0
+const SONG_DB := -2.0
+## Faster than this (m/s) is moving, whatever you walk on.
+const STILL := 0.6
 const RUSH_SPEED := 6.8
+## Too far behind you at the start of a song, he has come round through the dark.
+const LOST_YOU := 32.0
+## Songs before he comes right up to you, how near each lets him get, how close he leans.
+const LEAN_AFTER := 3
+const NEAR_BY_SONG := [12.0, 8.0, 5.0]
+const LEAN_M := 1.5
+const LEAN_SEC := 6.0
+const LEAN_WALK := 1.5
+## From this near you can make him out in the dark.
+const SEEN_M := 16.0
 ## At most this long backing off in your sight before he is simply not there.
 const LEAVE_SEC := 6.0
-const CREEP := 0.45
-const NEAREST := 9.0
+const CREEP := 0.9
 const REACH := 1.5
-## This near he hears you walk on anything.
-const HEAR_ALL := 10.0
 
 var _phase := "rest"
 var _phase_t := 0.0
@@ -81,6 +91,14 @@ var _strike_t := -1.0
 ## Indoors: the next song under the window (wall clock).
 var _in_next := -1.0
 var _in_sound: AudioStreamPlayer
+## The song's first notes: what is left of them, how long they were; the next song's, when set.
+var _grace := 0.0
+var _grace_from := 0.0
+var _grace_next := -1.0
+## Songs you stood through; a voice calling in this one (seconds to go, -1 none).
+var _songs := 0
+var _call_in := -1.0
+var _lean_side := Vector3.RIGHT
 
 
 var _leave_t := 0.0
@@ -120,37 +138,53 @@ func _enter(phase: String, seconds: float) -> void:
 	_phase_t = seconds
 	match phase:
 		"play":
-			if _pos == Vector3.INF:
+			if _fire_at == Vector3.INF and (_pos == Vector3.INF or _distance_to_player(_pos) > LOST_YOU):
 				_relocate(20.0, 28.0)
-			_source = _thrown_from(_pos)
-			# Round and round: a song runs 14 s, he plays up to 17 and by his fire a minute, and
-			# when it ran out by itself you froze for a listening that had not begun.
+			_source = _pos
+			_grace_from = _grace_next if _grace_next >= 0.0 else lerpf(WARN_SEC.x, WARN_SEC.y, float(_difficulty - 1) / 4.0)
+			_grace_next = -1.0
+			_grace = _grace_from
+			# Round and round: a song runs 14 s, he plays up to 14: it must not run out by itself
+			# and leave you standing for nothing.
 			var song := load(SFX_PLAY[_rng.randi() % SFX_PLAY.size()]) as AudioStream
 			if song is AudioStreamMP3:
 				(song as AudioStreamMP3).loop = true
 			_music.stream = song
 			_music.global_position = _source + Vector3(0, 1.4, 0)
-			_music.volume_db = -2.0
+			_music.volume_db = WARN_DB
 			_music.play(_rng.randf_range(0.0, 3.0))
 			_tell_t = _rng.randf_range(2.5, 5.0)
-			_announce("Somebody is playing a guitar out in the trees, and whistling.")
-		"listen":
+			_call_in = seconds * _rng.randf_range(0.3, 0.6) if _difficulty >= 4 and _rng.randf() < 0.4 else -1.0
+		"gap":
 			_music.stop()
-			_sound(S + "mute.mp3", _source + Vector3(0, 1.2, 0), 0.0, 1.0, 60.0)
-			# His eyes, where he really is.
+			_sound(S + "mute.mp3", _pos + Vector3(0, 1.2, 0), 0.0, 1.0, 60.0)
+			# His eyes, where he stands.
 			_eyes.set("point", _pos + Vector3(0, 1.75, 0))
 			_eyes_until = _elapsed + _rng.randf_range(1.6, 2.6)
-			if _difficulty >= 4 and _rng.randf() < 0.4:
-				var p := _dark_point(14.0, 24.0, 60.0, 140.0)
-				if p != Vector3.INF:
-					_sound(SFX_CALLS[_rng.randi() % SFX_CALLS.size()], p + Vector3(0, 1.6, 0), 0.0, 1.0, 50.0)
+			if _body != null and _body.visible and _fire_at == Vector3.INF:
+				_leave_t = 3.0
+		"lean":
+			# On the side he comes from, a little round you: not through you to get behind you.
+			var from := _pos - _player_pos()
+			from.y = 0.0
+			_lean_side = from.normalized().rotated(Vector3.UP, 0.7 if _rng.randf() < 0.5 else -0.7) if from.length() > 0.1 else -_forward_flat()
+			_grace = 0.0
+			if not _music.playing:
+				_music.stream = load(SFX_PLAY[_rng.randi() % SFX_PLAY.size()]) as AudioStream
+				if _music.stream is AudioStreamMP3:
+					(_music.stream as AudioStreamMP3).loop = true
+				_music.play(_rng.randf_range(0.0, 3.0))
+			_music.volume_db = SONG_DB
 		"rush":
 			_music.stop()
 			_sound(S + "rush.mp3", _pos + Vector3(0, 1.0, 0), 2.0, 1.0, 45.0)
 		"rest":
 			_music.stop()
+			_songs = 0
 			# (Not out like a light before your eyes: he goes back into the dark, _tick_leave.)
-			if _body != null and _body.visible and _pos != Vector3.INF and _is_seen(_pos + Vector3(0, 1.2, 0)):
+			if _fire_at != Vector3.INF:
+				pass
+			elif _body != null and _body.visible and _pos != Vector3.INF and _is_seen(_pos + Vector3(0, 1.2, 0)):
 				_leave_t = LEAVE_SEC
 			elif _body != null:
 				_body.visible = false
@@ -164,7 +198,7 @@ func _on_tick(dt: float) -> void:
 	var cfx := _fx()
 	if cfx != null and cfx.has_method("set_chase"):
 		var strike := _strike_t >= 0.0
-		cfx.set_chase("whistler", -1.0 if strike or _phase == "listen" else (1.0 if _phase == "rush" else 0.0))
+		cfx.set_chase("whistler", -1.0 if strike or _phase == "play" or _phase == "gap" else (1.0 if _phase == "rush" else 0.0))
 	_eyes.set("want", 1.0 if _elapsed < _eyes_until and _phase != "rush" else 0.0)
 	if _strike_t >= 0.0:
 		_tick_strike(dt)
@@ -178,60 +212,126 @@ func _on_tick(dt: float) -> void:
 		"rest":
 			_tick_leave(dt, player)
 			if _phase_t <= 0.0:
-				_pos = Vector3.INF
-				_enter("play", _rng.randf_range(PLAY_SEC.x, PLAY_SEC.y))
+				if _fire_at == Vector3.INF:
+					_pos = Vector3.INF
+				_enter("play", _song_seconds())
+		"gap":
+			_tick_leave(dt, player)
+			if _phase_t <= 0.0:
+				if _songs >= LEAN_AFTER and not in_light and _fire_at == Vector3.INF:
+					_enter("lean", LEAN_SEC)
+				else:
+					_enter("play", _song_seconds())
 		"play":
-			# By his fire he sits in its light; else he is out in the dark, unseen.
-			var by_fire := _fire_at != Vector3.INF
-			# (Stood in your torch after a run he went out as he began to play: till you look away.)
-			_body.visible = by_fire or (_body.visible and _is_seen(_pos + Vector3(0, 1.2, 0)))
-			# Back out of a door: he has been playing on.
-			if not _music.playing:
-				_music.play(_rng.randf_range(0.0, 3.0))
-			# Song by song nearer, never nearer than NEAREST while he plays.
-			var to := player - _pos
-			to.y = 0.0
-			if not by_fire and to.length() > NEAREST:
-				var p := _floor_at(_pos + to.normalized() * CREEP * dt)
-				if p != Vector3.INF:
-					_pos = p
-				if _body.visible:
-					_place_body(_pos)
-			_tell_t -= dt
-			if _tell_t <= 0.0:
-				_tell_t = _rng.randf_range(3.5, 6.5)
-				_sound(S + "creak.mp3" if _rng.randf() < 0.6 else SFX_TWIG, _pos + Vector3(0, 1.0, 0), -6.0, _rng.randf_range(0.9, 1.1), 25.0)
-			if _lit_for >= GIVE_UP_IN_LIGHT:
-				_give_up()
-			elif _phase_t <= 0.0:
-				_enter("listen", _listen_seconds())
-		"listen":
-			if not in_light and _heard():
-				_heard_at = player
-				_enter("rush", 12.0)
-			elif _phase_t <= 0.0:
-				_enter("play", _rng.randf_range(PLAY_SEC.x, PLAY_SEC.y))
+			_tick_play(dt, player, in_light)
+		"lean":
+			_tick_lean(dt, player, in_light)
 		"rush":
 			_tick_rush(dt, player, in_light)
 
 
-## Did he hear you: how fast you go on what, within his range.
+func _song_seconds() -> float:
+	return _rng.randf_range(SONG_SEC.x, SONG_SEC.y)
+
+
+func _quiet_seconds() -> float:
+	return lerpf(QUIET_SEC.x, QUIET_SEC.y, float(_difficulty - 1) / 4.0) * _rng.randf_range(0.85, 1.15)
+
+
+## His song: nearer as it goes, and he is listening.
+func _tick_play(dt: float, player: Vector3, in_light: bool) -> void:
+	var by_fire := _fire_at != Vector3.INF
+	_grace = maxf(0.0, _grace - dt)
+	_music.volume_db = lerpf(SONG_DB, WARN_DB, _grace / _grace_from) if _grace_from > 0.0 else SONG_DB
+	# Back out of a door: he has been playing on.
+	if not _music.playing:
+		_music.play(_rng.randf_range(0.0, 3.0))
+	var to := player - _pos
+	to.y = 0.0
+	var hold: float = NEAR_BY_SONG[mini(_songs, NEAR_BY_SONG.size() - 1)]
+	if not by_fire and to.length() > hold:
+		var step := CREEP * dt
+		var p := _floor_at(_pos + _clear_dir(_pos, to.normalized()) * step)
+		if p != Vector3.INF:
+			_pos = p
+		if _body.visible:
+			_place_body(_pos)
+			_stride(step)
+	_source = _pos
+	_music.global_position = _pos + Vector3(0, 1.4, 0)
+	_show_near(to.length(), by_fire)
+	_tell_t -= dt
+	if _tell_t <= 0.0:
+		_tell_t = _rng.randf_range(3.5, 6.5)
+		_sound(S + "creak.mp3" if _rng.randf() < 0.6 else SFX_TWIG, _pos + Vector3(0, 1.0, 0), -6.0, _rng.randf_range(0.9, 1.1), 25.0)
+	if _call_in >= 0.0:
+		_call_in -= dt
+		if _call_in < 0.0:
+			var c := _dark_point(14.0, 24.0, 60.0, 140.0)
+			if c != Vector3.INF:
+				_sound(SFX_CALLS[_rng.randi() % SFX_CALLS.size()], c + Vector3(0, 1.6, 0), 0.0, 1.0, 50.0)
+	if not in_light and _heard():
+		_heard_at = player
+		_enter("rush", 12.0)
+	elif _lit_for >= GIVE_UP_IN_LIGHT:
+		_give_up()
+	elif _phase_t <= 0.0:
+		_songs += 1
+		_enter("gap", _quiet_seconds())
+
+
+## A shape in the dark from close by; he never comes or goes before your eyes (by his fire he
+## sits in its light).
+func _show_near(me: float, by_fire: bool) -> void:
+	if by_fire:
+		_body.visible = true
+		return
+	var want := me < SEEN_M
+	if want != _body.visible and not _is_seen(_pos + Vector3(0, 1.2, 0)):
+		_body.visible = want
+		if want:
+			_pose(_tex_stand)
+			_place_body(_pos)
+
+
+## Right up to you, whistling in your ear: you stand it out, or you do not.
+func _tick_lean(dt: float, player: Vector3, in_light: bool) -> void:
+	var to := player + _lean_side * LEAN_M - _pos
+	to.y = 0.0
+	var step := minf(LEAN_WALK * dt, to.length())
+	if step > 0.001:
+		var p := _floor_at(_pos + to.normalized() * step)
+		if p != Vector3.INF:
+			_pos = p
+		_pose(_tex_stand)
+		_place_body(_pos)
+		_stride(step)
+	_body.visible = true
+	_source = _pos
+	_music.global_position = _pos + Vector3(0, 1.4, 0)
+	var me := _distance_to_player(_pos)
+	if not in_light and _heard():
+		if me <= REACH + 0.6:
+			_start_strike()
+		else:
+			_heard_at = player
+			_enter("rush", 12.0)
+	elif in_light:
+		_give_up()
+	elif _phase_t <= 0.0 and me <= LEAN_M + 0.5:
+		var fx := _fx()
+		if fx != null:
+			fx.tinnitus(1.5)
+		_sound(S + "mute.mp3", _pos + Vector3(0, 1.2, 0), 2.0, 1.0, 30.0)
+		_enter("rest", _rng.randf_range(45.0, 70.0))
+
+
+## Did he hear you: you moved, in earshot, past the song's first notes.
 func _heard() -> bool:
-	if _distance_to_player(_pos) > HEAR_RANGE:
-		return false
-	var loud := LOUD_SOFT
-	if _distance_to_player(_pos) < HEAR_ALL:
-		loud = LOUD_HARD
-	elif _player != null and _player.has_method("_surface_under") and str(_player.call("_surface_under")) in HARD:
-		loud = LOUD_HARD
-	return _speed > loud
+	return _grace <= 0.0 and _distance_to_player(_pos) <= HEAR_RANGE and _speed > STILL
 
 
-func _listen_seconds() -> float:
-	return lerpf(LISTEN_SEC.x, LISTEN_SEC.y, float(_difficulty - 1) / 4.0) * _rng.randf_range(0.85, 1.15)
-
-
-## At where he heard you; there he listens again. At you: the strike. A lamp's light:
+## At where he heard you; there he whistles again. At you: the strike. A lamp's light:
 ## he stops at its edge and goes.
 func _tick_rush(dt: float, player: Vector3, in_light: bool) -> void:
 	var target := _heard_at
@@ -245,8 +345,9 @@ func _tick_rush(dt: float, player: Vector3, in_light: bool) -> void:
 		_start_strike()
 		return
 	if to.length() < 0.8:
-		# Where you were: he listens for you again.
-		_enter("listen", _listen_seconds() * 0.7)
+		# Where you were: the song again, and you had better be standing.
+		_grace_next = WARN_AFTER_RUSH
+		_enter("play", _song_seconds() * 0.7)
 		return
 	var step := minf(RUSH_SPEED * dt, to.length())
 	var p := _floor_at(_pos + _clear_dir(_pos, to.normalized()) * step)
@@ -258,16 +359,16 @@ func _tick_rush(dt: float, player: Vector3, in_light: bool) -> void:
 	_body.visible = true
 	_stride(step)
 	# Still listening on the way: a noise turns him.
-	if not in_light and _heard() and me < 18.0:
+	if not in_light and _speed > STILL and me < 18.0:
 		_heard_at = player
 	if _phase_t <= 0.0:
-		_enter("listen", _listen_seconds())
+		_grace_next = WARN_AFTER_RUSH
+		_enter("play", _song_seconds() * 0.7)
 
 
 func _give_up() -> void:
 	_lit_for = 0.0
-	_sound(S + "mute.mp3", (_source if _source != Vector3.INF else _pos) + Vector3(0, 1.2, 0), -4.0, 0.9, 50.0)
-	_feed("The music stopped in the middle of the tune.")
+	_sound(S + "mute.mp3", _pos + Vector3(0, 1.2, 0), -4.0, 0.9, 50.0)
 	_enter("rest", _rng.randf_range(35.0, 55.0))
 
 
@@ -303,7 +404,6 @@ func _tick_strike(dt: float) -> void:
 		if not _night_active:
 			return
 		claimed = true
-		_feed("A string round your neck, and a whistle in your ear.")
 		_pos = Vector3.INF
 		_enter("rest", _rng.randf_range(40.0, 60.0))
 
@@ -374,8 +474,7 @@ func _light_fire() -> void:
 	_place_body(_pos)
 	_pose(_tex_sit)
 	_body.visible = true
-	_enter("play", 60.0)
-	_source = p
+	_enter("play", _song_seconds())
 	_music.global_position = p + Vector3(0, 1.2, 0)
 
 
@@ -404,7 +503,7 @@ func _pose(t: Texture2D) -> void:
 
 ## Going: back from you into the dark, gone once you have looked away or he is far enough.
 func _tick_leave(dt: float, player: Vector3) -> void:
-	if not _body.visible or _pos == Vector3.INF:
+	if not _body.visible or _pos == Vector3.INF or _fire_at != Vector3.INF:
 		return
 	_leave_t -= dt
 	var away := _pos - player
@@ -460,13 +559,14 @@ func _on_stop() -> void:
 			fx.close_up_off()
 
 
-## In through a door with him at a run: he has lost you, he does not wait at the door.
+## Back out of a door: he has lost you, he does not wait at it (whatever he was at when you went
+## in: stepping out into the middle of a song would be the end of you for going where you should).
 func _on_back() -> void:
 	# (Under the window was under the window: it played on for nine seconds out in the camp.)
 	_in_sound.stop()
-	if _phase == "rush":
+	if _phase != "rest":
 		_pos = Vector3.INF
-		_enter("rest", _rng.randf_range(15.0, 25.0))
+		_enter("rest", _rng.randf_range(12.0, 22.0))
 
 
 func holds_player() -> bool:
@@ -474,16 +574,6 @@ func holds_player() -> bool:
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
-
-## Where the music seems to come from: him, or (from medium on) thrown to one side.
-func _thrown_from(at: Vector3) -> Vector3:
-	var throw := lerpf(0.0, 11.0, clampf(float(_difficulty - 2) / 3.0, 0.0, 1.0))
-	if throw <= 0.5:
-		return at
-	var side := Vector3(_rng.randf_range(-1.0, 1.0), 0.0, _rng.randf_range(-1.0, 1.0)).normalized()
-	var p := _floor_at(at + side * throw)
-	return p if p != Vector3.INF else at
-
 
 func _relocate(near: float, far: float) -> void:
 	_pos = _dark_point(near, far, 0.0, 150.0)

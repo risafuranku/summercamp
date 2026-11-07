@@ -254,7 +254,7 @@ know where it is:
 | Silent Man | Quiet Guy | footsteps on the gravel behind you, closer each time, stopping when you stop; a whisper at your ear | turn round and put light on him; under a lamp he will not come nearer; at the whisper, turn round at once | standing still in the dark |
 | The Photographer | Drunk | always there: he hums wherever he is, a weak lamp on his chest strap and the camera's red standby blink; he walks from spot to spot in plain view (steps, the film wound on as he stops), raises the camera, the focus beeps speed up, the flash whines (~2-3 s); a shot every 7-10 s | turn your back or get behind something before the flash; indoors draw the curtains (every building's windows look out for real, scripts/ui/window_portal.gd) | looking at him when it fires, or an open window you can see when he fires through it: a lot of health (16-26), a white blast, ringing ears, his face burnt in (lenses grown into the sockets, or peeling like a wet print); the picture is real: it slides in at the corner and develops, you from his lens (every third, him right behind you in it); two hits and his neck is snapped, the head hanging off it sideways, the mouth stuffed with photographs, and he still aims; four and it has let go (the collar an empty stump, the head upside down at his belly, screaming); never still (frames cut from each pose: he breathes, his camera hands tremble, the broken neck sways and jerks with a snap, the head at his belly swings); broken, his tune gargles or comes muffled through paper, his breath rattles, the photographs rustle in his mouth, blood drips at his feet, he drags a foot, his flash sputters before it fires, he chuckles wet and spits a photo out; whole or not, out of your sight a shutter goes far off in the dark; three and he runs at you from behind, laughing, and fires at your ear; the last picture stops the frame, his lens-face comes at you in steps and your own face develops in the middle of the screen |
 | The Girl | Cheap Chick | far off, eyeshine: where your torch points but does not reach, two small pale points where her eyes are, each blinking on its own; a woman humming; heels scurry on the gravel while you are not looking, and a sting when you find her again nearer; close, the torch dies in your hand for a moment by itself (her face is there for a frame, once a loop all of it) | she moves only while you do not see her, and in the dark you see her only in light (the torch on her, a lamp near her, or very close): keep her lit and in view, back to a lamp (she never steps into its light; stay under it ~18 s and she gives the loop up); never walk towards her (the torch dies more often, and in each dark she is a step nearer) | looking away, letting the light leave her; the torch drains five times over while it holds her; look away ~3.5 s and she may be right behind you when you turn (face to face, the jump: back off). Always the guest's own colours, only deformed (no flush on her cheeks): the guest -> a fixed smile, white points for eyes -> a scowl over a grin of small teeth, drool -> everything a third too long -> her back to you, face turned round -> her arms hanging to the ground; near, an arm reaching too far. Strike: you cannot look away; her drooling face, then stretched long, then the jaw dropped too far; the shriek in static; black and a ring. Leaves a red heel |
-| The Whistler | Tramps | his guitar and his whistle out in the dark, a song at a time, nearer; the music stops dead in the middle of a bar | while he plays, move; when the music stops, be still (on grass a walk is not heard, a run is; on gravel, boards, puddles even a walk; near him anything); a lamp's light | making a noise while he listens: he comes at a run to where you were (§5a.3) |
+| The Whistler | Tramps | his guitar and his whistle out in the dark, a song at a time, nearer; the music stops dead in the middle of a bar | while he whistles, stand still; in the quiet, go, indoors best | making a noise while he listens: he comes at a run to where you were (§5a.3) |
 | The Boy | Family | his father in your way in the dark asking after him; a child gone missing where the night's work is | each place's game, by its rules (§5a.2) | breaking the game's rule (in the corn: looking back at him) |
 | The Granny | Mushroom Pickers | 02:30-06:00: her basket creaking, humming, her boots in the grass, her spores in the air; lamps going dark one by one; a ring of mushrooms coming up round the lodging she means to have; hidden, the eating, from the lodging and on the radio | keep moving (she always comes) and freeze when her back cracks and she straightens up; a lamp holds her a few seconds; kick her rings open; stay out there as the bait | letting her reach you, moving while she looks; hiding: your guests (§5a.4) |
 
@@ -348,18 +348,22 @@ his flannel, the guitar on his back, a grey face with black eyes and the mouth g
 a black horn like a megaphone's bell (Grok `whistler_t1`, `_sit`, `_face`). He hears and
 does not see, and a night with him is musical chairs:
 
-- **He plays**: the campfire song on his guitar, whistled through the horn
-  (`assets/sfx/npc/whistler/play_*`), out in the dark, a song at a time a little nearer
-  (never nearer than 9 m while he plays). While he plays he does not listen: move. From
-  medium on the music is thrown, it comes from where he is not; what is him is a string
-  creaking, a twig, and when the music stops his eyes, two pale slits where he stands.
-- **He listens**: the music stops dead (a hand flat on the strings). Running anywhere,
-  walking on gravel, boards or in a puddle, anything within 10 m of him gives you away;
-  a walk on grass does not. Heavy, a guest's voice calls for help out of the dark to make
-  you move ("Správce! Pomoc! Tady!", "Pojď k ohni. Je tu teplo.").
-- **He comes**: at a run to where he heard you, the guitar jangling; there he listens
-  again. At your back: the string round your neck, his horn at your ear (the close-up
-  grows as the string tightens), the hit. A lamp's light: he stops at its edge and goes.
+- **He whistles, you stand** (the user 7. 11.: "when you hear his whistling you must not
+  move, and ideally hide somewhere indoors"): the campfire song on his guitar, whistled
+  through the horn (`assets/sfx/npc/whistler/play_*`), out in the dark, and while it sounds he
+  is listening: any move past a shuffle, on anything, and he has heard you. The first notes
+  come up out of nothing (two seconds, a little over one on a heavy night): that is your
+  time to stop. He comes nearer through the song, and from 16 m you can make him out.
+- **The quiet**: a hand flat on the strings, the music stops dead, his eyes a moment, two
+  pale slits where he stands. Now you can move: 24 seconds on a light night, 13 on a heavy
+  one. Go. Indoors he cannot reach you, and when you come out he has gone off for a while.
+- **He comes**: at a run to where he heard you, the guitar jangling; there he whistles again,
+  the first notes short. At your back: the string round your neck, his horn at your ear (the
+  close-up grows as the string tightens), the hit. A lamp's light: he stops at its edge and goes.
+- **He leans in**: stood through three songs in the open, he walks right up to you and
+  whistles into your ear. Stand it out and he goes for a minute; move and he has you.
+- Heavy, a guest's voice calls for help out of the dark in the middle of a song, to make you
+  move ("Správce! Pomoc! Tady!", "Pojď k ohni. Je tu teplo.").
 - **The fire nobody lit** (medium on): a campfire out by the trees, him on a log by it
   playing in its light. Its light is not safe: go near and the fire dies and he is
   behind you.
@@ -1277,7 +1281,7 @@ engine; clear the first time without a tutorial").*
     pallet and a full one rolled on from the rack (a keg is the books' 50 pints). The
     gas: hold the valve and drag up for more, down for less; in the green it pours right,
     low it comes slow and flat, high all foam, and it creeps down as the tap runs. A keg
-    on the line keeps three days (six with the keg cooler); then it is flat: no head,
+    on the line keeps till it is spent. (It went flat till 7. 11.: no head,
     poor beer, and the guests say so; what is left in it goes down the drain, the books'
     waste.
 - **The orders** are beer mats on the rail over the bar: the guest's name in pencil,
@@ -1287,12 +1291,12 @@ engine; clear the first time without a tutorial").*
   ordering. The money, the tip and the stars Papa's way (the shared systems below).
 - **The hands at the pub**: the tap's pours the oldest beer ordered (a fair pour, never
   a perfect one), the bar's the shots and the kofolas, the washer's washes the mugs, the
-  cellar's changes a spent or flat keg and sets the gas right; each slips now and then (a
+  cellar's changes a spent keg and sets the gas right; each slips now and then (a
   short pour, a mug dropped). They stand at their places behind the bar and by the
   pallet; one whose station a warden takes stands aside.
 - **The gear**: the second tap (the beer comes faster; a hand draws two at once), the
   glass washer (at the end of the way behind the bar: the empties come out clean by
-  themselves), the keg cooler (in the cellar: a tapped keg keeps six days), the quick
+  themselves), the quick
   coupler (the head clicks on in a moment, a keg changed in no time).
 - **For four**: as the bistro: each station one warden's while they are at it, seen
   there, named, refused to the others; what is poured, washed and changed is an op every
@@ -1414,7 +1418,7 @@ its own.*
   bottom), a little picture of it on the shelf's edge, six a place (eight with more
   shelves). The boxes made up in the storeroom wait on the trolley: press on one, carry
   it to its place, let go, and its goods go up one by one as far as there is room;
-  anywhere else it goes back on the trolley. What went off lies grey at the end of its
+  anywhere else it goes back on the trolley. What the books have less of is gone from the end of its
   place; a click throws it out.
 - **The storeroom** (at the packing table): the cartons off the van on the shelf behind
   it (what the books have that is not on the rack, the trolley or in a basket; what the
@@ -1461,13 +1465,7 @@ Built once for all four places (the bistro first); `core/systems/business_rules.
   takings and the wages tonight, one to three stars for the shift. It comes out of the
   till if you are in the place; else the books keep it (BOOKS, Z REPORT). The books also
   keep the place's running average.
-- **Goods go off.** Each delivery is a lot dated the day it came; the oldest is used
-  first. Past its days (bread and rolls 2, dumplings and milk 3, cobs and fruit 4,
-  potatoes 5, cheese 6, beer 6 a tapped keg, the tins and the spirits never) a lot goes
-  bad on the shelf: it is not sold, it is there in the cellar (sprouting, mouldy, bloated
-  sprites) and in red in the books till somebody throws it out (THROW OUT: the books
-  count it as waste). The chiller and the keg cooler double their goods' days. What the
-  shelves cannot make today is crossed off the menu board in chalk.
+- **Nothing goes off** (the user 7. 11.: "we do not want that in the game"). Each delivery is still a lot dated the day it came, the oldest used first (the books' waste is what is dropped, not what is old).
 - **Ordering.** In the place, on the books' ORDER page, as before (the van in the
   morning). With a licence (softsklad.cz) the office PC's SoftSklad window runs every
   licensed place at once: a tab per place, and one order across all of them that one van
@@ -1477,7 +1475,7 @@ Built once for all four places (the bistro first); `core/systems/business_rules.
   worth at once), the heavy pan (a fourth place, slower to burn), the dishwasher (the
   dirty plates in, clean out a while later), the big pot (twenty portions, catches
   slower), the heat lamp (fried food keeps hot), the ticket clock (the guests wait a
-  quarter longer); the pub's second tap, glass washer, keg cooler and quick coupler; the
+  quarter longer); the pub's second tap, glass washer and quick coupler; the
   corn stand's bigger pot, butter warmer and husking table; the Jednota's second till,
   pallet truck, chiller cabinet and more shelves. Bought in the books (GEAR) or on the PC;
   each is seen in the room once it is in (the lamps over the pass lit, the clock on the

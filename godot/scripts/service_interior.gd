@@ -173,7 +173,7 @@ var _cam_base_rot: Vector3 = Vector3.ZERO
 ## Standing in a service building: you look around the room you are in.
 var _sewer_hint: Label3D
 var _sewer_broken: bool = false
-var _look = INTERIOR_LOOK.new(65.0, 28.0, 38.0)
+var _look = INTERIOR_LOOK.new(180.0, 28.0, 38.0)
 var _side_hints: Control
 ## The generator shed's two rooms, the junk and the board (scripts/shed/generator_shed.gd).
 var _shed

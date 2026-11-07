@@ -667,6 +667,11 @@ func _build_status_bar() -> void:
 	_weather_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_clock_value = _put(clock, _big("09:00", RETRO_UI.C_BONE), ROW_VALUE)
 	_clock_phase = _put(clock, _caption("DAY"), ROW_FOOTER)
+	_shift_line = SHIFT_LINE.new()
+	_shift_line.ui_scale = _scale
+	_shift_line.position = Vector2(_vp(1), _vp(24))
+	_shift_line.size = Vector2(_vp(float(CELL_WIDTHS["clock"]) - 6.0), _vp(5))
+	clock.add_child(_shift_line)
 
 	var guests := _cell(row, "guests", "GUESTS")
 	_guest_face = RETRO_UI.PixelFace.new()
@@ -906,6 +911,21 @@ func set_troubles(rows: Array) -> void:
 	_troubles = rows.duplicate(true)
 	if _trouble_strip != null and is_instance_valid(_trouble_strip):
 		_trouble_strip.set_rows(_troubles)
+
+
+const SHIFT_LINE := preload("res://scripts/ui/shift_line.gd")
+var _shift_line: Control
+
+
+## The hands' shifts on the clock's line (staff_rules.day_bands).
+func set_shift_bands(bands: Array) -> void:
+	if _shift_line != null and is_instance_valid(_shift_line):
+		_shift_line.set_bands(bands)
+
+
+func _time_of_day_now() -> float:
+	var at := _time_str.split(":")
+	return float(at[0]) + float(at[1]) / 60.0 if at.size() == 2 else 12.0
 
 
 ## The post's plate on the right edge (post_delivery.hud_row(); {} none).
@@ -1206,6 +1226,12 @@ func _refresh_clock() -> void:
 	else:
 		_clock_caption.text = "%d %s" % [int(dt["d"]), str(Season.MONTH_NAMES[int(dt["m"]) - 1]).substr(0, 3).to_upper()]
 	_clock_phase.text = str(PHASE_LABELS[_phase])
+	# With hands on the books their day takes the word's place (the phase is in the clock's colour).
+	var bands_on: bool = _shift_line != null and _shift_line.has_bands()
+	_clock_phase.visible = not bands_on
+	if _shift_line != null:
+		_shift_line.visible = bands_on
+		_shift_line.set_now(_time_of_day_now())
 	var cap_col := RETRO_UI.C_BONE_DIM
 	var clock_col := RETRO_UI.C_BONE
 	if _phase == PHASE_EVENING:

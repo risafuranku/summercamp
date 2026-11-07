@@ -149,10 +149,11 @@ func build(hour: float, arrive: String) -> void:
 	_crew = MATES.new(room, spots(), ways(), "lobby")
 	var at := arrive if spots().has(arrive) else "lobby"
 	_walker.put(at)
-	# Every place along the corridor lit on the floor under the pointer, in front of each door
-	# too; the stair's foot takes you up, its top down (the user 6. 11.: "I could only get about
-	# by knocking on doors, upstairs only by clicking a door through the ceiling").
-	_walker.floor_spots(spots().keys(), Vector2(0.8, 0.8), {"s0": "top", "s1": "junction"})
+	# The corridor's ends and the stairs lit on the floor under the pointer; the stair's foot takes
+	# you up, its top down (the user 6. 11.: "I could only get about by knocking on doors, upstairs
+	# only by clicking a door through the ceiling"); a room's door walks you to it by its own click
+	# (7. 11.: "far too many places to stand").
+	_walker.floor_spots(["junction", "west", "s0", "s1", "top", "up_east", "up_west"], Vector2(0.8, 0.8), {"s0": "top", "s1": "junction"})
 	Coop.send_place("town", "motel", "walk", [at])
 	room._look.yaw_limit_deg = 180.0
 	room._look.pitch_up_deg = 34.0

@@ -232,12 +232,12 @@ func _pub(r: Node3D, _w: float, _d: float) -> Dictionary:
 	# plaster at the back and the right.
 	var front := cz + sz * 0.5
 	var door_x := cx + (65.0 / 271.0 - 0.5) * sx
-	_quad(r, "PubFront", Vector2(sx, h), Vector3(cx, h * 0.5 + 0.1, front + 0.012), 0.0, _glass_door_face("camp_pub_front_glass.png", "camp_pub_front.png", Rect2(44, 30, 42, 75)))
+	_painted(_quad(r, "PubFront", Vector2(sx, h), Vector3(cx, h * 0.5 + 0.1, front + 0.012), 0.0, _glass_door_face("camp_pub_front_glass.png", "camp_pub_front.png", Rect2(44, 30, 42, 75))))
 	# Its old double door, a leaf each side (door_through: in and out on foot).
 	_painted_leaf(r, "Door0", "camp_pub_front_glass.png", Rect2(44, 30, 21, 75), Vector3(cx, h * 0.5 + 0.1, front + 0.012), Vector2(sx, h))
 	_painted_leaf(r, "Door1", "camp_pub_front_glass.png", Rect2(65, 30, 21, 75), Vector3(cx, h * 0.5 + 0.1, front + 0.012), Vector2(sx, h))
 	_door_sign(r, Vector3(door_x, 1.45, front + 0.05))
-	_quad(r, "PubSide", Vector2(sz, h), Vector3(cx - sx * 0.5 - 0.012, h * 0.5 + 0.1, cz), -PI * 0.5, _glass_face("camp_pub_side_glass.png", "camp_pub_side.png"))
+	_painted(_quad(r, "PubSide", Vector2(sz, h), Vector3(cx - sx * 0.5 - 0.012, h * 0.5 + 0.1, cz), -PI * 0.5, _glass_face("camp_pub_side_glass.png", "camp_pub_side.png")))
 	_side_quad(r, "PubBack", Vector2(sx, h), Vector3(cx, h * 0.5 + 0.1, cz - sz * 0.5 - 0.012), PI, plaster)
 	_side_quad(r, "PubRight", Vector2(sz, h), Vector3(cx + sx * 0.5 + 0.012, h * 0.5 + 0.1, cz), PI * 0.5, plaster)
 	_corner_beads(r, Vector3(cx, 0.1, cz), sx, sz, h, plaster)
@@ -363,7 +363,7 @@ func _painted_leaf(r: Node3D, n: String, file: String, px: Rect2, quad_at: Vecto
 	var face := _face_mat(file)
 	face.uv1_offset = Vector3(px.position.x / pic.x, px.position.y / pic.y, 0.0)
 	face.uv1_scale = Vector3(px.size.x / pic.x, px.size.y / pic.y, 1.0)
-	_quad(r, n + "Face", size, centre + Vector3(0, 0, 0.021), 0.0, face)
+	_painted(_quad(r, n + "Face", size, centre + Vector3(0, 0, 0.021), 0.0, face))
 	return leaf
 
 
@@ -471,6 +471,15 @@ func _glass_door_face(file: String, fallback: String, px: Rect2) -> StandardMate
 	return _door_cut_face(file, px)
 
 
+## A wall that is one picture, its windows and door painted on it, the real panes and leaves in
+## them: it neither swims nor shivers, or the painted frames lean away from the real glass in
+## them from close by (the user 7. 11.: "the PSX warping makes the windows sit wrong, on the pub
+## and so on").
+func _painted(wall: MeshInstance3D) -> MeshInstance3D:
+	wall.set_meta("retro_text", true)
+	return wall
+
+
 ## A pane of a window looked into (the room behind it real): a little grey and shine.
 func _pane_into(r: Node3D, size: Vector2, pos: Vector3, yaw: float) -> MeshInstance3D:
 	var m := StandardMaterial3D.new()
@@ -505,7 +514,7 @@ func _restaurant(r: Node3D, _w: float, _d: float) -> Dictionary:
 	_room_inside(r, at, "BistroRoom", func(room: Node3D, host) -> void: lay.dining_outside(room, host), lay, {"floor": "floor"}, "kitchens")
 	# The faces on the room's walls: the front's picture with its glass cut out; concrete
 	# over the green tiled band round the other three.
-	_quad(r, "BistroFront", Vector2(sx, h), Vector3(at.x, h * 0.5 + 0.1, front + 0.015), 0.0, _glass_door_face("camp_bistro_front_glass.png", "camp_bistro_front.png", Rect2(97, 45, 29, 76)))
+	_painted(_quad(r, "BistroFront", Vector2(sx, h), Vector3(at.x, h * 0.5 + 0.1, front + 0.015), 0.0, _glass_door_face("camp_bistro_front_glass.png", "camp_bistro_front.png", Rect2(97, 45, 29, 76))))
 	var concrete: Material = _camp_or("concrete.png", Color(1.0, 0.98, 0.9), "wall")
 	var tiles: Material = _camp_or("tiles_green.png", Color(0.62, 0.8, 0.66), "wall", Vector3(4.0, 1.0, 1.0))
 	for side in [[Vector2(sz, 0.0), Vector3(-sx * 0.5 - 0.012, 0, 0), -PI * 0.5], [Vector2(sz, 0.0), Vector3(sx * 0.5 + 0.012, 0, 0), PI * 0.5], [Vector2(sx, 0.0), Vector3(0, 0, -sz * 0.5 - 0.012), PI]]:
@@ -1027,7 +1036,7 @@ func cabin(r: Node3D, level: int, _w := 0.0, _d := 0.0, _wall_h := 0.0, _roof_h 
 		p.rotation.x = side * ang
 	var front := d * 0.5
 	# The door in the middle of the front.
-	_box(r, "Door", Vector3(CL.DOOR_W, CL.DOOR_H, 0.06), Vector3(0, CL.MODEL_FLOOR + CL.DOOR_H * 0.5, front + 0.03), _camp("door_wood.png", [Color(0.74, 0.68, 0.6), Color(0.62, 0.78, 0.66), Color(0.82, 0.66, 0.54)][lv - 1] as Color))
+	_box(r, "Door", Vector3(CL.DOOR_W, CL.DOOR_H, 0.06), Vector3(0, CL.MODEL_FLOOR + CL.DOOR_H * 0.5, front + 0.03), _camp("door_wood.png", [Color(1.0, 0.93, 0.82), Color(0.84, 1.0, 0.88), Color(1.0, 0.86, 0.72)][lv - 1] as Color))
 	# Its frame round the opening (a board the size of it stood behind the leaf: in the one
 	# world the room is there, the board stood shut in the open doorway, the user 5. 11.).
 	_frame(r, "DoorFrame", -CL.DOOR_W * 0.5, CL.DOOR_W * 0.5, CL.MODEL_FLOOR, CL.MODEL_FLOOR + CL.DOOR_H, front + 0.01, trim, false)
@@ -2145,7 +2154,7 @@ func _jednota(r: Node3D, _w: float, _d: float) -> Dictionary:
 	_plinth_ring(r, sx + 0.3, sz + 0.3)
 	_room_inside(r, lay.AT, "JednotaRoom", func(room: Node3D, host) -> void: lay.shop_outside(room, host), lay, {"till": "till", "shelves": "shelves", "deli": "deli"}, "jednotas")
 	_box(r, "Roof", Vector3(sx + 0.5, 0.25, sz + 0.5), Vector3(0, h + 0.22, 0), _camp_or("concrete.png", Color(0.62, 0.6, 0.58), "roof"))
-	_quad(r, "JednotaFront", Vector2(sx, h), Vector3(0, h * 0.5 + 0.1, front + 0.012), 0.0, _glass_door_face("jednota_front_glass.png", "jednota_front.png", Rect2(109, 54, 39, 79)))
+	_painted(_quad(r, "JednotaFront", Vector2(sx, h), Vector3(0, h * 0.5 + 0.1, front + 0.012), 0.0, _glass_door_face("jednota_front_glass.png", "jednota_front.png", Rect2(109, 54, 39, 79))))
 	_painted_leaf(r, "Door", "jednota_front_glass.png", Rect2(109, 54, 39, 79), Vector3(0, h * 0.5 + 0.1, front + 0.012), Vector2(sx, h))
 	_door_sign(r, Vector3((lay.AT as Vector3).x + (lay.DOOR as Vector3).x, 1.75, front + 0.05))
 	for wd in lay.WINDOWS:
@@ -2232,7 +2241,7 @@ func _bowling(r: Node3D, _w: float, _d: float) -> Dictionary:
 			fm.emission_texture = load(CAMP + "bowling_front_glow.png")
 			fm.emission_energy_multiplier = 0.0
 			bulbs.append(fm)
-		_quad(r, "BowlingFront", Vector2(sx, h), Vector3(0, h * 0.5 + y0, front + 0.012), 0.0, fm)
+		_painted(_quad(r, "BowlingFront", Vector2(sx, h), Vector3(0, h * 0.5 + y0, front + 0.012), 0.0, fm))
 	# Each long wall in two pictures: the mural by the front, the plain rear with the
 	# cellar's window, where the camp's painted stripe runs out. The left wall has them
 	# mirrored, so on both the stripe comes from the front and stops half way.

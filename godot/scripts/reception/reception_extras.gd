@@ -99,7 +99,7 @@ var board_view
 var sleep
 ## A whole turn (playtest 2026-10-17): the doorway back to the office is behind you.
 var look_back = INTERIOR_LOOK.new(180.0, 26.0, 38.0)
-var look_store = INTERIOR_LOOK.new(175.0, 28.0, 40.0)
+var look_store = INTERIOR_LOOK.new(180.0, 28.0, 40.0)
 ## By the bench under the office window, on the guests' side of the counter (the user
 ## 30. 10.: "click the bench and you go to it, not sat on it: stand there, look out of the
 ## window at the camp or back at your reception"): the window ahead, a whole turn round.

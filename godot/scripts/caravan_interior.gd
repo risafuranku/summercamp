@@ -631,9 +631,12 @@ static func _panes_of(van: Node3D) -> Array:
 	return out
 
 
-static func _pane_turned_to(p: MeshInstance3D, eye: Vector3) -> bool:
+## `held`: the one being looked into lets go later than it took hold: on the very edge of the
+## angle it went in and out every step, the room in the van on and off (the user 7. 11.: "at a
+## certain angle the caravan vanishes, flickers").
+static func _pane_turned_to(p: MeshInstance3D, eye: Vector3, held := false) -> bool:
 	var to := eye - p.global_position
-	return to.length() > 0.05 and p.global_basis.z.normalized().dot(to.normalized()) > 0.1
+	return to.length() > 0.05 and p.global_basis.z.normalized().dot(to.normalized()) > (-0.12 if held else 0.1)
 
 
 func _update_inview(delta: float) -> void:
@@ -652,10 +655,11 @@ func _update_inview(delta: float) -> void:
 			if not is_instance_valid(v) or not (v as Node3D).is_inside_tree():
 				continue
 			var d := (v as Node3D).global_position.distance_to(cam.global_position)
-			if d >= best:
+			var held: bool = v == _inview_van
+			if d >= best + (3.0 if held else 0.0):
 				continue
 			for p in _panes_of(v):
-				if _pane_turned_to(p, cam.global_position):
+				if _pane_turned_to(p, cam.global_position, held):
 					best = d
 					van = v
 					break

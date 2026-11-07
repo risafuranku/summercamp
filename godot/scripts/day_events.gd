@@ -276,9 +276,9 @@ func van_hud_row(abs_minute: int) -> Dictionary:
 			"open":
 				var at_desk := int(ev.get("started", ev["at"])) + DRIVER_WAY_MIN
 				if abs_minute < at_desk:
-					return {"icon": "van", "left": 1.0}
+					return {"icon": "van", "left": 1.0, "ev": int(ev["id"])}
 				var span := maxf(1.0, float(int(ev["deadline"]) - at_desk))
-				return {"icon": "note", "left": clampf(float(int(ev["deadline"]) - abs_minute) / span, 0.0, 1.0)}
+				return {"icon": "note", "left": clampf(float(int(ev["deadline"]) - abs_minute) / span, 0.0, 1.0), "ev": int(ev["id"])}
 			"pending":
 				var from := float(_van_t0) if _van_t0 >= 0 and _van_t0 < int(ev["at"]) else float(int(ev["at"]) - 240)
 				return {"icon": "van", "left": clampf((float(abs_minute) - from) / maxf(1.0, float(int(ev["at"])) - from), 0.0, 1.0)}

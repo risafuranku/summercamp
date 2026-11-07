@@ -123,7 +123,7 @@ func build_inside(hour: float) -> void:
 	room._cam.position = STAND
 	# The bowl ahead, the switch on the wall at the edge of your eye.
 	room._base_rot = Vector3(deg_to_rad(-9.0), deg_to_rad(15.0), 0.0)
-	room._look.yaw_limit_deg = 175.0
+	room._look.yaw_limit_deg = 180.0
 	room._look.pitch_up_deg = 52.0
 	room._look.pitch_down_deg = 50.0
 	_play("town/wc_door.mp3", -7.0)

@@ -294,8 +294,8 @@ func _lobby_things(hour: float) -> void:
 	_walker = WALK.new(room, sp, WAYS_LOBBY, "door", SFX + "rooms/steps_wood.mp3", -17.0)
 	_walker.on_go = func(to: String): _went(to)
 	_walker.put(str(room.arrive_spot) if sp.has(str(room.arrive_spot)) else "door")
-	# Where you can walk to, lit on the floor under the pointer (the user 6. 11.).
-	_walker.floor_spots(["door", "desk", "end", "hall"], Vector2(0.8, 0.8))
+	# The counter lit on the floor; the doors take you through by their own click.
+	_walker.floor_spots(["desk"], Vector2(0.8, 0.8))
 	_crew = MATES.new(room, sp, WAYS_LOBBY, "door")
 	room._look.yaw_limit_deg = 180.0
 	if parts.get("zapper") != null:
@@ -415,12 +415,12 @@ func _room_things(hour: float) -> void:
 	_walker = WALK.new(room, sp, _ways(), "door", SFX + "rooms/steps_wood.mp3", -17.0)
 	_walker.on_go = func(to: String): _went(to)
 	_walker.put("door")
-	# Every place you stand in the room, lit on the floor under the pointer (the user 6. 11.).
-	var standing: Array = []
-	for k in sp:
-		if absf(float((sp[k]["at"] as Vector3).y) - 1.6) < 0.05:
-			standing.append(k)
-	_walker.floor_spots(standing, Vector2(0.62, 0.62))
+	# Through the door you face the room: the door spot's own look is for going back to it, and
+	# you stood with your back to the room and spun round (the user 7. 11.).
+	room._base_rot = _walker.at_rot("entry")
+	# Two places lit on the floor, the room and the view from its window; everything else takes
+	# you to it by its own click (the user 7. 11.: "far too many places to stand").
+	_walker.floor_spots(["room", "window"], Vector2(0.8, 0.8))
 	_crew = MATES.new(room, sp, _ways(), "door")
 	if quirk != null:
 		quirk.things(hour)
@@ -1549,7 +1549,7 @@ func lie_down(hour: float) -> void:
 	var tw: Tween = room.create_tween().set_parallel(true)
 	tw.tween_property(room._cam, "position", lie["at"], 0.9).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	tw.tween_property(room, "_base_rot", lie["rot"], 0.9).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	room._look.yaw_limit_deg = 100.0
+	room._look.yaw_limit_deg = 180.0
 	room._look.pitch_down_deg = 30.0
 	room._look.pitch_up_deg = 50.0
 	if _night(_now()):

@@ -105,7 +105,7 @@ var _vp: SubViewport
 var _cam: Camera3D
 var _env: Environment
 var _root: Node3D
-var _look = INTERIOR_LOOK.new(70.0, 24.0, 30.0)
+var _look = INTERIOR_LOOK.new(180.0, 24.0, 30.0)
 var _base_rot := Vector3.ZERO
 var _hot: Dictionary = {}       # id -> {body, meshes}
 var _glint = HOVER_GLINT.new()
@@ -227,7 +227,7 @@ func open(p_place: String, p_hour: float) -> void:
 	_text = ""
 	_who = ""
 	_shown = -1
-	_look.yaw_limit_deg = 70.0
+	_look.yaw_limit_deg = 180.0
 	_look.pitch_up_deg = 24.0
 	_look.pitch_down_deg = 30.0
 	_cam.fov = 66.0

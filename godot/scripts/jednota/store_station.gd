@@ -7,7 +7,6 @@ extends "res://scripts/jednota/jednota_station.gd"
 ## trolley right of the table. A carton clicked comes onto the table; drag across its tape to cut
 ## it open (the pallet truck, gear: they come open); hold on it and the price gun prices
 ## the goods in it; priced, it goes onto the trolley (jednota.make_box) for the shelves.
-## What went off in the night lies grey by the pallet; a click throws it all out.
 
 const STATION_SIZE := Vector2(1.6, 0.525)
 ## On the table (design px over st_store): where a carton is worked.
@@ -17,8 +16,7 @@ const BOX_M := 0.34
 const FLOOR := -0.855
 ## The cartons' shelf (jednota_layout.CARTON_SHELF_Y, its boards at 0.62 and 1.22 m, 0.82 m
 ## behind the table's middle), the trolley beside the table's right end (the camera stands
-## a little to that side: jednota_layout SURFACES "cam_side"), where what went off waits
-## (by the pallet).
+## a little to that side: jednota_layout SURFACES "cam_side").
 const SHELF_LOCAL := [-0.285, 0.315]
 const SHELF_Z := -0.82
 const TROLLEY_AT := Vector3(1.22, FLOOR, 0.0)

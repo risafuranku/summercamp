@@ -255,7 +255,7 @@ static func build(root: Node3D, room = null, lit := false) -> Dictionary:
 	room._hot_box("door", Vector3(dc.x, 1.1, d * 0.5 - 0.05), Vector3(2.1, 2.2, 0.12), [])
 	room._cam.position = STAND
 	room._base_rot = Vector3(deg_to_rad(-6.0), 0.0, 0.0)
-	room._look.yaw_limit_deg = 150.0
+	room._look.yaw_limit_deg = 180.0
 	return out
 
 

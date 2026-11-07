@@ -1062,6 +1062,8 @@ func _walk_up_first(structure: Node3D, again: Callable, room: Object = null) -> 
 	tw.tween_interval(0.4)
 	tw.tween_property(body, "global_position", to, dur).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	tw.parallel().tween_property(body, "rotation:y", yaw, dur * 0.8).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	if room != null:
+		tw.parallel().tween_property(body, "torch_fade", 0.0, dur * 0.6)
 	var id := structure.get_instance_id()
 	tw.tween_callback(func() -> void:
 		if is_instance_valid(body):

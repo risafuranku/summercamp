@@ -70,7 +70,7 @@ var _root: Node3D
 var _env: Environment
 var _built := {}
 var _lanes: Array = []
-var _look = INTERIOR_LOOK.new(75.0, 20.0, 34.0)
+var _look = INTERIOR_LOOK.new(180.0, 20.0, 34.0)
 var _cam_base_rot := Vector3.ZERO
 var _spot := "hall"
 var _move: Tween

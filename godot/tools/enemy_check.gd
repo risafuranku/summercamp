@@ -213,7 +213,7 @@ func _ready() -> void:
 	p.stop_night()
 
 	# ── Whistler ──
-	# Walking towards the tune in the dark: it takes you.
+	# Walking while he whistles: he has you.
 	_damage = 0
 	var w = _start(WHISTLER)
 	for i in 30 * 90:
@@ -225,6 +225,35 @@ func _ready() -> void:
 				_player.global_position += to.normalized() * 2.5 / 30.0
 	print("ENEMY CHECK: whistler, following the tune: dmg %d" % _damage)
 	_expect(_damage > 0, "whistler: following the whistling into the dark hurts")
+	w.stop_night()
+	# The song's first notes are your time to stop; then he listens.
+	_player.global_position = Vector3.ZERO
+	w = _start(WHISTLER)
+	w._enter("play", 12.0)
+	_expect(float(w._grace) > 0.5, "whistler: the first notes before he listens")
+	_expect(not w._heard(), "whistler: not listening yet")
+	w._grace = 0.0
+	w._speed = 3.0
+	_expect(w._heard(), "whistler: a walk is heard while he whistles")
+	w._speed = 0.1
+	_expect(not w._heard(), "whistler: standing still is not")
+	w._enter("gap", 5.0)
+	w._speed = 6.0
+	w.tick(1.0 / 30.0)
+	_expect(str(w._phase) == "gap", "whistler: in the quiet you may run")
+	w.stop_night()
+	# Stood through three songs: he comes right up to you, and goes.
+	_damage = 0
+	_player.global_position = Vector3.ZERO
+	w = _start(WHISTLER)
+	var leaned := 0.0
+	for i in 30 * 200:
+		w.tick(1.0 / 30.0)
+		if str(w._phase) == "lean":
+			leaned = maxf(leaned, 100.0 - float(w._distance_to_player(w._pos)))
+	print("ENEMY CHECK: whistler, standing through it: nearest %.1f m, dmg %d" % [100.0 - leaned, _damage])
+	_expect(leaned > 100.0 - 2.2, "whistler: at your ear in the end")
+	_expect(_damage == 0, "whistler: stood out, he goes")
 	w.stop_night()
 	# Standing still (or under a lamp): never hurt.
 	for lit in [false, true]:

@@ -79,8 +79,8 @@ func _ready() -> void:
 	for i in 40:
 		chase.tick(1.0 / 30.0)
 
-	# ── The whistler: run while he listens; he rushes. Stand there and he has you (it stops
-	# dead with the string round your neck); walk off softly and he listens where you were.
+	# ── The whistler: run while he whistles; he rushes. Stand there and he has you (it stops
+	# dead with the string round your neck); walk off and he whistles where you were.
 	for walk_off in [false, true]:
 		_damage = 0
 		_player.global_position = Vector3.ZERO
@@ -91,7 +91,7 @@ func _ready() -> void:
 		var side := Vector3.ZERO
 		for i in 30 * 120:
 			var phw := str(w._phase)
-			if phw == "listen" and not rush_on:
+			if phw == "play" and not rush_on:
 				_player.global_position += Vector3(1, 0, 0) * 6.0 / 30.0
 			elif phw == "rush" and walk_off:
 				if side == Vector3.ZERO:
@@ -105,7 +105,7 @@ func _ready() -> void:
 			phw = str(w._phase)
 			if phw == "rush" and float(w._strike_t) < 0.0 and chase.playing() and str(chase._src) == "whistler":
 				rush_on = true
-			if rush_on and ((prev == "rush" and phw == "listen") or (not striking and float(w._strike_t) >= 0.0)):
+			if rush_on and ((prev == "rush" and phw == "play") or (not striking and float(w._strike_t) >= 0.0)):
 				# (He tells it at the start of his next tick.)
 				w.tick(1.0 / 30.0)
 				chase.tick(1.0 / 30.0)

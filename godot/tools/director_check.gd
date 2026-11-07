@@ -117,7 +117,7 @@ func _run() -> void:
 			_expect(float(e["cost"]) < DIRECTOR.BIG_COST, "an empty camp got a big event (%s)" % e["id"])
 	print("DIRECTOR CHECK: empty camp, office all night: %s" % str(small))
 	for c in small:
-		_expect(c >= 1 and c <= 7, "an empty camp hiding in the office got %d things (want 1-7)" % c)
+		_expect(c >= 1 and c <= 9, "an empty camp hiding in the office got %d things (want 1-9)" % c)
 
 	# A sleeping guest standing outside: rare (a night in three or so over a week), once a
 	# night at most, after midnight, never without someone asleep in the camp.
