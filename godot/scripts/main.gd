@@ -646,6 +646,7 @@ func _director_context() -> Dictionary:
 	return {
 		"night": night and _gameplay_started and not _game_over_active,
 		"quiet": _day_index <= QUIET_NIGHTS,
+		"swell": float(CoreRoot.get_state().night_swell),
 		"hour": hour,
 		"place": place,
 		"pos": pos,
@@ -2127,25 +2128,47 @@ func _sync_liminal_forecast_hud(force: bool = false) -> void:
 		return
 	var payload: Dictionary = payload_any
 	var hud_level := clampi(int(payload.get("hud_level", 0)), 0, 4)
+	var lamps := _night_lamps(payload, hud_level)
+	if lamps != hud_level:
+		hud_level = lamps
+		payload = payload.duplicate(true)
+		payload["hud_level"] = lamps
 	if not force and payload == _liminal_forecast_snapshot and hud_level == _liminal_forecast_hud_level:
 		return
 
 	_liminal_forecast_snapshot = payload.duplicate(true)
-	# A bad night brings something while anybody is in the camp to turn (night_ladder): the lamps
-	# do not say CLEAR over it.
-	if hud_level == 0 and _day_index > QUIET_NIGHTS:
-		for e in payload.get("archetypes", []):
-			if e is Dictionary and int((e as Dictionary).get("count", 0)) > 0:
-				hud_level = 1
-				payload = payload.duplicate(true)
-				payload["hud_level"] = 1
-				break
 	_liminal_forecast_hud_level = hud_level
 	if _hud_manager != null and _hud_manager.has_method("set_liminal_forecast"):
 		_hud_manager.set_liminal_forecast(payload)
 	elif _hud_manager != null and _hud_manager.has_method("set_liminal_forecast_count"):
 		_hud_manager.set_liminal_forecast_count(_liminal_forecast_hud_level)
 	_refresh_liminal_debug_window()
+
+
+## The NIGHT RISK lamps say what the night may have (night_swell): somebody in the camp to turn,
+## a lamp; no more of them than the fear will have got to tonight.
+func _night_lamps(forecast: Dictionary, level: int) -> int:
+	var kinds := _kinds_in_camp(forecast.get("archetypes", []))
+	if level == 0 and kinds > 0 and _day_index > QUIET_NIGHTS:
+		return 1
+	if level <= 1 or not camp_rule("threats"):
+		return level
+	return mini(level, NIGHT_SWELL.lamps_cap(NIGHT_SWELL.next(float(CoreRoot.get_state().night_swell), _guests_reading(kinds))))
+
+
+## How many kinds of guest are in the camp, in the forecast's rows or the roll's.
+func _kinds_in_camp(rows: Array) -> int:
+	var kinds := 0
+	for e in rows:
+		if e is Dictionary and int((e as Dictionary).get("count", (e as Dictionary).get("guest_count", 0))) > 0:
+			kinds += 1
+	return kinds
+
+
+## What the guests are like tonight, for the fear to move toward (night_swell.reading).
+func _guests_reading(kinds: int) -> float:
+	var mood: Dictionary = GuestManager.get_camp_mood_summary() if GuestManager != null and GuestManager.has_method("get_camp_mood_summary") else {}
+	return NIGHT_SWELL.reading(int(mood.get("guests", 0)), int(mood.get("unhappy", 0)), kinds, _night_lost)
 
 
 ## A camp loaded in the dark: the night goes on. What starts it is the clock passing 20:00
@@ -2244,9 +2267,16 @@ func _activate_runtime_enemy_for_night(night_index: int) -> void:
 		_active_enemy_spawned_this_night = 0
 		return
 	var entries_any = _liminal_night_roll_snapshot.get("entries", [])
-	var step := night_index - QUIET_NIGHTS
-	# What the night may have of what the camp brings (the nights follow on: night_ladder.gd).
-	var entries: Array = NIGHT_LADDER.shape(entries_any if entries_any is Array else [], step, _last_night_kinds, ENEMY_FOR_ARCHETYPE)
+	var rolled: Array = entries_any if entries_any is Array else []
+	# The fear in the camp moves on toward what the guests are like tonight, and it says what the
+	# night may have of what they bring (the nights follow on: night_swell.gd). Once a night.
+	var swell := float(CoreRoot.get_state().night_swell)
+	if night_index != _night_swell_moved:
+		_night_swell_moved = night_index
+		swell = NIGHT_SWELL.next(swell, _guests_reading(_kinds_in_camp(rolled)))
+		CoreRoot.actions.set_night_swell(swell)
+		_night_lost = 0
+	var entries: Array = NIGHT_SWELL.shape(rolled, swell, _last_night_kinds, ENEMY_FOR_ARCHETYPE, _liminal_forecast_rng.randf())
 	var came: Array = []
 	var total_spawned := 0
 	var kinds := 0
@@ -2259,7 +2289,7 @@ func _activate_runtime_enemy_for_night(night_index: int) -> void:
 		var script = ENEMY_FOR_ARCHETYPE.get(str(entry.get("archetype", "")), null)
 		if spawned <= 0 or script == null:
 			continue
-		var difficulty := mini(maxi(_resolve_silent_man_difficulty(entry), _night_difficulty_floor()), NIGHT_LADDER.difficulty_cap(step))
+		var difficulty := mini(maxi(maxi(_resolve_silent_man_difficulty(entry), _night_difficulty_floor()), NIGHT_SWELL.difficulty_floor(swell)), NIGHT_SWELL.difficulty_cap(swell))
 		worst = maxi(worst, difficulty)
 		came.append(str(entry.get("archetype", "")))
 		var turned := entry.duplicate()
@@ -2269,7 +2299,7 @@ func _activate_runtime_enemy_for_night(night_index: int) -> void:
 		# to choose whom to light"), each one of them, up to three.
 		if script == SILENT_MAN_BRAIN_SCRIPT and spawned >= 2:
 			var taken: Array = [int((turned["guest"] as Dictionary).get("id", -1))]
-			for nth in range(1, mini(mini(spawned, SILENT_MEN_MAX), NIGHT_LADDER.silent_cap(step))):
+			for nth in range(1, mini(mini(spawned, SILENT_MEN_MAX), NIGHT_SWELL.silent_cap(swell))):
 				var more := entry.duplicate()
 				more["nth"] = nth
 				more["guest"] = _pick_turned_guest(str(entry.get("archetype", "")), taken)
@@ -2277,7 +2307,7 @@ func _activate_runtime_enemy_for_night(night_index: int) -> void:
 				_start_enemy_brain(script, night_index, difficulty, more)
 		total_spawned += spawned
 		kinds += 1
-	if step >= NIGHT_LADDER.ANTLERED_FROM and _antlered_comes(kinds):
+	if swell >= NIGHT_SWELL.ANTLERED_FROM and _antlered_comes(kinds):
 		_start_enemy_brain(STALKER_BRAIN_SCRIPT, night_index, mini(5, worst + 1), {})
 	_last_night_kinds = came
 	_active_enemy_spawned_this_night = total_spawned
@@ -2285,8 +2315,11 @@ func _activate_runtime_enemy_for_night(night_index: int) -> void:
 	_liminal_virtual_enemy_count = maxi(0, _liminal_virtual_enemy_count - claimed_virtual)
 
 
-const NIGHT_LADDER = preload("res://core/systems/night_ladder.gd")
+const NIGHT_SWELL = preload("res://core/systems/night_swell.gd")
 var _last_night_kinds: Array = []
+## Guests the night has taken since the fear last moved; the night it last moved.
+var _night_lost := 0
+var _night_swell_moved := -1
 
 
 ## The boss night: three kinds turned at once, or a camp this full.
@@ -2332,8 +2365,10 @@ func _claim_turned_guests() -> void:
 		var id := int(guest.get("id", -1))
 		if id < 0:
 			continue
-		if GuestManager.vanish_guest(id) and _hud_manager != null:
-			_hud_manager.push_status("Morning: %s is gone. The bed was not slept in." % str(guest.get("name", "a guest")), 2)
+		if GuestManager.vanish_guest(id):
+			_night_lost += 1
+			if _hud_manager != null:
+				_hud_manager.push_status("Morning: %s is gone. The bed was not slept in." % str(guest.get("name", "a guest")), 2)
 
 
 ## Dawn: the mushroom granny's night (basket_brain.gd dawn()): those who lived through her
@@ -6787,6 +6822,10 @@ func _build_save_snapshot(slot_name: String, kind: String) -> Dictionary:
 			"karma": float(state.karma),
 			"satisfaction": float(state.satisfaction),
 			"hrotfaktor": float(state.hrotfaktor),
+			"night_swell": float(state.night_swell),
+			"last_night_kinds": _last_night_kinds.duplicate(),
+			"night_lost": _night_lost,
+			"night_swell_moved": _night_swell_moved,
 			"energy_load": float(state.energy_load),
 			"infra_load": float(state.infra_load),
 			"guests": SAVE_CODEC.serialize_guests(state.guests),
@@ -7078,6 +7117,15 @@ func _apply_save_snapshot(snapshot: Dictionary, preview_only: bool) -> bool:
 			"next_guest_id": max(1, int(state_data.get("next_guest_id", 1))),
 			"biz": (state_data.get("biz", {}) as Dictionary).duplicate(true) if state_data.get("biz", {}) is Dictionary else {}
 		})
+		# (A camp saved before there was a swell: what the ledger says has come so far.)
+		var ledger_any = snapshot.get("week_ledger", {})
+		var nights_any = (ledger_any as Dictionary).get("nights", {}) if ledger_any is Dictionary else {}
+		var visited_old: int = (nights_any as Dictionary).size() if nights_any is Dictionary else 0
+		CoreRoot.actions.set_night_swell(float(state_data.get("night_swell", NIGHT_SWELL.from_nights_visited(visited_old))))
+		var kinds_any = state_data.get("last_night_kinds", [])
+		_last_night_kinds = (kinds_any as Array).duplicate() if kinds_any is Array else []
+		_night_lost = int(state_data.get("night_lost", 0))
+		_night_swell_moved = int(state_data.get("night_swell_moved", -1))
 		var electricity_any = state_data.get("electricity", {})
 		_billing.import_state(electricity_any if electricity_any is Dictionary else {}, _day_index, preview_only)
 		_refresh_electricity_power_cut_state(true)
@@ -7406,9 +7454,13 @@ func _reset_state_for_new_game() -> void:
 		"karma": 0.0,
 		"satisfaction": 50.0,
 		"hrotfaktor": 0.0,
+		"night_swell": 0.0,
 		"energy_load": 0.0,
 		"infra_load": 0.0
 	})
+	_last_night_kinds = []
+	_night_lost = 0
+	_night_swell_moved = -1
 	if state.grid != null:
 		state.grid.cells.clear()
 		state.grid.tile_types.clear()

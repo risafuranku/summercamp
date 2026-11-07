@@ -96,7 +96,7 @@ func _run() -> void:
 	music.play()
 	r.bind_music(music)
 	r.debug_override = 0.9
-	var ctx := {"night": true, "hours": 2.0, "day": 4, "tonight": ["girl"], "risk": 1.0, "nearest": INF, "listening": true, "client": false, "raw": false}
+	var ctx := {"night": true, "hours": 2.0, "swell": 1.0, "tonight": ["girl"], "risk": 1.0, "nearest": INF, "listening": true, "client": false, "raw": false}
 	var flashes := 0
 	var breaks := 0
 	var cut_seen := false

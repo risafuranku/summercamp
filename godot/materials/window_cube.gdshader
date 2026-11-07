@@ -45,6 +45,10 @@ uniform float curtain = 0.0;
 // 1 shut, over the live view too; and somebody in the room, x across the pane, height in
 // panes, how dark: their shape on the curtain or against the lamp.
 instance uniform float shut = 0.0;
+// A pane the live view is no good for, its picture alone: the van's round ends stand half a
+// metre out from the room, the live view showed the back of the room's end wall there and
+// the sky beside it, a hole in the van as you passed its nose.
+instance uniform float cube_only = 0.0;
 instance uniform vec3 figure = vec3(0.0);
 uniform sampler2D figure_tex : filter_nearest;
 uniform vec2 pane = vec2(0.7, 0.6);
@@ -98,7 +102,7 @@ void fragment() {
 		vec2 cuv = vec2((u < c ? u : 1.0 - u) * pane.x / 0.35, UV.y * pane.y / 0.5);
 		col = texture(curtain_tex, cuv).rgb * light * energy * 0.85;
 	}
-	if (live > 0.0) {
+	if (live > 0.0 && cube_only < 0.5) {
 		col = mix(col, texture(room_tex, SCREEN_UV).rgb * bright, live);
 	}
 	float drawn = max(c, shut * 0.5);

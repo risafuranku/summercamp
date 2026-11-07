@@ -147,6 +147,11 @@ func maintenance_shift(amount: float) -> bool:
 	
 	return true
 
+## The fear the camp has worked up to tonight (core/systems/night_swell.gd).
+func set_night_swell(value: float) -> void:
+	_state.night_swell = clampf(value, 0.0, 1.0)
+
+
 func spend_money(amount: int) -> bool:
 	if _state.money < amount:
 		return false

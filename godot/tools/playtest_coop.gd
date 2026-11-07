@@ -78,6 +78,14 @@ func desk() -> void:
 		"guests": st.guests.map(func(g): return [g.get("id"), g.get("status"), g.get("gate_queue_index", -1)]) if st != null else []})
 
 
+## The corn stand's bulb goes by the one clock (P7: the other machine's hour stood still).
+func bulb() -> void:
+	var on: Array = []
+	for n in get_tree().root.find_children("StandBulb", "OmniLight3D", true, false):
+		on.append((n as OmniLight3D).visible)
+	say("bulb", {"on": on, "hour": float(_main.call("season_hour"))})
+
+
 func _ready() -> void:
 	super._ready()
 	if _role == "host":
@@ -85,7 +93,7 @@ func _ready() -> void:
 			["wait_menu"], ["coop_port"], ["coop_look", 0, 0], ["call", "_on_menu_coop_host", []], ["wait_gameplay"], ["wait", 2.0],
 			["eval", BI + "._exit_crt_view()"], ["wait", 0.5], ["eval", BI + ".close_interior()"], ["wait", 1.0],
 			["eval", "debug_jump_to(1, 11.0)"], ["wait", 1.0],
-			["money", 90000], ["clear", 16, 3, 9, 6], ["build", "toilet_block", 17, 4, 0], ["build", "tent_1", 21, 4, 0], ["wait", 1.0], ["prep_all"],
+			["money", 90000], ["clear", 16, 3, 9, 6], ["build", "toilet_block", 17, 4, 0], ["build", "tent_1", 21, 4, 0], ["build", "corn_stand", 19, 7, 0], ["wait", 1.0], ["prep_all"],
 			["auto_checkin", false], ["book", "Pepa", "drunk", 1, 2, 0],
 			["coop_signal", "host_up"], ["coop_wait_file", "client_in"], ["wait", 1.0],
 			["eval", "get_node('/root/ShotDriver').host_stage()"], ["wait", 3.0], ["coop_signal", "host_staged"],
@@ -95,6 +103,8 @@ func _ready() -> void:
 			["eval", BI + "._desk_room._step_up()"], ["wait", 3.0],
 			["eval", "get_node('/root/ShotDriver').desk()"], ["coop_signal", "host_at_desk"],
 			["eval", "get_node('/root/ShotDriver').radio()"], ["coop_wait_file", "client_saw_desk"],
+			["eval", "debug_jump_to(1, 18.0)"], ["wait", 2.5], ["eval", "get_node('/root/ShotDriver').bulb()"], ["coop_signal", "host_evening"],
+			["coop_wait_file", "client_evening"],
 			["coop_signal", "host_done"], ["wait", 2.0], ["eval", "get_tree().quit()"],
 		]
 	else:
@@ -111,6 +121,7 @@ func _ready() -> void:
 			["win_front", "office_glass", 2.6], ["wait", 1.5],
 			["eval", "get_node('/root/ShotDriver').desk()"], ["eval", "get_node('/root/ShotDriver').radio()"], ["shot", "c_desk"],
 			["coop_signal", "client_saw_desk"],
+			["coop_wait_file", "host_evening"], ["wait", 2.5], ["eval", "get_node('/root/ShotDriver').bulb()"], ["coop_signal", "client_evening"],
 			["coop_wait_file", "host_done"], ["wait", 1.0], ["eval", "get_tree().quit()"],
 		]
 

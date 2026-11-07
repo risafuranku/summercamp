@@ -1345,8 +1345,10 @@ func caravan(r: Node3D, _w: float, _d: float, level := 1) -> Vector3:
 	# the round ends' noses (the room has them too: caravan_interior.WINDOWS; from the
 	# camp they show the room behind them, its _update_inview).
 	var nose := lx * 0.5 + lz * 0.5 * 0.45 + 0.015
-	_side_quad(r, "WindowFront", wins[0][0], Vector3(nose, wy, 0.0), PI * 0.5, glass).set_meta("lit_window", true)
-	_side_quad(r, "WindowRear", wins[1][0], Vector3(-nose, wy, 0.0), -PI * 0.5, glass).set_meta("lit_window", true)
+	for end in [["WindowFront", wins[0][0], nose, PI * 0.5], ["WindowRear", wins[1][0], -nose, -PI * 0.5]]:
+		var pane := _side_quad(r, str(end[0]), end[1], Vector3(float(end[2]), wy, 0.0), float(end[3]), glass)
+		pane.set_meta("lit_window", true)
+		pane.set_meta("cube_only", true)
 	# The step to the door: a folding steel one (Lv3 has wooden steps instead).
 	if lv < 3:
 		_box(r, "DoorStep", Vector3(0.5, 0.04, 0.26), Vector3(door_x, 0.2, lz * 0.5 + 0.16), _metal())

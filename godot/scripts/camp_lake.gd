@@ -593,7 +593,14 @@ const WADE := 1.3
 
 ## Whether `p` is in the lake's water (your boots: body_world.gd).
 func in_water(p: Vector3) -> bool:
-	return not _poly_raw.is_empty() and Geometry2D.is_point_in_polygon(Vector2(p.x, p.z), _poly_raw)
+	if _poly_raw.is_empty() or not Geometry2D.is_point_in_polygon(Vector2(p.x, p.z), _poly_raw):
+		return false
+	# On a jetty you are over the water, not in it: it splashed at every step and rang on the
+	# boards, an oar's stroke for a foot (the user 7. 11.: "as if I walked on the water").
+	for r in jetty_rects:
+		if r.has_point(Vector2(p.x, p.z)):
+			return false
+	return true
 
 
 ## Where the ducks sit on the camp shore by day: two or three spots off the jetty's sides,

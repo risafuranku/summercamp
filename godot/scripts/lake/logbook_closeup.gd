@@ -8,7 +8,7 @@ const PIC := "res://assets/textury/closeup/logbook.png"
 ## The two pages on the picture (px): where the writing goes.
 const LEFT_PAGE := Rect2(70, 40, 76, 118)
 const RIGHT_PAGE := Rect2(156, 38, 82, 112)
-const SFX_PAGE := "res://assets/sfx/rooms/task_litter.mp3"
+const SFX_PAGE := "res://assets/sfx/desk/paper_slide.mp3"
 
 ## Spreads: [left page, right page].
 const PAGES := [

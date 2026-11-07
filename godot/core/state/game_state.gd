@@ -13,6 +13,8 @@ extends Resource
 @export var karma: float = 0.0
 @export var satisfaction: float = 50.0
 @export var hrotfaktor: float = 0.0
+# The fear the camp has worked up to, carried from night to night (core/systems/night_swell.gd).
+@export var night_swell: float = 0.0
 
 # System Loads
 @export var energy_load: float = 0.0

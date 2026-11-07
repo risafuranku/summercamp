@@ -551,6 +551,9 @@ func _cube_of(rec: Dictionary) -> ShaderMaterial:
 	for w in rec["windows"]:
 		if is_instance_valid(w):
 			(w as Node).set_meta("wl_cube", m)
+			# (The van's round ends stand off the room: window_cube's cube_only.)
+			if (w as Node).has_meta("cube_only"):
+				(w as GeometryInstance3D).set_instance_shader_parameter("cube_only", 1.0)
 	return m
 
 

@@ -1142,7 +1142,7 @@ func _find_open_ways() -> Array:
 			if p.size() != 2:
 				continue
 			var s: Node3D = DOOR_ANIM.structure_at(Vector2i(int(p[0]), int(p[1])))
-			if s == null:
+			if s == null or s.has_meta("god_waiting"):
 				continue
 			for w in s.find_children("TentDoorWay", "MeshInstance3D", true, false):
 				out.append([s, w, w])
@@ -1151,7 +1151,7 @@ func _find_open_ways() -> Array:
 	var structures: Node = bm.get_node_or_null("Structures") if bm != null else null
 	if structures != null:
 		for s in structures.get_children():
-			if not str((s as Node).get_meta("building_type", "")).begins_with("tent"):
+			if not str((s as Node).get_meta("building_type", "")).begins_with("tent") or (s as Node).has_meta("god_waiting"):
 				continue
 			var tear := (s as Node).find_child("TentTear", true, false) as MeshInstance3D
 			var way := (s as Node).find_child("TentDoorWay", true, false) as MeshInstance3D

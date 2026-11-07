@@ -46,7 +46,7 @@ func _run() -> void:
 	_check(missing.is_empty(), "all %d sounds load %s" % [ids.size(), str(missing) if not missing.is_empty() else ""])
 	_check(r._clip("buzzer") is AudioStreamWAV and (r._clip("buzzer") as AudioStreamWAV).loop_mode == AudioStreamWAV.LOOP_FORWARD, "the buzz loops")
 
-	var night := {"night": true, "hours": 2.0, "day": 4, "tonight": []}
+	var night := {"night": true, "hours": 2.0, "swell": 1.0, "tonight": []}
 	var prev := -1.0
 	var rising := true
 	for lvl in 5:
@@ -58,14 +58,14 @@ func _run() -> void:
 	_check(rising, "dread rises with every NIGHT RISK lamp")
 	var crit := night.duplicate()
 	crit["risk"] = 1.0
-	# (Night after night: the first ones are held down, night_ladder.gd.)
-	crit["day"] = 9
+	# (The fear worked up to: till then it is held down, night_swell.gd.)
+	crit["swell"] = 1.0
 	_check(DREAD.compute_target(crit) > 0.85, "critical at 02:00 is near the top (%.2f)" % DREAD.compute_target(crit))
-	var noon := {"night": false, "hours": 12.0, "day": 4, "tonight": [], "risk": 1.0}
+	var noon := {"night": false, "hours": 12.0, "swell": 1.0, "tonight": [], "risk": 1.0}
 	_check(DREAD.compute_target(noon) < 0.3, "by day the lamps only make the set sick (%.2f)" % DREAD.compute_target(noon))
 	var first := crit.duplicate()
-	first["day"] = 1
-	_check(DREAD.compute_target(first) <= DREAD.NIGHT_LADDER.dread_cap(0) + 0.001, "the first night only frets")
+	first["swell"] = 0.0
+	_check(DREAD.compute_target(first) <= DREAD.NIGHT_SWELL.dread_cap(0.0) + 0.001, "with nothing worked up to it only frets")
 	var visited := night.duplicate()
 	visited["risk"] = 0.25
 	visited["tonight"] = ["girl", "stalker"]
@@ -73,7 +73,7 @@ func _run() -> void:
 	calm["risk"] = 0.25
 	_check(DREAD.compute_target(visited) > DREAD.compute_target(calm) + 0.2, "what is out tonight makes it worse")
 
-	var ctx := {"night": true, "hours": 23.0, "day": 4, "tonight": ["girl"], "guests": 7, "risk": 1.0}
+	var ctx := {"night": true, "hours": 23.0, "swell": 1.0, "tonight": ["girl"], "guests": 7, "risk": 1.0}
 	r._ctx = ctx
 	var named := 0
 	var counted := true
@@ -104,7 +104,7 @@ func _run() -> void:
 	music.stream = r._clip("static")
 	music.play()
 	r.bind_music(music)
-	var near := {"night": true, "hours": 1.0, "day": 4, "tonight": ["silent_man"], "guests": 5, "risk": 0.5, "nearest": 4.0}
+	var near := {"night": true, "hours": 1.0, "swell": 1.0, "tonight": ["silent_man"], "guests": 5, "risk": 0.5, "nearest": 4.0}
 	for i in 180:
 		r.update(1.0 / 60.0, near.duplicate(), -11.0, -80.0, true, null)
 	_check(r.music_gain < 0.25, "something close silences the song (gain %.2f)" % r.music_gain)

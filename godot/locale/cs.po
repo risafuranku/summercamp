@@ -32717,3 +32717,7 @@ msgstr "Kč/den"
 #. manual
 msgid "kWh/day"
 msgstr "kWh/den"
+
+#. manual
+msgid "CORN STAND"
+msgstr "STÁNEK"

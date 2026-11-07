@@ -4242,6 +4242,7 @@ func _radio_dread_context(delta: float) -> Dictionary:
 		"hours": hours,
 		"night": night,
 		"day": int(CoreRoot.get_day()) if CoreRoot != null else 1,
+		"swell": float(CoreRoot.get_state().night_swell) if CoreRoot != null and CoreRoot.get_state() != null else 0.0,
 		"tonight": tonight,
 		"nearest": nearest,
 		"guests": _count_guests_in_camp(),

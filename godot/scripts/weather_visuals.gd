@@ -142,6 +142,8 @@ const SUN_FULL_HEIGHT: float = 0.04
 const CELESTIAL_PATH_ALTITUDE_FACTOR: float = 0.84
 const CELESTIAL_PATH_DEFAULT_HALF_SPAN: float = 56.0
 const CELESTIAL_SPRITE_REFERENCE_DISTANCE: float = 36.0
+## How far off they hang for an eye in a room.
+const ROOM_SKY_DISTANCE: float = 320.0
 const CELESTIAL_SPRITE_MIN_DISTANCE: float = 96.0
 const CELESTIAL_SPRITE_MAP_DISTANCE_FACTOR: float = 2.4
 const CELESTIAL_SPRITE_CAMERA_FAR_FACTOR: float = 0.92
@@ -658,6 +660,13 @@ func update_celestial_bodies() -> void:
 	# Past everything there is to stand in front of: 96 m off, out in the open a low sun stood
 	# before the far woods.
 	var sky_distance = cam.far * 0.8
+	# In a room the camp's own eye is not what looks (one_world_room.camp_view): the room's sees
+	# 600 m, the views out of a shop's windows 400. 800 m off the disc was past their far plane,
+	# gone as you looked at it and back, cut, at the edge of the picture (the user 7. 11.: "the
+	# sun's sprite in the sky went and came back", seen from the reception at sunset).
+	var looking_from := cam.get_viewport() as SubViewport
+	if looking_from != null and looking_from.render_target_update_mode == SubViewport.UPDATE_DISABLED:
+		sky_distance = minf(sky_distance, ROOM_SKY_DISTANCE)
 	var sprite_scale = sky_distance / CELESTIAL_SPRITE_REFERENCE_DISTANCE
 	_sun_sprite_3d.global_position = cam_pos + sun_dir * sky_distance
 	_moon_sprite_3d.global_position = cam_pos + moon_dir * sky_distance

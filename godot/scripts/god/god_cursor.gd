@@ -32,6 +32,8 @@ extends Node3D
 const SFX := "res://assets/sfx/god/"
 const BUILDER_EYE := 1 << 15
 const THEATRE := 1 << 16
+## On a building still to come, till it lands.
+const WAITING := "god_waiting"
 const FPS := 12.0
 const STEP := 1.0 / FPS
 const BUS := "OutdoorAmbience"
@@ -345,6 +347,11 @@ func _hide(node: Node3D, center: Vector3, fp: Vector2i) -> void:
 		layer = (node as CollisionObject3D).collision_layer
 		(node as CollisionObject3D).collision_layer = 0
 	_hidden[node.get_instance_id()] = {"node": node, "shadow": sh, "layer": layer, "veil": _veil(node)}
+	# Not there yet for anybody: a room does not stand in it (cabin_interior, caravan_interior,
+	# tent_interior _find_*). It took the leaf onto its hinge and noted the van's shell as it
+	# stood here, on the Builder's eye: the user 7. 11.: "the first cabin had no door at all, I
+	# could see in", "walking round it the caravan flickered and went".
+	node.set_meta(WAITING, true)
 	_mask_cameras()
 
 
@@ -356,6 +363,7 @@ func _reveal(node: Node3D, keep_shadow := false) -> MeshInstance3D:
 	_hidden.erase(node.get_instance_id())
 	if h.is_empty():
 		return null
+	node.remove_meta(WAITING)
 	_unveil(h["veil"])
 	if int(h["layer"]) >= 0 and node is CollisionObject3D:
 		(node as CollisionObject3D).collision_layer = int(h["layer"])
@@ -391,6 +399,10 @@ func _veil_one(n: Node, out: Array) -> void:
 			out.append([n, -1, 0])
 			(n as Node3D).visible = false
 	elif n is VisualInstance3D:
+		# Waiting already: a leaf going onto its hinge is added to the tree a second time, and
+		# noted again it came back from its wait onto the Builder's eye, a door nobody saw.
+		if (n as VisualInstance3D).layers == BUILDER_EYE:
+			return
 		var gi := n as GeometryInstance3D
 		out.append([n, (n as VisualInstance3D).layers, gi.cast_shadow if gi != null else 0])
 		(n as VisualInstance3D).layers = BUILDER_EYE

@@ -42,7 +42,8 @@ const CONFRONT_NEAR_M := 14.0
 const CHAIN_SECONDS := 90.0
 const INVESTIGATE_M := 9.0
 const INVESTIGATE_SECONDS := 70.0
-const HELLS_FROM_NIGHT := 3
+## The fear the camp has worked up to (core/systems/night_swell.gd).
+const NIGHT_SWELL = preload("res://core/systems/night_swell.gd")
 
 enum A { OBSERVER, MIMIC, DISTURBER, HUNTER }
 const ARCH_NAMES := ["OBSERVER", "MIMIC", "DISTURBER", "HUNTER"]
@@ -346,8 +347,8 @@ func _update_state(ctx: Dictionary) -> void:
 	# Hiding indoors most of the night does not keep it away: it comes looking.
 	var inside := float(time_in.get("office", 0.0)) + float(time_in.get("back_room", 0.0))
 	var hiding := 0.1 if _t > 90.0 and inside > _t * 0.6 else 0.0
-	# Night by night it has got further: what has come before is in the air from the start.
-	var ago := 0.035 * clampf(float(_night - 1), 0.0, 6.0)
+	# The fear the camp has worked up to is in the air from the start of the night.
+	var ago := 0.21 * float(ctx.get("swell", 0.0))
 	var want := 0.2 * deep + hiding + ago + 0.07 * float(ctx.get("pressure", 0.3)) + 0.12 * float(ctx.get("hunting", 0)) \
 		+ (0.16 if bool(ctx.get("dark", false)) else 0.0) + alone + 0.06 * float(ignored) - 0.04 * float(investigated)
 	want = clampf(want, 0.0, 1.0)
@@ -399,8 +400,8 @@ func candidates(ctx: Dictionary, entering := false) -> Dictionary:
 		if e.has("hours") and not _in_hours(hour, e["hours"]):
 			continue
 		var ok := true
-		# (No splinter of the hells on the first bad night: the fear is worked up to, 7. 11.)
-		if id == "hell_far" and _night < HELLS_FROM_NIGHT:
+		# (No splinter of the hells before the fear has got that far, 7. 11.)
+		if id == "hell_far" and float(ctx.get("swell", 0.0)) < NIGHT_SWELL.HELLS_FROM:
 			continue
 		for need in e.get("needs", []):
 			if not bool(ctx.get(need, false)):

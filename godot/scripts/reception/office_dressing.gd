@@ -173,13 +173,10 @@ func _build_stove() -> void:
 		root.add_child(lg)
 	_fire_light = OmniLight3D.new()
 	_fire_light.name = "StoveFire"
-	# A yellow warmth, not an orange: on the yellow boards an orange light went through the
-	# palette as salmon red, great blobs of it round the stove from four in the afternoon, a low
-	# sun clipping in through the walls to anyone's eye (the user 7. 11.).
-	_fire_light.light_color = Color(1.0, 0.88, 0.66)
+	_fire_light.light_color = Color(1.0, 0.56, 0.24)
 	# Out in the room, soft: a near, sharp light burnt the stove's face flat and drew
 	# rings on the walls through the palette.
-	_fire_light.omni_range = 3.0
+	_fire_light.omni_range = 3.6
 	_fire_light.omni_attenuation = 0.85
 	_fire_light.position = Vector3(0, 0.38, 0.85)
 	_fire_light.light_energy = 0.0
@@ -337,7 +334,7 @@ func update(delta: float, hour: float, lights_on: bool) -> void:
 		_flick = randf_range(0.72, 1.0)
 	var fire := (1.0 if fire_lit else 0.0) * _flick * (1.0 + _stoke * 0.9)
 	if _fire_light != null:
-		_fire_light.light_energy = 0.17 * fire
+		_fire_light.light_energy = 0.36 * fire
 		_fire_light.visible = fire > 0.01
 	if _glow_mat != null:
 		_glow_mat.emission_energy_multiplier = 1.6 * fire

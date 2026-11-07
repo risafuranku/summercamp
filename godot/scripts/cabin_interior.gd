@@ -784,7 +784,7 @@ func _find_cabins() -> Array:
 	if structures == null:
 		return out
 	for c in structures.get_children():
-		if str(c.get_meta("building_type", "")).begins_with("cabin") and c is Node3D:
+		if str(c.get_meta("building_type", "")).begins_with("cabin") and c is Node3D and not c.has_meta("god_waiting"):
 			out.append(c)
 	return out
 

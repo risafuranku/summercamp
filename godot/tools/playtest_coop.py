@@ -75,6 +75,9 @@ def main():
         print("radio off by %.2f s" % off)
         if a.get("path") != b.get("path") or off > 0.8:
             bad.append("P7 the radio: %s %s" % (a, b))
+    hb, cb = h.get("bulb", {}), c.get("bulb", {})
+    if not hb.get("on") or hb.get("on") != cb.get("on") or not all(hb.get("on", [])):
+        bad.append("P7 the corn stand's bulb at six: host %s, other machine %s" % (hb, cb))
     print("PLAYTEST COOP: %s" % ("PASS" if not bad else "FAIL"))
     for f in bad:
         print("  -", f)

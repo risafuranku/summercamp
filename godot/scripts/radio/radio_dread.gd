@@ -55,11 +55,10 @@ const NEAR_FAR := 24.0
 const NEAR_CLOSE := 9.0
 const DREAD_RISE_PER_SEC := 0.02
 const DREAD_FALL_PER_SEC := 0.01
-## How bad it may get is worked up to, night by night (core/systems/night_ladder.gd; the first
-## night is quiet, main.QUIET_NIGHTS: the radio only frets). No hell splinters on the first bad
-## night either: "straight to the hell waltz, a mad peak" (the user 7. 11.).
-const NIGHT_LADDER = preload("res://core/systems/night_ladder.gd")
-const HELLS_FROM_DAY := 3
+## How bad it may get is what the fear in the camp has worked up to (core/systems/night_swell.gd;
+## with nothing worked up to the radio only frets). No hell splinters before it has either:
+## "straight to the hell waltz, a mad peak" (the user 7. 11.).
+const NIGHT_SWELL = preload("res://core/systems/night_swell.gd")
 ## Between two interludes at least this long, so the songs are still the station.
 const INTERLUDE_COOLDOWN_SEC := 170.0
 
@@ -310,8 +309,8 @@ static func hour_phase(hours: float) -> float:
 	return 0.3
 
 
-## ctx: risk 0-1 (NIGHT RISK level / 4), hours, night (bool), day, tonight (enemy ids
-## running tonight), near 0-1.
+## ctx: risk 0-1 (NIGHT RISK level / 4), hours, night (bool), swell (night_swell), tonight
+## (enemy ids running tonight), near 0-1.
 static func compute_target(ctx: Dictionary) -> float:
 	var risk := clampf(float(ctx.get("risk", 0.0)), 0.0, 1.0)
 	var night := bool(ctx.get("night", false))
@@ -320,7 +319,7 @@ static func compute_target(ctx: Dictionary) -> float:
 	if night:
 		t += 0.06 + minf(0.3, 0.12 * tonight.size())
 	t += float(ctx.get("near", 0.0)) * 0.35
-	return clampf(minf(t, NIGHT_LADDER.dread_cap(int(ctx.get("day", 2)) - 1)), 0.0, 1.0)
+	return clampf(minf(t, NIGHT_SWELL.dread_cap(float(ctx.get("swell", 0.0)))), 0.0, 1.0)
 
 
 static func near_from_distance(d: float) -> float:
@@ -698,7 +697,7 @@ func _pick_event() -> int:
 		if dread > 0.5 and not bool(_ctx.get("client", false)):
 			bag.append([Ev.NEEDLE, 1.5])
 		return int(bag[_rng.randi() % bag.size()][0])
-	if night and dread >= FLASH_FROM and int(_ctx.get("day", 2)) >= HELLS_FROM_DAY:
+	if night and dread >= FLASH_FROM and float(_ctx.get("swell", 0.0)) >= NIGHT_SWELL.HELLS_FROM:
 		bag.append([Ev.FLASH, 0.5 + 1.5 * dread])
 	if _break_ready():
 		bag.append([Ev.BREAK, 3.0 if dread >= RADIO_TIERS.PEKLO else 0.8])

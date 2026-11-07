@@ -49,8 +49,12 @@ const MAZE_TEX_SMALL := "res://assets/textury/closeup/maze_sheet_small.png"
 const PENCIL := Color(0.22, 0.22, 0.26, 0.9)
 const KEY_PATCH_FROM := Rect2(150, 196, 21, 28)
 const PIC := "res://assets/textury/closeup/board.png"
-const SFX_PAPER := "res://assets/sfx/rooms/task_litter.mp3"
-const SFX_KEY := "res://assets/sfx/rednecksfx/rrtick.wav"
+# (They were a bag of empty bottles and a ratchet: the user 7. 11.: "clicking the papers on the
+# noticeboard makes odd sounds".)
+const SFX_PAPER := "res://assets/sfx/desk/paper_pick.mp3"
+const SFX_PAPER_BACK := "res://assets/sfx/desk/paper_slide.mp3"
+const SFX_KEY := "res://assets/sfx/desk/keys.mp3"
+const SFX_KEY_BACK := "res://assets/sfx/desk/key_hang.mp3"
 
 ## Callable() -> bool: is the shed key still on the board?
 var key_present: Callable
@@ -119,25 +123,25 @@ func _hotspots() -> Array:
 func _clicked(id: String) -> void:
 	if id == "put_back":
 		_reading = ""
-		play(SFX_PAPER, -16.0)
+		play(SFX_PAPER_BACK, -12.0)
 		return
 	if id == "key":
 		if on_key_taken.is_valid() and not bool(on_key_taken.call()):
 			say("", "There is no room for it in your bag.")
 			return
-		play(SFX_KEY, -4.0)
+		play(SFX_KEY, -8.0)
 		say("", "A key on a loop of string, warm from the lamp. On the tag, in pen: SHED - BACK.")
 		return
 	if id == "pin":
 		if on_key_returned.is_valid() and bool(on_key_returned.call()):
-			play(SFX_KEY, -4.0)
+			play(SFX_KEY_BACK, -8.0)
 			say("", "Back on its pin.")
 		else:
 			say("", "The pin the shed key hangs on. Nothing on it.")
 		return
 	_reading = id
 	_read_t = 0.0
-	play(SFX_PAPER, -14.0)
+	play(SFX_PAPER, -10.0)
 	say("", _timetable_line() if id == "timetable" else "", false)
 
 

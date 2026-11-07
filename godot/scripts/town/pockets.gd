@@ -51,6 +51,10 @@ const ANCHOR := {
 	# the filter comes in at the bottom at x 65.
 	"hand4_lighting": Vector2(65, 17),
 }
+## Where on the drinking pictures (their pixels) the neck is where it goes out of the view, at
+## your mouth, and on the way up.
+const DRINK_NECK := Vector2(30, 90)
+const RAISE_NECK := Vector2(12, 84)
 ## Where on the cigarette pictures your fingers hold it (from its bottom left corner).
 const CIG_GRIP := Vector2(11, -11)
 const WOBBLE_SHADER := """
@@ -492,7 +496,7 @@ func _bottle_event(e: String, v) -> void:
 		"pop":
 			_play("b", "cap_pop.mp3", -3.0)
 			_cap_off_screen()
-			_push("r", "hand5_beer_pop", 3)
+			_push("r", "hand8_beer_pop", 3)
 			world.cap_off()
 			world.send("pop", [])
 		"foam":
@@ -998,10 +1002,10 @@ func _layout_right(vp: Vector2, s: float, bar: float, bob: Vector2, step: float)
 		frame = "hand4_beer_drink"
 	elif frame == "hand2_beer_tilt":
 		frame = "hand4_beer_raise" if tex("hand4_beer_raise") != null else ("hand4_beer_drink" if tex("hand4_beer_drink") != null else "hand2_beer_drink")
-	if bottle.state == BOTTLE.OPENING and tex("hand5_beer_lever") != null:
+	if bottle.state == BOTTLE.OPENING:
 		# Straining at the cap: the two pictures in turn, faster as it gives.
 		var rate := 3 if bottle.t < bottle.open_need * 0.6 else 2
-		frame = "hand5_beer_lever" if int(step / rate) % 2 == 1 else "hand2_beer_opening"
+		frame = "hand8_beer_lever" if int(step / rate) % 2 == 1 else "hand8_beer_opening"
 	if bottle.state == BOTTLE.THROW and tex("hand5_beer_windup") != null:
 		frame = "hand5_beer_windup" if bottle.t < 0.17 else "hand5_beer_throw"
 	frame = _sequence("r", frame)
@@ -1015,22 +1019,26 @@ func _layout_right(vp: Vector2, s: float, bar: float, bob: Vector2, step: float)
 	var x := vp.x * 0.64
 	var y := vp.y - bar - _right.size.y * 0.72 * up
 	if frame == "hand4_beer_drink":
-		# The neck in your mouth just under the bottom edge.
-		x = vp.x * 0.5 - _right.size.x * 0.5
-		y = vp.y - bar - _right.size.y * 0.97 * up + (1.0 - up) * _right.size.y * 0.4
+		# The neck goes in under the bottom edge, in the middle, at your mouth: the whole of the
+		# bottle with its mouth showing stood upside down in front of you, in the air (the
+		# user 7. 11.: "the hands with the beer are broken too").
+		x = vp.x * 0.5 - DRINK_NECK.x * s
+		y = vp.y - bar - DRINK_NECK.y * s * up + (1.0 - up) * _right.size.y * 0.4
 	elif frame == "hand4_beer_raise":
-		x = vp.x * 0.52 - _right.size.x * 0.4
-		y = vp.y - bar - _right.size.y * 0.85 * up
+		x = vp.x * 0.5 - RAISE_NECK.x * s
+		y = vp.y - bar - RAISE_NECK.y * s * up
 	elif frame == "hand2_beer_tilt":
 		x = vp.x * 0.55 - _right.size.x * 0.5
 		y = vp.y - bar - _right.size.y * 0.85 * up
 	elif frame == "hand2_beer_drink":
 		x = vp.x * 0.5 - _right.size.x * 0.5
 		y = vp.y - bar - _right.size.y * 0.95 * up
-	elif frame in ["hand2_beer_opening", "hand5_beer_lever", "hand5_beer_pop"]:
+	elif frame in ["hand8_beer_opening", "hand8_beer_lever", "hand8_beer_pop"]:
+		# Both arms up from the bottom edge (the left one came in from the side and stopped in
+		# the air with its sleeve cut off, the user 7. 11.).
 		x = vp.x * 0.5 - _right.size.x * 0.5
-		y = vp.y - bar - _right.size.y * 0.8 * up
-		if frame != "hand5_beer_pop":
+		y = vp.y - bar - _right.size.y * 0.98 * up
+		if frame != "hand8_beer_pop":
 			# Straining at the cap.
 			x += (2.0 if int(step) % 2 == 0 else -1.0) * s
 	elif frame == "hand5_beer_gulp":
@@ -1041,7 +1049,7 @@ func _layout_right(vp: Vector2, s: float, bar: float, bob: Vector2, step: float)
 		y = vp.y - bar - _right.size.y * 0.98 * up
 	elif frame == "hand5_beer_throw":
 		x = vp.x * 0.5 - _right.size.x * 0.45
-		y = vp.y - bar - _right.size.y * 0.85 * up
+		y = vp.y - bar - _right.size.y * up
 	elif frame == "hand2_beer_foam":
 		x += (1.0 if int(step) % 2 == 0 else -1.0) * s
 	var pos := Vector2(x, y) + bob

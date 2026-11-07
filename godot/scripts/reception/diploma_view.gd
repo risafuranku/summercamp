@@ -10,7 +10,7 @@ extends CanvasLayer
 signal closed
 
 const NEWS_PAPER := preload("res://scripts/builder/news_paper.gd")
-const SFX := "res://assets/sfx/rooms/task_litter.mp3"
+const SFX := "res://assets/sfx/desk/paper_pick.mp3"
 
 var _paper: Control
 var _k := 2.0
