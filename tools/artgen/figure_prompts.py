@@ -168,6 +168,19 @@ FIGURES["npc_electrician"] = ("assets/textury/npc/npc_electrician.png",
 	"a stocky Czech electrician in his fifties, a grey moustache, a dark flat cap, faded navy "
 	"blue work bib overalls over a beige t-shirt, a rucksack strap over his left shoulder, a "
 	"grey metal toolbox in his right hand, a black flashlight in his left hand, brown work boots")
+# The village (town_people.gd) and the night: a sample before the rest (7. 11.).
+FIGURES["vavra"] = ("assets/textury/npc/town_policeman.png",
+	"a Czech village police sergeant in his fifties, a tired face with a thick dark moustache, an "
+	"olive grey peaked uniform cap with a dark band and a small badge, a belted olive grey uniform "
+	"tunic with a white strap across the chest and a white belt, a small white bag at his left hip, "
+	"dark navy trousers, black shoes, a small brown notebook held in his right hand")
+FIGURES["ph"] = ("assets/textury/npc/tourist_idle.png",
+	"a heavy-set middle-aged tourist, sunburnt red arms and legs, a wide fixed grin, a green and "
+	"white trucker cap, black sunglasses, a yellow-beige t-shirt with a green tree printed on the "
+	"chest, a black camera on a strap round his neck held in both hands at his belly, a red and "
+	"black checked flannel shirt tied round his waist, frayed denim cut-off shorts, white socks, "
+	"brown hiking boots, a rolled dark green sleeping mat at his left side, and on his back a big "
+	"grey rucksack covered all over with pinned instant photographs with white borders")
 # The hands in the businesses (tools/artgen/biz_prompts.py HANDS: who, and what they hold at work).
 import biz_prompts  # noqa: E402
 STAFF = {slug: (desc.rstrip("."), tool) for slug, _ref, desc, tool in biz_prompts.HANDS}

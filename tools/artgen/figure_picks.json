@@ -593,6 +593,28 @@
    "id": "fig_pepicek_turn_1"
   }
  },
+ "ph": {
+  "turn": {
+   "id": "fig_ph_turn_1"
+  },
+  "walk": {
+   "1": {
+    "id": "fig_ph_walk1_1"
+   },
+   "2": {
+    "id": "fig_ph_walk2_1"
+   },
+   "3": {
+    "id": "fig_ph_walk3_1"
+   },
+   "4": {
+    "id": "fig_ph_walk4_1"
+   },
+   "5": {
+    "id": "fig_ph_walk5_1"
+   }
+  }
+ },
  "silent_s1": {
   "poses": {
    "near": {
@@ -617,6 +639,28 @@
    },
    "5": {
     "id": "fig_silent_s1_walk5_1"
+   }
+  }
+ },
+ "vavra": {
+  "turn": {
+   "id": "fig_vavra_turn_1"
+  },
+  "walk": {
+   "1": {
+    "id": "fig_vavra_walk1_1"
+   },
+   "2": {
+    "id": "fig_vavra_walk2_1"
+   },
+   "3": {
+    "id": "fig_vavra_walk3_1"
+   },
+   "4": {
+    "id": "fig_vavra_walk4_1"
+   },
+   "5": {
+    "id": "fig_vavra_walk5_1"
    }
   }
  },

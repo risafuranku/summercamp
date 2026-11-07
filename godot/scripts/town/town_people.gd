@@ -14,6 +14,10 @@ const PIXEL := 0.0145
 ## Metres tall (the rest of them 1.72, the street's height).
 const HEIGHTS := {"hruba": 1.55, "pepik": 1.35}
 const BALANCE = preload("res://core/balance/balance_config.gd")
+const FIGURE = preload("res://scripts/figures/doom_figure.gd")
+## Who has been drawn from eight sides with a walk (npc/sets/, tools/artgen/figures.py): the rest
+## keep their one picture, mirrored the way they go.
+const SETS := {"vavra": "vavra"}
 
 ## Places in the village's own frame (x east, z south; the road at z = 0).
 const SPOTS := {
@@ -123,7 +127,11 @@ func build() -> void:
 		shape.position = Vector3(0, 0.9, 0)
 		body.add_child(shape)
 		root.add_child(body)
-		_people[who] = {"root": root, "sprite": s, "body": body, "line": 0, "place": "", "path": [], "loop_i": 0}
+		var fig = null
+		var drawn: Dictionary = FIGURE.set_of(str(SETS.get(who, "")))
+		if not drawn.is_empty():
+			fig = FIGURE.new(s, drawn, float(HEIGHTS.get(who, 1.72)))
+		_people[who] = {"root": root, "sprite": s, "body": body, "line": 0, "place": "", "path": [], "loop_i": 0, "fig": fig}
 		root.visible = false
 
 
@@ -183,7 +191,7 @@ func update(hour: float, delta: float) -> void:
 			root.position = _round_at(str(who), place, hour)
 			if root.position.distance_squared_to(was_at) > 0.000001:
 				_look_along(p, root.position - was_at)
-			_bob(p, true)
+			_bob(p, true, root.position.distance_to(was_at))
 			continue
 		_walk(p, place, delta)
 
@@ -253,6 +261,9 @@ func _way_off(at: Vector3, from := "") -> Array:
 
 ## The one picture they have, the way they walk: mirrored as they go left across your view.
 func _look_along(p: Dictionary, to: Vector3) -> void:
+	if p.get("fig") != null:
+		p["fig"].face(global_transform.basis * to)
+		return
 	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
 	if cam != null:
 		(p["sprite"] as Sprite3D).flip_h = to.dot(cam.global_transform.basis.x) < 0.0
@@ -283,18 +294,28 @@ func _walk(p: Dictionary, place: String, delta: float) -> void:
 	to.y = 0.0
 	var speed := WALK
 	var moving := to.length() > 0.08
+	var step := minf(to.length(), speed * delta)
 	if moving:
-		root.position += to.normalized() * minf(to.length(), speed * delta)
+		root.position += to.normalized() * step
 		_look_along(p, to)
 	elif i < path.size() - 1:
 		# On to the next point of the way (the chapel's gate, then its door).
 		p["loop_i"] = i + 1
-	_bob(p, moving)
+	_bob(p, moving, step)
 
 
-## Walking bobs in steps; standing still breathes.
-func _bob(p: Dictionary, moving: bool) -> void:
+## Walking bobs in steps; standing still breathes. Drawn from eight sides: their feet go by the
+## ground they cover and the view by where you stand.
+func _bob(p: Dictionary, moving: bool, metres := 0.0) -> void:
 	var s: Sprite3D = p["sprite"]
+	if p.get("fig") != null:
+		var fig = p["fig"]
+		fig.set_anim("walk" if moving else "stand")
+		fig.advance(metres)
+		var cam := get_viewport().get_camera_3d()
+		if cam != null:
+			fig.show(cam.global_position)
+		return
 	var tick := floorf(_acc * 12.0)
 	if moving:
 		s.position.y = (0.04 if int(tick) % 2 == 0 else 0.0)

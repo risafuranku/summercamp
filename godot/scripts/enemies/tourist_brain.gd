@@ -76,6 +76,12 @@ const CAMERA_AT := {
 	"run": Vector2(-0.26, 1.45),
 }
 const POLAROID = preload("res://scripts/enemies/polaroid.gd")
+const FIGURE = preload("res://scripts/figures/doom_figure.gd")
+var _fig: Dictionary = {}
+var _fig_yaw := 0.0
+var _fig_sector := 0
+var _fig_metres := 0.0
+var _fig_atlas := {}
 const SFX_WHISPER := "res://assets/sfx/npc/ph_whisper_smile.mp3"
 const SFX_LAUGH_WET := "res://assets/sfx/npc/ph_laugh_wet.mp3"
 const SFX_PEEL := "res://assets/sfx/npc/ph_peel.mp3"
@@ -242,6 +248,7 @@ func _on_stop() -> void:
 
 
 func _on_start() -> void:
+	_fig = FIGURE.set_of("ph")
 	# Every sound of his now, not off the disk mid-scare (the first flash, the first hit).
 	var consts: Dictionary = get_script().get_script_constant_map()
 	for k in consts:
@@ -438,8 +445,11 @@ func _tick_walk(dt: float) -> void:
 		if _stride_d >= 1.0:
 			_stride_d = fmod(_stride_d, 1.0)
 			_footstep()
-		var toward_you := (_player_pos() - was).normalized().dot(step.normalized()) > -0.4 if step.length() > 0.001 else true
-		_set_pose(("walk_a" if int(_walk_t * 4.0) % 2 == 0 else "walk_b") if toward_you else "back")
+		if not _fig.is_empty():
+			_walk_view(step)
+		else:
+			var toward_you := (_player_pos() - was).normalized().dot(step.normalized()) > -0.4 if step.length() > 0.001 else true
+			_set_pose(("walk_a" if int(_walk_t * 4.0) % 2 == 0 else "walk_b") if toward_you else "back")
 	if k >= 1.0:
 		_phase = Phase.SETTLE
 		_phase_end = _elapsed + _rng.randf_range(0.5, 0.9)
@@ -880,10 +890,46 @@ func get_process_delta() -> float:
 	return _world_root.get_process_delta_time() if _world_root != null else 0.016
 
 
+## Walking, the view of him from your eye, drawn from eight sides (npc/sets/ph), his feet by the
+## ground he covers: one picture of him went along sideways with his face to you. A region of
+## the set as an AtlasTexture (co-op mirrors those). His lamp where `_pose` says: not from behind.
+func _walk_view(step: Vector3) -> void:
+	var flat := Vector2(step.x, step.z).length()
+	if flat > 0.001:
+		_fig_yaw = atan2(-step.x, -step.z)
+	_fig_metres += flat
+	var cam := _camera()
+	var eye: Vector3 = cam.global_position if cam != null else _player_pos() + Vector3(0, 1.6, 0)
+	_fig_sector = FIGURE.sector_for(_body.global_position, _fig_yaw, eye, _fig_sector)
+	var view := absi(_fig_sector)
+	var anims: Dictionary = _fig.get("anims", {})
+	var fr = FIGURE._frame_of(anims, "walk", view, int(_fig_metres / FIGURE.STRIDE["walk"]) % 4)
+	if fr == null:
+		fr = FIGURE._frame_of(anims, "stand", view, 0)
+	if fr == null:
+		return
+	var key := str(fr)
+	var at: AtlasTexture = _fig_atlas.get(key)
+	if at == null:
+		at = AtlasTexture.new()
+		at.atlas = _fig.get("tex")
+		at.region = Rect2(float(fr[0]), float(fr[1]), float(fr[2]), float(fr[3]))
+		_fig_atlas[key] = at
+	var flip := _fig_sector < 0
+	_pose = "walk_a" if view <= 2 else "walk_away"
+	_anim_i = -1
+	_body.texture = at
+	_body.flip_h = flip
+	_body.pixel_size = 1.9 / float(_fig.get("h", 140))
+	var ox := float(fr[2]) * 0.5 - float(fr[4])
+	_body.offset = Vector2(-ox if flip else ox, float(fr[5]) - float(fr[3]) * 0.5)
+
+
 func _set_pose(p: String) -> void:
 	if p == _pose or _body == null:
 		return
 	_pose = p
+	_body.flip_h = false
 	var t: Texture2D = _tex.get(p, _tex.get("idle"))
 	if t == null:
 		return
