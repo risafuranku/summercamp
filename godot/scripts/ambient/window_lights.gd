@@ -109,9 +109,10 @@ func _ready() -> void:
 	name = "WindowLights"
 	_pull_snd = AudioStreamPlayer3D.new()
 	_pull_snd.name = "CurtainPull"
-	_pull_snd.unit_size = 3.0
-	_pull_snd.max_distance = 24.0
-	_pull_snd.volume_db = -16.0
+	# (A guest's curtain, not one by your ear: at -16 it made you jump from across the camp.)
+	_pull_snd.unit_size = 1.4
+	_pull_snd.max_distance = 16.0
+	_pull_snd.volume_db = -27.0
 	add_child(_pull_snd)
 	_tex_lit = load(WINDOW_LIT) if ResourceLoader.exists(WINDOW_LIT) else null
 	_tex_tv = load(WINDOW_TV) if ResourceLoader.exists(WINDOW_TV) else null

@@ -239,7 +239,7 @@ static func shop(parent: Node3D, si) -> void:
 		fm.emission_texture = fm.albedo_texture
 		fm.emission = Color(0.7, 0.85, 1.0)
 		fm.emission_energy_multiplier = 0.4
-	look(parent, "fridge", "It hums a note lower at night. The milk keeps, mostly.", Vector3(-2.9, 0.6, -0.45), Vector3(0.6, 1.0, 0.75))
+	look(parent, "fridge", "It hums a note lower at night.", Vector3(-2.9, 0.6, -0.45), Vector3(0.6, 1.0, 0.75))
 	# The gear once bought (service_interior._apply_jednota_gear): the chiller cabinet by the
 	# fridge, the extra shelf unit by the rack.
 	var chiller := _cut(parent, "gear_fridge", Vector2(0.74, 1.04), Vector3(-2.8, 0.05, 0.4), 90.0, false, "GearChiller")

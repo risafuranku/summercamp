@@ -94,10 +94,26 @@ func sleep_refusal() -> String:
 		if h >= 18.0:
 			return "Not yet. The camp isn't shut for the night."
 		return "In broad daylight? The camp won't run itself."
-	var brains = _main.get("_enemy_brains")
-	if brains is Array and not (brains as Array).is_empty():
-		return "You lie down and get straight back up. Something is out there tonight."
 	return ""
+
+
+## Something is out there tonight: you may lie down, sleep will not come (the user 7. 11.: refused
+## at the bed it felt like a wall; lying there it is the night's own).
+func _kept_awake() -> bool:
+	var brains = _main.get("_enemy_brains")
+	return brains is Array and not (brains as Array).is_empty()
+
+
+const AWAKE_LINES := ["You can't get comfortable.", "Sleep won't come.", "You turn over. It doesn't help.", "You lie and listen. Something is still out there."]
+var _awake_line := 0
+
+
+## What goes through your head as you lie awake, a line at a time; "" while nothing keeps you up.
+func awake_line() -> String:
+	if not _kept_awake():
+		return ""
+	_awake_line += 1
+	return str(AWAKE_LINES[(_awake_line - 1) % AWAKE_LINES.size()])
 
 
 ## You lie down (the bed): in co-op the other machine hears of it (coop_local_warden "z").
@@ -119,6 +135,8 @@ func cancel_sleep() -> void:
 
 ## Your eyes may close: alone, at once; in co-op once every other warden is in bed too.
 func may_sleep() -> bool:
+	if _kept_awake():
+		return false
 	return not Coop.has_partner() or _partner_in_bed()
 
 

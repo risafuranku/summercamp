@@ -452,6 +452,8 @@ static func pick_goal(
 		var first = candidates[0]
 		candidates[0] = candidates[1]
 		candidates[1] = first
+	# Nowhere for the worst of it: the next one is seen to, it does not cost them the day.
+	var stuck := {}
 	for entry_any in candidates:
 		var entry: Dictionary = entry_any
 		var need := str(entry["need"])
@@ -464,9 +466,10 @@ static func pick_goal(
 		if need == NEED_BLADDER and float(entry["value"]) < CRITICAL_THRESHOLD + 8.0:
 			var why := "The toilets are out of order. The bushes it is." if not broken.is_empty() else "No toilet in this whole camp? The bushes it is."
 			return {"kind": "bushes", "need": need, "facility": {}, "thought": why}
-		if not broken.is_empty():
-			return {"kind": "wander", "need": need, "facility": {}, "thought": _thought_for_broken(need, broken)}
-		return {"kind": "wander", "need": need, "facility": {}, "thought": _thought_for_missing(need)}
+		if stuck.is_empty():
+			stuck = {"kind": "wander", "need": need, "facility": {}, "thought": _thought_for_broken(need, broken) if not broken.is_empty() else _thought_for_missing(need)}
+	if not stuck.is_empty():
+		return stuck
 
 	# Nothing pressing: leisure. Sometimes pick a loved attraction, else stroll.
 	if rng != null and rng.randf() < 0.30:

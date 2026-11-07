@@ -32,8 +32,6 @@ const BUSINESS := preload("res://scripts/business/business_runtime.gd")
 const BIZ_RULES := preload("res://core/systems/business_rules.gd")
 const FUN := preload("res://core/systems/pub_fun.gd")
 const CREW_PLACES := preload("res://scripts/business/crew_places.gd")
-## Days a keg keeps on the line before it is flat (twice as long with the keg cooler).
-const KEG_DAYS := 3
 
 ## A record changed (key, what: "served", "mugs", "keg").
 signal changed(key: String, what: String)
@@ -109,8 +107,7 @@ func spares(key: String) -> int:
 	return maxi(0, ceili(float(maxi(0, BUSINESS.stock_of(key, "beer")) - on_line) / float(RULES.KEG_PINTS)))
 
 
-## Why the tap gives nothing ("" it pours): the keg spent or off the line, no beer; or
-## "flat": it pours, but the keg has been on the line too long (no head, poor beer).
+## Why the tap gives nothing ("" it pours): the keg spent or off the line, no beer.
 func tap_trouble(key: String) -> String:
 	var k := keg(key)
 	if BUSINESS.stock_of(key, "beer") == 0:
@@ -119,26 +116,7 @@ func tap_trouble(key: String) -> String:
 		return "empty"
 	if not bool(k["coupled"]):
 		return "off"
-	if is_flat(key):
-		return "flat"
 	return ""
-
-
-## The keg on the line has gone flat (KEG_DAYS since it was tapped, twice that with the
-## keg cooler).
-func is_flat(key: String) -> bool:
-	var k := keg(key)
-	if str(k["pallet"]) != "full" or not CoreRoot:
-		return false
-	var days := KEG_DAYS * (2 if BUSINESS.has_gear(key, "cooler") else 1)
-	return CoreRoot.get_day() - int(k.get("tapped", CoreRoot.get_day())) >= days
-
-
-## What is left in a flat keg goes down the drain (the books: waste).
-func waste_keg(key: String) -> void:
-	var n := mini(int(keg(key)["line"]), maxi(0, BUSINESS.stock_of(key, "beer")))
-	if n > 0 and CoreRoot != null and CoreRoot.actions != null and CoreRoot.actions.has_method("biz_waste"):
-		CoreRoot.actions.biz_waste(key, {"beer": n})
 
 
 # ── orders ───────────────────────────────────────────────────────────────────
@@ -164,10 +142,8 @@ func tickets(key: String) -> Array:
 		# Paid: no more rounds. (Time nearly up, nothing new: pub_rules.tickets_for.)
 		if served.has(visit + "#bill"):
 			continue
-		for t in RULES.tickets_for(visit, str(v["archetype"]), int(v.get("figures", 1)), int(v.get("arrive", now)), served, now):
-			# Nothing new after last orders (the brief of 21. 10.).
-			if not BUSINESS.takes_orders_at(key, int(t["since"])):
-				continue
+		# Nothing new after last orders (the brief of 21. 10.).
+		for t in RULES.tickets_for(visit, str(v["archetype"]), int(v.get("figures", 1)), int(v.get("arrive", now)), served, now, _shut(key, int(v.get("arrive", now)))):
 			# Off the books' menu: they have a beer instead (the beer is never off).
 			if not BIZ_RULES.menu_on("pub", books, str(t["drink"])):
 				t["drink"] = "hladinka"
@@ -188,7 +164,7 @@ func bills(key: String) -> Array:
 	var now := now_min()
 	var served: Dictionary = site(key)["served"]
 	for v in ORDERS.visitors(key):
-		var b := RULES.bill_for(str(v["visit"]), str(v["archetype"]), int(v.get("figures", 1)), int(v.get("arrive", now)), served, now)
+		var b := RULES.bill_for(str(v["visit"]), str(v["archetype"]), int(v.get("figures", 1)), int(v.get("arrive", now)), served, now, _shut(key, int(v.get("arrive", now))))
 		if b.is_empty():
 			continue
 		b["guest_id"] = int(v["id"])
@@ -197,6 +173,11 @@ func bills(key: String) -> Array:
 		out.append(b)
 	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a["since"]) < int(b["since"]))
 	return out
+
+
+## The minute of last orders on the day someone came in at `arrive`.
+func _shut(key: String, arrive: int) -> int:
+	return arrive - posmod(arrive, 1440) + BIZ_RULES.last_orders_at(bool(BUSINESS.site(key).get("late", false)))
 
 
 ## The bill of `visit` ({} none asked for).
@@ -539,7 +520,8 @@ func _host_second() -> void:
 		for v in ORDERS.visitors(key):
 			here[str(v["visit"])] = true
 		for tid in served:
-			if _returned.has(tid) or RULES.kind(str(served[tid].get("drink", ""))) != "tap":
+			# (A bill is no mug: it came back dirty from every paid tab.)
+			if _returned.has(tid) or str(tid).ends_with("#bill") or RULES.kind(str(served[tid].get("drink", ""))) != "tap":
 				continue
 			var visit := str(tid).get_slice("#", 0)
 			if now - int(served[tid].get("at", now)) >= RULES.DRINK_MINUTES or not here.has(visit):
@@ -573,6 +555,9 @@ func _bills_waiting(key: String, now: int) -> void:
 	for v in ORDERS.visitors(key):
 		var visit := str(v["visit"])
 		if served.has(visit + "#bill"):
+			# Paid: they get up and go, the party with them (the tabs stayed on the rail a quarter
+			# of a minute and went both at once: the user 7. 11.).
+			ORDERS.send_off(int(v["id"]), visit)
 			continue
 		var tab := RULES.tab_of(visit, served)
 		if int(tab["n"]) <= 0:
@@ -672,7 +657,7 @@ func station_need(key: String, st: String) -> float:
 	match st:
 		"tap", "back":
 			var n := 0
-			if st == "back" or (tap_trouble(key) in ["", "flat"] and int(mugs(key)["clean"]) > 0):
+			if st == "back" or (tap_trouble(key) == "" and int(mugs(key)["clean"]) > 0):
 				for t in tickets(key):
 					if RULES.kind(str(t["drink"])) == ("tap" if st == "tap" else "bar"):
 						n += 1
@@ -686,7 +671,7 @@ func station_need(key: String, st: String) -> float:
 			return minf(1.0, 0.15 * float(m["dirty"])) + (0.6 if int(m["clean"]) <= 0 else 0.0)
 		"keg":
 			var k: Dictionary = keg(key)
-			if BUSINESS.stock_of(key, "beer") > 0 and (str(k["pallet"]) != "full" or int(k["line"]) <= 0 or is_flat(key)):
+			if BUSINESS.stock_of(key, "beer") > 0 and (str(k["pallet"]) != "full" or int(k["line"]) <= 0):
 				return 1.2
 			if float(k["gas"]) < RULES.GAS_LOW or float(k["gas"]) > RULES.GAS_HIGH:
 				return 0.8
@@ -741,7 +726,7 @@ func _crew_bill(key: String, slip: bool) -> bool:
 
 ## The oldest order of the kind poured, judged as a fair pour by a hand.
 func _crew_pour(key: String, p: Dictionary, kind_of: String, slip: bool, speed: int) -> bool:
-	if kind_of == "tap" and (tap_trouble(key) not in ["", "flat"] or int(mugs(key)["clean"]) <= 0):
+	if kind_of == "tap" and (tap_trouble(key) != "" or int(mugs(key)["clean"]) <= 0):
 		return false
 	for t in tickets(key):
 		var drink := str(t["drink"])
@@ -750,8 +735,6 @@ func _crew_pour(key: String, p: Dictionary, kind_of: String, slip: bool, speed: 
 		var acc := 0.62 + 0.12 * float(speed) + _rng.randf_range(-0.05, 0.08)
 		if slip:
 			acc -= 0.35
-		if kind_of == "tap" and is_flat(key):
-			acc *= 0.6
 		var speed_k := 1.0 if int(t["age"]) < RULES.PATIENCE_OK * 0.6 else (0.6 if int(t["age"]) < RULES.PATIENCE_OK else (0.3 if int(t["age"]) < RULES.PATIENCE_LATE else 0.0))
 		var v := {"ok": true, "accuracy": clampf(acc, 0.1, 0.95), "speed": speed_k, "hand": true}
 		var verdict: Dictionary = serve(key, t, v)
@@ -774,13 +757,7 @@ func _crew_wash(key: String, slip: bool) -> bool:
 func _crew_cellar(key: String) -> bool:
 	var k: Dictionary = keg(key)
 	var beer := maxi(0, BUSINESS.stock_of(key, "beer"))
-	if (str(k["pallet"]) != "full" or int(k["line"]) <= 0 or is_flat(key)) and beer > 0:
-		if is_flat(key):
-			waste_keg(key)
-			beer = maxi(0, BUSINESS.stock_of(key, "beer"))
-			if beer <= 0:
-				set_keg(key, {"pallet": "none", "line": 0})
-				return true
+	if (str(k["pallet"]) != "full" or int(k["line"]) <= 0) and beer > 0:
 		set_keg(key, {"pallet": "full", "line": mini(RULES.KEG_PINTS, beer), "coupled": true, "gas": RULES.GAS_START, "tapped": CoreRoot.get_day()})
 		return true
 	if float(k["gas"]) < RULES.GAS_LOW or float(k["gas"]) > RULES.GAS_HIGH:

@@ -75,6 +75,7 @@ var _audio: AudioStreamPlayer
 var _queue: Array = []
 var _poll := 0.0
 var _front_id := -999
+var _unseen_t := 0.0
 ## Going over to the PC from the counter: its screen (-1 not).
 var _to_pc := -1
 var _ring_t := 0.0
@@ -589,6 +590,31 @@ func _next_for_desk() -> Dictionary:
 	_queue = GuestManager.get_desk_queue() if GuestManager != null else []
 	_place_people()
 	return _front_info()
+
+
+## Seen from the camp, through the panes (the room stands in the building, nobody in it on this
+## machine: process() is not running): who is at the counter, whoever is seeing to them (the
+## user 7. 11.: "from outside I don't see the guests at the reception the other player is
+## checking in"). Only shown: no door, no bell, nobody's turn moves on. Their figure outside
+## walks in and is hidden: till then it is that one you see, not two of them.
+func tick_unseen(delta: float, serving := -999) -> void:
+	_unseen_t -= delta
+	if _unseen_t > 0.0:
+		return
+	_unseen_t = POLL_SEC
+	var q: Array = GuestManager.get_desk_queue() if GuestManager != null else []
+	var inside: Array = []
+	var scene: Node = host.get_tree().current_scene if host != null and host.is_inside_tree() else null
+	var agents = scene.get("_guest_agents") if scene != null else null
+	for row in q:
+		var id := int((row as Dictionary).get("id", -1))
+		if agents == null or not agents.has_method("guest_world_position") or not is_finite(agents.guest_world_position(id).x):
+			if id == serving:
+				inside.push_front(row)
+			else:
+				inside.append(row)
+	_show(_front, inside[0] if inside.size() > 0 else {}, COUNTER_SPOT)
+	_show(_second, inside[1] if inside.size() > 1 else {}, BENCH_SPOT)
 
 
 func _place_people() -> void:

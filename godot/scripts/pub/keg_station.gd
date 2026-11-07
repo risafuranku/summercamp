@@ -7,15 +7,25 @@ extends "res://scripts/pub/pub_station.gd"
 ##   the head     a click takes it off the keg; held on a full keg, it screws down and the
 ##                line fills (`coupled`)
 ##   the keg      spent (the chalk cross), off its head: roll it off the pallet (a click);
-##                then a full one on (the spares at the right)
+##                then a full one on: a click on one of them, standing along the rack
+##                (playtest 7. 11.: "I don't know where to get a new one, the ones standing
+##                there take no click": they were the room's, the click was on the floor)
 ##   the gas      hold the valve and drag up for more, down for less: in the green it pours
 ##                right; low it comes flat and slow, high all foam
-## A keg on the line keeps a few days (twice as long with the keg cooler) and then it is
-## flat: what is left in it is thrown out with it. What is left in it is chalked on it.
+## What is left in it is chalked on it.
 
 const BUSINESS := preload("res://scripts/business/business_runtime.gd")
 const PALLET := Vector2(320, 150)
-const SPARES := Rect2(520, 40, 120, 220)
+## The full kegs along the rack, from the pallet's side.
+const SPARE_AT := Vector2(600, 120)
+const SPARE_STEP := 160.0
+const SPARE_MAX := 6
+## Where the spent keg goes (station pixels), out of the bottom of the picture.
+const ROLL_OUT := Vector2(420, 560)
+const ROLL_SEC := 0.5
+## The bottom of the beer hose on the wall (pub_layout: BeerHose), in this node's space.
+const HOSE_FROM := Vector3(0.0, 0.8, -0.2)
+const HOSE_BITS := 7
 const VALVE_AT := Vector2(90, 160)
 const TWIST_SEC := 0.9
 const KEG_M := 0.6
@@ -34,6 +44,11 @@ var _gauge: Sprite3D
 var _left_meter: Sprite3D
 var _chalk: Label3D
 var _pipe: MeshInstance3D
+var _spare_kegs: Array = []
+var _spent_keg: Sprite3D
+var _spent_t := -1.0
+var _roll_from := Vector2.ZERO
+var _hose: Array = []
 
 
 func _build() -> void:
@@ -41,6 +56,22 @@ func _build() -> void:
 	_keg = psprite("keg", KEG_M)
 	_head = psprite("coupler", 0.16)
 	_valve = psprite("valve", 0.14)
+	for i in SPARE_MAX:
+		_spare_kegs.append(psprite("keg", KEG_M))
+	_spent_keg = psprite("keg_empty", KEG_M)
+	_spent_keg.visible = false
+	# The hose down from the wall to the head, wherever it hangs.
+	var hb := BoxMesh.new()
+	hb.size = Vector3(0.03, 1.0, 0.03)
+	var hm := StandardMaterial3D.new()
+	hm.albedo_color = Color(0.75, 0.72, 0.55)
+	hm.roughness = 0.8
+	for i in HOSE_BITS:
+		var bit := MeshInstance3D.new()
+		bit.mesh = hb
+		bit.material_override = hm
+		add_child(bit)
+		_hose.append(bit)
 	# The regulator's pipe up from the floor to the valve.
 	_pipe = MeshInstance3D.new()
 	var b := BoxMesh.new()
@@ -85,13 +116,21 @@ func _show() -> void:
 	var k: Dictionary = taproom.keg(building_key)
 	var pallet := str(k["pallet"])
 	_keg.visible = pallet != "none"
-	var flat: bool = taproom.tap_trouble(building_key) == "flat"
-	pretex(_keg, "keg_empty" if pallet == "empty" or flat else "keg", KEG_M)
-	var roll := floorf(_roll / 0.5 * 4.0) / 4.0
-	put(_keg, PALLET + Vector2(roll * 140.0, 0), 0.0)
-	_chalk.visible = pallet == "full" and not flat
+	pretex(_keg, "keg_empty" if pallet == "empty" else "keg", KEG_M)
+	# Rolled across from the rack, in the four steps the room moves in.
+	var roll := ceilf(_roll / ROLL_SEC * 4.0) / 4.0
+	put(_keg, PALLET.lerp(_roll_from, roll), 0.0)
+	var spares: int = taproom.spares(building_key)
+	for i in _spare_kegs.size():
+		var s: Sprite3D = _spare_kegs[i]
+		s.visible = i < spares
+		put(s, SPARE_AT + Vector2(SPARE_STEP * float(i), 0.0), 0.02)
+	_spent_keg.visible = _spent_t >= 0.0
+	if _spent_keg.visible:
+		put(_spent_keg, PALLET.lerp(ROLL_OUT, floorf(_spent_t / ROLL_SEC * 5.0) / 5.0), 0.0)
+	_chalk.visible = pallet == "full" and _roll <= 0.0
 	_chalk.text = "%d" % int(k["line"])
-	_left_meter.visible = pallet == "full"
+	_left_meter.visible = pallet == "full" and _roll <= 0.0
 	if pallet == "full":
 		set_meter(_left_meter, float(int(k["line"])) / float(PUB.KEG_PINTS), Vector2(-1, -1), RETRO_UI.C_AMBER if int(k["line"]) > 6 else RETRO_UI.C_RED, int(k["line"]) <= 3)
 	# The head: on the keg's top when coupled, else hanging on its hose beside the keg at
@@ -104,6 +143,7 @@ func _show() -> void:
 		up = KEG_M + 0.1 - floorf(_twist / TWIST_SEC * 4.0) / 4.0 * 0.08
 		at = PALLET
 	put(_head, at, up)
+	_lay_hose(_head.position + Vector3(0.0, 0.15, 0.0))
 	# The quick coupler (gear): its own head on the hose.
 	if BUSINESS.has_gear(building_key, "coupler"):
 		retex(_head, "res://assets/textury/camp/gear_coupler.png", 0.16)
@@ -116,6 +156,20 @@ func _show() -> void:
 	_valve.rotation.z = floorf(gas * 6.0) / 6.0 * 2.4
 
 
+## Down from the wall and over to the head, the way a hose hangs.
+func _lay_hose(to: Vector3) -> void:
+	var bend := Vector3(HOSE_FROM.x, to.y, HOSE_FROM.z)
+	var last := HOSE_FROM
+	for i in _hose.size():
+		var t := float(i + 1) / float(_hose.size())
+		var p := HOSE_FROM.lerp(bend, t).lerp(bend.lerp(to, t), t)
+		var d := p - last
+		if d.length() > 0.001:
+			var b := Basis(Quaternion(Vector3.DOWN, d.normalized()))
+			(_hose[i] as MeshInstance3D).transform = Transform3D(b * Basis.from_scale(Vector3(1.0, d.length() + 0.012, 1.0)), (last + p) * 0.5)
+		last = p
+
+
 func _spots() -> Array:
 	var out: Array = []
 	if taproom == null:
@@ -123,14 +177,13 @@ func _spots() -> Array:
 	var k: Dictionary = taproom.keg(building_key)
 	var pallet := str(k["pallet"])
 	var spares: int = taproom.spares(building_key)
-	var flat: bool = taproom.tap_trouble(building_key) == "flat"
 	if pallet != "none":
 		var verb := "The keg on the line: %d pints" % int(k["line"])
-		if pallet == "empty" or flat:
-			verb = "Take the head off first" if bool(k["coupled"]) else "Roll the %s keg off the pallet" % ("flat" if flat else "spent")
+		if pallet == "empty":
+			verb = "Take the head off first" if bool(k["coupled"]) else "Roll the spent keg off the pallet"
 		out.append({"id": "line_keg", "node": _keg, "verb": verb})
-	if pallet == "none" and spares > 0:
-		out.append({"id": "spare", "rect": SPARES, "verb": "Roll a full keg onto the pallet (%d)" % spares})
+	if spares > 0:
+		out.append({"id": "spare", "on": _spare_kegs, "verb": "Roll a full keg onto the pallet (%d)" % spares if pallet == "none" else "Full kegs: %d" % spares})
 	var cverb := "Take the head off the keg" if bool(k["coupled"]) else ("Hold to screw the head onto the keg" if pallet == "full" else "The head, on its hose")
 	out.append({"id": "coupler", "node": _head, "verb": cverb})
 	out.append({"id": "valve", "node": _valve, "verb": "The gas: %s. Hold and drag up for more, down for less" % PUB.gas_band(float(k["gas"])).to_lower()})
@@ -150,27 +203,26 @@ func _press(id: String) -> void:
 			else:
 				say("", "There is no full keg on the pallet.")
 		"line_keg":
-			var flat: bool = taproom.tap_trouble(building_key) == "flat"
-			if str(k["pallet"]) == "empty" or flat:
+			if str(k["pallet"]) == "empty":
 				if bool(k["coupled"]):
 					say("", "The head is still on it.")
 					return
-				if flat and int(k["line"]) > 0:
-					# The flat beer goes down the drain: off the books as waste.
-					taproom.waste_keg(building_key)
 				taproom.set_keg(building_key, {"pallet": "none", "line": 0})
-				_roll = 0.5
+				_spent_t = 0.0
 				sfx("keg_roll", -6.0)
 			else:
 				say("", "%d pints left in it." % int(k["line"]))
 		"spare":
 			if str(k["pallet"]) != "none":
+				say("", "The pallet is taken.")
 				return
 			var beer := maxi(0, BUSINESS.stock_of(building_key, "beer"))
-			if beer <= 0 or taproom.spares(building_key) <= 0:
+			var spares: int = taproom.spares(building_key)
+			if beer <= 0 or spares <= 0:
 				return
+			_roll_from = SPARE_AT + Vector2(SPARE_STEP * float(mini(spares, SPARE_MAX) - 1), 0.0)
 			taproom.set_keg(building_key, {"pallet": "full", "line": mini(PUB.KEG_PINTS, beer), "coupled": false})
-			_roll = 0.5
+			_roll = ROLL_SEC
 			sfx("keg_roll", -6.0, 0.9)
 		"valve":
 			_valve_from = _mouse_free.y
@@ -199,12 +251,16 @@ func _drag(at: Vector2) -> void:
 
 func _tick(delta: float) -> void:
 	_roll = maxf(0.0, _roll - delta)
+	if _spent_t >= 0.0:
+		_spent_t += delta
+		if _spent_t >= ROLL_SEC:
+			_spent_t = -1.0
 	if _twist >= 0.0:
 		# The quick coupler (gear): it clicks on in a moment.
 		_twist += delta * (3.5 if BUSINESS.has_gear(building_key, "coupler") else 1.0)
 		if _twist >= TWIST_SEC:
 			_twist = -1.0
-			taproom.set_keg(building_key, {"coupled": true, "tapped": CoreRoot.get_day() if CoreRoot != null else 0})
+			taproom.set_keg(building_key, {"coupled": true})
 			sfx("coupler", -6.0, 0.9)
 			sfx("gas_hiss", -12.0)
 	var want := -60.0
@@ -221,19 +277,18 @@ func _closing() -> void:
 	_hiss.stop()
 
 
-## What is best to do at the keg now, step by step: the head off a spent or flat keg, the
-## keg rolled off, a full one rolled on, the head screwed on (hold), the gas into the
-## green (drag the valve).
+## What is best to do at the keg now, step by step: the head off a spent keg, the keg rolled
+## off, a full one rolled on, the head screwed on (hold), the gas into the green (drag the
+## valve).
 func next_hint() -> Dictionary:
 	if taproom == null or building_key == "":
 		return {}
 	var k: Dictionary = taproom.keg(building_key)
 	var pallet := str(k["pallet"])
-	var flat: bool = taproom.tap_trouble(building_key) == "flat"
-	if pallet == "empty" or flat:
+	if pallet == "empty":
 		return {"node": _head, "gesture": "click"} if bool(k["coupled"]) else {"node": _keg, "gesture": "click"}
 	if pallet == "none":
-		return {"rect": SPARES, "gesture": "click"} if taproom.spares(building_key) > 0 else {"ui": "books"}
+		return {"node": _spare_kegs[0], "gesture": "click"} if taproom.spares(building_key) > 0 else {"ui": "books"}
 	if not bool(k["coupled"]):
 		return {"node": _head, "gesture": "hold"}
 	var band := PUB.gas_band(float(k["gas"]))
@@ -242,7 +297,7 @@ func next_hint() -> Dictionary:
 	return {"tab": "tap"} if not orders_here("tap").is_empty() else {}
 
 
-## The keg will not pour (spent, flat, the head off, no beer): red, on the cellar's tab
+## The keg will not pour (spent, the head off, no beer): red, on the cellar's tab
 ## wherever you are (the brief: "when the keg wants changing is seen on the frame");
 ## the gas off the green or the keg nearly spent: amber.
 func alert() -> int:
@@ -274,6 +329,6 @@ func hand_tool() -> String:
 
 func debug_click(id: String) -> void:
 	if id == "coupler_on":
-		taproom.set_keg(building_key, {"coupled": true, "tapped": CoreRoot.get_day()})
+		taproom.set_keg(building_key, {"coupled": true})
 		return
 	_press(id)

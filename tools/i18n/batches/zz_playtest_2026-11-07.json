@@ -1,0 +1,18 @@
+{
+  "Split some logs": "Naštípat polena",
+  "You can't get comfortable.": "Nemůžeš se pohodlně uložit.",
+  "Sleep won't come.": "Spánek nepřichází.",
+  "You turn over. It doesn't help.": "Otočíš se na druhý bok. Nepomáhá to.",
+  "You lie and listen. Something is still out there.": "Ležíš a posloucháš. Něco tam venku pořád je.",
+  "The wholesaler's van is here. The driver is walking to the reception and will not wait long.": "Přijela dodávka z velkoobchodu. Řidič jde na recepci a dlouho čekat nebude.",
+  "A toilet blocked": "Ucpaný záchod",
+  "Go in and unblock it": "Jdi dovnitř a pročisti ho",
+  "Too late, they've called last orders.": "Pozdě, už je po poslední objednávce.",
+  "Too much ended up in the bin.": "Moc toho skončilo v koši.",
+  "The pallet is taken.": "Na paletě už sud stojí.",
+  "Full kegs: %d": "Plné sudy: %d",
+  "Roll the spent keg off the pallet": "Odkutálet prázdný sud z palety",
+  "Shelf": "Regál",
+  "It hums a note lower at night.": "V noci bzučí o tón níž.",
+  "[bgcolor=#7a1a10][color=#ffffff][b][font_size=20] SoftSklad [/font_size][/b] Jihlava - programs for pubs, canteens and shops [/color][/bgcolor]\n\nRun your business from the office. Stock, orders to the wholesaler, staff, takings: on one screen, in Czech and in English.\nA licence is for one operator. You pay once, on this page; the program downloads at once.\n\n{{softsklad}}\n[b]HOW IT WORKS[/b]\n * You see what is on the shelves of every bar, kitchen and counter you run.\n * You order. Our wholesaler's van brings it the next morning (sign for it at your reception).\n * You take on staff, or let them go, and see their wages.\n\n[color=#666666]Orders placed after 18:00 still arrive the next morning. The van does not wait.[/color]\n": "[bgcolor=#7a1a10][color=#ffffff][b][font_size=20] SoftSklad [/font_size][/b] Jihlava - programy pro hospody, jídelny a obchody [/color][/bgcolor]\n\nŘiďte svůj podnik z kanceláře. Zásoby, objednávky u velkoobchodu, personál, tržby: na jedné obrazovce, česky i anglicky.\nLicence platí pro jednoho provozovatele. Platíte jednou, na této stránce; program se stáhne hned.\n\n{{softsklad}}\n[b]JAK TO FUNGUJE[/b]\n * Vidíte, co je v regálech každého výčepu, kuchyně a pultu, který provozujete.\n * Objednáte. Auto našeho velkoobchodu to přiveze druhý den ráno (převzetí podepíšete na recepci).\n * Přijímáte personál nebo ho propouštíte a vidíte jeho mzdy.\n\n[color=#666666]Objednávky po 18:00 přijedou také druhý den ráno. Auto nečeká.[/color]\n"
+}

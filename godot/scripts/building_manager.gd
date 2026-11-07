@@ -2236,11 +2236,15 @@ func _apply_corrosion_recursive(node: Node, corrosion_amount: float) -> void:
 		var mesh = node as MeshInstance3D
 		var std_mat = mesh.material_override as StandardMaterial3D
 		if std_mat != null:
+			# (As it is, the first time: with no colour noted it went white and whole, alpha and all:
+			# the reception's clear glass came out a solid white pane by day, from the first wear
+			# on, and nothing could be seen in through it: the user 6. and 7. 11.)
+			if not std_mat.has_meta("base_albedo_color"):
+				std_mat.set_meta("base_albedo_color", std_mat.albedo_color)
 			var base_color = Color(1.0, 1.0, 1.0, 1.0)
-			if std_mat.has_meta("base_albedo_color"):
-				var stored = std_mat.get_meta("base_albedo_color")
-				if stored is Color:
-					base_color = stored
+			var stored = std_mat.get_meta("base_albedo_color")
+			if stored is Color:
+				base_color = stored
 			var darken = lerpf(1.0, 0.62, corrosion_amount)
 			std_mat.albedo_color = Color(base_color.r * darken, base_color.g * darken, base_color.b * darken, base_color.a)
 		var shader_mat = mesh.material_override as ShaderMaterial

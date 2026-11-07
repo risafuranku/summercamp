@@ -67,7 +67,7 @@ const DOOR_PX := Rect2(44, 30, 42, 75)
 ## How far a leaf swings open into the room (door_through on the way out), as the camp's.
 const DOOR_SWING := 82.0
 const STATIONS := {
-	"keg": {"room": "cellar", "at": Vector3(-1.0, 0.55, -1.85), "size": Vector3(1.0, 1.1, 0.8), "stand": Vector3(-1.0, 0.05, -1.15), "pose": "fix", "mark": Vector3(-1.0, 1.45, -1.85), "label": "the keg", "tab_label": "KEG", "icon": "res://assets/textury/ui/mark_keg.png"},
+	"keg": {"room": "cellar", "at": Vector3(0.1, 0.55, -1.85), "size": Vector3(3.2, 1.1, 0.8), "stand": Vector3(-1.0, 0.05, -1.15), "pose": "fix", "mark": Vector3(-1.0, 1.45, -1.85), "label": "the keg", "tab_label": "KEG", "icon": "res://assets/textury/ui/mark_keg.png"},
 	"tap": {"room": "bar", "at": Vector3(1.335, 0.8, -1.25), "size": Vector3(0.75, 1.5, 0.72), "stand": Vector3(1.3, 0.05, -1.99), "pose": "tap", "mark": Vector3(1.3, 1.78, -1.3), "label": "the tap", "tab_label": "TAP", "icon": "res://assets/textury/ui/mark_tap.png"},
 	"back": {"room": "bar", "at": Vector3(0.64, 0.8, -1.25), "size": Vector3(0.66, 1.5, 0.72), "stand": Vector3(0.63, 0.05, -1.99), "pose": "pour", "mark": Vector3(0.63, 1.7, -1.4), "label": "the bottles", "tab_label": "BOTTLES", "icon": "res://assets/textury/ui/mark_shot.png", "menu": ["rum", "zelena", "slivovice", "kofola"]},
 	"wash": {"room": "bar", "at": Vector3(2.07, 0.8, -1.25), "size": Vector3(0.68, 1.5, 0.72), "stand": Vector3(2.12, 0.05, -1.99), "pose": "wash", "mark": Vector3(2.12, 1.6, -1.4), "label": "the washer", "tab_label": "WASH", "icon": "res://assets/textury/ui/mark_wash.png"},
@@ -87,7 +87,7 @@ const SURFACES := {
 	"tap": {"at": Vector3(1.3, 1.10, -1.33), "size": Vector2(1.6, 0.9), "yaw": 180.0, "flat": true, "cam_back": 0.62, "cam_up": 0.4, "cam_aim": 0.16},
 	"back": {"at": Vector3(0.65, 1.10, -1.33), "size": Vector2(1.6, 0.9), "yaw": 180.0, "flat": true, "cam_back": 0.62, "cam_up": 0.4, "cam_aim": 0.12},
 	"wash": {"at": Vector3(2.05, 1.10, -1.33), "size": Vector2(1.6, 0.9), "yaw": 180.0, "flat": true, "cam_back": 0.62, "cam_up": 0.42, "cam_aim": 0.06},
-	"keg": {"at": Vector3(-1.0, 0.15, -1.75), "size": Vector2(1.6, 0.9), "yaw": 0.0, "flat": true, "cam_back": 0.85, "cam_up": 0.68, "cam_aim": 0.25},
+	"keg": {"at": Vector3(-1.0, 0.15, -1.75), "size": Vector2(1.6, 0.9), "yaw": 0.0, "flat": true, "cam_back": 0.85, "cam_up": 0.68, "cam_aim": 0.25, "cam_side": 0.32},
 	# The LUCKY 7's face (a wall: the cabinet stands against the back wall), the wall round
 	# the dartboard seen from the line, the second table's top.
 	"slot": {"at": Vector3(-2.35, 0.865, -1.93), "size": Vector2(0.96, 0.54), "yaw": 0.0, "flat": false, "cam_back": 0.8},

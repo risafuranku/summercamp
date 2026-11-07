@@ -90,8 +90,11 @@ func rail_tickets() -> Array:
 		bill_of[str(b["visit"])] = b
 	var visits: Array = ORDERS_S.visitors(building_key)
 	visits.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a.get("arrive", 0)) < int(b.get("arrive", 0)))
+	var settled: Dictionary = taproom.site(building_key)["served"] if taproom != null else {}
 	for v in visits:
 		var visit := str(v["visit"])
+		if settled.has(visit + "#bill"):
+			continue
 		var bill: Dictionary = bill_of.get(visit, {})
 		for m in maxi(1, int(v.get("figures", 1))):
 			var id := "%s#%d" % [visit, m]
@@ -386,7 +389,7 @@ func bar_text() -> String:
 	if int(m["dirty"]) > 0:
 		text += "  " + tr("DIRTY %d") % int(m["dirty"])
 	var trouble: String = taproom.tap_trouble(building_key)
-	text += "   " + tr("KEG %s") % tr(str({"dry": "NO BEER", "empty": "SPENT", "off": "HEAD OFF", "flat": "FLAT"}.get(trouble, "%d" % int(k["line"]))))
+	text += "   " + tr("KEG %s") % tr(str({"dry": "NO BEER", "empty": "SPENT", "off": "HEAD OFF"}.get(trouble, "%d" % int(k["line"]))))
 	return text
 
 

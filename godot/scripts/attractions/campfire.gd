@@ -29,6 +29,11 @@ const MAX_FUEL := 1.45
 ## What the guests light when they come to a cold fire in the evening.
 const GUEST_FIRE := 0.55
 const WOODPILE_LOGS := 8
+const SFX_AXE := "res://assets/sfx/life/axe.mp3"
+const LOGS_A_CHOP := 2
+const CHOP_MS := 900
+var _axe_snd: AudioStreamPlayer3D
+var _chop_ready := 0
 
 var fuel := 0.0
 ## Last night's heat left in the ashes (glows a little, smokes).
@@ -121,6 +126,7 @@ func _setup() -> void:
 	_pops = _sound(SFX_POP, -8.0, 22.0)
 	_sizzle = _sound(SFX_SIZZLE, -14.0, 9.0)
 	_loop(_sizzle)
+	_axe_snd = _sound(SFX_AXE, -6.0, 24.0)
 	_seats = seats()
 	_stick_mat = StandardMaterial3D.new()
 	_stick_mat.albedo_color = Color(0.46, 0.34, 0.22)
@@ -544,6 +550,11 @@ func warden_offer(at: Vector3) -> Dictionary:
 	var pile := pile_position()
 	var dp := Vector2(at.x - pile.x, at.z - pile.z).length()
 	var df := Vector2(at.x - global_position.x, at.z - global_position.z).length()
+	var axe := axe_position()
+	var da := Vector2(at.x - axe.x, at.z - axe.z).length()
+	# The block with the axe in it, while the pile is not full (it only came back at dawn).
+	if da < 1.5 and logs_left < WOODPILE_LOGS and da < df and (logs_left <= 0 or da < dp):
+		return {"verb": "Split some logs", "act": "chop", "d": da}
 	if dp < 1.5 and logs_left > 0 and dp < df:
 		return {"verb": "Put a log on", "act": "log", "d": dp}
 	if df < 3.4:
@@ -629,6 +640,27 @@ func warden_hint(key: int) -> String:
 	if bool(_roast.get(key, false)) and not st.is_empty() and float(st["cook"]) >= 1.0:
 		return "[LMB] Eat it"
 	return "" if bool(_roast.get(key, false)) else "[LMB] A sausage   [Q] Guitar"
+
+
+## Where the block with the axe is: global.
+func axe_position() -> Vector3:
+	var n := get_parent().get_node_or_null("Axe") as Node3D
+	return n.global_position if n != null else pile_position()
+
+
+## Two more split for the pile, the blows heard. False while the last ones are still being split.
+func chop() -> bool:
+	var now := Time.get_ticks_msec()
+	if logs_left >= WOODPILE_LOGS or now < _chop_ready:
+		return false
+	_chop_ready = now + CHOP_MS
+	logs_left = mini(logs_left + LOGS_A_CHOP, WOODPILE_LOGS)
+	for i in _pile.size():
+		_pile[i].visible = i < logs_left
+	if _axe_snd != null:
+		_axe_snd.pitch_scale = _rng.randf_range(0.94, 1.06)
+		_axe_snd.play()
+	return true
 
 
 ## Where the woodpile is (for E): global.

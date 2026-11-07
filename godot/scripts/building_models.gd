@@ -1229,7 +1229,8 @@ func tent_details(r: Node3D, w: float, h: float, d: float, at: Vector3, yaw: flo
 func _prism_flap(base: float, rise: float, c: Color) -> MeshInstance3D:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for p in [Vector3(-base * 0.5, 0, 0), Vector3(base * 0.5, 0, 0), Vector3(0, rise, 0)]:
+	# (Clockwise from outside: the doorway's room picture only draws its front.)
+	for p in [Vector3(base * 0.5, 0, 0), Vector3(-base * 0.5, 0, 0), Vector3(0, rise, 0)]:
 		st.add_vertex(p)
 	st.generate_normals()
 	var m := MeshInstance3D.new()
@@ -2461,8 +2462,15 @@ func reception(r: Node3D) -> Dictionary:
 	_wall_x(r, "FrontUnder", wx0, wx1, 0.0, wy0, fz, tw, planks)
 	_wall_x(r, "FrontOver", wx0, wx1, wy1, h, fz, tw, planks)
 	_wall_x(r, "FrontC", wx1, x1 + t, 0.0, h, fz, tw, planks)
-	# Back wall: whole. West wall (the office's end), around its side window.
-	_wall_x(r, "Back", x0 - t, x1 + t, 0.0, h, z0 - off - tw * 0.5, tw, planks)
+	# Back wall, round the door to the store: whole, you walked through its red boards on the way
+	# in (playtest 7. 11.); the lean-to is built on over the hole. West wall (the office's end),
+	# around its side window.
+	var sa: Vector3 = L.local(Vector3(L.BACK_DOOR_X.x, 0, 2.55))
+	var sb: Vector3 = L.local(Vector3(L.BACK_DOOR_X.y, 0, 2.55))
+	var bkz := z0 - off - tw * 0.5
+	_wall_x(r, "BackA", x0 - t, minf(sa.x, sb.x), 0.0, h, bkz, tw, planks)
+	_wall_x(r, "BackDoorTop", minf(sa.x, sb.x), maxf(sa.x, sb.x), L.BACK_DOOR_H, h, bkz, tw, planks)
+	_wall_x(r, "BackB", maxf(sa.x, sb.x), x1 + t, 0.0, h, bkz, tw, planks)
 	var wx := x0 - off - tw * 0.5
 	_wall_z(r, "WestA", z0 - t, sz0, 0.0, h, wx, tw, planks)
 	_wall_z(r, "WestUnder", sz0, sz1, 0.0, sy0, wx, tw, planks)

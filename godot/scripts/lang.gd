@@ -497,7 +497,39 @@ func _find(s: String, deep: bool) -> String:
 					any = true
 			if any:
 				return "\n".join(parts)
-	return ""
+	return _by_sentences(s)
+
+
+## Sentences glued into one string (a guest's review is made of two or three parts, "%s %s" in
+## guest_manager: the user 7. 11.: "the reviews on Atlas are not translated"): from each
+## sentence the longest stretch that has an entry of its own. All of it found, or nothing.
+func _by_sentences(s: String) -> String:
+	if not (s.contains(". ") or s.contains("! ") or s.contains("? ")):
+		return ""
+	var cuts: Array[int] = [0]
+	for i in range(1, s.length() - 1):
+		if s[i] == " " and ".!?".contains(s[i - 1]):
+			cuts.append(i + 1)
+	cuts.append(s.length() + 1)
+	var out: Array[String] = []
+	var at := 0
+	while at < cuts.size() - 1:
+		var found := ""
+		var to := cuts.size() - 1
+		while to > at:
+			# (The whole of it is what brought us here.)
+			if at > 0 or to < cuts.size() - 1:
+				var bit := s.substr(cuts[at], cuts[to] - 1 - cuts[at])
+				var hit = _exact.get(bit)
+				found = _forms(hit, []) if hit != null else _from_template(bit)
+				if found != "":
+					break
+			to -= 1
+		if found == "":
+			return ""
+		out.append(found)
+		at = to
+	return " ".join(out)
 
 
 func _from_template(s: String) -> String:

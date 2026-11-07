@@ -22,12 +22,10 @@ const FLOOR := -0.855
 const SHELF_LOCAL := [-0.285, 0.315]
 const SHELF_Z := -0.82
 const TROLLEY_AT := Vector3(1.22, FLOOR, 0.0)
-const OFF_AT := Vector3(-1.25, FLOOR, -0.1)
 const TROLLEY_M := 1.3
 const CARTON_M := 0.27
 const CARTONS := 6
 const TROLLEY_PLACES := 8
-const OFF := {"bread": "off_bread", "roll": "off_rolls", "milk": "off_milk", "salami": "off_salami", "veg": "off_potatoes", "pickles": "off_pickles"}
 ## Seconds of the price gun a carton (a clack for every thing in it).
 const PRICE_SEC := 0.75
 
@@ -39,7 +37,6 @@ var last_good := ""
 var _cartons: Array = []
 var _trolley: Sprite3D
 var _boxes: Array = []
-var _offs: Array = [null, null, null]
 var _box: Sprite3D
 var _box_icon: Sprite3D
 var _meter: Sprite3D
@@ -136,7 +133,6 @@ func _show() -> void:
 		(_boxes[j]["box"] as Sprite3D).visible = false
 		(_boxes[j]["icon"] as Sprite3D).visible = false
 	_show_work()
-	_show_off()
 
 
 func _show_work() -> void:
@@ -175,33 +171,6 @@ func _show_work() -> void:
 			_away = {}
 
 
-func _show_off() -> void:
-	var spoiled: Dictionary = BIZ.site(building_key).get("spoiled", {})
-	var k := 0
-	for g in OFF:
-		if k >= _offs.size():
-			break
-		if int(spoiled.get(g, 0)) <= 0:
-			continue
-		var path := "res://assets/textury/camp/%s.png" % str(OFF[g])
-		if not ResourceLoader.exists(path):
-			continue
-		var o = _offs[k]
-		if o == null:
-			o = sprite(path, 0.2, false)
-			_offs[k] = o
-		else:
-			retex(o, path, 0.2)
-		if (o as Sprite3D).texture != null:
-			(o as Sprite3D).offset = Vector2(0, float((o as Sprite3D).texture.get_height()) * 0.5)
-		(o as Sprite3D).visible = true
-		(o as Sprite3D).position = OFF_AT + Vector3(0.22 * float(k), 0.0, 0.0)
-		k += 1
-	for j in range(k, _offs.size()):
-		if _offs[j] != null:
-			(_offs[j] as Sprite3D).visible = false
-
-
 # ── what can be done ─────────────────────────────────────────────────────────
 
 func _spots() -> Array:
@@ -213,18 +182,10 @@ func _spots() -> Array:
 				out.append({"id": "carton:" + g, "node": e["box"], "verb": "Take a carton of %s" % str(RULES.goods().get(g, {}).get("label", g)).to_lower()})
 	elif _box.visible and clampf((_t - float(_work["t"])) / 0.35, 0.0, 1.0) >= 1.0:
 		out.append({"id": "box", "node": _box, "verb": "Price the goods" if bool(_work["open"]) else "Cut the tape"})
-	for o in _offs:
-		if o != null and (o as Sprite3D).visible:
-			out.append({"id": "off", "node": o, "verb": "Throw out what went off"})
 	return out
 
 
 func _press(id: String) -> void:
-	if id == "off":
-		if CoreRoot != null and CoreRoot.actions != null and CoreRoot.actions.has_method("biz_bin"):
-			CoreRoot.actions.biz_bin(building_key)
-		sfx("bin", -8.0)
-		return
 	if id.begins_with("carton:"):
 		var g := id.substr(7)
 		var from := Vector3.ZERO
@@ -348,9 +309,6 @@ func debug_box(good: String) -> int:
 ## What is best to do in the storeroom: a carton for an empty place, its tape cut (a drag
 ## across it), its goods priced (hold the gun), onto the trolley; the rack after.
 func next_hint() -> Dictionary:
-	for o in _offs:
-		if o != null and (o as Sprite3D).visible:
-			return {"node": o, "gesture": "click"}
 	if not _work.is_empty():
 		if _box.visible:
 			return {"node": _box, "gesture": "click" if bool(_work["open"]) else "drag", "to": Vector2(420, 180)}

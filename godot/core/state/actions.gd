@@ -220,6 +220,8 @@ func _biz_upgrade(site: Dictionary) -> void:
 	for k in ["spoiled", "shift"]:
 		if not site.has(k):
 			site[k] = {} if k == "spoiled" else BIZ_RULES.empty_shift()
+	# (Nothing goes off any more, the user 7. 11.: an old save's left-overs are just gone.)
+	site["spoiled"] = {}
 	for k in ["gear", "crew"]:
 		if not site.has(k):
 			site[k] = []
@@ -463,57 +465,8 @@ func biz_postpone(day: int) -> void:
 			o["due_day"] = day + 1
 
 
-## The morning: what has been on the shelves too long goes off (it stays there, bad, till
-## somebody throws it out: biz_bin). Returns [{key, good, n}].
-func biz_spoil(day: int) -> Array:
-	var out: Array = []
-	for key in (_biz()["sites"] as Dictionary):
-		var site: Dictionary = _biz()["sites"][key]
-		_biz_upgrade(site)
-		var kind := str(site["kind"])
-		for g in (site["lots"] as Dictionary).keys():
-			var days := BIZ_RULES.life_of(kind, str(g), site)
-			if days <= 0:
-				continue
-			var kept: Array = []
-			var off := 0
-			for lot in site["lots"][g]:
-				if day - int(lot[1]) >= days:
-					off += int(lot[0])
-				else:
-					kept.append(lot)
-			if off <= 0:
-				continue
-			site["lots"][g] = kept
-			site["stock"][g] = maxi(0, int(site["stock"].get(g, 0)) - off)
-			site["spoiled"][g] = int(site["spoiled"].get(g, 0)) + off
-			out.append({"key": str(key), "good": str(g), "n": off})
-	if not out.is_empty():
-		EventBus.state_changed.emit({"biz": "spoiled"})
-	return out
-
-
-## What went off is thrown out (the books count it as waste). Returns the units.
-func biz_bin(key: String) -> int:
-	var site: Dictionary = (_biz()["sites"] as Dictionary).get(key, {})
-	if site.is_empty():
-		return 0
-	_biz_upgrade(site)
-	var n := 0
-	for g in site["spoiled"]:
-		n += int(site["spoiled"][g])
-	if n <= 0:
-		return 0
-	site["spoiled"] = {}
-	site["today"]["waste"] = int(site["today"].get("waste", 0)) + n
-	site["shift"]["waste"] = int(site["shift"].get("waste", 0)) + n
-	EventBus.state_changed.emit({"biz": "binned"})
-	_biz_tell("bin", [key])
-	return n
-
-
-## Goods thrown out whole from the shelf (a flat keg down the drain): off the stock, the
-## oldest first, the books count them as waste. Returns the units.
+## Goods thrown out whole from the shelf (a box dropped): off the stock, the oldest first,
+## the books count them as waste. Returns the units.
 func biz_waste(key: String, goods: Dictionary) -> int:
 	var site: Dictionary = (_biz()["sites"] as Dictionary).get(key, {})
 	if site.is_empty():

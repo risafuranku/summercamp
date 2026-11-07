@@ -30,8 +30,8 @@ static func yaw(off: Vector2) -> float:
 ## the nearest edge round where it does not. At a crossing (the path all four ways) the
 ## turn's own edge. BENCH_EDGE from the tile's middle, facing over the path: its seat on
 ## the gravel, its back over the verge (the gravel is the middle half of a path tile; at
-## 0.3 it stood beside the path on the grass).
-const BENCH_EDGE := 0.22
+## 0.3 it stood beside the path on the grass, at 0.22 in the way on it: playtest 7. 11.).
+const BENCH_EDGE := 0.26
 
 
 static func bench_edge(coord: Vector2i, turn: int, is_path: Callable) -> Vector2i:

@@ -19,10 +19,8 @@ extends Node
 ##   the bull is fifty and one in the treble twenty sixty, two aces win at cards; the
 ##   guests have their go (the machine's take in the till, their darts in the board); a
 ##   warden's game of cards moves the stake; the three stations build;
-## - the keg on the line goes flat after three days (six with the keg cooler); what is
-##   left in it thrown out is the books' waste;
 ## - the hands: the tap's pours the oldest beer ordered, the bar's a shot or a kofola,
-##   the washer's washes a mug, the cellar's changes a spent or flat keg and sets the
+##   the washer's washes a mug, the cellar's changes a spent keg and sets the
 ##   gas; the glass washer (gear) washes the lot;
 ## - the stations as a player works them (their debug hooks): a mug poured and served at
 ##   the tap, a shot at the bottles, a mug scrubbed clean at the sink, the head taken off
@@ -105,18 +103,6 @@ func _ready() -> void:
 	var poor: Dictionary = PUB.judge_pour("hladinka", 0.4, 0.2, 0.15, 70)
 	_expect(not bool(poor["ok"]) or float(poor["accuracy"]) < 0.6, "half a mug of foam is no hladinka (%s)" % str(poor))
 
-	# Flat: three days on the line, six with the cooler; what is left goes down the drain.
-	tr.set_keg(KEY, {"tapped": 0})
-	_expect(tr.tap_trouble(KEY) == "flat", "three days on the line: flat")
-	a.biz_add_gear(KEY, "cooler")
-	_expect(tr.tap_trouble(KEY) == "", "with the keg cooler it keeps")
-	site["gear"] = []
-	var line := int(tr.keg(KEY)["line"])
-	var stock := int(site["stock"]["beer"])
-	var waste0 := int(site["today"]["waste"])
-	tr.waste_keg(KEY)
-	_expect(int(site["stock"]["beer"]) == stock - line and int(site["today"]["waste"]) == waste0 + line, "the flat keg is waste (%d pints)" % line)
-
 	# The hands.
 	GuestManager._last_known_hour = 18
 	for slug_role in [["pepa", "cellar"], ["hanka", "wash"], ["lojza", "tap"], ["mirek", "bar"]]:
@@ -126,15 +112,10 @@ func _ready() -> void:
 		a.biz_hire(KEY, p, 1)
 	_expect(BUSINESS.crew_now(KEY).size() == 4, "four hands in (%d)" % BUSINESS.crew_now(KEY).size())
 	var cellar: Dictionary = BUSINESS.crew_now(KEY)[0]
-	# The cellar: the flat keg's left-overs thrown out, a full one on, coupled, tapped today.
+	# The cellar: the gas set right, a spent keg changed.
 	a.biz_receive(3)
 	site["stock"]["beer"] = 120
 	site["lots"]["beer"] = [[120, 3]]
-	tr.set_keg(KEY, {"tapped": 0, "line": 10})
-	_expect(tr._crew_cellar(KEY), "the cellar's hand changes the flat keg")
-	var k: Dictionary = tr.keg(KEY)
-	_expect(str(k["pallet"]) == "full" and bool(k["coupled"]) and int(k["tapped"]) == 3 and int(k["line"]) == PUB.KEG_PINTS, "a fresh keg on (%s)" % str(k))
-	_expect(int(site["stock"]["beer"]) == 110, "the flat one's ten pints thrown out (%d)" % int(site["stock"]["beer"]))
 	tr.set_keg(KEY, {"gas": 0.1})
 	_expect(tr._crew_cellar(KEY) and absf(float(tr.keg(KEY)["gas"]) - PUB.GAS_START) < 0.001, "the gas set right")
 	tr.set_keg(KEY, {"pallet": "empty", "line": 0})

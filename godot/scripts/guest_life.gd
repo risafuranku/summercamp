@@ -43,8 +43,11 @@ const STAFF_ONLY := ["staffroom", "power_generator", "sewer"]
 ## Back at the same counter for food no sooner than this (game minutes) after the last time
 ## (playtest 25. 10.: "they queue at the corn stand again and again, three portions in a
 ## row; two guests and the whole day at the corn"); now and then (AGAIN_CHANCE) one comes
-## back for another all the same.
+## back for another all the same. It is the food that keeps them away: for a drink the place is
+## open to them again after DRINK_COOLDOWN (the user 7. 11.: "the girls are thirsty with the
+## corn and the pub in the camp, why?": a visit shut both to them for hours, thirst or no).
 const FOOD_COOLDOWN := {"corn_stand": 300, "restaurant": 300, "vecerka": 360, "pub": 120}
+const DRINK_COOLDOWN := 60
 const AGAIN_CHANCE := 0.06
 var _staff_only_tiles: Dictionary = {}
 var _gate: Vector2i = Vector2i(10, 2)
@@ -62,6 +65,8 @@ var _events: Array[Dictionary] = []
 ## go. The bistro's kitchen (scripts/bistro/kitchen.gd) holds them while their plate is
 ## coming and while they eat it, so a meal is not cut short by the clock.
 var visit_holds: Dictionary = {}
+## Visits over before their time (a tab settled): guest id -> the visit (orders.send_off).
+var visit_over: Dictionary = {}
 
 
 func _init() -> void:
@@ -252,7 +257,9 @@ func _advance_guest(guest: Dictionary, now_abs: int, is_night_at: Callable, weir
 			continue
 		# Night / day switches override whatever the guest was doing.
 		var kind := str(act.get("kind", ""))
-		if night_now and kind != "sleep" and kind != "night_out" and kind != "leave" and not (kind == "visit" and bool(act.get("late", false)) and posmod(t, 1440) < 23 * 60):
+		# (Who is kept in a place, a tab still open, is kept: at eight they went off unpaid.)
+		var kept: bool = kind == "visit" and int(visit_holds.get(int(guest.get("id", -1)), -1)) > t
+		if night_now and not kept and kind != "sleep" and kind != "night_out" and kind != "leave" and not (kind == "visit" and bool(act.get("late", false)) and posmod(t, 1440) < 23 * 60):
 			_release_usage(act)
 			act = _plan_sleep(guest, t)
 			guest["activity"] = act
@@ -313,6 +320,12 @@ func _advance_guest(guest: Dictionary, now_abs: int, is_night_at: Callable, weir
 		if not bool(act.get("arrived", false)) and t >= int(act.get("arrive", t)):
 			act["arrived"] = true
 			_on_arrive(guest, act, t)
+		var over: bool = visit_over.has(int(guest.get("id", -1))) and str(visit_over[int(guest.get("id", -1))]) == "%d@%d" % [int(guest.get("id", -1)), int(act.get("start", 0))]
+		if over:
+			visit_over.erase(int(guest.get("id", -1)))
+			_on_complete(guest, act, t)
+			guest["activity"] = {}
+			continue
 		if t >= int(act.get("end", t)):
 			if bool(act.get("queued", false)):
 				_on_queue_tick(guest, act, t)
@@ -393,6 +406,13 @@ func _fed_filter(guest: Dictionary, facilities: Array, t: int) -> Array:
 	for f in facilities:
 		var type := str((f as Dictionary).get("type", ""))
 		if ate.has(type) and t - int(ate[type]) < int(FOOD_COOLDOWN.get(type, 0)) and _rng.randf() >= AGAIN_CHANCE:
+			if t - int(ate[type]) < DRINK_COOLDOWN:
+				continue
+			var no_meal: Dictionary = (f as Dictionary).duplicate()
+			var services: Dictionary = (no_meal.get("services", {}) as Dictionary).duplicate()
+			services.erase("hunger")
+			no_meal["services"] = services
+			out.append(no_meal)
 			continue
 		out.append(f)
 	return out
@@ -411,7 +431,7 @@ func _plan_next(guest: Dictionary, t: int, night_now: bool) -> Dictionary:
 	var goal: Dictionary = NEEDS.pick_goal(guest["needs"], archetype, allowed, here, _usage, _rng, float(t % 1440) / 60.0)
 	var thought := str(goal.get("thought", ""))
 	# Nowhere else for it but where they had theirs a while ago: they wait, no complaint.
-	if str(goal.get("kind", "")) == "wander" and allowed.size() < open.size() and _served_by(open, str(goal.get("need", ""))):
+	if str(goal.get("kind", "")) == "wander" and _served_by(open, str(goal.get("need", ""))) and not _served_by(allowed, str(goal.get("need", ""))):
 		return _plan_idle(guest, here, t)
 	match str(goal.get("kind", "wander")):
 		"visit":
@@ -419,10 +439,6 @@ func _plan_next(guest: Dictionary, t: int, night_now: bool) -> Dictionary:
 			var door := _door_tile(f, here)
 			var act := _make_activity("visit", here, door, t, int(f.get("use_minutes", 10)), str(goal.get("need", "")), f)
 			_claim_usage(act)
-			if FOOD_COOLDOWN.has(str(f.get("type", ""))):
-				var ate: Dictionary = guest.get("ate_at", {}) if guest.get("ate_at", {}) is Dictionary else {}
-				ate[str(f.get("type", ""))] = t
-				guest["ate_at"] = ate
 			if not thought.is_empty() and _rng.randf() < 0.55:
 				_say(guest, thought, t)
 			return act
@@ -520,6 +536,9 @@ func _on_arrive(guest: Dictionary, act: Dictionary, t: int) -> void:
 		act["end"] = t
 		act["failed"] = true
 		return
+	if _past_orders(str(act.get("target_key", "")), t):
+		_turned_away(guest, act, t)
+		return
 	var using := _count_using(str(act.get("target_key", "")), int(guest.get("id", -1)))
 	if using >= int(f.get("capacity", 1)):
 		act["queued"] = true
@@ -529,8 +548,30 @@ func _on_arrive(guest: Dictionary, act: Dictionary, t: int) -> void:
 			_say(guest, "A queue for the %s. Of course." % str(f.get("label", "place")).to_lower(), t)
 
 
+## Past last orders at `key` (they set out in time, the walk took it: the user 7. 11.: "a guy
+## came in while it was closing, an empty tab, no order, and left again").
+func _past_orders(key: String, t: int) -> bool:
+	var h = order_hours.get(key, null)
+	if not (h is Array):
+		return false
+	var mod := posmod(t, 1440)
+	return mod < int(h[0]) or mod >= int(h[1])
+
+
+## Too late at the door: off again, no harm done.
+func _turned_away(guest: Dictionary, act: Dictionary, t: int) -> void:
+	_say(guest, "Too late, they've called last orders.", t)
+	act["queued"] = false
+	act["end"] = t
+	act["failed"] = true
+	guest["activity"] = act
+
+
 func _on_queue_tick(guest: Dictionary, act: Dictionary, t: int) -> void:
 	var key := str(act.get("target_key", ""))
+	if _past_orders(key, t):
+		_turned_away(guest, act, t)
+		return
 	var f: Dictionary = _facility_by_key.get(key, {})
 	var using := _count_using(key, int(guest.get("id", -1)))
 	if not f.is_empty() and using < int(f.get("capacity", 1)):
@@ -567,6 +608,13 @@ func _on_complete(guest: Dictionary, act: Dictionary, t: int) -> void:
 			var visit := "%d@%d" % [int(guest.get("id", 0)), int(act.get("start", 0))]
 			var sold := not (services.has("hunger") or services.has("thirst")) or ORDERS.served(str(act.get("target_key", "")), visit)
 			var fed := sold
+			var place := str(f.get("type", ""))
+			if FOOD_COOLDOWN.has(place):
+				# Fed: a while before the next meal there. Sent away with nothing: only the short
+				# wait, or nobody at the counter keeps them hungry and thirsty for hours.
+				var ate: Dictionary = guest.get("ate_at", {}) if guest.get("ate_at", {}) is Dictionary else {}
+				ate[place] = t if sold else t - int(FOOD_COOLDOWN[place]) + DRINK_COOLDOWN
+				guest["ate_at"] = ate
 			if not sold:
 				# Nobody served them: the company was something, the meal and the drink were
 				# not (business_runtime has them grumble about it).

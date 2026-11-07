@@ -4,6 +4,48 @@
 
 ---
 
+## PLAYTEST 2026-11-07 — Richard's notes after a long co-op test, his words
+
+- [ ] P1 „zvenku nevidím uvnitř recepce hosty u checkinu který dělá jiný hráč" (co-op: the check-in done by the other warden is not seen through the reception's glass)
+- [ ] P2 „vidím pouze dovnitř posledního stanu ve kterém jsem byl, ne do všech otevřených"
+- [ ] P3 „při obsluhování u stánku s kukuřící velký clipping textur pultu stánku"
+- [ ] P4 „posunout lavičku umístěnou na cestě blíže k hraně cesty"
+- [ ] P5 „jako klient v coopu vidím špatně jmenovku na ceduli před kempem, nemůžu jí upravit, špatný sync"
+- [ ] P6 „u kukuřice rozsvěcet dříve, často nevidím během stmívání na obsluhování"
+- [ ] P7 „syncnout rádio, oba hráči musí slyšet totéž. syncnout vypínání kukuřice"
+- [ ] P8 „mezi kumbálem a recepcí procházíš zdí"
+- [ ] P9 „totálně polishnout pískače. z enemies je nejmíň propracovaný. měl by fungovat tak že když slyšíš jeho pískání tak se nesmíš hýbat a máš se ideálně schovat někam dovnitř"
+- [ ] P10 „během první noci co máme bubáky nám hned hrálo waltz peklo z rádia. špatný budování napětí, byl to hned šílenej hrot, musíme začít jemnějí"
+- [ ] P11 „notifikace řiká že závoz čeká u brány, v realitě ale jde závozák na recepci. opravit"
+- [ ] P12 „notifikace řiká že je někdo u stánku s kukuřicí což je fajn, ale 'nikdo neobsluhuje' je lež, píšou to tam i když je tam spoluhráč"
+- [ ] P13 „špinavé půllitry v hospodě jdou špatně vidět přes kartáč"
+- [ ] P14 „v hospodě účty nefungujou správně. vzal jsem účet, a nahoře dva taby zákazníků nezmizely, a po chvilce zmizeli oba? nevím :D zkontroluj to. dokonce přišel týpek během zavírání a měl prázdnej tab bez objednávky a pak zase odešel"
+- [ ] P15 „v hospodě má fotograf jiný sprite, takový moc hodný a pozitivní?"
+- [ ] P16 „pořád se mi ukazuje notifikace ať vyčistím oba záchody, i když je potřeba vyčistit jen jeden z nich. přijde mi jako by ve hře byly dva druhy notifikací na záchod?"
+- [ ] P17 „recenze na atlasu nejsou přeložené do češtiny"
+- [ ] P18 „první postavená chatka má neviditelné dveře"
+- [ ] P19 „přes PSX kroucení textur pak špatně sedí okna :/ např na hospodě a tak... to chce vyřešit"
+- [ ] P20 „z interiéru recepce clippuje slunce při západu"
+- [ ] P21 „holky maj žízeň i když mám v kempu kukuřici i hospodu. proč?"
+- [ ] P22 „kurzor v nebi má u sebe ikonu toho co staví. to dej pryč, nech v nebi jen ten kurzor. dej mu trochu víc movementu po tom nebi, jak se jakoby hejbe nad kempem"
+- [ ] P23 „když je spawnutý enemy, nech jít hráče normálně do postele, jen je nenech usnout. leží v posteli a nic. dej ale nějaký cue aby nebyl pocit že hra je zničená, třeba že je ti prostě v posteli nepříjemně a nejde ti spát"
+- [ ] P24 „v chatce nech hráče chodit k oknům, kliknutím do prostoru u nich. nezapomeň na hover. taky mě nech se otočit o 360 v chatce, neblokuj mi v ŽÁDNÉM interiéru otáčení"
+- [ ] P25 „odstraň zmíňky o zkaženém zboží, to ve hře nechceme"
+- [ ] P26 „zvuk závěsů co zatahují hosté je ŠÍÍÍLENĚ nahlas :D občas mě to až vyleká"
+- [ ] P27 „karavan pod určitým úhlem pohledu mizí, problikává"
+- [ ] P28 „potřebujeme pořádně polishnout a zkontrolovat tu výměnu sudů v hospodě. taky mi to přijde nějaký broken, nevím kde mám vzít nový, na ty co tam stojí mi nejde klikat"
+- [ ] P29 „u ohniště nejde kliknout na sekeru v pařezu, abych dosekal polýnka na podpal"
+- [ ] P30 „notifikace vpravo, které má někdo ze staff za úkol, vizuálně označ, ať vidím z hromady neuklizených ubikací, o které bude postaráno, a na které můžu jít já.. to samé veškeré úkoly a obsluhování"
+- [ ] P31 „v HUD mi chybí nějaký časový ukazatel vizuální, nebo progress bar? časová osa? kdy přijde staff do práce, a kdy jim šichta končí :D"
+- [ ] P32 „zvenčí má v noci interiér recepce jiné nasvícení než když jsem opravdu uvnitř. během přechodu/animace dovnitř se změní barva a intenzita osvícení"
+- [ ] P33 „na to že první noc jsme měli totální peklo, další noci byly celkem nuda a nic moc se nedělo. potřebujeme aby ty noci na sebe víc navazovaly a děsení bylo plynulejší, žádné takovéhle propady"
+- [ ] P34 „hostům se animuje jízda autobusem tak 2fps. host to má v pořádku" (co-op: the joining warden sees the ride at 2 frames a second, the hosting one does not)
+- [ ] P35 „ve městě účtenka v jednotě není vidět přes notifikace"
+- [ ] P36 „ve městě auta jezdí skrz budovy, kostel"
+- [ ] P37 „opravit sprite rukou při kouření a pití piva. občas nedávají smysl :D jak to drží to cígo a tak"
+- [ ] P38 „pozic na stoupnutí je v motelu hrozně moc. stačí vždy jedna na výhled z okna, a pokud to jde drž pozice na minimum :D vše jde odklikat z té hlavní, a pokud se někam můžeš přesunout, je to kvuli lepší zajímavější kompozici scény nebo výhledu"
+- [ ] P39 „občas nesmyslné otačení a rotace, například když na motelu projdu na pokoj dveřmi, spawnu se v něm zády do pokoje a najednou rotace"
+
 ## ABSOLUTE POLISH 2026-11-07 — „ano konec, zvedni strop z 50, rozdel stavbu. udelej absolutni polish pass mesta, enemies, vizualu, gameworldu, pujdu poradne testovat pak" (three audits of the code, each finding read and the fixes played: `tools/pass_check`)
 
 - [x] A1 A poor month ends the run (M6), frames by the screen's refresh (`GameSettings.frame_cap`), the reception and the cabin a piece a frame behind the loading bar (N8).

@@ -106,6 +106,8 @@ func try_interact() -> bool:
 		return false
 	if str(o["act"]) == "log":
 		_put_log(o["att"])
+	elif str(o["act"]) == "chop":
+		_chop(o["att"])
 	else:
 		_join(o["att"])
 	return true
@@ -338,6 +340,14 @@ func _press() -> void:
 
 # ── the fire's logs ──────────────────────────────────────────────────────────
 
+func _chop(att: Node) -> void:
+	if Coop.is_client():
+		Coop.send_play("chop", [att_id(att)])
+		return
+	if att.chop() and Coop.has_partner():
+		Coop.send_play("chop", [att_id(att)])
+
+
 func _put_log(att: Node) -> void:
 	if int(att.get("logs_left")) <= 0:
 		_say("The woodpile is empty.")
@@ -421,6 +431,9 @@ func coop_play(kind: String, data: Array) -> void:
 					Coop.send_play("log", [att_id(att)])
 			else:
 				att.add_log()
+		"chop":
+			if att.chop() and Coop.is_host():
+				Coop.send_play("chop", [att_id(att)])
 
 
 ## The host's ball games: each new flight goes to the other machine.

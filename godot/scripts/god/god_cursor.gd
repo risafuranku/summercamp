@@ -63,6 +63,8 @@ const IDLE_H := 210.0
 ## lake, its tip turned slowly at the work, between jobs at the camp. It builds from
 ## there: a click is a jab of the tip toward the work, the pieces fall at the work.
 const HOME_H := 90.0
+const OVER_WORK := 0.62
+const DRIFT_M := Vector3(11.0, 3.0, 11.0)
 const TURN_DEG_SEC := 14.0
 const JAB := 9.0
 const BANK_DEG := 8.0
@@ -499,6 +501,8 @@ func _build_cursor() -> void:
 	_plate.extra_cull_margin = 120.0
 	_plate.set_meta("retro_skip", true)
 	_plate.position = Vector3(0, 0, -THICK * 0.45)
+	# (Only the pointer up there, the user 7. 11.: what it builds shows in what comes down.)
+	_plate.visible = false
 	_cursor.add_child(_plate)
 	var mist: Texture2D = load(MIST_TEX) if ResourceLoader.exists(MIST_TEX) else null
 	for i in 3:
@@ -627,7 +631,6 @@ func _set_tool(tool: String) -> void:
 	_tool = tool
 	_tool_frame = 0
 	_plate_mat.set_shader_parameter("tex", _cursor_tex(tool))
-	_plate.visible = _cursor_tex(tool) != null
 
 
 ## The tool's frame by the clock (in the stepped tick, so it moves in steps with the rest).
@@ -654,10 +657,23 @@ func _camera_pos() -> Vector3:
 	return cam.global_position if cam != null else Vector3.ZERO
 
 
-## Where it works from: its place over the lake (`at` is where its tip aims meanwhile).
+## Where it works from: most of the way from its place over the lake to the work, high up (`at`
+## is where its tip aims meanwhile). Fixed over the lake it only turned on the spot.
 func _work_spot(at: Vector3) -> Vector3:
 	_aim = at
-	return _home()
+	return _over(at)
+
+
+func _over(at: Vector3) -> Vector3:
+	var h := _home()
+	return h.lerp(Vector3(at.x, h.y, at.z), OVER_WORK)
+
+
+## A hand on a mouse is never quite still: a slow wander round where it is, in the steps of all
+## its machinery.
+func _drift() -> Vector3:
+	var t := floorf(_t * FPS) / FPS
+	return Vector3(sin(t * 0.41) + 0.5 * sin(t * 1.13 + 1.0), sin(t * 0.67 + 2.0), cos(t * 0.33) + 0.5 * sin(t * 0.91)) * DRIFT_M
 
 
 var _aim := Vector3.INF
@@ -690,7 +706,7 @@ func _camp_centre() -> Vector3:
 
 ## The tip `d` metres out of its place toward the work (its click).
 func _jab(at: Vector3, d: float) -> Vector3:
-	var h := _home()
+	var h := _over(at)
 	return h + (at - h).normalized() * d
 
 
@@ -1083,7 +1099,7 @@ func _tick_look(delta: float) -> void:
 	var side := Vector3(cos(shown_yaw), 0.0, -sin(shown_yaw))
 	# Banked a little on its long axis, like an aeroplane turning, so the camp it points
 	# at sees its face and not only its edge.
-	_cursor.global_transform = Transform3D(Basis(side, -_pitch) * Basis(side, fwd, Vector3.UP) * Basis(Vector3(0, 1, 0), deg_to_rad(BANK_DEG)), (_pos * 2.0).round() * 0.5)
+	_cursor.global_transform = Transform3D(Basis(side, -_pitch) * Basis(side, fwd, Vector3.UP) * Basis(Vector3(0, 1, 0), deg_to_rad(BANK_DEG)), ((_pos + _drift()) * 2.0).round() * 0.5)
 	# The haze by the camp's own fog; lit by the sky's hour (dark at night, a shape on the
 	# stars).
 	var env := _environment()

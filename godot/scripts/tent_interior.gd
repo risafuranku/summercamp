@@ -220,9 +220,12 @@ func _process(delta: float) -> void:
 	if _flash_t > 0.0 and _flash_light != null:
 		_flash_t = maxf(0.0, _flash_t - delta)
 		_flash_light.light_energy = 7.0 * pow(_flash_t / 0.4, 1.6)
+	if _cube_baking:
+		return
 	if not _is_open:
 		_update_inview(delta)
 	_bind_one_world(delta)
+	_show_cubes(delta)
 	if not _is_open:
 		return
 	if _interior_camera == null:
@@ -983,7 +986,7 @@ func _bind_one_world(delta: float) -> void:
 	if _tent_root.visible != (ok or _is_open):
 		_tent_root.visible = ok or _is_open
 	if ok:
-		var x := Transform3D(way.global_basis.orthonormalized(), way.global_position) * Transform3D(Basis(), Vector3(0.0, TENT_LIFT, -DOOR_PLANE_Z))
+		var x := _room_at(way)
 		if not _tent_root.transform.is_equal_approx(x):
 			_tent_root.transform = x
 	if _probe != null and _tent_env != null:
@@ -994,6 +997,99 @@ func _bind_one_world(delta: float) -> void:
 		_walls_t = 0.5
 		ONE_WORLD_ROOM.sounds_through_walls(_tent_root, not _is_open)
 		ONE_WORLD_ROOM.own_layer(_tent_root)
+
+
+## The room as it stands behind `way`.
+func _room_at(way: MeshInstance3D) -> Transform3D:
+	return Transform3D(way.global_basis.orthonormalized(), way.global_position) * Transform3D(Basis(), Vector3(0.0, TENT_LIFT, -DOOR_PLANE_Z))
+
+
+# -- the room drawn once into a cube, for the open doorways it is not standing in (the user
+# 7. 11.: "I can only see into the last tent I was in, not into all the open ones": there is
+# one room and it goes to the nearest; the others were a dark triangle). As the cabins' and the
+# vans' windows from far off (scripts/ui/room_cube.gd). --
+
+const ROOM_CUBE = preload("res://scripts/ui/room_cube.gd")
+var cubes: Dictionary = {}
+var _cube_baking := false
+var _cube_ways: Dictionary = {}
+var _cubes_t := 0.0
+
+
+func bake_cubes() -> void:
+	if _cube_baking or not cubes.is_empty() or _tent_root == null or _viewport == null or _is_open:
+		return
+	_cube_baking = true
+	_release_inview()
+	var was_level := _tent_level
+	var was_state := _time_state
+	var was_day := _daylight_factor
+	var was_guests := _guest_occupants.duplicate(true)
+	set_guest_occupants([])
+	# Drawn far over the camp (the room is in the camp's world; under the land nothing is
+	# drawn): nothing round it, past the camp's eye's reach.
+	_tent_root.transform = Transform3D(Basis(), Vector3(0.0, ONE_WORLD_ROOM.BAKE_UP, 0.0))
+	_tent_root.visible = true
+	for lv in [1, 2, 3]:
+		if _is_open:
+			break
+		_tent_level = lv
+		_apply_level_variant()
+		_daylight_factor = 0.8
+		set_time_state(TIME_DAY)
+		cubes[lv] = ROOM_CUBE.bake(self, _viewport.find_world_3d(), _tent_root.global_transform * cube_eye(lv), 0xFFFFF & ~INVIEW_HIDE_LAYER & ~ONE_WORLD_ROOM.GLASS_LAYER)
+		await RenderingServer.frame_post_draw
+		await get_tree().process_frame
+	_tent_level = was_level
+	_apply_level_variant()
+	_daylight_factor = was_day
+	set_time_state(was_state)
+	set_guest_occupants(was_guests)
+	_cube_baking = false
+
+
+func cube_eye(_lv: int) -> Vector3:
+	return Vector3(0.0, 0.55, -0.1)
+
+
+func cube_box(_lv: int) -> AABB:
+	return AABB(Vector3(-TENT_HALF_WIDTH, 0.0, -1.38), Vector3(TENT_HALF_WIDTH * 2.0, TENT_RIDGE_HEIGHT, 1.38 + DOOR_PLANE_Z))
+
+
+## Twice a second: every open doorway the room is not in has its picture, lit as the hour is.
+func _show_cubes(delta: float) -> void:
+	_cubes_t -= delta
+	if _cubes_t > 0.0:
+		return
+	_cubes_t = 0.5
+	var energy := 0.85 if _time_state == TIME_DAY else (0.34 if _time_state == TIME_EVENING else 0.07)
+	var tint := Vector3(1.0, 0.97, 0.92) if _time_state != TIME_NIGHT else Vector3(0.55, 0.62, 0.85)
+	var seen := {}
+	for e in _inview_ways:
+		var w = e[1]
+		if not is_instance_valid(w) or not is_instance_valid(e[0]) or e[1] != e[2] or not (w as Node3D).is_visible_in_tree():
+			continue
+		var t := str((e[0] as Node).get_meta("building_type", "tent_1"))
+		var lv := clampi(int(t.right(1)) if t.right(1).is_valid_int() else 1, 1, 3)
+		if not cubes.has(lv):
+			continue
+		seen[w] = true
+		var way := w as MeshInstance3D
+		if not _cube_ways.has(way):
+			_cube_ways[way] = {"mat": ROOM_CUBE.material(cubes[lv], cube_box(lv), cube_eye(lv), _room_at(way).affine_inverse()), "was": way.material_override}
+		var m: ShaderMaterial = _cube_ways[way]["mat"]
+		m.set_shader_parameter("energy", energy)
+		m.set_shader_parameter("light", tint)
+		m.set_shader_parameter("sheen", 0.0)
+		m.set_shader_parameter("tint", Vector3.ONE)
+		if way.material_override != m:
+			way.material_override = m
+	for w in _cube_ways.keys():
+		if not is_instance_valid(w):
+			_cube_ways.erase(w)
+		elif not seen.has(w):
+			(w as MeshInstance3D).material_override = _cube_ways[w]["was"]
+			_cube_ways.erase(w)
 
 
 ## The poles at the doorway and the back of the tent the room stands in: the room's eye
@@ -1065,6 +1161,8 @@ func _find_open_ways() -> Array:
 
 
 func _update_inview(delta: float) -> void:
+	if _cube_baking:
+		return
 	var cam := _camp_camera()
 	var way: MeshInstance3D = null
 	var tent: Node3D = null

@@ -334,6 +334,8 @@ static func near_from_distance(d: float) -> float:
 func update(delta: float, ctx: Dictionary, inside_db: float, outside_db: float, power_on: bool, building: Node3D) -> void:
 	var dt := maxf(delta, 0.0)
 	_clock += dt
+	if bool(ctx.get("client", false)):
+		ctx["tonight"] = host_tonight
 	_ctx = ctx
 	_building = building
 	if _fx_lowpass == null:
@@ -347,6 +349,10 @@ func update(delta: float, ctx: Dictionary, inside_db: float, outside_db: float, 
 		target = clampf(target + _nudge, 0.0, 1.0)
 		if _nudge_left <= 0.0:
 			_nudge = 0.0
+	# The set is the host's: the other machine has the same night on it (the user 7. 11.: "both
+	# players must hear the same").
+	if bool(ctx.get("client", false)) and host_dread >= 0.0:
+		target = host_dread
 	if debug_override >= 0.0:
 		target = debug_override
 		dread = target
@@ -564,12 +570,34 @@ func _apply_bus(_dt: float) -> void:
 
 # ── what happens to the song ─────────────────────────────────────────────────────
 
+## The host's night on the other machine's set: its number (-1 none yet), who is out, and what
+## it does to the song: an event goes over with a seed, so the two play it out the same.
+var host_dread := -1.0
+var host_tonight: Array = []
+
+
+func tonight_now() -> Array:
+	return _ctx.get("tonight", [])
+
+
+func coop_take_event(ev: int, seed_n: int) -> void:
+	_rng.seed = seed_n
+	_begin_event(ev)
+
+
 func _update_events(dt: float) -> void:
 	if _event == Ev.NONE:
+		if bool(_ctx.get("client", false)):
+			return
 		_next_event_in -= dt
 		if _next_event_in <= 0.0:
 			_next_event_in = lerpf(110.0, 16.0, dread) * _rng.randf_range(0.6, 1.4)
-			_begin_event(_pick_event())
+			var ev := _pick_event()
+			if ev != Ev.NONE and Coop.is_host():
+				var seed_n := randi()
+				_rng.seed = seed_n
+				Coop.send_sync("radio_ev", [ev, seed_n])
+			_begin_event(ev)
 		return
 	_event_t += dt
 	match _event:
@@ -638,7 +666,8 @@ func _update_events(dt: float) -> void:
 			(_layers["static"] as Layer).target = 0.0
 			(_layers["ghost"] as Layer).target = 0.0
 			if _event_t >= _event_len:
-				_break_want = true
+				# (What comes on after it comes over as a piece of its own.)
+				_break_want = not bool(_ctx.get("client", false))
 				_snap_back = true
 				_end_event()
 		Ev.TERROR:

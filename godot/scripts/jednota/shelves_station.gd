@@ -7,8 +7,7 @@ extends "res://scripts/jednota/jednota_station.gd"
 ## shelf's edge; what is on the rack stands there, one by one (the shop's state: the
 ## guests take from it). The boxes made up in the storeroom wait on the trolley: take one
 ## (press on it), carry it to its place and let go: its goods go up onto the shelf as far
-## as there is room; anywhere else it goes back on the trolley. What went off in the night
-## lies at the end of its place, grey; a click throws it all out (actions.biz_bin).
+## as there is room; anywhere else it goes back on the trolley.
 
 const STATION_SIZE := Vector2(3.0, 1.6875)
 ## The rack in the station's design pixels (jednota_layout RACK_*): its shelves' tops
@@ -22,7 +21,6 @@ const TROLLEY_OUT := 0.42
 const BOX_M := 0.27
 const GOOD_M := {"bread": 0.2, "roll": 0.19, "salami": 0.21, "milk": 0.2, "pickles": 0.15, "beer": 0.22,
 	"icecream": 0.14, "sweets": 0.13, "veg": 0.17, "soap": 0.1, "cards": 0.09, "magazine": 0.18, "rum": 0.24}
-const OFF := {"bread": "off_bread", "roll": "off_rolls", "milk": "off_milk", "salami": "off_salami", "veg": "off_potatoes", "pickles": "off_pickles"}
 const MAX_UNITS := 8
 const TROLLEY_PLACES := 8
 
@@ -34,7 +32,6 @@ var _labels: Array = []
 var _trolley: Sprite3D
 ## The boxes on the trolley: [{box: Sprite3D, icon: Sprite3D, good}].
 var _boxes: Array = []
-var _offs: Array = []
 var _held_box: Dictionary = {}
 var _step_acc := 0.0
 
@@ -62,7 +59,6 @@ func _build() -> void:
 		b.visible = false
 		ic.visible = false
 		_boxes.append({"box": b, "icon": ic, "good": ""})
-	_offs = [null, null, null, null]
 
 
 ## A good's place on the rack (design px): over its shelf, its share of the shelf's width.
@@ -146,36 +142,6 @@ func _show() -> void:
 		var hi: Sprite3D = _held_box["icon"]
 		hb.position = held_at(0.3) - Vector3(0, BOX_M * 0.5, 0)
 		hi.position = hb.position + Vector3(0, BOX_M * 0.45, 0.12)
-	_show_off()
-
-
-## What went off: grey at the end of its place till it is thrown out.
-func _show_off() -> void:
-	var spoiled: Dictionary = BIZ.site(building_key).get("spoiled", {})
-	var k := 0
-	for g in OFF:
-		if k >= _offs.size():
-			break
-		if int(spoiled.get(g, 0)) <= 0:
-			continue
-		var path := "res://assets/textury/camp/%s.png" % str(OFF[g])
-		if not ResourceLoader.exists(path):
-			continue
-		var o = _offs[k]
-		if o == null:
-			o = sprite(path, 0.18, false)
-			_offs[k] = o
-		else:
-			retex(o, path, 0.18)
-		if (o as Sprite3D).texture != null:
-			(o as Sprite3D).offset = Vector2(0, float((o as Sprite3D).texture.get_height()) * 0.5)
-		(o as Sprite3D).visible = true
-		var r := slot_rect(g)
-		put(o, Vector2(r.end.x - 20.0, r.end.y - 12.0), 0.06)
-		k += 1
-	for j in range(k, _offs.size()):
-		if _offs[j] != null:
-			(_offs[j] as Sprite3D).visible = false
 
 
 # ── what can be done ─────────────────────────────────────────────────────────
@@ -187,18 +153,10 @@ func _spots() -> Array:
 		if b.visible and str(e["good"]) != "":
 			var g := str(e["good"])
 			out.append({"id": "box:" + g, "node": b, "verb": "Take the box of %s" % str(RULES.goods().get(g, {}).get("label", g)).to_lower()})
-	for o in _offs:
-		if o != null and (o as Sprite3D).visible:
-			out.append({"id": "off", "node": o, "verb": "Throw out what went off"})
 	return out
 
 
 func _press(id: String) -> void:
-	if id == "off":
-		if CoreRoot != null and CoreRoot.actions != null and CoreRoot.actions.has_method("biz_bin"):
-			CoreRoot.actions.biz_bin(building_key)
-		sfx("bin", -8.0)
-		return
 	if id.begins_with("box:"):
 		var g := id.substr(4)
 		var b := jsprite("box_closed", BOX_M)
@@ -267,12 +225,9 @@ func debug_shelve(good: String) -> int:
 
 # ── the frame: the next step, the tab ────────────────────────────────────────
 
-## What is best to do at the rack: what went off out, a box from the trolley for a place
+## What is best to do at the rack: a box from the trolley for a place
 ## that is empty (carried to it); the storeroom when the trolley has none for it.
 func next_hint() -> Dictionary:
-	for o in _offs:
-		if o != null and (o as Sprite3D).visible:
-			return {"node": o, "gesture": "click"}
 	var empty := empty_places()
 	for e in _boxes:
 		var b: Sprite3D = e["box"]

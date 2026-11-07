@@ -373,8 +373,9 @@ func _car_way(x0: float, x1: float) -> Array:
 	var out: Array = []
 	if GEO_MODE:
 		var s := GEO.stop_s("liblice")
-		# (The stop is at x -110; the way along the road grows as x falls.)
-		for p in GEO.line_path(s - 110.0 - x0, s - 110.0 - x1, 1.6, 12.0):
+		# (The stop is at x -110 and the road's way grows with x. The other way round the cars came
+		# from a stretch of road far behind the stop, straight through the houses and the chapel.)
+		for p in GEO.line_path(s + 110.0 + x0, s + 110.0 + x1, 1.6, 12.0):
 			var q := unw(p)
 			out.append(Vector3(q.x, 0, q.z))
 		return out

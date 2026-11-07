@@ -12,8 +12,7 @@ extends Node
 ##   - the hands come in for their shift (or do not: a note on the door), work, now and
 ##     then take something that is not theirs (the dishonest ones), and are paid at the
 ##     day's close for the shift they did; two days unpaid and they leave;
-##   - the morning: what has been on the shelves too long goes off (it has to be thrown
-##     out); orders are due the morning after: the van comes (scripts/day_events.gd asks
+##   - orders are due the morning after: the van comes (scripts/day_events.gd asks
 ##     due_today()), and what is signed for goes on the shelves;
 ##   - the place shuts at 20:00, or at 23:00 when it is open late: the shift's Z report
 ##     comes out of the till (`zreport`).
@@ -22,6 +21,7 @@ extends Node
 
 const RULES := preload("res://core/systems/business_rules.gd")
 const ORDERS := preload("res://scripts/food/orders.gd")
+const CREW_PLACES := preload("res://scripts/business/crew_places.gd")
 ## The bistros' kitchens: the trays, the stove, the pot, the tickets (loaded, not
 ## preloaded: the kitchen preloads this script).
 const KITCHEN_PATH := "res://scripts/bistro/kitchen.gd"
@@ -118,8 +118,7 @@ func _live_sites() -> Dictionary:
 # ── the day ──────────────────────────────────────────────────────────────────
 
 ## Midnight passed: the hands are paid for yesterday (the dishonest ones first help
-## themselves), what was left owed; then the morning: who comes in today, what went off,
-## and whatever the one who was not on the books did in the night.
+## themselves), what was left owed; then the morning: who comes in today, and whatever the one who was not on the books did in the night.
 func _new_day(was: int, day: int) -> void:
 	var act = CoreRoot.actions
 	for key in (CoreRoot.get_state().biz.get("sites", {}) as Dictionary):
@@ -132,16 +131,6 @@ func _new_day(was: int, day: int) -> void:
 	for key in (CoreRoot.get_state().biz.get("sites", {}) as Dictionary):
 		_attendance(str(key), day)
 		_night_hand(str(key))
-	var off: Array = act.biz_spoil(day)
-	var by_site := {}
-	for o in off:
-		by_site[str(o["key"])] = (by_site.get(str(o["key"]), []) as Array) + [str(o["good"])]
-	for key in by_site:
-		var kind := str(site(key).get("kind", ""))
-		var names: Array = []
-		for g in by_site[key]:
-			names.append(str((RULES.goods(kind).get(g, {}) as Dictionary).get("label", g)).to_lower())
-		_say("%s: the %s went off. Throw it out." % [_place_name(kind), ", ".join(names)], 1, "biz_off:" + str(key))
 
 
 ## Who of a place's hands does not come in today (a note on the door). The two nobody
@@ -196,10 +185,6 @@ func _night_hand(key: String) -> void:
 				if int(pl["dirty"]) > 0:
 					k.act(key, "plates", [int(pl["dirty"]), -int(pl["dirty"])])
 					did = true
-		if not (s.get("spoiled", {}) as Dictionary).is_empty():
-			# Thrown out, and not in the books as waste.
-			s["spoiled"] = {}
-			did = true
 		if did:
 			_say("Somebody washed up at the %s overnight. Nobody had a key." % _place_name(str(s.get("kind", ""))).to_lower(), 0)
 		return
@@ -248,7 +233,7 @@ func _watch_shifts(sites: Dictionary) -> void:
 				wages += RULES.shift_pay(p)
 		var z: Dictionary = CoreRoot.actions.biz_close_shift(key, wages, CoreRoot.get_day(), was == "late")
 		if int(z.get("orders", 0)) > 0 or int(z.get("takings", 0)) > 0:
-			_say("%s shut for the day. The Z report is in the books." % _place_name(str(s.get("kind", ""))), 0, "biz_z:" + str(key))
+			_say_all("%s shut for the day. The Z report is in the books." % _place_name(str(s.get("kind", ""))), 0, "biz_z:" + str(key))
 			zreport.emit(key, z)
 
 
@@ -267,7 +252,7 @@ func _watch_last_call(key: String, s: Dictionary) -> void:
 		return
 	_called[key] = day
 	last_call.emit(key)
-	_say("%s: last orders. Who has ordered still gets served." % _place_name(str(s.get("kind", ""))), 0, "biz_last:" + str(key))
+	_say_all("%s: last orders. Who has ordered still gets served." % _place_name(str(s.get("kind", ""))), 0, "biz_last:" + str(key))
 
 
 static func _abs_now() -> int:
@@ -526,12 +511,21 @@ func _watch_waiting(sites: Dictionary) -> void:
 			if not _told.has(id):
 				_told[id] = true
 				fresh = true
-		if fresh:
+		# (With a warden behind the counter it was a lie, the user 7. 11.: "nobody is serving",
+		# and the other player was.)
+		if fresh and _nobody_at(key, RULES.kind_of(str(sites[key]))):
 			var waiting: Array = _waiting[key]
 			_say(_waiting_line(RULES.kind_of(str(sites[key])), waiting), 2, "biz_wait:" + key)
 	for id in _told.keys():
 		if not live.has(id):
 			_told.erase(id)
+
+
+## No warden, here or on the other machine, at a station of this place.
+func _nobody_at(key: String, kind: String) -> bool:
+	if not is_inside_tree():
+		return true
+	return CREW_PLACES.wardens_at(get_tree(), key, "corn" if kind == "corn" else "service").is_empty()
 
 
 func _waiting_line(kind: String, waiting: Array) -> String:
@@ -669,6 +663,14 @@ func _complaint(kind: String) -> String:
 		"bowl":
 			return "Came to bowl. Nobody at the counter."
 	return "Nobody served us."
+
+
+## On every machine: the closing of a place is the host's to see, and the other warden behind
+## the same counter was none the wiser (the user 7. 11.).
+func _say_all(text: String, kind := 0, group := "") -> void:
+	_say(text, kind, group)
+	if Coop.is_host():
+		Coop.send_fact("biz_say", [text, kind, group])
 
 
 func _say(text: String, kind := 0, group := "") -> void:

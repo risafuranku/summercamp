@@ -466,8 +466,9 @@ func _draw_bill() -> void:
 	var paid := _bill_done > 0.0 and _on.is_empty()
 	var lines := 1 if paid else _on.size()
 	var h := 14.0 * s + row * float(lines) + 44.0 * s
-	var x := vp.x - w - 14.0 * s
-	# (Under the camp's cards on the right.)
+	# On the left: the camp's plates come down the right edge over everything in a room (the
+	# user 7. 11.: "the bill can't be seen for the notifications").
+	var x := 14.0 * s
 	var y := vp.y * 0.42
 	_bill.draw_rect(Rect2(x + 2.0 * s, y + 2.0 * s, w, h), Color(0, 0, 0, 0.45))
 	_bill.draw_rect(Rect2(x, y, w, h), BILL_PAPER)

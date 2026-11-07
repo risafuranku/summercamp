@@ -2504,6 +2504,8 @@ func _one_world_from_camp(delta: float) -> void:
 		im._coop_office_from_camp(delta)
 	if visible:
 		return
+	if _desk_room != null:
+		_desk_room.tick_unseen(delta, im.coop_desk_guest() if im != null and im.has_method("coop_desk_guest") else -999)
 	if _extras != null and _extras.tick_unseen(delta, _hour_now()):
 		_apply_room_time_profile()
 	_inview_light_t -= delta
@@ -3238,11 +3240,28 @@ func _radio_on_air(kind: String, id) -> void:
 	_radio_now = {"k": kind, "id": id}
 
 
-## For the other machine (main._coop_sync_things "radio", the host only): the switch,
-## the piece and where in it (in 4 s steps, so it is sent when that moves on).
+## For the other machine (main._coop_sync_things "radio", the host only): the switch, the
+## piece, where in it to the moment (sent when it moves on to the next 4 s, and only then: the
+## same dictionary till that), and how bad the night on the set is, who is out tonight.
+var _radio_told: Dictionary = {}
+
+
 func coop_radio_state() -> Dictionary:
 	var pos := _radio_player.get_playback_position() if _radio_player != null and _radio_player.playing else 0.0
-	return {"on": _radio_power_on, "k": str(_radio_now.get("k", "")), "id": _radio_now.get("id", ""), "n": _radio_now_n, "pos": floorf(pos / 4.0) * 4.0}
+	var step := floori(pos / 4.0)
+	var dread := snappedf(_dread.dread, 0.05) if _dread != null else 0.0
+	var tonight: Array = _dread.tonight_now() if _dread != null else []
+	if not _radio_told.is_empty() and int(_radio_told["n"]) == _radio_now_n and int(_radio_told["st"]) == step and bool(_radio_told["on"]) == _radio_power_on \
+			and is_equal_approx(float(_radio_told["dr"]), dread) and _radio_told["tn"] == tonight:
+		return _radio_told
+	_radio_told = {"on": _radio_power_on, "k": str(_radio_now.get("k", "")), "id": _radio_now.get("id", ""), "n": _radio_now_n, "st": step, "pos": pos, "dr": dread, "tn": tonight}
+	return _radio_told
+
+
+## The other machine: what the host's set just did to the song, the same way.
+func coop_take_radio_event(ev: int, seed_n: int) -> void:
+	if _dread != null:
+		_dread.coop_take_event(ev, seed_n)
 
 
 ## The other machine: the host's set, here (the same piece from the same place; nudged
@@ -3252,6 +3271,9 @@ func coop_take_radio(d: Dictionary) -> void:
 		return
 	if bool(d.get("on", true)) != _radio_power_on:
 		_toggle_radio_power()
+	if _dread != null:
+		_dread.host_dread = float(d.get("dr", -1.0))
+		_dread.host_tonight = d.get("tn", []) if d.get("tn", []) is Array else []
 	if _radio_player == null:
 		_create_radio_player()
 	if _radio_player == null:
@@ -3286,9 +3308,9 @@ func coop_take_radio(d: Dictionary) -> void:
 		_radio_player.play(minf(pos + 0.3, maxf(0.0, stream.get_length() - 0.5)))
 		_radio_now = {"k": kind, "id": d.get("id", "")}
 	elif _radio_player.playing:
-		var here := _radio_player.get_playback_position()
-		if here < pos - 0.6 or here > pos + 4.9:
-			_radio_player.seek(pos + 0.3)
+		# (Ahead of it by up to five seconds used to pass: the two sets a line apart.)
+		if absf(_radio_player.get_playback_position() - pos) > 0.4:
+			_radio_player.seek(pos + 0.05)
 
 
 ## The host: the other warden switched the set (Coop request "radio").

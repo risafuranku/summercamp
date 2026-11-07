@@ -117,6 +117,13 @@ static func set_holds(source: String, holds: Dictionary) -> void:
 		life.visit_holds = merged
 
 
+## The visit is over: they go now, whatever their time was.
+static func send_off(guest_id: int, visit: String) -> void:
+	var life = GuestManager.get("_life") if GuestManager != null else null
+	if life != null and "visit_over" in life:
+		life.visit_over[guest_id] = visit
+
+
 static func first_name(full: String) -> String:
 	var parts := full.split(" ")
 	return parts[0] if parts.size() > 0 else full

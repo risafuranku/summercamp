@@ -648,7 +648,7 @@ func _start_line(ev: Dictionary) -> String:
 		"raccoons":
 			line = "Something is in the bins behind the %s." % _label_at(_coord(ev))
 		"delivery":
-			line = "The wholesaler's van is at the gate with your order. The driver will not wait long."
+			line = "The wholesaler's van is here. The driver is walking to the reception and will not wait long."
 		"lost_kid":
 			line = "%s: \"Have you seen our boy? Red cap. He was right here.\"" % str(ev.get("family", "The family"))
 		"noise":

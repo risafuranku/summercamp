@@ -254,10 +254,6 @@ func _click(id: String) -> void:
 					queue_redraw())
 		"late":
 			CoreRoot.actions.biz_set_late(_site, not bool(s.get("late", false)))
-		"bin":
-			var n2: int = CoreRoot.actions.biz_bin(_site)
-			if n2 > 0:
-				_say(LANG.f("%d written off as waste.", n2), T.TEXT)
 
 
 func _crew_of(slug: String) -> Dictionary:
@@ -482,12 +478,11 @@ func _row_h(n: int, room: float) -> float:
 func _draw_stock(m: Rect2, site: Dictionary) -> void:
 	var kind := _kind()
 	var gd: Dictionary = RULES.goods(kind)
-	var cols := [["Item", 110], ["On shelf", 76, true], ["Level", 130], ["Off", 44, true], ["Keeps", 50, true], ["On the van", 76, true]]
+	var cols := [["Item", 130], ["On shelf", 86, true], ["Level", 170], ["On the van", 90, true]]
 	var lm := Rect2(m.position, Vector2(m.size.x, m.size.y - 30))
 	_list(lm, cols)
 	var rh := _row_h(gd.size(), lm.size.y - 24)
 	var i := 0
-	var day := CoreRoot.get_day()
 	for g in gd:
 		var d: Dictionary = gd[g]
 		var n := int(site["stock"].get(g, 0))
@@ -499,25 +494,12 @@ func _draw_stock(m: Rect2, site: Dictionary) -> void:
 			draw_texture_rect(warn, Rect2(_col_x(lm, cols, 0) + 2, y + 1, 14, 14), false)
 		_t(Vector2(_col_x(lm, cols, 0) + 18, y + 13), tr(str(d["label"])), col)
 		_tr(_col_x(lm, cols, 2) - 6, y + 13, "%d %s" % [n, tr(str(d["unit"]))], col)
-		_blocks(Rect2(_col_x(lm, cols, 2) + 4, y + 3, 122, minf(12.0, rh - 4)), float(n) / float(maxi(1, RULES.cap_of(kind, g, site))), RED if low else T.NAVY)
-		var off := int((site.get("spoiled", {}) as Dictionary).get(g, 0))
-		_tr(_col_x(lm, cols, 4) - 6, y + 13, "%d" % off if off > 0 else "-", RED if off > 0 else T.SHADOW)
-		var lots: Array = site.get("lots", {}).get(g, [])
-		var life := RULES.life_of(kind, g, site)
-		if life > 0 and not lots.is_empty():
-			var left := maxi(0, life - (day - int(lots[0][1])))
-			_tr(_col_x(lm, cols, 5) - 6, y + 13, "%d d" % left, RED if left <= 1 else T.TEXT)
-		else:
-			_tr(_col_x(lm, cols, 5) - 6, y + 13, "-", T.SHADOW)
+		_blocks(Rect2(_col_x(lm, cols, 2) + 4, y + 3, 162, minf(12.0, rh - 4)), float(n) / float(maxi(1, RULES.cap_of(kind, g, site))), RED if low else T.NAVY)
 		var due: int = BUSINESS.on_order(_site, g)
-		_tr(_col_x(lm, cols, 6) - 6, y + 13, "+%d" % due if due > 0 else "-", GREEN if due > 0 else T.SHADOW)
+		_tr(_col_x(lm, cols, 4) - 6, y + 13, "+%d" % due if due > 0 else "-", GREEN if due > 0 else T.SHADOW)
 		i += 1
 	var foot := Rect2(m.position.x, lm.end.y + 4, m.size.x, 24)
-	var spoiled := 0
-	for g in site.get("spoiled", {}):
-		spoiled += int(site["spoiled"][g])
 	_t(foot.position + Vector2(6, 16), LANG.f("Today: %d sold, $%d", [int(site["today"]["sold"]), int(site["today"]["takings"])]))
-	_button(Rect2(foot.end.x - 128, foot.position.y + 1, 124, 22), LANG.f("Write off (%d)", spoiled), "bin", spoiled > 0)
 
 
 func _draw_order(m: Rect2, site: Dictionary) -> void:

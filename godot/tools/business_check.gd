@@ -77,7 +77,7 @@ func _ready() -> void:
 	for i in 8:
 		a.biz_close_day()
 
-	# Going off: a lot of rolls two days old goes bad and has to be thrown out.
+	# The lots of a good: the oldest sold first (nothing goes off: the user 7. 11.).
 	state.grid.occupy_cell(Vector2i(8, 8), "vecerka", "vecerka_8_8", Vector2i(8, 8))
 	var shop: Dictionary = a.biz_site("8:8", "vecerka")
 	shop["stock"]["roll"] = 0
@@ -86,18 +86,9 @@ func _ready() -> void:
 	a.biz_receive(10)
 	_expect(int(shop["stock"]["roll"]) == 60 and (shop["lots"]["roll"] as Array).size() == 1, "the rolls in, one lot (%s)" % str(shop["lots"]["roll"]))
 	_expect(a.biz_take("8:8", {"roll": 10}) and int(shop["lots"]["roll"][0][0]) == 50, "the oldest lot sold first")
-	a.biz_spoil(11)
-	_expect(int(shop["stock"]["roll"]) == 50, "a day old: still good")
-	var off: Array = a.biz_spoil(12)
-	_expect(int(shop["stock"]["roll"]) == 0 and int(shop["spoiled"].get("roll", 0)) == 50, "two days old: gone off (%s)" % str(off))
-	var gone := 0
-	for g in shop["spoiled"]:
-		gone += int(shop["spoiled"][g])
-	_expect(a.biz_bin("8:8") == gone and int(shop["today"]["waste"]) == gone and (shop["spoiled"] as Dictionary).is_empty(), "thrown out, counted as waste (%d)" % gone)
-	_expect(RULES.life_of("vecerka", "milk", shop) == 3, "milk keeps three days")
 	state.money = 5000
-	_expect(a.biz_buy_gear("8:8", "fridge") and RULES.life_of("vecerka", "milk", shop) == 6, "the chiller doubles it")
-	_expect(not a.biz_buy_gear("8:8", "fridge"), "gear is bought once")
+	_expect(a.biz_buy_gear("8:8", "pallet"), "gear bought")
+	_expect(not a.biz_buy_gear("8:8", "pallet"), "gear is bought once")
 
 	# One order for every place: one van.
 	var m2: int = state.money

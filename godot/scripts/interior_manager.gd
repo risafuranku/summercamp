@@ -203,7 +203,7 @@ func _tick_cubes(delta: float) -> void:
 	if _cubes_t > 0.0:
 		return
 	_cubes_t = -1.0
-	for it in [_cabin_interior, _caravan_interior]:
+	for it in [_cabin_interior, _caravan_interior, _tent_interior]:
 		if it == null or not is_instance_valid(it) or not it.has_method("bake_cubes") or not (it.get("cubes") as Dictionary).is_empty():
 			continue
 		if it.is_open():
@@ -2103,6 +2103,8 @@ func coop_room() -> Dictionary:
 			elif pv != null and is_instance_valid(pv) and bool(pv.get("visible")):
 				job = "phone"
 		var info := {"k": "office", "t": "office", "s": part, "w": job}
+		if job == "desk":
+			info["g"] = int(desk.desk.current_guest_id())
 		# Walking between the office's rooms: where from, how far along (the other machine
 		# walks their figure through the doorway).
 		var walk: Dictionary = extras.coop_walk() if extras != null and extras.has_method("coop_walk") else {}
@@ -2111,6 +2113,16 @@ func coop_room() -> Dictionary:
 		return info
 	var node: Node3D = _open_room_node(it)
 	return {"k": _room_key_for(node), "t": _room_kind(it), "s": _room_part(it), "w": _room_job(it)}
+
+
+## Whom another warden is seeing to at the counter now (-999 nobody).
+func coop_desk_guest() -> int:
+	if Coop.is_active():
+		for id in Coop.others():
+			var info: Dictionary = Coop.state_of(id).get("room", {})
+			if str(info.get("k", "")) == "office" and str(info.get("w", "")) == "desk":
+				return int(info.get("g", -999))
+	return -999
 
 
 ## Where the other warden stands in the office building (its rooms' own coordinates,

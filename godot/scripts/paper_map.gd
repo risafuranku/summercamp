@@ -150,7 +150,7 @@ func _collect() -> Dictionary:
 	if de != null and de.has_method("open_events"):
 		for ev in de.open_events():
 			if bool(ev.get("gate", false)):
-				var gc: Vector2i = GuestManager.get_gate_coord()
+				var gc: Vector2i = _reception_coord() if str(ev.get("kind", "")) == "delivery" else GuestManager.get_gate_coord()
 				ev["coord"] = [gc.x, gc.y]
 			jobs.append(ev)
 	var im = _main.get("_interior_manager")
@@ -477,3 +477,14 @@ func _wrap(text: String, width: float, font: Font, fs: int) -> Array:
 	if not line.is_empty():
 		out.append(line)
 	return out
+
+
+## Where the van's driver is going (the gate when there is no reception).
+static func _reception_coord() -> Vector2i:
+	var state = CoreRoot.get_state()
+	if state != null:
+		for coord in state.grid.cells.keys():
+			var cell: Dictionary = state.grid.cells[coord]
+			if str(cell.get("type", "")) == "main_building" and cell.get("root_coord", coord) == coord:
+				return coord
+	return GuestManager.get_gate_coord()

@@ -1697,7 +1697,7 @@ func _build_business_doors(profile: String) -> void:
 		"pub":
 			_doors.add("p_cellar", "main", _pub_main_root, Vector3(2.9, 0.05, 0.3), Vector3(-1, 0, 0), "cellar", "pc_main")
 			_doors.add("pc_main", "cellar", _pub_cellar_root, Vector3(2.9, 0.05, 0.9), Vector3(-1, 0, 0), "main", "p_cellar")
-			_build_stock_spot(_pub_cellar_root, Vector3(0.7, 0.6, -1.85), Vector3(2.4, 1.2, 0.8))
+			_build_stock_spot(_pub_cellar_root, Vector3(1.9, 0.6, -0.75), Vector3(0.9, 1.2, 1.3))
 			_ensure_sentence()
 		"vecerka":
 			_doors.add("s_store", "shop", _vecerka_shop_root, Vector3(1.9, 0.05, -2.6), Vector3(0, 0, 1), "storage", "st_shop")
@@ -1771,11 +1771,7 @@ func _fill_cellar() -> void:
 	var stock: Dictionary = site.get("stock", {})
 	var K := INTERIOR_KIT
 	if _current_profile == "pub":
-		# The full kegs besides the one on the line (taproom.spares), along the rack.
-		var tr = TAPROOM.of(get_tree())
-		var kegs := clampi(int(tr.spares(_upkeep_key)) if tr != null and _upkeep_key != "" else int(ceil(float(stock.get("beer", 0)) / 50.0)), 0, 6)
-		for i in kegs:
-			_keg(stock_root, Vector3(-0.3 + float(i % 6) * 0.4, 0.17, -1.9))
+		# (The full kegs along the rack stand on the keg's station: keg_station.gd.)
 		var crates := clampi(int(ceil(float(int(stock.get("rum", 0)) + int(stock.get("kofola", 0))) / 12.0)), 0, 5)
 		for i in crates:
 			K.cutout(stock_root, "beer_crate_full", Vector2(0.55, 0.42), Vector3(1.9, 0.05 + float(i % 3) * 0.36, -1.0 + float(i / 3) * 0.6), -90.0, true, "Crate")
@@ -1791,7 +1787,6 @@ func _fill_cellar() -> void:
 		var boxes := clampi(int(ceil(float(int(stock.get("cheese", 0)) + int(stock.get("goulash", 0))) / 12.0)), 0, 4)
 		for i in boxes:
 			K.prop(stock_root, "cardboard_boxes", Vector3(-0.8 + float(i % 2) * 0.45, 0.05 + float(i / 2) * 0.4, -2.1), 10.0 * float(i))
-	_off_sprites(stock_root, "pub" if _current_profile == "pub" else "rest", Vector3(-2.3, 0.05, -1.55) if _current_profile != "pub" else Vector3(-1.6, 0.05, -1.4), Vector3(0.45, 0, 0))
 
 
 func _business_site() -> Dictionary:
@@ -1816,61 +1811,6 @@ func _update_menu_board() -> void:
 		var line := _restaurant_dining_root.get_node_or_null("MenuLine_" + str(dish)) as Label3D
 		if line != null:
 			line.modulate = Color(0.92, 0.92, 0.86, 0.95) if bool(can[dish]) else Color(0.62, 0.62, 0.58, 0.8)
-
-
-## What has gone off on the cellar's shelves, there till it is thrown out (the books'
-## THROW OUT): mouldy, sprouting, bloated (assets/textury/camp/off_*.png).
-const OFF_SPRITES := {
-	"rest": {"potatoes": ["off_potatoes", 0.62], "cheese": ["off_cheese", 0.18], "dumplings": ["off_dumplings", 0.18]},
-	"pub": {"beer": ["off_keg", 0.6], "kofola": ["off_milk", 0.26]},
-	"vecerka": {"bread": ["off_bread", 0.22], "roll": ["off_rolls", 0.2], "milk": ["off_milk", 0.26], "salami": ["off_salami", 0.28], "veg": ["off_potatoes", 0.4]},
-	"corn": {"cobs": ["off_cob", 0.2], "butter": ["off_cheese", 0.14]},
-}
-
-
-func _off_sprites(parent: Node3D, kind: String, first: Vector3, step: Vector3) -> void:
-	var site := _business_site()
-	var i := 0
-	for g in (site.get("spoiled", {}) as Dictionary):
-		if int(site["spoiled"][g]) <= 0 or not (OFF_SPRITES.get(kind, {}) as Dictionary).has(g):
-			continue
-		var d: Array = OFF_SPRITES[kind][g]
-		var path := "res://assets/textury/camp/%s.png" % str(d[0])
-		if not ResourceLoader.exists(path):
-			continue
-		var s := Sprite3D.new()
-		s.name = "Off_" + str(g)
-		s.texture = STATION3D.room_tex(path, float(d[1]))
-		s.pixel_size = 1.0 / STATION3D.PX_PER_M
-		s.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
-		s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-		s.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
-		s.shaded = true
-		if s.texture != null:
-			s.offset = Vector2(0, float(s.texture.get_height()) * 0.5)
-		s.position = first + step * float(i)
-		parent.add_child(s)
-		i += 1
-
-
-## A full keg standing in the cellar: the keg's sprite (assets/textury/pub/keg.png, the
-## one on the pallet at the keg's station), at the room's pixel.
-func _keg(parent: Node3D, at: Vector3) -> void:
-	var path := "res://assets/textury/pub/keg.png"
-	if not ResourceLoader.exists(path):
-		return
-	var s := Sprite3D.new()
-	s.name = "Keg"
-	s.texture = STATION3D.room_tex(path, 0.6)
-	s.pixel_size = 0.6 / float(maxi(1, s.texture.get_height())) if s.texture != null else 0.01
-	s.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
-	s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	s.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
-	s.shaded = true
-	if s.texture != null:
-		s.offset = Vector2(0, float(s.texture.get_height()) * 0.5)
-	s.position = at
-	parent.add_child(s)
 
 
 ## A stand-up picture of a thing on the floor (a sack, a crate), facing the room.
@@ -2684,13 +2624,16 @@ func set_upkeep_target(coord: Vector2i, building_type: String) -> void:
 		if not spots.has(str((t as Dictionary).get("spot", ""))):
 			entry = {}
 			break
-	# A breakdown since the last visit adds its job to the list.
-	if entry.is_empty() or (broken and not bool(entry.get("broken", false))):
+	# A breakdown since the last visit adds its job to the list; a half that has got dirty or
+	# been cleaned since is seen as it is now (the plate on the right is, 7. 11.).
+	var halves := [cond_l < MAINT_RULES_S.DIRTY_AT, cond_r < MAINT_RULES_S.DIRTY_AT]
+	if entry.is_empty() or (broken and not bool(entry.get("broken", false))) or entry.get("halves", halves) != halves:
 		var day := int(state.day) if state != null else 1
 		entry = {
 			"tasks": MESS_RULES.block_tasks(block, cond_l, cond_r, broken, absi(("%s|%d" % [_upkeep_key, day]).hash())),
 			"done": (entry.get("done", []) as Array).duplicate() if not entry.is_empty() else [],
 			"broken": broken,
+			"halves": halves,
 		}
 		_upkeep_cache[_upkeep_key] = entry
 	_build_upkeep_spots(block)

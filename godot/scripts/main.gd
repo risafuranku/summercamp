@@ -1375,6 +1375,8 @@ func _process(delta: float) -> void:
 		# Slower while a warden rides the 380 through the real land (town_trip.gd):
 		# its thirteen minutes take the real road's five.
 		time_system.process(delta * clock_scale)
+	elif time_system and Coop.is_client() and _gameplay_started and not _menu_mode:
+		_coop_run_clock(delta)
 	if weather_system and sim and not camp_rule("weather"):
 		if weather_system.current_weather != WEATHER_CLEAR:
 			weather_system.set_weather(WEATHER_CLEAR)
@@ -1863,6 +1865,11 @@ func _trouble_rows(biz) -> Array:
 			rows.append({"id": "d%s" % str(ev.get("id", "")), "kind": str(ev.get("kind", "")), "word": str(ev.get("short", "")), "cat": "day", "left": left})
 	if _night_jobs != null:
 		for job in _night_jobs.open_jobs():
+			if str(job.get("kind", "")) == "toilet":
+				# The bowl by the name its plates have.
+				var jc: Array = job.get("coord", [0, 0])
+				var wcs: Array = _wc_blocks()
+				job["short"] = _wc_word("r", _wc_no(wcs, Vector2i(int(jc[0]), int(jc[1]))))
 			rows.append({"id": "n%s@%d" % [str(job.get("kind", "")), int(job.get("at", 0))], "kind": str(job.get("kind", "")), "word": str(job.get("short", "")), "cat": "night", "left": -1.0})
 	if biz != null and biz.has_method("waiting_sites"):
 		for site in biz.waiting_sites():
@@ -1940,12 +1947,7 @@ func _work_rows() -> Array:
 		var no: int = GuestManager.room_number(str(key))
 		var word := tr(kind.capitalize()) + (" %d" % no if no > 0 else "")
 		rows.append({"id": "w%s" % str(key), "kind": "clean" if st == "dirty" else "bed", "word": word, "cat": "work", "left": -1.0})
-	var wcs: Array = []
-	for coord in state.grid.cells.keys():
-		var cell: Dictionary = state.grid.cells[coord]
-		if str(cell.get("type", "")) == "toilet_block" and cell.get("root_coord", coord) == coord:
-			wcs.append(coord)
-	wcs.sort()
+	var wcs: Array = _wc_blocks()
 	for coord in state.grid.cells.keys():
 		var cell: Dictionary = state.grid.cells[coord]
 		var t := str(cell.get("type", ""))
@@ -1955,18 +1957,50 @@ func _work_rows() -> Array:
 		var broken: bool = state.failures.has(bkey)
 		if t == "toilet_block":
 			# A plate for each toilet, the one that is dirty (the user 5. 11.: "both toilets
-			# dirty", and only the one was).
-			var told := false
+			# dirty", and only the one was); the one a breakdown is in (the right-hand bowl:
+			# mess_rules.BLOCK_BREAKDOWN) has one too, and only the one: the night's own when
+			# it is a night's job (7. 11.: "as if there were two kinds of toilet plate").
+			var paged := _job_on(coord)
 			for side in WORK_RULES.SIDES:
-				if WORK_RULES.side_condition(cell, side) < WORK_BLOCK_DIRTY:
-					rows.append({"id": "w%s%s" % [bkey, side], "kind": "toilet", "word": _wc_word(side, wcs.find(coord) + 1 if wcs.size() > 1 else 0), "cat": "work", "left": -1.0})
-					told = true
-			if told or not broken:
-				continue
+				var blocked: bool = broken and side == "r"
+				if paged and side == "r":
+					continue
+				if blocked or WORK_RULES.side_condition(cell, side) < WORK_BLOCK_DIRTY:
+					rows.append({"id": "w%s%s" % [bkey, side], "kind": "toilet", "word": _wc_word(side, _wc_no(wcs, coord)), "cat": "work", "left": -1.0})
+			continue
 		elif float(cell.get("maintenance", 1.0)) >= WORK_BLOCK_DIRTY and not broken:
 			continue
-		rows.append({"id": "w%s" % bkey, "kind": "toilet" if t == "toilet_block" else "shower", "word": tr("Toilets") if t == "toilet_block" else tr("Showers"), "cat": "work", "left": -1.0})
+		rows.append({"id": "w%s" % bkey, "kind": "shower", "word": tr("Showers"), "cat": "work", "left": -1.0})
 	return rows
+
+
+## Tonight's job open on this block?
+func _job_on(coord: Vector2i) -> bool:
+	if _night_jobs == null:
+		return false
+	for job in _night_jobs.open_jobs():
+		var c = job.get("coord", [])
+		if c is Array and (c as Array).size() == 2 and Vector2i(int(c[0]), int(c[1])) == coord:
+			return true
+	return false
+
+
+## The block's number on its plates, 0 with only the one.
+func _wc_no(wcs: Array, coord: Vector2i) -> int:
+	return wcs.find(coord) + 1 if wcs.size() > 1 else 0
+
+
+func _wc_blocks() -> Array:
+	var state = CoreRoot.get_state() if CoreRoot != null else null
+	var out: Array = []
+	if state == null:
+		return out
+	for coord in state.grid.cells.keys():
+		var cell: Dictionary = state.grid.cells[coord]
+		if str(cell.get("type", "")) == "toilet_block" and cell.get("root_coord", coord) == coord:
+			out.append(coord)
+	out.sort()
+	return out
 
 
 ## A toilet's name on its plate: its side, with `no` the block's number when there are more.
@@ -5217,9 +5251,8 @@ func set_camp_name(n: String, from_peer := false) -> void:
 
 
 func _refresh_camp_sign() -> void:
-	var gate := get_tree().get_first_node_in_group("camp_gate")
-	if gate != null and gate.has_method("set_camp_name"):
-		gate.set_camp_name(camp_name())
+	# (All of them: the menu's board, on its way out, still stood first in the group.)
+	get_tree().call_group("camp_gate", "set_camp_name", camp_name())
 
 
 ## E on the board by the gate: the board up close, its name painted anew.
@@ -5328,6 +5361,10 @@ func _on_coop_world_arrived(snapshot: Dictionary) -> void:
 		Coop.leave()
 		_on_coop_join_failed("The camp came through garbled.")
 		return
+	var bi_set = _interior_manager.get("_building_interior") if _interior_manager != null else null
+	if bi_set != null and "_coop_radio_n" in bi_set:
+		# (Back after a drop with the same number on the host's set: it played its own song.)
+		bi_set.set("_coop_radio_n", -1)
 	_active_save_path = ""
 	_coop_powered = true
 	_coop_till_shown = -1
@@ -5372,6 +5409,9 @@ func _on_coop_peer_joined(id: int) -> void:
 		await get_tree().create_timer(wait).timeout
 		if not Coop.wardens.has(id):
 			return
+		if _interior_manager != null:
+			for key in (_interior_manager.get("tent_doors") as Dictionary).keys():
+				Coop.send_tent_door(str(key), true)
 		_coop_sync_last.clear()
 
 
@@ -5529,8 +5569,6 @@ func _coop_biz_change(kind: String, a: Array) -> void:
 				act.biz_hire(str(a[0]), a[1], int(a[2]))
 		"fire":
 			act.biz_fire(str(a[0]), str(a[1]) if a.size() > 1 else "")
-		"bin":
-			act.biz_bin(str(a[0]))
 		"waste":
 			act.biz_waste(str(a[0]), a[1])
 		"gear":
@@ -5593,10 +5631,15 @@ func coop_camp_pulse() -> Dictionary:
 	if state == null:
 		return {}
 	var maint := {}
+	var halves := {}
 	for coord in state.grid.cells.keys():
 		var cell = state.grid.cells[coord]
 		if cell is Dictionary and (cell as Dictionary).has("maintenance"):
 			maint[coord] = float(cell["maintenance"])
+			# The two halves of a block too: without them the other machine had both as bad as
+			# the worse one (the user 7. 11.: "it tells me to clean both toilets").
+			if (cell as Dictionary).has("maint_l"):
+				halves[coord] = [float(cell["maint_l"]), float(cell.get("maint_r", cell["maint_l"]))]
 	var mail: Dictionary = {}
 	if EmailManager != null:
 		mail = {"inbox": EmailManager.inbox, "sent": EmailManager.sent, "rep": EmailManager.reputation}
@@ -5608,7 +5651,7 @@ func coop_camp_pulse() -> Dictionary:
 	# lost and found.
 	var books := {"rev": state.guest_reviews, "tx": state.guest_transactions, "sat": float(state.satisfaction), "karma": float(state.karma),
 		"hrot": float(state.hrotfaktor), "elec": _billing.export_state(), "baz": _bazaar.export_state(), "gog": _goggle.export_state()}
-	return {"guests": state.guests, "failures": state.failures, "maint": maint, "rooms": state.accommodation_states, "mail": mail, "shed_key": key, "day": day, "nj": nj, "biz": state.biz, "books": books}
+	return {"guests": state.guests, "failures": state.failures, "maint": maint, "maint_lr": halves, "rooms": state.accommodation_states, "mail": mail, "shed_key": key, "day": day, "nj": nj, "biz": state.biz, "books": books}
 
 
 var _coop_day_hash := 0
@@ -5657,9 +5700,16 @@ func coop_apply_pulse(p: Dictionary) -> void:
 	if not rooms.is_empty():
 		state.accommodation_states = rooms.duplicate(true)
 	var maint: Dictionary = p.get("maint", {})
+	var halves: Dictionary = p.get("maint_lr", {})
 	for coord in maint.keys():
 		if state.grid.cells.has(coord) and state.grid.cells[coord] is Dictionary:
 			state.grid.cells[coord]["maintenance"] = float(maint[coord])
+			if halves.has(coord):
+				state.grid.cells[coord]["maint_l"] = float(halves[coord][0])
+				state.grid.cells[coord]["maint_r"] = float(halves[coord][1])
+			else:
+				(state.grid.cells[coord] as Dictionary).erase("maint_l")
+				(state.grid.cells[coord] as Dictionary).erase("maint_r")
 	if GuestManager != null and GuestManager.has_method("_emit_guest_overview_state"):
 		GuestManager._emit_guest_overview_state(true)
 	# The businesses' books are the host's (what is on the shelves, the orders, the hands);
@@ -5800,6 +5850,10 @@ func coop_sync(kind: String, data: Array) -> void:
 		"radio":
 			if Coop.is_client() and bi != null and bi.has_method("coop_take_radio"):
 				bi.coop_take_radio(data[0])
+			return
+		"radio_ev":
+			if Coop.is_client() and bi != null and bi.has_method("coop_take_radio_event") and data.size() >= 2:
+				bi.coop_take_radio_event(int(data[0]), int(data[1]))
 			return
 		"music":
 			if _music_director != null:
@@ -5945,6 +5999,10 @@ func coop_apply_fact(kind: String, data: Array) -> void:
 		return
 	if kind == "room":
 		coop_room_state(str(data[0]), data[1])
+		return
+	if kind == "biz_say":
+		if _hud_manager != null and data.size() >= 3:
+			_hud_manager.push_status(str(data[0]), int(data[1]), str(data[2]))
 		return
 	if kind == "books":
 		_coop_show_books(data[0])
@@ -6223,7 +6281,7 @@ func _coop_client_room_target() -> Node3D:
 	if st == null:
 		return null
 	var t := str(st.get_meta("building_type", ""))
-	if t.begins_with("tent_") or t.begins_with("cabin") or t.begins_with("caravan_") or t == "main_building" or t == "corn_stand":
+	if t.begins_with("tent_") or t.begins_with("cabin") or t.begins_with("caravan_") or t == "main_building" or t == "corn_stand" or t == "camp_sign":
 		return st
 	# Out of the camp (the barrier, the bus, Lesna): each machine's own (town_trip.gd),
 	# the barrier sent over.
@@ -6374,6 +6432,8 @@ func coop_clock() -> Dictionary:
 	var state = CoreRoot.get_state()
 	var night_passing: bool = camp_office != null and is_instance_valid(camp_office) and camp_office.is_fast_forwarding()
 	var c := {"d": _day_index, "h": _time_of_day_hours, "w": _weather_state, "pw": _is_grid_powered(), "m": int(state.money) if state != null else 0, "sl": night_passing, "mq": _coop_till_acked}
+	if clock_scale != 1.0:
+		c["cs"] = clock_scale
 	var build: float = weather_system.storm_build() if weather_system != null else 0.0
 	if build > 0.0:
 		c["sb"] = snappedf(build, 0.01)
@@ -6394,7 +6454,15 @@ func coop_apply_clock(c: Dictionary) -> void:
 		var acked = c.get("mq", {})
 		_coop_follow_till(int(c.get("m", state.money)), int((acked as Dictionary).get(multiplayer.get_unique_id(), 0)) if acked is Dictionary else 0)
 	if time_system != null:
-		time_system.set_time_hours(float(c.get("h", _time_of_day_hours)))
+		_coop_clock_scale = float(c.get("cs", 1.0))
+		var told := float(c.get("h", _time_of_day_hours))
+		var off: float = told - float(time_system.time_of_day_hours)
+		if absf(off) > COOP_CLOCK_SNAP:
+			# (Over midnight too: with the new day from the same word.)
+			time_system.set_time_hours(told)
+			_coop_clock_off = 0.0
+		else:
+			_coop_clock_off = off
 	if _coop_night != null and c.get("sn") is Dictionary and (c["sn"] as Dictionary).has(multiplayer.get_unique_id()):
 		_coop_night.take_own_sanity(float(c["sn"][multiplayer.get_unique_id()]))
 	var w := int(c.get("w", _weather_state))
@@ -6407,6 +6475,25 @@ func coop_apply_clock(c: Dictionary) -> void:
 		_note_grid_power(pw)
 		_apply_time_from_clock(true, false)
 	_sync_runtime_state_from_systems()
+
+
+## The other warden's clock runs by itself between the host's words (four a second, the first
+## to go when the line is busy): what is worked out from it every frame moved in steps (the
+## user 7. 11.: "the bus ride goes at two frames a second for the guest; the host's is fine":
+## the road, the bus and the guests on it are all the clock's). A word only brings it back in
+## line, softly; far out, at once.
+const COOP_CLOCK_SNAP := 0.05
+const COOP_CLOCK_EASE := 0.02
+var _coop_clock_off := 0.0
+var _coop_clock_scale := 1.0
+
+
+func _coop_run_clock(delta: float) -> void:
+	var step := maxf(delta, 0.0) * _coop_clock_scale * float(time_system.game_hours_per_real_second)
+	var fix := clampf(_coop_clock_off, -COOP_CLOCK_EASE * delta, COOP_CLOCK_EASE * delta)
+	_coop_clock_off -= fix
+	# Midnight is the host's word: the day and the hour turn over together.
+	time_system.set_time_hours(minf(float(time_system.time_of_day_hours) + step + fix, 23.9999))
 
 
 ## From the loading card into the game through the doors' own dissolve: the first frames of
@@ -6785,6 +6872,11 @@ func _apply_save_snapshot(snapshot: Dictionary, preview_only: bool) -> bool:
 	# The camp's own seed: the same lake, fences, corn and horizon as when it was saved
 	# (and as on the host's machine in co-op). Old saves have none: a new one is drawn.
 	world_generator.world_seed = int(grid_data.get("seed", 0))
+	# The host's camp's name before the board by the gate is built with it: it was read after,
+	# the board had the name of this machine's own last camp and kept it (the user 7. 11.).
+	var host_meta = snapshot.get("meta", {})
+	if not preview_only and host_meta is Dictionary and Coop.is_client():
+		_coop_camp_name = str((host_meta as Dictionary).get("camp_name", ""))
 	if world_generator.has_method("generate_base_world"):
 		world_generator.generate_base_world(false, false)
 	else:
@@ -6890,10 +6982,6 @@ func _apply_save_snapshot(snapshot: Dictionary, preview_only: bool) -> bool:
 		else:
 			_pending_loaded_crt_state.clear()
 
-	# The host's camp's name for the board by the gate (co-op).
-	var meta_any = snapshot.get("meta", {})
-	if not preview_only and meta_any is Dictionary and Coop.is_client():
-		_coop_camp_name = str((meta_any as Dictionary).get("camp_name", ""))
 	var state_data_any = snapshot.get("state", {})
 	if state_data_any is Dictionary:
 		var state_data := state_data_any as Dictionary

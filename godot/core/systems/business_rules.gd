@@ -38,9 +38,9 @@ const KINDS := {
 		"name": "Pub", "wage": 30, "hand": ["Lojza", "Franta", "Mirek"],
 		"app": "pub_app", "app_name": "Hostinsky 98", "licence": 120,
 		"goods": {
-			"beer": {"label": "Beer", "unit": "pints", "price": 4, "pack": 50, "pack_cost": 60, "cap": 150, "start": 40, "life": 6},
-			"rum": {"label": "Rum", "unit": "shots", "price": 3, "pack": 20, "pack_cost": 26, "cap": 60, "start": 10, "life": 0},
-			"kofola": {"label": "Kofola", "unit": "glasses", "price": 2, "pack": 24, "pack_cost": 18, "cap": 72, "start": 12, "life": 8},
+			"beer": {"label": "Beer", "unit": "pints", "price": 4, "pack": 50, "pack_cost": 60, "cap": 150, "start": 40},
+			"rum": {"label": "Rum", "unit": "shots", "price": 3, "pack": 20, "pack_cost": 26, "cap": 60, "start": 10},
+			"kofola": {"label": "Kofola", "unit": "glasses", "price": 2, "pack": 24, "pack_cost": 18, "cap": 72, "start": 12},
 		},
 		# What a visit takes, by the kind of guest (shares of a visit's appetite).
 		"wants": {"beer": 0.7, "rum": 0.2, "kofola": 0.1},
@@ -49,21 +49,21 @@ const KINDS := {
 		"name": "Bistro", "wage": 35, "hand": ["Mrs Dvorakova", "Pepa", "Hanka"],
 		"app": "bistro_app", "app_name": "Kuchar 98", "licence": 140,
 		"goods": {
-			"goulash": {"label": "Goulash", "unit": "portions", "price": 7, "pack": 20, "pack_cost": 70, "cap": 60, "start": 12, "life": 0},
-			"cheese": {"label": "Cheese", "unit": "slices", "price": 8, "pack": 20, "pack_cost": 64, "cap": 60, "start": 10, "life": 6},
-			"potatoes": {"label": "Potatoes", "unit": "portions", "price": 3, "pack": 30, "pack_cost": 30, "cap": 90, "start": 20, "life": 5},
-			"dumplings": {"label": "Dumplings", "unit": "plates", "price": 0, "pack": 30, "pack_cost": 24, "cap": 90, "start": 15, "life": 3},
+			"goulash": {"label": "Goulash", "unit": "portions", "price": 7, "pack": 20, "pack_cost": 70, "cap": 60, "start": 12},
+			"cheese": {"label": "Cheese", "unit": "slices", "price": 8, "pack": 20, "pack_cost": 64, "cap": 60, "start": 10},
+			"potatoes": {"label": "Potatoes", "unit": "portions", "price": 3, "pack": 30, "pack_cost": 30, "cap": 90, "start": 20},
+			"dumplings": {"label": "Dumplings", "unit": "plates", "price": 0, "pack": 30, "pack_cost": 24, "cap": 90, "start": 15},
 			# The grill, the bufet (bistro_rules: the sausage, the soup of the day, the big
 			# drinks in glass bottles).
-			"sausage": {"label": "Sausages", "unit": "sausages", "price": 6, "pack": 20, "pack_cost": 46, "cap": 60, "start": 10, "life": 5},
-			"bread": {"label": "Rye bread", "unit": "slices", "price": 0, "pack": 40, "pack_cost": 10, "cap": 80, "start": 20, "life": 2},
-			"soup": {"label": "Soup tins", "unit": "bowls", "price": 3, "pack": 30, "pack_cost": 24, "cap": 90, "start": 20, "life": 0},
-			"kofola": {"label": "Kofola", "unit": "bottles", "price": 3, "pack": 20, "pack_cost": 20, "cap": 60, "start": 20, "life": 0},
-			"malinovka": {"label": "Malinovka", "unit": "bottles", "price": 3, "pack": 20, "pack_cost": 18, "cap": 60, "start": 20, "life": 0},
+			"sausage": {"label": "Sausages", "unit": "sausages", "price": 6, "pack": 20, "pack_cost": 46, "cap": 60, "start": 10},
+			"bread": {"label": "Rye bread", "unit": "slices", "price": 0, "pack": 40, "pack_cost": 10, "cap": 80, "start": 20},
+			"soup": {"label": "Soup tins", "unit": "bowls", "price": 3, "pack": 30, "pack_cost": 24, "cap": 90, "start": 20},
+			"kofola": {"label": "Kofola", "unit": "bottles", "price": 3, "pack": 20, "pack_cost": 20, "cap": 60, "start": 20},
+			"malinovka": {"label": "Malinovka", "unit": "bottles", "price": 3, "pack": 20, "pack_cost": 18, "cap": 60, "start": 20},
 			# Bought ready, half as dear again (the brief of 21. 10.: the cellar is optional):
 			# they go onto the cellar's trays by themselves (kitchen._prepared).
-			"chips_cut": {"label": "Cut chips (ready)", "unit": "portions", "price": 0, "pack": 30, "pack_cost": 45, "cap": 60, "start": 0, "life": 3},
-			"cheese_breaded": {"label": "Breaded cheese (ready)", "unit": "slices", "price": 0, "pack": 20, "pack_cost": 96, "cap": 40, "start": 0, "life": 4},
+			"chips_cut": {"label": "Cut chips (ready)", "unit": "portions", "price": 0, "pack": 30, "pack_cost": 45, "cap": 60, "start": 0},
+			"cheese_breaded": {"label": "Breaded cheese (ready)", "unit": "slices", "price": 0, "pack": 20, "pack_cost": 96, "cap": 40, "start": 0},
 		},
 		"wants": {"goulash": 0.3, "cheese": 0.2, "potatoes": 0.15, "sausage": 0.15, "soup": 0.1, "kofola": 0.1},
 	},
@@ -74,25 +74,25 @@ const KINDS := {
 		# need, dear to build, stock and staff; it pays back in a fortnight of a busy camp
 		# (jednota_rules.day_model, tools/jednota_check).
 		"goods": {
-			"bread": {"label": "Bread", "unit": "loaves", "price": 5, "pack": 20, "pack_cost": 46, "cap": 40, "start": 10, "life": 2},
-			"roll": {"label": "Rolls", "unit": "rolls", "price": 2, "pack": 60, "pack_cost": 38, "cap": 120, "start": 40, "life": 2},
-			"salami": {"label": "Salami", "unit": "sticks", "price": 8, "pack": 12, "pack_cost": 40, "cap": 36, "start": 6, "life": 8},
-			"milk": {"label": "Milk", "unit": "bottles", "price": 4, "pack": 24, "pack_cost": 34, "cap": 48, "start": 12, "life": 3},
-			"pickles": {"label": "Pickles", "unit": "jars", "price": 4, "pack": 12, "pack_cost": 26, "cap": 36, "start": 6, "life": 0},
-			"beer": {"label": "Lesnak", "unit": "bottles", "price": 4, "pack": 20, "pack_cost": 28, "cap": 60, "start": 20, "life": 0},
-			"icecream": {"label": "Ice cream", "unit": "bars", "price": 4, "pack": 24, "pack_cost": 30, "cap": 48, "start": 12, "life": 0},
-			"sweets": {"label": "Sweets", "unit": "bars", "price": 3, "pack": 40, "pack_cost": 26, "cap": 80, "start": 20, "life": 0},
-			"veg": {"label": "Fruit and veg", "unit": "heads", "price": 4, "pack": 20, "pack_cost": 24, "cap": 40, "start": 10, "life": 4},
-			"soap": {"label": "Soap and paper", "unit": "packs", "price": 5, "pack": 12, "pack_cost": 22, "cap": 24, "start": 6, "life": 0},
+			"bread": {"label": "Bread", "unit": "loaves", "price": 5, "pack": 20, "pack_cost": 46, "cap": 40, "start": 10},
+			"roll": {"label": "Rolls", "unit": "rolls", "price": 2, "pack": 60, "pack_cost": 38, "cap": 120, "start": 40},
+			"salami": {"label": "Salami", "unit": "sticks", "price": 8, "pack": 12, "pack_cost": 40, "cap": 36, "start": 6},
+			"milk": {"label": "Milk", "unit": "bottles", "price": 4, "pack": 24, "pack_cost": 34, "cap": 48, "start": 12},
+			"pickles": {"label": "Pickles", "unit": "jars", "price": 4, "pack": 12, "pack_cost": 26, "cap": 36, "start": 6},
+			"beer": {"label": "Lesnak", "unit": "bottles", "price": 4, "pack": 20, "pack_cost": 28, "cap": 60, "start": 20},
+			"icecream": {"label": "Ice cream", "unit": "bars", "price": 4, "pack": 24, "pack_cost": 30, "cap": 48, "start": 12},
+			"sweets": {"label": "Sweets", "unit": "bars", "price": 3, "pack": 40, "pack_cost": 26, "cap": 80, "start": 20},
+			"veg": {"label": "Fruit and veg", "unit": "heads", "price": 4, "pack": 20, "pack_cost": 24, "cap": 40, "start": 10},
+			"soap": {"label": "Soap and paper", "unit": "packs", "price": 5, "pack": 12, "pack_cost": 22, "cap": 24, "start": 6},
 			# The brief of 20. 10.: the fun (cards, magazines), the rum, the cigarettes behind
 			# the till; the deli counter's salami, cheese and bread by the kilo.
-			"cards": {"label": "Playing cards", "unit": "packs", "price": 4, "pack": 10, "pack_cost": 18, "cap": 20, "start": 6, "life": 0},
-			"magazine": {"label": "Magazines", "unit": "copies", "price": 2, "pack": 20, "pack_cost": 16, "cap": 30, "start": 10, "life": 7},
-			"rum": {"label": "Tuzemak", "unit": "bottles", "price": 9, "pack": 12, "pack_cost": 54, "cap": 24, "start": 6, "life": 0},
-			"cigs": {"label": "Cigarettes", "unit": "packs", "price": 3, "pack": 40, "pack_cost": 70, "cap": 80, "start": 20, "life": 0},
-			"deli_salami": {"label": "Salami (deli)", "unit": "kg", "price": 30, "pack": 4, "pack_cost": 48, "cap": 12, "start": 3, "life": 8},
-			"deli_cheese": {"label": "Cheese (deli)", "unit": "kg", "price": 20, "pack": 4, "pack_cost": 34, "cap": 12, "start": 3, "life": 10},
-			"deli_bread": {"label": "Bread (deli)", "unit": "kg", "price": 10, "pack": 6, "pack_cost": 18, "cap": 12, "start": 4, "life": 2},
+			"cards": {"label": "Playing cards", "unit": "packs", "price": 4, "pack": 10, "pack_cost": 18, "cap": 20, "start": 6},
+			"magazine": {"label": "Magazines", "unit": "copies", "price": 2, "pack": 20, "pack_cost": 16, "cap": 30, "start": 10},
+			"rum": {"label": "Tuzemak", "unit": "bottles", "price": 9, "pack": 12, "pack_cost": 54, "cap": 24, "start": 6},
+			"cigs": {"label": "Cigarettes", "unit": "packs", "price": 3, "pack": 40, "pack_cost": 70, "cap": 80, "start": 20},
+			"deli_salami": {"label": "Salami (deli)", "unit": "kg", "price": 30, "pack": 4, "pack_cost": 48, "cap": 12, "start": 3},
+			"deli_cheese": {"label": "Cheese (deli)", "unit": "kg", "price": 20, "pack": 4, "pack_cost": 34, "cap": 12, "start": 3},
+			"deli_bread": {"label": "Bread (deli)", "unit": "kg", "price": 10, "pack": 6, "pack_cost": 18, "cap": 12, "start": 4},
 		},
 		"wants": {"bread": 0.08, "roll": 0.14, "salami": 0.06, "milk": 0.1, "pickles": 0.04, "beer": 0.12, "icecream": 0.1, "sweets": 0.08, "veg": 0.06, "soap": 0.05, "cards": 0.03, "magazine": 0.04, "rum": 0.04, "cigs": 0.06},
 	},
@@ -100,12 +100,12 @@ const KINDS := {
 		"name": "Corn stand", "wage": 15, "hand": ["Pepicek", "Klara", "the Novak boy"],
 		"app": "corn_app", "app_name": "Klasek 98", "licence": 60,
 		"goods": {
-			"cobs": {"label": "Corn cobs", "unit": "cobs", "price": 2, "pack": 40, "pack_cost": 32, "cap": 80, "start": 20, "life": 4},
-			"butter": {"label": "Butter", "unit": "knobs", "price": 0, "pack": 60, "pack_cost": 15, "cap": 120, "start": 30, "life": 6},
+			"cobs": {"label": "Corn cobs", "unit": "cobs", "price": 2, "pack": 40, "pack_cost": 32, "cap": 80, "start": 20},
+			"butter": {"label": "Butter", "unit": "knobs", "price": 0, "pack": 60, "pack_cost": 15, "cap": 120, "start": 30},
 			# The small drinks (corn_rules.DRINKS): the barrel of iced tea in cups, the
 			# lemonade in bags off the big bottles.
-			"tea": {"label": "Iced tea", "unit": "cups", "price": 1, "pack": 60, "pack_cost": 12, "cap": 120, "start": 30, "life": 3},
-			"limo": {"label": "Lemonade", "unit": "bags", "price": 1, "pack": 36, "pack_cost": 9, "cap": 72, "start": 18, "life": 0},
+			"tea": {"label": "Iced tea", "unit": "cups", "price": 1, "pack": 60, "pack_cost": 12, "cap": 120, "start": 30},
+			"limo": {"label": "Lemonade", "unit": "bags", "price": 1, "pack": 36, "pack_cost": 9, "cap": 72, "start": 18},
 		},
 		"wants": {"cobs": 0.7, "tea": 0.15, "limo": 0.15},
 	},
@@ -116,14 +116,14 @@ const KINDS := {
 		"name": "Bowling", "wage": 32, "hand": ["the Novak boy", "Franta", "Ivan"],
 		"app": "bowl_app", "app_name": "Bowling 98", "licence": 160,
 		"goods": {
-			"sausage": {"label": "Sausages", "unit": "sausages", "price": 5, "pack": 20, "pack_cost": 40, "cap": 60, "start": 20, "life": 5},
-			"roll": {"label": "Rolls", "unit": "rolls", "price": 0, "pack": 40, "pack_cost": 14, "cap": 80, "start": 30, "life": 2},
-			"pickled": {"label": "Utopenci", "unit": "jars", "price": 4, "pack": 12, "pack_cost": 22, "cap": 36, "start": 8, "life": 0},
-			"crisps": {"label": "Crisps", "unit": "bags", "price": 2, "pack": 30, "pack_cost": 24, "cap": 60, "start": 20, "life": 0},
-			"tatranka": {"label": "Tatranka", "unit": "bars", "price": 1, "pack": 40, "pack_cost": 16, "cap": 80, "start": 30, "life": 0},
-			"kofola": {"label": "Kofola", "unit": "bottles", "price": 2, "pack": 20, "pack_cost": 18, "cap": 60, "start": 20, "life": 0},
-			"beer": {"label": "Beer", "unit": "pints", "price": 3, "pack": 50, "pack_cost": 60, "cap": 100, "start": 40, "life": 6},
-			"spray": {"label": "Shoe spray", "unit": "sprays", "price": 0, "pack": 40, "pack_cost": 12, "cap": 80, "start": 30, "life": 0},
+			"sausage": {"label": "Sausages", "unit": "sausages", "price": 5, "pack": 20, "pack_cost": 40, "cap": 60, "start": 20},
+			"roll": {"label": "Rolls", "unit": "rolls", "price": 0, "pack": 40, "pack_cost": 14, "cap": 80, "start": 30},
+			"pickled": {"label": "Utopenci", "unit": "jars", "price": 4, "pack": 12, "pack_cost": 22, "cap": 36, "start": 8},
+			"crisps": {"label": "Crisps", "unit": "bags", "price": 2, "pack": 30, "pack_cost": 24, "cap": 60, "start": 20},
+			"tatranka": {"label": "Tatranka", "unit": "bars", "price": 1, "pack": 40, "pack_cost": 16, "cap": 80, "start": 30},
+			"kofola": {"label": "Kofola", "unit": "bottles", "price": 2, "pack": 20, "pack_cost": 18, "cap": 60, "start": 20},
+			"beer": {"label": "Beer", "unit": "pints", "price": 3, "pack": 50, "pack_cost": 60, "cap": 100, "start": 40},
+			"spray": {"label": "Shoe spray", "unit": "sprays", "price": 0, "pack": 40, "pack_cost": 12, "cap": 80, "start": 30},
 		},
 		"wants": {"beer": 0.35, "kofola": 0.2, "sausage": 0.2, "crisps": 0.15, "pickled": 0.05, "tatranka": 0.05},
 	},
@@ -254,13 +254,6 @@ static func is_low(kind: String, good: String, n: int) -> bool:
 	return n < int((goods(kind).get(good, {}) as Dictionary).get("pack", 1)) / 2
 
 
-# ── going off ────────────────────────────────────────────────────────────────
-
-## Days `good` keeps on the shelf (0: it does not go off).
-static func life(kind: String, good: String) -> int:
-	return int((goods(kind).get(good, {}) as Dictionary).get("life", 0))
-
-
 ## The lots of a good, oldest first, with `n` taken off the oldest: returns the lots left.
 static func lots_take(lots: Array, n: int) -> Array:
 	var out: Array = []
@@ -274,30 +267,6 @@ static func lots_take(lots: Array, n: int) -> Array:
 		if have > 0:
 			out.append([have, int(lot[1])])
 	return out
-
-
-## The lots of a good on `day`: [kept lots, units gone off]. A lot goes off once it has
-## been on the shelf longer than the good's life.
-static func lots_spoil(kind: String, good: String, lots: Array, day: int) -> Array:
-	var days := life(kind, good)
-	if days <= 0:
-		return [lots, 0]
-	var kept: Array = []
-	var off := 0
-	for lot in lots:
-		if day - int(lot[1]) >= days:
-			off += int(lot[0])
-		else:
-			kept.append(lot)
-	return [kept, off]
-
-
-## Days before the oldest lot of a good goes off (-1 never; 0 today).
-static func days_left(kind: String, good: String, lots: Array, day: int) -> int:
-	var days := life(kind, good)
-	if days <= 0 or lots.is_empty():
-		return -1
-	return maxi(0, days - (day - int(lots[0][1])))
 
 
 ## The dishes and drinks a place can make now from its shelves (the menu board crosses
@@ -348,7 +317,6 @@ const GEAR := {
 	"pub": {
 		"tap2": {"label": "Second tap", "price": 260, "what": "A second spout on the line: the beer comes faster, a hand draws two at once."},
 		"glasswasher": {"label": "Glass washer", "price": 220, "what": "The mugs come out clean by themselves."},
-		"cooler": {"label": "Keg cooler", "price": 200, "what": "A tapped keg keeps twice as long."},
 		"coupler": {"label": "Quick coupler", "price": 90, "what": "A keg changed in a moment."},
 	},
 	"corn": {
@@ -360,7 +328,6 @@ const GEAR := {
 	"vecerka": {
 		"till2": {"label": "Second till", "price": 420, "what": "Two queues at once (it needs a second hand)."},
 		"pallet": {"label": "Pallet truck", "price": 260, "what": "A delivery unloaded in half the time."},
-		"fridge": {"label": "Chiller cabinet", "price": 380, "what": "Milk and salami keep twice as long."},
 		"racks": {"label": "More shelves", "price": 300, "what": "A third more on every shelf."},
 	},
 	"bowl": {
@@ -391,16 +358,6 @@ static func cap_of(kind: String, good: String, site: Dictionary) -> int:
 	if kind == "vecerka" and has_gear(site, "racks"):
 		cap = int(cap * 1.34)
 	return cap
-
-
-## The shelf life with the gear in (the chiller, the keg cooler).
-static func life_of(kind: String, good: String, site: Dictionary) -> int:
-	var days := life(kind, good)
-	if days > 0 and kind == "vecerka" and good in ["milk", "salami"] and has_gear(site, "fridge"):
-		days *= 2
-	if days > 0 and kind == "pub" and good == "beer" and has_gear(site, "cooler"):
-		days *= 2
-	return days
 
 
 # ── the hands ────────────────────────────────────────────────────────────────
@@ -631,7 +588,7 @@ static func day_grade(z: Dictionary) -> Dictionary:
 		var worst: Dictionary = z.get("worst", {})
 		advice = "The orders went out poor. Mind the %s." % str(worst.get("what", "orders")).to_lower() if not worst.is_empty() else "The orders went out poor."
 	elif int(z.get("waste", 0)) > 6:
-		advice = "Too much went off. Order less, more often."
+		advice = "Too much ended up in the bin."
 	elif profit < 0:
 		advice = "The wages ate the takings. Fewer hands, or more guests."
 	elif grade == "A":

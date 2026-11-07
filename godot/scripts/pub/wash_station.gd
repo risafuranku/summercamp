@@ -13,7 +13,7 @@ extends "res://scripts/pub/pub_station.gd"
 ## guests' side, the sink on the barman's, the tap's board of clean mugs at its right.
 const PILE := Rect2(196, 24, 168, 90)
 const PILE_SPOTS := [Vector2(226, 52), Vector2(278, 52), Vector2(330, 52), Vector2(240, 96), Vector2(292, 96), Vector2(344, 96)]
-const WATER_AT := Vector2(280, 228)
+const WATER_AT := Vector2(280, 262)
 const WATER := Rect2(200, 168, 160, 112)
 const RACK := Rect2(356, 146, 168, 92)
 const K_SURF := preload("res://scripts/interior_kit.gd")
@@ -25,8 +25,10 @@ const DRAG_FAR := 8.0
 ## water (pub/glass_brush, Grok); a dirty mug goes onto it upside down and is scrubbed up and
 ## down along it. Its height; how high its mug's rim sits (over the bristles) and how far a
 ## stroke pushes it down.
-const BRUSH_M := 0.34
-const ON_BRUSH := 0.13
+## (Smaller and nearer you: it stood right between your eye and the dirty mugs, the user
+## 7. 11.: "the dirty mugs can hardly be seen through the brush".)
+const BRUSH_M := 0.26
+const ON_BRUSH := 0.09
 const STROKE_DOWN := 0.035
 var _brush: Sprite3D
 
@@ -53,6 +55,9 @@ func _build() -> void:
 		_pile.append(psprite("mug_dirty", MUG_M))
 	_mug = psprite("mug_clean", MUG_M)
 	_mug_dirt = psprite("mug_dirty", MUG_M)
+	# (Its dirt comes off in steps: a hard edge had it all there, or all gone.)
+	_mug_dirt.alpha_cut = SpriteBase3D.ALPHA_CUT_DISABLED
+	_mug_dirt.render_priority = 2
 	for i in 8:
 		var b := sprite("res://assets/textury/bistro/bubbles.png", 0.05, true)
 		b.visible = false
@@ -95,6 +100,12 @@ func _show() -> void:
 		s.visible = i < dirty
 		put(s, PILE_SPOTS[i], 0.0)
 	var in_hand := _hand_what != ""
+	# In the hand it is over everything, the brush too.
+	_mug.alpha_cut = SpriteBase3D.ALPHA_CUT_DISABLED if in_hand else SpriteBase3D.ALPHA_CUT_DISCARD
+	_mug.no_depth_test = in_hand
+	_mug.render_priority = 5 if in_hand else 0
+	_mug_dirt.no_depth_test = in_hand
+	_mug_dirt.render_priority = 6 if in_hand else 2
 	_mug.visible = _in_water or in_hand
 	_mug_dirt.visible = (_in_water and _dirt > 0.0) or _hand_what == "pile"
 	if in_hand:

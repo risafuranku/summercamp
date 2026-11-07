@@ -44,6 +44,8 @@ var _t := 0.0
 var _steam_at := Vector3.ZERO
 ## id -> the station (station3d), made once the stand's key is known.
 var stations: Dictionary = {}
+const BULB_ON := 17.25
+const BULB_OFF := 7.0
 ## A bare bulb on its cord under the awning, lit from dusk (camp/bulb_cord.png).
 var _bulb: OmniLight3D
 var _bulb_spr: Node3D
@@ -310,9 +312,11 @@ func _process(delta: float) -> void:
 	_acc = 0.0
 	_moods()
 	if _bulb != null and int(_t * FPS) % 12 == 0:
-		# From dusk to the morning the bulb is on.
-		var h := int(GuestManager._last_known_hour) if GuestManager != null else 12
-		_bulb.visible = h >= 19 or h < 6
+		# On well before the dusk by the sky's own clock (the evenings draw in): at seven you could
+		# no longer see what you were serving.
+		var main := get_tree().current_scene
+		var h: float = main.call("season_hour") if main != null and main.has_method("season_hour") else 12.0
+		_bulb.visible = h >= BULB_ON or h < BULB_OFF
 	for p in _puffs:
 		var age := fmod(_t * 0.35 + float(p["phase"]), 1.0)
 		var s: Sprite3D = p["sprite"]

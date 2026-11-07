@@ -25,6 +25,7 @@ const SFX := "res://assets/sfx/backroom/"
 const SFX_STEPS := "res://assets/sfx/rooms/steps_wood.mp3"
 ## Walking up to the bed (metres a second), the head's bob in step.
 const WALK_SPEED := 1.1
+const TOSS_SEC := 1.3
 const VFD_LIT := Color(0.56, 1.0, 0.86)
 const VFD_GHOST := Color(0.16, 0.3, 0.26, 0.35)
 
@@ -47,6 +48,12 @@ var wake_text: Callable
 var may_sleep: Callable
 var night_begun: Callable
 var woke_early: Callable
+## Awake and kept awake: the next thing on your mind ("" for nothing) and how it is said. You turn
+## over with it: the bed will not have you, the game has not stopped.
+var awake_line: Callable
+var say: Callable
+var _toss_wait := 3.0
+var _toss := 0.0
 
 var _phase := IDLE
 var _t := 0.0
@@ -228,6 +235,7 @@ func _process(delta: float) -> void:
 		WATCH:
 			# Breathing: the view settles and drifts a hair.
 			camera.rotation.x = lie_rot.x + sin(_t * 1.3) * 0.006
+			_tick_toss(delta)
 			if _t >= 2.8 and (not may_sleep.is_valid() or bool(may_sleep.call())):
 				_enter(LIDS)
 		LIDS:
@@ -293,6 +301,25 @@ static func _keyframes(keys: Array, t: float) -> float:
 			var k := clampf((t - float(a[0])) / maxf(0.001, float(b[0]) - float(a[0])), 0.0, 1.0)
 			return lerpf(float(a[1]), float(b[1]), k * k * (3.0 - 2.0 * k))
 	return float(keys.back()[1])
+
+
+## Turning over: a creak of the bed, the head rolled and back.
+func _tick_toss(delta: float) -> void:
+	_toss = maxf(0.0, _toss - delta / TOSS_SEC)
+	var k := sin(_toss * PI)
+	camera.rotation.y = lie_rot.y + k * 0.1
+	camera.rotation.z = lie_rot.z + k * 0.07
+	_toss_wait -= delta
+	if _toss_wait > 0.0 or not awake_line.is_valid():
+		return
+	_toss_wait = randf_range(7.0, 11.0)
+	var line := str(awake_line.call())
+	if line == "":
+		return
+	_toss = 1.0
+	_sfx("bed_creak.mp3", -11.0)
+	if say.is_valid():
+		say.call(line)
 
 
 func _input(event: InputEvent) -> void:

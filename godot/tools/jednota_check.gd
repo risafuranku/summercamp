@@ -16,9 +16,9 @@ extends Node
 ## - the till: the right change (Papa's score, the tip, three stars, the money, the
 ##   goods off the books), short and they stay, too much and it costs;
 ## - the storeroom and the rack: a box made up off the stock onto the trolley, onto its
-##   place as far as there is room; what went off is off the rack too;
+##   place as far as there is room;
 ## - the hands: the till's serves the first in the queue (not while a warden is at the
-##   till), the shelves' fill the emptiest place, the storeroom's throws out what went off
+##   till), the shelves' fill the emptiest place, the storeroom's makes up a box
 ##   and makes up boxes;
 ## - the stations as a player works them (their debug hooks): a basket rung up and the
 ##   right change given at the till, a box shelved, a carton cut, priced and onto the
@@ -180,9 +180,8 @@ func _ready() -> void:
 		var room: int = cap - int(j.shelf(KEY)[g0])
 		var moved: int = j.shelve(KEY, g0)
 		_expect(moved == mini(JRULES.BOX, room) and int(j.shelf(KEY)[g0]) <= cap, "onto its place as far as there is room (%d)" % moved)
-	# What went off is off the rack.
+	# What the books have less of is off the rack.
 	site["stock"]["bread"] = maxi(0, int(site["stock"]["bread"]) - 4)
-	site["spoiled"]["bread"] = 4
 	j._fit_stock(KEY)
 	_expect(int(j.shelf(KEY)["bread"]) + int(j.trolley(KEY)["bread"]) + j.in_baskets(KEY, "bread") <= int(site["stock"]["bread"]), "what went off is off the rack")
 
@@ -206,10 +205,7 @@ func _ready() -> void:
 	var by0 := int(site["shift"]["by_hands"])
 	j._crew_work(KEY, [crew[0]])
 	_expect(j.tickets(KEY).size() == q4 - 1 and int(site["shift"]["by_hands"]) == by0 + 1, "the till's hand serves the first")
-	# The storeroom's: what went off thrown out, then a box made up.
-	j._crew_t.clear()
-	j._crew_work(KEY, [crew[2]])
-	_expect((site["spoiled"] as Dictionary).is_empty(), "the storeroom's hand throws out what went off")
+	# The storeroom's: a box made up.
 	var tr0 := 0
 	for g in all:
 		tr0 += int(j.trolley(KEY)[g])

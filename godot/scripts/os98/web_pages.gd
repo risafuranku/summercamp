@@ -376,7 +376,7 @@ A licence is for one operator. You pay once, on this page; the program downloads
 {{softsklad}}
 [b]HOW IT WORKS[/b]
  * You see what is on the shelves of every bar, kitchen and counter you run.
- * You order. Our wholesaler's van brings it the next morning (sign for it at your gate).
+ * You order. Our wholesaler's van brings it the next morning (sign for it at your reception).
  * You take on staff, or let them go, and see their wages.
 
 [color=#666666]Orders placed after 18:00 still arrive the next morning. The van does not wait.[/color]

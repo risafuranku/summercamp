@@ -94,12 +94,6 @@ func _opened() -> void:
 		say("", "No books for this place.")
 		return
 	_page = _start_page
-	var off := 0
-	for g in site.get("spoiled", {}):
-		off += int(site["spoiled"][g])
-	if off > 0:
-		say("", "Something on the shelves has gone off.")
-		return
 	var lows: Array = []
 	for g in site["stock"]:
 		if RULES.is_low(_kind(), g, int(site["stock"][g])):
@@ -174,8 +168,6 @@ func _hotspots() -> Array:
 				if not bool(rows[i][2]):
 					out.append({"id": "menu:" + str(rows[i][0]), "rect": _menu_rect(i, rows.size())})
 		"stock":
-			if _spoiled_n(site) > 0:
-				out.append({"id": "bin", "rect": _rbutton(0)})
 			if _sheets() > 1:
 				out.append({"id": "sheet", "rect": _lbutton(0)})
 		"order":
@@ -250,13 +242,6 @@ func _crew_of(slug: String) -> Dictionary:
 	return {}
 
 
-func _spoiled_n(site: Dictionary) -> int:
-	var n := 0
-	for g in site.get("spoiled", {}):
-		n += int(site["spoiled"][g])
-	return n
-
-
 func _clicked(id: String) -> void:
 	if id.begins_with("tab:"):
 		_page = id.substr(4)
@@ -313,11 +298,6 @@ func _clicked(id: String) -> void:
 			_order = {}
 			_stamp("ORDERED")
 			say("", "It goes on today's van." if van_day <= CoreRoot.get_day() else "The van comes tomorrow.")
-		"bin":
-			var n2: int = CoreRoot.actions.biz_bin(building_key)
-			if n2 > 0:
-				_stamp("THROWN OUT")
-				say("", LANG.f("%d in the bin.", n2))
 		"next":
 			_candidate += 1
 			play(SFX_PAGE, -12.0)
@@ -581,19 +561,15 @@ func _paint_stock(c: Control, site: Dictionary, kind: String) -> void:
 	var gd: Dictionary = RULES.goods(kind)
 	var keys: Array = _goods_keys()
 	_text(c, LEFT.position + Vector2(0, 21), tr("On the shelves"), PENCIL)
-	_text(c, RIGHT.position + Vector2(0, 21), tr("Shelf      keeps"), PENCIL)
-	var day := CoreRoot.get_day()
+	_text(c, RIGHT.position + Vector2(0, 21), tr("Shelf"), PENCIL)
 	for i in keys.size():
 		var g: String = keys[i]
 		var d: Dictionary = gd[g]
 		var n := int(site["stock"].get(g, 0))
 		var y := _row_y(i)
 		var low: bool = RULES.is_low(kind, g, n)
-		var off := int((site.get("spoiled", {}) as Dictionary).get(g, 0))
 		_text(c, Vector2(LEFT.position.x, y), tr(str(d["label"])), RED if low else INK)
-		_right(c, LEFT.end.x - (16 if off > 0 else 0), y, "%d" % n, RED if low else INK)
-		if off > 0:
-			_right(c, LEFT.end.x, y, "-%d" % off, RED)
+		_right(c, LEFT.end.x, y, "%d" % n, RED if low else INK)
 		# The bar, hatched in pencil.
 		var bar := Rect2(RIGHT.position.x, y - 7, 60, 7)
 		var fill := bar.size.x * clampf(float(n) / float(maxi(1, RULES.cap_of(kind, g, site))), 0.0, 1.0)
@@ -603,20 +579,12 @@ func _paint_stock(c: Control, site: Dictionary, kind: String) -> void:
 			c.draw_texture_rect_region(hatch, Rect2(bar.position + Vector2(1, 1), Vector2(fill - 2, bar.size.y - 2)), Rect2(0, 0, hatch.get_width() * fill / bar.size.x, hatch.get_height()), tint)
 		elif fill >= 1.0:
 			c.draw_rect(Rect2(bar.position, Vector2(fill, bar.size.y)), Color(0.4, 0.38, 0.36, 0.5))
-		# Days before the oldest lot goes off.
-		var left := RULES.days_left(kind, g, site.get("lots", {}).get(g, []), day)
-		var life := RULES.life_of(kind, g, site)
-		if left >= 0 and life > 0:
-			left = maxi(0, life - (day - int(site["lots"][g][0][1])))
-			_right(c, RIGHT.end.x, y, LANG.f("%dd", left), RED if left <= 1 else PENCIL)
 	var due := 0
 	for o in CoreRoot.get_state().biz.get("orders", []):
 		if str(o.get("key", "")) == building_key:
 			due += 1
 	if due > 0:
 		_text(c, Vector2(RIGHT.position.x, 140), LANG.f("Van due: %d", due), INK)
-	if _spoiled_n(site) > 0:
-		_pencil_button(c, _rbutton(0), "THROW OUT", RED, "bin")
 	_paint_sheet(c)
 
 

@@ -475,7 +475,7 @@ func _make(kind: String, at: int) -> Dictionary:
 			job.merge({"title": "%s froze" % what, "short": "Frozen", "where": "Thaw the pipes", "coord": [f.x, f.y]}, true)
 		"toilet":
 			var t := _pick(["toilet_block"])
-			job.merge({"title": "Toilets blocked", "short": "Toilets", "where": "Go in and unblock them", "coord": [t.x, t.y]}, true)
+			job.merge({"title": "A toilet blocked", "short": "Toilets", "where": "Go in and unblock it", "coord": [t.x, t.y]}, true)
 	return job
 
 

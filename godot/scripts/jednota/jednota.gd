@@ -553,9 +553,8 @@ func _host_second(key: String) -> void:
 	_holds[key] = holds
 
 
-## What went off in the night is out of the books' stock (actions.biz_spoil; it waits in
-## the books' spoiled till thrown out): the rack has that much less (the oldest are there),
-## then the trolley.
+## What the books have less of (a box dropped, a hand's fingers): the rack has that much less
+## (the oldest are there), then the trolley.
 func _fit_stock(key: String) -> void:
 	for g in RULES.all_goods():
 		var over := int(shelf(key).get(g, 0)) + int(trolley(key).get(g, 0)) + in_baskets(key, g) - maxi(0, BUSINESS.stock_of(key, g))
@@ -625,10 +624,6 @@ func station_need(key: String, st: String) -> float:
 				empty = empty or int(shelf(key).get(g, 0)) <= 0
 			return 0.0 if places_with_room == 0 else 0.2 + 0.1 * float(places_with_room) + (0.3 if empty else 0.0)
 		"store":
-			var books := BUSINESS.site(key)
-			for g in (books.get("spoiled", {}) as Dictionary):
-				if int(books["spoiled"][g]) > 0:
-					return 0.4
 			var best_have := 999
 			for g in RULES.all_goods():
 				if backroom(key, g) <= 0 or int(trolley(key).get(g, 0)) >= RULES.BOX:
@@ -730,13 +725,6 @@ func _crew_shelves(key: String, slip: bool) -> bool:
 
 
 func _crew_store(key: String) -> bool:
-	var books := BUSINESS.site(key)
-	var spoiled := 0
-	for g in (books.get("spoiled", {}) as Dictionary):
-		spoiled += int(books["spoiled"][g])
-	if spoiled > 0 and CoreRoot != null and CoreRoot.actions != null:
-		CoreRoot.actions.biz_bin(key)
-		return true
 	var best := ""
 	var best_have := 999
 	for g in RULES.all_goods():
