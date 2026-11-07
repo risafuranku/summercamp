@@ -154,7 +154,7 @@ func _ready() -> void:
 			["coop_fingerprint", "host_corn"], ["eval", "end_corn_hunt()"], ["wait", 1.0], ["coop_signal", "host_corn_done"],
 			# The other warden knocked down: lying there till the host gets them up.
 			["coop_wait_file", "client_down"], ["wait", 1.5], ["coop_go_to_partner", 3.5], ["wait", 1.0], ["shot", "h13_other_down"], ["coop_fingerprint", "host_down"],
-			["coop_go_to_partner", 1.2], ["wait", 0.5], ["eval", "_try_interact()"], ["wait", 1.0], ["coop_signal", "host_lifted"],
+			["coop_go_to_partner", 0.6], ["wait", 0.5], ["eval", "_try_interact()"], ["wait", 1.0], ["coop_signal", "host_lifted"],
 			# The night director's touch on the other warden: it happens on their machine.
 			["coop_fx", "knock"], ["wait", 1.0],
 			# To bed: alone, the night does not pass; with the other one in bed too, it does.
@@ -371,7 +371,8 @@ func _run_step(step: Array) -> void:
 					wp.try_interact()
 			print("COOP CHECK %s at the %s: in %s" % [_role, step[1], str(wp.coop_state())])
 		"coop_go_to_partner":
-			# Up to `step[1]` m from the other warden, facing them.
+			# Up to `step[1]` m from the other warden, facing them. (Lying in the corn: the maze's tiles
+			# are 1.6 m, from 1.2 m a wall could push you back out of reach, by the seed.)
 			var fig: Node3D = Coop.remote_figure()
 			var me5: Node3D = _main.get("_player")
 			if fig == null or me5 == null:
