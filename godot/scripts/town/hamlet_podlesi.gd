@@ -38,6 +38,8 @@ const OUTLINE := [Vector2(-110, -14), Vector2(110, -14), Vector2(110, 9), Vector
 ## The things you click (building_type "ham_*", meta "what"), by name.
 var things: Dictionary = {}
 var vondra: Sprite3D
+var _vondra_fig
+const FIGURE = preload("res://scripts/figures/doom_figure.gd")
 var car_root: Node3D
 var _smoke_car: Array = []
 ## The stop's poles: in the stop's own frame out in the fields (top level), or this one.
@@ -368,6 +370,11 @@ func _yard() -> void:
 		vondra.shaded = true
 		vondra.position = Vector3(13.6, 0, 127.0)
 		add_child(vondra)
+		# From eight sides (npc/sets/) he stands as you walk round him, looking up the yard.
+		var drawn: Dictionary = FIGURE.set_for(tex_path)
+		if not drawn.is_empty():
+			_vondra_fig = FIGURE.new(vondra, drawn, 1.72)
+			_vondra_fig.face(global_transform.basis * Vector3(-1, 0, -0.4))
 		things["vondra"] = _click_h(Vector3(13.6, 0.9, 127.0), Vector3(0.8, 1.8, 0.8), "ham_npc")
 
 
@@ -505,6 +512,11 @@ func car_running(on: bool) -> void:
 		add_child(s)
 		_smoke_car.append(s)
 		_smoke.append({"sprite": s, "base": to_local(car_root.global_position) + Vector3(0, 0.3, -2.6), "phase": float(k) / 6.0})
+
+
+func show_people(eye: Vector3) -> void:
+	if _vondra_fig != null and vondra.visible:
+		_vondra_fig.show(eye)
 
 
 ## Vondra is out by the garage by day, indoors at night.

@@ -74,6 +74,8 @@ var _eye := Vector3.ZERO
 var pump_job
 var benzina_at := Vector3.INF
 var _lojza: Node3D
+var _lojza_fig
+const FIGURE = preload("res://scripts/figures/doom_figure.gd")
 var _lit := 0.0
 
 
@@ -109,6 +111,8 @@ func clear_area(poly: PackedVector2Array) -> void:
 ## Every frame: the chunks round `eye` (world position) made or let go.
 func update(eye: Vector3) -> void:
 	_eye = eye
+	if _lojza_fig != null and _lojza.visible:
+		_lojza_fig.show(eye)
 	var c := _chunk_of(Vector2(eye.x, eye.z))
 	var reach := int(ceil(NEAR / CHUNK))
 	for dz in range(-reach, reach + 1):
@@ -835,6 +839,11 @@ func _benzina_job(root: Node3D, road_z: float) -> void:
 	s.shaded = true
 	s.offset = Vector2(0, s.texture.get_height() * 0.5)
 	_lojza.add_child(s)
+	# From eight sides (npc/sets/) he stands there as you walk round him, the road before him.
+	var drawn: Dictionary = FIGURE.set_for(path)
+	if not drawn.is_empty():
+		_lojza_fig = FIGURE.new(s, drawn, 1.76)
+		_lojza_fig.yaw = root.rotation.y
 	var who := StaticBody3D.new()
 	who.name = "Body"
 	who.set_meta("building_type", "trip_lojza")

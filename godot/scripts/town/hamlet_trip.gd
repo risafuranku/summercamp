@@ -81,6 +81,9 @@ func update(_h: float, _delta: float) -> void:
 	if not is_built():
 		return
 	_update_sound()
+	var me: Node3D = trip._player()
+	if me != null:
+		place.show_people(me.global_position)
 
 
 func tick_hour(h: float, night: bool) -> void:

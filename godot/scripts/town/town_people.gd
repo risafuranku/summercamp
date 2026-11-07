@@ -15,9 +15,12 @@ const PIXEL := 0.0145
 const HEIGHTS := {"hruba": 1.55, "pepik": 1.35}
 const BALANCE = preload("res://core/balance/balance_config.gd")
 const FIGURE = preload("res://scripts/figures/doom_figure.gd")
-## Who has been drawn from eight sides with a walk (npc/sets/, tools/artgen/figures.py): the rest
-## keep their one picture, mirrored the way they go.
+## Drawn from eight sides with a walk (npc/sets/, tools/artgen/figures.py): by the name of their
+## sprite, or by this one. Whoever is not keeps their one picture, mirrored the way they go.
 const SETS := {"vavra": "vavra"}
+## Standing about, they turn to you when you come this near, this fast (radians a second).
+const LOOK_NEAR := 5.0
+const LOOK_TURN := 2.2
 
 ## Places in the village's own frame (x east, z south; the road at z = 0).
 const SPOTS := {
@@ -128,7 +131,7 @@ func build() -> void:
 		body.add_child(shape)
 		root.add_child(body)
 		var fig = null
-		var drawn: Dictionary = FIGURE.set_of(str(SETS.get(who, "")))
+		var drawn: Dictionary = FIGURE.set_of(str(SETS[who])) if SETS.has(who) else FIGURE.set_for(path)
 		if not drawn.is_empty():
 			fig = FIGURE.new(s, drawn, float(HEIGHTS.get(who, 1.72)))
 		_people[who] = {"root": root, "sprite": s, "body": body, "line": 0, "place": "", "path": [], "loop_i": 0, "fig": fig}
@@ -314,6 +317,9 @@ func _bob(p: Dictionary, moving: bool, metres := 0.0) -> void:
 		fig.advance(metres)
 		var cam := get_viewport().get_camera_3d()
 		if cam != null:
+			var to: Vector3 = cam.global_position - s.global_position
+			if not moving and Vector2(to.x, to.z).length() < LOOK_NEAR:
+				fig.turn_toward(to, LOOK_TURN * get_process_delta_time())
 			fig.show(cam.global_position)
 		return
 	var tick := floorf(_acc * 12.0)

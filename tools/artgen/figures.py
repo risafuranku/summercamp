@@ -110,9 +110,14 @@ def ref_turn(fig, turn_id):
 
 # ── cutting and bringing to the sprite's look ────────────────────────────────
 
+## Sheets whose figures stand closer than the usual gap (a bicycle's wheels almost touching).
+GAPS = {"fig_town_kid_walk3_1": 5}
+
+
 def cut(art_id, count, gap=14):
 	"""The sheet's figures, left to right, each alone on transparent at Grok's size, with
 	their boxes in the sheet. None (and _cut.png to look at) when the count is wrong."""
+	gap = GAPS.get(art_id, gap)
 	img = keyed(art_id)
 	boxes, labels, w = split_sheet.items(img, gap)
 	# Specks (a hair of the outline, a fleck of key) are not figures.

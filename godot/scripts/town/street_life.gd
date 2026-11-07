@@ -12,6 +12,7 @@ extends Node3D
 const NPC := "res://assets/textury/npc/"
 const TOWN := "res://assets/textury/town/"
 const SFX := "res://assets/sfx/"
+const FIGURE = preload("res://scripts/figures/doom_figure.gd")
 ## Metres a game hour (1.25 game minutes a second): a man who has had enough, one at work.
 const DRUNK := 50.0
 const BRISK := 68.0
@@ -108,7 +109,28 @@ func _person(tex: String, height: float) -> Sprite3D:
 	s.shaded = true
 	s.visible = false
 	add_child(s)
+	# Drawn from eight sides (npc/sets/): `_goes` walks them.
+	var drawn: Dictionary = FIGURE.set_for(NPC + tex)
+	if not drawn.is_empty():
+		FIGURE.new(s, drawn, height)
 	return s
+
+
+## To `at`: on their feet if they are drawn from eight sides, the picture for where you stand.
+func _goes(s: Sprite3D, at: Vector3) -> void:
+	var step := at - s.position
+	s.position = at
+	var fig = s.get_meta("doom", null)
+	if fig == null:
+		return
+	var flat := Vector2(step.x, step.z).length()
+	fig.set_anim("walk" if flat > 0.0005 else "stand")
+	if flat > 0.0005:
+		fig.face(global_transform.basis * step)
+		fig.advance(flat)
+	var cam := get_viewport().get_camera_3d()
+	if cam != null:
+		fig.show(cam.global_position)
 
 
 func _crate(height: float) -> Sprite3D:
@@ -237,8 +259,9 @@ func _tick_guests(h: float) -> void:
 		s.visible = m >= 0.0 and m < float(g["len"])
 		if s.visible:
 			var at := _along(g["way"], m)
-			s.position = at + Vector3(sin(m * 0.8) * 0.4, absf(sin(step * 1.1)) * 0.03, cos(m * 0.53) * 0.3)
-			s.flip_h = sin(m * 0.8 + 1.5) < 0.0
+			_goes(s, at + Vector3(sin(m * 0.8) * 0.4, absf(sin(step * 1.1)) * 0.03, cos(m * 0.53) * 0.3))
+			if not s.has_meta("doom"):
+				s.flip_h = sin(m * 0.8 + 1.5) < 0.0
 
 
 func _van_x(h: float) -> float:
@@ -274,7 +297,7 @@ func _tick_people(h: float) -> void:
 		var k := fmod(t, turn) / turn
 		var out := n % 2 == 0
 		var at := tail.lerp(SHOP_DOOR, k if out else 1.0 - k)
-		_driver.position = at + Vector3(0, absf(sin(floorf(_t * 10.0) * 0.9)) * 0.03, 0)
+		_goes(_driver, at + Vector3(0, absf(sin(floorf(_t * 10.0) * 0.9)) * 0.03, 0))
 		_in_hands.visible = out
 		if out:
 			_in_hands.position = at + Vector3(0, 0.72, 0.2)
@@ -284,4 +307,4 @@ func _tick_people(h: float) -> void:
 	var m := way_len - (NOVOTNA_AT - h) * STROLL
 	_novotna.visible = m >= 0.0 and h < OPENS
 	if _novotna.visible:
-		_novotna.position = _along(NOVOTNA_WAY, minf(m, way_len)) + Vector3(0, absf(sin(floorf(_t * 8.0) * 1.2)) * 0.02 if m < way_len else 0.0, 0)
+		_goes(_novotna, _along(NOVOTNA_WAY, minf(m, way_len)) + Vector3(0, absf(sin(floorf(_t * 8.0) * 1.2)) * 0.02 if m < way_len else 0.0, 0))

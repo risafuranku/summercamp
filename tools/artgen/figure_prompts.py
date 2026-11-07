@@ -181,6 +181,47 @@ FIGURES["ph"] = ("assets/textury/npc/tourist_idle.png",
 	"black checked flannel shirt tied round his waist, frayed denim cut-off shorts, white socks, "
 	"brown hiking boots, a rolled dark green sleeping mat at his left side, and on his back a big "
 	"grey rucksack covered all over with pinned instant photographs with white borders")
+# The rest of the village, each under the name of their sprite (doom_figure.set_for finds them).
+FIGURES["town_babicka"] = ("assets/textury/npc/town_babicka.png",
+	"a small elderly Czech village woman of about seventy-five, a lined kind face, a rust brown "
+	"flowered headscarf tied under the chin, a dark brown knitted waistcoat over a faded red-brown "
+	"flowered blouse, a long dark brown skirt with an apron over it, brown rubber boots, a woven "
+	"straw shopping bag with a loaf of bread in it")
+FIGURES["town_tracksuit"] = ("assets/textury/npc/town_tracksuit.png",
+	"a lanky Czech man in his forties, a dark brown mullet and a thick moustache, a shiny purple and "
+	"teal shell-suit tracksuit jacket over a white t-shirt, matching purple tracksuit trousers with "
+	"a teal panel down the legs, white socks in grey plastic slide sandals, a brown beer bottle in "
+	"his right hand, a lit cigarette in his left hand")
+FIGURES["town_kid"] = ("assets/textury/npc/town_kid.png",
+	"a boy of about twelve, short brown hair, a white and blue striped t-shirt, blue shorts, white "
+	"socks, red sneakers, and at his right side a red bicycle with a black saddle that he walks "
+	"along by its handlebars, both his hands on them, the whole bicycle always in the picture")
+FIGURES["town_shopgirl"] = ("assets/textury/npc/town_shopgirl.png",
+	"a stout Czech shop assistant in her forties, a stern tired face, curly light brown hair, "
+	"glasses hanging on a cord on her chest, a long pale blue shop coat buttoned down to her knees, "
+	"dark blue trousers, brown shoes")
+FIGURES["town_pumpar"] = ("assets/textury/npc/town_pumpar.png",
+	"a thin Czech pump attendant in his fifties, a worn red baseball cap, a drawn tanned face, a "
+	"beige short-sleeved shirt under dark blue bib overalls stained with oil and grease, a dirty "
+	"rag hanging from the right pocket, brown work boots")
+FIGURES["town_vondra"] = ("assets/textury/npc/town_vondra.png",
+	"an old Czech farmer of about seventy, a grey flat cap, a big white moustache, a stained beige "
+	"shirt with rolled sleeves under muddy dark blue bib overalls, a dirty rag hanging from the right "
+	"pocket, dark green rubber boots")
+FIGURES["town_driver"] = ("assets/textury/npc/town_driver.png",
+	"a Czech driver in his fifties, black hair going grey, a tired yellowish face, a lit cigarette "
+	"in the corner of his mouth, a short-sleeved pale blue uniform shirt with a dark tie, a brown "
+	"belt with a leather money pouch at his hip, dark blue trousers, brown shoes")
+## What their arms do instead of swinging or hanging: they have their hands full.
+HOLD = {
+	"town_kid": "both hands on the handlebars of the bicycle beside him",
+	"town_babicka": "both hands holding the straw bag low in front of her",
+}
+## A bicycle is long: the figures of a sheet touched and could not be told apart.
+ROOMY = {"town_kid": " Draw every figure small: each figure with its bicycle fits inside its own equal column of the image with a wide gap of pure magenta on both sides, wider than a bicycle wheel, and no part of one figure comes near the next."}
+ARMS = ("the right arm swung forward and the left arm back", "the left arm swung forward and the right arm back",
+	"the arms hanging down by the sides", "the arms hanging down", "arms hanging down")
+
 # The hands in the businesses (tools/artgen/biz_prompts.py HANDS: who, and what they hold at work).
 import biz_prompts  # noqa: E402
 STAFF = {slug: (desc.rstrip("."), tool) for slug, _ref, desc, tool in biz_prompts.HANDS}
@@ -382,6 +423,11 @@ def sheets(fig, desc):
 			"row, evenly spaced with clear magenta gaps, all exactly the same scale with the feet on "
 			"one common baseline near the bottom edge, the person turned a different way in each: "
 			+ VIEWS + ". The first view is exactly the pose in the reference image. " + same + BG)
+	if fig in HOLD:
+		for key, (aspect, ref, text) in out.items():
+			for arms in ARMS:
+				text = text.replace(arms, HOLD[fig])
+			out[key] = (aspect, ref, text + ROOMY.get(fig, ""))
 	return out
 
 
