@@ -258,6 +258,10 @@ know where it is:
 | The Boy | Family | his father in your way in the dark asking after him; a child gone missing where the night's work is | each place's game, by its rules (§5a.2) | breaking the game's rule (in the corn: looking back at him) |
 | The Granny | Mushroom Pickers | 02:30-06:00: her basket creaking, humming, her boots in the grass, her spores in the air; lamps going dark one by one; a ring of mushrooms coming up round the lodging she means to have; hidden, the eating, from the lodging and on the radio | keep moving (she always comes) and freeze when her back cracks and she straightens up; a lamp holds her a few seconds; kick her rings open; stay out there as the bait | letting her reach you, moving while she looks; hiding: your guests (§5a.4) |
 
+### The nights follow on
+
+The user, 7. 11.: "the first night the radio went straight to the hell waltz, a mad peak", "after it the nights were dull". `core/systems/night_ladder.gd`: the roll says what the camp brings, the ladder how much of it a night may have. The first bad night is one kind, gentle, the radio under the terror songs and no splinter of the hells. Each night is a step up: a second kind on the third, the Antlered Man from the fourth, the hell songs from the fifth. What came last night comes first. While anybody is in the camp no night is empty, and the lamps do not say CLEAR over it. The director starts each night a little further on.
+
 ### 5a. Outdoor hunters, indoor tormentors (the rule for every enemy)
 
 An enemy is one of two kinds, so the night never stacks two deadly things in one place:

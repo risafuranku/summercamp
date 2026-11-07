@@ -6,45 +6,45 @@
 
 ## PLAYTEST 2026-11-07 — Richard's notes after a long co-op test, his words
 
-- [ ] P1 „zvenku nevidím uvnitř recepce hosty u checkinu který dělá jiný hráč" (co-op: the check-in done by the other warden is not seen through the reception's glass)
-- [ ] P2 „vidím pouze dovnitř posledního stanu ve kterém jsem byl, ne do všech otevřených"
-- [ ] P3 „při obsluhování u stánku s kukuřící velký clipping textur pultu stánku"
-- [ ] P4 „posunout lavičku umístěnou na cestě blíže k hraně cesty"
-- [ ] P5 „jako klient v coopu vidím špatně jmenovku na ceduli před kempem, nemůžu jí upravit, špatný sync"
-- [ ] P6 „u kukuřice rozsvěcet dříve, často nevidím během stmívání na obsluhování"
-- [ ] P7 „syncnout rádio, oba hráči musí slyšet totéž. syncnout vypínání kukuřice"
-- [ ] P8 „mezi kumbálem a recepcí procházíš zdí"
-- [ ] P9 „totálně polishnout pískače. z enemies je nejmíň propracovaný. měl by fungovat tak že když slyšíš jeho pískání tak se nesmíš hýbat a máš se ideálně schovat někam dovnitř"
-- [ ] P10 „během první noci co máme bubáky nám hned hrálo waltz peklo z rádia. špatný budování napětí, byl to hned šílenej hrot, musíme začít jemnějí"
-- [ ] P11 „notifikace řiká že závoz čeká u brány, v realitě ale jde závozák na recepci. opravit"
-- [ ] P12 „notifikace řiká že je někdo u stánku s kukuřicí což je fajn, ale 'nikdo neobsluhuje' je lež, píšou to tam i když je tam spoluhráč"
-- [ ] P13 „špinavé půllitry v hospodě jdou špatně vidět přes kartáč"
-- [ ] P14 „v hospodě účty nefungujou správně. vzal jsem účet, a nahoře dva taby zákazníků nezmizely, a po chvilce zmizeli oba? nevím :D zkontroluj to. dokonce přišel týpek během zavírání a měl prázdnej tab bez objednávky a pak zase odešel"
-- [ ] P15 „v hospodě má fotograf jiný sprite, takový moc hodný a pozitivní?"
-- [ ] P16 „pořád se mi ukazuje notifikace ať vyčistím oba záchody, i když je potřeba vyčistit jen jeden z nich. přijde mi jako by ve hře byly dva druhy notifikací na záchod?"
-- [ ] P17 „recenze na atlasu nejsou přeložené do češtiny"
-- [ ] P18 „první postavená chatka má neviditelné dveře"
-- [ ] P19 „přes PSX kroucení textur pak špatně sedí okna :/ např na hospodě a tak... to chce vyřešit"
-- [ ] P20 „z interiéru recepce clippuje slunce při západu"
-- [ ] P21 „holky maj žízeň i když mám v kempu kukuřici i hospodu. proč?"
-- [ ] P22 „kurzor v nebi má u sebe ikonu toho co staví. to dej pryč, nech v nebi jen ten kurzor. dej mu trochu víc movementu po tom nebi, jak se jakoby hejbe nad kempem"
-- [ ] P23 „když je spawnutý enemy, nech jít hráče normálně do postele, jen je nenech usnout. leží v posteli a nic. dej ale nějaký cue aby nebyl pocit že hra je zničená, třeba že je ti prostě v posteli nepříjemně a nejde ti spát"
-- [ ] P24 „v chatce nech hráče chodit k oknům, kliknutím do prostoru u nich. nezapomeň na hover. taky mě nech se otočit o 360 v chatce, neblokuj mi v ŽÁDNÉM interiéru otáčení"
-- [ ] P25 „odstraň zmíňky o zkaženém zboží, to ve hře nechceme"
-- [ ] P26 „zvuk závěsů co zatahují hosté je ŠÍÍÍLENĚ nahlas :D občas mě to až vyleká"
-- [ ] P27 „karavan pod určitým úhlem pohledu mizí, problikává"
-- [ ] P28 „potřebujeme pořádně polishnout a zkontrolovat tu výměnu sudů v hospodě. taky mi to přijde nějaký broken, nevím kde mám vzít nový, na ty co tam stojí mi nejde klikat"
-- [ ] P29 „u ohniště nejde kliknout na sekeru v pařezu, abych dosekal polýnka na podpal"
-- [ ] P30 „notifikace vpravo, které má někdo ze staff za úkol, vizuálně označ, ať vidím z hromady neuklizených ubikací, o které bude postaráno, a na které můžu jít já.. to samé veškeré úkoly a obsluhování"
-- [ ] P31 „v HUD mi chybí nějaký časový ukazatel vizuální, nebo progress bar? časová osa? kdy přijde staff do práce, a kdy jim šichta končí :D"
-- [ ] P32 „zvenčí má v noci interiér recepce jiné nasvícení než když jsem opravdu uvnitř. během přechodu/animace dovnitř se změní barva a intenzita osvícení"
-- [ ] P33 „na to že první noc jsme měli totální peklo, další noci byly celkem nuda a nic moc se nedělo. potřebujeme aby ty noci na sebe víc navazovaly a děsení bylo plynulejší, žádné takovéhle propady"
-- [ ] P34 „hostům se animuje jízda autobusem tak 2fps. host to má v pořádku" (co-op: the joining warden sees the ride at 2 frames a second, the hosting one does not)
-- [ ] P35 „ve městě účtenka v jednotě není vidět přes notifikace"
-- [ ] P36 „ve městě auta jezdí skrz budovy, kostel"
-- [ ] P37 „opravit sprite rukou při kouření a pití piva. občas nedávají smysl :D jak to drží to cígo a tak"
-- [ ] P38 „pozic na stoupnutí je v motelu hrozně moc. stačí vždy jedna na výhled z okna, a pokud to jde drž pozice na minimum :D vše jde odklikat z té hlavní, a pokud se někam můžeš přesunout, je to kvuli lepší zajímavější kompozici scény nebo výhledu"
-- [ ] P39 „občas nesmyslné otačení a rotace, například když na motelu projdu na pokoj dveřmi, spawnu se v něm zády do pokoje a najednou rotace"
+- [x] P1 „zvenku nevidím uvnitř recepce hosty u checkinu který dělá jiný hráč" (co-op: the check-in done by the other warden is not seen through the reception's glass) (f265856b: desk_room.tick_unseen fills the counter seen from the camp; playtest_coop)
+- [x] P2 „vidím pouze dovnitř posledního stanu ve kterém jsem byl, ne do všech otevřených" (f265856b: every open doorway has the tent drawn into a cube, the live room in the nearest)
+- [x] P3 „při obsluhování u stánku s kukuřící velký clipping textur pultu stánku" (5fa97b3e: the stand joins HOLDS_ROOM, its corners no longer snap past the counter; surfaces a little higher)
+- [x] P4 „posunout lavičku umístěnou na cestě blíže k hraně cesty" (f265856b: lamp_spot.BENCH_EDGE)
+- [x] P5 „jako klient v coopu vidím špatně jmenovku na ceduli před kempem, nemůžu jí upravit, špatný sync" (f265856b: the host's name read before the board is built, every board told, camp_sign clickable for the guest)
+- [x] P6 „u kukuřice rozsvěcet dříve, často nevidím během stmívání na obsluhování" (f265856b: the bulb by the sky's clock from 17:15)
+- [x] P7 „syncnout rádio, oba hráči musí slyšet totéž. syncnout vypínání kukuřice" (f265856b: the radio: the night and its events are the host's, position to 0.4 s. The corn: nothing there switches; the last orders and shut lines go to both. ASK what he switched off)
+- [x] P8 „mezi kumbálem a recepcí procházíš zdí" (f265856b: the back wall cut round the store door)
+- [x] P9 „totálně polishnout pískače. z enemies je nejmíň propracovaný. měl by fungovat tak že když slyšíš jeho pískání tak se nesmíš hýbat a máš se ideálně schovat někam dovnitř" (5fa97b3e: the rule turned round: he listens while he whistles; the first notes to stop, the quiet to go, three songs and he leans in; a door shakes him off)
+- [x] P10 „během první noci co máme bubáky nám hned hrálo waltz peklo z rádia. špatný budování napětí, byl to hned šílenej hrot, musíme začít jemnějí" (5fa97b3e: night_ladder: the first bad night's radio stays under the terror songs, no hell splinters on it)
+- [x] P11 „notifikace řiká že závoz čeká u brány, v realitě ale jde závozák na recepci. opravit" (f265856b: the line, the paper map and the SoftSklad page all say the reception)
+- [x] P12 „notifikace řiká že je někdo u stánku s kukuřicí což je fajn, ale 'nikdo neobsluhuje' je lež, píšou to tam i když je tam spoluhráč" (f265856b: no line while a warden is at a station)
+- [x] P13 „špinavé půllitry v hospodě jdou špatně vidět přes kartáč" (f265856b: brush smaller and nearer you, held mug over it, dirt fades)
+- [x] P14 „v hospodě účty nefungujou správně. vzal jsem účet, a nahoře dva taby zákazníků nezmizely, a po chvilce zmizeli oba? nevím :D zkontroluj to. dokonce přišel týpek během zavírání a měl prázdnej tab bez objednávky a pak zase odešel" (f265856b: the paid go at once, turned away at last orders, a round after them no longer holds the bill, late bills fresh, no phantom mugs, BILL_WAIT 48)
+- [x] P15 „v hospodě má fotograf jiný sprite, takový moc hodný a pozitivní?" (5fa97b3e: host2_sit and host2_drink redone from the Photographer himself)
+- [x] P16 „pořád se mi ukazuje notifikace ať vyčistím oba záchody, i když je potřeba vyčistit jen jeden z nich. přijde mi jako by ve hře byly dva druhy notifikací na záchod?" (f265856b: halves in the pulse, one plate per bowl, a blocked bowl is its plate)
+- [x] P17 „recenze na atlasu nejsou přeložené do češtiny" (f265856b: lang._by_sentences: a review glued of parts)
+- [x] P18 „první postavená chatka má neviditelné dveře" (5fa97b3e: dark door_wood on dark boards read as a hole: door colours lifted. NOT the same thing for sure: asked)
+- [x] P19 „přes PSX kroucení textur pak špatně sedí okna :/ např na hospodě a tak... to chce vyřešit" (5fa97b3e: painted fronts (pub, bistro, Jednota, bowling) neither swim nor snap)
+- [x] P20 „z interiéru recepce clippuje slunce při západu" (5fa97b3e: it was the stove's orange through the palette, not the sun: yellow now)
+- [x] P21 „holky maj žízeň i když mám v kempu kukuřici i hospodu. proč?" (f265856b: a visit locks the food, not the drink; stamped when sold; the next need is seen to)
+- [x] P22 „kurzor v nebi má u sebe ikonu toho co staví. to dej pryč, nech v nebi jen ten kurzor. dej mu trochu víc movementu po tom nebi, jak se jakoby hejbe nad kempem" (f265856b: no plate by the cursor, it drifts over the camp)
+- [x] P23 „když je spawnutý enemy, nech jít hráče normálně do postele, jen je nenech usnout. leží v posteli a nic. dej ale nějaký cue aby nebyl pocit že hra je zničená, třeba že je ti prostě v posteli nepříjemně a nejde ti spát" (f265856b: you lie down, sleep will not come, a line now and then)
+- [x] P24 „v chatce nech hráče chodit k oknům, kliknutím do prostoru u nich. nezapomeň na hover. taky mě nech se otočit o 360 v chatce, neblokuj mi v ŽÁDNÉM interiéru otáčení" (5fa97b3e: every room 360; cabin: walk to each window by the floor, hover; the annex no longer stands across the bathroom door)
+- [x] P25 „odstraň zmíňky o zkaženém zboží, to ve hře nechceme" (f265856b: gone from rules, screens, texts, tests; Chiller and keg cooler and the flat keg with it)
+- [x] P26 „zvuk závěsů co zatahují hosté je ŠÍÍÍLENĚ nahlas :D občas mě to až vyleká" (f265856b: curtain pull far quieter)
+- [x] P27 „karavan pod určitým úhlem pohledu mizí, problikává" (5fa97b3e: NOT reproduced at 24 angles x 2 distances; the one thing that flips at an angle got a margin (the live room in the panes). Asked)
+- [x] P28 „potřebujeme pořádně polishnout a zkontrolovat tu výměnu sudů v hospodě. taky mi to přijde nějaký broken, nevím kde mám vzít nový, na ty co tam stojí mi nejde klikat" (f265856b: the full kegs are the station's, clicked where they stand; hose; spent keg rolls away)
+- [x] P29 „u ohniště nejde kliknout na sekeru v pařezu, abych dosekal polýnka na podpal" (f265856b: campfire.chop: +2 logs)
+- [x] P30 „notifikace vpravo, které má někdo ze staff za úkol, vizuálně označ, ať vidím z hromady neuklizených ubikací, o které bude postaráno, a na které můžu jít já.. to samé veškeré úkoly a obsluhování" (5fa97b3e: the hand's face on the plate, dimmed, after the free ones; van, desk, a warden at the counter too)
+- [x] P31 „v HUD mi chybí nějaký časový ukazatel vizuální, nebo progress bar? časová osa? kdy přijde staff do práce, a kdy jim šichta končí :D" (5fa97b3e: shift_line under the clock)
+- [x] P32 „zvenčí má v noci interiér recepce jiné nasvícení než když jsem opravdu uvnitř. během přechodu/animace dovnitř se změní barva a intenzita osvícení" (5fa97b3e: same from both eyes when measured: the torch at the sill and the room's SSAO made the jump)
+- [x] P33 „na to že první noc jsme měli totální peklo, další noci byly celkem nuda a nic moc se nedělo. potřebujeme aby ty noci na sebe víc navazovaly a děsení bylo plynulejší, žádné takovéhle propady" (5fa97b3e: night_ladder: never empty with guests, last night's first, a step up each night, director starts further on)
+- [x] P34 „hostům se animuje jízda autobusem tak 2fps. host to má v pořádku" (co-op: the joining warden sees the ride at 2 frames a second, the hosting one does not) (f265856b: the client's clock runs by itself)
+- [x] P35 „ve městě účtenka v jednotě není vidět přes notifikace" (f265856b: the bill on the left)
+- [x] P36 „ve městě auta jezdí skrz budovy, kostel" (f265856b: the cars along the road)
+- [x] P37 „opravit sprite rukou při kouření a pití piva. občas nedávají smysl :D jak to drží to cígo a tak" (5fa97b3e: lighter and drag back to the small hand, the cigarette in your lips)
+- [x] P38 „pozic na stoupnutí je v motelu hrozně moc. stačí vždy jedna na výhled z okna, a pokud to jde drž pozice na minimum :D vše jde odklikat z té hlavní, a pokud se někam můžeš přesunout, je to kvuli lepší zajímavější kompozici scény nebo výhledu" (5fa97b3e: room: the room and the window; reception: the counter; corridor: ends and stairs; the rest by its own click)
+- [x] P39 „občas nesmyslné otačení a rotace, například když na motelu projdu na pokoj dveřmi, spawnu se v něm zády do pokoje a najednou rotace" (5fa97b3e: you come in facing the room)
 
 ## ABSOLUTE POLISH 2026-11-07 — „ano konec, zvedni strop z 50, rozdel stavbu. udelej absolutni polish pass mesta, enemies, vizualu, gameworldu, pujdu poradne testovat pak" (three audits of the code, each finding read and the fixes played: `tools/pass_check`)
 
