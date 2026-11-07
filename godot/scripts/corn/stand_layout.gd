@@ -41,6 +41,10 @@ const STATIONS := {
 const DRINKS_TABLE := Vector3(0.86, 0.9, 0.52)
 ## Where the one at the stand stands, behind the counter (on the ground), facing out.
 const VENDOR := Vector3(0, 0, -1.15)
+## The two posts behind the counter: everybody sees them but the eye at the stations, a hand
+## from them, for which they came up over the corners of the counter a metre wide and crossed
+## the picture on every move along it (the user 7. 11.: "a big clipping of the stand's counter").
+const BACK_LAYER := 1 << 14
 ## The model's own pot, its gas ring and the crate on the counter: the stations draw
 ## theirs (the painted pot, the crate in the husking's picture).
 const MODEL_PARTS := ["Pot", "Ring", "CornCrate"]

@@ -1019,6 +1019,8 @@ every night's sewer, toilets and frozen pipes the moment they broke).
 - **A painted front (`_painted`) is `retro_text`:** it neither swims nor snaps, or its painted frames lean away from the real panes.
 - **`pub_rules.tickets_for / more_rounds / bill_for` take `shut`** (last orders): the rail, the bills and the holds must agree on who is still coming for a round.
 - **`player.torch_fade`:** going in by a door the torch goes down over the walk; a lit room burnt white at arm's length.
+- **`_camp()` is triplanar, two metres a repeat:** a picture meant whole (a door) on a box shows a slice of it, its handle off the leaf. Give the leaf a `_side_quad` face, as the caravan and the cabins have (`DoorFace`, door_anim hangs it with the leaf).
+- **Render layer 1 << 14 is the corn stand's two back posts** (`stand_layout.BACK_LAYER`): every eye sees them but the stations', a hand from them.
 
 ## 6. Working style
 

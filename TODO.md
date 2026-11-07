@@ -8,7 +8,7 @@
 
 - [x] P1 „zvenku nevidím uvnitř recepce hosty u checkinu který dělá jiný hráč" (co-op: the check-in done by the other warden is not seen through the reception's glass) (f265856b: desk_room.tick_unseen fills the counter seen from the camp; playtest_coop)
 - [x] P2 „vidím pouze dovnitř posledního stanu ve kterém jsem byl, ne do všech otevřených" (f265856b: every open doorway has the tent drawn into a cube, the live room in the nearest)
-- [x] P3 „při obsluhování u stánku s kukuřící velký clipping textur pultu stánku" (5fa97b3e: the stand joins HOLDS_ROOM, its corners no longer snap past the counter; surfaces a little higher)
+- [x] P3 „při obsluhování u stánku s kukuřící velký clipping textur pultu stánku" (5fa97b3e: the stand joins HOLDS_ROOM, its corners no longer snap past the counter; surfaces a little higher. Then filmed in motion: the two posts behind the counter came up over its corners a metre wide and crossed the picture on every move along it: kept out of the station's eye, seen from everywhere else)
 - [x] P4 „posunout lavičku umístěnou na cestě blíže k hraně cesty" (f265856b: lamp_spot.BENCH_EDGE)
 - [x] P5 „jako klient v coopu vidím špatně jmenovku na ceduli před kempem, nemůžu jí upravit, špatný sync" (f265856b: the host's name read before the board is built, every board told, camp_sign clickable for the guest)
 - [x] P6 „u kukuřice rozsvěcet dříve, často nevidím během stmívání na obsluhování" (f265856b: the bulb by the sky's clock from 17:15)
@@ -23,7 +23,7 @@
 - [x] P15 „v hospodě má fotograf jiný sprite, takový moc hodný a pozitivní?" (5fa97b3e: host2_sit and host2_drink redone from the Photographer himself)
 - [x] P16 „pořád se mi ukazuje notifikace ať vyčistím oba záchody, i když je potřeba vyčistit jen jeden z nich. přijde mi jako by ve hře byly dva druhy notifikací na záchod?" (f265856b: halves in the pulse, one plate per bowl, a blocked bowl is its plate)
 - [x] P17 „recenze na atlasu nejsou přeložené do češtiny" (f265856b: lang._by_sentences: a review glued of parts)
-- [x] P18 „první postavená chatka má neviditelné dveře" (5fa97b3e: dark door_wood on dark boards read as a hole: door colours lifted. NOT the same thing for sure: asked)
+- [x] P18 „první postavená chatka má neviditelné dveře" (5fa97b3e: door colours lifted. Then filmed fresh, walked through, with guests, worn, at dusk: the leaf is there every time, but door_wood is the wall's own boards and only a slice of it lay on the leaf, the handle off it: a door in old green paint now, cabin_door.png, the whole picture, handle where it belongs, all three levels, swings with the leaf. If he meant something else: asked)
 - [x] P19 „přes PSX kroucení textur pak špatně sedí okna :/ např na hospodě a tak... to chce vyřešit" (5fa97b3e: painted fronts (pub, bistro, Jednota, bowling) neither swim nor snap)
 - [x] P20 „z interiéru recepce clippuje slunce při západu" (5fa97b3e: it was the stove's orange through the palette, not the sun: yellow now)
 - [x] P21 „holky maj žízeň i když mám v kempu kukuřici i hospodu. proč?" (f265856b: a visit locks the food, not the drink; stamped when sold; the next need is seen to)

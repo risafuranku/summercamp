@@ -62,6 +62,7 @@ func _ready() -> void:
 	_cam.fov = 68.0
 	_cam.near = 0.05
 	_cam.far = 400.0
+	_cam.cull_mask = 0xFFFFF & ~LAYOUT.BACK_LAYER
 	_view.add_child(_cam)
 	RETRO_RENDER.register(_box)
 	_hud = STATION_HUD.new()

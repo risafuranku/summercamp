@@ -1036,7 +1036,13 @@ func cabin(r: Node3D, level: int, _w := 0.0, _d := 0.0, _wall_h := 0.0, _roof_h 
 		p.rotation.x = side * ang
 	var front := d * 0.5
 	# The door in the middle of the front.
-	_box(r, "Door", Vector3(CL.DOOR_W, CL.DOOR_H, 0.06), Vector3(0, CL.MODEL_FLOOR + CL.DOOR_H * 0.5, front + 0.03), _camp("door_wood.png", [Color(1.0, 0.93, 0.82), Color(0.84, 1.0, 0.88), Color(1.0, 0.86, 0.72)][lv - 1] as Color))
+	var door_at := Vector3(0, CL.MODEL_FLOOR + CL.DOOR_H * 0.5, front + 0.03)
+	var door_tint: Color = [Color(1.0, 0.93, 0.82), Color(0.84, 1.0, 0.88), Color(1.0, 0.86, 0.72)][lv - 1]
+	_box(r, "Door", Vector3(CL.DOOR_W, CL.DOOR_H, 0.06), door_at, _camp("door_wood.png", door_tint))
+	# Its face in old green paint, the whole picture, handle where it belongs: the bare boards
+	# were the wall's own and only a slice of the picture lay on the leaf (the user 7. 11.:
+	# "the first cabin has an invisible door"). Hung and swung with the leaf (door_anim).
+	_painted(_side_quad(r, "DoorFace", Vector2(CL.DOOR_W, CL.DOOR_H), door_at + Vector3(0, 0, 0.032), 0.0, _camp("cabin_door.png", door_tint)))
 	# Its frame round the opening (a board the size of it stood behind the leaf: in the one
 	# world the room is there, the board stood shut in the open doorway, the user 5. 11.).
 	_frame(r, "DoorFrame", -CL.DOOR_W * 0.5, CL.DOOR_W * 0.5, CL.MODEL_FLOOR, CL.MODEL_FLOOR + CL.DOOR_H, front + 0.01, trim, false)
@@ -2081,6 +2087,7 @@ func _camp(file: String, tint: Color, uv := Vector3.ONE) -> StandardMaterial3D:
 const AWNING_UV := 1.2
 ## Where camp/corn_stand.png's counter front starts (under the painted counter top).
 const STAND_FRONT_V := 0.52
+const STAND_LAYOUT = preload("res://scripts/corn/stand_layout.gd")
 
 
 func _corn_stand(r: Node3D, w: float, _d: float) -> Dictionary:
@@ -2102,7 +2109,9 @@ func _corn_stand(r: Node3D, w: float, _d: float) -> Dictionary:
 	# Four posts and the awning in red and white stripes.
 	for x: float in [-bw * 0.5 + 0.05, bw * 0.5 - 0.05]:
 		for z: float in [-depth * 0.5 + 0.05, depth * 0.5 - 0.05]:
-			_box(r, "Post", Vector3(0.07, 2.3, 0.07), Vector3(x, 1.15, z), _wood())
+			var post := _box(r, "Post", Vector3(0.07, 2.3, 0.07), Vector3(x, 1.15, z), _wood())
+			if z < 0.0:
+				post.layers = STAND_LAYOUT.BACK_LAYER
 	# The awning: striped canvas (Grok, camp/awning_stripes.png) and its scalloped fringe
 	# along the front, one tongue a flap (camp/awning_fringe.png: a red and a cream one).
 	var stripes := 6
