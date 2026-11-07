@@ -20,7 +20,7 @@ const STROLL := 54.0
 const PUB_DOOR := Vector3(16.0, 0.0, -9.6)
 const GUESTS := [
 	{"tex": "town_vondra.png", "from": 22.98, "way": [PUB_DOOR, Vector3(15.0, 0, -4.4), Vector3(-30.0, 0, -4.4), Vector3(-46.0, 0, -11.0)]},
-	{"tex": "town_pumpar.png", "from": 23.12, "way": [PUB_DOOR, Vector3(18.0, 0, -4.2), Vector3(26.0, 0, -4.6), Vector3(26.0, 0, 4.4), Vector3(66.0, 0, 4.4)]},
+	{"tex": "town_pumpar.png", "from": 23.12, "way": [PUB_DOOR, Vector3(18.0, 0, -3.6), Vector3(26.0, 0, -4.6), Vector3(26.0, 0, 4.4), Vector3(66.0, 0, 4.4)]},
 ]
 ## The van: comes from the east along the north lane, stops with its back doors by the
 ## Jednota's door, goes on west.
@@ -248,7 +248,7 @@ func _tick_van(h: float) -> void:
 	var x := _van_x(h)
 	_van.position = Vector3(x, 0.0, VAN_Z)
 	for w in _wheels:
-		(w as MeshInstance3D).rotation.x = x / 0.38
+		(w as MeshInstance3D).rotation.z = x / 0.38
 
 
 ## The driver with the crates, the crates at the door, Mrs Novotna coming to work.

@@ -203,6 +203,10 @@ var _grim := {"rustle": 4.0, "drip": 3.0, "scream": 8.0, "far": 14.0}
 var _flicker_at := -1.0
 
 
+## Off the glass by now at the latest, looked at or not.
+var _gone_by := 0.0
+
+
 func get_enemy_id() -> String:
 	return "tourist"
 
@@ -343,6 +347,10 @@ func _back_out() -> void:
 
 
 func _away_quiet() -> void:
+	# (A shot going off as you got in the boat hung white in the air there.)
+	_flash_t = 0.0
+	if _flash != null:
+		_flash.light_energy = 0.0
 	if _body != null:
 		_body.visible = false
 	if _self_light != null:
@@ -417,7 +425,7 @@ func _tick_walk(dt: float) -> void:
 		var was := _body.global_position
 		# (From over your feet down: from 20 m up he stood on roofs and up in the trees.)
 		var g := _floor_at(p)
-		_body.global_position = g if g != Vector3.INF else p
+		_body.global_position = g if g != Vector3.INF else was
 		var step := _body.global_position - was
 		_stride_d += Vector2(step.x, step.z).length()
 		if _stride_d >= 1.0:
@@ -648,6 +656,10 @@ func _tick_indoors(_dt: float) -> void:
 		if _elapsed >= _in_next:
 			_in_next = _elapsed + _rng.randf_range(9.0, 14.0)
 			_room(SFX_SHUTTER, -10.0, 0.9, true)
+			# The flash through the canvas.
+			var im = _im()
+			if im != null and im.has_method("tent_flash") and _fx() != null:
+				im.tent_flash()
 		return
 	if _win.is_empty():
 		# (After a shot the while before the next window: gone from the glass.)
@@ -704,22 +716,33 @@ func _tick_indoors(_dt: float) -> void:
 			_in_beep = _elapsed
 			_whine_started = false
 		4:
-			# After the shot: to another window (or this one again), in a while.
+			# After the shot: to another window (or this one again), in a while; off the glass
+			# when you look away, not under your eyes.
+			if float(w.get("facing", 0.0)) > 0.82 and _elapsed < _gone_by:
+				_in_next = _elapsed + 0.4
+				return
 			_win = {}
 			_in_step = 0
 			_in_next = _elapsed + _rng.randf_range(2.0, 4.0)
 
 
 func _pick_window(wins: Array) -> void:
-	# Mostly one with its curtain open, and of those the one you look at.
-	var best: Dictionary = wins[_rng.randi() % wins.size()]
+	# Mostly one with its curtain open, and one you are not looking at this moment: he is there
+	# when you look; he does not appear there as you look.
+	var best: Dictionary = {}
 	var score := -INF
 	for w in wins:
+		if float(w.get("facing", 0.0)) > 0.82:
+			continue
 		var s := float(w.get("open", 1.0)) * 2.0 + float(w.get("facing", 0.0)) + _rng.randf_range(0.0, 0.8)
 		if s > score:
 			score = s
 			best = w
+	if best.is_empty():
+		_in_next = _elapsed + 0.6
+		return
 	_win = best
+	_gone_by = _elapsed + 25.0
 	var p := _floor_at((best["pos"] as Vector3) + (best["out"] as Vector3) * 0.5)
 	if p == Vector3.INF:
 		p = (best["pos"] as Vector3) + (best["out"] as Vector3) * 0.5 - Vector3(0, 1.6, 0)
@@ -968,9 +991,13 @@ func _kill(lens: Vector3) -> void:
 func _enter_rush() -> void:
 	_phase = Phase.RUSH
 	_set_af(false)
-	var behind := _point_from_player(_rng.randf_range(14.0, 18.0), _rng.randf_range(160.0, 200.0))
-	if behind != Vector3.INF:
-		_body.global_position = behind
+	# From where the way to you is clear: he came straight through what stood between.
+	var from_eye := _player_pos() + Vector3(0, 1.2, 0)
+	for _i in 8:
+		var behind := _point_from_player(_rng.randf_range(14.0, 18.0), _rng.randf_range(130.0, 230.0))
+		if behind != Vector3.INF and not _ray_blocked(from_eye, behind + Vector3(0, 1.2, 0)):
+			_body.global_position = behind
+			break
 	_rush_from = _body.global_position
 	_set_pose("run" if _tex.has("run") else "walk_a")
 	_sound(SFX_RUSH, _head(), 12.0, 1.0, 40.0)
@@ -994,7 +1021,8 @@ func _tick_rush(dt: float) -> void:
 	var p := _body.global_position + to.normalized() * minf(to.length() - 2.8, RUSH_SPEED * _step_acc)
 	_step_acc = 0.0
 	var g := _floor_at(p)
-	_body.global_position = g if g != Vector3.INF else p
+	if g != Vector3.INF:
+		_body.global_position = g
 
 
 ## (Nowhere once the night is over: a timer of his may still go off after it.)

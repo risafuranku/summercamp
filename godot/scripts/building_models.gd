@@ -255,7 +255,7 @@ func _pub(r: Node3D, _w: float, _d: float) -> Dictionary:
 			_box(r, "WindowBar", Vector3(0.025, size.y, 0.025), Vector3(x_out - 0.03, wa.y, cz + float(bz)), iron)
 		if wd.has("bar_y"):
 			_box(r, "WindowBar", Vector3(0.025, 0.025, size.x), Vector3(x_out - 0.03, at.y + float(wd["bar_y"]), wa.z), iron)
-	var awning := _box(r, "Awning", Vector3(1.7, 0.08, 1.1), Vector3(door_x, 2.55, front + 0.55), _flat(Color(0.28, 0.42, 0.26)))
+	var awning := _box(r, "Awning", Vector3(1.7, 0.08, 1.1), Vector3(door_x, 2.55, front + 0.55), _camp("awning_stripes.png", Color(0.62, 0.86, 0.62)))
 	awning.rotation.x = 0.18
 	for x: float in [door_x - 0.78, door_x + 0.78]:
 		_box(r, "Post", Vector3(0.1, 2.45, 0.1), Vector3(x, 1.32, front + 1.02), _wood())
@@ -522,16 +522,16 @@ func _restaurant(r: Node3D, _w: float, _d: float) -> Dictionary:
 	var door: Vector3 = at + (lay.DOOR as Vector3)
 	_painted_leaf(r, "Door", "camp_bistro_front_glass.png", Rect2(97, 45, 29, 76), Vector3(at.x, h * 0.5 + 0.1, front + 0.015), Vector2(sx, h))
 	_door_sign(r, Vector3(door.x, 1.45, front + 0.05))
-	var awn := _box(r, "Awning", Vector3(1.4, 0.07, 0.8), Vector3(door.x, 2.55, front + 0.4), _flat(Color(0.86, 0.66, 0.16)))
+	var awn := _box(r, "Awning", Vector3(1.4, 0.07, 0.8), Vector3(door.x, 2.55, front + 0.4), _camp("awning_stripes.png", Color(1.0, 0.86, 0.5)))
 	awn.rotation.x = 0.25
 	# The big red sign on the roof edge.
 	_box(r, "Sign", Vector3(sx * 0.62, 0.62, 0.12), Vector3(0, h + 0.73, front - 0.1), _flat(Color(0.74, 0.08, 0.06)))
 	_label(r, "RESTAURACE", Vector3(0, h + 0.73, front - 0.03), 0.34, Color(0.98, 0.95, 0.88))
 	# A drinks machine, the blue bin, the dish, an AC box, a gas bottle.
-	_box(r, "Vending", Vector3(0.8, 1.8, 0.7), Vector3(-sx * 0.5 - 0.5, 1.0, front - 0.6), _flat(Color(0.78, 0.08, 0.06)))
-	_box(r, "VendingStripe", Vector3(0.82, 0.25, 0.72), Vector3(-sx * 0.5 - 0.5, 1.3, front - 0.6), _flat(Color(0.95, 0.95, 0.92)))
-	_box(r, "Bin", Vector3(1.2, 1.0, 0.8), Vector3(sx * 0.5 + 0.55, 0.6, front - 0.6), _flat(Color(0.16, 0.3, 0.62)))
-	var lid := _box(r, "BinLid", Vector3(1.24, 0.06, 0.84), Vector3(sx * 0.5 + 0.55, 1.14, front - 0.62), _flat(Color(0.1, 0.18, 0.4)))
+	_box(r, "Vending", Vector3(0.8, 1.8, 0.7), Vector3(-sx * 0.5 - 0.5, 1.0, front - 0.6), _camp("galvanized.png", Color(0.78, 0.2, 0.16)))
+	_picture(r, "VendingFront", "vending_machine.png", Vector2(0.8, 1.8), Vector3(-sx * 0.5 - 0.5, 1.0, front - 0.24))
+	_box(r, "Bin", Vector3(1.2, 1.0, 0.8), Vector3(sx * 0.5 + 0.55, 0.6, front - 0.6), _camp("galvanized.png", Color(0.42, 0.56, 0.86)))
+	var lid := _box(r, "BinLid", Vector3(1.24, 0.06, 0.84), Vector3(sx * 0.5 + 0.55, 1.14, front - 0.62), _camp("galvanized.png", Color(0.3, 0.38, 0.62)))
 	lid.rotation.x = -0.12
 	_cyl(r, "Dish", 0.36, 0.06, Vector3(sx * 0.3, h + 0.91, -0.6), _flat(Color(0.84, 0.84, 0.82)), Vector3(0.6, 0, 0))
 	_box(r, "ACUnit", Vector3(0.7, 0.45, 0.5), Vector3(-sx * 0.25, h + 0.63, -0.8), _metal())
@@ -1575,32 +1575,28 @@ func _flower(r: Node3D, tex: String, size: Vector2, pos: Vector3, billboard := f
 	return load("res://scripts/interior_kit.gd").cutout(r, tex, size, pos, yaw, billboard, "Flowers")
 
 
+## Its own picture (Grok, town/gnome.png) on two crossed cards: it was cylinders in plain colours.
 func _gnome(r: Node3D, _w: float, _d: float) -> Dictionary:
 	var g := Node3D.new()
 	g.name = "Gnome"
 	r.add_child(g)
-	_cyl(g, "Moss", 0.3, 0.04, Vector3(0, 0.02, 0), _flat(Color(0.24, 0.4, 0.16)))
-	_cyl(g, "Boots", 0.11, 0.06, Vector3(0, 0.07, 0.02), _flat(Color(0.3, 0.18, 0.1)))
-	var coat := _cyl(g, "Coat", 0.11, 0.22, Vector3(0, 0.2, 0), _flat(Color(0.2, 0.32, 0.66)))
-	(coat.mesh as CylinderMesh).top_radius = 0.08
-	_cyl(g, "Belt", 0.105, 0.03, Vector3(0, 0.25, 0), _flat(Color(0.14, 0.1, 0.06)))
-	var head := MeshInstance3D.new()
-	head.name = "Head"
-	var sm := SphereMesh.new()
-	sm.radius = 0.075
-	sm.height = 0.15
-	sm.radial_segments = 8
-	sm.rings = 4
-	head.mesh = sm
-	head.material_override = _flat(Color(0.94, 0.74, 0.6))
-	head.position = Vector3(0, 0.37, 0)
-	g.add_child(head)
-	_box(g, "Beard", Vector3(0.12, 0.12, 0.06), Vector3(0, 0.33, 0.06), _flat(Color(0.95, 0.95, 0.92)))
-	var hat := _cyl(g, "Hat", 0.085, 0.22, Vector3(0, 0.52, -0.01), _flat(Color(0.84, 0.14, 0.12)))
-	(hat.mesh as CylinderMesh).top_radius = 0.0
-	hat.rotation.x = -0.12
-	var lamp := _box(g, "Lantern", Vector3(0.05, 0.07, 0.05), Vector3(0.12, 0.2, 0.06), _flat(Color(1.0, 0.86, 0.4)))
-	lamp.name = "Lantern"
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = load("res://assets/textury/town/gnome.png")
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	m.alpha_scissor_threshold = 0.5
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	for yaw: float in [0.0, PI * 0.5]:
+		var card := MeshInstance3D.new()
+		card.name = "Card"
+		var q := QuadMesh.new()
+		q.size = Vector2(0.34, 0.68)
+		q.center_offset = Vector3(0, 0.34, 0)
+		card.mesh = q
+		card.material_override = m
+		card.rotation.y = yaw
+		g.add_child(card)
 	_use_script(g, "res://scripts/attractions/gnome.gd")
 	return {"size": Vector3(0.5, 0.65, 0.5), "target": Vector3(0, 0.4, 0.3)}
 
@@ -1669,8 +1665,8 @@ func _flag_material() -> StandardMaterial3D:
 
 
 func _playground(r: Node3D, w: float, _d: float) -> Dictionary:
-	var red := _flat(Color(0.78, 0.16, 0.12))
-	var yellow := _flat(Color(0.94, 0.76, 0.16))
+	var red := _camp("galvanized.png", Color(0.95, 0.34, 0.26))
+	var yellow := _camp("galvanized.png", Color(1.1, 0.92, 0.36))
 	var sand := _camp_or("gravel_road.png", Color(1.0, 0.9, 0.66), "dirt", Vector3(1.0, 1.0, 1.0))
 	_box(r, "SandPatch", Vector3(w * 0.88, 0.04, 3.0), Vector3(0, 0.02, 0), sand)
 	# The swing frame on the left half: two A-frames, the bar, two seats on chains.
@@ -1711,7 +1707,7 @@ func _playground(r: Node3D, w: float, _d: float) -> Dictionary:
 	for side: float in [-1.0, 1.0]:
 		_box(r, "PitSide", Vector3(1.5, 0.18, 0.08), Vector3(tx, 0.09, pz + side * 0.55), plank)
 		_box(r, "PitEnd", Vector3(0.08, 0.18, 1.1), Vector3(tx + side * 0.75, 0.09, pz), plank)
-	_box(r, "PitSand", Vector3(1.42, 0.12, 1.02), Vector3(tx, 0.08, pz), _flat(Color(0.86, 0.76, 0.52)))
+	_box(r, "PitSand", Vector3(1.42, 0.12, 1.02), Vector3(tx, 0.08, pz), _camp_or("gravel_road.png", Color(1.1, 1.0, 0.74), "dirt", Vector3(1.0, 1.0, 1.0)))
 	_cyl(r, "Bucket", 0.08, 0.14, Vector3(tx + 0.3, 0.2, pz + 0.1), _flat(Color(0.2, 0.42, 0.8)))
 	r.set_meta("swing_seat_drop", 1.72)
 	_use_script(r, "res://scripts/attractions/playground_play.gd")
@@ -1719,7 +1715,7 @@ func _playground(r: Node3D, w: float, _d: float) -> Dictionary:
 
 
 func _pingpong(r: Node3D, _w: float, _d: float) -> Dictionary:
-	var green := _flat(Color(0.12, 0.36, 0.24))
+	var green := _camp("metal_green.png", Color(0.86, 1.0, 0.9))
 	var line := _flat(Color(0.94, 0.94, 0.9))
 	var top_y := 0.76
 	_box(r, "TableTop", Vector3(2.74, 0.04, 1.52), Vector3(0, top_y - 0.02, 0), green)
@@ -2358,6 +2354,25 @@ func _psx_mat(color: Color, category: String) -> Material:
 			(m as StandardMaterial3D).set_meta("base_albedo_color", (m as StandardMaterial3D).albedo_color)
 		return m
 	return _flat(color)
+
+
+## A picture of the camp's on a quad facing +Z, its own colours.
+func _picture(r: Node3D, n: String, file: String, size: Vector2, pos: Vector3) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.name = n
+	var q := QuadMesh.new()
+	q.size = size
+	mi.mesh = q
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = load(CAMP + file)
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	m.alpha_scissor_threshold = 0.5
+	m.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	mi.material_override = m
+	mi.position = pos
+	r.add_child(mi)
+	return mi
 
 
 func _flat(c: Color) -> StandardMaterial3D:

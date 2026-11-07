@@ -15,6 +15,7 @@ extends Node3D
 ## Its own space is motel space (the block's middle on the ground, the front to -z); it
 ## stands in the village's frame unturned.
 
+const TOWN_CAR := preload("res://scripts/town/town_car.gd")
 const PLAN = preload("res://scripts/town/motel_plan.gd")
 const ROOMS = preload("res://scripts/town/motel_rooms.gd")
 const K = preload("res://scripts/interior_kit.gd")
@@ -290,9 +291,32 @@ func _car_park() -> void:
 		l.visible = false
 		add_child(l)
 		_yard_lights.append(l)
-	_yard_sprite("parked_car_a", 1.45, Vector3(2.8, 0.0, fz - 3.2))
-	_yard_sprite("parked_car_b", 1.55, Vector3(9.3, 0.0, fz - 4.0))
+	# The yard is asphalt; the cars stand on it, not pictures turning after you; you go round
+	# them, the bin and the lamps.
+	var yard := MeshInstance3D.new()
+	var pm := PlaneMesh.new()
+	pm.size = Vector2(20.0, 6.4)
+	yard.mesh = pm
+	var ym := StandardMaterial3D.new()
+	ym.albedo_texture = load("res://assets/textury/town/asphalt.png")
+	ym.albedo_color = Color(0.7, 0.7, 0.7)
+	ym.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	ym.uv1_scale = Vector3(6.0, 2.0, 1.0)
+	ym.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	yard.material_override = ym
+	yard.position = Vector3(3.0, 0.015, fz - 4.4)
+	yard.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(yard)
+	for c in [["parked_car_a", Vector3(2.8, 0.0, fz - 3.6), 1.46], ["parked_car_b", Vector3(9.3, 0.0, fz - 4.4), 1.68]]:
+		var car: Node3D = TOWN_CAR.make(Color.WHITE, str(c[0]))
+		car.position = c[1]
+		car.rotation.y = float(c[2])
+		add_child(car)
+		TOWN_CAR.parked(car)
 	_yard_sprite("dumpster", 1.5, Vector3(-3.6, 0.0, fz - 1.5))
+	_solid(Vector3(-3.6, 0.75, fz - 1.5), Vector3(1.8, 1.5, 1.2))
+	for at in [Vector3(-1.2, 0.0, fz - 7.2), Vector3(7.4, 0.0, fz - 7.2)]:
+		_solid(at + Vector3(0, 2.6, 0), Vector3(0.3, 5.2, 0.3))
 
 
 func _yard_sprite(tex: String, height: float, at: Vector3) -> Sprite3D:

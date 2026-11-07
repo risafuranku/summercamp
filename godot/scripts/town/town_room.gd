@@ -1097,8 +1097,8 @@ func _laminate() -> StandardMaterial3D:
 	return K.surface("plastic", 0.5, Color(0.56, 0.52, 0.46))
 
 
-func _hang_lamp(pos: Vector3) -> void:
-	_box(Vector3(0.015, 2.8 - pos.y - 0.2, 0.015), Vector3(pos.x, (2.8 + pos.y + 0.2) * 0.5, pos.z), K.surface("galvanized", 0.3, Color(0.3, 0.3, 0.3)), "Chain")
+func _hang_lamp(pos: Vector3, ceiling := 2.8) -> void:
+	_box(Vector3(0.015, ceiling - pos.y - 0.2, 0.015), Vector3(pos.x, (ceiling + pos.y + 0.2) * 0.5, pos.z), K.surface("galvanized", 0.3, Color(0.3, 0.3, 0.3)), "Chain")
 	var s := _sprite("pub_lamp", Vector2(0.42, 0.42), pos - Vector3(0, 0.2, 0), 0.0, true, "Lamp")
 	s.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var m := s.material_override as StandardMaterial3D

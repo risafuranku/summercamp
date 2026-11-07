@@ -234,7 +234,9 @@ func _quarry_indoors() -> bool:
 	var peer := _quarry_peer()
 	if peer != 0:
 		return night and bool(Coop.state_of(peer).get("in", false))
-	var inside: bool = scene.has_method("_is_any_interior_open") and bool(scene.call("_is_any_interior_open"))
+	# A room of the camp: what the camp's night does at its windows stays at the camp, not in the
+	# motel, the pub, the bus and the pipes (they had the shutter every ten seconds out in Liblice).
+	var inside: bool = scene.has_method("in_camp_room") and bool(scene.call("in_camp_room"))
 	return night and inside
 
 
@@ -424,9 +426,21 @@ func _ground(p: Vector3) -> Vector3:
 	var q := PhysicsRayQueryParameters3D.create(p + Vector3(0, 20, 0), p + Vector3(0, -30, 0))
 	q.exclude = [_player.get_rid()]
 	var hit := space.intersect_ray(q)
-	if hit.is_empty():
+	if hit.is_empty() or _lake_box(hit):
 		return Vector3.INF
 	return hit["position"]
+
+
+## The ray stopped on the flat box of the camp's last row: that is water, not ground (they
+## walked out on the lake from the shore).
+func _lake_box(hit: Dictionary) -> bool:
+	var c = hit.get("collider", null)
+	return c is Node and String((c as Node).name) == "Lake"
+
+
+func _on_water(p: Vector3) -> bool:
+	var lake: Node = _world_root.get_tree().get_first_node_in_group("camp_lake") if _world_root != null and _world_root.is_inside_tree() else null
+	return lake != null and bool(lake.call("in_water", p))
 
 
 ## A ground point at `dist` from the player in direction `angle_deg` from where the
@@ -446,7 +460,41 @@ func _point_from_player(dist: float, angle_deg: float) -> Vector3:
 ## callers try another spot).
 func _stand(p: Vector3) -> Vector3:
 	var g := _ground(p)
-	return Vector3.INF if g == Vector3.INF or _covered(g) else g
+	return Vector3.INF if g == Vector3.INF or _covered(g) or _on_water(g) else g
+
+
+## `dir` turned as little as it takes for a clear way ahead: a run at you goes round a cabin,
+## not through it.
+func _clear_dir(from: Vector3, dir: Vector3, ahead := 1.5) -> Vector3:
+	var eye := from + Vector3(0, 0.9, 0)
+	for a: float in [0.0, 35.0, -35.0, 70.0, -70.0, 105.0, -105.0]:
+		var d := dir.rotated(Vector3.UP, deg_to_rad(a))
+		if not _ray_blocked(eye, eye + d * ahead):
+			return d
+	return dir
+
+
+var _stride_m := 0.0
+
+
+## One still picture at a run slid over the ground: mirrored at each step, a pixel up between.
+func _stride(moved: float, each := 1.1) -> void:
+	if _body == null or _body.texture == null:
+		return
+	_stride_m += moved
+	var odd := int(_stride_m / each) % 2 == 1
+	_body.flip_h = odd
+	_body.offset.y = float(_body.texture.get_height()) * 0.5 + (1.0 if odd else 0.0)
+
+
+## What is left of the day's light, 0 in the night proper (the sky's own clock): by it you can
+## see what stands out there without a torch.
+func _twilight() -> float:
+	var scene := _world_root.get_tree().current_scene if _world_root != null and _world_root.is_inside_tree() else null
+	var wv = scene.get("_weather_visuals") if scene != null else null
+	if wv == null:
+		return 0.0
+	return 1.0 - float(wv.call("_night_overlay_factor", wv.call("_season_hour", float(scene.get("_time_of_day_hours")))))
 
 
 func _im():
@@ -524,7 +572,7 @@ func _floor_at(p: Vector3) -> Vector3:
 	var q := PhysicsRayQueryParameters3D.create(Vector3(p.x, top, p.z), Vector3(p.x, top - 6.0, p.z))
 	q.exclude = [_player.get_rid()]
 	var hit := space.intersect_ray(q)
-	return hit["position"] if not hit.is_empty() else Vector3.INF
+	return hit["position"] if not hit.is_empty() and not _lake_box(hit) else Vector3.INF
 
 
 # ── body ──────────────────────────────────────────────────────────────────────

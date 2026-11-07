@@ -3,6 +3,7 @@ extends CharacterBody3D
 ## A foot came down (the bob's step, its sound): the feet you see looking down, the prints.
 signal foot_fell(left: bool)
 
+const FAR_TREES := preload("res://scripts/ambient/far_trees.gd")
 const PROFILES = preload("res://scripts/profiles.gd")
 const WORLD_GEN = preload("res://scripts/world_generator.gd")
 const YAW_SENSITIVITY_FACTOR := 2.0
@@ -534,6 +535,7 @@ func _physics_process(delta: float) -> void:
 
 	move_and_slide()
 	_hold_off_branches(delta)
+	_hold_off_far_trees()
 	_update_flashlight_battery(delta)
 	_after_physics(delta)
 
@@ -548,6 +550,22 @@ const BRANCH_MARGIN := 0.14
 const BRANCH_DUCK := 1.1
 const BRANCH_EASE := 3.5
 var _branch_q: PhysicsShapeQueryParameters3D
+
+
+## Past the fence the trees have no bodies (ambient/far_trees.gd): you stop at their trunks all
+## the same, and slide round them.
+func _hold_off_far_trees() -> void:
+	var out: Vector2 = FAR_TREES.way_out(global_position, 0.36)
+	if out == Vector2.ZERO:
+		return
+	move_and_collide(Vector3(out.x, 0.0, out.y))
+	var n := out.normalized()
+	var hv := Vector2(velocity.x, velocity.z)
+	var inward := hv.dot(-n)
+	if inward > 0.0:
+		hv += n * inward
+		velocity.x = hv.x
+		velocity.z = hv.y
 
 
 func _hold_off_branches(delta: float) -> void:

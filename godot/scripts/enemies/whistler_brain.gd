@@ -45,6 +45,8 @@ const LOUD_SOFT := 3.6
 const LOUD_HARD := 0.7
 const HARD := ["gravel", "wood", "puddle", "path", "stone"]
 const RUSH_SPEED := 6.8
+## At most this long backing off in your sight before he is simply not there.
+const LEAVE_SEC := 6.0
 const CREEP := 0.45
 const NEAREST := 9.0
 const REACH := 1.5
@@ -79,6 +81,9 @@ var _strike_t := -1.0
 ## Indoors: the next song under the window (wall clock).
 var _in_next := -1.0
 var _in_sound: AudioStreamPlayer
+
+
+var _leave_t := 0.0
 
 
 func get_enemy_id() -> String:
@@ -118,7 +123,12 @@ func _enter(phase: String, seconds: float) -> void:
 			if _pos == Vector3.INF:
 				_relocate(20.0, 28.0)
 			_source = _thrown_from(_pos)
-			_music.stream = load(SFX_PLAY[_rng.randi() % SFX_PLAY.size()])
+			# Round and round: a song runs 14 s, he plays up to 17 and by his fire a minute, and
+			# when it ran out by itself you froze for a listening that had not begun.
+			var song := load(SFX_PLAY[_rng.randi() % SFX_PLAY.size()]) as AudioStream
+			if song is AudioStreamMP3:
+				(song as AudioStreamMP3).loop = true
+			_music.stream = song
 			_music.global_position = _source + Vector3(0, 1.4, 0)
 			_music.volume_db = -2.0
 			_music.play(_rng.randf_range(0.0, 3.0))
@@ -139,7 +149,11 @@ func _enter(phase: String, seconds: float) -> void:
 			_sound(S + "rush.mp3", _pos + Vector3(0, 1.0, 0), 2.0, 1.0, 45.0)
 		"rest":
 			_music.stop()
-			_body.visible = false
+			# (Not out like a light before your eyes: he goes back into the dark, _tick_leave.)
+			if _body != null and _body.visible and _pos != Vector3.INF and _is_seen(_pos + Vector3(0, 1.2, 0)):
+				_leave_t = LEAVE_SEC
+			elif _body != null:
+				_body.visible = false
 			_source = Vector3.INF
 
 
@@ -162,20 +176,27 @@ func _on_tick(dt: float) -> void:
 	_tick_fire(dt)
 	match _phase:
 		"rest":
+			_tick_leave(dt, player)
 			if _phase_t <= 0.0:
 				_pos = Vector3.INF
 				_enter("play", _rng.randf_range(PLAY_SEC.x, PLAY_SEC.y))
 		"play":
 			# By his fire he sits in its light; else he is out in the dark, unseen.
 			var by_fire := _fire_at != Vector3.INF
-			_body.visible = by_fire
+			# (Stood in your torch after a run he went out as he began to play: till you look away.)
+			_body.visible = by_fire or (_body.visible and _is_seen(_pos + Vector3(0, 1.2, 0)))
+			# Back out of a door: he has been playing on.
+			if not _music.playing:
+				_music.play(_rng.randf_range(0.0, 3.0))
 			# Song by song nearer, never nearer than NEAREST while he plays.
 			var to := player - _pos
 			to.y = 0.0
 			if not by_fire and to.length() > NEAREST:
-				var p := _ground(_pos + to.normalized() * CREEP * dt)
+				var p := _floor_at(_pos + to.normalized() * CREEP * dt)
 				if p != Vector3.INF:
 					_pos = p
+				if _body.visible:
+					_place_body(_pos)
 			_tell_t -= dt
 			if _tell_t <= 0.0:
 				_tell_t = _rng.randf_range(3.5, 6.5)
@@ -227,12 +248,14 @@ func _tick_rush(dt: float, player: Vector3, in_light: bool) -> void:
 		# Where you were: he listens for you again.
 		_enter("listen", _listen_seconds() * 0.7)
 		return
-	var p := _ground(_pos + to.normalized() * minf(RUSH_SPEED * dt, to.length()))
+	var step := minf(RUSH_SPEED * dt, to.length())
+	var p := _floor_at(_pos + _clear_dir(_pos, to.normalized()) * step)
 	if p != Vector3.INF:
 		_pos = p
 	_place_body(_pos)
-	_body.texture = _tex_stand
+	_pose(_tex_stand)
 	_body.visible = true
+	_stride(step)
 	# Still listening on the way: a noise turns him.
 	if not in_light and _heard() and me < 18.0:
 		_heard_at = player
@@ -244,7 +267,6 @@ func _give_up() -> void:
 	_lit_for = 0.0
 	_sound(S + "mute.mp3", (_source if _source != Vector3.INF else _pos) + Vector3(0, 1.2, 0), -4.0, 0.9, 50.0)
 	_feed("The music stopped in the middle of the tune.")
-	_pos = Vector3.INF
 	_enter("rest", _rng.randf_range(35.0, 55.0))
 
 
@@ -276,6 +298,9 @@ func _tick_strike(dt: float) -> void:
 			fx.close_up_off()
 			fx.red_flash(0.6)
 		_hurt(_hit)
+		# (That can be the end of you, and of the night and his body with it.)
+		if not _night_active:
+			return
 		claimed = true
 		_feed("A string round your neck, and a whistle in your ear.")
 		_pos = Vector3.INF
@@ -300,18 +325,20 @@ func _tick_fire(dt: float) -> void:
 	if near < 7.0:
 		# Not him: the fire dies, and he is behind you.
 		_put_out()
-		_pos = _ground(_player_pos() - _forward_flat() * 9.0)
+		_pos = _stand(_player_pos() - _forward_flat() * 9.0)
 		if _pos == Vector3.INF:
 			_pos = _player_pos() - _forward_flat() * 9.0
 		_heard_at = _player_pos()
 		_enter("rush", 8.0)
 		return
-	if _fire_t > 70.0:
+	# (Burnt down when you are not looking at it, or long after.)
+	if _fire_t > 70.0 and (_fire_t > 200.0 or not _is_seen(_fire_at + Vector3(0, 0.6, 0))):
 		_put_out()
 
 
 func _light_fire() -> void:
-	var p := _dark_point(24.0, 34.0, 0.0, 180.0)
+	# Out of your sight: a fire does not come out of nothing in front of you.
+	var p := _dark_point(24.0, 34.0, 70.0, 180.0)
 	if p == Vector3.INF:
 		_fire_next = 15.0
 		return
@@ -344,7 +371,7 @@ func _light_fire() -> void:
 	# He sits by it: the music from there, and him on the log in its light.
 	_pos = p + Vector3(1.1, 0, 0)
 	_place_body(_pos)
-	_body.texture = _tex_sit
+	_pose(_tex_sit)
 	_body.visible = true
 	_enter("play", 60.0)
 	_source = p
@@ -362,7 +389,31 @@ func _put_out() -> void:
 	_fire_at = Vector3.INF
 	_fire_next = _rng.randf_range(60.0, 110.0)
 	if _body != null and is_instance_valid(_body):
-		_body.texture = _tex_stand
+		_pose(_tex_stand)
+		_body.visible = false
+
+
+## Sat or stood: the picture and its feet on the ground (at the standing one's offset he hung
+## 20 cm over the log).
+func _pose(t: Texture2D) -> void:
+	_body.texture = t
+	if t != null:
+		_body.offset = Vector2(0.0, float(t.get_height()) * 0.5)
+
+
+## Going: back from you into the dark, gone once you have looked away or he is far enough.
+func _tick_leave(dt: float, player: Vector3) -> void:
+	if not _body.visible or _pos == Vector3.INF:
+		return
+	_leave_t -= dt
+	var away := _pos - player
+	away.y = 0.0
+	var p := _floor_at(_pos + away.normalized() * 2.4 * dt)
+	if p != Vector3.INF:
+		_pos = p
+	_place_body(_pos)
+	_stride(2.4 * dt, 0.8)
+	if _leave_t <= 0.0 or not _is_seen(_pos + Vector3(0, 1.2, 0)):
 		_body.visible = false
 
 
@@ -371,9 +422,11 @@ func _put_out() -> void:
 ## The base ticks nothing while you are indoors: then his song is under the window now
 ## and then, quiet, and stops in the middle of a bar.
 func tick(delta: float) -> void:
-	if _night_active and _world_root != null and is_instance_valid(_world_root) and not _is_ready() and _quarry_indoors():
+	var not_here: bool = _night_active and _world_root != null and is_instance_valid(_world_root) and not _is_ready()
+	if not_here:
 		_music.stop()
-		var now := Time.get_ticks_msec() / 1000.0
+	if not_here and _quarry_indoors():
+		var now := _elapsed
 		if _in_next < 0.0:
 			_in_next = now + _rng.randf_range(15.0, 30.0)
 		elif now >= _in_next and _fx() != null:
@@ -408,6 +461,8 @@ func _on_stop() -> void:
 
 ## In through a door with him at a run: he has lost you, he does not wait at the door.
 func _on_back() -> void:
+	# (Under the window was under the window: it played on for nine seconds out in the camp.)
+	_in_sound.stop()
 	if _phase == "rush":
 		_pos = Vector3.INF
 		_enter("rest", _rng.randf_range(15.0, 25.0))
@@ -425,7 +480,7 @@ func _thrown_from(at: Vector3) -> Vector3:
 	if throw <= 0.5:
 		return at
 	var side := Vector3(_rng.randf_range(-1.0, 1.0), 0.0, _rng.randf_range(-1.0, 1.0)).normalized()
-	var p := _ground(at + side * throw)
+	var p := _floor_at(at + side * throw)
 	return p if p != Vector3.INF else at
 
 

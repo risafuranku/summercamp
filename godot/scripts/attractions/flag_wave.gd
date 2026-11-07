@@ -52,13 +52,16 @@ func _process(delta: float) -> void:
 
 ## Harder in rain and storms (main's weather 3..5): the nearest ancestor that has it.
 func _wind() -> float:
-	var n: Node = self
-	while n != null:
-		if "_weather_state" in n:
-			var weather := int(n.get("_weather_state"))
-			return 1.0 if weather >= 3 and weather <= 5 else 0.6
-		n = n.get_parent()
-	return 0.6
+	var main := get_tree().current_scene if is_inside_tree() else null
+	var wv = main.get("_weather_visuals") if main != null else null
+	if wv == null:
+		return 0.6
+	# Out with the wind that moves everything else: hanging in the still of the fog, turned the
+	# way it blows.
+	var d: Vector2 = wv.wind_dir
+	var to := atan2(-d.y, d.x) - (get_parent() as Node3D).global_rotation.y
+	rotation.y = lerp_angle(rotation.y, to, 0.05)
+	return clampf(0.15 + float(wv._wind_now) * 1.1, 0.15, 1.0)
 
 
 ## Each strip from the end of the one before, turned by the travelling wave.

@@ -15,6 +15,8 @@ extends Node3D
 
 const TEX := "res://assets/textury/town/"
 const TRODDEN := preload("res://scripts/town/trodden.gd")
+const SIGN_TEXT := preload("res://scripts/town/sign_text.gd")
+const ONE_WORLD_ROOM := preload("res://scripts/one_world_room.gd")
 const PEOPLE_SCRIPT = preload("res://scripts/town/town_people.gd")
 const PUMP_JOB = preload("res://scripts/town/pump_job.gd")
 ## Pavements, paths, fences, the street's things and the life in the yards.
@@ -95,9 +97,12 @@ func build(p_worldgen: Node) -> void:
 	for pw in spots.get("pumps", []):
 		var stop: Vector3 = unw(pw as Vector3) + Vector3(0, 0, -1.9)
 		stops.append(stop)
-		# Off the road and in between the canopy's pillars, out again the other way.
-		ins.append([Vector3(90.0, 0, 1.6), Vector3(66.0, 0, 1.6), Vector3(stop.x + 4.0, 0, 4.0), Vector3(stop.x + 1.5, 0, 8.6), stop])
-		outs.append([stop + Vector3(-3.0, 0, -0.9), stop + Vector3(-5.0, 0, -5.9), Vector3(34.0, 0, -1.6), Vector3(-90.0, 0, -1.6)])
+		# Off the road and in between the canopy's pillars, out again the other way. In from past
+		# the end of the village on the right side of the road and out past the other end, along
+		# the road as it runs: they came out of nothing at x 90 in the wrong lane, and went out
+		# of it in the middle of the street.
+		ins.append(_car_way(240.0, 70.0) + [Vector3(stop.x + 4.0, 0, 4.0), Vector3(stop.x + 1.5, 0, 8.6), stop])
+		outs.append([stop + Vector3(-3.0, 0, -0.9), stop + Vector3(-5.0, 0, -5.9)] + _car_way(34.0, -320.0))
 	cars.setup(stops, ins, outs)
 	spots["station_cars"] = cars
 
@@ -269,18 +274,12 @@ func _plane(parent: Node3D, pos: Vector3, size: Vector2, mat: Material) -> MeshI
 	return mi
 
 
-func _sign(parent: Node3D, pos: Vector3, facing: Vector3, text: String, size := 40, col := Color(0.08, 0.08, 0.1)) -> Label3D:
-	var label := Label3D.new()
-	label.text = text
-	label.font = load("res://assets/fonts/jersey10.fnt")
-	label.font_size = size
-	label.pixel_size = 0.004
-	label.modulate = col
-	label.outline_size = 0
-	label.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+func _sign(parent: Node3D, pos: Vector3, facing: Vector3, text: String, size := 40, col := Color(0.08, 0.08, 0.1), px_m := 0.004, board := Vector2(1.08, 0.22)) -> Node3D:
+	var label = SIGN_TEXT.new()
+	parent.add_child(label)
+	label.setup(text, board, size, px_m, col)
 	label.position = pos + facing * 0.03
 	label.rotation.y = atan2(facing.x, facing.z)
-	parent.add_child(label)
 	return label
 
 
@@ -300,14 +299,30 @@ func _roads() -> void:
 		_plane(self, Vector3(0, 0.01, 0), Vector2(480, ROAD_HALF * 2.0), asphalt)
 	# The square in front of the shop and the pub, and the station's forecourt.
 	var cobbles := _mat(_first([TEX + "cobbles.png", TEX_CAMP + "gravel_road.png"]), Color(0.86, 0.84, 0.8), Vector2(10.0, 4.0))
-	# (Over the real street's asphalt in the real land: a hair higher.)
-	var lift := 0.09 if GEO_MODE else 0.0
-	_plane(self, Vector3(4.0, 0.012 + lift, -8.0), Vector2(46.0, 9.0), cobbles)
-	_plane(self, Vector3(48.0, 0.012 + lift, 9.0), Vector2(26.0, 12.0), _mat(_first([TEX + "asphalt.png"]), Color(0.7, 0.7, 0.7), Vector2(6.0, 3.0)))
+	# (Off the street's asphalt on both sides, so level with it: lifted 9 cm over it, everybody on
+	# the square stood in it to the ankles. The forecourt runs back past the pumps to the kiosk.)
+	_plane(self, Vector3(4.0, 0.012, -8.0), Vector2(46.0, 9.0), cobbles)
+	_plane(self, Vector3(48.0, 0.012, 11.5), Vector2(26.0, 16.0), _mat(_first([TEX + "asphalt.png"]), Color(0.7, 0.7, 0.7), Vector2(6.0, 4.0)))
 	# Kerbs.
-	var kerb := _mat("", Color(0.6, 0.6, 0.58))
+	var kerb_len: float = 480.0 if not GEO_MODE else 160.0
+	var kerb := _mat(_first([TEX + "kerb_slabs.png", TEX_CAMP + "concrete.png"]), Color(0.86, 0.86, 0.82), Vector2(kerb_len / 2.0, 1.0))
 	for z in [-ROAD_HALF, ROAD_HALF]:
-		_box(self, Vector3(0, 0.05, z), Vector3(480 if not GEO_MODE else 160.0, 0.1, 0.2), kerb)
+		_box(self, Vector3(0, 0.05, z), Vector3(kerb_len, 0.1, 0.2), kerb)
+
+
+## Westbound along the road from `x0` to `x1` of the village, its right-hand lane.
+func _car_way(x0: float, x1: float) -> Array:
+	var out: Array = []
+	if GEO_MODE:
+		var s := GEO.stop_s("liblice")
+		# (The stop is at x -110; the way along the road grows as x falls.)
+		for p in GEO.line_path(s - 110.0 - x0, s - 110.0 - x1, 1.6, 12.0):
+			var q := unw(p)
+			out.append(Vector3(q.x, 0, q.z))
+		return out
+	out.append(Vector3(x0, 0, -1.6))
+	out.append(Vector3(x1, 0, -1.6))
+	return out
 
 
 ## The road posts (road_post.gd) from where the village ends, both ways, opposite each
@@ -456,7 +471,12 @@ func _jednota_hollow(at: Vector3, wall: Material) -> Node3D:
 	for hl in holes:
 		var g := _face(root, Vector3((float(hl[0]) + float(hl[1])) * 0.5, (float(hl[2]) + float(hl[3])) * 0.5, dd * 0.5 - 0.1), Vector2(float(hl[1]) - float(hl[0]), float(hl[3]) - float(hl[2])), Vector3(0, 0, 1), glass)
 		g.set_meta("retro_skip", true)
-	_solid(root, Vector3(0, hh * 0.5, -0.2), Vector3(ww - 0.4, hh, dd - 0.6))
+	# Solid to the front itself: half a metre short of it, you walked your eye through the picture.
+	_solid(root, Vector3(0, hh * 0.5, 0.025), Vector3(ww - 0.4, hh, dd - 0.15))
+	# Up to its door: the shop's floor stands on the plinth (JEDNOTA_VIEW.FLOOR_Y).
+	var step := _mat(TEX_CAMP + "concrete.png", Color(0.82, 0.82, 0.78), Vector2(2.0, 0.4))
+	for i in 3:
+		_box(root, Vector3(0, 0.11 + 0.22 * float(2 - i), dd * 0.5 + 0.17 + 0.3 * float(i)), Vector3(2.6, 0.22 * float(3 - i) + 0.02, 0.3), step)
 	_update_jednota(_hour)
 	return root
 
@@ -622,7 +642,7 @@ func _pub_hollow(at: Vector3, wall: Material) -> Node3D:
 	for hl in holes:
 		var gl := _face(root, Vector3((float(hl[0]) + float(hl[1])) * 0.5, (float(hl[2]) + float(hl[3])) * 0.5, dd * 0.5 - 0.1), Vector2(float(hl[1]) - float(hl[0]), float(hl[3]) - float(hl[2])), Vector3(0, 0, 1), glass)
 		gl.set_meta("retro_skip", true)
-	_solid(root, Vector3(0, wh * 0.5, -0.2), Vector3(ww - 0.4, wh, dd - 0.6))
+	_solid(root, Vector3(0, wh * 0.5, 0.025), Vector3(ww - 0.4, wh, dd - 0.15))
 	_update_pub(_hour)
 	return root
 
@@ -773,6 +793,10 @@ func _station(at: Vector3) -> void:
 	# The canopy: weathered concrete panels underneath, streaked white sheet at the edge.
 	_box(root, Vector3(0, 5.0, 0), Vector3(14.0, 0.5, 8.0), _tiled(_mat(TEX_CAMP + "concrete.png", Color(0.95, 0.95, 0.93), Vector2(3.0, 2.0)), Vector3(14.0, 0.5, 8.0)))
 	_box(root, Vector3(0, 4.9, -4.02), Vector3(14.0, 0.5, 0.06), _mat(side_pic, Color(1, 1, 1), Vector2(14.0, 0.5)) if ResourceLoader.exists(side_pic) else _mat("", Color(0.82, 0.1, 0.08)))
+	# Under it no rain falls.
+	var canopy_dry := ONE_WORLD_ROOM.dry(root, "CanopyDry")
+	canopy_dry.position = Vector3(0, 2.4, 0)
+	canopy_dry.size = Vector3(14.0, 4.8, 8.0)
 	# BENZINA in white metal letters along the red fascia.
 	_letters(root, "benzina", Vector3(0, 4.9, -4.05), Vector3(0, 0, -1))
 	var pump_face := _mat(_first([TEX + "fuel_pump.png"]), Color(0.8, 0.2, 0.15))
@@ -822,7 +846,7 @@ func _station(at: Vector3) -> void:
 		spots["station_buzz"] = buzz
 	# By the islands and the kiosk: the oil rack, the air post, the bin with the towels,
 	# old tyres.
-	for v in [["oil_rack", 0.95, Vector3(-3.6, 0, 5.2)], ["air_post", 1.25, Vector3(6.9, 0, 1.5)], ["bin_towels", 1.1, Vector3(-1.4, 0.2, 1.2)], ["tyres", 0.62, Vector3(4.6, 0, 6.2)]]:
+	for v in [["oil_rack", 0.95, Vector3(-3.6, 0, 5.2)], ["air_post", 1.25, Vector3(6.9, 0, 1.5)], ["bin_towels", 1.1, Vector3(-2.3, 0.2, 1.2)], ["tyres", 0.62, Vector3(4.6, 0, 6.2)]]:
 		_station_prop(root, str(v[0]), float(v[1]), v[2])
 	var kiosk := Node3D.new()
 	kiosk.name = "Kiosk"
@@ -890,7 +914,7 @@ func _kiosk_hollow(kiosk: Node3D, kwall: Material) -> void:
 	for hl in holes:
 		var g := _face(kiosk, Vector3((float(hl[0]) + float(hl[1])) * 0.5, (float(hl[2]) + float(hl[3])) * 0.5, -b.z * 0.5 + 0.1), Vector2(float(hl[1]) - float(hl[0]), float(hl[3]) - float(hl[2])), Vector3(0, 0, -1), glass)
 		g.set_meta("retro_skip", true)
-	_solid(kiosk, Vector3(0, b.y * 0.5, 0.25), Vector3(b.x - 0.4, b.y, b.z - 0.5))
+	_solid(kiosk, Vector3(0, b.y * 0.5, 0.025), Vector3(b.x - 0.4, b.y, b.z - 0.05))
 	_update_kiosk(_hour, kiosk)
 
 
@@ -952,8 +976,13 @@ func _stop_south() -> void:
 	_box(root, Vector3(-2.0, 1.2, 0), Vector3(0.16, 2.4, 1.9), concrete, true)
 	_box(root, Vector3(2.0, 1.2, 0), Vector3(0.16, 2.4, 1.9), concrete, true)
 	_box(root, Vector3(0, 2.5, 0.1), Vector3(4.7, 0.18, 2.5), concrete)
+	var shelter_dry := ONE_WORLD_ROOM.dry(root, "ShelterDry")
+	shelter_dry.position = Vector3(0, 1.2, 0.1)
+	shelter_dry.size = Vector3(4.7, 2.4, 2.5)
 	var planks := _mat(TEX_CAMP + "planks_grey.png", Color(0.7, 0.62, 0.5))
-	_box(root, Vector3(0, 0.45, -0.5), Vector3(3.4, 0.06, 0.45), planks)
+	_box(root, Vector3(0, 0.45, -0.72), Vector3(3.4, 0.06, 0.45), planks)
+	for bx in [-1.4, 1.4]:
+		_box(root, Vector3(bx, 0.22, -0.72), Vector3(0.14, 0.44, 0.4), concrete)
 	_pole(root, Vector3(-2.8, 0, 1.3), "LIBLICE", "town")
 
 
@@ -982,7 +1011,7 @@ func _pole(root: Node3D, at: Vector3, stop_name: String, stop_id: String) -> voi
 	var first := root.get_child_count()
 	for f in [Vector3(0, 0, 1), Vector3(0, 0, -1)]:
 		_face(root, at + Vector3(0, 2.5, 0) + f * 0.02, Vector2(0.74, 0.56), f, sign_mat)
-		_sign(root, at + Vector3(0, 2.07, 0) + f * 0.025, f, stop_name, 32, Color(0.08, 0.08, 0.1)).pixel_size = 0.0027
+		_sign(root, at + Vector3(0, 2.07, 0) + f * 0.025, f, stop_name, 32, Color(0.08, 0.08, 0.1), 0.0027)
 	_box(root, at + Vector3(0, 2.07, 0), Vector3(1.1, 0.24, 0.04), _mat("", Color(0.92, 0.9, 0.84)))
 	# Its tin in a wind: twisted on the pole a hair and knocked back, in steps.
 	STEP_MOTION.attach(plate, "rattle", Vector3.UP, 0.03, {"shift": Vector3(0, 0, 0.004), "from": 0.6, "with": root.get_children().slice(first)})
@@ -1045,7 +1074,7 @@ func _pond_light(h: float) -> void:
 func _lamps() -> void:
 	var lights: Array = []
 	var pic := TEX + "sodium_lamp.png"
-	var xs: Array = [-40.0, -12.0, 18.0, 44.0]
+	var xs: Array = [-66.0, -40.0, -12.0, 18.0, 44.0]
 	if GEO_MODE:
 		# Down the south end too, the stop's shelter lit (_south_end).
 		var sx := unw(GEO.stop_point("liblice")["p"]).x
@@ -1429,7 +1458,7 @@ func _zvonicka(at: Vector3) -> void:
 	for c in [Vector3(-0.4, 0, -0.4), Vector3(0.4, 0, -0.4), Vector3(-0.4, 0, 0.4), Vector3(0.4, 0, 0.4)]:
 		_box(root, c + Vector3(0, 3.2, 0), Vector3(0.14, 0.95, 0.14), white)
 	_box(root, Vector3(0, 3.72, 0), Vector3(1.1, 0.12, 1.1), white)
-	var bell := _box(root, Vector3(0, 3.2, 0), Vector3(0.36, 0.42, 0.36), _mat("", Color(0.42, 0.32, 0.16)))
+	var bell := _box(root, Vector3(0, 3.2, 0), Vector3(0.36, 0.42, 0.36), _mat(TEX_CAMP + "galvanized.png", Color(0.62, 0.46, 0.22)))
 	bell.name = "Bell"
 	var cap := MeshInstance3D.new()
 	var cm := CylinderMesh.new()
@@ -1459,7 +1488,7 @@ func _stone_cross(at: Vector3) -> void:
 	_box(root, Vector3(0, 1.32, 0), Vector3(0.72, 0.14, 0.72), sand)
 	_box(root, Vector3(0, 2.35, 0), Vector3(0.18, 1.9, 0.18), sand)
 	_box(root, Vector3(0, 2.75, 0), Vector3(0.9, 0.17, 0.17), sand)
-	_box(root, Vector3(0, 2.5, -0.1), Vector3(0.1, 0.55, 0.05), _mat("", Color(0.3, 0.28, 0.24)))
+	_box(root, Vector3(0, 2.5, -0.1), Vector3(0.1, 0.55, 0.05), _mat(TEX_CAMP + "log_bark.png", Color(0.5, 0.44, 0.38)))
 
 
 # ── the street fronts (tools/artgen/town_facades.py) ────────────────────────
@@ -1911,7 +1940,8 @@ func _houses() -> void:
 		lit_m.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
 		lit_m.emission_texture = lit_m.albedo_texture
 		lit_m.emission = Color(1.0, 0.78, 0.45)
-		lit_m.emission_energy_multiplier = 1.4
+		# (The picture's frame and shutters glow with it: not so bright that it is a lit square.)
+		lit_m.emission_energy_multiplier = 0.85
 		kinds.append([dark_m, lit_m])
 	spots["window_kinds"] = kinds
 	spots["door_mats"] = [_mat(_first([TEX + "house_door.png", TEX_CAMP + "door_wood.png"]), Color(0.42, 0.3, 0.2)), _mat(_first([TEX + "house_door2.png", TEX + "house_door.png"]), Color(0.9, 0.9, 0.9))]
@@ -2057,7 +2087,7 @@ func _hotspots() -> void:
 	_click(Vector3(16.0, 1.2, -10.4), Vector3(1.8, 2.4, 0.4), "town_door", "pub")
 	if not spots.has("motel_block"):
 		_click(Vector3(-30.0, 1.1, 10.4), Vector3(1.6, 2.2, 0.4), "town_door", "motel")
-	_click(Vector3(50.0, 1.1, 18.9), Vector3(1.6, 2.2, 0.4), "town_door", "kiosk")
+	_click(Vector3(46.4, 1.1, 18.9), Vector3(1.6, 2.2, 0.4), "town_door", "kiosk")
 	if ResourceLoader.exists(TEX_CAMP + "wc_door_out.png"):
 		_click(Vector3(48.0, 0, 22.0) + WC_DOOR + Vector3(0.1, 0, 0), Vector3(0.4, 2.2, 1.2), "town_door", "wc")
 	_click(Vector3(-28.0, 1.3, -18.4), Vector3(1.6, 2.6, 0.4), "town_door", "chapel")
@@ -2103,7 +2133,8 @@ func _build_smoke() -> void:
 			s.pixel_size = 0.12
 			s.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 			s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-			s.shaded = false
+			# (Lit as the air is: it shone pale grey in the dark.)
+			s.shaded = true
 			s.position = c
 			add_child(s)
 			_smoke.append({"sprite": s, "base": c, "phase": float(k) / 5.0})

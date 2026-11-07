@@ -120,7 +120,8 @@ const TURN_AWAY_SEC := 2.6
 const REACH_M := 1.45
 ## A catch, by the night's difficulty 1..5 (100 health: two or three of them).
 const HIT := Vector2i(38, 52)
-const STRIKE_SEC := 2.3
+const STRIKE_SEC := 2.7
+const RISE_SEC := 0.4
 const FED_SEC := 16.0
 ## Light at you at which she will not come on (a lamp), and the light she will not step in.
 const LAMP_SAFE := 0.35
@@ -207,6 +208,10 @@ var _bone_t := 0.0
 var _relaying := false
 ## Tests: she is out whatever the hour.
 var soon := false
+
+
+var _was_up := false
+var _up_at := -9.0
 
 
 func get_enemy_id() -> String:
@@ -344,9 +349,14 @@ func _after(dt: float, out: bool) -> void:
 func _arrive() -> void:
 	var p := Vector3.INF
 	if _is_ready():
-		p = _point_from_player(_rng.randf_range(24.0, 32.0), _rng.randf_range(-80.0, 80.0))
+		# Out of your sight and out of the lamps: she grew up in front of you at half past two.
+		for _i in 10:
+			var q := _point_from_player(_rng.randf_range(24.0, 32.0), _rng.randf_range(100.0, 260.0))
+			if q != Vector3.INF and _lamp_light_at(q) < LAMP_EDGE:
+				p = q
+				break
 		if p == Vector3.INF:
-			p = _point_from_player(24.0, 0.0)
+			p = _point_from_player(24.0, 180.0)
 	if p == Vector3.INF and _grid_manager != null and _grid_manager.has_method("get_map_size_world"):
 		var c: Vector3 = _grid_manager.get_map_center_world()
 		var s: Vector2 = _grid_manager.get_map_size_world()
@@ -365,6 +375,9 @@ func _arrive() -> void:
 func _go_away() -> void:
 	if _phase == "eat":
 		_spare_current()
+	# (The eating went on for twenty seconds after she had gone.)
+	if _work != null:
+		_work.stop()
 	if _body != null and _body.visible:
 		_sound(SFX["leave"], _body.global_position + Vector3(0, 1.0, 0), 0.0, 1.0, 40.0)
 	_set_phase("away", 0.0)
@@ -564,7 +577,9 @@ func _edge_of(foot: Vector3) -> Vector3:
 
 
 func _start_reach(foot: Vector3) -> void:
-	var bulb := foot + Vector3(0, BULB_UP, 0)
+	# To the bulb itself, out on its arm (up the pole her hand stopped short of it).
+	var bm = _building_manager
+	var bulb: Vector3 = bm.call("lamp_bulb_at", foot) if bm != null and bm.has_method("lamp_bulb_at") else foot + Vector3(0, BULB_UP, 0)
 	_lamp = {"foot": foot, "bulb": bulb, "t": 0.0, "len": float(REACH_LAMP_SEC[_stage])}
 	_set_phase("reach", 0.0)
 	_sound(SFX["reach"], _body.global_position + Vector3(0, 2.4, 0), 1.0, _rng.randf_range(0.92, 1.05), 30.0)
@@ -656,12 +671,17 @@ func _tick_strike(dt: float) -> void:
 		return
 	# Down in the grass, on your back: the sky, and her leaning over you.
 	var down := clampf((t - 0.25) / 0.35, 0.0, 1.0)
+	# And up again by steps: from on your back you stood in one frame.
+	var rising := clampf((t - (STRIKE_SEC - RISE_SEC)) / RISE_SEC, 0.0, 1.0)
+	down *= 1.0 - floorf(rising * 6.0) / 6.0
 	if not _view0.is_empty():
 		_set_pitch(float(_view0["pitch"]) + lerpf(0.0, 0.95, down))
 		_set_roll(float(_view0["roll"]) + lerpf(0.0, 0.32, down))
 	if _quarry_peer() == 0 and _player.has_method("set_controls_enabled"):
 		_player.call("set_controls_enabled", false)
-	if t >= 0.6 and fx != null:
+	if rising > 0.0 and fx != null:
+		fx.close_up_off()
+	elif t >= 0.6 and fx != null:
 		var k := clampf((t - 0.6) / 1.2, 0.0, 1.0)
 		var st := floorf(k * 6.0) / 6.0
 		fx.close_up(_tex_face[_stage], lerpf(0.9, 1.35, st), 1.0 + 0.08 * st, 0.004 + 0.01 * st, 0.0, Vector2(0, lerpf(0.12, -0.02, st)))
@@ -1241,7 +1261,8 @@ func _walk_to(goal: Vector3, speed: float, dt: float, replan := 0.7) -> int:
 	if flat <= 0.2:
 		return THERE
 	_path_t -= dt
-	if flat < 5.0:
+	# (Straight only with nothing between: on the last five metres she went through a cabin.)
+	if flat < 5.0 and not _ray_blocked(pos + Vector3(0, 0.9, 0), goal + Vector3(0, 0.9, 0)):
 		_path = PackedVector3Array([pos, goal])
 		_path_i = 1
 		_path_goal = goal
@@ -1388,6 +1409,13 @@ func _update_body(out: bool) -> void:
 		# One scale for the whole set, her bent height: the "up" pictures are drawn that
 		# much taller themselves (babka_s0_up.png, 3 m to the sprite's 1.75).
 		_show_fig(eye, BENT_M * float(STAGE_K[_stage]))
+		# Her back straightening is what you are warned by: over a third of a second in three
+		# steps. (One frame took her from 1.75 to 3 m.)
+		if up and not _was_up:
+			_up_at = _elapsed
+		_was_up = up
+		var grown: float = floorf(minf((_elapsed - _up_at) / 0.11, 3.0)) / 3.0 if up else 1.0
+		_body.scale.y *= lerpf(BENT_M / UP_M, 1.0, grown)
 	else:
 		# Two pictures from the front: bent, or up and far too tall (the old ones were
 		# drawn at one size: up is them stretched thin).
@@ -1466,7 +1494,7 @@ func _update_sounds(dt: float, out: bool) -> void:
 		_sound(SFX["creak"], at + Vector3(0, 1.0, 0), -5.0, _rng.randf_range(0.9, 1.05), 28.0)
 	if _work.playing:
 		_work.global_position = (_target.get("at", at) as Vector3) + Vector3(0, 0.6, 0)
-	if not out:
+	if not out and _quarry_indoors():
 		_tick_heard_inside(dt)
 
 

@@ -20,6 +20,8 @@ const SFX := "res://assets/sfx/town/"
 const CLOTH := preload("res://materials/cloth_wind.gdshader")
 const STEP_MOTION := preload("res://scripts/ambient/step_motion.gd")
 const TRODDEN := preload("res://scripts/town/trodden.gd")
+const WIRES := preload("res://scripts/ambient/wire_ribbons.gd")
+const TOWN_CAR := preload("res://scripts/town/town_car.gd")
 
 var town: Node3D
 var _rng := RandomNumberGenerator.new()
@@ -240,9 +242,12 @@ func _houses() -> void:
 		var size: Vector3 = hd["size"]
 		var f: float = hd["facing"]
 		var front := at.z + size.z * 0.5 * f
-		var fence_z := front + 3.0 * f
+		# (The side street's houses stand close to it, and it has no pavement: from them the paths
+		# ran fifty metres over the asphalt and the gardens to the main street's.)
+		var far := absf(front) > 12.0
+		var fence_z := front + (2.0 if far else 3.0) * f
 		# The path from the door to the pavement.
-		var walk_end := 5.3 * signf(front) if absf(front) > 5.3 else fence_z
+		var walk_end := fence_z if far or absf(front) <= 5.3 else 5.3 * signf(front)
 		TRODDEN.lay(self, Vector3(at.x, 0.035, front), Vector3(at.x, 0.035, walk_end), 1.05, dirt, TRODDEN.dice(i), 0.05)
 		# The fence along the garden's front, a gap for the gate.
 		var fence := "fence_picket" if i % 3 != 1 else "fence_mesh"
@@ -391,7 +396,6 @@ func _yard_hens(at: Vector3) -> void:
 		if s != null:
 			_hens.append({"sprite": s, "base": p, "t": _rng.randf() * 3.0, "peck": false})
 	_hens_snd = _audio3d(SFX + "hens.mp3", -14.0, at + Vector3(0, 0.3, 0), true, 22.0)
-	_hens_snd.autoplay = true
 
 
 func _yard_dog(at: Vector3, yaw: float) -> void:
@@ -458,7 +462,7 @@ func _street() -> void:
 	_solid(booth + Vector3(0, 1.2, 0), Vector3(0.95, 2.4, 0.95))
 	# The post box on the shop's wall, bins by the stops and the square.
 	_sprite("post_box", 0.55, Vector3(-10.6, 1.0, -9.9), false, 0.0)
-	for b in [Vector3(-4.8, 0, 4.6), Vector3(8.4, 0, -5.0), Vector3(21.5, 0, -8.6), Vector3(16.0, 0, 11.5)]:
+	for b in [Vector3(-4.8, 0, 5.7), Vector3(8.4, 0, -5.0), Vector3(21.5, 0, -8.6), Vector3(16.0, 0, 11.5)]:
 		_sprite("street_bin", 0.95, b, true)
 	# The loudspeaker on its pole at the square's east end, and its voice.
 	var radio := Vector3(24.2, 0, -11.6)
@@ -472,7 +476,7 @@ func _street() -> void:
 	_solid(Vector3(-69.3, 1.2, -6.4), Vector3(0.7, 2.4, 0.7))
 	# The pub's sign, out on its bracket over the door: hung from its top edge, it swings in
 	# the wind and knocks about, in steps (step_motion.gd).
-	var pub_sign := _sprite("pub_sign", 0.8, Vector3(19.6, 2.7, -9.7), false, PI * 0.5)
+	var pub_sign := _sprite("pub_sign", 0.8, Vector3(19.6, 2.7, -10.25), false, PI * 0.5)
 	if pub_sign != null:
 		STEP_MOTION.attach(pub_sign, "swing", Vector3.RIGHT, 0.32, {"pivot": Vector3(0, 0.8, 0), "near": 80.0})
 	# A wood pile by the pub's side, crates of empties at its back door.
@@ -482,7 +486,6 @@ func _street() -> void:
 ## Wooden poles along the north side of the road, the wires sagging between them.
 func _poles() -> void:
 	var wood := _mat(TEX_CAMP + "log_bark.png", Color(0.62, 0.54, 0.46), Vector2(1.0, 3.0))
-	var dark := _mat("", Color(0.08, 0.08, 0.08))
 	var xs: Array = []
 	var x := -68.0
 	while x < 80.0:
@@ -494,52 +497,27 @@ func _poles() -> void:
 		_box(p + Vector3(0, 3.6, 0), Vector3(0.22, 7.2, 0.22), wood)
 		_box(p + Vector3(0, 6.9, 0), Vector3(0.12, 0.12, 1.4), wood)
 		_solid(p + Vector3(0, 3.6, 0), Vector3(0.3, 7.2, 0.3))
+	# Ribbons a pixel across (wire_ribbons.gd): boxes in a V went under a pixel a few metres off
+	# and broke into dashes.
+	var spans := PackedVector3Array()
 	for i in xs.size() - 1:
 		for wz in [-0.6, 0.0, 0.6]:
-			var a := Vector3(xs[i], 6.95, z + wz)
-			var b := Vector3(xs[i + 1], 6.95, z + wz)
-			var mid := (a + b) * 0.5 - Vector3(0, 0.55, 0)
-			for seg in [[a, mid], [mid, b]]:
-				var s0: Vector3 = seg[0]
-				var s1: Vector3 = seg[1]
-				var wire := _box((s0 + s1) * 0.5, Vector3(s0.distance_to(s1), 0.025, 0.025), dark)
-				wire.rotation.z = atan2(s1.y - s0.y, s1.x - s0.x)
-				wire.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			spans.append_array(WIRES.hang(Vector3(xs[i], 6.95, z + wz), Vector3(xs[i + 1], 6.95, z + wz), 0.55, 4))
+	var wires := MeshInstance3D.new()
+	wires.mesh = WIRES.mesh(spans)
+	wires.material_override = WIRES.material(Color(0.16, 0.16, 0.17), 0.01)
+	wires.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(wires)
 
 
 ## Two old Skodas parked: half on the pavement by a farm gate, and in front of the motel.
 func _cars() -> void:
-	for c in [[Vector3(47.0, 0, -4.4), 0.0], [Vector3(-26.5, 0, 7.4), PI]]:
-		var root := Node3D.new()
-		root.position = c[0]
-		root.rotation.y = c[1]
-		add_child(root)
-		var body := MeshInstance3D.new()
-		var b := BoxMesh.new()
-		b.size = Vector3(4.2, 0.9, 1.6)
-		body.mesh = b
-		body.material_override = _mat("", Color(0.72, 0.66, 0.52))
-		body.position = Vector3(0, 0.75, 0)
-		root.add_child(body)
-		var cabin := MeshInstance3D.new()
-		var cb := BoxMesh.new()
-		cb.size = Vector3(2.2, 0.55, 1.5)
-		cabin.mesh = cb
-		cabin.material_override = _mat("", Color(0.3, 0.34, 0.38))
-		cabin.position = Vector3(-0.1, 1.45, 0)
-		root.add_child(cabin)
-		for side in [-1.0, 1.0]:
-			_face_on(root, "car_side", Vector2(4.2, 1.45), Vector3(0, 0.88, side * 0.81), 0.0 if side > 0.0 else PI)
-		_face_on(root, "car_front", Vector2(1.6, 1.2), Vector3(2.11, 0.75, 0), PI * 0.5)
-		_face_on(root, "car_back", Vector2(1.6, 1.2), Vector3(-2.11, 0.75, 0), -PI * 0.5)
-		var sb := StaticBody3D.new()
-		var cs := CollisionShape3D.new()
-		var bx := BoxShape3D.new()
-		bx.size = Vector3(4.2, 1.5, 1.6)
-		cs.shape = bx
-		sb.add_child(cs)
-		sb.position = Vector3(0, 0.75, 0)
-		root.add_child(sb)
+	for c in [[Vector3(47.0, 0, -4.4), 0.0, Color.WHITE], [Vector3(-26.5, 0, 7.4), PI, Color(0.74, 0.78, 0.82)]]:
+		var car: Node3D = TOWN_CAR.make(c[2])
+		car.position = c[0]
+		car.rotation.y = float(c[1]) + PI * 0.5
+		add_child(car)
+		TOWN_CAR.parked(car)
 
 
 func _face_on(root: Node3D, name: String, size: Vector2, pos: Vector3, yaw: float) -> MeshInstance3D:
@@ -577,11 +555,25 @@ func set_hour(h: float) -> void:
 
 ## The pub of an evening: its windows warm, the talk inside heard at the door.
 func _pub_evening(h: float) -> void:
+	var open := h >= 10.0 and h < 23.0
+	var lit := open and (h >= 18.0 or h < 7.0)
+	# The talk at the door, whatever the front is made of (it waited on a face the hollow front
+	# has not got, and the pub was silent from the street). The hens by day.
+	if _pub_murmur == null:
+		_pub_murmur = _audio3d("res://assets/sfx/pub/pub_room.mp3", -10.0, Vector3(16.0, 1.6, -9.6), true, 26.0)
+	if open and not _pub_murmur.playing and _pub_murmur.stream != null and _pub_murmur.is_inside_tree():
+		_pub_murmur.play()
+	elif not open and _pub_murmur.playing:
+		_pub_murmur.stop()
+	if _hens_snd != null and _hens_snd.is_inside_tree():
+		var awake := h >= 6.5 and h < 19.0
+		if awake and not _hens_snd.playing:
+			_hens_snd.play()
+		elif not awake and _hens_snd.playing:
+			_hens_snd.stop()
 	var face = town.spots.get("pub_face", null)
 	if face == null or not is_instance_valid(face):
 		return
-	var open := h >= 10.0 and h < 23.0
-	var lit := open and (h >= 18.0 or h < 7.0)
 	if _pub_glow == null:
 		_pub_dark = (face as MeshInstance3D).material_override
 		# The front's own windows lit (town_lesna "pub_lit"), or the old picture warmed.
@@ -593,12 +585,7 @@ func _pub_evening(h: float) -> void:
 			_pub_glow.emission_texture = _pub_glow.albedo_texture
 			_pub_glow.emission = Color(1.0, 0.72, 0.4)
 			_pub_glow.emission_energy_multiplier = 0.55
-		_pub_murmur = _audio3d("res://assets/sfx/pub/pub_room.mp3", -10.0, Vector3(16.0, 1.6, -9.6), true, 26.0)
 	(face as MeshInstance3D).material_override = _pub_glow if lit else _pub_dark
-	if open and not _pub_murmur.playing and _pub_murmur.stream != null:
-		_pub_murmur.play()
-	elif not open and _pub_murmur.playing:
-		_pub_murmur.stop()
 
 
 func _process(delta: float) -> void:

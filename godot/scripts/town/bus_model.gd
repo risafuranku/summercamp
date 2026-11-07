@@ -25,6 +25,7 @@ extends Node3D
 ## It is solid (you walk round it) and, while its door is open, clickable
 ## (building_type "trip_bus", meta "stop" = which stop it stands at).
 
+const SIGN_TEXT := preload("res://scripts/town/sign_text.gd")
 const CAB = preload("res://scripts/town/karosa_cab.gd")
 const TEX := "res://assets/textury/town/"
 const SFX := "res://assets/sfx/bus/"
@@ -60,7 +61,7 @@ var _wheels: Array[Node3D] = []
 var _door_leaves: Array = []
 var _door_open := 0.0          # 0 shut .. 1 open (time, eased into the angle)
 var _door_target := 0.0
-var _board: Label3D
+var _board: Node3D
 var _lamps: Array[StandardMaterial3D] = []
 var _tails: Array[StandardMaterial3D] = []
 ## The lamps seen from off: a dot a few pixels at least, at night (the user 4. 11.: "the
@@ -213,7 +214,7 @@ func set_night(night: bool) -> void:
 	if _beam != null:
 		_beam.visible = night
 	if _board != null:
-		_board.modulate = Color(1.0, 0.72, 0.22) if night else Color(0.9, 0.62, 0.2)
+		_board.set_colour(Color(1.0, 0.72, 0.22) if night else Color(0.9, 0.62, 0.2))
 
 
 func play(path: String, db: float) -> void:
@@ -242,7 +243,7 @@ func set_stop(stop: String) -> void:
 func _set_destination(text: String) -> void:
 	destination = text
 	if _board != null:
-		_board.text = "380  " + text
+		_board.show_text("380  " + text)
 
 
 # ── every frame ──────────────────────────────────────────────────────────────
@@ -379,17 +380,11 @@ func _build() -> void:
 	_body.add_child(_beam)
 	# The destination board behind the top of the windscreen, on the door's half.
 	_box(_body, Vector3(0.6, WINDSCREEN_Y.y - 0.13, -LENGTH * 0.5 + 0.1), Vector3(1.08, 0.22, 0.06), _paint(Color(0.05, 0.05, 0.05)))
-	_board = Label3D.new()
-	_board.font = load("res://assets/fonts/jersey10.fnt")
-	_board.font_size = 32
-	_board.pixel_size = 0.004
-	_board.outline_size = 0
-	_board.modulate = Color(0.9, 0.62, 0.2)
-	_board.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	_board.double_sided = false
+	_board = SIGN_TEXT.new()
+	_body.add_child(_board)
+	_board.setup("380  " + str(destination), Vector2(1.04, 0.2), 32, 0.004, Color(0.9, 0.62, 0.2))
 	_board.position = Vector3(0.6, WINDSCREEN_Y.y - 0.13, -LENGTH * 0.5 + 0.065)
 	_board.rotation.y = PI
-	_body.add_child(_board)
 	_set_destination(destination)
 	# Solid, and clickable while the door is open.
 	_click = StaticBody3D.new()
@@ -756,34 +751,20 @@ func _dress() -> void:
 		for x in [-1.0, 1.0]:
 			_box(_body, Vector3(x * (WIDTH * 0.5 - 0.09), 0.53, bz), Vector3(0.2, 0.22, 0.1), black)
 		var plate := _quad(_body, Vector3(0, 0.53, zf * (LENGTH * 0.5 + 0.102)), Vector2(0.52, 0.12), Vector3(0, 0.0 if zf > 0.0 else PI, 0), _paint(Color(0.88, 0.88, 0.84)))
-		var num := Label3D.new()
-		num.text = PLATE
-		num.font = load("res://assets/fonts/jersey10.fnt")
-		num.font_size = 32
-		num.pixel_size = 0.0028
-		num.outline_size = 0
-		num.modulate = Color(0.08, 0.08, 0.1)
-		num.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-		num.double_sided = false
-		num.position = Vector3(0, 0, 0.004)
+		var num = SIGN_TEXT.new()
 		plate.add_child(num)
+		num.setup(PLATE, Vector2(0.5, 0.11), 32, 0.0028, Color(0.08, 0.08, 0.1))
+		num.position = Vector3(0, 0, 0.004)
 	for x in [-1.0, 1.0]:
 		# The arm forward from the roof's corner and down, the mirror hanging off its end.
 		_box(_body, Vector3(x * (WIDTH * 0.5 + 0.04), BODY_HIGH - 0.12, -LENGTH * 0.5 - 0.14), Vector3(0.035, 0.035, 0.32), steel)
 		_box(_body, Vector3(x * (WIDTH * 0.5 + 0.1), BODY_HIGH - 0.32, -LENGTH * 0.5 - 0.3), Vector3(0.035, 0.42, 0.035), steel)
 		_box(_body, Vector3(x * (WIDTH * 0.5 + 0.12), BODY_HIGH - 0.66, -LENGTH * 0.5 - 0.3), Vector3(0.22, 0.36, 0.05), black)
 	var card := _quad(_body, Vector3(WIDTH * 0.5 - 0.42, WINDSCREEN_Y.x + 0.16, -LENGTH * 0.5 + 0.05), Vector2(0.34, 0.22), Vector3(0, PI, 0), _paint(Color(0.9, 0.9, 0.86)))
-	var line := Label3D.new()
-	line.text = "380"
-	line.font = load("res://assets/fonts/jersey10.fnt")
-	line.font_size = 32
-	line.pixel_size = 0.006
-	line.outline_size = 0
-	line.modulate = Color(0.06, 0.06, 0.08)
-	line.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	line.double_sided = false
-	line.position = Vector3(0, 0, 0.004)
+	var line = SIGN_TEXT.new()
 	card.add_child(line)
+	line.setup("380", Vector2(0.32, 0.2), 32, 0.006, Color(0.06, 0.06, 0.08))
+	line.position = Vector3(0, 0, 0.004)
 
 
 ## A side: its art (holes where the door and the arches are), and at night the windows

@@ -1945,6 +1945,12 @@ func _is_supported_service_building_type(building_type: String) -> bool:
 ## (world), facing (how squarely you look at it), open (its curtain 0..1), flash: Callable,
 ## view (your eye out in the camp: the window's camera)}]; [] outdoors or in a room with
 ## none.
+## The flash from outside, through a tent's canvas (it has no windows to shoot through).
+func tent_flash() -> void:
+	if _tent_interior != null and is_instance_valid(_tent_interior) and _tent_interior.has_method("flash"):
+		_tent_interior.flash()
+
+
 func photo_windows() -> Array:
 	var it = _open_room_interior()
 	if it != null and it.has_method("photo_windows"):

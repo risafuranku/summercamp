@@ -16,6 +16,7 @@ signal paid(amount: int, line: String)
 const PUMP_CLOSEUP = preload("res://scripts/town/pump_closeup.gd")
 const SFX := "res://assets/sfx/town/"
 const DRIVERS := ["Mr Dvorak", "A woman in a fur hat", "A man in a suit", "A farmer", "A young man", "Mrs Kopecka", "A priest"]
+const TOWN_CAR := preload("res://scripts/town/town_car.gd")
 const COLOURS := [Color(0.82, 0.8, 0.7), Color(0.5, 0.12, 0.1), Color(0.18, 0.3, 0.5), Color(0.3, 0.4, 0.22), Color(0.82, 0.62, 0.18), Color(0.86, 0.86, 0.86)]
 
 ## Where a car stops at each pump, the way in to it (ending there) and the way out from
@@ -115,6 +116,9 @@ func _spawn() -> void:
 	var car := _make_car()
 	add_child(car)
 	car.position = path[0]
+	if path.size() > 1:
+		var first: Vector3 = (path[1] as Vector3) - (path[0] as Vector3)
+		car.rotation.y = atan2(-first.x, -first.z)
 	var fuel: String = ["natural", "natural", "special", "diesel"][_rng.randi() % 4]
 	var kind: String = ["money", "money", "litres", "full"][_rng.randi() % 4]
 	var amount := 0
@@ -148,7 +152,8 @@ func _drive(c: Dictionary, delta: float) -> void:
 		c["i"] = i + 1
 		return
 	node.position += to.normalized() * minf(to.length(), speed * delta)
-	node.rotation.y = atan2(-to.x, -to.z)
+	# Into the turn, not round it in one frame.
+	node.rotation.y = lerp_angle(node.rotation.y, atan2(-to.x, -to.z), clampf(delta * 3.5, 0.0, 1.0))
 
 
 ## Serve the car at this pump (from the pump's click).
@@ -222,30 +227,9 @@ func _mat(c: Color) -> StandardMaterial3D:
 	return m
 
 
-## An old Skoda as Build would have it: body, cabin, wheels, lamps, a head at the wheel.
+## An old Skoda (town_car.gd), in one of the colours of the time.
 func _make_car() -> Node3D:
-	var car := Node3D.new()
-	var paint := _mat(COLOURS[_rng.randi() % COLOURS.size()])
-	_box(car, Vector3(0, 0.6, 0), Vector3(1.6, 0.6, 4.1), paint)
-	_box(car, Vector3(0, 1.12, 0.25), Vector3(1.44, 0.5, 2.0), paint)
-	var glass := _mat(Color(0.14, 0.16, 0.18))
-	_box(car, Vector3(0, 1.12, -0.77), Vector3(1.3, 0.42, 0.04), glass)
-	_box(car, Vector3(0, 1.12, 1.27), Vector3(1.3, 0.42, 0.04), glass)
-	for side in [-1.0, 1.0]:
-		_box(car, Vector3(side * 0.73, 1.12, 0.25), Vector3(0.04, 0.4, 1.7), glass)
-	var tyre := _mat(Color(0.06, 0.06, 0.06))
-	for x in [-0.72, 0.72]:
-		for z in [-1.3, 1.3]:
-			_box(car, Vector3(x, 0.32, z), Vector3(0.2, 0.6, 0.6), tyre)
-	var lamp := _mat(Color(0.95, 0.92, 0.8))
-	var tail := _mat(Color(0.7, 0.08, 0.06))
-	for x in [-0.55, 0.55]:
-		_box(car, Vector3(x, 0.66, -2.06), Vector3(0.3, 0.16, 0.04), lamp)
-		_box(car, Vector3(x, 0.7, 2.06), Vector3(0.3, 0.14, 0.04), tail)
-	# Somebody at the wheel.
-	_box(car, Vector3(-0.35, 1.2, 0.0), Vector3(0.24, 0.28, 0.24), _mat(Color(0.76, 0.58, 0.46)))
-	_box(car, Vector3(-0.35, 1.36, 0.02), Vector3(0.26, 0.08, 0.26), _mat(Color(0.2, 0.18, 0.16)))
-	return car
+	return TOWN_CAR.make((COLOURS[_rng.randi() % COLOURS.size()] as Color).lightened(0.3))
 
 
 func _box(parent: Node3D, pos: Vector3, size: Vector3, mat: Material) -> MeshInstance3D:

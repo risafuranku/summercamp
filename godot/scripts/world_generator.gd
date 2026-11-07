@@ -2,6 +2,7 @@ extends Node3D
 
 const TREE_WIND_SHADER = preload("res://materials/tree_wind.gdshader")
 const CAMP_LAKE_SCRIPT = preload("res://scripts/camp_lake.gd")
+const FAR_TREES = preload("res://scripts/ambient/far_trees.gd")
 
 @export_range(0.0, 1.0, 0.01) var tree_spawn_chance: float = 0.30
 @export var wind_direction_degrees: float = 32.0
@@ -103,6 +104,7 @@ func generate_base_world(spawn_default_buildings: bool = true, spawn_trees: bool
 ## 18. 10.: the title froze after the splash, the bar did not move).
 func generate_world_stepped(step: Callable) -> void:
 	_corn_gate_z = INF
+	FAR_TREES.clear()
 	_ensure_roots()
 	if _grid_manager == null or _building_manager == null:
 		push_error("WorldGenerator is missing GridManager or BuildingManager reference.")
@@ -454,8 +456,10 @@ func _add_wire_fence(parent: Node3D, node_name: String, x: float, z_from: float,
 	col.shape = shape
 	body.add_child(col)
 	var post_mat := StandardMaterial3D.new()
-	post_mat.albedo_color = Color(0.36, 0.28, 0.2)
+	post_mat.albedo_color = Color(0.7, 0.62, 0.52)
 	post_mat.roughness = 1.0
+	post_mat.albedo_texture = load("res://assets/textury/camp/planks_dark.png")
+	post_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	var wire_mat := StandardMaterial3D.new()
 	wire_mat.albedo_color = Color(0.42, 0.42, 0.4)
 	var n := int(absf(z_to - z_from) / 2.2)
@@ -488,6 +492,7 @@ func _build_lake(map_size: Vector2, map_center: Vector3) -> void:
 	var east: float = map_center.x + map_size.x * 0.5
 	var lake_seed := _rng.randi()
 	var lake := CAMP_LAKE_SCRIPT.new()
+	lake.add_to_group("camp_lake")
 	_terrain_root.add_child(lake)
 	lake.build(get_parent(), shore_z, north_z, west, east, lake_seed)
 	var rng := RandomNumberGenerator.new()
@@ -756,6 +761,9 @@ func _create_corn_patch(pos: Vector3, dice: RandomNumberGenerator = null) -> Nod
 	mi.multimesh = mm
 	mi.material_override = _corn_mat
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# It dries with the field past the wires (a shared material: the tint from white, not stacked).
+	mi.add_to_group("season_crop")
+	mi.set_meta("season_base", Color.WHITE)
 	patch.add_child(mi)
 	var soil := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
@@ -1402,6 +1410,7 @@ func _spawn_horizon(map_size: Vector2, map_center: Vector3, grass_tex: Texture2D
 		var sc := _rng.randf_range(0.9, 1.7) * (1.0 + (dist - half) / (half * 4.0))
 		var b := Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3(sc, sc * _rng.randf_range(0.9, 1.25), sc))
 		xforms.append(Transform3D(b, Vector3(p.x, 0.0, p.z)))
+	FAR_TREES.add_all(xforms)
 	trunk_mm.instance_count = xforms.size()
 	crown_mm.instance_count = xforms.size()
 	bough_mm.instance_count = xforms.size()

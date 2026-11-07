@@ -36,11 +36,11 @@ static func mesh(a: Vector3, b: Vector3, width: float, rng: RandomNumberGenerato
 		vs.append(t / 1.4)
 	for i in n:
 		_corner(st, left[i], 0.0, vs[i])
-		_corner(st, right[i + 1], 1.0, vs[i + 1])
 		_corner(st, right[i], 1.0, vs[i])
-		_corner(st, left[i], 0.0, vs[i])
-		_corner(st, left[i + 1], 0.0, vs[i + 1])
 		_corner(st, right[i + 1], 1.0, vs[i + 1])
+		_corner(st, left[i], 0.0, vs[i])
+		_corner(st, right[i + 1], 1.0, vs[i + 1])
+		_corner(st, left[i + 1], 0.0, vs[i + 1])
 	return st.commit()
 
 

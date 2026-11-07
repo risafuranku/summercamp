@@ -659,7 +659,8 @@ func _director_context() -> Dictionary:
 		"lamp_near": building_manager != null and float(building_manager.get_light_level_at(pos)) > 0.2,
 		"haunted_near": _day_events != null and place.begins_with("out") and _day_events.haunted_near(pos, 14.0) != Vector3.INF,
 		"walking": Vector2(vel.x, vel.z).length() > 0.8,
-		"window_open": curtain == null or float(curtain.get("open")) > 0.5,
+		# (Not with you at the PC, your back to it: the office's strongest scare went by unseen.)
+		"window_open": (curtain == null or float(curtain.get("open")) > 0.5) and not _is_crt_desktop_active(),
 		"looking_at_window": bi != null and bi.has_method("is_looking_at_window") and bi.is_looking_at_window(),
 		"entering": entering,
 		# A run of things may end in the breaker going (night_director.RUNS).
@@ -1341,7 +1342,7 @@ func _sync_season() -> void:
 				w = 0.5
 			WEATHER_STORM:
 				w = 1.4
-		_season_look.wind = Vector2(0.94, 0.34) * w
+		_season_look.wind = (_weather_visuals.wind_dir if _weather_visuals != null else Vector2(0.94, 0.34)) * w
 	if _hud_manager != null:
 		_hud_manager.snowing = is_snowing()
 
@@ -4509,6 +4510,19 @@ func _update_interaction_hint() -> void:
 		if not upkeep.is_empty():
 			hint = upkeep if hint.is_empty() else "%s   %s" % [hint, upkeep]
 	_hud_manager.set_hint_text(hint)
+
+
+## A room of the camp's own, the kind the night comes to the windows of: not the pipes, a
+## job out on the map, Liblice, the road or the bus.
+func in_camp_room() -> bool:
+	if _away_in_town():
+		return false
+	if (_sewer_pipe_minigame != null and _sewer_pipe_minigame.is_open()) or (_utility_repair_minigame != null and _utility_repair_minigame.is_open()):
+		return false
+	var trip = _interior_manager.town_trip() if _interior_manager != null and _interior_manager.has_method("town_trip") else null
+	if trip != null and bool(trip.is_open()):
+		return false
+	return _is_any_interior_open()
 
 
 func _is_any_interior_open() -> bool:

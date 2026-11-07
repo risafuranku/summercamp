@@ -178,10 +178,13 @@ func _tick_dad(dt: float) -> void:
 	_dad_next -= dt
 	if _dad_next > 0.0:
 		return
-	# In front of you, a little to one side: where your torch goes.
+	# Just off where you look: a turn of the head and he is in your torch. (Right in the cone he
+	# came out of nothing in front of you.)
 	for _i in 10:
-		var p := _point_from_player(_rng.randf_range(DAD_DIST.x, DAD_DIST.y), _rng.randf_range(-22.0, 22.0))
+		var p := _point_from_player(_rng.randf_range(DAD_DIST.x, DAD_DIST.y), _rng.randf_range(44.0, 70.0) * (1.0 if _rng.randf() < 0.5 else -1.0))
 		if p == Vector3.INF or _ray_blocked(_player_pos() + Vector3(0, 1.6, 0), p + Vector3(0, 1.4, 0)):
+			continue
+		if _is_seen(p + Vector3(0, 1.4, 0)):
 			continue
 		_dad.global_position = p
 		_dad.visible = true

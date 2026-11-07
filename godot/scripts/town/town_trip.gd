@@ -310,7 +310,7 @@ func hint_for(structure: Node3D) -> String:
 				"motel":
 					return "Ask for a room"
 				"kiosk":
-					return "Knock on the kiosk window"
+					return "Go into the kiosk" if _open("kiosk") else "Knock on the kiosk window"
 				"wc":
 					return "Go to the toilet"
 				"chapel":
@@ -447,14 +447,34 @@ func _quote(who: String, text: String) -> void:
 	var main := _main()
 	var hud = main.get("_hud_manager") if main != null else null
 	if hud != null and hud.has_method("show_quote"):
-		hud.show_quote(who, text, 70.0)
+		hud.show_quote(tr(who), text, 70.0)
+
+
+## Closing time with you still in: a word from behind the counter, then you are out. (Nobody
+## minded: the pub went on serving at midnight, the Jednota after five.)
+const CLOSING := {"jednota": ["Mrs Novotna", "Five o'clock. I am shutting up, out you go."], "pub": ["Mr Kubat", "Eleven. Time. Finish that and go home."], "kiosk": ["Mrs Lojzova", "Nine o'clock. I am closing the window."]}
+var _closing_said := ""
+
+
+func _tick_closing() -> void:
+	if _room == null or not _room.is_open():
+		_closing_said = ""
+		return
+	var place := str(_room.place)
+	if not HOURS.has(place) or _open(place) or _closing_said == place:
+		return
+	_closing_said = place
+	_quote(str(CLOSING[place][0]), str(CLOSING[place][1]))
+	get_tree().create_timer(3.0).timeout.connect(func() -> void:
+		if _room != null and _room.is_open() and str(_room.place) == place:
+			_room.close())
 
 
 func _door(which: String) -> void:
 	match which:
 		"jednota":
 			if not _open("jednota"):
-				_say("A card on the glass: JEDNOTA U MARKŮ, LIBLICE 42. Mon - Fri 7 - 17, Sat 7 - 11. Batteries sold out.")
+				_say("A card on the glass: JEDNOTA U MARKŮ, LIBLICE 42. Open daily 7 - 17. Batteries sold out.")
 				return
 			_open_room("jednota")
 		"pub":
@@ -976,6 +996,7 @@ func _process(delta: float) -> void:
 		if eye != null:
 			_masts.update_view(_eye_for_geo(eye) + Vector3(0, 1.6, 0))
 	var h := hour()
+	_tick_closing()
 	_night_poll -= delta
 	if _night_poll <= 0.0:
 		_night_poll = 1.0
@@ -1070,6 +1091,9 @@ func _update_village_sound(h: float) -> void:
 		if st is AudioStreamMP3:
 			(st as AudioStreamMP3).loop = true
 		_ambience.stream = st
+	# (No birdsong in the storm.)
+	if _ambience != null:
+		_ambience.volume_db = -30.0 if here and _raining_now() and want == "village_day.mp3" else -16.0
 		_ambience.play()
 	if not here or _town == null:
 		return

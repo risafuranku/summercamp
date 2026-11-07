@@ -192,6 +192,22 @@ func darken_lamp_near(pos: Vector3, radius: float, seconds: float) -> Vector3:
 
 ## Where the lamps lit now stand (the mushroom granny goes for them,
 ## scripts/enemies/basket_brain.gd).
+## The bulb of the lamp standing at `foot` (out on its arm), a metre over the foot if none.
+func lamp_bulb_at(foot: Vector3) -> Vector3:
+	var best := foot + Vector3(0, 3.1, 0)
+	var best_d := 2.0
+	for lamp_id in _lamp_runtime.keys():
+		var e: Dictionary = _lamp_runtime[lamp_id]
+		var root = e.get("root", null) as Node3D
+		var spot = e.get("spot", null) as Node3D
+		if root != null and is_instance_valid(root) and spot != null and is_instance_valid(spot):
+			var d := Vector2(root.global_position.x - foot.x, root.global_position.z - foot.z).length()
+			if d < best_d:
+				best_d = d
+				best = spot.global_position
+	return best
+
+
 func lit_lamp_positions() -> Array:
 	var out: Array = []
 	if not _lamps_active:

@@ -94,7 +94,9 @@ static func build(root: Node3D, room = null, lit := false) -> Dictionary:
 			holes.append([at.x - sz.x * 0.5, at.x + sz.x * 0.5, at.y - sz.y * 0.5, at.y + sz.y * 0.5])
 		K.cut_wall(front, holes)
 		# The wainscot along the front, under the windows.
-		K.slab(root, Vector3(w, 1.1, 0.04), Vector3(0, 0.55, d * 0.5 - 0.02), wain, "WainFront")
+		# (In two, the door between them: in one it ran across the door from the waist down.)
+		for sx in [-1.0, 1.0]:
+			K.slab(root, Vector3(w * 0.5 - 0.82, 1.1, 0.04), Vector3(sx * (w * 0.25 + 0.41), 0.55, d * 0.5 - 0.02), wain, "WainFront")
 	# The bar across the back, the taps, the back bar, Mr Kubat.
 	var bar := Vector3(4.0, 1.05, 0.6)
 	var bpos := Vector3(0.5, 0.525, -1.4)
@@ -123,10 +125,13 @@ static func build(root: Node3D, room = null, lit := false) -> Dictionary:
 		var tz: float = (t as Vector3).z
 		var tx: float = (t as Vector3).x
 		K.slab(root, Vector3(1.0, 0.04, 0.8), Vector3(tx, 0.76, tz), cloth, "Table")
-		K.slab(root, Vector3(0.08, 0.74, 0.08), Vector3(tx, 0.37, tz), wood, "TableLeg")
+		# (On two frames, not one stick; the seats on theirs: they hung in the air.)
+		for lx in [-0.38, 0.38]:
+			K.slab(root, Vector3(0.06, 0.74, 0.62), Vector3(tx + float(lx), 0.37, tz), wood, "TableLeg")
 		for cx in [-0.75, 0.75]:
 			K.slab(root, Vector3(0.42, 0.05, 0.42), Vector3(tx + float(cx), 0.46, tz), wood, "Seat")
-			K.slab(root, Vector3(0.05, 0.5, 0.42), Vector3(tx + float(cx) * 1.24, 0.72, tz), wood, "SeatBack")
+			K.slab(root, Vector3(0.05, 0.96, 0.42), Vector3(tx + float(cx) * 1.24, 0.48, tz), wood, "SeatBack")
+			K.slab(root, Vector3(0.04, 0.44, 0.36), Vector3(tx + float(cx) * 0.76, 0.22, tz), wood, "SeatLeg")
 		_cut(root, "ashtray", Vector2(0.14, 0.14), Vector3(tx + 0.1, 0.78, tz + 0.1), 0.0, true, l, "TableAshtray")
 		lamps.append(Vector3(tx, 2.4, tz))
 	# The walls: antlers and the brewery sign west, the dartboard east, the clock.
@@ -174,8 +179,8 @@ static func build(root: Node3D, room = null, lit := false) -> Dictionary:
 		return out
 	# Inside: the lamps lit, the people, what you click, where you stand.
 	for lp in lamps:
-		room._hang_lamp(lp)
-	room._hang_lamp(Vector3(0.5, 2.5, -1.4))
+		room._hang_lamp(lp, ROOM.y)
+	room._hang_lamp(Vector3(0.5, 2.5, -1.4), ROOM.y)
 	room._hot_box("tap", Vector3(1.4, top + 0.2, -1.5), Vector3(0.5, 0.4, 0.3), [taps])
 	room._npc_sprite("town_landlord", 1.7, Vector3(0.3, 0.0, -2.1), "him")
 	room._mug_tex = {"full": load(K.TEX + "mug_full.png") if ResourceLoader.exists(K.TEX + "mug_full.png") else null,
@@ -241,6 +246,10 @@ func tick(delta: float) -> void:
 		return
 	var xf := anchor.global_transform * Transform3D(Basis(), origin())
 	var world := anchor.get_world_3d()
+	# (Built anew at closing time: the one we were given is gone, and each frame was an error
+	# and the windows dead.)
+	if shell == null or not is_instance_valid(shell):
+		shell = anchor.get_node_or_null("Taproom") as Node3D
 	for w in windows:
 		w.update(room._root, room._cam, xf, true, world, delta, shell)
 

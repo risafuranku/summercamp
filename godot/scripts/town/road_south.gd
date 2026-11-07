@@ -22,6 +22,8 @@ const TOWN_TEX := "res://assets/textury/town/"
 const GEO = preload("res://scripts/geo/geo_data.gd")
 const ROAD_POST = preload("res://scripts/town/road_post.gd")
 const ONE_WORLD_ROOM = preload("res://scripts/one_world_room.gd")
+const SIGN_TEXT = preload("res://scripts/town/sign_text.gd")
+const FAR_TREES = preload("res://scripts/ambient/far_trees.gd")
 const ROAD_WIDTH := 4.4
 ## The verge walls stand this far from the middle of the road.
 const WALL_OFF := 5.0
@@ -280,6 +282,8 @@ func _build_trees() -> void:
 			continue
 		var sc := _rng.randf_range(1.0, 1.7)
 		xforms.append(Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3(sc, sc * _rng.randf_range(0.9, 1.3), sc)), Vector3(p.x, 0.0, p.z)))
+	FAR_TREES.add_all(xforms, global_transform if is_inside_tree() else transform)
+	FAR_TREES.add_all(birches, global_transform if is_inside_tree() else transform, 0.16)
 	var parts := [["spruce_trunk", _worldgen._tree_material("bark", 1), xforms], ["spruce_crown", _worldgen._tree_material("needles", 1), xforms], ["spruce_cards", _worldgen._tree_material("bough_cards", 1), xforms],
 		["birch_trunk", _worldgen._tree_material("birch_bark", 0), birches], ["birch_crown", _worldgen._tree_material("leaf", 1), birches], ["birch_cards", _worldgen._tree_material("leaf_cards", 1), birches]]
 	for part in parts:
@@ -377,17 +381,11 @@ func _build_stop() -> void:
 	name_board.name = "StopName"
 	for side in [-1.0, 1.0]:
 		_face(root, pole_at + Vector3(side * 0.02, 2.5, 0), Vector2(0.74, 0.56), side, sign_mat)
-		var label := Label3D.new()
-		label.text = stop_name
-		label.font = load("res://assets/fonts/jersey10.fnt")
-		label.font_size = 32
-		label.pixel_size = 0.0027
-		label.modulate = Color(0.08, 0.08, 0.1)
-		label.outline_size = 0
-		label.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-		label.position = pole_at + Vector3(side * 0.025, 2.07, 0)
-		label.rotation.y = PI * 0.5 * side
+		var label = SIGN_TEXT.new()
 		root.add_child(label)
+		label.setup(stop_name, Vector2(1.08, 0.2), 32, 0.0027, Color(0.08, 0.08, 0.1))
+		label.position = pole_at + Vector3(side * 0.03, 2.07, 0)
+		label.rotation.y = PI * 0.5 * side
 	# The timetable case, facing the road: click it to read.
 	var case_mat := _material(TOWN_TEX + "timetable_case.png", "metal", Color(0.7, 0.72, 0.7))
 	_box(root, pole_at + Vector3(-0.06, 1.45, 0), Vector3(0.05, 0.62, 0.46), _paint(Color(0.55, 0.56, 0.55)))

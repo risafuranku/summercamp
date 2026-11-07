@@ -23,6 +23,9 @@ var _charge_speed: float = 5.6
 var _hit: int = 45
 var _step_t: float = 0.0
 var _rest_until: float = 0.0
+## Walking back to the fence (he went there in one frame, the width of the camp in view).
+var _going_back := false
+var _back_for := 0.0
 
 
 func get_enemy_id() -> String:
@@ -58,10 +61,11 @@ func _on_tick(dt: float) -> void:
 		return
 	# (The base hides him while you are in a room and nothing showed him again: on a night begun
 	# at the PC he walked the fence and came at you unseen, his eyes with him.)
-	_body.visible = true
+	# (Round the lake's side he is out of it: the fence line there is over the water.)
+	var pos := _body.global_position
+	_body.visible = not _on_water(pos)
 	if _elapsed < _rest_until:
 		return
-	var pos := _body.global_position
 	var player := _player_pos()
 	var light := _lamp_light_at(player)
 	# His charge has its beat (chase_music.gd): the brass band screaming.
@@ -71,19 +75,24 @@ func _on_tick(dt: float) -> void:
 	if _charging:
 		if light > GIVE_UP_LIGHT:
 			_charging = false
+			_start_back()
 			_announce("Something big stopped at the edge of the light.")
 		else:
 			var to := Vector3(player.x - pos.x, 0, player.z - pos.z)
 			if to.length() <= HIT_RANGE:
 				_hurt(_hit)
-				_charging = false
-				_rest_until = _elapsed + 25.0
 				# (The hit can end the night and take the body with it.)
-				if is_instance_valid(_body):
-					_body.global_position = _perimeter[_seg]
+				if not _night_active:
+					return
+				_charging = false
+				_rest_until = _elapsed + 4.0
+				_start_back()
 				return
 			_move(to.normalized() * _charge_speed * dt, 0.28, dt)
 			return
+	if _going_back:
+		_tick_back(pos, dt)
+		return
 	# Patrol the fence line.
 	var a: Vector3 = _perimeter[_seg]
 	var b: Vector3 = _perimeter[(_seg + 1) % _perimeter.size()]
@@ -93,22 +102,58 @@ func _on_tick(dt: float) -> void:
 		_seg_t = 0.0
 		_seg = (_seg + 1) % _perimeter.size()
 	var target := a.lerp(b, _seg_t)
-	_body.global_position = Vector3(target.x, pos.y, target.z)
+	_body.global_position = Vector3(target.x, target.y, target.z)
+	_stride(WALK_SPEED * dt, 0.9)
 	_footsteps(dt, 0.9)
 	if _distance_to_player(pos) < NOTICE_RANGE and light <= GIVE_UP_LIGHT and _rng.randf() < dt * 0.6:
 		_charging = true
 		_announce("Heavy footsteps along the fence. They stopped. Now they are coming.")
 
 
+## Back to the nearest of the fence line, at a heavy walk.
+func _start_back() -> void:
+	_going_back = true
+	_back_for = 0.0
+
+
+func _tick_back(pos: Vector3, dt: float) -> void:
+	_back_for += dt
+	var best := pos
+	var best_d := INF
+	var best_seg := _seg
+	var best_t := 0.0
+	for i in _perimeter.size():
+		var a: Vector3 = _perimeter[i]
+		var b: Vector3 = _perimeter[(i + 1) % _perimeter.size()]
+		var c := Geometry3D.get_closest_point_to_segment(pos, a, b)
+		var d := Vector2(c.x - pos.x, c.z - pos.z).length()
+		if d < best_d:
+			best_d = d
+			best = c
+			best_seg = i
+			best_t = a.distance_to(c) / maxf(a.distance_to(b), 0.1)
+	if best_d < 1.2 or _back_for > 40.0:
+		_going_back = false
+		_seg = best_seg
+		_seg_t = best_t
+		return
+	_move(Vector3(best.x - pos.x, 0.0, best.z - pos.z).normalized() * WALK_SPEED * 1.4 * dt, 0.75, dt)
+
+
 ## Getting indoors makes him lose interest, as it says at the top.
 func _on_back() -> void:
+	if _charging:
+		_start_back()
 	_charging = false
 
 
 func _move(step: Vector3, step_interval: float, dt: float) -> void:
-	var p := _ground(_body.global_position + step)
+	var from := _body.global_position
+	# Round what stands in the way, on the ground: from 20 m up he jumped on and off every fence.
+	var p := _floor_at(from + _clear_dir(from, step.normalized()) * step.length())
 	if p != Vector3.INF:
 		_body.global_position = p
+		_stride(step.length(), 1.3)
 	_footsteps(dt, step_interval)
 
 

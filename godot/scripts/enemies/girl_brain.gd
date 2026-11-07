@@ -332,6 +332,9 @@ func _begin_loop() -> void:
 		var p := _point_from_player(dist, side)
 		if p == Vector3.INF or _lamp_light_at(p) > LAMP_SAFE:
 			continue
+		# (You find her there; she does not appear there.)
+		if _is_seen(p + Vector3(0, 1.4, 0), 4.0):
+			continue
 		_place_body(p)
 		_set_look(_round == 0, dist)
 		_sound(SFX_HEEL, p, -4.0, _rng.randf_range(0.9, 1.05), 40.0)
@@ -365,7 +368,9 @@ func _on_tick(dt: float) -> void:
 	var head := _body.global_position + Vector3(0, _head_height(), 0)
 	var d := _distance_to_player(_body.global_position)
 	var torch_on_her := _in_flashlight(head)
-	var lit := torch_on_her or _lamp_light_at(_body.global_position) > 0.12 or d < SEE_CLOSE
+	# (And while there is day left: at dusk you see her as well as in a lamp, and she jumped
+	# on under your eyes.)
+	var lit := torch_on_her or _lamp_light_at(_body.global_position) > 0.12 or d < SEE_CLOSE or _twilight() > 0.15
 	var looking := _is_seen(head, -4.0)
 	var stuttering := _stutter_t > 0.0
 	var sees := looking and lit and not stuttering
@@ -637,7 +642,8 @@ func tick(delta: float) -> void:
 
 
 func _wall_clock() -> float:
-	return Time.get_ticks_msec() / 1000.0
+	# (The night's own seconds: they stand with a paused game.)
+	return _elapsed
 
 
 func _indoors_now() -> bool:
@@ -1388,7 +1394,7 @@ func _update_strike(dt: float) -> void:
 		for i in 5:
 			var at := 2.3 + 0.1 * float(i)
 			if _cue(at, "drag%d" % i):
-				var to := _ground(_player_pos() + _forward_flat() * 0.45)
+				var to := _stand(_player_pos() + _forward_flat() * 0.45)
 				if to != Vector3.INF:
 					_move_player(to + Vector3(0, 0.05, 0))
 				_ear_sfx(SFX_HEEL, -4.0, 0.45)

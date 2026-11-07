@@ -202,7 +202,7 @@ var _away := false
 var _was_moving := false
 var _extra_step_at := -1.0
 var _rustle_next := 3.0
-var _dissolve := {}                # texture -> Array of ImageTexture (more gone each frame)
+static var _dissolve := {}         # texture -> Array of ImageTexture (more gone each frame)
 var _ash: GPUParticles3D
 var _last_kill := ""
 ## The sixth sense: 0..1, built in the dark while he comes, drained in the light.
@@ -327,6 +327,10 @@ func _on_start() -> void:
 				break
 	_body = _make_body(GUEST, HEIGHT)
 	_make_eyes("silent_man", HEIGHT * 0.92)
+	# The burn ready now, not in the frame it happens in.
+	_make_ash()
+	if _tex.has(T_LIT):
+		_dissolve_frames(_tex[T_LIT])
 	var nth := int(_night_entry.get("nth", 0)) if _night_entry is Dictionary else 0
 	if nth > 0:
 		_fx_key = "silent_man#%d" % nth
@@ -355,6 +359,11 @@ func tick(delta: float) -> void:
 			# (Gone in while he held you: his hands off the screen too, not left there.)
 			_neck_until = -1.0
 			_end_hold()
+			# (His breath at your neck too: at full strength through the door all the while.)
+			if _hum != null:
+				_hum.volume_db = -60.0
+			if _breath != null:
+				_breath.volume_db = -60.0
 			_tick_indoors(delta)
 		elif _away:
 			_away = false
@@ -369,6 +378,7 @@ func tick(delta: float) -> void:
 func _on_return() -> void:
 	_glass_until = -1.0
 	_eyes_out = false
+	_player.set("flashlight_stutter", 0.0)
 	_staring = false
 	if _eyes != null:
 		_eyes.set("view_from", Vector3.INF)
@@ -426,6 +436,10 @@ func _on_tick(dt: float) -> void:
 		return
 	if _elapsed < _resume_at:
 		_body.visible = _lurking
+		return
+	# Not out of nothing in your light because you turned round: round behind you again.
+	if not _body.visible and _is_seen(head):
+		_reset_far(0.5)
 		return
 	_body.visible = true
 	if _lamp_light_at(_player_pos()) >= DARK_LIGHT:
@@ -542,7 +556,7 @@ func _choose_lurk() -> void:
 		var side := to.normalized().cross(Vector3.UP)
 		var peek := Vector3.INF
 		for sgn in [1.0, -1.0]:
-			var q := _ground(p + side * sgn * 0.8)
+			var q := _stand(p + side * sgn * 0.8)
 			if q != Vector3.INF and not _ray_blocked(cam.global_position, q + Vector3(0, HEIGHT * 0.8, 0)):
 				peek = q
 				score += 1.0
@@ -571,6 +585,9 @@ func _choose_stare(cam: Camera3D) -> bool:
 		if p == Vector3.INF or _lamp_light_at(p) > LURK_DARK:
 			continue
 		if _ray_blocked(cam.global_position, p + Vector3(0, HEIGHT * 0.92, 0)):
+			continue
+		# (You find him there; he does not appear there as you look.)
+		if _is_seen(p + Vector3(0, HEIGHT * 0.86, 0), 6.0):
 			continue
 		_lurking = true
 		_staring = true
@@ -603,7 +620,7 @@ func _update_stare(dt: float) -> void:
 	to.y = 0.0
 	if to.length() <= STARE_MIN:
 		return
-	var p := _ground(_body.global_position + to.normalized() * minf(_rng.randf_range(1.0, 1.8), to.length() - STARE_MIN))
+	var p := _stand(_body.global_position + to.normalized() * minf(_rng.randf_range(1.0, 1.8), to.length() - STARE_MIN))
 	if p == Vector3.INF or _lamp_light_at(p) > LURK_DARK:
 		return
 	_body.global_position = p
@@ -697,7 +714,7 @@ func _place_behind(dist: float) -> void:
 	var dir := Vector3(from.x - to.x, 0.0, from.z - to.z)
 	if dir.length_squared() < 0.01:
 		dir = -_forward_flat()
-	var p := _ground(to + dir.normalized() * dist)
+	var p := _stand(to + dir.normalized() * dist)
 	if p == Vector3.INF:
 		return
 	_walk_from = from
@@ -935,6 +952,8 @@ func _driven_off() -> void:
 	_drive_offs += 1
 	var stood: Texture2D = _body.texture
 	var tall := float(stood.get_height()) * _body.pixel_size * _body.scale.y if stood != null else HEIGHT
+	# (Before the hold ends: his hands stayed on the screen of the warden he held.)
+	_neck_until = -1.0
 	_end_hold()
 	_staring = false
 	_eyes_out = false
@@ -1006,6 +1025,8 @@ func _update_lit(_dt: float) -> void:
 ## once per picture (scripts/night/fx_tex.gd, so the warden he hunts on another machine
 ## sees him come apart too, not just gone).
 func _dissolve_frames(tex: Texture2D) -> Array:
+	# (For the game, not for each of him: six frames worked out pixel by pixel in the frame that
+	# burns him, for every Silent Man again.)
 	if _dissolve.has(tex):
 		return _dissolve[tex]
 	var out: Array = []
@@ -1020,6 +1041,13 @@ func _dissolve_frames(tex: Texture2D) -> Array:
 
 ## A little dark ash going up off him as he goes.
 func _puff_ash() -> void:
+	_make_ash()
+	_ash.global_position = _body.global_position + Vector3(0, HEIGHT * 0.5, 0)
+	_ash.restart()
+	_ash.emitting = true
+
+
+func _make_ash() -> void:
 	if _ash == null:
 		_ash = GPUParticles3D.new()
 		var pm := ParticleProcessMaterial.new()
@@ -1047,9 +1075,6 @@ func _puff_ash() -> void:
 		_ash.one_shot = true
 		_ash.explosiveness = 0.5
 		_root.add_child(_ash)
-	_ash.global_position = _body.global_position + Vector3(0, HEIGHT * 0.5, 0)
-	_ash.restart()
-	_ash.emitting = true
 
 
 func _reset_far(pause: float) -> void:
@@ -1471,7 +1496,7 @@ func _start_reveal() -> bool:
 	for _i in 12:
 		var ang := deg_to_rad(_rng.randf_range(-22.0, 22.0))
 		var dir := fwd.rotated(Vector3.UP, ang)
-		var p := _ground(_player_pos() + dir * _rng.randf_range(8.0, 11.0))
+		var p := _stand(_player_pos() + dir * _rng.randf_range(8.0, 11.0))
 		if p == Vector3.INF or _lamp_light_at(p) > DARK_LIGHT:
 			continue
 		if _ray_blocked(cam.global_position, p + Vector3(0, HEIGHT * 0.8, 0)):
@@ -1548,8 +1573,8 @@ func _tick_indoors(delta: float) -> void:
 	if _watch_win >= 0:
 		_tick_watch(delta)
 		return
-	# Gone from the glass when his time there is up.
-	if _glass_until > 0.0 and _wall_clock() >= _glass_until:
+	# Gone from the glass when his time there is up, and you are looking elsewhere.
+	if _glass_until > 0.0 and _wall_clock() >= _glass_until and not _a_window_looked_at():
 		_end_watch()
 	if _wall_clock() < _lure_next:
 		return
@@ -1579,9 +1604,17 @@ func _call_due() -> bool:
 	return _calls > 0
 
 
-## Seconds while indoors (the base's _elapsed does not run while it cannot act).
+## The night's own seconds (they run indoors too, and stand with the game when it is paused:
+## on the wall clock a long pause brought the next scare the moment you came back).
 func _wall_clock() -> float:
-	return Time.get_ticks_msec() / 1000.0
+	return _elapsed
+
+
+func _a_window_looked_at() -> bool:
+	for w in _room_windows():
+		if float(w.get("facing", 0.0)) > 0.82:
+			return true
+	return false
 
 
 func _indoors_now() -> bool:
@@ -1631,7 +1664,7 @@ func _watch_point(w: Dictionary) -> Vector3:
 		dir = w["out"] as Vector3
 		dir.y = 0.0
 	dir = dir.normalized().rotated(Vector3.UP, _watch_side)
-	return _ground(from + dir * _watch_dist)
+	return _stand(from + dir * _watch_dist)
 
 
 func _place_watch(w: Dictionary, p: Vector3) -> void:
@@ -1648,7 +1681,8 @@ func _place_watch(w: Dictionary, p: Vector3) -> void:
 ## look away, or his time is up: he is not there any more.
 func _tick_watch(delta: float) -> void:
 	var wins := _room_windows()
-	if _watch_win >= wins.size() or _wall_clock() >= _glass_until:
+	# (Not while you are looking at him: he was gone from the glass under your eyes.)
+	if _watch_win >= wins.size() or (_wall_clock() >= _glass_until and float((wins[_watch_win] as Dictionary).get("facing", 0.0)) <= 0.82):
 		_end_watch()
 		return
 	var w: Dictionary = wins[_watch_win]
@@ -1785,8 +1819,9 @@ func _start_ceiling() -> bool:
 	_ceil = Sprite3D.new()
 	_ceil.texture = _t(T_CEILING)
 	_ceil.pixel_size = 0.009
-	_ceil.shaded = false
-	_ceil.modulate = Color(0.55, 0.5, 0.5)
+	# (Lit as the room is: flat grey he shone in the dark of a room with the lamp off.)
+	_ceil.shaded = true
+	_ceil.modulate = Color(0.8, 0.75, 0.75)
 	_ceil.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	_ceil.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
 	slab.add_child(_ceil)

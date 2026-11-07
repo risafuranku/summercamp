@@ -70,6 +70,9 @@ var _guest_visual_root: Node3D
 var _guest_occupants: Array = []
 var _tent_env: Environment
 var _tent_light: OmniLight3D
+## A flash from outside through the canvas (the Tourist): its light, what is left of it.
+var _flash_light: OmniLight3D
+var _flash_t := 0.0
 var _grid_power_available: bool = true
 var _barrel_overlay: ColorRect
 var _cam_base_rot: Vector3 = Vector3.ZERO
@@ -199,7 +202,24 @@ func close_tent() -> void:
 	request_close.emit()
 
 
+## The Tourist's flash from outside: the canvas lights up white and falls off.
+func flash() -> void:
+	if _tent_root == null:
+		return
+	if _flash_light == null or not is_instance_valid(_flash_light):
+		_flash_light = OmniLight3D.new()
+		_flash_light.name = "CanvasFlash"
+		_flash_light.light_color = Color(0.9, 0.94, 1.0)
+		_flash_light.omni_range = 5.0
+		_flash_light.position = Vector3(0.0, 1.2, 0.0)
+		_tent_root.add_child(_flash_light)
+	_flash_t = 0.4
+
+
 func _process(delta: float) -> void:
+	if _flash_t > 0.0 and _flash_light != null:
+		_flash_t = maxf(0.0, _flash_t - delta)
+		_flash_light.light_energy = 7.0 * pow(_flash_t / 0.4, 1.6)
 	if not _is_open:
 		_update_inview(delta)
 	_bind_one_world(delta)

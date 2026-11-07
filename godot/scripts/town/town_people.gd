@@ -11,13 +11,15 @@ extends Node3D
 const NPC := "res://assets/textury/npc/"
 const WALK := 1.3
 const PIXEL := 0.0145
+## Metres tall (the rest of them 1.72, the street's height).
+const HEIGHTS := {"hruba": 1.55, "pepik": 1.35}
 const BALANCE = preload("res://core/balance/balance_config.gd")
 
 ## Places in the village's own frame (x east, z south; the road at z = 0).
 const SPOTS := {
 	"jednota": Vector3(-3.0, 0, -8.6),
 	"jednota_side": Vector3(-11.5, 0, -8.8),
-	"bench": Vector3(8.0, 0, 14.4),
+	"bench": Vector3(9.5, 0, 13.9),
 	"memorial": Vector3(24.4, 0, 11.4),
 	"chapel": Vector3(-28.0, 0, -17.2),
 	"pub": Vector3(19.2, 0, -9.4),
@@ -46,7 +48,7 @@ const PEOPLE := {
 		"night": ["You should not be out. Go to the motel, Simek keeps a light on."]},
 	"franta": {"name": "Franta", "sprite": "town_tracksuit.png", "day": [[9.0, 19.0, "jednota"], [19.0, 23.5, "pub"]],
 		"lines": [
-			"The bus? Three a day. The last one up to you goes at half past six. Nobody goes up there after dark anyway.",
+			"The bus? Four a day. The last one up to you goes at a quarter to four. Nobody goes up there after dark anyway.",
 			"The works bus at midnight goes up to the dam. Nobody gets on, nobody gets off. My cousin drives it. He says it is heavier coming back.",
 			"Lesnak's at the Jednota. Ten degrees. Tastes like the reservoir.",
 			"They say your register never adds up. More people in the beds than in the book.",
@@ -68,7 +70,7 @@ const PEOPLE := {
 			"Do not open the window in number six. It does not open, but do not.",
 		],
 		"night": ["Fifteen dollars. Key's on the board. Lock it twice."]},
-	"vavra": {"name": "Sgt Vavra", "sprite": "town_policeman.png", "day": [[8.0, 21.0, "patrol"]],
+	"vavra": {"name": "Sgt Vavra", "sprite": "town_policeman.png", "day": [[8.0, 23.0, "patrol"]],
 		"lines": [
 			"The camp? You are the new one up there. The district has been asking about your register.",
 			"Persons found in a facility who are not in the register are not the district's responsibility. It is on the notice. Read it.",
@@ -103,7 +105,8 @@ func build() -> void:
 		add_child(root)
 		var s := Sprite3D.new()
 		s.texture = load(path)
-		s.pixel_size = PIXEL
+		# As tall as they are, not all of them a head over you.
+		s.pixel_size = float(HEIGHTS.get(who, 1.72)) / float(s.texture.get_height()) if s.texture != null else PIXEL
 		s.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 		s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 		s.shaded = true
@@ -135,23 +138,53 @@ func update(hour: float, delta: float) -> void:
 			var was := str(p["place"])
 			p["place"] = place
 			if place == "":
-				# Indoors: they walk off to where they live and are gone (or just gone).
+				# Indoors: off down the pavement and gone once you are not looking (they went
+				# out like a light on the bench at four).
+				if root.visible and _seen(root.position) and not LOOPS.has(was):
+					p["path"] = _way_off(root.position, was)
+					p["loop_i"] = 0
+					p["leaving"] = true
+					continue
 				root.visible = false
 				(p["body"] as StaticBody3D).process_mode = Node.PROCESS_MODE_DISABLED
 				continue
+			p["leaving"] = false
 			(p["body"] as StaticBody3D).process_mode = Node.PROCESS_MODE_INHERIT
 			var appeared := false
 			if was == "" or not root.visible:
-				root.position = _first_point(place)
-				root.visible = true
-				appeared = true
-			p["path"] = _route_to(place, was)
-			# (Turned up where they are going: there already, no way to walk.)
-			p["loop_i"] = (p["path"] as Array).size() - 1 if appeared else 0
+				var spot := _first_point(place)
+				# In your sight they come along the pavement, not out of the air.
+				if _seen(spot) and not LOOPS.has(place):
+					var way := _way_off(spot, place)
+					way.reverse()
+					root.position = way[0]
+					root.visible = true
+					p["path"] = way + [spot]
+					p["loop_i"] = 1
+				else:
+					root.position = spot
+					root.visible = true
+					appeared = true
+					p["path"] = _route_to(place, was)
+					p["loop_i"] = (p["path"] as Array).size() - 1
+			else:
+				p["path"] = _route_to(place, was)
+				p["loop_i"] = 0
 		if place == "":
+			if bool(p.get("leaving", false)):
+				_walk(p, "", delta)
+				var path_off: Array = p["path"]
+				var end_of: Vector3 = path_off[path_off.size() - 1]
+				if root.position.distance_to(end_of) < 0.3 or not _seen(root.position):
+					p["leaving"] = false
+					root.visible = false
+					(p["body"] as StaticBody3D).process_mode = Node.PROCESS_MODE_DISABLED
 			continue
 		if LOOPS.has(place):
+			var was_at: Vector3 = root.position
 			root.position = _round_at(str(who), place, hour)
+			if root.position.distance_squared_to(was_at) > 0.000001:
+				_look_along(p, root.position - was_at)
 			_bob(p, true)
 			continue
 		_walk(p, place, delta)
@@ -174,7 +207,7 @@ func _round_at(who: String, place: String, hour: float) -> Vector3:
 		if str(slot[2]) == place:
 			start = float(slot[0])
 	var since := fposmod(hour - start, 24.0)
-	var speed := WALK * (2.6 if place == "bike" else 1.0)
+	var speed := WALK
 	var dist := since * 60.0 / BALANCE.GAME_MINUTES_PER_SECOND * speed
 	var pts: Array = LOOPS[place]
 	var total := 0.0
@@ -197,6 +230,34 @@ func _first_point(place: String) -> Vector3:
 	if LOOPS.has(place):
 		return LOOPS[place][0]
 	return SPOTS.get(place, Vector3.ZERO)
+
+
+## In the eye of whoever is looking.
+func _seen(at: Vector3) -> bool:
+	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
+	if cam == null:
+		return false
+	var w: Vector3 = to_global(at) + Vector3.UP
+	return cam.global_position.distance_to(w) < 90.0 and cam.is_position_in_frustum(w)
+
+
+## From `at` to the pavement and along it out of the village, by the nearer end.
+func _way_off(at: Vector3, from := "") -> Array:
+	var side := 4.6 if at.z >= 0.0 else -4.6
+	var end := 62.0 if at.x >= 0.0 else -62.0
+	var way: Array = [at]
+	if from == "chapel":
+		way.append(CHAPEL_GATE)
+	way.append(Vector3(at.x, 0, side))
+	way.append(Vector3(end, 0, side))
+	return way
+
+
+## The one picture they have, the way they walk: mirrored as they go left across your view.
+func _look_along(p: Dictionary, to: Vector3) -> void:
+	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
+	if cam != null:
+		(p["sprite"] as Sprite3D).flip_h = to.dot(cam.global_transform.basis.x) < 0.0
 
 
 ## The chapel's yard has its low wall (town_lesna._chapel_yard, L18): in and out by its
@@ -222,10 +283,11 @@ func _walk(p: Dictionary, place: String, delta: float) -> void:
 	var target: Vector3 = path[i]
 	var to := target - root.position
 	to.y = 0.0
-	var speed := WALK * (2.6 if place == "bike" else 1.0)
+	var speed := WALK
 	var moving := to.length() > 0.08
 	if moving:
 		root.position += to.normalized() * minf(to.length(), speed * delta)
+		_look_along(p, to)
 	elif i < path.size() - 1:
 		# On to the next point of the way (the chapel's gate, then its door).
 		p["loop_i"] = i + 1

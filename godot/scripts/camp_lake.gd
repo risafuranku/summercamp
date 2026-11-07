@@ -165,6 +165,21 @@ func build(main_node: Node, shore_z: float, north_z: float, west: float, east: f
 	var gap_r := jetty_x + JETTY_W * 0.5
 	_wall(Vector3((west + gap_l) * 0.5, 1.0, shore_z + WADE), Vector3(gap_l - west, 2.0, 0.3))
 	_wall(Vector3((gap_r + east) * 0.5, 1.0, shore_z + WADE), Vector3(east - gap_r, 2.0, 0.3))
+	# And all the way round: out of the gate and round the fence you walked across it on six
+	# centimetres of water.
+	var round_it: PackedVector2Array = Geometry2D.offset_polygon(poly, -WADE)[0]
+	for i in round_it.size():
+		var a: Vector2 = round_it[i]
+		var b: Vector2 = round_it[(i + 1) % round_it.size()]
+		# (The camp's own shore has its wall above, with the gap for the jetty.)
+		if absf(a.y - (shore_z + WADE)) < 0.8 and absf(b.y - (shore_z + WADE)) < 0.8:
+			continue
+		var wall := StaticBody3D.new()
+		wall.name = "ShoreWall"
+		add_child(wall)
+		_collider(wall, Vector3.ZERO, Vector3(a.distance_to(b) + 0.4, 2.0, 0.3))
+		wall.position = Vector3((a.x + b.x) * 0.5, 1.0, (a.y + b.y) * 0.5)
+		wall.rotation.y = -(b - a).angle()
 
 	# Morning mist: soft banks standing over the water (camera-facing puffs: flat sheets
 	# vanish edge-on at eye height), drifting slowly along the lake.

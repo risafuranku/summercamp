@@ -22,6 +22,7 @@ extends Node3D
 const GEO = preload("res://scripts/geo/geo_data.gd")
 const ROAD_POST = preload("res://scripts/town/road_post.gd")
 const ONE_WORLD_ROOM = preload("res://scripts/one_world_room.gd")
+const FAR_TREES = preload("res://scripts/ambient/far_trees.gd")
 const PUMP_JOB = preload("res://scripts/town/pump_job.gd")
 const TEX := "res://assets/textury/town/"
 const TEX_CAMP := "res://assets/textury/camp/"
@@ -518,7 +519,15 @@ func _land() -> void:
 		var key := "%s|%s" % [tex, tint]
 		var bag := _bag(bags, key, _mat(tex, tint))
 		_fill_poly(bag, poly, float(order.get(k, 0.01)), tile, Color.WHITE)
+	var first := get_child_count()
 	_bags_to(self, bags)
+	# The land goes with the season as the camp does: it stood in one colour all month, and dry
+	# in the rain.
+	for i in range(first, get_child_count()):
+		var patch := get_child(i) as MeshInstance3D
+		if patch != null:
+			patch.set_meta("season_keep_texture", true)
+			patch.add_to_group("season_ground")
 
 
 ## A polygon lying flat at height y, its texture `tile` metres a repeat.
@@ -705,8 +714,8 @@ func _benzina() -> void:
 	root.rotation.y = atan2(-face.x, -face.z)
 	add_child(root)
 	var bags := {}
-	var steel := _bag(bags, "steel", _mat("", Color(0.86, 0.86, 0.84)))
-	var red := _bag(bags, "red", _mat("", Color(0.8, 0.12, 0.08)))
+	var steel := _bag(bags, "steel", _mat(TEX_CAMP + "galvanized.png", Color(0.94, 0.94, 0.92)))
+	var red := _bag(bags, "red", _mat(_first([TEX + "pump_side.png"]), Color(1.0, 1.0, 1.0)) if ResourceLoader.exists(TEX + "pump_side.png") else _mat("", Color(0.8, 0.12, 0.08)))
 	var conc := _bag(bags, "conc", _mat(TEX_CAMP + "concrete.png", Color(0.92, 0.92, 0.9)))
 	var dark := _bag(bags, "dark", _mat("", Color(0.3, 0.3, 0.3)))
 	var fore := _bag(bags, "fore", _mat(_first([TEX + "turnaround.png", TEX + "asphalt.png"]), Color(0.8, 0.8, 0.78)))
@@ -1324,7 +1333,8 @@ func _along_line(line: PackedVector2Array, step: float, rect: Rect2, f: Callable
 func _multimesh(root: Node3D, xforms: Array[Transform3D], species: String, variant: int) -> void:
 	if xforms.is_empty():
 		return
-	for part in [["%s_trunk" % species, "bark"], ["%s_crown" % species, "needles" if species == "spruce" else "leaf"]]:
+	FAR_TREES.add_all(xforms, root.global_transform if root.is_inside_tree() else root.transform, 0.22 if species == "spruce" else 0.17)
+	for part in [["%s_trunk" % species, "birch_bark" if species == "birch" else "bark"], ["%s_crown" % species, "needles" if species == "spruce" else "leaf"]]:
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
 		mm.mesh = worldgen._tree_mesh(str(part[0]))

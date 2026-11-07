@@ -294,6 +294,10 @@ func tick(delta: float) -> void:
 		return
 	var xf := anchor.global_transform * Transform3D(Basis(), origin())
 	var world := anchor.get_world_3d()
+	# (Built anew at closing time: the one we were given is gone, and each frame was an error
+	# and the windows dead.)
+	if shell == null or not is_instance_valid(shell):
+		shell = anchor.get_node_or_null("SalesRoom") as Node3D
 	for w in windows:
 		w.update(room._root, room._cam, xf, true, world, delta, shell)
 

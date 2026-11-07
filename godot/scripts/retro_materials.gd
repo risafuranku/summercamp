@@ -832,15 +832,15 @@ void fragment() {
 #ifdef VCOLOR
 	c *= COLOR;
 #endif
-#if defined(LIT) && !defined(SPRITE_LIGHT) && ALPHA_MODE != 2
+#if defined(LIT) && BILLBOARD == 0
 	// The snow lies on whatever faces up, in drifts that join as it goes on lying (only the
 	// trees and the grass took it: every roof, fence and bench stood bare and dark in a white
 	// meadow, and the meadow itself went white in one frame at eight in the morning).
-	if (season_snow > 0.005 && !room_thing && !bare) {
+	if (season_snow > 0.005 && !room_thing && !bare && c.a > 0.5) {
 		float up = (INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).y;
 		if (up > 0.3) {
 			vec3 wp = (INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).xyz;
-			float n = snow_noise(wp.xz * 0.35 + wp.y) * 0.55 + snow_noise(wp.xz * 1.7) * 0.3 + snow_hash(floor(wp.xz * 6.0)) * 0.15;
+			float n = snow_noise(wp.xz * 0.35 + wp.y) * 0.6 + snow_noise(wp.xz * 1.7) * 0.32 + snow_hash(floor(wp.xz * 9.0)) * 0.08;
 			float cov = clamp(season_snow * 1.7, 0.0, 1.0);
 			if (cov >= 0.99 || n < smoothstep(0.0, 1.0, cov) * 0.62 + 0.2) {
 				c.rgb = mix(c.rgb, vec3(0.88, 0.9, 0.95), smoothstep(0.3, 0.6, up) * 0.94);

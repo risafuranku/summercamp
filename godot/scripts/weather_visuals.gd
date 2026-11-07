@@ -655,10 +655,9 @@ func update_celestial_bodies() -> void:
 	var moon_dir = _moon_direction_to_source.normalized()
 	if moon_dir.length_squared() < 0.001:
 		moon_dir = direction_to_source_from_hour(_time_of_day_hours - 12.0)
-	var sky_distance = _resolve_celestial_sprite_distance(cam.far)
-	if cam.has_meta("builder_eye"):
-		# Past the whole land under that eye (it sees kilometres).
-		sky_distance = cam.far * 0.8
+	# Past everything there is to stand in front of: 96 m off, out in the open a low sun stood
+	# before the far woods.
+	var sky_distance = cam.far * 0.8
 	var sprite_scale = sky_distance / CELESTIAL_SPRITE_REFERENCE_DISTANCE
 	_sun_sprite_3d.global_position = cam_pos + sun_dir * sky_distance
 	_moon_sprite_3d.global_position = cam_pos + moon_dir * sky_distance
@@ -939,6 +938,10 @@ func _weather_params(state: int, night: bool) -> Dictionary:
 			p.merge({"fog_mix": 1.0, "fog_density": 0.022, "fog_sky_affect": 0.30, "fog_color": Color(0.42, 0.07, 0.05),
 				"sun": 0.45, "ambient": 0.60, "desat": 0.55, "dark": 0.40, "grain": 0.0060, "vignette": 0.05,
 				"tint": Color(0.36, 0.04, 0.03, 1.0), "tint_mix": 0.42, "night_sky_affect_cap": 0.24}, true)
+	# The late grey days: a clear day's crisp shadows under a leaden sky.
+	if _late_grey_day() and state in [WEATHER_CLEAR, WEATHER_WINDY]:
+		p["sun"] = float(p["sun"]) * 0.5
+		p["ambient"] = float(p["ambient"]) * 0.92
 	if night:
 		p["sun"] = float(p["sun"]) * 0.58
 		p["ambient"] = float(p["ambient"]) * 0.52
@@ -1067,7 +1070,8 @@ func apply_time_from_clock(force_sky_snap: bool = false) -> void:
 	if _sun != null:
 		# The sun turns in steps of SUN_STEP_HOURS: turned a little every frame, every
 		# shadow in the camp crawled (playtest 18. 10.: "the shadows jiggle a lot").
-		var sun_hour := floorf(_time_of_day_hours / SUN_STEP_HOURS) * SUN_STEP_HOURS
+		# (By the sky's clock, the disc's: in October the disc had set an hour before its light.)
+		var sun_hour := floorf(_season_hour(_time_of_day_hours) / SUN_STEP_HOURS) * SUN_STEP_HOURS
 		var sun_source_dir = direction_to_source_from_hour(sun_hour)
 		var sun_height = sun_source_dir.y
 		var light_forward = -sun_source_dir
@@ -1078,7 +1082,7 @@ func apply_time_from_clock(force_sky_snap: bool = false) -> void:
 		# Set is set (the user 5. 11.: "about 18:50 the paths began flashing red"): it went on
 		# in deep red from under the world till 19:20, along every path and stalk, the shadow
 		# map's noise on all of them, more of it at each step of the sun.
-		var above := smoothstep(0.0, SUN_FULL_HEIGHT, direction_to_source_from_hour(_time_of_day_hours).y)
+		var above := smoothstep(0.0, SUN_FULL_HEIGHT, direction_to_source_from_hour(_season_hour(_time_of_day_hours)).y)
 		_sun.light_energy = sun_energy * above
 		_sun.light_color = sun_color
 		var h = _season_hour(_time_of_day_hours)
@@ -1686,12 +1690,12 @@ func _apply_weather_skybox(force: bool = false) -> void:
 		_sky_fade = 1.0
 		_sky_from = []
 		_moon_weather_vis = _moon_weather_target()
-	elif _sky_weather != _weather_state * 10 + int(_storm_sky()):
+	elif _sky_weather != _weather_state * 10 + int(_storm_sky()) + 100 * int(_late_grey_day()):
 		# Changed again while still fading: carry on from whichever was more on screen.
 		if _sky_fade >= 0.5 or _sky_from.is_empty():
 			_sky_from = _sky_now.duplicate()
 		_sky_fade = 0.0
-	_sky_weather = _weather_state * 10 + int(_storm_sky())
+	_sky_weather = _weather_state * 10 + int(_storm_sky()) + 100 * int(_late_grey_day())
 	_sky_now = pair
 	_push_sky()
 
@@ -1858,6 +1862,8 @@ func _setup_cloud_layers() -> void:
 
 ## The moon through the weather: a clear sky shows it, the wind's cloud mostly, the rest hide it.
 func _moon_weather_target() -> float:
+	if _late_grey_day():
+		return 0.0
 	match _weather_state:
 		WEATHER_CLEAR: return 1.0
 		WEATHER_WINDY: return 0.85
@@ -1867,6 +1873,9 @@ func _moon_weather_target() -> float:
 ## How much of the sun the weather's cloud lets through (a pale disc in the fog, none in
 ## the rain).
 func _sun_weather_multiplier() -> float:
+	# Under October's lid: a pale place in it, no disc.
+	if _late_grey_day() and _weather_state in [WEATHER_CLEAR, WEATHER_WINDY]:
+		return 0.15
 	match _weather_state:
 		WEATHER_WINDY: return 0.85
 		WEATHER_FOG: return 0.3
