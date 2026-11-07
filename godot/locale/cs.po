@@ -11195,15 +11195,15 @@ msgid ""
 "#ifdef VCOLOR\n"
 "\tc *= COLOR;\n"
 "#endif\n"
-"#if defined(LIT) && !defined(SPRITE_LIGHT) && ALPHA_MODE != 2\n"
+"#if defined(LIT) && BILLBOARD == 0\n"
 "\t// The snow lies on whatever faces up, in drifts that join as it goes on lying (only the\n"
 "\t// trees and the grass took it: every roof, fence and bench stood bare and dark in a white\n"
 "\t// meadow, and the meadow itself went white in one frame at eight in the morning).\n"
-"\tif (season_snow > 0.005 && !room_thing && !bare) {\n"
+"\tif (season_snow > 0.005 && !room_thing && !bare && c.a > 0.5) {\n"
 "\t\tfloat up = (INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).y;\n"
 "\t\tif (up > 0.3) {\n"
 "\t\t\tvec3 wp = (INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).xyz;\n"
-"\t\t\tfloat n = snow_noise(wp.xz * 0.35 + wp.y) * 0.55 + snow_noise(wp.xz * 1.7) * 0.3 + snow_hash(floor(wp.xz * 6.0)) * 0.15;\n"
+"\t\t\tfloat n = snow_noise(wp.xz * 0.35 + wp.y) * 0.6 + snow_noise(wp.xz * 1.7) * 0.32 + snow_hash(floor(wp.xz * 9.0)) * 0.08;\n"
 "\t\t\tfloat cov = clamp(season_snow * 1.7, 0.0, 1.0);\n"
 "\t\t\tif (cov >= 0.99 || n < smoothstep(0.0, 1.0, cov) * 0.62 + 0.2) {\n"
 "\t\t\t\tc.rgb = mix(c.rgb, vec3(0.88, 0.9, 0.95), smoothstep(0.3, 0.6, up) * 0.94);\n"
@@ -16007,11 +16007,11 @@ msgstr "BLESK oknem. Zatáhni závěsy."
 msgid "Somebody is playing a guitar out in the trees, and whistling."
 msgstr "Někdo venku mezi stromy hraje na kytaru a píská si."
 
-#: scripts/enemies/whistler_brain.gd:269
+#: scripts/enemies/whistler_brain.gd:270
 msgid "The music stopped in the middle of the tune."
 msgstr "Hudba přestala uprostřed melodie."
 
-#: scripts/enemies/whistler_brain.gd:305
+#: scripts/enemies/whistler_brain.gd:306
 msgid "A string round your neck, and a whistle in your ear."
 msgstr "Struna kolem krku a hvízdání u ucha."
 
@@ -16190,17 +16190,17 @@ msgstr ""
 "NATURAL  23,40\n"
 "NAFTA  19,80"
 
-#: scripts/geo/geo_world.gd:1337 scripts/town/town_dressing.gd:351
+#: scripts/geo/geo_world.gd:1338 scripts/town/town_dressing.gd:351
 #. uses 2
 msgid "%s_trunk"
 msgstr "%s_trunk"
 
-#: scripts/geo/geo_world.gd:1337 scripts/town/town_dressing.gd:351
+#: scripts/geo/geo_world.gd:1338 scripts/town/town_dressing.gd:351
 #. uses 2
 msgid "%s_crown"
 msgstr "%s_crown"
 
-#: scripts/geo/geo_world.gd:1354 scripts/town/town_dressing.gd:353
+#: scripts/geo/geo_world.gd:1355 scripts/town/town_dressing.gd:353
 #. uses 2
 msgid "%s_cards"
 msgstr "%s_cards"

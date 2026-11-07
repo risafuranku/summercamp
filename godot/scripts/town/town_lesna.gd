@@ -846,7 +846,7 @@ func _station(at: Vector3) -> void:
 		spots["station_buzz"] = buzz
 	# By the islands and the kiosk: the oil rack, the air post, the bin with the towels,
 	# old tyres.
-	for v in [["oil_rack", 0.95, Vector3(-3.6, 0, 5.2)], ["air_post", 1.25, Vector3(6.9, 0, 1.5)], ["bin_towels", 1.1, Vector3(-2.3, 0.2, 1.2)], ["tyres", 0.62, Vector3(4.6, 0, 6.2)]]:
+	for v in [["oil_rack", 0.95, Vector3(-3.6, 0, 5.2)], ["air_post", 1.25, Vector3(6.9, 0, 1.5)], ["bin_towels", 1.1, Vector3(-2.3, 0.2, 1.2)], ["tyres", 0.62, Vector3(4.6, 0, 5.4)]]:
 		_station_prop(root, str(v[0]), float(v[1]), v[2])
 	var kiosk := Node3D.new()
 	kiosk.name = "Kiosk"
@@ -1011,7 +1011,7 @@ func _pole(root: Node3D, at: Vector3, stop_name: String, stop_id: String) -> voi
 	var first := root.get_child_count()
 	for f in [Vector3(0, 0, 1), Vector3(0, 0, -1)]:
 		_face(root, at + Vector3(0, 2.5, 0) + f * 0.02, Vector2(0.74, 0.56), f, sign_mat)
-		_sign(root, at + Vector3(0, 2.07, 0) + f * 0.025, f, stop_name, 32, Color(0.08, 0.08, 0.1), 0.0027)
+		_sign(root, at + Vector3(0, 2.07, 0) + f * 0.025, f, stop_name, 32, Color(0.08, 0.08, 0.1), 0.0045)
 	_box(root, at + Vector3(0, 2.07, 0), Vector3(1.1, 0.24, 0.04), _mat("", Color(0.92, 0.9, 0.84)))
 	# Its tin in a wind: twisted on the pole a hair and knocked back, in steps.
 	STEP_MOTION.attach(plate, "rattle", Vector3.UP, 0.03, {"shift": Vector3(0, 0, 0.004), "from": 0.6, "with": root.get_children().slice(first)})

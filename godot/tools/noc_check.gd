@@ -42,7 +42,9 @@ func stalker_hidden() -> void:
 
 func stalker_seen() -> void:
 	var b = brain()
-	_ok("the Antlered Man is there to be seen after a night begun indoors", (b.get("_body") as Node3D).visible)
+	# (On the fence line over the lake he is hidden, wherever the night began.)
+	var body := b.get("_body") as Node3D
+	_ok("the Antlered Man is there to be seen after a night begun indoors", body.visible or bool(b.call("_on_water", body.global_position)))
 	b.set("_charging", true)
 
 

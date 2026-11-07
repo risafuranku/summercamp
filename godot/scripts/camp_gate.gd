@@ -309,6 +309,9 @@ func _build_road() -> void:
 	add_child(verge)
 
 
+var _seg_n := 0
+
+
 func _road_segment(from: Vector3, to: Vector3, mat: Material) -> void:
 	# Solid under the road, so anything placed on it (a parked car, a tool) stands.
 	var body := StaticBody3D.new()
@@ -325,7 +328,9 @@ func _road_segment(from: Vector3, to: Vector3, mat: Material) -> void:
 	var length := from.distance_to(to)
 	plane.size = Vector2(ROAD_WIDTH, length + 1.0)
 	seg.mesh = plane
-	seg.position = (from + to) * 0.5
+	# (A hair apart in height: where two pieces overlap at a bend their pictures fought.)
+	_seg_n += 1
+	seg.position = (from + to) * 0.5 + Vector3(0, 0.0012 * float(_seg_n % 3), 0)
 	seg.rotation.y = atan2(to.x - from.x, to.z - from.z)
 	var m := (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
 	m.uv1_scale = Vector3(1.0, (length + 1.0) / ROAD_WIDTH, 1.0)

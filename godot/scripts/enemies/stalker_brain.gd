@@ -152,6 +152,8 @@ func _move(step: Vector3, step_interval: float, dt: float) -> void:
 	# Round what stands in the way, on the ground: from 20 m up he jumped on and off every fence.
 	var p := _floor_at(from + _clear_dir(from, step.normalized()) * step.length())
 	if p != Vector3.INF:
+		# (Through a fence, not up on it: its top is under the ray's start.)
+		p.y = minf(p.y, from.y + 0.2)
 		_body.global_position = p
 		_stride(step.length(), 1.3)
 	_footsteps(dt, step_interval)

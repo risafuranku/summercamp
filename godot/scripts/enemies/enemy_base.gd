@@ -464,9 +464,9 @@ func _stand(p: Vector3) -> Vector3:
 
 
 ## `dir` turned as little as it takes for a clear way ahead: a run at you goes round a cabin,
-## not through it.
+## not through it. (At a height over the fences: it is not kept out of the camp by a picket.)
 func _clear_dir(from: Vector3, dir: Vector3, ahead := 1.5) -> Vector3:
-	var eye := from + Vector3(0, 0.9, 0)
+	var eye := from + Vector3(0, 1.4, 0)
 	for a: float in [0.0, 35.0, -35.0, 70.0, -70.0, 105.0, -105.0]:
 		var d := dir.rotated(Vector3.UP, deg_to_rad(a))
 		if not _ray_blocked(eye, eye + d * ahead):

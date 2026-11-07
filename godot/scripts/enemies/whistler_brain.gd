@@ -251,6 +251,7 @@ func _tick_rush(dt: float, player: Vector3, in_light: bool) -> void:
 	var step := minf(RUSH_SPEED * dt, to.length())
 	var p := _floor_at(_pos + _clear_dir(_pos, to.normalized()) * step)
 	if p != Vector3.INF:
+		p.y = minf(p.y, _pos.y + 0.2)
 		_pos = p
 	_place_body(_pos)
 	_pose(_tex_stand)
@@ -487,7 +488,12 @@ func _thrown_from(at: Vector3) -> Vector3:
 func _relocate(near: float, far: float) -> void:
 	_pos = _dark_point(near, far, 0.0, 150.0)
 	if _pos == Vector3.INF:
-		_pos = _point_from_player(far, 180.0)
+		# (Your back to the lake or a wall: some other side of you.)
+		for a: float in [180.0, 120.0, -120.0, 60.0, -60.0, 0.0]:
+			_pos = _point_from_player(far, a)
+			if _pos != Vector3.INF:
+				return
+		_pos = _player_pos() - _forward_flat() * far
 
 
 ## A spot in the dark `near`..`far` m from you, `from`..`to` degrees off your view.

@@ -24,6 +24,7 @@ const ROAD_POST = preload("res://scripts/town/road_post.gd")
 const ONE_WORLD_ROOM = preload("res://scripts/one_world_room.gd")
 const SIGN_TEXT = preload("res://scripts/town/sign_text.gd")
 const FAR_TREES = preload("res://scripts/ambient/far_trees.gd")
+var _seg_n := 0
 const ROAD_WIDTH := 4.4
 ## The verge walls stand this far from the middle of the road.
 const WALL_OFF := 5.0
@@ -200,7 +201,9 @@ func _road_segment(from: Vector3, to: Vector3, mat: StandardMaterial3D) -> void:
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(ROAD_WIDTH, length + 1.0)
 	seg.mesh = plane
-	seg.position = (from + to) * 0.5 + Vector3(0, 0.03, 0)
+	# (A hair apart in height: where two pieces overlap at a bend their pictures fought.)
+	_seg_n += 1
+	seg.position = (from + to) * 0.5 + Vector3(0, 0.03 + 0.0012 * float(_seg_n % 3), 0)
 	seg.rotation.y = yaw
 	var m := mat.duplicate() as StandardMaterial3D
 	m.uv1_scale = Vector3(1.0, (length + 1.0) / ROAD_WIDTH, 1.0)
@@ -383,7 +386,7 @@ func _build_stop() -> void:
 		_face(root, pole_at + Vector3(side * 0.02, 2.5, 0), Vector2(0.74, 0.56), side, sign_mat)
 		var label = SIGN_TEXT.new()
 		root.add_child(label)
-		label.setup(stop_name, Vector2(1.08, 0.2), 32, 0.0027, Color(0.08, 0.08, 0.1))
+		label.setup(stop_name, Vector2(1.08, 0.2), 32, 0.0045, Color(0.08, 0.08, 0.1))
 		label.position = pole_at + Vector3(side * 0.03, 2.07, 0)
 		label.rotation.y = PI * 0.5 * side
 	# The timetable case, facing the road: click it to read.

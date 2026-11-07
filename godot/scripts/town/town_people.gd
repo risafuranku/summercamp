@@ -150,7 +150,6 @@ func update(hour: float, delta: float) -> void:
 				continue
 			p["leaving"] = false
 			(p["body"] as StaticBody3D).process_mode = Node.PROCESS_MODE_INHERIT
-			var appeared := false
 			if was == "" or not root.visible:
 				var spot := _first_point(place)
 				# In your sight they come along the pavement, not out of the air.
@@ -164,7 +163,6 @@ func update(hour: float, delta: float) -> void:
 				else:
 					root.position = spot
 					root.visible = true
-					appeared = true
 					p["path"] = _route_to(place, was)
 					p["loop_i"] = (p["path"] as Array).size() - 1
 			else:

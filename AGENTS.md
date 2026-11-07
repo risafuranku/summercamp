@@ -359,7 +359,7 @@ every night's sewer, toilets and frozen pipes the moment they broke).
 - **A Label3D leaves out the pixel fonts' one-stroke glyphs** (the I, the dash, the bar: in
   Jersey and Silkscreen alike they are solid rectangles in the font's page and come out
   blank in 3D; 2D text draws them). Words on a 3D surface go through
-  `scripts/bowling/board_text.gd` (a 2D Label in a small SubViewport, drawn again only when
+  `scripts/bowling/board_text.gd`, out in the world `scripts/town/sign_text.gd` on it (a 2D Label in a small SubViewport, drawn again only when
   the words change, shown on a quad: the bowling's boards and the cellar machine's plate).
 - **Nothing under the ground is drawn for a camera under the ground** (`retro_materials`'
   fragment: the lake mirror's cut, camera y < -0.4 and the pixel's y < 0.1 are discarded).
@@ -887,6 +887,12 @@ every night's sewer, toilets and frozen pipes the moment they broke).
   doubled every few frames). The player's head is drawn in
   `_process` between the last two physics positions (`Engine.get_physics_interpolation_fraction`);
   a new camera that follows a physics body must do the same.
+- **The palette bends the dark**: `build_palette_lut.png` has no neutral ramp low down, a dark grey comes out plum and an orange light on grey comes out red. Mix what must stay grey toward blue (`cloud_layers.NIGHT_CLOUD`) and a warm light toward amber, `(1, .72, .42)` (a lookup in Python, sqrt space, shows it before a run does).
+- **An enemy's step goes by `_floor_at`, its spot by `_stand`** (`enemy_base`): `_ground` shoots from 20 m up and stands on roofs and the corn's wall. The camp's last row is a flat box called Lake: `_ground` and `_floor_at` give INF there, `_on_water` is the lake past the map. Round what stands in the way: `_clear_dir`. Nothing appears or goes in view: test `_is_seen` first.
+- **The night's sounds and faces come to a room of the camp** (`main.in_camp_room`, through `_quarry_indoors`), not to all that `_is_any_interior_open` counts: that is Liblice, the bus and the pipes too.
+- **A chunk of the land has 4 ms**: nothing per tree in GDScript as it is made. `ambient/far_trees.gd` keeps the lists as they came and picks out what is round the player as they walk (per tree, tens of ms a chunk took the game to 9 fps).
+- **The room in `building_interior` is built by jobs behind the loading bar** (`build_job`, `BUILD_JOBS`): its `_process` stays off till `_finish_ready`, what runs earlier meets it half made (the radio took no tracks for the whole game).
+- **Measure frames on an idle machine**: another session's headless browsers took 82 % of the CPU and last night's build ran at 40 like today's. `tools/fps_check`; compare with a `git archive` of the old commit and a copy of `.godot`, turn about.
 - **A body walked with its collisions off** (`collision_mask = 0`: the door walks in
   `interior_manager`) is left alone by the player's physics: main hands the keys back every
   frame no room is open, and with gravity on it sank through the floor while it waited.

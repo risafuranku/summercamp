@@ -578,8 +578,10 @@ func _strip(bag: Bag, line: PackedVector2Array, width: float, y: float, tile: fl
 		var ext := d * minf(width * 0.5, 2.0)
 		var a2 := a - ext if i > 0 else a
 		var b2 := b + ext if i < line.size() - 2 else b
-		bag.quad(Vector3(a2.x - side.x, y, a2.y - side.y), Vector3(a2.x + side.x, y, a2.y + side.y),
-			Vector3(b2.x + side.x, y, b2.y + side.y), Vector3(b2.x - side.x, y, b2.y - side.y), Vector3.UP,
+		# (A hair apart in height: over the joint two pieces of one height fought.)
+		var yy := y + 0.0009 * float(i % 3)
+		bag.quad(Vector3(a2.x - side.x, yy, a2.y - side.y), Vector3(a2.x + side.x, yy, a2.y + side.y),
+			Vector3(b2.x + side.x, yy, b2.y + side.y), Vector3(b2.x - side.x, yy, b2.y - side.y), Vector3.UP,
 			Vector2(0, acc / tile), Vector2(1, acc / tile), Vector2(1, (acc + len) / tile), Vector2(0, (acc + len) / tile), color)
 		acc += len
 
@@ -1286,9 +1288,10 @@ func _trees(root: Node3D, key: Vector2i, d: Dictionary, rng: RandomNumberGenerat
 				linden.append(xf.scaled_local(Vector3(0.45, 0.38, 0.45)))
 			else:
 				birch.append(xf.scaled_local(Vector3(1.05, 0.85, 1.05)))
-	_multimesh(root, spruce, "spruce", 2)
-	_multimesh(root, birch, "birch", 0)
-	_multimesh(root, linden, "linden", 0)
+	var where := _chunk_rect(key)
+	_multimesh(root, spruce, "spruce", 2, where)
+	_multimesh(root, birch, "birch", 0, where)
+	_multimesh(root, linden, "linden", 0, where)
 
 
 ## The 3 m cells a chunk's roads (and `margin` either side) cover.
@@ -1330,10 +1333,10 @@ func _along_line(line: PackedVector2Array, step: float, rect: Rect2, f: Callable
 		carry = s - len
 
 
-func _multimesh(root: Node3D, xforms: Array[Transform3D], species: String, variant: int) -> void:
+func _multimesh(root: Node3D, xforms: Array[Transform3D], species: String, variant: int, where := Rect2()) -> void:
 	if xforms.is_empty():
 		return
-	FAR_TREES.add_all(xforms, root.global_transform if root.is_inside_tree() else root.transform, 0.22 if species == "spruce" else 0.17)
+	FAR_TREES.add_all(xforms, root.global_transform if root.is_inside_tree() else root.transform, 0.22 if species == "spruce" else 0.17, where, root)
 	for part in [["%s_trunk" % species, "birch_bark" if species == "birch" else "bark"], ["%s_crown" % species, "needles" if species == "spruce" else "leaf"]]:
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D

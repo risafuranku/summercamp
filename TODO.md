@@ -4,6 +4,18 @@
 
 ---
 
+## ABSOLUTE POLISH 2026-11-07 — „ano konec, zvedni strop z 50, rozdel stavbu. udelej absolutni polish pass mesta, enemies, vizualu, gameworldu, pujdu poradne testovat pak" (three audits of the code, each finding read and the fixes played: `tools/pass_check`)
+
+- [x] A1 A poor month ends the run (M6), frames by the screen's refresh (`GameSettings.frame_cap`), the reception and the cabin a piece a frame behind the loading bar (N8).
+- [x] A2 The night sky: stars in the sky shader at the render's pixel, the moon's blue in the night clouds (no plum eyes), the camp lamp's cone soft and near only (a tan pyramid under every lamp from across the camp), town lamps amber.
+- [x] A3 The light by degrees (it jumped at 19:30, 18:45 and 06:15), lamps and torch by the sky's clock, the sun's light and disc on one clock, the disc past everything, the grey days' sun and moon.
+- [x] A4 Snow lies on whatever faces up in drifts that join (retro_materials BODY); the first snow falls that night; no snow or leaves in rooms; no rain under the bus shelter or the canopies; no crickets in the frost; the land and the camp's corn go with the season.
+- [x] A5 Guests take a path from the walkable tile by a door or an attraction (they went dead straight through everything), queues out from the door, no jumps at eight, not gone in front of you by the fence, shadows over the grass.
+- [x] A6 The night stays at the camp (`main.in_camp_room`: the shutter, the song, the eating in Liblice, the bus, the pipes). No enemy on a roof, the corn or the lake. Nothing appears or goes under your eyes (Silent Man, girl, father, granny, the Whistler and his fire, windows). The Whistler's song goes round; the Antlered Man walks back; runs go round cabins; the granny and you get up by steps; pause stops their clocks; no scare at the window while you sit at the PC.
+- [x] A7 Liblice: solid fronts, closing time, the I on the stops and the bus, cars with their pictures on a hull in the right lane from past the village, the motel's yard, people as tall as they are and leaving by the pavement, the square at street level, steps to the Jednota, the kiosk's door, the pub's door, chains, seats, sound, ribbons for wires, paths that stop at the fence.
+- [x] A8 The world: trunks past the fence stop you (`ambient/far_trees.gd`), the lake walled round, a wall at the end of the land, pictures for the gnome, awnings, vending machine, playground, table; the flag with the wind; the skies read at the boot.
+- [ ] A9 Left: the Tourist has one picture per pose and walks sideways (an eight-view set, like the Silent Man's, wants art); people in the village have no walk frames (art: sample first); the corn strip's invisible walls under the pylons; window boxes under the windows; the village built in one frame 1.2 km out; the shops' rebuild at closing hours.
+
 ## OVERALL POLISH 2026-11-06 (night) — „pokračuj v overall polishmentu gameplaye, vibu, ui ux, vizualu" (found on a tour of 8 places x 5 weathers x 3 hours, a soak, logs)
 
 - [x] N1 Spruces were stacked cones, the forest round the camp a row of them: three cards of boughs across each tier (Grok `spr_spruce_tier`, `tools/artgen/spruce_art.py`), in the camp, the belt, the land, the south road, Podlesi. `ae8ef7f7`
