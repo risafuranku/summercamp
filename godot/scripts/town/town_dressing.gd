@@ -47,13 +47,9 @@ func build(p_town: Node3D) -> void:
 	town = p_town
 	name = "Dressing"
 	_rng.seed = 1998
-	_pavements()
-	_houses()
-	_back_gardens()
-	_street()
-	_jednota_back()
-	_poles()
-	_cars()
+	for job: Callable in [_pavements, _houses, _back_gardens, _street, _jednota_back, _poles, _cars]:
+		job.call()
+		await town.breath()
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -115,6 +111,31 @@ func _solid(pos: Vector3, size: Vector3) -> void:
 
 ## A Grok sprite `h` tall standing at `pos` (its feet), as wide as its art; turned to
 ## face you (billboard) or flat, facing `yaw`.
+## A picture from another folder of the pictures, as `_sprite`.
+func _flat_sprite(name: String, h: float, pos: Vector3, yaw := 0.0) -> void:
+	var path := "res://assets/textury/" + name + ".png"
+	if not ResourceLoader.exists(path):
+		return
+	var t: Texture2D = load(path)
+	var mi := MeshInstance3D.new()
+	var q := QuadMesh.new()
+	q.size = Vector2(h * float(t.get_width()) / float(t.get_height()), h)
+	q.center_offset = Vector3(0, h * 0.5, 0)
+	mi.mesh = q
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = t
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	m.alpha_scissor_threshold = 0.5
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	m.roughness = 1.0
+	mi.material_override = m
+	mi.position = pos
+	mi.rotation.y = yaw
+	add_child(mi)
+
+
 func _sprite(name: String, h: float, pos: Vector3, billboard := true, yaw := 0.0) -> MeshInstance3D:
 	var t := _tex(name)
 	if t == null:
@@ -260,7 +281,7 @@ func _houses() -> void:
 		if i % 2 == 0:
 			_sprite("woodpile", 1.3, Vector3(at.x + size.x * 0.36, 0, front + 0.4 * f), false, yaw)
 		if i % 3 == 0:
-			_sprite("flower_box", 0.3, Vector3(at.x - size.x * 0.28, 0.95, front + 0.16 * f), false, yaw)
+			_flower_box(hd, front, f, yaw)
 		# Washing on a line in the back garden.
 		if i % 2 == 1:
 			_laundry(Vector3(at.x - size.x * 0.1, 0, at.z - (size.z * 0.5 + 3.5) * f), yaw)
@@ -288,6 +309,23 @@ func _houses() -> void:
 					break
 
 
+## On the sill of the house's first window at the ground floor, its width: it hung 60 cm under
+## the window on the bare wall, on a kostka on the garage door. (A kostka's windows are upstairs.)
+func _flower_box(hd: Dictionary, front: float, f: float, yaw: float) -> void:
+	var meta: Dictionary = town._front_meta(str(hd.get("front", "")))
+	if meta.is_empty():
+		return
+	var pic: Vector2 = Vector2(float(meta["m"][0]), float(meta["m"][1]))
+	for win in meta.get("windows", []):
+		var bottom := pic.y * (1.0 - float(win[3]))
+		if bottom < 0.5 or bottom > 2.4:
+			continue
+		var x: float = (hd["at"] as Vector3).x + f * ((float(win[0]) + float(win[2])) * 0.5 - 0.5) * pic.x
+		var wide := (float(win[2]) - float(win[0])) * pic.x
+		_sprite("flower_box", wide * 0.8 * 40.0 / 69.0, Vector3(x, bottom - 0.04, front + 0.2 * f), false, yaw)
+		return
+
+
 ## The back gardens (L16, walk-through of 6. 11.: behind the houses the fields started
 ## straight away, the pub's and the street's backs on bare ground): behind each house its
 ## garden fifteen metres deep to a wire fence, two or three fruit trees in its far half and
@@ -301,6 +339,10 @@ const YARDS := [[Vector3(16.0, 0, -15.5), Vector3(11.5, 5.3, 10.0), 1.0]]
 
 
 func _back_gardens() -> void:
+	var lane_end := _mat(TEX + "dirt_path.png", TRODDEN.TINT)
+	# Wider than the asphalt where it gives out, so no straight cut shows; then a field track.
+	TRODDEN.lay(self, Vector3(32.8, 0.07, -50.0), Vector3(39.0, 0.07, -50.2), 6.6, lane_end, TRODDEN.dice(78), 0.1)
+	TRODDEN.lay(self, Vector3(37.0, 0.036, -50.1), Vector3(66.0, 0.036, -51.5), 3.4, lane_end, TRODDEN.dice(77), 0.12)
 	var houses: Array = (town.spots.get("houses", []) as Array).duplicate()
 	for y in YARDS:
 		houses.append({"at": y[0], "size": y[1], "facing": y[2]})
@@ -480,8 +522,17 @@ func _street() -> void:
 	var pub_sign := _sprite("pub_sign", 0.8, Vector3(19.6, 2.7, -10.25), false, PI * 0.5)
 	if pub_sign != null:
 		STEP_MOTION.attach(pub_sign, "swing", Vector3.RIGHT, 0.32, {"pivot": Vector3(0, 0.8, 0), "near": 80.0})
-	# A wood pile by the pub's side, crates of empties at its back door.
+	# A wood pile by the pub's side, crates of empties at its back door (Mr Kubat: "come round
+	# the back", and the back was a bare wall).
 	_sprite("woodpile", 1.4, Vector3(23.2, 0, -14.0), false, PI * 0.5)
+	var pub_back := -20.5
+	_box(Vector3(19.0, 0.08, pub_back - 0.5), Vector3(1.6, 0.16, 1.0), _mat(TEX_CAMP + "concrete.png", Color(0.74, 0.73, 0.7)))
+	_quad(_mat(TEX_CAMP + "door_wood.png", Color(0.62, 0.5, 0.4)), Vector2(1.0, 2.1), Vector3(19.0, 1.21, pub_back - 0.03), PI)
+	_quad(_mat(TEX_CAMP + "planks_dark.png"), Vector2(1.16, 0.1), Vector3(19.0, 2.3, pub_back - 0.025), PI)
+	for c: Array in [["camp/beer_crate_full", Vector3(17.6, 0, pub_back - 0.5), 0.5], ["camp/beer_crate", Vector3(17.5, 0.5, pub_back - 0.52), 0.5], ["camp/beer_crate", Vector3(16.95, 0, pub_back - 0.6), 0.5], ["pub/keg_empty", Vector3(20.4, 0, pub_back - 0.55), 0.72]]:
+		_flat_sprite(str(c[0]), float(c[2]), c[1], PI)
+	_solid(Vector3(17.3, 0.45, pub_back - 0.5), Vector3(1.4, 0.9, 0.6))
+	_solid(Vector3(20.4, 0.36, pub_back - 0.55), Vector3(0.5, 0.72, 0.5))
 
 
 ## Wooden poles along the north side of the road, the wires sagging between them.

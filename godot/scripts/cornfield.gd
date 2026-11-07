@@ -172,6 +172,10 @@ func _build_maze(rng: RandomNumberGenerator) -> void:
 	for zz: float in [z0, z1]:
 		_wall_box(body, Vector3((west + fence_x) * 0.5, 1.5, zz), Vector3(fence_x - west, 3.0, 0.4))
 	_wall_box(body, Vector3(west, 1.5, (z0 + z1) * 0.5), Vector3(0.4, 3.0, z1 - z0))
+	# And something to see there: you walked into nothing on three sides, in open grass.
+	var corn_x := field_rect.position.x + 1.0
+	for side: Array in [[Vector3(west, 0, z0), Vector3(west, 0, z1)], [Vector3(west, 0, z0), Vector3(corn_x, 0, z0)], [Vector3(west, 0, z1), Vector3(corn_x, 0, z1)]]:
+		_strip_fence(side[0], side[1])
 	# The standing corn outside the maze is as solid as the maze walls.
 	var cx0 := field_rect.position.x
 	var cx1 := field_rect.end.x
@@ -526,12 +530,42 @@ func _build_scarecrow(rng: RandomNumberGenerator) -> void:
 	add_child(spr)
 
 
+## The village's wire fence on its posts (town_dressing._fence): thin posts and two wires read as
+## black sticks and nothing at this resolution.
+func _strip_fence(from: Vector3, to: Vector3) -> void:
+	var t: Texture2D = load("res://assets/textury/town/fence_mesh.png")
+	var h := 1.3
+	var length := from.distance_to(to)
+	var mi := MeshInstance3D.new()
+	mi.name = "StripFence"
+	var q := QuadMesh.new()
+	q.size = Vector2(length, h)
+	mi.mesh = q
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = t
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	m.alpha_scissor_threshold = 0.5
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	m.uv1_scale = Vector3(maxf(1.0, roundf(length / (h * float(t.get_width()) / float(t.get_height())))), 1.0, 1.0)
+	mi.material_override = m
+	mi.position = (from + to) * 0.5 + Vector3(0, h * 0.5, 0)
+	mi.rotation.y = atan2(-(to.z - from.z), to.x - from.x)
+	add_child(mi)
+
+
 # ── the power line ───────────────────────────────────────────────────────────
 
 func _build_line() -> void:
 	var steel := StandardMaterial3D.new()
-	steel.albedo_color = Color(0.36, 0.37, 0.38)
+	steel.albedo_color = Color(0.62, 0.63, 0.65)
 	steel.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	steel.albedo_texture = load("res://assets/textury/camp/galvanized.png")
+	steel.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	steel.uv1_triplanar = true
+	steel.uv1_world_triplanar = true
+	steel.uv1_scale = Vector3.ONE * 0.5
 	var tower := _pylon_mesh()
 	var tops: Array = []
 	var z := line_z.x

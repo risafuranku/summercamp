@@ -243,8 +243,7 @@ func tick(delta: float) -> void:
 	var world := anchor.get_world_3d()
 	# (Built anew at closing time: the one we were given is gone, and each frame was an error
 	# and the windows dead.)
-	if shell == null or not is_instance_valid(shell):
-		shell = anchor.get_node_or_null("Shop") as Node3D
+	shell = anchor.get_node_or_null("Shop") as Node3D
 	for w in windows:
 		w.update(room._root, room._cam, xf, true, world, delta, shell)
 

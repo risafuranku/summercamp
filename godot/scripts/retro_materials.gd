@@ -85,13 +85,29 @@ func _ready() -> void:
 		_on_node_added(n)
 
 
+## What is being made out of sight a share at a time (the village, town_trip._start_town):
+## its nodes a few a frame. All at once they were 190 ms of one frame.
+const PATIENT_PER_FRAME := 40
+var patient: Node
+var _slow: Array = []
+var _slow_at := 0
+
+
+## Nothing of `patient` left to go through.
+func settled() -> bool:
+	return _slow_at >= _slow.size()
+
+
 ## Meta "retro_skip": left as it is (the lightning far off past the fog keeps its own
 ## fog-free material).
 func _on_node_added(n: Node) -> void:
 	if n.has_meta("retro_skip"):
 		return
 	if n is MeshInstance3D or n is Sprite3D or n is MultiMeshInstance3D:
-		_queue.append(weakref(n))
+		if patient != null and is_instance_valid(patient) and patient.is_ancestor_of(n):
+			_slow.append(weakref(n))
+		else:
+			_queue.append(weakref(n))
 	elif n is Label3D:
 		_labels_new.append(weakref(n))
 
@@ -201,6 +217,13 @@ func _process(delta: float) -> void:
 	# New nodes, once they are in their world.
 	var q := _queue
 	_queue = []
+	var take := _slow.size() if patient == null else mini(_slow_at + PATIENT_PER_FRAME, _slow.size())
+	if _slow_at < take:
+		q.append_array(_slow.slice(_slow_at, take))
+		_slow_at = take
+		if _slow_at >= _slow.size():
+			_slow.clear()
+			_slow_at = 0
 	for wr in q:
 		var n = wr.get_ref()
 		# (Its meta may come just after it went in: still left as it is.)

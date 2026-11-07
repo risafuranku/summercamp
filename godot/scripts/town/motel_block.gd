@@ -53,14 +53,13 @@ func build(p_town) -> void:
 	town = p_town
 	name = "Motel"
 	_plaster = _triplanar(TEX_TOWN + "motel_plaster.png", 2.4, Color(0.97, 0.94, 0.88))
-	_walls()
-	_front()
-	_roof()
-	_doors_and_windows()
-	_lights()
-	_car_park()
-	_clicks()
-	set_state(12.0, 1)
+	set_process(false)
+	for job: Callable in [_walls, _front, _roof, _doors_and_windows, _lights, _car_park, _clicks]:
+		job.call()
+		await town.breath()
+	set_state(town._hour, town.night_index)
+	while make_room():
+		await town.breath()
 
 
 ## A wall material mapped by the world (pieces of any size join up), like K.surface for a
@@ -216,6 +215,15 @@ func _doors_and_windows() -> void:
 			g.name = "Glass"
 			g.set_meta("retro_skip", true)
 			g.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# The corridor's windows at the block's ends (motel_hall._windows): bare plaster from outside.
+	var dark := _flat("", Color(0.05, 0.06, 0.08))
+	var end_frame := Vector2(1.1 / FRAME_GLASS.x, 1.1 / FRAME_GLASS.y)
+	for y0: float in [0.0, PLAN.UPPER_Y]:
+		for sx: float in [-1.0, 1.0]:
+			var at := Vector3(sx * (PLAN.SIZE.x * 0.5 + 0.01), y0 + 1.5, (PLAN.CORRIDOR_Z.x + PLAN.CORRIDOR_Z.y) * 0.5)
+			_quad(dark, Vector2(1.1, 1.1), at, Vector3(sx, 0, 0))
+			var ef := _quad(frame_mat, end_frame, at + Vector3(sx * 0.012, -(0.5 - FRAME_GLASS_MID) * end_frame.y, 0), Vector3(sx, 0, 0))
+			ef.name = "WindowFrame"
 	# The one door on the front: the reception's glass one.
 	leaves[0] = _leaf(PLAN.door_at(PLAN.LOBBY_DOOR_BAY, false), TEX_TOWN + "motel_lobby_door.png")
 
@@ -342,6 +350,11 @@ func _yard_sprite(tex: String, height: float, at: Vector3) -> Sprite3D:
 
 ## What each room looks like now: the hour, the night's index (the taken rooms, six).
 ## Rebuilds only the rooms whose look changed.
+## The rooms waiting to be made over, by number: their new states.
+var _rooms_due := {}
+var _room_wait := 0.0
+
+
 func set_state(hour: float, night: int) -> void:
 	var is_night := hour >= 19.5 or hour < 6.5
 	if neon != null:
@@ -372,24 +385,45 @@ func set_state(hour: float, night: int) -> void:
 		states[n] = st
 	states[0] = {"lit": hour >= 18.0 or hour < 7.0, "keys": keys_on_board.duplicate()}
 	for n in states:
-		var key := str(states[n])
-		var cur: Dictionary = shells.get(n, {})
-		if cur.get("key", "") == key:
-			continue
-		if cur.has("root") and is_instance_valid(cur["root"]):
-			(cur["root"] as Node3D).queue_free()
-		var root := Node3D.new()
-		root.name = "Room%d" % n
-		root.position = PLAN.lobby_origin() if n == 0 else PLAN.room_origin(n)
-		add_child(root)
-		if n == 0:
-			var lob: Dictionary = ROOMS.build_lobby(root, false, states[n].get("keys", []), states[n])
-			_simek_in(root, lob.get("simek", Vector3.ZERO), bool(states[n].get("lit", false)))
+		if str(states[n]) == (shells.get(n, {}) as Dictionary).get("key", ""):
+			_rooms_due.erase(n)
 		else:
-			ROOMS.build_room(root, n, false, states[n])
-		for g in root.find_children("*", "GeometryInstance3D", true, false):
-			(g as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		shells[n] = {"root": root, "key": key}
+			_rooms_due[n] = states[n]
+	set_process(not _rooms_due.is_empty())
+
+
+## One room made over for its new state, the next one a little later, and only with you near
+## enough to see it (all at once it was up to 190 ms, on the hour, at the camp too).
+func make_room() -> bool:
+	if _rooms_due.is_empty():
+		return false
+	var n: int = _rooms_due.keys()[0]
+	var st: Dictionary = _rooms_due[n]
+	_rooms_due.erase(n)
+	var cur: Dictionary = shells.get(n, {})
+	if cur.has("root") and is_instance_valid(cur["root"]):
+		(cur["root"] as Node3D).queue_free()
+	var root := Node3D.new()
+	root.name = "Room%d" % n
+	root.position = PLAN.lobby_origin() if n == 0 else PLAN.room_origin(n)
+	add_child(root)
+	if n == 0:
+		var lob: Dictionary = ROOMS.build_lobby(root, false, st.get("keys", []), st)
+		_simek_in(root, lob.get("simek", Vector3.ZERO), bool(st.get("lit", false)))
+	else:
+		ROOMS.build_room(root, n, false, st)
+	for g in root.find_children("*", "GeometryInstance3D", true, false):
+		(g as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	shells[n] = {"root": root, "key": str(st)}
+	return true
+
+
+func _process(delta: float) -> void:
+	_room_wait -= delta
+	if _room_wait <= 0.0:
+		_room_wait = 0.2
+		make_room()
+		set_process(not _rooms_due.is_empty())
 
 
 ## Simek behind his counter, seen from the car park (lit with his room at night).

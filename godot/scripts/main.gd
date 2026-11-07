@@ -172,6 +172,7 @@ var _pause_menu: CanvasLayer
 var _pause_prev_mouse := Input.MOUSE_MODE_CAPTURED
 var _menu_flythrough: Node
 var _pending_loaded_player_state: Dictionary = {}
+var _loaded_away := false
 var _pending_loaded_crt_state: Dictionary = {}
 var _last_known_crt_desktop_state: Dictionary = {}
 var _boot_screen: CanvasLayer
@@ -1686,7 +1687,8 @@ func _apply_pending_loaded_player_state() -> void:
 			and not is_nan(loaded_pos.y) and not is_inf(loaded_pos.y)
 			and not is_nan(loaded_pos.z) and not is_inf(loaded_pos.z)
 		)
-		if pos_valid and grid_manager != null:
+		# (Saved out in the village or on the road: there, not back at the gate.)
+		if pos_valid and grid_manager != null and not _loaded_away:
 			var map_center: Vector3 = grid_manager.get_map_center_world()
 			var map_size: Vector2 = grid_manager.get_map_size_world()
 			var max_dx := (map_size.x * 0.5) + 6.0
@@ -1701,6 +1703,7 @@ func _apply_pending_loaded_player_state() -> void:
 	# (Hurt, saved and loaded was a hundred again.)
 	if _pending_loaded_player_state.has("health"):
 		_set_player_health(clampi(int(_pending_loaded_player_state["health"]), 1, PLAYER_MAX_HEALTH), false)
+	_loaded_away = false
 	_pending_loaded_player_state.clear()
 
 
@@ -2975,16 +2978,37 @@ func _tick_active_enemy_brain(delta: float) -> void:
 	for brain in _enemy_brains:
 		if brain != null and brain.has_method("tick"):
 			brain.tick(delta)
+	for i in range(_dawn_leaving.size() - 1, -1, -1):
+		if _dawn_leaving[i].dawn_tick(delta):
+			_dawn_leaving.remove_at(i)
 
 
 func _stop_active_enemy_brain() -> void:
-	for brain in _enemy_brains:
+	for brain in _enemy_brains + _dawn_leaving:
 		if brain != null and brain.has_method("stop_night"):
 			brain.stop_night()
+	_dawn_leaving.clear()
 	_enemy_brains.clear()
 	_senses.reset()
 	_active_enemy_brain = null
 	_active_enemy_brain_id = ""
+
+
+## The night's end: its sounds go, and what you are looking at stays as it stands until you look
+## away (all stopped in one frame at 6:30 they went out under your eyes, the Photographer with
+## his hum). Whatever is on you goes at once, with its hold (`leave_at_dawn`).
+var _dawn_leaving: Array = []
+
+
+func _enemies_leave_at_dawn() -> void:
+	var stay: Array = []
+	for brain in _enemy_brains:
+		if brain != null and brain.has_method("leave_at_dawn") and brain.leave_at_dawn():
+			stay.append(brain)
+	for brain in stay:
+		_enemy_brains.erase(brain)
+	_stop_active_enemy_brain()
+	_dawn_leaving = stay
 
 
 func _is_enemy_night_active() -> bool:
@@ -3020,7 +3044,7 @@ func _on_day_phase_started() -> void:
 			_player.recharge_flashlight()
 		return
 	_claim_turned_guests()
-	_stop_active_enemy_brain()
+	_enemies_leave_at_dawn()
 	if _director_fx != null:
 		_director_fx.clear()
 	# The bazaar's buyers called in the night: what sold is paid at dawn.
@@ -6914,6 +6938,7 @@ func _apply_save_snapshot(snapshot: Dictionary, preview_only: bool) -> bool:
 			_night_jobs.import_state(_pending_night_jobs)
 			_pending_night_jobs.clear()
 		var trip_any = snapshot.get("town_trip", {})
+		_loaded_away = trip_any is Dictionary and bool((trip_any as Dictionary).get("in_town", false))
 		if trip_any is Dictionary and _interior_manager != null and _interior_manager.has_method("town_trip") and _interior_manager.town_trip() != null:
 			_interior_manager.town_trip().import_state(trip_any)
 		elif trip_any is Dictionary:

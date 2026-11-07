@@ -48,6 +48,14 @@ var _view_now := Vector3.ZERO
 var _off_tick := false
 ## Lamp light round the eyes at which they no longer glow (you see it instead).
 const EYES_GONE_IN_LIGHT := 0.4
+## Dawn: this near it is on you and goes with the night; how fast its sounds go, how long they
+## take, how long it stands there at most with you looking.
+const DAWN_ON_YOU := 5.0
+const DAWN_FADE_DB := 24.0
+const DAWN_SOUND_SEC := 2.2
+const DAWN_LONGEST_SEC := 90.0
+var _dawn_t := 0.0
+var _dawn_sounds: Array = []
 
 
 func start_night(seed: int, difficulty: int, references: Dictionary) -> void:
@@ -97,8 +105,34 @@ func tick(delta: float) -> void:
 	_tick_eyes(dt)
 
 
+## Dawn (main._enemies_leave_at_dawn): true if it stays a while, its sounds going. It no longer
+## ticks: it stands as it stood until you look away.
+func leave_at_dawn() -> bool:
+	if not _night_active or _root == null or not is_instance_valid(_root) or _player == null or holds_player():
+		return false
+	if _body != null and is_instance_valid(_body) and _body.visible and _body.global_position.distance_to(_player.global_position) < DAWN_ON_YOU:
+		return false
+	_dawn_t = 0.0
+	_dawn_sounds = _root.find_children("*", "AudioStreamPlayer3D", true, false) + _root.find_children("*", "AudioStreamPlayer", true, false)
+	return true
+
+
+## True when it has gone.
+func dawn_tick(dt: float) -> bool:
+	_dawn_t += dt
+	for s in _dawn_sounds:
+		if is_instance_valid(s):
+			s.set("volume_db", maxf(float(s.get("volume_db")) - DAWN_FADE_DB * dt, -60.0))
+	var seen: bool = _body != null and is_instance_valid(_body) and _body.visible and not _quarry_indoors() and _is_seen(_body.global_position + Vector3.UP * 1.1)
+	if _dawn_t < DAWN_SOUND_SEC or (seen and _dawn_t < DAWN_LONGEST_SEC):
+		return false
+	stop_night()
+	return true
+
+
 func stop_night() -> void:
 	_night_active = false
+	_dawn_sounds = []
 	_on_stop()
 	if _remote_fx != null and is_instance_valid(_remote_fx):
 		_remote_fx.free()

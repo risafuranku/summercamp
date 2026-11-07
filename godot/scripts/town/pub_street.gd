@@ -139,6 +139,8 @@ func set_hour(h: float) -> void:
 	if _closing > 0.0 and _walker != null:
 		_walk_wait = 99.0
 		_walker.visible = false
+	elif _walk_wait > 50.0:
+		_walk_wait = 3.0
 
 
 func _process(delta: float) -> void:

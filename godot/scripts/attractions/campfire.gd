@@ -56,7 +56,10 @@ var _hour := 12.0
 var _last_hour := -1.0
 var _day := -1
 var _rng := RandomNumberGenerator.new()
-var _wind := 0.0
+## The wind on the fire, in its own space (`_air`).
+## How far the wind takes the flames, a share of its strength.
+const WIND_LEAN := 0.22
+var _wind := Vector3.ZERO
 ## People on the benches: member key (guest id * 10 + member) -> seat index; when each
 ## was last placed (keys not seen for a second have left); their sausage sticks.
 var _seats: Array = []
@@ -123,7 +126,6 @@ func _setup() -> void:
 	_stick_mat.albedo_color = Color(0.46, 0.34, 0.22)
 	if EventBus.has_signal("time_tick") and not EventBus.time_tick.is_connected(_on_time_tick):
 		EventBus.time_tick.connect(_on_time_tick)
-	_wind = _rng.randf_range(-0.06, 0.06)
 	_apply(true)
 
 
@@ -250,9 +252,24 @@ func _process(delta: float) -> void:
 	_free_left_seats()
 
 
+## The wind that moves everything else (each fire leaned its own way, whatever the weather): along
+## the ground, and how far the flames go over with it across the screen (they face the camera).
+func _air() -> float:
+	var main := get_tree().current_scene
+	var wv = main.get("_weather_visuals") if main != null else null
+	var cam := get_viewport().get_camera_3d()
+	if wv == null or cam == null:
+		return 0.0
+	var d: Vector2 = wv.wind_dir
+	var air := Vector3(d.x, 0.0, d.y) * clampf(float(wv._wind_now), 0.0, 1.2) * WIND_LEAN
+	_wind = global_transform.basis.inverse() * air
+	return air.dot(cam.global_transform.basis.x)
+
+
 func _apply(_first: bool) -> void:
 	var lit := is_lit()
 	var power := fuel + _flare * 0.5
+	var lean := _air()
 	for i in _flames.size():
 		var f := _flames[i]
 		f.visible = lit
@@ -263,7 +280,7 @@ func _apply(_first: bool) -> void:
 		f.scale = Vector3(rest.x * (0.8 + 0.25 * grow), rest.y * grow, rest.z)
 		_flame_mats[i].set_shader_parameter("intensity", clampf(0.55 + power * 0.55, 0.3, 1.5))
 		_flame_mats[i].set_shader_parameter("flare", _flare)
-		_flame_mats[i].set_shader_parameter("wind", _wind)
+		_flame_mats[i].set_shader_parameter("wind", lean)
 	if _bed_mat != null:
 		_bed_mat.set_shader_parameter("heat", clampf(fuel * 1.1 + embers + _flare * 0.3, 0.0, 1.4))
 	if _light != null:
@@ -311,7 +328,7 @@ func _burst(n: int) -> void:
 		s.position = Vector3(_rng.randf_range(-0.2, 0.2), 0.45 + _rng.randf() * 0.3, _rng.randf_range(-0.2, 0.2))
 		var up := _rng.randf_range(0.08, 0.2) * (1.0 + _flare)
 		var life := _rng.randi_range(6, 16)
-		_sparks.append({"node": s, "v": Vector3(_rng.randf_range(-0.04, 0.04) + _wind * 0.4, up, _rng.randf_range(-0.04, 0.04)), "life": life, "max": life})
+		_sparks.append({"node": s, "v": Vector3(_rng.randf_range(-0.04, 0.04) + _wind.x * 0.4, up, _rng.randf_range(-0.04, 0.04) + _wind.z * 0.4), "life": life, "max": life})
 
 
 func _step_sparks() -> void:
@@ -358,7 +375,7 @@ func _puff(n: int, size: float) -> void:
 		add_child(s)
 		s.position = Vector3(_rng.randf_range(-0.12, 0.12), 0.9 if is_lit() else 0.2, _rng.randf_range(-0.12, 0.12))
 		var life := _rng.randi_range(16, 28)
-		_smoke.append({"node": s, "mat": m, "v": Vector3(_wind * 0.5 + _rng.randf_range(-0.01, 0.01), _rng.randf_range(0.05, 0.08), _rng.randf_range(-0.01, 0.01)), "life": life, "max": life})
+		_smoke.append({"node": s, "mat": m, "v": Vector3(_wind.x * 0.5 + _rng.randf_range(-0.01, 0.01), _rng.randf_range(0.05, 0.08), _wind.z * 0.5 + _rng.randf_range(-0.01, 0.01)), "life": life, "max": life})
 
 
 func _step_smoke() -> void:

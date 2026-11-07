@@ -58,6 +58,12 @@ const CUES := [
 	[23.3, "town/motel_key.mp3", -4.0, "pub"],
 ]
 
+## The bread comes Tuesdays and Fridays, as Mrs Novotna says at the counter: the van, its driver
+## and his crates with it.
+const BREAD_DAYS := ["Tuesday", "Friday"]
+var _bread_day := true
+var _day_seen := -1
+
 var _t := 0.0
 var _last_h := -1.0
 var _guests: Array = []
@@ -191,13 +197,17 @@ func _along(way: Array, metres: float) -> Vector3:
 
 func update(h: float, delta: float) -> void:
 	_t += delta
+	if _day_seen != CoreRoot.get_day():
+		_day_seen = CoreRoot.get_day()
+		var wd := str(Season.WEEKDAYS[int(Season.date_of(_day_seen)["wd"])])
+		_bread_day = BREAD_DAYS.has(wd)
 	_tick_guests(h)
 	_tick_van(h)
 	_tick_people(h)
 	# Only as the clock goes by, not when it jumps (a night slept through).
 	if _last_h >= 0.0 and h >= _last_h and h - _last_h < 0.05:
 		for c in CUES:
-			if _last_h < float(c[0]) and h >= float(c[0]):
+			if _last_h < float(c[0]) and h >= float(c[0]) and (_bread_day or not (str(c[3]) == "van" or str(c[1]).ends_with("thump.mp3"))):
 				_cue(str(c[1]), float(c[2]), str(c[3]))
 	_last_h = h
 
@@ -242,7 +252,7 @@ func _van_x(h: float) -> float:
 
 
 func _tick_van(h: float) -> void:
-	_van.visible = h >= VAN_IN and h < VAN_OUT
+	_van.visible = _bread_day and h >= VAN_IN and h < VAN_OUT
 	if not _van.visible:
 		return
 	var x := _van_x(h)
@@ -257,7 +267,7 @@ func _tick_people(h: float) -> void:
 	var leg := tail.distance_to(SHOP_DOOR)
 	var turn := leg / BRISK
 	var t := h - TURNS_FROM
-	_driver.visible = t >= 0.0 and t < turn * 4.0
+	_driver.visible = _bread_day and t >= 0.0 and t < turn * 4.0
 	_in_hands.visible = false
 	if _driver.visible:
 		var n := int(t / turn)
@@ -268,8 +278,8 @@ func _tick_people(h: float) -> void:
 		_in_hands.visible = out
 		if out:
 			_in_hands.position = at + Vector3(0, 0.72, 0.2)
-	(_crates[0] as Sprite3D).visible = h >= TURNS_FROM + turn and h < CRATES_IN
-	(_crates[1] as Sprite3D).visible = h >= TURNS_FROM + turn * 3.0 and h < CRATES_IN
+	(_crates[0] as Sprite3D).visible = _bread_day and h >= TURNS_FROM + turn and h < CRATES_IN
+	(_crates[1] as Sprite3D).visible = _bread_day and h >= TURNS_FROM + turn * 3.0 and h < CRATES_IN
 	var way_len := _length(NOVOTNA_WAY)
 	var m := way_len - (NOVOTNA_AT - h) * STROLL
 	_novotna.visible = m >= 0.0 and h < OPENS

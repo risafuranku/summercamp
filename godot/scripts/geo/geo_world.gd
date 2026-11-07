@@ -1365,7 +1365,11 @@ func _multimesh(root: Node3D, xforms: Array[Transform3D], species: String, varia
 		var cards := MultiMeshInstance3D.new()
 		cards.multimesh = mm
 		cards.material_override = worldgen._tree_material("bough_cards" if species == "spruce" else "leaf_cards", variant)
+		# Out by degrees (dithered) over the last stretch: it goes by the chunk's middle, and a whole
+		# 250 m block of wood popped in one frame with its nearest trees 245 m from you.
 		cards.visibility_range_end = 420.0
+		cards.visibility_range_end_margin = 90.0
+		cards.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 		cards.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		root.add_child(cards)
 

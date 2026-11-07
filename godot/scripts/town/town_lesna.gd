@@ -44,47 +44,105 @@ var _smoke: Array = []           # Sprite3D puffs
 var _smoke_t := 0.0
 var _hour := 12.0
 var _mats: Dictionary = {}
+## Made a share at a time (`begin`).
+signal _go_on
+var whole := false
+var _rush := false
+var _share_ends := 0
+var night_index := 1
+## You are near enough to see it: the motel's rooms are kept up to the hour (motel_block.gd).
+var near := false
 ## Things town_trip.gd looks for, by name: doors and people get added in stage C.
 var spots: Dictionary = {}
 
 
-func build(p_worldgen: Node) -> void:
+## The village is made a share at a time, in the order it always was (`breath`), as the game
+## opens: in one frame it stopped the game for a second as you came within 1.2 km on foot or
+## stepped on the bus, and again as the motel's rooms were made over for the real hour.
+func begin(p_worldgen: Node, hour: float, night_no: int) -> void:
 	name = "Liblice"
 	worldgen = p_worldgen
 	_rng.seed = 42
+	_hour = hour
+	night_index = night_no
 	position = ORIGIN
 	rotation.y = YAW
+	visible = false
+	process_mode = Node.PROCESS_MODE_DISABLED
+	_make()
+
+
+func _make() -> void:
+	await breath()
 	if not GEO_MODE:
 		_ground()
 		_road_posts()
-	_roads()
-	_green()
-	_jednota(Vector3(-6.0, 0, -15.0))
-	_pub(Vector3(16.0, 0, -15.5))
-	_chapel(Vector3(-28.0, 0, -22.0))
-	_motel(Vector3(-24.0, 0, 15.0))
-	_station(Vector3(48.0, 0, 13.0))
-	_houses()
-	_side_street()
-	_chapel_yard()
-	_south_end()
-	_stop_north()
-	_stop_south()
-	_lamps()
+	for job: Callable in [_roads, _green,
+			_jednota.bind(Vector3(-6.0, 0, -15.0)), _pub.bind(Vector3(16.0, 0, -15.5)),
+			_chapel.bind(Vector3(-28.0, 0, -22.0)), _motel.bind(Vector3(-24.0, 0, 15.0)),
+			_station.bind(Vector3(48.0, 0, 13.0)), _houses, _side_street, _chapel_yard, _south_end,
+			_stop_north, _stop_south, _lamps]:
+		await job.call()
+		await breath()
 	if not GEO_MODE:
 		_fields()
 		_village_signs()
 	_hotspots()
 	_build_smoke()
+	await breath()
+	await _dress()
+	await breath()
+	await _people_and_cars()
+	whole = true
+
+
+## The end of this frame's share of the work: on with it the next (`build_some`), or at once
+## when the village is wanted now (`finish`).
+func breath() -> void:
+	if _rush or Time.get_ticks_usec() < _share_ends:
+		return
+	await _go_on
+
+
+## On with the work for about so many milliseconds; true when the village is whole.
+func build_some(ms: float) -> bool:
+	if not whole:
+		_share_ends = Time.get_ticks_usec() + int(ms * 1000.0)
+		_go_on.emit()
+	return whole
+
+
+func finish() -> void:
+	_rush = true
+	if not whole:
+		_go_on.emit()
+
+
+## Past where anybody can see it the village is hidden and still (it cost every frame 1-2 ms at
+## the camp, 150 things drawn and its people walking).
+func set_near(on: bool) -> void:
+	if on == near:
+		return
+	near = on
+	visible = on
+	process_mode = Node.PROCESS_MODE_INHERIT if on else Node.PROCESS_MODE_DISABLED
+
+
+func _dress() -> void:
 	dressing = DRESSING.new()
 	add_child(dressing)
-	dressing.build(self)
+	await dressing.build(self)
+
+
+func _people_and_cars() -> void:
 	var people = PEOPLE_SCRIPT.new()
 	add_child(people)
 	people.build()
 	spots["people"] = people
+	await breath()
 	spots["street"] = STREET_LIFE.new()
 	add_child(spots["street"])
+	await breath()
 	# The Benzina is only for filling up now (Lojza's job is at the one by the camp's
 	# turn): the village's cars come in by day and fill up themselves.
 	var cars = PUMP_JOB.new()
@@ -407,6 +465,7 @@ func _block(at: Vector3, size: Vector3, wall: Material, roof: String = "pitched"
 const JEDNOTA_VIEW = preload("res://scripts/town/jednota_view.gd")
 const KIT = preload("res://scripts/interior_kit.gd")
 var _jednota_lit := -1
+var _shells := {}
 
 
 func _jednota(at: Vector3) -> void:
@@ -415,7 +474,7 @@ func _jednota(at: Vector3) -> void:
 	# (The grey roughcast brought up to the front's own render, 181/176/162 of its picture.)
 	var wall := _mat(_first([TEX_CAMP + "roughcast_wall.png", TEX_CAMP + "concrete.png"]), Color(1.5, 1.48, 1.42), Vector2(3.0, 1.0))
 	if ResourceLoader.exists(TEX + "lib_jednota_front_glass.png") and not _front_meta("lib_jednota_front").is_empty():
-		var shop := _jednota_hollow(at, wall)
+		var shop: Node3D = await _jednota_hollow(at, wall)
 		var hh: float = _front_meta("lib_jednota_front")["m"][1]
 		_letters(shop, "jednota", Vector3(-2.3, hh - 0.95, 5.0), Vector3(0, 0, 1))
 		_letters(shop, "u_marku", Vector3(2.9, hh - 0.86, 5.0), Vector3(0, 0, 1))
@@ -477,7 +536,10 @@ func _jednota_hollow(at: Vector3, wall: Material) -> Node3D:
 	var step := _mat(TEX_CAMP + "concrete.png", Color(0.82, 0.82, 0.78), Vector2(2.0, 0.4))
 	for i in 3:
 		_box(root, Vector3(0, 0.11 + 0.22 * float(2 - i), dd * 0.5 + 0.17 + 0.3 * float(i)), Vector3(2.6, 0.22 * float(3 - i) + 0.02, 0.3), step)
-	_update_jednota(_hour)
+	await breath()
+	for h: float in [3.0, 12.0, _hour]:
+		_update_jednota(h)
+		await breath()
 	return root
 
 
@@ -492,19 +554,33 @@ func _update_jednota(h: float) -> void:
 	if lit == _jednota_lit and root.get_node_or_null("SalesRoom") != null:
 		return
 	_jednota_lit = lit
-	var old := root.get_node_or_null("SalesRoom")
-	if old != null:
-		old.name = "SalesRoomOld"
-		old.queue_free()
-	var sales := Node3D.new()
-	sales.name = "SalesRoom"
-	sales.position = JEDNOTA_VIEW.origin()
-	root.add_child(sales)
-	var built: Dictionary = JEDNOTA_VIEW.build(sales, null, lit == 1)
+	var sales: Node3D = _shell(root, "SalesRoom", lit)
 	spots["jednota_shell"] = sales
-	_jednota_tube = {}
+	if sales.get_child_count() > 0:
+		return
+	sales.position = JEDNOTA_VIEW.origin()
+	var built: Dictionary = JEDNOTA_VIEW.build(sales, null, lit == 1)
 	if lit == 0:
 		_jednota_night_tube(sales, built)
+
+
+## A shop's room behind its glass for its open hours and for its shut: both made with the village,
+## the hour only shows the other one (made again it was 10-30 ms in the middle of the game on the
+## stroke of the hour, wherever you were). Named as the shop's views look for it.
+func _shell(root: Node3D, called: String, lit: int) -> Node3D:
+	var key := "%s%d" % [called, lit]
+	var was := root.get_node_or_null(called) as Node3D
+	var shown: Node3D = _shells.get(key)
+	if was != null and was != shown:
+		was.name = called + "Aside"
+		was.visible = false
+	if shown == null:
+		shown = Node3D.new()
+		_shells[key] = shown
+		root.add_child(shown)
+	shown.name = called
+	shown.visible = true
+	return shown
 
 
 ## The closed shop after dark: the one tube they leave on, the dying one, the shelves cold
@@ -566,7 +642,7 @@ var _pub_street
 func _pub(at: Vector3) -> void:
 	var wall := _mat(_first([TEX + "village_plaster.png", TEX_CAMP + "plaster_stone.png"]), Color(0.78, 0.86, 0.74), Vector2(3.0, 1.0))
 	if ResourceLoader.exists(TEX + "lib_pub_front_glass.png") and not _front_meta("lib_pub_front").is_empty():
-		var inn := _pub_hollow(at, wall)
+		var inn: Node3D = await _pub_hollow(at, wall)
 		var hh: float = _front_meta("lib_pub_front")["m"][1]
 		_letters(inn, "hostinec", Vector3(0, hh * 0.67, 5.0), Vector3(0, 0, 1))
 		spots["pub"] = inn
@@ -643,7 +719,10 @@ func _pub_hollow(at: Vector3, wall: Material) -> Node3D:
 		var gl := _face(root, Vector3((float(hl[0]) + float(hl[1])) * 0.5, (float(hl[2]) + float(hl[3])) * 0.5, dd * 0.5 - 0.1), Vector2(float(hl[1]) - float(hl[0]), float(hl[3]) - float(hl[2])), Vector3(0, 0, 1), glass)
 		gl.set_meta("retro_skip", true)
 	_solid(root, Vector3(0, wh * 0.5, 0.025), Vector3(ww - 0.4, wh, dd - 0.15))
-	_update_pub(_hour)
+	await breath()
+	for h: float in [3.0, 12.0, _hour]:
+		_update_pub(h)
+		await breath()
 	return root
 
 
@@ -661,23 +740,18 @@ func _update_pub(h: float) -> void:
 	if lit == _pub_lit and root.get_node_or_null("Taproom") != null:
 		return
 	_pub_lit = lit
-	var old := root.get_node_or_null("Taproom")
-	if old != null:
-		old.name = "TaproomOld"
-		old.queue_free()
-	var tap := Node3D.new()
-	tap.name = "Taproom"
-	tap.position = PUB_VIEW.origin()
-	root.add_child(tap)
-	PUB_VIEW.build(tap, null, lit == 1)
+	var tap: Node3D = _shell(root, "Taproom", lit)
 	spots["pub_shell"] = tap
-	# After dark, from the street: its smoke, its guests (pub_street.gd).
-	_pub_street = null
-	if lit == 1:
-		_pub_street = PUB_STREET.new()
-		tap.add_child(_pub_street)
-		_pub_street.build()
-		_pub_street.set_on(_station_night)
+	if tap.get_child_count() == 0:
+		tap.position = PUB_VIEW.origin()
+		PUB_VIEW.build(tap, null, lit == 1)
+		# After dark, from the street: its smoke, its guests (pub_street.gd).
+		if lit == 1:
+			_pub_street = PUB_STREET.new()
+			tap.add_child(_pub_street)
+			_pub_street.build()
+	if _pub_street != null and is_instance_valid(_pub_street):
+		_pub_street.set_on(_station_night and lit == 1)
 
 
 ## The chapel of the Virgin Mary, set back from the street: its baroque front from the
@@ -748,7 +822,7 @@ func _motel(at: Vector3) -> void:
 		var block = MOTEL_BLOCK.new()
 		block.position = at
 		add_child(block)
-		block.build(self)
+		await block.build(self)
 		spots["motel"] = block
 		spots["motel_block"] = block
 		if block.neon != null:
@@ -854,7 +928,7 @@ func _station(at: Vector3) -> void:
 	root.add_child(kiosk)
 	var kwall := _mat(TEX_CAMP + "concrete.png", Color(0.9, 0.9, 0.88), Vector2(3.0, 1.0))
 	if ResourceLoader.exists(TEX + "kiosk_front_glass.png"):
-		_kiosk_hollow(kiosk, kwall)
+		await _kiosk_hollow(kiosk, kwall)
 	else:
 		_box(kiosk, Vector3(0, 1.6, 0), Vector3(10.0, 3.2, 6.0), kwall, true)
 		_face(kiosk, Vector3(0, 1.6, -3.0), Vector2(5.7, 3.2), Vector3(0, 0, -1), _mat(_first([TEX + "kiosk_front.png"]), Color(0.7, 0.72, 0.74)))
@@ -915,7 +989,10 @@ func _kiosk_hollow(kiosk: Node3D, kwall: Material) -> void:
 		var g := _face(kiosk, Vector3((float(hl[0]) + float(hl[1])) * 0.5, (float(hl[2]) + float(hl[3])) * 0.5, -b.z * 0.5 + 0.1), Vector2(float(hl[1]) - float(hl[0]), float(hl[3]) - float(hl[2])), Vector3(0, 0, -1), glass)
 		g.set_meta("retro_skip", true)
 	_solid(kiosk, Vector3(0, b.y * 0.5, 0.025), Vector3(b.x - 0.4, b.y, b.z - 0.05))
-	_update_kiosk(_hour, kiosk)
+	await breath()
+	for h: float in [3.0, 12.0, _hour]:
+		_update_kiosk(h, kiosk)
+		await breath()
 
 
 ## A picture with holes, cut out by its alpha (the kiosk's front).
@@ -942,17 +1019,12 @@ func _update_kiosk(h: float, kiosk: Node3D = null) -> void:
 	if lit == _kiosk_lit and kiosk.get_node_or_null("Shop") != null:
 		return
 	_kiosk_lit = lit
-	var old := kiosk.get_node_or_null("Shop")
-	if old != null:
-		old.name = "ShopOld"
-		old.queue_free()
-	var shop := Node3D.new()
-	shop.name = "Shop"
-	shop.position = KIOSK_VIEW.origin()
-	shop.basis = KIOSK_VIEW.basis()
-	kiosk.add_child(shop)
-	KIOSK_VIEW.build(shop, null, lit == 1)
+	var shop: Node3D = _shell(kiosk, "Shop", lit)
 	spots["kiosk_shell"] = shop
+	if shop.get_child_count() == 0:
+		shop.position = KIOSK_VIEW.origin()
+		shop.basis = KIOSK_VIEW.basis()
+		KIOSK_VIEW.build(shop, null, lit == 1)
 
 
 # ── the stops ───────────────────────────────────────────────────────────────
@@ -983,6 +1055,11 @@ func _stop_south() -> void:
 	_box(root, Vector3(0, 0.45, -0.72), Vector3(3.4, 0.06, 0.45), planks)
 	for bx in [-1.4, 1.4]:
 		_box(root, Vector3(bx, 0.22, -0.72), Vector3(0.14, 0.44, 0.4), concrete)
+	# You can sit and wait on it.
+	var bench := Node3D.new()
+	bench.position = Vector3(0, 0, -0.72)
+	root.add_child(bench)
+	_seat(bench, Vector3(3.2, 0.9, 0.6))
 	_pole(root, Vector3(-2.8, 0, 1.3), "LIBLICE", "town")
 
 
@@ -1299,6 +1376,12 @@ func _park_bench(parent: Node3D, at: Vector3, yaw: float) -> Node3D:
 	for x in [-0.78, 0.78]:
 		_box(root, Vector3(x, 0.465, 0.0), Vector3(0.12, 0.012, 0.3), bolts)
 	_solid(root, Vector3(0, 0.25, 0.0), Vector3(1.8, 0.5, 0.5))
+	_seat(root, Vector3(1.8, 0.9, 0.7))
+	return root
+
+
+## What you sit down on: town_trip._sit looks at its parent, and sits you looking along its +z.
+func _seat(bench: Node3D, size: Vector3) -> void:
 	var seat := StaticBody3D.new()
 	seat.collision_layer = 1 << 11
 	seat.collision_mask = 0
@@ -1306,12 +1389,11 @@ func _park_bench(parent: Node3D, at: Vector3, yaw: float) -> Node3D:
 	seat.add_to_group("town_bench")
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
-	box.size = Vector3(1.8, 0.9, 0.7)
+	box.size = size
 	shape.shape = box
 	seat.add_child(shape)
 	seat.position = Vector3(0, 0.5, 0.05)
-	root.add_child(seat)
-	return root
+	bench.add_child(seat)
 
 
 ## The side street (Za Kaplickou): off the main road west of the chapel, north between
@@ -1458,8 +1540,21 @@ func _zvonicka(at: Vector3) -> void:
 	for c in [Vector3(-0.4, 0, -0.4), Vector3(0.4, 0, -0.4), Vector3(-0.4, 0, 0.4), Vector3(0.4, 0, 0.4)]:
 		_box(root, c + Vector3(0, 3.2, 0), Vector3(0.14, 0.95, 0.14), white)
 	_box(root, Vector3(0, 3.72, 0), Vector3(1.1, 0.12, 1.1), white)
-	var bell := _box(root, Vector3(0, 3.2, 0), Vector3(0.36, 0.42, 0.36), _mat(TEX_CAMP + "galvanized.png", Color(0.62, 0.46, 0.22)))
+	var bronze := _mat(TEX_CAMP + "galvanized.png", Color(0.62, 0.46, 0.22))
+	var bell := MeshInstance3D.new()
 	bell.name = "Bell"
+	var bm := CylinderMesh.new()
+	bm.radial_segments = 8
+	bm.rings = 1
+	bm.top_radius = 0.1
+	bm.bottom_radius = 0.23
+	bm.height = 0.38
+	bell.mesh = bm
+	bell.material_override = bronze
+	bell.position = Vector3(0, 3.22, 0)
+	root.add_child(bell)
+	_box(root, Vector3(0, 3.46, 0), Vector3(0.1, 0.1, 0.1), bronze)
+	_box(root, Vector3(0, 3.56, 0), Vector3(0.7, 0.05, 0.05), _mat(TEX_CAMP + "log_bark.png", Color(0.6, 0.5, 0.4)))
 	var cap := MeshInstance3D.new()
 	var cm := CylinderMesh.new()
 	cm.radial_segments = 4
@@ -1479,16 +1574,11 @@ func _zvonicka(at: Vector3) -> void:
 
 ## The stone wayside cross beside it, on its stepped plinth.
 func _stone_cross(at: Vector3) -> void:
-	var sand := _mat(TEX_CAMP + "plaster_stone.png", Color(0.86, 0.8, 0.68))
 	var root := Node3D.new()
 	root.position = at
 	add_child(root)
-	_box(root, Vector3(0, 0.12, 0), Vector3(1.1, 0.24, 1.1), sand, true)
-	_box(root, Vector3(0, 0.75, 0), Vector3(0.62, 1.0, 0.62), sand, true)
-	_box(root, Vector3(0, 1.32, 0), Vector3(0.72, 0.14, 0.72), sand)
-	_box(root, Vector3(0, 2.35, 0), Vector3(0.18, 1.9, 0.18), sand)
-	_box(root, Vector3(0, 2.75, 0), Vector3(0.9, 0.17, 0.17), sand)
-	_box(root, Vector3(0, 2.5, -0.1), Vector3(0.1, 0.55, 0.05), _mat(TEX_CAMP + "log_bark.png", Color(0.5, 0.44, 0.38)))
+	_solid(root, Vector3(0, 0.7, 0), Vector3(0.8, 1.4, 0.8))
+	_station_prop(root, "cross", 3.4, Vector3.ZERO)
 
 
 # ── the street fronts (tools/artgen/town_facades.py) ────────────────────────
@@ -1663,7 +1753,7 @@ func _gable_house(fid: String, cx: float, front_z: float, facing: float, depth: 
 	var door_mats: Array = spots.get("door_mats", [_mat(TEX_CAMP + "door_wood.png", Color(0.42, 0.3, 0.2))])
 	var no_house := bool(opts.get("bare", false))
 	if not no_house:
-		_face(root, yard + Vector3(0, 1.05, door_z), Vector2(1.0, 2.1), Vector3(1, 0, 0), door_mats[int(opts.get("kind", 0)) % door_mats.size()])
+		_face(root, yard + Vector3(0.03, 1.05, door_z), Vector2(1.0, 2.1), Vector3(1, 0, 0), door_mats[int(opts.get("kind", 0)) % door_mats.size()])
 	if not bool(opts.get("ruin", false)) and not no_house:
 		_porch(root, yard, door_z)
 	if not kind.is_empty() and not no_house:
@@ -1686,7 +1776,7 @@ func _gable_house(fid: String, cx: float, front_z: float, facing: float, depth: 
 		_letters(root, "cp_" + str(opts["number"]), Vector3(off + ww * 0.4 * facing, wh * 0.62, fz + facing * 0.02), Vector3(0, 0, facing))
 	_plinth(root, off, ww, depth, fz)
 	_front_sills(root, fid, W, H, fz, facing)
-	return {"at": root.position, "size": Vector3(ww, wh, depth), "facing": facing, "root": root}
+	return {"at": root.position, "size": Vector3(ww, wh, depth), "facing": facing, "root": root, "front": fid}
 
 
 ## The 1970s cube house: its picture is the front with the hipped roof's outline; walls
@@ -1750,7 +1840,7 @@ func _hip_house(fid: String, cx: float, front_z: float, facing: float, depth: fl
 	_front_sills(root, fid, W, H, fz, facing)
 	if opts.has("number"):
 		_letters(root, "cp_" + str(opts["number"]), Vector3(-ww * 0.36 * facing, wh * 0.35, fz + facing * 0.02), Vector3(0, 0, facing))
-	return {"at": root.position, "size": Vector3(ww, wh, depth), "facing": facing, "root": root}
+	return {"at": root.position, "size": Vector3(ww, wh, depth), "facing": facing, "root": root, "front": fid}
 
 
 # ── what a box with a picture on it lacks ─────────────────────────────────────
@@ -1990,6 +2080,7 @@ func _houses() -> void:
 			house = {"at": root.position, "size": size, "facing": f, "root": root}
 		houses.append(house)
 		gi += 1
+		await breath()
 	spots["houses"] = houses
 	# The barn over the green with the old slogan coming through its whitewash, and the
 	# fire station on the corner.
@@ -2219,7 +2310,7 @@ func set_night(night: bool) -> void:
 	_station_night = night
 	_show_jednota_tube(night)
 	if _pub_street != null and is_instance_valid(_pub_street):
-		_pub_street.set_on(night)
+		_pub_street.set_on(night and _pub_lit == 1)
 	if _chapel_oval != null:
 		_chapel_oval.emission_energy_multiplier = 0.5 if night else 0.0
 	for t in spots.get("station_tubes", []):

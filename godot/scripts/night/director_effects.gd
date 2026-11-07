@@ -155,6 +155,9 @@ func _face_flash() -> void:
 		fx.fever_pulse(0.6, 2.2)
 
 
+const WALKER = preload("res://scripts/figures/doom_figure.gd")
+
+
 func _process(delta: float) -> void:
 	_t += delta
 	if _hush_left > 0.0:
@@ -174,6 +177,8 @@ func _process(delta: float) -> void:
 				(l["node"] as Node).queue_free()
 		else:
 			keep.append(l)
+			if l.has("legs"):
+				_run_figure(l, pl)
 	_live = keep
 	if _debug != null and _debug.visible and director != null:
 		var s: Dictionary = director.snapshot()
@@ -432,9 +437,10 @@ func _silhouette(from: Vector3) -> Vector3:
 		var fig := _figure_sprite(a)
 		if fig == null:
 			return Vector3.INF
-		var tw := fig.create_tween()
-		tw.tween_property(fig, "global_position", b, 1.5)
-		_live.append({"node": fig, "until": _t + 1.55})
+		var legs = WALKER.new(fig, WALKER.set_of("host1"), 1.85)
+		legs.face(b - a)
+		legs.set_anim("run")
+		_live.append({"node": fig, "until": _t + 1.55, "legs": legs, "from": a, "to": b, "t0": _t, "sec": 1.5})
 		var d := _decal(FOOTPRINTS, 0.8, b + Vector3(0, 0.03, 0), randf() * TAU, Color(0.3, 0.32, 0.3, 0.8))
 		if d != null:
 			_live.append({"node": d, "until": _t + 600.0})
@@ -462,6 +468,16 @@ func _dark_spot(from: Vector3, rmin: float, rmax: float, ahead := 0.0) -> Vector
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
+
+## Across the dark on its feet, the frames going by the ground it covers.
+func _run_figure(l: Dictionary, pl: Node3D) -> void:
+	var fig := l["node"] as Node3D
+	var at: Vector3 = (l["from"] as Vector3).lerp(l["to"], clampf((_t - float(l["t0"])) / float(l["sec"]), 0.0, 1.0))
+	l["legs"].advance(at.distance_to(fig.global_position))
+	fig.global_position = at
+	if pl != null:
+		l["legs"].show(pl.global_position)
+
 
 func _figure_sprite(at: Vector3) -> Sprite3D:
 	if not ResourceLoader.exists(FIGURE_TEX):

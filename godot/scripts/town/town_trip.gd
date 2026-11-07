@@ -41,7 +41,10 @@ const LIBLICE_PAST_STOP := 110.0
 const FARM_PAST_STOP := 25.0
 ## The real land is built round you (geo_world.gd); the village, and the farm with the
 ## request stop's poles, when you come this near them.
-const TOWN_NEAR := 1200.0
+## How much of a frame goes on the village as it is made, in ms; how far off it shows (past the
+## camera's far plane, main.FIRST_PERSON_CAMERA_FAR).
+const TOWN_SHARE_MS := 3.0
+const TOWN_SEEN := 1300.0
 const HAMLET_NEAR := 900.0
 const HAMLET_PLACE = preload("res://scripts/town/hamlet_podlesi.gd")
 const POCKETS = preload("res://scripts/town/pockets.gd")
@@ -91,6 +94,7 @@ var _machine
 var _bought_to := ""
 var _ride
 var _town
+var _town_coming
 var _masts
 ## Pristoupim's stop and Vondra's farm (hamlet_trip.gd): its place, bus and the Skoda.
 var _hamlet
@@ -979,15 +983,15 @@ func _process(delta: float) -> void:
 		return
 	_update_seated()
 	_update_ride_clock()
+	_start_town()
+	_tick_town()
 	var me := _player()
 	if _geo != null and is_instance_valid(_geo) and me != null:
 		var eye := _eye_for_geo(me)
 		_geo.update(eye)
-		# The village, the farm and the request stop come when you get near, or when
-		# Builder's 3D view goes to look at them.
+		# The farm and the request stop come when you get near, or when Builder's 3D view
+		# goes to look at them.
 		var near_eye := me.global_position if _builder_eye() == Vector3.INF and not _riding_now() else eye
-		if _town == null and near_eye.distance_to(TOWN.ORIGIN) < TOWN_NEAR:
-			_ensure_town()
 		if near_eye.distance_to(HAMLET_PLACE.HAMLET_ORIGIN) < HAMLET_NEAR or near_eye.distance_to(HAMLET_PLACE.STOP_ORIGIN) < HAMLET_NEAR:
 			_hamlet.ensure()
 	if _masts != null and is_instance_valid(_masts):
@@ -1013,13 +1017,14 @@ func _process(delta: float) -> void:
 		_update_masts()
 		_hamlet.tick_hour(h, _night)
 		if _town != null:
+			_town.set_near(_town_in_sight())
 			_town.set_night(_night)
 			_town.set_hour(h)
 			_update_motel(h)
 	_run_line()
 	_hamlet.update(h, delta)
 	_run_works(h, delta)
-	if _town != null:
+	if _town != null and _town.near:
 		_town.spots["people"].update(h, delta)
 		_town.spots["street"].update(h, delta)
 		_town.spots["station_cars"].traffic = _open("kiosk")
@@ -2053,16 +2058,56 @@ func _rect_poly(r: Rect2, origin: Vector3, b: Basis) -> PackedVector2Array:
 	return out
 
 
+## The village now, and showing (a save made there; a bus going or got there): what is left of it.
 func _ensure_town() -> void:
 	_ensure_country()
-	if _town != null:
+	if _town == null:
+		_start_town()
+		_town_coming.finish()
+		_town_up()
+	_town.set_near(true)
+
+
+func _town_in_sight() -> bool:
+	var me := _player()
+	return me != null and _eye_for_geo(me).distance_to(TOWN.ORIGIN) < TOWN_SEEN
+
+
+## On its way as the game opens, a share of each frame (`_tick_town`).
+func _start_town() -> void:
+	if _town != null or (_town_coming != null and is_instance_valid(_town_coming)):
 		return
-	_town = TOWN.new()
+	_town_coming = TOWN.new()
 	var main := _main()
 	var world: Node = main.get("_world_3d") if main != null and main.get("_world_3d") != null else main
-	world.add_child(_town)
-	_town.build(_worldgen())
+	world.add_child(_town_coming)
+	var retro := get_tree().root.get_node_or_null("RetroMaterials")
+	if retro != null:
+		retro.set("patient", _town_coming)
+	var h := hour()
+	_town_coming.begin(_worldgen(), h, _night_index(h))
+
+
+func _tick_town() -> void:
+	if _town_coming == null:
+		return
+	if not is_instance_valid(_town_coming):
+		_town_coming = null
+		return
+	var retro := get_tree().root.get_node_or_null("RetroMaterials")
+	if _town_coming.build_some(TOWN_SHARE_MS) and (retro == null or retro.call("settled")):
+		_town_up()
+
+
+func _town_up() -> void:
+	_town = _town_coming
+	_town_coming = null
+	var retro := get_tree().root.get_node_or_null("RetroMaterials")
+	if retro != null:
+		retro.set("patient", null)
 	_town.set_night(_night)
+	_town.set_near(_town_in_sight())
+	_night_poll = 0.0
 
 
 # ── saved with the game ──────────────────────────────────────────────────────
