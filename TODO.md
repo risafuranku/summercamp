@@ -6,15 +6,15 @@
 
 ## BOSS 98 2026-11-08 — „Nějak kompletně překopat program na 7mičce. chybí tam kuželky, je to nepřehledné přes ty horní taby... udělej ho celý uplně odznova, prostě managerský program"
 
-- [x] B1 One program instead of five, nothing along the top: a desk down the left with a key for every page and place (`os98/apps/boss_app.gd`)
-- [x] B2 The bowling alley in it (its goods, menu, gear, hands, money)
-- [x] B3 Overview: the day's money, the places in rows, what wants you, the week
-- [x] B4 The order: every place's goods on one sheet, what runs out first at the top, Fill up, one van
-- [x] B5 People: everybody, the card, the posts and jobs, the late shift, moving and letting go, who is asking
-- [x] B6 Accounts: the places side by side for today, yesterday, seven days, all told
-- [x] B7 A place's page: goods with the order, menu, gear, its day against yesterday, its hands; the staffroom's page
-- [x] B8 One licence; old saves keep it (`business_rules.BOSS_LICENCE`, `actions.biz_has_licence`, `os_shell.OLD_BOSS_PROGRAMS`)
-- [x] B9 Its own look: the leather and the armchair from Grok (`tools/artgen/boss_art.py`), the lamps, a badge on the taskbar
+- [x] B1 One program instead of five, nothing along the top: a desk down the left with a key for every page and place (`os98/apps/boss_app.gd`) (b28b7f23)
+- [x] B2 The bowling alley in it (its goods, menu, gear, hands, money) (b28b7f23)
+- [x] B3 Overview: the day's money, the places in rows, what wants you, the week (b28b7f23)
+- [x] B4 The order: every place's goods on one sheet, what runs out first at the top, Fill up, one van (b28b7f23)
+- [x] B5 People: everybody, the card, the posts and jobs, the late shift, moving and letting go, who is asking (b28b7f23)
+- [x] B6 Accounts: the places side by side for today, yesterday, seven days, all told (b28b7f23)
+- [x] B7 A place's page: goods with the order, menu, gear, its day against yesterday, its hands; the staffroom's page (b28b7f23)
+- [x] B8 One licence; old saves keep it (`business_rules.BOSS_LICENCE`, `actions.biz_has_licence`, `os_shell.OLD_BOSS_PROGRAMS`) (b28b7f23)
+- [x] B9 Its own look: the leather and the armchair from Grok (`tools/artgen/boss_art.py`), the lamps, a badge on the taskbar (b28b7f23)
 
 ## MANAGEMENT 2026-11-08 — „polishnout UX managementu podniků, UI knih, správa zamstnanců zboží objednávek, nějaký staty profitu a nákladů a tak.. pokračuj prostě v polishmentu management stránky hry"
 
