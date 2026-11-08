@@ -126,8 +126,12 @@ func _ready() -> void:
 
 	# The licence.
 	state.money = 500
-	_expect(a.biz_buy_licence("pub") and state.money == 500 - int(RULES.info("pub")["licence"]), "the licence is bought")
-	_expect(a.biz_buy_licence("pub") and state.money == 500 - int(RULES.info("pub")["licence"]), "and only paid once")
+	_expect(a.biz_buy_licence("boss") and state.money == 500 - RULES.BOSS_LICENCE, "the licence is bought")
+	_expect(a.biz_buy_licence("boss") and state.money == 500 - RULES.BOSS_LICENCE, "and only paid once")
+	_expect(a.biz_has_licence("boss"), "Boss 98 is licensed")
+	state.biz["licences"] = ["corn"]
+	_expect(a.biz_has_licence("boss"), "a licence for one of the old programs counts")
+	state.biz["licences"] = []
 
 	# The money (8. 11.): what a place's day made and cost, the wages before the close, what a
 	# good goes through in a day, the shelves filled up, the camp's own book.

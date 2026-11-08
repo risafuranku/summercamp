@@ -414,22 +414,29 @@ func _run() -> void:
 		ce._submit()
 		_expect(ce._next.text == "Next photograph" and not ce._next.disabled, "SectiTo stops after a batch")
 
-	# SoftSklad: the licence is bought in its own window and the program is there at once.
-	_shell.open_app("corn_app")
+	# Boss 98: one licence, bought in its own window, and the program is there at once.
+	_shell.open_app("boss_app")
 	await _frames(3)
-	var shops = _shell.app_of("shops")
-	_expect(shops != null and shops._cur == "corn_app", "SoftSklad did not open on Klasek 98")
-	if shops != null and not _shell._is_program_unlocked("corn_app"):
-		await _shot("shops_buy")
+	var boss = _shell.app_of("shops")
+	_expect(boss != null, "Boss 98 did not open on its tab")
+	if boss != null and not _shell._is_program_unlocked("boss_app"):
+		await _shot("boss_buy")
 		CoreRoot.actions.add_money(5000)
-		CoreRoot.actions.biz_buy_licence("corn")
-		shops._update_empty()
-		_expect(shops._do.text == "Install", "a paid licence does not offer to install (%s)" % shops._do.text)
-		shops._on_do()
+		var cash_before: int = CoreRoot.get_money()
+		_expect(CoreRoot.actions.biz_buy_licence("boss"), "the licence could not be bought")
+		_expect(cash_before - CoreRoot.get_money() == preload("res://core/systems/business_rules.gd").BOSS_LICENCE, "one price for the licence")
+		boss._buy_licence()
 		await _frames(2)
-		_expect(_shell._is_program_unlocked("corn_app"), "a licensed program did not install at once")
-		_expect(_shell.install_progress("corn_app") < 0.0, "the program went down the modem")
-		await _shot("shops_installed")
+		_expect(_shell._is_program_unlocked("boss_app"), "a licensed program did not install at once")
+		_expect(_shell.install_progress("boss_app") < 0.0, "the program went down the modem")
+		await _shot("boss_installed")
+		# Every page opens with nothing in the camp.
+		for nav in ["overview", "order", "people", "books"]:
+			boss._nav = nav
+			boss.queue_redraw()
+			await _frames(2)
+			await _shot("boss_" + nav)
+		boss._nav = "overview"
 
 	# Games: on the machine already (they were Vera's), with the old names on the tables.
 	_shell.open_app("mines")
@@ -476,10 +483,10 @@ func _run() -> void:
 		_expect(hk._state == "play" or hk._state == "over", "the hike did not start")
 		await _shot("game_hike_play")
 
-	# Shops: without a licence the tab says where to get one.
+	# The old programs' names go to the one program's tab.
 	_shell.open_app("pub_app")
 	await _frames(3)
-	_expect(_shell.current_tab() == "shops", "Hostinsky 98 did not bring up the Shops tab")
+	_expect(_shell.current_tab() == "shops", "Hostinsky 98's name did not bring up Boss 98")
 	await _shot("shops")
 
 	# Save and load keep what was installed, the bin, the scores and the tab.

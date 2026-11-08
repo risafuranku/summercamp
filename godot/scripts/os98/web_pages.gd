@@ -51,7 +51,7 @@ const INDEX := {
 	"volny.cz/~infravrany": "band music infravrany rock metal gig disco demo tape concert lukas kapela hudba rock metal koncert zabava demo kazeta",
 	"povodi-hlubocany.cz": "reservoir lake water board dam keeper hruby boat boathouse sluice level fishing shore povodi prehrada voda hraz hladina lod lodka lodenice stavidlo rybareni breh",
 	"cerne-jezero.cz/team": "karel vera team leaders staff camp photos tym vedouci personal fotky",
-	"softsklad.cz": "software pub bistro shop corn stand stock order staff licence hostinsky kuchar pult klasek personal staffroom cleaning business wholesaler program hospoda bistro obchod stanek kukurice zasoby objednavka personal licence uklid podnik velkoobchod",
+	"softsklad.cz": "software pub bistro shop corn stand bowling stock order staff licence boss sef manager vedouci hostinsky kuchar pult klasek personal staffroom cleaning business wholesaler program hospoda bistro obchod stanek kukurice zasoby objednavka personal licence uklid podnik velkoobchod",
 	"bohemia-online.cz/weather": "weather forecast rain storm fog sun pocasi predpoved dest bourka mlha slunce",
 	"bohemia-online.cz/hry": "games hry shareware download komar mosquito vylet hike snake pexeso memory mines fun hry hra zabava stahnout komar vylet had pexeso miny",
 	"bohemia-online.cz/prace": "work job jobs prace money earn home klikbanka sectito datapunch adverts count prace brigada penize vydelek z domova reklama",

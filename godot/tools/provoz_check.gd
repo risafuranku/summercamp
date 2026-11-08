@@ -34,7 +34,7 @@ func _stat(k: String, n := 1) -> void:
 
 func camp() -> void:
 	var g: Vector2i = _main.get("world_generator").gate_tile()
-	for y0 in range(4, 19, 5):
+	for y0 in range(4, 24, 5):
 		for x0 in range(g.x - 13, g.x + 12, 5):
 			EventBus.RequestDemolish.emit(Rect2i(x0, y0, 5, 5))
 	for y in range(5, 19):
@@ -57,6 +57,7 @@ func camp() -> void:
 		["vecerka", Vector2i(g.x + 5, 11)],
 		["staffroom", Vector2i(g.x - 10, 12)],
 		["bonfire", Vector2i(g.x - 12, 9)],
+		["bowling", Vector2i(g.x + 3, 16)],
 		["lamp_post", Vector2i(g.x - 5, 8 - 1)], ["lamp_post", Vector2i(g.x + 5, 15)],
 	]
 	for item in plan:
@@ -87,9 +88,11 @@ func staff() -> void:
 		var roles: Array = BRT.ROLES.get(kind, [])
 		var want: int = {"corn": 1, "pub": 2, "rest": 3, "vecerka": 2}.get(kind, 1)
 		for i in want:
-			var p := _person(kind, taken)
+			var p := BRT.person("ivan", "bowl", 0) if kind == "bowl" else _person(kind, taken)
 			if p.is_empty():
 				break
+			if kind == "bowl":
+				taken.append("ivan")
 			p["role"] = str(roles[i][0])
 			a.biz_hire(key, p, day - 1)
 		# Well stocked from the start.
@@ -296,6 +299,119 @@ func _pc_shot(crt, name: String) -> void:
 	crt.get_viewport().get_texture().get_image().save_png(_out_dir.path_join("pc_%s.png" % name))
 
 
+## Every page of Boss 98.
+func _boss_shots(crt) -> void:
+	CoreRoot.actions.biz_grant_licence("boss")
+	EventBus.program_installed.emit("boss_app")
+	await get_tree().create_timer(0.5).timeout
+	crt.open_app("boss_app")
+	await get_tree().create_timer(1.5).timeout
+	var boss = crt.app_of("shops")
+	if boss == null:
+		print("PROVOZ no Boss 98")
+		return
+	for nav in ["overview", "order", "people", "books"]:
+		boss.set("_nav", nav)
+		boss.set("_sheet", [])
+		boss.queue_redraw()
+		await _pc_shot(crt, "boss_" + nav)
+	boss.set("_nav", "order")
+	boss.call("_click", "fill")
+	boss.queue_redraw()
+	await _pc_shot(crt, "boss_order_filled")
+	print("PROVOZ fill ", boss.get("_order"))
+	boss.set("_order", {})
+	boss.set("_nav", "people")
+	boss.set("_who", "hire")
+	boss.queue_redraw()
+	await _pc_shot(crt, "boss_hire")
+	boss.set("_who", "crew")
+	for e in boss.call("_everyone"):
+		if str(e["at"]) == "staff":
+			boss.set("_pick", str((e["p"] as Dictionary).get("slug", "")))
+			break
+	boss.queue_redraw()
+	await _pc_shot(crt, "boss_people_staffroom")
+	for period in ["today", "yesterday", "all"]:
+		boss.set("_nav", "books")
+		boss.set("_period", period)
+		boss.queue_redraw()
+		await _pc_shot(crt, "boss_books_" + period)
+	for key in boss.call("_places"):
+		boss.set("_nav", "place")
+		boss.set("_place", key)
+		var kind: String = boss.call("_kind_of", key)
+		for sub in (["goods", "menu", "gear"] if kind != "staff" else ["goods"]):
+			boss.set("_sub", sub)
+			boss.queue_redraw()
+			await _pc_shot(crt, "boss_place_%s_%s" % [kind, sub])
+	# The hand on a place's card.
+	for e2 in boss.call("_everyone"):
+		if str(e2["at"]) != "staff":
+			boss.set("_nav", "people")
+			boss.set("_pick", str((e2["p"] as Dictionary).get("slug", "")))
+			boss.queue_redraw()
+			await _pc_shot(crt, "boss_people_hand")
+			break
+
+
+## A week of books made up (--part=boss): the pages without five minutes of real days.
+func seed_books() -> void:
+	var biz: Dictionary = CoreRoot.get_state().biz
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	var sites: Dictionary = biz["sites"]
+	for key in sites:
+		var s: Dictionary = sites[key]
+		var goods: Array = BRT.goods(str(s["kind"])).keys()
+		var hist: Array = []
+		for i in 6:
+			var d: Dictionary = BRT.empty_day()
+			d["sold"] = rng.randi_range(5, 40)
+			d["takings"] = rng.randi_range(40, 300)
+			d["cost"] = float(rng.randi_range(10, 90))
+			d["wages"] = rng.randi_range(40, 90)
+			d["van"] = 10 if i % 2 == 0 else 0
+			var used := {}
+			for g in goods.slice(0, 6):
+				used[g] = rng.randi_range(2, 14)
+			d["used"] = used
+			hist.append(d)
+		s["history"] = hist
+		s["yesterday"] = hist[hist.size() - 1]
+		s["today"]["sold"] = rng.randi_range(3, 20)
+		s["today"]["takings"] = rng.randi_range(20, 120)
+		s["today"]["cost"] = float(rng.randi_range(5, 30))
+		s["all_orders"] = 40
+		s["all_score"] = 3300
+		s["zreport"] = {"grade": "B", "advice": "The wages ate the takings. Fewer hands, or more guests."}
+		var first: String = str(goods[0])
+		s["stock"][first] = 0
+	var camp_hist: Array = []
+	for i in 6:
+		camp_hist.append({"lodging": rng.randi_range(300, 1300), "facilities": 90, "staff_wages": 180, "power": rng.randi_range(0, 200), "repairs": 0, "cash": 58000 + i * 900})
+	biz["camp"] = {"today": {"lodging": 420}, "history": camp_hist, "staff_total": 1080}
+
+
+func boss_pictures() -> void:
+	Engine.time_scale = 1.0
+	var im = _main.get("_interior_manager")
+	im.call("open_startup_crt_view")
+	await get_tree().create_timer(9.0).timeout
+	var crt = im.get("_building_interior").get("_crt_ui")
+	for i in 40:
+		if crt.open_app("camp_status") != null:
+			break
+		await get_tree().create_timer(0.5).timeout
+	# Not bought yet.
+	var boss_open = crt.open_app("boss_app")
+	await get_tree().create_timer(1.5).timeout
+	await _pc_shot(crt, "boss_buy")
+	await _boss_shots(crt)
+	print("PROVOZ: done")
+	get_tree().quit()
+
+
 ## Every book and office program after a few real days (--money).
 func _money_pictures() -> void:
 	_running = false
@@ -315,37 +431,7 @@ func _money_pictures() -> void:
 	await get_tree().create_timer(1.0).timeout
 	app.select_page("money")
 	await _pc_shot(crt, "money_campstat")
-	for prog in ["staff_app", "pub_app", "bistro_app", "shop_app", "corn_app"]:
-		EventBus.program_installed.emit(prog)
-	await get_tree().create_timer(0.5).timeout
-	for prog2 in ["pub_app", "bistro_app", "shop_app", "corn_app"]:
-		crt.open_app(prog2)
-		await get_tree().create_timer(1.5).timeout
-		var a2 := _pc_app("business_app.gd")
-		if a2 == null:
-			print("PROVOZ no app ", prog2)
-			continue
-		for page in ["stock", "books"]:
-			a2.set("_page", page)
-			a2.queue_redraw()
-			await _pc_shot(crt, "%s_%s" % [prog2, page])
-		a2.set("_page", "order")
-		a2.call("_click", "fill")
-		a2.queue_redraw()
-		await _pc_shot(crt, "%s_order" % prog2)
-		print("PROVOZ fill %s %s" % [prog2, str(a2.get("_order"))])
-		a2.set("_order", {})
-	crt.open_app("staff_app")
-	await get_tree().create_timer(1.5).timeout
-	var st_app := _pc_app("staff_app.gd")
-	if st_app != null:
-		await _pc_shot(crt, "staff_first")
-		for e in st_app.call("_everyone"):
-			if str(e["at"]) != "staff":
-				st_app.set("_pick", str((e["p"] as Dictionary).get("slug", "")))
-				st_app.queue_redraw()
-				break
-		await _pc_shot(crt, "staff_place_hand")
+	await _boss_shots(crt)
 	bi.close_interior()
 	await get_tree().create_timer(2.0).timeout
 	# The books on the counters.
@@ -440,7 +526,7 @@ func books_crew() -> void:
 	biz._process(2.0)
 	for key in biz._live_sites():
 		a.biz_hire(key, BRT.person("franta", "corn", 0), day)
-	a.biz_grant_licence("staff")
+	a.biz_grant_licence("boss")
 
 
 func staff_book() -> void:
@@ -459,23 +545,14 @@ func staff_book_shut() -> void:
 
 
 func pick_hand() -> void:
-	for n in get_tree().root.find_children("*", "Control", true, false):
-		var sc = n.get_script()
-		if sc != null and str(sc.resource_path).ends_with("staff_app.gd"):
-			n.set("_pick", "hanka")
-			(n as Control).queue_redraw()
+	var boss = _pc_app("boss_app.gd")
+	if boss != null:
+		boss.set("_pick", "hanka")
+		boss.queue_redraw()
 
 
-func corn_licence() -> void:
-	CoreRoot.actions.biz_grant_licence("corn")
-
-
-func order_page() -> void:
-	for n in get_tree().root.find_children("*", "Control", true, false):
-		var sc = n.get_script()
-		if sc != null and str(sc.resource_path).ends_with("business_app.gd") and (n as Control).is_visible_in_tree():
-			n.set("_page", "order")
-			(n as Control).queue_redraw()
+func boss_licence() -> void:
+	CoreRoot.actions.biz_grant_licence("boss")
 
 
 func order_book() -> void:
@@ -550,6 +627,17 @@ func _ready() -> void:
 			["eval", "get_tree().quit()"],
 		]
 		return
+	if OS.get_cmdline_user_args().has("--part=boss"):
+		_steps = [
+			["wait_menu"], ["call", "_on_menu_new_camp", ["Provoz", 4242, false, true, {"threats": false, "weather": false, "events": false, "wear": false, "money": 100000}]], ["wait_gameplay"], ["wait", 2.0],
+			["auto_checkin", false], ["auto_accept", false],
+			["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
+			["eval", C + ".camp()"], ["wait", 12.0], ["eval", C + ".staff()"], ["prep_all"], ["wait", 2.0],
+			["eval", C + ".seed_books()"], ["wait", 0.5],
+			["eval", C + ".boss_pictures()"],
+			["wait", 1000000.0],
+		]
+		return
 	if OS.get_cmdline_user_args().has("--part=books"):
 		_steps = [
 			["wait_menu"], ["call", "_on_menu_new_camp", ["Provoz", 4242, false, true, {"threats": false, "weather": false, "events": false, "wear": false, "money": 100000}]], ["wait_gameplay"], ["wait", 2.0],
@@ -561,15 +649,14 @@ func _ready() -> void:
 			["eval", C + ".order_book()"], ["wait", 1.0], ["shot", "b2_order_book"],
 			["eval", C + ".order_book_card()"], ["wait", 0.6], ["shot", "b2b_card"], ["eval", C + ".staff_book_shut()"], ["wait", 0.8],
 			["call_on", "_interior_manager", "open_startup_crt_view", []], ["wait", 7.0],
-			["signal", "program_installed", "staff_app"], ["wait", 1.0],
+			["eval", C + ".boss_licence()"], ["signal", "program_installed", "boss_app"], ["wait", 1.0],
 			["eval", "_interior_manager._building_interior._crt_ui.open_app('staff_app') != null"], ["wait", 2.0],
 			["eval", C + ".pick_hand()"], ["wait", 0.6],
-			["crt_screen", "b3_personal"],
+			["crt_screen", "b3_people"],
 			["eval", "_interior_manager._building_interior._crt_ui.open_app('camp_status') != null"], ["wait", 2.0],
 			["crt_screen", "b4_today"],
-			["eval", C + ".corn_licence()"], ["signal", "program_installed", "corn_app"], ["wait", 0.5],
-			["eval", "_interior_manager._building_interior._crt_ui.open_app('corn_app') != null"], ["wait", 1.5],
-			["eval", C + ".order_page()"], ["wait", 0.8], ["crt_screen", "b5_order_program"],
+			["eval", "_interior_manager._building_interior._crt_ui.open_app('boss_order') != null"], ["wait", 1.5],
+			["crt_screen", "b5_order_program"],
 			["eval", "get_tree().quit()"],
 		]
 		return

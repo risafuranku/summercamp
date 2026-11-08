@@ -53,18 +53,18 @@ const TABS := [
 	["camp_status", "CampStat", "campstat", true],
 	["reviews", "Atlas", "atlas", true],
 	["browser", "Web", "browser", false],
-	["shops", "Shops", "shop_app", false],
+	["shops", "Boss", "boss_app", false],
 	["jobs", "Jobs", "money", false],
 	["games", "Games", "games", false],
 	["files", "Files", "folder", false],
 ]
 const TAB_SCRIPTS := {
 	"builder": "builder_app", "camp_status": "campstat_app", "guestrack": "guestrack_app", "mail": "mail_app",
-	"reviews": "atlas_app", "browser": "browser_app", "shops": "shops_app", "jobs": "jobs_app", "games": "games_app", "files": "files_app",
+	"reviews": "atlas_app", "browser": "browser_app", "shops": "boss_app", "jobs": "jobs_app", "games": "games_app", "files": "files_app",
 }
 const TAB_TITLES := {
 	"builder": "Builder 98", "camp_status": "CampStat 98", "guestrack": "GuestRack 98", "mail": "CampMail",
-	"reviews": "Atlas - Beeternet Explorer", "browser": "Beeternet Explorer", "shops": "SoftSklad programs", "jobs": "Jobs from home", "games": "Games", "files": "Files",
+	"reviews": "Atlas - Beeternet Explorer", "browser": "Beeternet Explorer", "shops": "Boss 98", "jobs": "Jobs from home", "games": "Games", "files": "Files",
 }
 
 ## Everything that can be installed: its title, icon, the file it comes as, its size, the
@@ -80,12 +80,8 @@ const PROGRAMS := {
 	"datapunch": {"title": "DataPunch 98", "icon": "documents", "file": "DATAPNCH.EXE", "kb": 40, "site": "kuryr-hlubocany.cz", "base": false},
 	"adclick": {"title": "KlikBanka 98", "icon": "klikbank", "file": "KLIKBANK.EXE", "kb": 36, "site": "bohemia-online.cz/prace", "base": false},
 	"census": {"title": "SectiTo 98", "icon": "sectito", "file": "SECTITO.EXE", "kb": 44, "site": "bohemia-online.cz/prace", "base": false},
-	"pub_app": {"title": "Hostinsky 98", "icon": "pub_app", "file": "HOSPOD98.EXE", "kb": 64, "site": "softsklad.cz", "base": false},
-	"bistro_app": {"title": "Kuchar 98", "icon": "bistro_app", "file": "KUCHAR98.EXE", "kb": 64, "site": "softsklad.cz", "base": false},
-	"shop_app": {"title": "Pult 98", "icon": "shop_app", "file": "PULT98.EXE", "kb": 56, "site": "softsklad.cz", "base": false},
-	"corn_app": {"title": "Klasek 98", "icon": "corn_app", "file": "KLASEK98.EXE", "kb": 32, "site": "softsklad.cz", "base": false},
-	# The staffroom's hands (scripts/os98/apps/staff_app.gd).
-	"staff_app": {"title": "Personal 98", "icon": "staff_app", "file": "PERSON98.EXE", "kb": 40, "site": "softsklad.cz", "base": false},
+	# Every place and everybody who works there (scripts/os98/apps/boss_app.gd).
+	"boss_app": {"title": "Boss 98", "icon": "boss_app", "file": "SEF98.EXE", "kb": 180, "site": "softsklad.cz", "base": false},
 	# The games are on the machine already: the evenings at the office before this one.
 	"mines": {"title": "Mines", "icon": "mines", "file": "", "kb": 24, "site": "", "base": true},
 	"mosquito": {"title": "Komar 98", "icon": "komar", "file": "KOMAR98.EXE", "kb": 28, "site": "bohemia-online.cz/hry", "base": true},
@@ -98,11 +94,7 @@ const PROGRAM_INFO := {
 	"datapunch": ["Okresni urad Hlubocany", "1.0", "14.9.1998"],
 	"adclick": ["Bohemia Online s.r.o.", "2.1", "1.10.1998"],
 	"census": ["Okresni urad Hlubocany", "1.02", "8.9.1998"],
-	"pub_app": ["SoftSklad s.r.o.", "3.1", "20.4.1998"],
-	"bistro_app": ["SoftSklad s.r.o.", "3.1", "20.4.1998"],
-	"shop_app": ["SoftSklad s.r.o.", "2.0", "11.3.1998"],
-	"corn_app": ["SoftSklad s.r.o.", "1.0", "2.7.1998"],
-	"staff_app": ["SoftSklad s.r.o.", "1.1", "14.8.1998"],
+	"boss_app": ["SoftSklad s.r.o.", "1.0", "1.9.1998"],
 	"mines": ["Okna 98 accessory", "4.10", "11.5.1998"],
 	"mosquito": ["Bohemia Soft, shareware", "1.0", "3.8.1998"],
 	"hike": ["Bohemia Soft, shareware", "1.1", "17.7.1998"],
@@ -122,9 +114,13 @@ const SCORE_ROWS := 5
 const HOST := {
 	"builder": "builder", "camp_status": "camp_status", "guestrack": "guestrack",
 	"datapunch": "jobs", "adclick": "jobs", "census": "jobs",
+	"boss_app": "shops", "boss_order": "shops", "boss_hire": "shops",
+	# (The five programs it took the place of: old saves, CampStat's links.)
 	"pub_app": "shops", "bistro_app": "shops", "shop_app": "shops", "corn_app": "shops", "staff_app": "shops",
 	"mines": "games", "mosquito": "games", "hike": "games", "pexeso": "games",
 }
+## What was installed before there was one program for all of it.
+const OLD_BOSS_PROGRAMS := ["pub_app", "bistro_app", "shop_app", "corn_app", "staff_app"]
 ## The tabs that are a program of their own and must be installed first.
 const INSTALL_TABS := ["builder", "camp_status", "guestrack"]
 ## Seconds a one-click install takes (the modem, the bytes, the setup).
@@ -396,6 +392,9 @@ func coop_take_pc(data: Dictionary) -> void:
 	var reg: Dictionary = data.get("unlock_registry", {}) if data.get("unlock_registry", {}) is Dictionary else {}
 	for id in PROGRAMS:
 		_unlocked[id] = bool(PROGRAMS[id].get("base", false)) or bool(reg.get(id, false))
+	for old in OLD_BOSS_PROGRAMS:
+		if bool(reg.get(old, false)):
+			_unlocked["boss_app"] = true
 	_downloads.clear()
 	for f in data.get("downloads", []):
 		_downloads.append(str(f))
@@ -468,6 +467,8 @@ func import_persistent_state(data: Dictionary) -> void:
 		for id in reg:
 			if PROGRAMS.has(str(id)) and bool(reg[id]):
 				_unlocked[str(id)] = true
+			elif OLD_BOSS_PROGRAMS.has(str(id)) and bool(reg[id]):
+				_unlocked["boss_app"] = true
 		if data.get("datapunch_nights", {}) is Dictionary:
 			set_meta("datapunch_nights", (data.get("datapunch_nights", {}) as Dictionary).duplicate())
 		if str(data.get("os", "")) == "okna98":
@@ -2133,6 +2134,11 @@ func _refresh_badges() -> void:
 	for id in INSTALL_TABS:
 		if not _is_program_unlocked(id) and not b.has(id):
 			b[id] = ["+", Color8(0, 120, 0)]
+	var boss = app_of("shops")
+	if boss != null and boss.has_method("badge"):
+		var fire: Array = boss.badge()
+		if not fire.is_empty():
+			b["shops"] = fire
 	# Atlas: reviews posted since its tab was last looked at.
 	var g = m.get("_goggle") if m != null else null
 	if g != null:

@@ -36,7 +36,6 @@ const KIND_OF := {"pub": "pub", "restaurant": "rest", "vecerka": "vecerka", "cor
 const KINDS := {
 	"pub": {
 		"name": "Pub", "wage": 30, "hand": ["Lojza", "Franta", "Mirek"],
-		"app": "pub_app", "app_name": "Hostinsky 98", "licence": 120,
 		"goods": {
 			"beer": {"label": "Beer", "unit": "pints", "price": 4, "pack": 50, "pack_cost": 60, "cap": 150, "start": 40},
 			"rum": {"label": "Rum", "unit": "shots", "price": 3, "pack": 20, "pack_cost": 26, "cap": 60, "start": 10},
@@ -47,7 +46,6 @@ const KINDS := {
 	},
 	"rest": {
 		"name": "Bistro", "wage": 35, "hand": ["Mrs Dvorakova", "Pepa", "Hanka"],
-		"app": "bistro_app", "app_name": "Kuchar 98", "licence": 140,
 		"goods": {
 			"goulash": {"label": "Goulash", "unit": "portions", "price": 7, "pack": 20, "pack_cost": 70, "cap": 60, "start": 12},
 			"cheese": {"label": "Cheese", "unit": "slices", "price": 8, "pack": 20, "pack_cost": 64, "cap": 60, "start": 10},
@@ -69,7 +67,6 @@ const KINDS := {
 	},
 	"vecerka": {
 		"name": "Jednota", "wage": 40, "hand": ["Mrs Novakova", "Zdenka", "Ivan"],
-		"app": "shop_app", "app_name": "Pult 98", "licence": 220,
 		# The village shop the guests love (DESIGN.md §7b, the Jednota): everything they
 		# need, dear to build, stock and staff; it pays back in a fortnight of a busy camp
 		# (jednota_rules.day_model, tools/jednota_check).
@@ -98,7 +95,6 @@ const KINDS := {
 	},
 	"corn": {
 		"name": "Corn stand", "wage": 15, "hand": ["Pepicek", "Klara", "the Novak boy"],
-		"app": "corn_app", "app_name": "Klasek 98", "licence": 60,
 		"goods": {
 			"cobs": {"label": "Corn cobs", "unit": "cobs", "price": 2, "pack": 40, "pack_cost": 32, "cap": 80, "start": 20},
 			"butter": {"label": "Butter", "unit": "knobs", "price": 0, "pack": 60, "pack_cost": 15, "cap": 120, "start": 30},
@@ -114,7 +110,6 @@ const KINDS := {
 	# shoes get before they go back on the shelf.
 	"bowl": {
 		"name": "Bowling", "wage": 32, "hand": ["the Novak boy", "Franta", "Ivan"],
-		"app": "bowl_app", "app_name": "Bowling 98", "licence": 160,
 		"goods": {
 			"sausage": {"label": "Sausages", "unit": "sausages", "price": 5, "pack": 20, "pack_cost": 40, "cap": 60, "start": 20},
 			"roll": {"label": "Rolls", "unit": "rolls", "price": 0, "pack": 40, "pack_cost": 14, "cap": 80, "start": 30},
@@ -131,7 +126,6 @@ const KINDS := {
 	# kind (not in KIND_OF); here for the wage, the program and its licence.
 	"staff": {
 		"name": "Staffroom", "wage": 28, "hand": [],
-		"app": "staff_app", "app_name": "Personal 98", "licence": 90,
 		"goods": {},
 		"wants": {},
 	},
@@ -144,6 +138,15 @@ const RECIPES := {
 	"bowl": {"hotdog": {"sausage": 1, "roll": 1}, "pickled": {"pickled": 1}, "crisps": {"crisps": 1}, "tatranka": {"tatranka": 1},
 		"kofola": {"kofola": 1}, "beer": {"beer": 1}},
 }
+## Boss 98, the one program for all of it (os98/apps/boss_app.gd): its licence, "boss" in
+## biz.licences; a licence for one of the five programs before it counts (actions).
+const BOSS_LICENCE := 180
+
+
+static func licence_price(what: String) -> int:
+	return BOSS_LICENCE if what == "boss" else 0
+
+
 ## The van: what one delivery costs on top of the goods, the day after you order.
 const DELIVERY_FEE := 10
 ## A hand serves this share of who comes in (the rest gives up waiting).

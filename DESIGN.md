@@ -1781,6 +1781,21 @@ Richard: „polishnout UX managementu podniků, UI knih, správa zamstnanců zbo
 - **SoftSklad**: Stock has what goes in a day and the days left; Order has Fill up, every licensed place at once, one van; Books the same sums as the book on the counter and the week's takings against its costs.
 - **Personal 98**: a place's hand has their posts and the late shift there too, not only the staffroom's.
 
+### Boss 98 (2026-11-08)
+
+Richard: „Nějak kompletně překopat program na 7mičce. chybí tam kuželky, je to nepřehledné přes ty horní taby... udělej ho celý uplně odznova, prostě managerský program"
+
+One program in the place of SoftSklad's five (`scripts/os98/apps/boss_app.gd`, Šéf 98 in Czech), on tab 7. The idea is the boss's desk: a green leather frame with gold lettering (Grok, `tools/artgen/boss_art.py`), down the left a key for each page and each place, like a desk intercom with its lamps. There is no row of tabs along the top. Where you are is the one brass plate that is down.
+
+- **The desk**: Overview, The order, People, Accounts, and under them every place in the camp (the bowling alley too) and the staffroom. A place's key has a lamp (green running, amber wants a look, red on fire, grey shut) and what it has made today. The same red count is on the taskbar.
+- **Overview**: the day's takings, costs and profit and the week's on the LCD; the places in rows (open or shut, hands at work, who waits, takings, profit, seven days, what runs out first; a row opens the place); Wants you (a click goes to what mends it); the week as a chart.
+- **The order**: the goods of every place on one sheet, what runs out first at the top, the sheet turning in pages and not re-sorting under the mouse. Fill up writes in every place for a few days; one van, Send.
+- **People**: everybody in one list, the card beside it (where they work, a click moves them; their post or the staffroom's jobs, the late shift, let go); who is asking today with what they would cost at each place.
+- **Accounts**: every place side by side for today, yesterday, seven days or all told, a bar for who makes it and who loses it, the staffroom's wages, the sum; the last days' profit up and down from the line.
+- **A place**: its band with its picture, the hours; its goods with the order on them (or its menu, or its gear); its day against yesterday, the last shift's mark and the one thing to mend, the hands on it. The order written anywhere is the same order.
+- **The staffroom**: what the hands did today, the lockers and the armchair.
+- **One licence** ($180, `biz.licences` "boss"), bought in the program or on softsklad.cz. A licence or an install of the five old programs counts, so an old save has it.
+
 ## 7c. The staffroom and the camp's own staff
 
 The user, 21. 10.: "a fifth tab in SoftSklad where you hire staff who clean; a staffroom

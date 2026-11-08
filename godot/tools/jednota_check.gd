@@ -276,7 +276,7 @@ func _ready() -> void:
 	if def != null:
 		_expect(def.footprint == Vector2i(3, 3), "three by three (%s)" % str(def.footprint))
 		_expect(int(def.cost) >= 1500 and int(def.cost) <= 2000, "dear: $%d" % int(def.cost))
-		var price := int(def.cost) + int(RULES.KINDS["vecerka"]["licence"])
+		var price := int(def.cost) + RULES.BOSS_LICENCE
 		var wages := 3 * RULES.wage("vecerka", 1, true, "flat")
 		var busy: Dictionary = JRULES.day_model(25, wages, 1)
 		var quiet: Dictionary = JRULES.day_model(8, wages, 1)

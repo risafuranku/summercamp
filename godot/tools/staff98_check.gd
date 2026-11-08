@@ -103,13 +103,10 @@ func dirty_block() -> void:
 
 
 func app_page(p: String) -> void:
-	var shops = _main.get("_interior_manager").get("_building_interior").get("_crt_ui").app_of("shops")
-	for k in shops.get("_subs"):
-		var page = shops.get("_subs")[k]
-		for c in page.find_children("*", "Control", true, false):
-			if c.get_script() != null and str(c.get_script().resource_path).ends_with("staff_app.gd"):
-				c.set("_page", p)
-				c.queue_redraw()
+	var boss = _main.get("_interior_manager").get("_building_interior").get("_crt_ui").app_of("shops")
+	boss.set("_nav", "people")
+	boss.set("_who", "hire" if p == "hire" else "crew")
+	boss.queue_redraw()
 
 
 func _ready() -> void:
@@ -123,9 +120,9 @@ func _ready() -> void:
 		["eval", C + ".types()"],
 		["eval", C + ".setup_camp()"], ["wait", 1.0],
 		["call_on", "_interior_manager", "open_startup_crt_view", []], ["wait", 7.0],
-		["eval", B + ".open_app('shops', {'program': 'staff_app'}) != null"], ["wait", 2.0],
-		["eval", B + ".install_program('staff_app', false)"], ["wait", 9.0],
-		["eval", B + ".app_of('shops')._switch('staff_app')"], ["wait", 1.5], ["crt_screen", "p0_staff"],
+		["eval", B + ".open_app('boss_app') != null"], ["wait", 2.0],
+		["eval", B + ".install_program('boss_app', false)"], ["wait", 9.0],
+		["eval", B + ".open_app('staff_app') != null"], ["wait", 1.5], ["crt_screen", "p0_staff"],
 		["eval", C + ".app_page('hire')"], ["wait", 1.0], ["crt_screen", "p1_hire"],
 		["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 1.0],
 		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],

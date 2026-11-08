@@ -55,7 +55,7 @@ static func rows(main: Node, snap: Dictionary, upkeep: Dictionary, forecast: Dic
 		has_room = has_room or str(c.get("type", "")) == "staffroom"
 		if str(c.get("type", "")) in ["toilet_block", "shower_block"]:
 			blocks += 1
-	var hire := [LANG.f("Hire"), "tab://staff_app"] if has_room else [LANG.f("Staffroom"), "tab://builder"]
+	var hire := [LANG.f("Hire"), "tab://boss_hire"] if has_room else [LANG.f("Staffroom"), "tab://builder"]
 
 	# The reception.
 	var at_desk := 0
@@ -172,7 +172,7 @@ static func rows(main: Node, snap: Dictionary, upkeep: Dictionary, forecast: Dic
 	var carriers := _hands(crew, "delivery")
 	if not site_keys.is_empty():
 		var goods_line := LANG.f("Low: %s", low) if low != "" else (LANG.f("Van on the way") if not orders.is_empty() else LANG.f("Shelves full"))
-		out.append(_row(LANG.f("Goods"), carriers, goods_line, low != "" and not low_auto, LANG.f("Order"), "tab://shops"))
+		out.append(_row(LANG.f("Goods"), carriers, goods_line, low != "" and not low_auto, LANG.f("Order"), "tab://boss_order"))
 
 	# The places, each with who is on now.
 	for key in site_keys:

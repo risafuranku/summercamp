@@ -8,7 +8,7 @@ extends RefCounted
 ## staffroom and go out to the things that would otherwise call you away: a bin bag
 ## dumped by a path, raccoons in the bins, the wholesaler's van at the gate, a branch
 ## across a path, and the lodgings to clean and make up for the next guests. What each
-## of them does is ticked in the staffroom's books or in SoftSklad's Personal 98. Between
+## of them does is ticked in the staffroom's books or in Boss 98 on the office PC. Between
 ## jobs they sit in the lounge, on the sofa or in an armchair (bought in the books); one
 ## with nowhere to sit takes a guest's bed. At eight in the evening they all go home (the
 ## user 21. 10.: "the hands go home for the night; the mattress is for the player": the
@@ -16,7 +16,7 @@ extends RefCounted
 ##
 ## Pure data and arithmetic. The state is GameState.biz["staff"] (actions.gd staff_*),
 ## the running side scripts/staff/staff_runtime.gd, the room scripts/staff/staffroom.gd,
-## the books scripts/staff/staff_ledger.gd, the PC program os98/apps/staff_app.gd.
+## the books scripts/staff/staff_ledger.gd, the PC program os98/apps/boss_app.gd.
 ##
 ##   biz.staff = {
 ##     "crew": [person + {"since", "jobs": {job: bool}, "owed", "absent"}],

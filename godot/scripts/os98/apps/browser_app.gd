@@ -1000,19 +1000,14 @@ func _page_for(key: String) -> Dictionary:
 	}
 
 
-## SoftSklad's four programs: the licence to buy, or (bought) the download.
+## SoftSklad's program: the licence to buy, or (bought) the download.
 func _softsklad() -> String:
-	var R = load("res://core/systems/business_rules.gd")
-	var files := {"pub": "HOSPOD98.EXE", "rest": "KUCHAR98.EXE", "vecerka": "PULT98.EXE", "corn": "KLASEK98.EXE", "staff": "PERSON98.EXE"}
-	var blurbs := {"pub": "for pubs and bars: kegs, spirits, kofola, glasses", "rest": "for canteens and bistros: the kitchen's stock, portions", "vecerka": "for shops: bread, rolls, salami, milk, beer", "corn": "for stands: cobs and butter", "staff": "for your own staff: hiring, lockers, who sees to what"}
-	var t := ""
-	for k in ["pub", "rest", "vecerka", "corn", "staff"]:
-		var info: Dictionary = R.info(k)
-		t += "[b]%s[/b] - %s\n" % [str(info["app_name"]), tr(str(blurbs[k]))]
-		if CoreRoot != null and CoreRoot.actions != null and CoreRoot.actions.biz_has_licence(k):
-			t += LANG.f(" [color=#006600]Licensed.[/color] {download://%s|%s}\n\n", [files[k], files[k]])
-		else:
-			t += LANG.money(LANG.f(" {licence://%s|Buy a licence - $%d}\n\n", [k, int(info["licence"])]))
+	var price: int = load("res://core/systems/business_rules.gd").licence_price("boss")
+	var t := "[b]%s[/b] - %s\n" % [tr("Boss 98"), tr("every place you run and everybody who works there: goods, orders, hands, the money")]
+	if CoreRoot != null and CoreRoot.actions != null and CoreRoot.actions.biz_has_licence("boss"):
+		t += LANG.f(" [color=#006600]Licensed.[/color] {download://%s|%s}\n\n", ["SEF98.EXE", "SEF98.EXE"])
+	else:
+		t += LANG.money(LANG.f(" {licence://%s|Buy a licence - $%d}\n\n", ["boss", price]))
 	return t
 
 
@@ -1050,8 +1045,8 @@ func _on_link(target: String) -> void:
 	# A SoftSklad licence: paid from the camp's money, the download appears.
 	if target.begins_with("licence://"):
 		var kind := target.trim_prefix("licence://")
-		var info: Dictionary = load("res://core/systems/business_rules.gd").info(kind)
-		_shell.message_box("SoftSklad", "Buy a licence for %s for $%d?\n\nThe money is taken from the camp's account." % [str(info.get("app_name", "")), int(info.get("licence", 0))], "question", ["Buy", "Cancel"], func(b: String):
+		var price: int = load("res://core/systems/business_rules.gd").licence_price(kind)
+		_shell.message_box("SoftSklad", LANG.f("Buy a licence for %s for $%d?\n\nThe money is taken from the camp's account.", [tr("Boss 98"), price]), "question", ["Buy", "Cancel"], func(b: String):
 			if b != "Buy":
 				return
 			if CoreRoot.actions.biz_buy_licence(kind):

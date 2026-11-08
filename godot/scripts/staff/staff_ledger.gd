@@ -11,7 +11,7 @@ extends "res://scripts/closeup/closeup_view.gd"
 ##   ROOM    the cards glued in (a catalogue cut-out each): one more locker, one more
 ##           armchair for the lounge, what the next one costs, BUY
 ##   DAY     what the hands did today, their wages tonight
-## The same is on the office PC in SoftSklad's Personal 98 (os98/apps/staff_app.gd).
+## The same is on the office PC in Boss 98 (os98/apps/boss_app.gd).
 
 const RULES := preload("res://core/systems/staff_rules.gd")
 const BRT := preload("res://core/systems/business_rules.gd")

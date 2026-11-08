@@ -824,6 +824,7 @@ func biz_close_day(day := -1) -> Dictionary:
 		EventBus.money_changed.emit(_state.money)
 	# The camp's own day goes in its book (the places' went in theirs above).
 	var camp: Dictionary = _biz().get("camp", {}) if _biz().get("camp", {}) is Dictionary else {}
+	camp["staff_total"] = int(camp.get("staff_total", 0)) + staff_wages
 	var cday: Dictionary = camp.get("today", {}) if camp.get("today", {}) is Dictionary else {}
 	cday["staff_wages"] = staff_wages
 	cday["cash"] = _state.money
@@ -956,9 +957,9 @@ func biz_buy_licence(kind: String) -> bool:
 	var b := _biz()
 	if (b["licences"] as Array).has(kind):
 		return true
-	if not spend_money(int(BIZ_RULES.info(kind).get("licence", 0))):
+	if not spend_money(BIZ_RULES.licence_price(kind)):
 		return false
-	note_camp("invest", int(BIZ_RULES.info(kind).get("licence", 0)))
+	note_camp("invest", BIZ_RULES.licence_price(kind))
 	b["licences"].append(kind)
 	# Co-op: the books are the host's (bought on the other machine it was lost with the
 	# host's next books: playtest 21. 10.); the money goes there with the till.
@@ -973,7 +974,9 @@ func biz_grant_licence(kind: String) -> void:
 
 
 func biz_has_licence(kind: String) -> bool:
-	return (_biz()["licences"] as Array).has(kind)
+	var have: Array = _biz()["licences"]
+	# (Boss 98: any licence for the five programs before it counts.)
+	return have.has(kind) or (kind == "boss" and not have.is_empty())
 
 
 ## A first-aid cabinet emptied (scripts/aid_cabinet.gd: the store's, the staffroom's):

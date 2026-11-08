@@ -529,7 +529,7 @@ func _find_work(slug: String, p: Dictionary, act: Dictionary, now: float, streak
 
 func _work(slug: String, p: Dictionary, act: Dictionary, now: float, on: bool) -> void:
 	var what := str(act.get("what", ""))
-	var name := str(p.get("name", ""))
+	var name := tr(str(p.get("name", "")))
 	if what == "desk":
 		if not on:
 			_leave(slug, act)
@@ -583,7 +583,7 @@ func _work(slug: String, p: Dictionary, act: Dictionary, now: float, on: bool) -
 		act["done"] = done
 		if not acc_ok or _room_left(key) <= 0 or not on:
 			if _room_left(key) <= 0:
-				_log("%s made up %s." % [name, _room_label(key)])
+				_log(tr("%s made up %s.") % [name, _room_label(key)])
 			_job_done(slug, p, act, now, on)
 		return
 	var ev := int(act.get("ev", -1))
@@ -593,7 +593,7 @@ func _work(slug: String, p: Dictionary, act: Dictionary, now: float, on: bool) -
 	if now >= float(act.get("t1", now)) or not on:
 		var de = _day_events()
 		if de != null and ev >= 0 and on and de.staff_done(ev, name):
-			_log("%s: %s" % [name, RULES.job_label(what).to_lower()])
+			_log("%s: %s" % [name, tr(RULES.job_label(what)).to_lower()])
 		_job_done(slug, p, act, now, on)
 
 
@@ -635,7 +635,7 @@ func _desk_check_in(name: String) -> void:
 	if bool(res.get("ok", false)):
 		var rooms: Array = []
 		for r in res.get("rooms", []):
-			rooms.append(str((r as Dictionary).get("label", "")))
+			rooms.append(_room_said(str((r as Dictionary).get("label", ""))))
 		# In the book on the desk like anybody you took in yourself.
 		var im = _main().get("_interior_manager") if _main() != null else null
 		var bi = im.get("_building_interior") if im != null else null
@@ -908,7 +908,14 @@ func _room_free(key: String) -> bool:
 
 
 func _room_label(key: String) -> String:
-	return str(GuestManager.room_label(key)) if GuestManager != null and GuestManager.has_method("room_label") else key
+	var label := str(GuestManager.room_label(key)) if GuestManager != null and GuestManager.has_method("room_label") else key
+	return _room_said(label)
+
+
+## "Tent 3" as the player's language writes it.
+func _room_said(label: String) -> String:
+	var parts := label.rsplit(" ", true, 1)
+	return "%s %s" % [tr(parts[0]), parts[1]] if parts.size() == 2 else label
 
 
 ## The door of a lodging (where E aims at its building), world.
