@@ -408,8 +408,123 @@ func boss_pictures() -> void:
 	await get_tree().create_timer(1.5).timeout
 	await _pc_shot(crt, "boss_buy")
 	await _boss_shots(crt)
+	await _boss_clicks(crt.app_of("shops"))
 	print("PROVOZ: done")
 	get_tree().quit()
+
+
+var _boss_fails := 0
+
+
+## A click where the program drew the thing (the way the mouse comes in: its own _gui_input;
+## not the real pointer). False when nothing with that id is on the page.
+func _press(boss, id: String) -> bool:
+	await get_tree().process_frame
+	await RenderingServer.frame_post_draw
+	for h in boss.get("_hits"):
+		if str(h[0]) == id:
+			var ev := InputEventMouseButton.new()
+			ev.button_index = MOUSE_BUTTON_LEFT
+			ev.position = (h[1] as Rect2).get_center()
+			ev.pressed = true
+			boss.call("_gui_input", ev)
+			var up := ev.duplicate()
+			up.pressed = false
+			boss.call("_gui_input", up)
+			boss.queue_redraw()
+			return true
+	print("BOSS CLICK nothing to click: ", id)
+	_boss_fails += 1
+	return false
+
+
+func _boss_is(ok: bool, what: String) -> void:
+	if not ok:
+		_boss_fails += 1
+		print("BOSS CLICK failed: ", what)
+
+
+## Every kind of thing on its pages, clicked, and what it did.
+func _boss_clicks(boss) -> void:
+	var a = CoreRoot.actions
+	var biz: Dictionary = CoreRoot.get_state().biz
+	boss.set("_order", {})
+	for nav in ["order", "people", "books", "overview"]:
+		await _press(boss, "nav:" + nav)
+		_boss_is(str(boss.get("_nav")) == nav, "nav " + nav)
+	await _press(boss, "nav:order")
+	await get_tree().process_frame
+	await RenderingServer.frame_post_draw
+	var plus := ""
+	for h in boss.get("_hits"):
+		if str(h[0]).begins_with("plus:"):
+			plus = str(h[0])
+			break
+	await _press(boss, plus)
+	_boss_is(not (boss.get("_order") as Dictionary).is_empty(), "a pack written in with +")
+	await _press(boss, plus.replace("plus:", "minus:"))
+	_boss_is((boss.get("_order") as Dictionary).is_empty(), "and taken off with -")
+	await _press(boss, "fill")
+	_boss_is(not (boss.get("_order") as Dictionary).is_empty(), "Fill up")
+	var orders_before: int = (biz["orders"] as Array).size()
+	await _press(boss, "send")
+	_boss_is((biz["orders"] as Array).size() > orders_before and (boss.get("_order") as Dictionary).is_empty(), "Send")
+	await _press(boss, "sheet_on")
+	_boss_is(int(boss.get("_sheet_page")) == 1, "the sheet turns")
+	# People.
+	await _press(boss, "nav:people")
+	await _press(boss, "who:hire")
+	_boss_is(str(boss.get("_who")) == "hire", "who is asking")
+	await _press(boss, "cand:0")
+	_boss_is(int(boss.get("_candidate")) == 0, "one of them picked")
+	var places: Array = boss.call("_biz_places")
+	var bowl := ""
+	for k in places:
+		if boss.call("_kind_of", k) == "bowl":
+			bowl = str(k)
+	var before: int = (biz["sites"][bowl]["crew"] as Array).size()
+	await _press(boss, "take:" + bowl)
+	_boss_is((biz["sites"][bowl]["crew"] as Array).size() == before + 1, "taken on at the bowling alley")
+	var hand: Dictionary = biz["sites"][bowl]["crew"][before]
+	var slug := str(hand["slug"])
+	_boss_is(str(boss.get("_who")) == "crew" and str(boss.get("_pick")) == slug, "and picked on the list")
+	await _press(boss, "role:pins")
+	_boss_is(str(biz["sites"][bowl]["crew"][before]["role"]) == "pins", "the post")
+	await _press(boss, "late_shift")
+	_boss_is(str(biz["sites"][bowl]["crew"][before]["shift"]) == "late", "the late shift")
+	var pub := ""
+	for k2 in places:
+		if boss.call("_kind_of", k2) == "pub":
+			pub = str(k2)
+	await _press(boss, "move:" + pub)
+	var moved := false
+	for q in biz["sites"][pub]["crew"]:
+		moved = moved or str(q["slug"]) == slug
+	_boss_is(moved and (biz["sites"][bowl]["crew"] as Array).size() == before, "moved to the pub")
+	# Accounts.
+	await _press(boss, "nav:books")
+	for period in ["today", "yesterday", "all", "week"]:
+		await _press(boss, "period:" + period)
+		_boss_is(str(boss.get("_period")) == period, "period " + period)
+	# A place, through its row on Accounts.
+	await _press(boss, "place:" + bowl)
+	_boss_is(str(boss.get("_nav")) == "place" and str(boss.get("_place")) == bowl, "the bowling alley's page")
+	await _press(boss, "sub:menu")
+	var on_before: bool = BRT.menu_on("bowl", biz["sites"][bowl], "kofola")
+	await _press(boss, "menu:kofola")
+	_boss_is(BRT.menu_on("bowl", biz["sites"][bowl], "kofola") != on_before, "the menu")
+	await _press(boss, "sub:goods")
+	var auto_before := bool(biz["sites"][bowl].get("auto_order", true))
+	await _press(boss, "auto")
+	_boss_is(bool(biz["sites"][bowl].get("auto_order", true)) != auto_before, "Hands order")
+	var late_before := bool(biz["sites"][bowl].get("late", false))
+	await _press(boss, "late")
+	_boss_is(bool(biz["sites"][bowl].get("late", false)) != late_before, "Open late")
+	await _press(boss, "hire_here")
+	_boss_is(str(boss.get("_nav")) == "people" and str(boss.get("_who")) == "hire", "Hire from the place")
+	await _press(boss, "place:staff")
+	_boss_is(str(boss.get("_place")) == "staff", "the staffroom's page")
+	print("BOSS CLICKS: %s" % ("PASS" if _boss_fails == 0 else "%d FAILURE(S)" % _boss_fails))
 
 
 ## Every book and office program after a few real days (--money).
