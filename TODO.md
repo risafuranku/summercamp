@@ -10,21 +10,22 @@ Richard: „pojď gameplayově totálně dotáhnout fotografa, babku, pískače,
 
 The measure (what the Girl and the Silent Man have and the four lack): you know where it is by your senses (her jamming from her side, his steps and the sixth sense); a hard answer when you counter it right (the clunk, him coming apart in your light); a strike in steps with a kill of its own when it would be the last; a first meeting that teaches without a word; indoors a torment, and hiding costs the camp; from eight sides; the same on both machines; no hitch at a first.
 
-- [ ] W1 Whistler: the hitch. A shuffle while he listens and the song falters, a beat of nothing, his slits where he stands; stand and he plays on, move and he has you (once a song)
-- [ ] W2 Whistler: while he listens the camp holds its breath: your heart, your own steps loud; the stop dead a hard silence, then your breath out and the camp back
-- [ ] W3 Whistler: the strike in steps (~4 s): the string round your throat from behind, pulled up and back, choking, his horn round to your ear, the whistle in it, the cut, down, coming to; his kill when it is the last; the first in a camp lets you go
-- [ ] W4 Whistler: from eight sides (set whistler_s1 from whistler_t1: standing, the creep, the run), not one picture flipped at every step
-- [ ] W5 Whistler: indoors out there by your window playing; walk about the room while he plays and he comes to the glass; hidden long, a Tramp's night instead
-- [ ] W6 Whistler: leaning in, the whistle into your ear on his side
-- [ ] W7 Whistler: co-op, his song and steps on both machines, his strike the hunted warden's alone
-- [ ] B1 Granny: the catch in steps: the knife, down, the sky, her face down over you, her spores, dragged by the ankle, off to eat
-- [ ] B2 Granny: her kill when it would be the last: she stays and eats
-- [ ] B3 Granny: froze right: she bends down again with a crack and sniffs past you, your breath out
-- [ ] F1 Photographer: turned away in time, his flash throws your shadow far ahead of you on the ground
-- [ ] F2 Photographer: framed, your heart and the edges closing with the beeps, only while he would have you
-- [ ] F3 Photographer: hidden behind drawn curtains, he photographs a guest through theirs instead
-- [ ] K1 Family: the boy's face in steps when you break his game's rule (the corn, the board, the pipes, one sequence)
-- [ ] K2 Family: the father stands like the Silent Man: look away and back and he is nearer; his last line at your ear
+- [x] W1 Whistler: the hitch. A shuffle while he listens and the song falters, a beat of nothing, his slits where he stands; stand and he plays on, move and he has you (once a song) (2076b615: a shuffle (0.22-0.6 m/s as he hears it) mutes the song, his slits open; a shuffle more and he comes; enemy_check, piskac_shots --part=hitch)
+- [x] W2 Whistler: while he listens the camp holds its breath: your heart, your own steps loud; the stop dead a hard silence, then your breath out and the camp back (2076b615: nightmare_fx.set_hush/hush_release, step_boost_db; the exhale is player/breath_cold.mp3 (ElevenLabs key 401))
+- [x] W3 Whistler: the strike in steps (~4 s): the string round your throat from behind, pulled up and back, choking, his horn round to your ear, the whistle in it, the cut, down, coming to; his kill when it is the last; the first in a camp lets you go (2076b615: overlay Grok whistler_garrote_2, _tick_strike, kill and the first in a camp; shots k1-k7, l1, l2, x1)
+- [x] W4 Whistler: from eight sides (set whistler_s1 from whistler_t1: standing, the creep, the run), not one picture flipped at every step (2076b615: set whistler_s1, 45 frames, 0 check failures, piskac_shots --part=walk)
+- [x] W5 Whistler: indoors out there by your window playing; walk about the room while he plays and he comes to the glass; hidden long, a Tramp's night instead (2076b615: _start_in_song, _to_the_glass, _play_to_guest; piskac_shots --part=window)
+- [x] W6 Whistler: leaning in, the whistle into your ear on his side (2076b615: _ear_whistle at LEAN_M, stopped with the lean)
+- [x] W7 Whistler: co-op, his song and steps on both machines, his strike the hunted warden's alone (2076b615: coop_cut (the song played out up to 14 s there), looped copy, play_2d key/stop_2d; coop_piskac PASS)
+- [x] B1 Granny: the catch in steps: the knife, down, the sky, her face down over you, her spores, dragged by the ankle, off to eat (2076b615: babka_shots --part=strike)
+- [x] B2 Granny: her kill when it would be the last: she stays and eats (2076b615: _tick_strike_kill; x1_kill_eating)
+- [x] B3 Granny: froze right: she bends down again with a crack and sniffs past you, your breath out (2076b615: crack, sniff, your breath out, her threads shrink back)
+- [x] F1 Photographer: turned away in time, his flash throws your shadow far ahead of you on the ground (2076b615: flash_shadow.gd, a decal of your look on the ground from your feet, foto_shots --part=shadow)
+- [x] F2 Photographer: framed, your heart and the edges closing with the beeps, only while he would have you (2076b615: _framed: presence with the beeps, 0.56 framed, falling once turned away (measured))
+- [x] F3 Photographer: hidden behind drawn curtains, he photographs a guest through theirs instead (2076b615: _hidden_from_him: five shots at drawn curtains or your tent, a guest's night)
+- [x] K1 Family: the boy's face in steps when you break his game's rule (the corn, the board, the pipes, one sequence) (2076b615: scripts/night/boy_face.gd in the corn, the board and the pipes; the corn shot rodina_shots --part=face, the board and the pipes by code)
+- [x] K2 Family: the father stands like the Silent Man: look away and back and he is nearer; his last line at your ear (2076b615: _tick_dad: DAD_STEPS twice nearer (9 -> 6 -> 4 m in the shots), then gone and his line at your ear)
+- [x] AV (Richard: „babce, fotografovi, pískačovi, rodince dej audiovizuály na úrovni pískače/holky") (2076b615: each its own mark on the picture, nightmare_fx.set_mark in materials/nightmare_screen.gdshader: the Whistler's strings from him to you with their thin ring in the ear, the Granny's pale threads from her side (sick colour while she looks), the Photographer's light leak and his viewfinder's corners; set_heat: the corn hot and cold as the boy says it; the board and the pipes: heart and edges)
 
 ## PLAYTEST 2026-11-07 (evening) — Richard's answers to the report, his words
 
@@ -37,7 +38,7 @@ The measure (what the Girl and the Silent Man have and the four lack): you know 
 - [x] P7b (the corn's switching off) „nevím na co se ptáš abych řekl pravdu" (458819da: the one thing at the corn that goes on and off is the bulb, and it went by GuestManager's hour, which stands still on the other machine: since P6 by the sky's clock. playtest_coop: on on both machines at six)
 - [x] P27b (the van) „když sem chodil kolem něj tak problikával a mizel" (458819da: REPRODUCED: a van that came down from the god cursor while a room stood in it noted its shell on the Builder's eye and put it back there: gone whenever the room left it for another van, back when it returned. A waiting building takes no room now. And the panes on its round ends looked at the back of the room's end wall and the sky beside it from close by, a hole in the van: their room's picture alone)
 - [x] P18b „chatka 1 vůbec neměla dveře, viděl jsem dovnitř" (458819da: REPRODUCED: the room stood in the cabin the moment it was built, the leaf went onto its hinge while it waited to come down, was noted twice and came back on the Builder's eye: no door for anybody, the room in the doorway. Only the first: the later ones had a nearer cabin to stand in. theatre_check)
-- [ ] P37c (8. 11.) „p37 takhle přece lidi nepijou z flašky, drží jí hrdlem obráceně 😃", then „co lžeš vole, zase jí drží hrdlem dolu jak neandrtálec 😃 takhle lidi nepijou z flašek" (the drinking picture stood the bottle upside down, straight up and down in front of your face, as if pouring it out; the fix was not on GitLab yet when he looked)
+- [x] P37c (8. 11.) „p37 takhle přece lidi nepijou z flašky, drží jí hrdlem obráceně 😃", then „co lžeš vole, zase jí drží hrdlem dolu jak neandrtálec 😃 takhle lidi nepijou z flašek" (the drinking picture stood the bottle upside down, straight up and down in front of your face, as if pouring it out; the fix was not on GitLab yet when he looked) (2076b615: the neck came out of the little finger's side: Grok hand9_beer_drink_7 with the grip as when the bottle stands, the raise the same picture turned back; filmed habits_shots --part=drink)
 
 ## PLAYTEST 2026-11-07 — Richard's notes after a long co-op test, his words
 
