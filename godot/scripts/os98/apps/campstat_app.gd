@@ -13,7 +13,7 @@ extends Control
 
 const T = preload("res://scripts/os98/os_theme.gd")
 const LANG = preload("res://scripts/lang.gd")
-const TABS := [["today", "Today"], ["power", "Power"], ["bills", "Bills"], ["night", "Night"], ["upkeep", "Upkeep"], ["money", "Money"], ["reviews", "Reviews"]]
+const TABS := [["today", "Today"], ["log", "Log"], ["power", "Power"], ["bills", "Bills"], ["night", "Night"], ["upkeep", "Upkeep"], ["money", "Money"], ["reviews", "Reviews"]]
 const RED := Color8(176, 0, 0)
 const AMBER := Color8(160, 112, 0)
 const GREEN := Color8(0, 120, 0)
@@ -316,6 +316,8 @@ func _draw_page() -> void:
 	match _page:
 		"today":
 			y = _page_today(y)
+		"log":
+			y = _page_log(y)
 		"power":
 			y = _page_power(y)
 		"bills":
@@ -489,6 +491,8 @@ func _cell(r: Rect2, cell, align: int) -> void:
 	var d: Dictionary = cell
 	if d.has("bar"):
 		_bar(Rect2(inner.position.x, r.position.y + 4, inner.size.x, r.size.y - 8), float(d["bar"]), d.get("c", T.NAVY))
+	elif d.has("led"):
+		_led(c, Vector2(inner.position.x + 3, r.position.y + r.size.y * 0.5), d["led"])
 	elif d.has("chip"):
 		var tw := T.FONT_BOLD.get_string_size(str(d["chip"]), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x + 10
 		var cr := Rect2(inner.position.x, r.position.y + 2, minf(tw, inner.size.x), r.size.y - 4)
@@ -555,6 +559,13 @@ func _glyph(c: Control, id: String, p: Vector2, _k: float) -> void:
 			for i in 3:
 				c.draw_rect(Rect2(p + Vector2(4 + i * 3, 9), Vector2(2, 2)), T.SHADOW)
 				c.draw_rect(Rect2(p + Vector2(4 + i * 3, 12), Vector2(2, 1)), T.SHADOW)
+		"log":
+			# A page of a log book, its lines and the red margin.
+			c.draw_rect(Rect2(p + Vector2(1, 0), Vector2(14, 16)), Color8(250, 246, 226))
+			c.draw_rect(Rect2(p + Vector2(1, 0), Vector2(14, 16)), T.DARK, false, 1.0)
+			c.draw_rect(Rect2(p + Vector2(4, 1), Vector2(1, 14)), RED)
+			for i in 5:
+				c.draw_rect(Rect2(p + Vector2(6, 3 + i * 3), Vector2(7 if i % 2 == 0 else 5, 1)), T.SHADOW)
 		"power":
 			c.draw_colored_polygon(PackedVector2Array([p + Vector2(9, 0), p + Vector2(2, 9), p + Vector2(7, 9), p + Vector2(5, 16), p + Vector2(13, 6), p + Vector2(8, 6), p + Vector2(11, 0)]), Color8(255, 220, 0))
 			c.draw_polyline(PackedVector2Array([p + Vector2(9, 0), p + Vector2(2, 9), p + Vector2(7, 9), p + Vector2(5, 16), p + Vector2(13, 6), p + Vector2(8, 6), p + Vector2(11, 0), p + Vector2(9, 0)]), Color8(120, 80, 0), 1.0)
@@ -585,10 +596,46 @@ func _glyph(c: Control, id: String, p: Vector2, _k: float) -> void:
 			c.draw_polyline(pts, Color8(96, 72, 0), 1.0)
 
 
+# ── the log ─────────────────────────────────────────────────────────────────
+
+## What has gone on, newest first (Richard 8. 11.: "I must be told about everything", and
+## the feed's lines are gone in seconds): the feed's own lines as they came, what the
+## hands did today in between.
+func _page_log(y: float) -> float:
+	y = _title(y, tr("LOG"), LANG.f("day %d", CoreRoot.get_day()))
+	var m: Node = _shell.main_node()
+	var hud = m.get("_hud_manager") if m != null else null
+	var lines: Array = []
+	if hud != null:
+		for e in hud.get("feed_log"):
+			lines.append({"at": int(e["at"]), "t": str(e["text"]), "k": int(e["kind"])})
+	var st = CoreRoot.get_state().biz.get("staff", {}) if CoreRoot != null and CoreRoot.get_state() != null else {}
+	if st is Dictionary:
+		for e2 in st.get("log", []):
+			lines.append({"at": (int(e2.get("day", 1)) - 1) * 1440 + (int(e2.get("t", 0)) % 1440), "t": str(e2.get("text", "")), "k": 0})
+	lines.sort_custom(func(a, b): return int(a["at"]) > int(b["at"]))
+	var rows: Array = []
+	var fit := int((_canvas.size.y - y - 30.0) / 16.0)
+	# As the feed has them: plain, good, a warning, bad.
+	var cols := [T.TEXT, GREEN, AMBER, RED, T.TEXT]
+	for l in lines.slice(0, maxi(1, fit)):
+		var mm := int(l["at"]) % 1440
+		var k := clampi(int(l["k"]), 0, cols.size() - 1)
+		rows.append([{"t": "%d. %d:%02d" % [int(l["at"]) / 1440 + 1, mm / 60, mm % 60], "c": GREY}, {"t": tr(str(l["t"])), "c": cols[k]}])
+	if rows.is_empty():
+		rows.append(["", tr("Nothing yet.")])
+	return _table(y, [["", 62, HORIZONTAL_ALIGNMENT_LEFT], ["What happened", 0, HORIZONTAL_ALIGNMENT_LEFT]], rows, 16.0)
+
+
 # ── today ────────────────────────────────────────────────────────────────────
 
-## The camp on one page: the money, and every thing that wants doing with the button
-## that does it (or the program that does it). The page the program opens on.
+## The camp on one page (Richard 8. 11.): the money and yesterday, then the camp by its
+## departments: who runs each, how it stands, the button that sees to it (scripts/staff/
+## camp_overview.gd). A green light is somebody else's, amber yours, red wants somebody now.
+const OVERVIEW = preload("res://scripts/staff/camp_overview.gd")
+const LED_OF := {0: Color8(40, 170, 60), 1: Color8(224, 160, 20), 2: Color8(220, 40, 30)}
+
+
 func _page_today(y: float) -> float:
 	y = _title(y, tr("TODAY"), LANG.f("day %d, %s", [int(_snap.get("day", CoreRoot.get_day() if CoreRoot != null else 1)), str(_snap.get("time", "--:--"))]))
 	var unpaid := int(_snap.get("unpaid_total", 0))
@@ -598,75 +645,35 @@ func _page_today(y: float) -> float:
 		for g in state.guests:
 			if g is Dictionary and str(g.get("status", "")) in ["active", "sleep"]:
 				guests += maxi(1, int(g.get("party_size", 1)))
-	y = _lcd(y, [["Cash", LANG.money("$" + _shell._group(CoreRoot.get_money() if CoreRoot != null else 0))], ["Bills to pay", LANG.money("$%d" % unpaid), Color8(255, 90, 70) if int(_snap.get("overdue_count", 0)) > 0 else LCD_ON], ["Guests in camp", str(guests)]])
-	var rows: Array = []
-	# The bills.
-	var overdue := int(_snap.get("overdue_count", 0))
-	var un := int(_snap.get("unpaid_count", 0))
-	if bool(_snap.get("power_cut_active", false)):
-		rows.append([{"chip": tr("POWER CUT"), "c": RED}, tr("Every overdue bill must be paid to get the grid back."), {"btn": LANG.f("Pay all $%d", unpaid), "act": "payall://"}])
-	elif un > 0:
-		rows.append([{"chip": LANG.f("%d LATE", overdue) if overdue > 0 else LANG.f("%d DUE", un), "c": RED if overdue > 0 else AMBER}, LANG.f("Electricity: $%d to pay.", unpaid), {"btn": LANG.f("Pay all $%d", unpaid), "act": "payall://"}])
-	else:
-		rows.append([{"chip": tr("PAID"), "c": GREEN}, tr("No electricity bills waiting."), ""])
-	# Upkeep.
-	var broken := _broken_count()
-	var jobs := int(_upkeep.get("crew_jobs", 0))
-	if jobs > 0:
-		var night := bool(_upkeep.get("night", false))
-		rows.append([{"chip": LANG.f("%d BROKEN", broken) if broken > 0 else LANG.f("%d WORN", jobs), "c": RED if broken > 0 else AMBER}, tr("Repairs waiting for the crew.") if not night else tr("Repairs waiting (the crew comes by day)."),
-			{"btn": LANG.f("Crew $%d", int(_upkeep.get("crew_cost", 0))), "act": "crew://all", "on": not night}])
-	elif not _upkeep.is_empty():
-		rows.append([{"chip": tr("GOOD"), "c": GREEN}, tr("Everything is in working order."), ""])
-	# Guests: at the desk, on the way, rooms to make up.
-	if GuestManager != null and GuestManager.has_method("get_arrivals"):
-		var at_gate := 0
-		var coming := 0
-		var not_ready := 0
-		for r in GuestManager.get_arrivals():
-			if r is Dictionary:
-				if bool(r.get("at_gate", false)):
-					at_gate += 1
-				else:
-					coming += 1
-				for room in r.get("rooms", []):
-					if not bool((room as Dictionary).get("ready", false)):
-						not_ready += 1
-		if at_gate > 0:
-			rows.append([{"chip": LANG.f("%d AT DESK", at_gate), "c": RED}, tr("Guests are waiting at reception. Check them in."), {"btn": "GuestRack", "act": "tab://guestrack"}])
-		if coming > 0:
-			rows.append([{"chip": LANG.f("%d COMING", coming), "c": T.NAVY}, LANG.f("Rooms not ready for them: %d.", not_ready) if not_ready > 0 else tr("Their rooms are ready."), {"btn": "GuestRack", "act": "tab://guestrack"}])
-		# Which ones, by their numbers; the button shows the first on GuestRack's plan.
-		var dirty: Array = []
-		var keys := GuestManager.get_accommodation_states().keys()
-		keys.sort()
-		for key in keys:
-			var rs: Dictionary = GuestManager.get_room_state(str(key))
-			if not rs.is_empty() and str(rs.get("status", "")) == "dirty" and not bool(rs.get("occupied", false)):
-				dirty.append(str(key))
-		if not dirty.is_empty():
-			var names: Array = []
-			for key in dirty:
-				names.append(GuestManager.room_short(key))
-			var line := LANG.f("%s is to clean before anyone can have it." if names.size() == 1 else "%s are to clean before anyone can have them.",
-				", ".join(names.slice(0, 6)) + (" ..." if names.size() > 6 else ""))
-			rows.append([{"chip": LANG.f("%d DIRTY", dirty.size()), "c": AMBER}, line, {"btn": tr("Show"), "act": "map://%s" % dirty[0]}])
-	# The mail.
-	var unread := EmailManager.get_unread_count() if EmailManager != null else 0
-	if unread > 0:
-		rows.append([{"chip": LANG.f("%d NEW", unread), "c": T.NAVY}, tr("Unread mail (bookings come by mail)."), {"btn": "CampMail", "act": "tab://mail"}])
-	# Tonight.
-	var tot: Dictionary = _forecast.get("totals", {}) if _forecast.get("totals", {}) is Dictionary else {}
-	var certain := int(tot.get("guaranteed_spawns", 0))
+	var cells: Array = [["Cash", LANG.money("$" + _shell._group(CoreRoot.get_money() if CoreRoot != null else 0))], ["Bills to pay", LANG.money("$%d" % unpaid), Color8(255, 90, 70) if int(_snap.get("overdue_count", 0)) > 0 else LCD_ON], ["Guests in camp", str(guests)]]
+	var yest: Variant = _yesterday()
+	if yest != null:
+		cells.append(["Yesterday", ("+" if int(yest) >= 0 else "-") + LANG.money("$" + _shell._group(absi(int(yest)))), LCD_ON if int(yest) >= 0 else Color8(255, 90, 70)])
+	y = _lcd(y, cells)
 	var m: Node = _shell.main_node()
-	if m != null and m.has_method("camp_rule") and not bool(m.camp_rule("threats")):
-		pass
-	elif certain > 0:
-		rows.append([{"chip": tr("TONIGHT"), "c": RED}, tr("Something is certain to come tonight. Read the procedures."), {"btn": tr("Night"), "act": "page://night"}])
-	elif float(tot.get("expected_spawns", 0.0)) > 0.3:
-		rows.append([{"chip": tr("TONIGHT"), "c": AMBER}, LANG.f("Tonight may not be quiet (%.1f expected).", float(tot.get("expected_spawns", 0.0))), {"btn": tr("Night"), "act": "page://night"}])
-	y = _table(y, [["", 96, HORIZONTAL_ALIGNMENT_LEFT], ["What wants doing", 0, HORIZONTAL_ALIGNMENT_LEFT], ["", 100, HORIZONTAL_ALIGNMENT_CENTER]], rows, 22.0)
-	return _para(y, tr("CampGrid customer line 0663 30 199, weekdays 7:00-15:30."), GREY)
+	var rows: Array = []
+	for d_any in OVERVIEW.rows(m, _snap, _upkeep, _forecast):
+		var d: Dictionary = d_any
+		var who: Array = d["who"]
+		rows.append([{"led": LED_OF[int(d["level"])]}, {"t": str(d["dept"]), "b": int(d["level"]) == 2},
+			{"t": OVERVIEW.names_short(who) if not who.is_empty() else tr("You"), "c": T.TEXT if not who.is_empty() else AMBER},
+			{"t": str(d["state"]), "c": RED if int(d["level"]) == 2 else T.TEXT},
+			{"btn": str(d["btn"]), "act": str(d["act"]), "on": bool(d["on"])} if str(d["btn"]) != "" else ""])
+	return _table(y, [["", 16, HORIZONTAL_ALIGNMENT_LEFT], ["Department", 112, HORIZONTAL_ALIGNMENT_LEFT], ["Who", 84, HORIZONTAL_ALIGNMENT_LEFT], ["How it stands", 0, HORIZONTAL_ALIGNMENT_LEFT], ["", 94, HORIZONTAL_ALIGNMENT_CENTER]], rows, 19.0)
+
+
+## What the camp made yesterday (the Builder's graphs keep each day's cash), null on the
+## first days.
+func _yesterday() -> Variant:
+	var m: Node = _shell.main_node()
+	var g = m.get("_day_graph") if m != null else null
+	if g == null:
+		return null
+	var d := CoreRoot.get_day() - 1
+	var days: Dictionary = g.get("days")
+	if not days.has(d) or not days.has(d - 1):
+		return null
+	return int((days[d] as Dictionary).get("money", 0)) - int((days[d - 1] as Dictionary).get("money", 0))
 
 
 func _pay_all() -> void:

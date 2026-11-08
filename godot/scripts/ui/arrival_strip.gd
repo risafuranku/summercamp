@@ -37,6 +37,8 @@ const POST_VAN_TEX := "res://assets/textury/ui/post_van.png"
 const POST_PARCEL_TEX := "res://assets/textury/ui/post_parcel.png"
 const POST_YELLOW := Color(0.98, 0.78, 0.12)
 var post: Dictionary = {}
+## How far the column stands higher than it would (hud_manager._stack_plates).
+var shift_up := 0.0
 ## The wholesaler's plate (scripts/day_events.gd van_hud_row: the user 4. 11., "the same as
 ## the post"): its white Avia on the way, the delivery note while its driver waits at the
 ## counter; the stripe the van's white.
@@ -119,7 +121,7 @@ func _draw() -> void:
 	var n := mini(_rows.size(), MAX_ROWS - extra)
 	var step := (PLATE.y + GAP) * u
 	var x := floorf(size.x - (PLATE.x + 4.0) * u)
-	var y0 := floorf(size.y * 0.42 - step * float(n + extra) * 0.5)
+	var y0 := floorf(size.y * 0.42 - step * float(n + extra) * 0.5 - shift_up)
 	var f: Font = font if font != null else get_theme_default_font()
 	var fs := int(8.0 * u)
 	for s in services:

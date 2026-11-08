@@ -22,7 +22,9 @@ KINDS = ["litter", "raccoons", "delivery", "lost_kid", "noise", "tree", "someone
          # The housework (playtest 25. 10.): the showers, a lodging to clean, one to make up.
          "shower", "clean", "bed",
          # A business's goods running out (the user 5. 11.).
-         "crate"]
+         "crate",
+         # The office (8. 11.): booking letters waiting, a bill, the wages owed.
+         "mail", "bill", "wages"]
 DEST = os.path.join(process.GODOT, "assets", "textury", "ui")
 
 

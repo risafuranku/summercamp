@@ -203,6 +203,8 @@ func _click(id: String) -> void:
 			queue_redraw())
 		return
 	match id:
+		"auto":
+			CoreRoot.actions.biz_set_auto(_site, not bool(BUSINESS.site(_site).get("auto_order", true)))
 		"clear":
 			_order.clear()
 		"send":
@@ -546,8 +548,15 @@ func _draw_order(m: Rect2, site: Dictionary) -> void:
 	_t(foot.position + Vector2(12, 22), ", ".join(parts) if not parts.is_empty() else tr("Nothing yet"), T.SHADOW)
 	var fee := _van_fee()
 	_t(foot.position + Vector2(12, 38), LANG.f("One van $%d   Total $%d", [fee if cost > 0 else 0, cost]), RED if cost > CoreRoot.get_money() else T.TEXT, true)
-	_button(Rect2(foot.end.x - 186, foot.position.y + 14, 84, 24), tr("Clear"), "clear", cost > 0)
-	_button(Rect2(foot.end.x - 96, foot.position.y + 14, 88, 24), tr("Send order"), "send", cost > fee)
+	var box := Rect2(foot.end.x - 186, foot.position.y + 2, 13, 13)
+	var hands_order := bool(site.get("auto_order", true))
+	draw_style_box(T.box("field", T.WHITE, Vector4.ZERO), box)
+	if hands_order:
+		_t(box.position + Vector2(2, 11), "x", GREEN, true)
+	_t(Vector2(box.end.x + 5, box.position.y + 11), tr("Hands order"), T.TEXT)
+	_hits.append(["auto", Rect2(box.position, Vector2(170, 13))])
+	_button(Rect2(foot.end.x - 186, foot.position.y + 18, 84, 24), tr("Clear"), "clear", cost > 0)
+	_button(Rect2(foot.end.x - 96, foot.position.y + 18, 88, 24), tr("Send order"), "send", cost > fee)
 
 
 ## An ID photo in its sunken frame.

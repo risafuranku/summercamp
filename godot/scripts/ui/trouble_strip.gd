@@ -41,7 +41,10 @@ const STOCK_FILL := Color(0.24, 0.15, 0.07, 0.92)
 const STOCK_LIGHT := Color(0.74, 0.52, 0.28, 0.95)
 const STOCK_WIDER := 46.0
 const STOCK_CRATE := "crate"
-const CAT := {"day": AMBER, "night": RED, "biz": GREEN, "work": WORK, "stock": STOCK}
+## The office's (letters, the electricity) and the people's (only to know about).
+const DESK := Color(0.86, 0.8, 0.62)
+const PEOPLE := Color(0.82, 0.58, 0.86)
+const CAT := {"day": AMBER, "night": RED, "biz": GREEN, "work": WORK, "stock": STOCK, "desk": DESK, "people": PEOPLE}
 const TEX := "res://assets/textury/ui/trouble_%s.png"
 const NEW_SEC := 3.0
 const HAND_FACE := preload("res://scripts/ui/hand_face.gd")
@@ -53,6 +56,9 @@ var font: Font
 var ui_scale := 2
 ## How many arrival plates stand above (the stack goes on under them).
 var arrivals := 0
+## How far the whole column stands higher than it would (hud_manager._stack_plates: over the
+## status bar it does not go, and over the arrivals' plates neither).
+var shift_up := 0.0
 var _rows: Array = []
 var _seen: Dictionary = {}    # row id -> when it first showed (s)
 var _icons: Dictionary = {}
@@ -101,8 +107,7 @@ func _layout() -> Dictionary:
 	var x := floorf(size.x - (PLATE.x + 4.0) * u)
 	# Under the arrivals' plates (they stand round 42 % of the height), or a little higher.
 	var y0 := floorf(size.y * 0.42 + step * float(arrivals) * 0.5 + 6.0 * u) if arrivals > 0 else floorf(size.y * 0.3)
-	y0 = minf(y0, size.y - step * float(n) - 70.0 * u)
-	return {"u": u, "n": n, "step": step, "x": x, "y0": y0}
+	return {"u": u, "n": n, "step": step, "x": x, "y0": floorf(y0 - shift_up)}
 
 
 ## The screen the plates take (this control's own space; empty with none), the "+N" under
@@ -158,7 +163,9 @@ func _plate(row: Dictionary, at: Vector2, u: float, f: Font, fs: int) -> void:
 	draw_rect(Rect2(box.position + Vector2(u, u), Vector2(u, box.size.y - 2.0 * u)), Color(cat_col, 0.45) if who != "" else cat_col)
 	# The picture nods now and then (a pixel), so the eye goes to it; seen to, it keeps still.
 	var nod := -1.0 if who == "" and int(_t * 2.0 + float(hash(str(row.get("id", ""))) % 7)) % 6 == 0 else 0.0
-	var face: Texture2D = HAND_FACE.of(who) if who != "" and who != "@" else null
+	# (A face on its own: somebody to know about, at full strength; "~" nobody yet: dim.)
+	var face_of := str(row.get("face", who if who != "@" and who != "~" else ""))
+	var face: Texture2D = HAND_FACE.of(face_of) if face_of != "" else null
 	if face != null:
 		draw_texture_rect(face, Rect2(at + (ICON_AT + Vector2(1, 0)) * u, Vector2(face.get_size()) * u), false)
 	else:

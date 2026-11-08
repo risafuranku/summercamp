@@ -48,6 +48,7 @@ const CIRCUIT_NAMES := ["LAMPS NORTH", "LAMPS SOUTH", "OFFICE", "FOOD", "WASH BL
 const FIRST_HOUR := 21.0
 const LAST_HOUR := 28.5  # 04:30 next morning
 const OMENS = preload("res://scripts/omens.gd")
+const STAFF_RULES = preload("res://core/systems/staff_rules.gd")
 
 var breaker_tripped := false
 ## Circuit left off after the breaker was fixed (0 lamps north, 1 lamps south, ...), -1.
@@ -184,8 +185,16 @@ func hud_rows() -> Array:
 	var rows: Array = []
 	for job in _jobs:
 		if str(job["state"]) == "open":
-			rows.append({"title": job["title"], "where": job["where"]})
+			rows.append({"title": job["title"], "where": tr("Somebody will see to it") if _seen_to(job) else job["where"]})
 	return rows
+
+
+## What a hand can put right, in the morning with somebody set to repairs on shift.
+func _seen_to(job: Dictionary) -> bool:
+	if not (str(job.get("kind", "")) in ["lamp", "toilet", "frozen", "breaker"]) or _last_minute < 0:
+		return false
+	var st = CoreRoot.get_state().biz.get("staff", {}) if CoreRoot != null and CoreRoot.get_state() != null else {}
+	return st is Dictionary and STAFF_RULES.covered(st, "repairs", float(posmod(_last_minute, 1440)) / 60.0, CoreRoot.get_day())
 
 
 ## Where the nearest open job is (for the waypoint), or Vector3.INF.
@@ -193,7 +202,7 @@ func waypoint(from: Vector3) -> Dictionary:
 	var best := {}
 	var best_d := INF
 	for job in _jobs:
-		if str(job["state"]) != "open":
+		if str(job["state"]) != "open" or _seen_to(job):
 			continue
 		var p := _world_pos(job)
 		if p == Vector3.INF:

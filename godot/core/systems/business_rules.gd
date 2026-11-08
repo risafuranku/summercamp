@@ -254,6 +254,36 @@ static func is_low(kind: String, good: String, n: int) -> bool:
 	return n < int((goods(kind).get(good, {}) as Dictionary).get("pack", 1)) / 2
 
 
+## A good this place keeps on its shelves (the ready-made extras nobody has to: none on the
+## shelf to start with).
+static func kept(kind: String, good: String) -> bool:
+	return int((goods(kind).get(good, {}) as Dictionary).get("start", 0)) > 0
+
+
+## The hands see to their own shelves (Richard 8. 11.: "the whole camp should run by
+## itself"): anybody on a place's books, the box on its ORDER page left ticked.
+static func orders_itself(site: Dictionary) -> bool:
+	return bool(site.get("auto_order", true)) and not (site.get("crew", []) as Array).is_empty()
+
+
+## What goes on the next van then: every good kept here running low and not on its way
+## ({good: units coming}): {good: packs}, two of what is gone altogether, never more than
+## the shelf holds.
+static func restock(kind: String, stock: Dictionary, coming: Dictionary) -> Dictionary:
+	var out := {}
+	var gd := goods(kind)
+	for g in gd:
+		if not kept(kind, g) or int(coming.get(g, 0)) > 0:
+			continue
+		var n := int(stock.get(g, 0))
+		if not is_low(kind, g, n):
+			continue
+		var d: Dictionary = gd[g]
+		var pack := maxi(1, int(d.get("pack", 1)))
+		out[g] = mini(2 if n <= 0 else 1, maxi(1, (int(d.get("cap", pack * 3)) - n) / pack))
+	return out
+
+
 ## The lots of a good, oldest first, with `n` taken off the oldest: returns the lots left.
 static func lots_take(lots: Array, n: int) -> Array:
 	var out: Array = []

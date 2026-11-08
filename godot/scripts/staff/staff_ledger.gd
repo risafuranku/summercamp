@@ -128,7 +128,12 @@ func _rbutton(i: int) -> Rect2:
 
 
 func _job_rect(i: int) -> Rect2:
-	return Rect2(RIGHT.position.x, 84 + i * 13 - 9, RIGHT.size.x, 12)
+	return Rect2(RIGHT.position.x, 62 + i * 11, RIGHT.size.x, 11)
+
+
+## Let go: on the left page under the names (the jobs fill the right one since 8. 11.).
+func _fire_rect() -> Rect2:
+	return Rect2(LEFT.end.x - 66, 146, 66, 14)
 
 
 func _card_rect(id: String) -> Rect2:
@@ -147,7 +152,7 @@ func _hotspots() -> Array:
 			if _picked != "" and not _who(_picked).is_empty():
 				for i in RULES.JOBS.size():
 					out.append({"id": "job:" + str(RULES.JOBS[i][0]), "rect": _job_rect(i)})
-				out.append({"id": "fire", "rect": _rbutton(0)})
+				out.append({"id": "fire", "rect": _fire_rect()})
 		"hire":
 			if not _applicants().is_empty():
 				out.append({"id": "next", "rect": _rbutton(1)})
@@ -176,8 +181,7 @@ func _clicked(id: String) -> void:
 		var p := _who(_picked)
 		if p.is_empty():
 			return
-		var jobs: Dictionary = p.get("jobs", RULES.default_jobs())
-		var on := not bool(jobs.get(job, true))
+		var on := not RULES.does(p, job)
 		CoreRoot.actions.staff_set_job(_picked, job, on)
 		play(SFX_PAGE, -14.0)
 		return
@@ -369,13 +373,12 @@ func _paint_staff(c: Control) -> void:
 		_text(c, RIGHT.position + Vector2(0, 21), tr("Pick one."), PENCIL)
 		return
 	_text(c, RIGHT.position + Vector2(0, 8), str(who.get("name", "")).replace("Mrs ", "Mrs."), INK)
-	_text(c, RIGHT.position + Vector2(0, 19), LANG.f("$%d a day", RULES.wage_of(who)), PENCIL)
-	var jobs: Dictionary = who.get("jobs", RULES.default_jobs())
-	_text(c, RIGHT.position + Vector2(0, 30), tr("Sees to:"), PENCIL)
+	_right(c, RIGHT.end.x, RIGHT.position.y + 8, LANG.f("$%d a day", RULES.wage_of(who)), PENCIL)
+	_text(c, RIGHT.position + Vector2(0, 19), tr("Sees to:"), PENCIL)
 	for i in RULES.JOBS.size():
 		var r := _job_rect(i)
 		var id := str(RULES.JOBS[i][0])
-		var on := bool(jobs.get(id, true))
+		var on := RULES.does(who, id)
 		if hovered() == "job:" + id:
 			c.draw_rect(r, Color(1, 0.9, 0.5, 0.18))
 		var box := Rect2(r.position + Vector2(0, 2), Vector2(9, 9))
@@ -383,7 +386,7 @@ func _paint_staff(c: Control) -> void:
 		if on:
 			_tick_mark(c, box, GREEN)
 		_text(c, Vector2(r.position.x + 12, r.position.y + 9), tr(str(RULES.JOBS[i][1])), INK if on else PENCIL)
-	_pencil_button(c, _rbutton(0), tr("LET GO"), RED, "fire")
+	_pencil_button(c, _fire_rect(), tr("LET GO"), RED, "fire")
 
 
 func _paint_hire(c: Control) -> void:

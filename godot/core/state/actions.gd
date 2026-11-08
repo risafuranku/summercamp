@@ -610,6 +610,16 @@ func biz_set_late(key: String, on: bool) -> void:
 	_biz_tell("late", [key, on])
 
 
+## The books' ORDER page: whether the hands order what runs low by themselves.
+func biz_set_auto(key: String, on: bool) -> void:
+	var site: Dictionary = (_biz()["sites"] as Dictionary).get(key, {})
+	if site.is_empty():
+		return
+	site["auto_order"] = on
+	EventBus.state_changed.emit({"biz": "auto"})
+	_biz_tell("auto", [key, on])
+
+
 ## The books' MENU page: `item` on or off the menu (business_rules.MENU; the place's own
 ## item never goes off). The guests order only what is on.
 func biz_set_menu(key: String, item: String, on: bool) -> void:
@@ -697,6 +707,13 @@ func biz_short(key: String, money: int, good := "", n := 0) -> void:
 	site["today"]["short"] = int(site["today"].get("short", 0)) + money + n
 
 
+## Somebody who walked out over their pay, for the plate on the right: today only.
+func _note_gone(p: Dictionary) -> void:
+	var gone: Array = _biz().get("gone", [])
+	gone.append({"slug": str(p.get("slug", "")), "name": str(p.get("name", "")), "day": int(_state.day)})
+	_biz()["gone"] = gone.slice(maxi(0, gone.size() - 6))
+
+
 ## The day ends: the hands who came in are paid for their shift (a late one costs more);
 ## whoever the camp cannot pay is owed it, and after two days unpaid they leave. Today's
 ## books become yesterday's. Returns {wages, left: [names]}.
@@ -723,6 +740,7 @@ func biz_close_day(day := -1) -> Dictionary:
 				p["unpaid"] = int(p.get("unpaid", 0)) + 1
 				if int(p["unpaid"]) >= 2:
 					left.append(str(p.get("name", "A hand")))
+					_note_gone(p)
 					crew.remove_at(i)
 		# The last week, for the office programs' charts.
 		var history: Array = site.get("history", [])
@@ -750,6 +768,7 @@ func biz_close_day(day := -1) -> Dictionary:
 			p["unpaid"] = int(p.get("unpaid", 0)) + 1
 			if int(p["unpaid"]) >= 2:
 				left.append(str(p.get("name", "A hand")))
+				_note_gone(p)
 				(st["act"] as Dictionary).erase(str(p.get("slug", "")))
 				screw.remove_at(i)
 	st["done_y"] = int(st.get("done_n", 0))
@@ -968,6 +987,11 @@ func get_demolish_summary(rect: Rect2i) -> Dictionary:
 ## Services (or, if broken, repairs) the building at `coord`, paying `cost`. Restores
 ## condition to 100% on every cell of the building and clears its failure.
 ## Returns false, changing nothing, if there is no building or not enough money.
+## Set round a call by the staffroom's hands: it goes on without you, no sound of a job
+## done at your ear, no line (maintenance_controller).
+var quiet_service := false
+
+
 func service_building(coord: Vector2i, cost: int) -> bool:
 	if not _state.grid.cells.has(coord):
 		return false

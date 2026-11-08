@@ -1830,6 +1830,47 @@ see the others sitting at the laptop".
   **Personal 98** (`os98/apps/staff_app.gd`): SoftSklad's fifth program, licensed at
   softsklad.cz, the same from the PC or the laptop with 98 check boxes. Wages are paid with
   the businesses' at the day's close; two days unpaid and they leave.
+- **The camp running without you** (Richard 8. 11.: from being there alone, keys at the
+  desk, toilets, tents and the corn, through cabins, hands at the stand, the bistro, the
+  pub and the staffroom to "when I have plenty of staff the whole camp should run by
+  itself and I only help out when needed"; `tools/provoz_check` builds it all and leaves
+  it alone). Each piece of the camp passes from you to a hand:
+  **The reception** (job Reception, one hand): behind the counter by the key board all day
+  (`desk_room.HAND_SPOT`, seen through the panes too; a step back while you are at the desk
+  yourself; the guest does not ring at them), takes in whoever waits with a lodging made
+  up (the others wait, not the whole line behind them), writes them in the book on the
+  desk (`checkin_desk.add_by_hand`), pays the electricity, and with the job Bookings
+  answers a booking letter every 25 minutes, oldest first (one no bed could be found for
+  in four hours is declined). Bookings off, the letters wait for you: who comes is what
+  comes for them at night. **The lodgings** the hands see to include the ones booked by a
+  party still on the road (they walked past those), and a lodging somebody stands at the
+  desk for or is on the road to goes before anything. **Repairs** (job): a lamp out or burning
+  low, a toilet, a shower or the pump out of order, the main at the generator in the
+  morning (the fault in its circuit stays), at what it costs you; not the sewer.
+  **Guests** (job): the lost boy and the noise are yours till the half of their time, then a
+  hand goes. **Goods** (`business_rules.orders_itself/restock`, `business_runtime._watch_goods`,
+  every half hour of the clock): anybody on a place's books sees to its shelves, one order,
+  one van, never the last of the till; the tick Hands order on the place's ORDER page and
+  in SoftSklad. Up to three jobs in a row before going back for a sit-down; past eight
+  with somebody still at the desk the one there and the one at their lodging carry on (an
+  hour and a quarter at most). Hands do it without a sound at your ear
+  (`actions.quiet_service`).
+- **Being told** (the same day: "I must be told about everything, by notifications, or the
+  more complex things by visiting the businesses or on the PC; think of something clever
+  and simple"). One rule: **a plate on the right is what wants you.** What a hand has shows
+  their face, dimmed, after the free ones; what a hand will get to dimmed with no face
+  ("~": `staff_rules.covered`; Richard's P30); what is only to know about has its person's face
+  at full strength (Away, Owed, Resigned). New: booking letters nobody answers (with how
+  many), the electricity coming due, a lamp gone out by itself. A lodging somebody is coming
+  for goes to the top with their time under its word. No pager and no mark on the
+  screen for what a hand has or will get to. **The PC**: CampStat's first page is the camp by
+  its departments (`scripts/staff/camp_overview.gd`): who runs each (a name, or You), how it
+  stands, the button that sees to it, a light (green somebody else's, amber yours, red wants
+  somebody now): a full crew is a green column; and yesterday's takings. Its Log page has what
+  has gone on, newest first (the feed's lines as they came, the hands' work): they
+  are gone from the screen in seconds. The morning's first line is yesterday in numbers.
+  **A place you walk into** says on the feed what it sold today and what is running out; the
+  rest is in its books.
 - **The post on screen**: the second monitor's order (reception/post_delivery.gd) is a
   plate at the right edge with the arrivals (`arrival_strip.gd`): the yellow post van
   while it comes (the bar filling), the parcel while the postman waits at the desk (his

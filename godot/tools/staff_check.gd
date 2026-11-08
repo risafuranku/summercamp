@@ -151,6 +151,42 @@ func _ready() -> void:
 	var clean0 := int(k.plates("4:4")["clean"])
 	_expect(k._crew_sink("4:4", false) and int(k.plates("4:4")["clean"]) == clean0 + 1, "the sink washes a plate")
 
+	# The camp running without you (DESIGN §7c): what goes on the van by itself.
+	var gd: Dictionary = RULES.goods("pub")
+	var stock := {}
+	for g in gd:
+		stock[g] = int((gd[g] as Dictionary).get("cap", 100))
+	_expect(RULES.restock("pub", stock, {}).is_empty(), "full shelves: nothing ordered")
+	stock["beer"] = 10
+	_expect(int(RULES.restock("pub", stock, {}).get("beer", 0)) == 1, "running low: one pack")
+	stock["beer"] = 0
+	_expect(int(RULES.restock("pub", stock, {}).get("beer", 0)) == 2, "gone altogether: two packs")
+	_expect(not RULES.restock("pub", stock, {"beer": 50}).has("beer"), "on its way: not again")
+	var rd: Dictionary = RULES.goods("rest")
+	var rstock := {}
+	for g2 in rd:
+		rstock[g2] = 0
+	var rw: Dictionary = RULES.restock("rest", rstock, {})
+	_expect(not rw.has("chips_cut") and not rw.has("cheese_breaded"), "the ready-made extras are nobody's to keep")
+	_expect(not RULES.orders_itself({"crew": []}), "nobody on the books: yours to order")
+	_expect(RULES.orders_itself({"crew": [{}]}), "somebody on the books: they order")
+	_expect(not RULES.orders_itself({"crew": [{}], "auto_order": false}), "the tick off: yours to order")
+
+	# Who will get to what.
+	var SR = load("res://core/systems/staff_rules.gd")
+	var hand: Dictionary = {"slug": "h", "since": 1, "jobs": SR.default_jobs()}
+	var desk_hand: Dictionary = {"slug": "d", "since": 1, "jobs": SR.default_jobs()}
+	desk_hand["jobs"]["desk"] = true
+	_expect(SR.covered({"crew": [hand]}, "rooms", 10.0, 3), "a hand on shift has the lodgings")
+	_expect(not SR.covered({"crew": [hand]}, "rooms", 19.9, 3), "not as they are going home")
+	_expect(not SR.covered({"crew": [hand]}, "rooms", 3.0, 3), "not in the night")
+	_expect(not SR.covered({"crew": [desk_hand]}, "rooms", 10.0, 3), "the one at the desk does not sweep")
+	_expect(SR.covered({"crew": [desk_hand]}, "desk", 10.0, 3), "the one at the desk has the desk")
+	_expect(not SR.covered({"crew": [{"slug": "n", "since": 5, "jobs": SR.default_jobs()}]}, "rooms", 10.0, 3), "taken on for a later day: not yet")
+	_expect(SR.letters_covered({"crew": [desk_hand]}, 3), "the desk answers the letters")
+	desk_hand["jobs"]["letters"] = false
+	_expect(not SR.letters_covered({"crew": [desk_hand]}, 3), "bookings ticked off: the letters are yours")
+
 	print("")
 	if _failures.is_empty():
 		print("STAFF CHECK: PASS")

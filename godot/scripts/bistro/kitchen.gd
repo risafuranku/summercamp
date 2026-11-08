@@ -807,7 +807,11 @@ func crew_places(key: String) -> Dictionary:
 	var crew: Array = BUSINESS.crew_now(key)
 	if crew.is_empty():
 		return {}
-	return CREW_PLACES.places(crew, ROLE_AT, CREW_STATIONS, _wardens_at(key), func(st: String) -> float: return station_need(key, st))
+	# (idle_helps: a hand whose own station has nothing it can do goes where something can
+	# be done. Each to their own alone, three hands at the pass, the floor and the stove stood
+	# looking at a rail of tickets with nobody cutting chips or dumplings: `provoz_check`,
+	# 8. 11., a guest sat in the bistro four hours going hungry.)
+	return CREW_PLACES.places(crew, ROLE_AT, CREW_STATIONS, _wardens_at(key), func(st: String) -> float: return station_need(key, st), true)
 
 
 func _wardens_at(key: String) -> Array:
@@ -826,8 +830,15 @@ func station_need(key: String, st: String) -> float:
 				n += 0.6 if bool(t.get("hatched", false)) else 0.3
 			return n
 		"pass":
-			var n_pass := tickets(key, "pass").size()
-			return 0.0 if n_pass == 0 or int(plates(key)["clean"]) <= 0 else 0.4 + 0.2 * float(n_pass)
+			# What can be plated now, and the dumplings for what is on the rail.
+			var n_pass := 0
+			for t in tickets(key, "pass"):
+				if _can_plate(key, t["parts"]):
+					n_pass += 1
+			var need_pass := 0.0 if n_pass == 0 or int(plates(key)["clean"]) <= 0 else 0.4 + 0.2 * float(n_pass)
+			if _dumplings_wanted(key):
+				need_pass += 0.35
+			return need_pass
 		"bufet":
 			var n_soup := tickets(key, "bufet").size()
 			var low := 0.3 if int(s["soup"]["level"]) < 3 and BUSINESS.stock_of(key, "soup") > 0 and n_soup > 0 else 0.0
@@ -846,8 +857,9 @@ func station_need(key: String, st: String) -> float:
 			var b: Dictionary = s["basket"]
 			var frying := int(b["n"]) if str(b["st"]) == "down" else 0
 			var need := 0.35 * float(cooking) + (0.4 if str(b["st"]) == "down" else 0.0)
-			need += 0.3 * float(maxi(0, _wanted(key, "cheese") - prep(key, "cheese") - cooking))
-			need += 0.3 * float(maxi(0, _wanted(key, "fries") - prep(key, "fries") - frying))
+			# (What can go on now: with nothing on the trays there is nothing to stand here for.)
+			need += 0.3 * float(mini(maxi(0, _wanted(key, "cheese") - prep(key, "cheese") - cooking), prep(key, "cheese_raw") + prep(key, "cheese_bad")))
+			need += 0.3 * float(mini(maxi(0, _wanted(key, "fries") - prep(key, "fries") - frying), prep(key, "chips_raw")))
 			if _wanted(key, "goulash") > 0 and int(s["pot"]["level"]) < 2 and BUSINESS.stock_of(key, "goulash") > 0:
 				need += 0.3
 			return need
@@ -857,6 +869,9 @@ func station_need(key: String, st: String) -> float:
 				need2 += 0.1 + 0.05 * float(6 - prep(key, "chips_raw"))
 			if prep(key, "cheese_raw") + prep(key, "cheese_bad") < 4 and BUSINESS.stock_of(key, "cheese") > 0:
 				need2 += 0.1 + 0.05 * float(4 - prep(key, "cheese_raw") - prep(key, "cheese_bad"))
+			# Somebody at a table waiting for what the trays have not got.
+			if need2 > 0.0 and (_wanted(key, "fries") > prep(key, "fries") or _wanted(key, "cheese") > prep(key, "cheese")):
+				need2 += 0.4
 			return need2
 		"sink":
 			var pl: Dictionary = plates(key)
@@ -864,6 +879,32 @@ func station_need(key: String, st: String) -> float:
 				return 0.0
 			return minf(1.0, 0.12 * float(pl["dirty"])) + (0.6 if int(pl["clean"]) <= 0 else 0.0)
 	return 0.0
+
+
+## Everything for these parts is ready for the plate.
+func _can_plate(key: String, want: Dictionary) -> bool:
+	var pot: Dictionary = site(key)["pot"]
+	for part in want:
+		var n := int(want[part])
+		match str(part):
+			"goulash":
+				if int(pot["level"]) < n or float(pot["heat"]) < 0.6:
+					return false
+			"cheese", "fries", "dumpling", "sausage":
+				if prep(key, str(part)) < n:
+					return false
+			"bread":
+				if BUSINESS.stock_of(key, "bread") < n:
+					return false
+	return true
+
+
+## Dumplings on the rail that are not on the heat shelf, and a loaf or the shelf to cut them
+## from.
+func _dumplings_wanted(key: String) -> bool:
+	if _wanted(key, "dumpling") <= prep(key, "dumpling") or not room_for(key, "dumpling"):
+		return false
+	return int((site(key)["loaf"] as Dictionary).get("left", 0)) > 0 or BUSINESS.stock_of(key, "dumplings") > 0
 
 
 ## How many of `part` the tickets at the pass want.
@@ -1086,6 +1127,24 @@ func _crew_stove(key: String, slip: bool) -> bool:
 	return false
 
 
+## The dumplings the rail wants: a loaf out of the steamer, cut with the thread (no hand
+## ever did, and no goulash went out of a kitchen left to its hands).
+func _crew_dumplings(key: String) -> bool:
+	if not _dumplings_wanted(key):
+		return false
+	var loaf: Dictionary = (site(key)["loaf"] as Dictionary).duplicate()
+	if int(loaf.get("left", 0)) <= 0:
+		var units := mini(RULES.LOAF_UNITS, maxi(0, BUSINESS.stock_of(key, "dumplings")))
+		if units <= 0 or not CoreRoot.actions.biz_take(key, {"dumplings": units}):
+			return false
+		act(key, "loaf", [{"left": RULES.LOAF_SLICES * units / RULES.LOAF_UNITS}])
+		return true
+	loaf["left"] = int(loaf["left"]) - 1
+	act(key, "loaf", [loaf])
+	act(key, "prep", ["dumpling", 1])
+	return true
+
+
 ## The oldest ticket it has everything ready for, plated and sent out.
 func _crew_pass(key: String, p: Dictionary, slip: bool, floor_minded := false) -> bool:
 	# Nobody on the floor: what waits on the hatch goes out first (the pass's hand carries).
@@ -1094,22 +1153,13 @@ func _crew_pass(key: String, p: Dictionary, slip: bool, floor_minded := false) -
 			if bool(t.get("hatched", false)):
 				serve_hatch(key, t, str(p.get("name", "")))
 				return true
+	if _crew_dumplings(key):
+		return true
 	if int(plates(key)["clean"]) <= 0:
 		return false
-	var pot: Dictionary = site(key)["pot"]
 	for t in tickets(key, "pass"):
 		var want: Dictionary = t["parts"]
-		var ok := true
-		for part in want:
-			var n := int(want[part])
-			match str(part):
-				"goulash":
-					ok = ok and int(pot["level"]) >= n and float(pot["heat"]) >= 0.6
-				"cheese", "fries", "dumpling", "sausage":
-					ok = ok and prep(key, str(part)) >= n
-				"bread":
-					ok = ok and BUSINESS.stock_of(key, "bread") >= n
-		if not ok:
+		if not _can_plate(key, want):
 			continue
 		var parts: Dictionary = want.duplicate()
 		var qs: Array = []

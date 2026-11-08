@@ -169,14 +169,15 @@ func hud_rows() -> Array:
 	for ev in _events:
 		if str(ev["state"]) == "open":
 			var who := staff_on(int(ev["id"]))
-			rows.append({"title": ev["title"], "where": (tr("%s is on it") % who) if who != "" else ev["where"]})
+			rows.append({"title": ev["title"], "where": (tr("%s is on it") % who) if who != "" else (tr("Somebody will see to it") if seen_to(ev) else ev["where"])})
 	return rows
 
 
 # ── the staffroom's hands (scripts/staff/staff_runtime.gd) ─────────────────────
 
 ## The kinds a hand can see to.
-const STAFF_KINDS := ["litter", "raccoons", "delivery", "tree"]
+const STAFF_KINDS := ["litter", "raccoons", "delivery", "tree", "lost_kid", "noise"]
+const STAFF_RULES := preload("res://core/systems/staff_rules.gd")
 
 
 ## The open events of `kinds` a hand could go to: [{id, kind, pos}].
@@ -184,6 +185,10 @@ func staff_jobs(kinds: Array) -> Array:
 	var out: Array = []
 	for ev in _events:
 		if str(ev["state"]) != "open" or not kinds.has(str(ev["kind"])) or not STAFF_KINDS.has(str(ev["kind"])):
+			continue
+		# The lost boy and the noise are yours while there is time (Richard 8. 11.: "I only
+		# help out when needed", and it goes the other way round too).
+		if STAFF_RULES.LATE_KINDS.has(str(ev["kind"])) and _last_abs < (int(ev["at"]) + int(ev["deadline"])) / 2:
 			continue
 		var p := _event_pos(ev)
 		if p != Vector3.INF:
@@ -224,6 +229,17 @@ func staff_done(id: int, who: String) -> bool:
 
 func open_events() -> Array:
 	return _events.filter(func(e): return str(e["state"]) == "open").map(func(e): return e.duplicate())
+
+
+## A hand has it or will get to it: nothing for you (the mark does not lead you there).
+func seen_to(ev: Dictionary) -> bool:
+	if staff_on(int(ev["id"])) != "":
+		return true
+	var kind := str(ev["kind"])
+	if STAFF_RULES.LATE_KINDS.has(kind) or not STAFF_KINDS.has(kind):
+		return false
+	var st = CoreRoot.get_state().biz.get("staff", {}) if CoreRoot != null and CoreRoot.get_state() != null else {}
+	return st is Dictionary and STAFF_RULES.covered(st, kind, float(posmod(_last_abs, 1440)) / 60.0, CoreRoot.get_day())
 
 
 ## The van waiting at the gate: its note is in the folder on the reception desk (the user
@@ -323,7 +339,7 @@ func waypoint(from: Vector3) -> Dictionary:
 	var best := {}
 	var best_d := INF
 	for ev in _events:
-		if str(ev["state"]) != "open":
+		if str(ev["state"]) != "open" or seen_to(ev):
 			continue
 		# The van's note waits at the reception: the mark is there, not at the van.
 		var p := _office_pos() if str(ev["kind"]) == "delivery" else _event_pos(ev)
@@ -452,8 +468,7 @@ func import_state(data: Dictionary) -> void:
 		if not was_open.has(id) or not _props.has(id):
 			_spawn_props(ev)
 		if tell and not was_open.has(id) and not _log_seen.has(id):
-			_report("Pager: %s" % tr(_start_line(ev)), 2)
-			_page()
+			_tell_started(ev)
 	for entry in data.get("log", []):
 		var lid := int((entry as Dictionary).get("id", -1))
 		if _log_seen.has(lid):
@@ -635,9 +650,17 @@ func _start(ev: Dictionary, abs_minute: int) -> void:
 		return
 	ev["state"] = "open"
 	_spawn_props(ev)
+	_tell_started(ev)
+	changed.emit()
+
+
+## On your pager, unless a hand will see to it: then a plain line, no beep.
+func _tell_started(ev: Dictionary) -> void:
+	if seen_to(ev):
+		_report(tr(_start_line(ev)), 0)
+		return
 	_report("Pager: %s" % tr(_start_line(ev)), 2)
 	_page()
-	changed.emit()
 
 
 func _start_line(ev: Dictionary) -> String:

@@ -179,6 +179,7 @@ func _hotspots() -> Array:
 				out.append({"id": "plus:" + str(keys[i]), "rect": _plus_rect(y)})
 			out.append({"id": "send", "rect": _rbutton(0)})
 			out.append({"id": "stamp", "rect": STAMP})
+			out.append({"id": "auto", "rect": _auto_rect()})
 		"staff":
 			var crew: Array = site.get("crew", [])
 			for i in crew.size():
@@ -221,6 +222,11 @@ func _plus_rect(y: float) -> Rect2:
 
 
 ## A pencilled button at the bottom of the right page (0 the lowest), clear of the stamp.
+## The tick on the ORDER page: the hands see to the shelves themselves.
+func _auto_rect() -> Rect2:
+	return Rect2(LEFT.position.x + 34, 163, 76, 12)
+
+
 func _rbutton(i: int) -> Rect2:
 	return Rect2(RIGHT.position.x, 160 - i * 18, 68, 14)
 
@@ -297,6 +303,9 @@ func _clicked(id: String) -> void:
 			_order = {}
 			_stamp("ORDERED")
 			say("", "It goes on today's van." if van_day <= CoreRoot.get_day() else "The van comes tomorrow.")
+		"auto":
+			CoreRoot.actions.biz_set_auto(building_key, not bool(_site().get("auto_order", true)))
+			play(SFX_PAGE, -14.0)
 		"next":
 			_candidate += 1
 			play(SFX_PAGE, -12.0)
@@ -461,6 +470,11 @@ func _photo(slug: String) -> Texture2D:
 	return _tex[k]
 
 
+func _tick_mark(c: Control, box: Rect2, col: Color) -> void:
+	for p in [Vector2(2, 4), Vector2(3, 5), Vector2(4, 6), Vector2(5, 5), Vector2(6, 4), Vector2(7, 3), Vector2(7, 2)]:
+		c.draw_rect(Rect2(box.position + p, Vector2(1, 1)), col)
+
+
 ## A box pencilled round `r`: the render of a pencilled box, nine-sliced, in `col`.
 func _pencil_box(c: Control, r: Rect2, col := PENCIL) -> void:
 	var t := _part("pencil_box")
@@ -615,6 +629,15 @@ func _paint_order(c: Control, site: Dictionary, kind: String) -> void:
 	var cost: int = goods_cost + (van_fee if goods_cost > 0 else 0)
 	_text(c, RIGHT.position + Vector2(0, 10), LANG.f("Total $%d", cost), INK, 10, RETRO_UI.FONT_BIG)
 	_text(c, RIGHT.position + Vector2(0, 21), LANG.f("Cash $%d", CoreRoot.get_money()), PENCIL)
+	var auto := _auto_rect()
+	if hovered() == "auto":
+		c.draw_rect(auto, Color(1, 0.9, 0.5, 0.18))
+	var tick := Rect2(auto.position + Vector2(0, 2), Vector2(9, 9))
+	_pencil_box(c, tick, PENCIL)
+	var hands_order := bool(site.get("auto_order", true))
+	if hands_order:
+		_tick_mark(c, tick, Color(0.1, 0.42, 0.1))
+	_text(c, Vector2(auto.position.x + 12, auto.position.y + 9), _fit(tr("Hands order"), auto.size.x - 12.0), INK if hands_order else PENCIL)
 	_pencil_button(c, _rbutton(0), "SEND ORDER", RED, "send")
 	if hovered() == "stamp":
 		c.draw_rect(STAMP, Color(1, 0.9, 0.5, 0.12))

@@ -4,6 +4,31 @@
 
 ---
 
+## PROVOZ 2026-11-08 — „Dělej overall gameplay quality of life polishment co se týče provozu a managementu kempu. Od toho že jsem tam sám, na recepci dávám klíče, opravuju hajzly a sprchy, jedu stany a kukuřici, přes postupnej upgrade na chatky, zaměstnance v kukuřici, bistro hospoda, staffroom, zaměstnanci sami uklízej a jsou na recepci, a vlastně když mám plno zaměstnanců tak by celej kemp měl jet sám a já občas jen vypomůžu když je třeba. o všem musím být nějak informován skrz notifikace nebo komplexnější věci návštěvou podniků nebo přes pc, nějak šikovně jedoduše to vymyslet" (measured: `tools/provoz_check`, a whole camp staffed and left alone)
+
+The camp left alone, what stopped (`provoz_check` before any of this):
+- [ ] R1 The letters: nobody but you ever answers a booking, whoever is at the desk
+- [ ] R2 The hand at the desk stuck on the first guest whose room is not made up: everybody behind them waits (`_desk_check_in` takes the longest waiting, ready or not)
+- [ ] R3 The goods: nobody orders. In three days the corn stand, the bistro's goulash, the pub's rum and the Jednota's bread were gone, and the place stands empty with its hand behind the counter
+- [ ] R4 The bills: nobody pays them
+- [ ] R5 Lamps (spent or gone in the night) and a broken toilet or shower: nobody but you or the paid crew; the plates stand all day
+- [ ] R6 The noise and the lost boy: no hand ever goes, however late it gets
+- [ ] R7 The hand at the reception is not there: you walk in and the counter is empty, seen from outside too, and the guest rings the bell at nobody
+- [ ] R8 The hand's check-ins are not in the register
+- [ ] R9 A lodging a party is waiting for is cleaned no sooner than one nobody wants
+- [ ] R10 The bistro left to three hands stood still: each at their own station, nobody cut the chips, and no hand ever cut dumplings at all, so no goulash ever left a kitchen without you; guests sat four hours going hungry. The pub and the Jednota could stick the same way (no clean mugs, nobody at the shelves)
+- [ ] R11 A shut stand's plate stood all night (whoever was down as visiting went to bed with it)
+- [ ] R12 Every morning „nobody there" with the hand still walking up from the bus (the walk took till eight)
+- [ ] R13 A long column of plates went up over the arrivals' plates at 1366x768
+
+What you are told:
+- [ ] I1 A plate for what a hand will get to (Richard's P30: „o které bude postaráno"), not only what they have started
+- [ ] I2 The waypoint goes to jobs a hand has
+- [ ] I3 A letter waiting, a bill, a lamp out, somebody away or gone or owed: a plate each
+- [ ] I4 CampStat's first page: the camp by its departments, who runs each, what is wrong, the button that sees to it, yesterday's sums
+- [ ] I5 What happened while you were away: the feed's lines fade in seconds; a log on the PC
+- [ ] I6 A lodging's plate says when its guests come
+
 ## POLISH 2026-11-08 — the Photographer, the Granny, the Whistler and the Family in the Girl's and the Silent Men's style
 
 Richard: „pojď gameplayově totálně dotáhnout fotografa, babku, pískače, rodinu. absolutní polish ve stylu holky, tichomě."

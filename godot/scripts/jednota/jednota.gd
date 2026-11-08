@@ -597,7 +597,7 @@ func crew_places(key: String) -> Dictionary:
 	if crew.is_empty():
 		return {}
 	var busy: Array = CREW_PLACES.wardens_at(get_tree(), key, "service") if is_inside_tree() else []
-	return CREW_PLACES.places(crew, ROLE_AT, CREW_STATIONS, busy, func(st: String) -> float: return station_need(key, st))
+	return CREW_PLACES.places(crew, ROLE_AT, CREW_STATIONS, busy, func(st: String) -> float: return station_need(key, st), true)
 
 
 ## How much a station of the Jednota wants doing now (0 nothing): the queue at the tills,

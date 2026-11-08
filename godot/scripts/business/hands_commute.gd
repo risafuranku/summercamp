@@ -30,8 +30,9 @@ const GEO := preload("res://scripts/geo/geo_data.gd")
 ## none tonight and they are gone down the road.
 const STOP_WAIT_H := 2.5
 const PERSON_M := 1.74
-## Their pace: the guests' 1.35 m/s, in metres a game minute (1.25 game minutes a second).
-const M_PER_MIN := 1.35 / 1.25
+## Their pace, in metres a game minute: the staffroom's hands' (at the guests' stroll the
+## walk up from the bus took till eight and the place stood open with nobody in it).
+const M_PER_MIN := 2.0
 ## When the day hands come through the barrier: the works bus at the stop after the night
 ## (it ends at 6:30), and the few steps up from it.
 const DAY_IN: float = TIMES.STAFF_ARRIVE[0] + 2.0 / 60.0

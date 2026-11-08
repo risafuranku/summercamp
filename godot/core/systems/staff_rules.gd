@@ -38,13 +38,29 @@ const JOBS := [
 	# (The user 4. 11.: "the cleaners did not clean the showers and the toilets properly":
 	# they never did, it was no job of theirs.)
 	["blocks", "Toilets and showers"],
+	# A lamp gone or worn out, a toilet, a shower or the pump out of order (Richard 8. 11.:
+	# "when I have plenty of staff the whole camp should run by itself and I only help out
+	# when needed"): what you hold R for, at what it costs you. Not the sewer (a crawl, yours
+	# or the crew's), not the breaker.
+	["repairs", "Repairs"],
+	# The lost boy, the noise: yours first; a hand goes when you have not got to it by the
+	# half of its time (LATE_KINDS).
+	["guests", "Guests"],
 	# At the reception all day, checking in whoever waits there with their room made up
 	# (the user 4. 11.: "the staffroom's: they clean, or take the guests in at the
-	# reception"). Off unless ticked: one at the desk is one fewer at the brooms.
+	# reception"). Off unless ticked: one at the desk is one fewer at the brooms. Whoever
+	# sits there pays the electricity too.
 	["desk", "Reception"],
+	# The one at the desk answers the booking letters. Taken off, the letters wait for you:
+	# who comes is what comes for them at night.
+	["letters", "Bookings"],
 ]
 ## The jobs off for somebody new.
 const OFF_BY_DEFAULT := ["desk"]
+## The day's events a hand leaves to you till the half of their time is up.
+const LATE_KINDS := ["lost_kid", "noise"]
+## The failures a hand can put right (what wants a crawl or the board does not count).
+const MENDS := ["lamp_post", "path", "toilet_block", "shower_block", "water_pump"]
 
 ## Bought in the staffroom's books (the cards with a picture): how many fit the boiler
 ## room, the first one's price, each next one dearer.
@@ -66,17 +82,26 @@ const REST_MIN := 18.0
 ## In the morning, the coffee on the sofa before the first job.
 const COFFEE_MIN := 25.0
 ## One piece of work at the steady speed (game minutes); the quick do it in less.
-const WORK_MIN := {"litter": 14.0, "raccoons": 10.0, "delivery": 16.0, "tree": 30.0, "rooms": 9.0, "blocks": 16.0}
+const WORK_MIN := {"litter": 14.0, "raccoons": 10.0, "delivery": 16.0, "tree": 30.0, "rooms": 9.0, "blocks": 16.0, "repairs": 18.0, "lost_kid": 20.0, "noise": 8.0}
 ## At the desk: a guest who has waited this long (game minutes) is checked in, one every
 ## DESK_EACH_MIN at the steady speed.
 const DESK_WAIT_MIN := 4.0
 const DESK_EACH_MIN := 5.0
+## A letter answered every so often; one that has found no bed for this long is declined.
+const LETTER_EACH_MIN := 25.0
+const LETTER_NO_BED_MIN := 240.0
+## How often the one at the desk looks at the bills.
+const BILLS_EACH_MIN := 45.0
+## A lodging a party is on its way to, this far off (game minutes): before all the others.
+const WANTED_WITHIN_MIN := 240
 const SPEED_K := [1.45, 1.0, 0.72]
 ## A dishonest hand on a delivery: a little of it does not reach the shelves.
 const PILFER := 0.08
 
 
 static func job_label(job: String) -> String:
+	if LATE_KINDS.has(job):
+		return "Guests"
 	for j in JOBS:
 		if str(j[0]) == job:
 			return str(j[1])
@@ -122,6 +147,33 @@ static func work_minutes(job: String, speed: int) -> float:
 	return float(WORK_MIN.get(job, 12.0)) * float(SPEED_K[clampi(speed, 0, 2)])
 
 
+## Somebody on shift now who is set to `job` and free to go to it (the desk keeps its
+## own): that piece of the camp will be seen to without you.
+static func covered(staff: Dictionary, job: String, hour: float, day: int) -> bool:
+	if hour >= HOME_HOUR - 0.5:
+		return false
+	var crew: Array = staff.get("crew", []) if staff.get("crew", []) is Array else []
+	for i in crew.size():
+		var p: Dictionary = crew[i]
+		if not does(p, job) or int(p.get("since", 0)) > day or int(p.get("absent", -1)) == day:
+			continue
+		if job != "desk" and does(p, "desk"):
+			continue
+		# (From the morning on: an hour before they come in it is theirs already.)
+		if hour >= START_HOUR - 1.0:
+			return true
+	return false
+
+
+## Somebody has the reception and answers the letters: a new booking is no business of
+## your pager.
+static func letters_covered(staff: Dictionary, day: int) -> bool:
+	for p in staff.get("crew", []):
+		if does(p, "desk") and does(p, "letters") and int((p as Dictionary).get("since", 0)) <= day:
+			return true
+	return false
+
+
 ## The day's wage (business_rules.wage for the staffroom's kind).
 static func wage_of(p: Dictionary) -> int:
 	return int(p.get("wage", 25))
@@ -157,6 +209,15 @@ static func taken(staff: Dictionary) -> Dictionary:
 		if str(a.get("room", "")) != "":
 			out["room:" + str(a["room"])] = str(slug)
 	return out
+
+
+## Jobs one after another before going back for a sit-down (Richard's camp left alone, 8.
+## 11.: the walk back to the sofa between every two jobs left a dirty cabin standing till
+## the evening and its guests went home).
+const JOBS_IN_A_ROW := 3
+## Past eight with somebody still at the desk: the one there stays, and the one making up
+## the lodging they are waiting for. This long at most (hours).
+const OVERTIME_H := 1.25
 
 
 ## The hands' day on the clock's line (the user 7. 11.: "what I miss in the HUD is a time line:

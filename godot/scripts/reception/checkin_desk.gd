@@ -989,6 +989,27 @@ func _write_from(what: String) -> void:
 		_say_line("...")
 
 
+## A hand took them in: the same line in the book as yours (Richard 8. 11.).
+func add_by_hand(guest: Dictionary, rooms: Array) -> void:
+	var card: Dictionary = GuestManager.desk_card_for(int(guest.get("id", 0)), str(guest.get("name", "Guest")))
+	var labels: Array = []
+	for r in rooms:
+		labels.append(str((r as Dictionary).get("label", "")).to_upper().replace("TENT ", "T").replace("CABIN ", "C").replace("CARAVAN ", "V"))
+	_history.append({
+		"no": _history.size() + 1,
+		"name": "%s %s." % [str(card.get("surname", "")), str(card.get("first", "")).substr(0, 1)],
+		"card": str(card.get("number", "")),
+		"surname": str(card.get("surname", "")),
+		"first": str(card.get("first", "")),
+		"persons": str(int(guest.get("party_size", 1))),
+		"nights": str(int(guest.get("stay_nights", 1))),
+		"lodging": ", ".join(labels),
+		"key": "OK",
+		"day": CoreRoot.get_day(),
+		"red": false,
+	})
+
+
 func _row_for_current() -> Dictionary:
 	var card: Dictionary = _guest.get("card", {})
 	var rooms: Array = _guest.get("rooms", [])

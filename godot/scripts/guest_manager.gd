@@ -557,6 +557,11 @@ func _update_arrivals(now_abs: int) -> bool:
 	return changed
 
 
+## Every lodging of this party made up (the hand at the desk asks).
+func rooms_ready(guest: Dictionary) -> bool:
+	return _rooms_ready_for(guest)
+
+
 func _rooms_ready_for(guest: Dictionary) -> bool:
 	var state = CoreRoot.get_state()
 	var slots: Array = guest.get("lodging_slots", []) if guest.get("lodging_slots", []) is Array else []

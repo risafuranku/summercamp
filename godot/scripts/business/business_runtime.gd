@@ -20,6 +20,7 @@ extends Node
 ## Made by InteriorManager.setup() (root of the camp's interiors), one per game.
 
 const RULES := preload("res://core/systems/business_rules.gd")
+const LANG := preload("res://scripts/lang.gd")
 const ORDERS := preload("res://scripts/food/orders.gd")
 const CREW_PLACES := preload("res://scripts/business/crew_places.gd")
 ## The bistros' kitchens: the trays, the stove, the pot, the tickets (loaded, not
@@ -95,6 +96,7 @@ func _process(delta: float) -> void:
 	_watch_crew(sites)
 	_watch_visits(sites)
 	_hands_work()
+	_watch_goods(sites)
 	changed.emit()
 
 
@@ -499,6 +501,13 @@ func _watch_waiting(sites: Dictionary) -> void:
 	for key in sites:
 		if bool(site(key).get("staff", false)):
 			continue
+		# (Shut: whoever is still down as visiting went to bed with it. The stand's plate stood
+		# up all night with the camp asleep.)
+		if shift_now(site(key)) == "closed" and not _closing.has(key):
+			continue
+		# (Their hand is on the way up from the bus: no "nobody there" every morning.)
+		if _hand_on_the_way(key):
+			continue
 		var fresh := false
 		for v in ORDERS.visitors(key):
 			var id := str(v["visit"])
@@ -519,6 +528,13 @@ func _watch_waiting(sites: Dictionary) -> void:
 	for id in _told.keys():
 		if not live.has(id):
 			_told.erase(id)
+
+
+func _hand_on_the_way(key: String) -> bool:
+	for p in site(key).get("crew", []):
+		if arriving.has(key + "/" + str((p as Dictionary).get("slug", ""))):
+			return true
+	return false
 
 
 ## No warden, here or on the other machine, at a station of this place.
@@ -606,6 +622,46 @@ func waypoint(from: Vector3, grid_manager) -> Dictionary:
 			var kind := str(site(key).get("kind", ""))
 			best = {"position": p + Vector3(0, 3.0, 0), "label": {"pub": "PUB", "rest": "BISTRO", "vecerka": "JEDNOTA", "corn": "CORN", "bowl": "BOWLING"}.get(kind, "SERVE")}
 	return best
+
+
+## Every half hour of the clock: what is running low at the places with somebody on their
+## books goes on the next van, one order, one van. Never the last of the till (RESERVE:
+## tonight's wages come first): short of that the plate stays up and it is yours.
+const RESERVE := 150
+var _goods_tick := -1
+
+
+func _watch_goods(sites: Dictionary) -> void:
+	var half := _abs_now() / 30
+	if half == _goods_tick:
+		return
+	_goods_tick = half
+	var lines := {}
+	var total := 0
+	for key in sites:
+		var s := site(key)
+		if s.is_empty() or not RULES.orders_itself(s):
+			continue
+		var kind := str(s.get("kind", ""))
+		var coming := {}
+		for g in RULES.goods(kind):
+			coming[g] = on_order(key, g)
+		var want: Dictionary = RULES.restock(kind, s.get("stock", {}), coming)
+		if not want.is_empty():
+			lines[key] = want
+			total += RULES.goods_cost(kind, want)
+	if lines.is_empty():
+		return
+	var van := van_day()
+	total += int(CoreRoot.actions.van_fee(van))
+	if CoreRoot.get_money() < total + RESERVE or not CoreRoot.actions.biz_order_all(lines, van):
+		return
+	var places: Array = []
+	for key in lines:
+		var nm := tr(_place_name(str(site(key).get("kind", ""))))
+		if not places.has(nm):
+			places.append(nm)
+	_say_all(LANG.f("Goods ordered (%s): -$%d.", [", ".join(places), total]), 0, "biz_auto")
 
 
 ## What the hands do between customers: the barman washes up (the old washer's mugs).

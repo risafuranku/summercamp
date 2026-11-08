@@ -27,6 +27,14 @@ const DOOR_HINGE := Vector3(2.2, 0.0, -2.55)
 const DOOR_W := 0.95
 const BELL_POS := Vector3(0.98, 1.0, 0.02)
 const POLL_SEC := 0.5
+## The one of the staffroom's hands who has the reception (Richard 8. 11.: "the staff clean
+## and are at the reception"; it was a line in their books: you came in and nobody stood
+## behind the counter, the guest rang at nobody): by the key board, turned to whoever is
+## across it; a step back while you are at the desk yourself. Seen through the panes too.
+const HAND_SPOT := Vector3(1.3, 0.0, 0.78)
+const HAND_ASIDE := Vector3(1.46, 0.0, 1.34)
+const HAND_M := 1.74
+const DOOM_HAND = preload("res://scripts/figures/doom_figure.gd")
 ## The check-in played on the counter itself (the user 30. 10.), checkin_desk.gd's picture
 ## laid on it: its counter part (y 104..270 of the 384) over the counter's top left of the
 ## phone, the far edge where the guest stands; its key board (x 284..478, y 280..384) on
@@ -234,6 +242,8 @@ func process(delta: float, in_office: bool) -> void:
 		_queue = GuestManager.get_desk_queue() if GuestManager != null else []
 		_tick_stranger(POLL_SEC, in_office)
 		_place_people()
+		_place_hand()
+	_turn_hand(delta)
 	if _door_t >= 0.0:
 		_door_t += delta
 		var k := 0.0
@@ -247,7 +257,7 @@ func process(delta: float, in_office: bool) -> void:
 			_door_t = -1.0
 		# In steps, like everything that moves in here.
 		_door_pivot.rotation_degrees.y = floorf(k * 6.0) / 6.0 * 82.0
-	if not is_open() and _front_id != -999 and in_office:
+	if not is_open() and _front_id != -999 and in_office and desk_hand() == "":
 		_ring_t += delta
 		if _ring_t >= RING_AGAIN_SEC:
 			_ring_t = 0.0
@@ -615,6 +625,68 @@ func tick_unseen(delta: float, serving := -999) -> void:
 				inside.append(row)
 	_show(_front, inside[0] if inside.size() > 0 else {}, COUNTER_SPOT)
 	_show(_second, inside[1] if inside.size() > 1 else {}, BENCH_SPOT)
+	_place_hand()
+	_turn_hand(POLL_SEC)
+
+
+## The hand at work behind the counter now ("" nobody), from the books (the same on every
+## machine).
+func desk_hand() -> String:
+	var state = CoreRoot.get_state() if CoreRoot != null else null
+	var st = (state.biz as Dictionary).get("staff", {}) if state != null and state.biz is Dictionary else {}
+	if not (st is Dictionary):
+		return ""
+	var acts: Dictionary = (st as Dictionary).get("act", {}) if (st as Dictionary).get("act", {}) is Dictionary else {}
+	for slug in acts:
+		var a: Dictionary = acts[slug]
+		if str(a.get("do", "")) == "work" and str(a.get("what", "")) == "desk":
+			return str(slug)
+	return ""
+
+
+var _hand: Sprite3D
+var _hand_slug := ""
+var _hand_view := 0.0
+
+
+func _place_hand() -> void:
+	var slug := desk_hand()
+	if slug != _hand_slug:
+		_hand_slug = slug
+		if _hand != null and is_instance_valid(_hand):
+			_hand.queue_free()
+		_hand = null
+	if slug == "":
+		return
+	if _hand == null:
+		_hand = _make_person("DeskHand")
+		_hand.pixel_size = HAND_M / 128.0
+		var set := DOOM_HAND.set_of(slug)
+		if set.is_empty():
+			var t := _tex("res://assets/textury/npc/staff/%s.png" % slug)
+			_hand.texture = t
+			if t != null:
+				_hand.offset = Vector2(0.0, t.get_height() * 0.5)
+		else:
+			DOOM_HAND.new(_hand, set, HAND_M * float(set.get("h", 128)) / 128.0)
+		_hand.visible = true
+	var at := HAND_ASIDE if _at_desk else HAND_SPOT
+	_hand.position = at
+	if _hand.has_meta("doom"):
+		var d: DOOM_HAND = _hand.get_meta("doom")
+		d.set_anim("stand")
+		d.face(room_root.global_basis * (COUNTER_SPOT - at) if room_root.is_inside_tree() else COUNTER_SPOT - at)
+
+
+## Their picture for where you look from, twelve times a second.
+func _turn_hand(delta: float) -> void:
+	_hand_view -= delta
+	if _hand_view > 0.0 or _hand == null or not is_instance_valid(_hand) or not _hand.has_meta("doom"):
+		return
+	_hand_view = 1.0 / 12.0
+	var cam := _hand.get_viewport().get_camera_3d() if _hand.is_inside_tree() else null
+	if cam != null:
+		(_hand.get_meta("doom") as DOOM_HAND).show(cam.global_position)
 
 
 func _place_people() -> void:
@@ -630,7 +702,7 @@ func _place_people() -> void:
 			else:
 				_open_door()
 				host.get_tree().create_timer(1.8).timeout.connect(func():
-					if _front_id == id and not is_open():
+					if _front_id == id and not is_open() and desk_hand() == "":
 						_ring()
 				)
 		elif was != -999:

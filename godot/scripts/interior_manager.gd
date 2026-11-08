@@ -23,6 +23,7 @@ const TOWN_TRIP_SCRIPT = preload("res://scripts/town/town_trip.gd")
 const SKY_LIFE_SCRIPT = preload("res://scripts/ambient/sky_life.gd")
 ## The businesses' books, sales, wages and deliveries (scripts/business/business_runtime.gd).
 const BUSINESS_RUNTIME = preload("res://scripts/business/business_runtime.gd")
+const BIZ_RULES_M = preload("res://core/systems/business_rules.gd")
 var business: Node
 ## The staffroom's hands at work (scripts/staff/staff_runtime.gd).
 const STAFF_RUNTIME = preload("res://scripts/staff/staff_runtime.gd")
@@ -1429,6 +1430,29 @@ func _on_service_interact(service_node: Node) -> void:
 	if not on_foot and _audio_manager != null and _audio_manager.has_method("play_door_open"):
 		_audio_manager.play_door_open()
 	_set_player_controls_enabled(false)
+	_tell_the_place(structure)
+
+
+## A business you walk into says how it stands (Richard 8. 11.: "the more complex things by
+## visiting the businesses"): today's sales and what is running out, a line on the feed;
+## the rest is in its books on the counter.
+func _tell_the_place(structure: Node) -> void:
+	var origin = structure.get_meta("grid_origin", null)
+	var hud = get_parent().get("_hud_manager") if get_parent() != null else null
+	if not (origin is Vector2i) or hud == null:
+		return
+	var s: Dictionary = BUSINESS_RUNTIME.site("%d:%d" % [origin.x, origin.y])
+	if s.is_empty():
+		return
+	var kind := str(s.get("kind", ""))
+	var today: Dictionary = s.get("today", {})
+	var line: String = LANG.f("Today: %d sold, $%d.", [int(today.get("sold", 0)), int(today.get("takings", 0))])
+	var goods: Dictionary = BIZ_RULES_M.goods(kind)
+	for g in goods:
+		if BIZ_RULES_M.kept(kind, g) and BIZ_RULES_M.is_low(kind, g, int((s.get("stock", {}) as Dictionary).get(g, 0))):
+			line += " " + LANG.f("Low: %s", tr(str((goods[g] as Dictionary).get("label", ""))))
+			break
+	hud.push_status(line, 0, "biz_visit")
 
 
 ## The toilet block has a door per stall (building_models._toilets): the one you look at,

@@ -333,6 +333,12 @@ func set_liminal_forecast(payload: Dictionary) -> void:
 ## Message feed line (top-left). `kind` is one of the STATUS_* constants. Lines sharing
 ## a non-empty `group` replace each other (a phase change makes the previous phase's
 ## line stale, a new risk reading replaces the old one).
+## What the feed has said, for CampStat's Log page (the lines go in seconds and you may not
+## have been looking): [{at (game minute), text, kind}], the last so many.
+var feed_log: Array = []
+const FEED_LOG_MAX := 80
+
+
 func push_status(text: String, kind: int = STATUS_INFO, group: String = "") -> void:
 	if text.strip_edges().is_empty():
 		return
@@ -347,6 +353,10 @@ func push_status(text: String, kind: int = STATUS_INFO, group: String = "") -> v
 			color = RETRO_UI.C_RED_LIGHT
 		STATUS_QUOTE:
 			color = RETRO_UI.C_QUOTE
+	if kind != STATUS_QUOTE and (feed_log.is_empty() or str(feed_log[-1]["text"]) != text):
+		feed_log.append({"at": (_day - 1) * 1440 + _parse_time_to_minutes(_time_str), "text": text, "kind": kind})
+		if feed_log.size() > FEED_LOG_MAX:
+			feed_log.pop_front()
 	if not group.is_empty():
 		for i in range(_feed.size() - 1, -1, -1):
 			if str(_feed[i].get("group", "")) == group:
@@ -911,6 +921,7 @@ func set_troubles(rows: Array) -> void:
 	_troubles = rows.duplicate(true)
 	if _trouble_strip != null and is_instance_valid(_trouble_strip):
 		_trouble_strip.set_rows(_troubles)
+	_stack_plates()
 
 
 const SHIFT_LINE := preload("res://scripts/ui/shift_line.gd")
@@ -947,7 +958,20 @@ func _stack_plates() -> void:
 	if _trouble_strip == null or not is_instance_valid(_trouble_strip) or _arrival_rings == null or not is_instance_valid(_arrival_rings):
 		return
 	var extra := (0 if (_arrival_rings.get("post") as Dictionary).is_empty() else 1) + (0 if (_arrival_rings.get("van") as Dictionary).is_empty() else 1)
-	_trouble_strip.set("arrivals", mini(_arrivals.size() + extra, 6))
+	var above := mini(_arrivals.size() + extra, 6)
+	_trouble_strip.set("arrivals", above)
+	# The whole column up as far as it takes to stay off the status bar, and no further than
+	# the top of the screen (a long list went up over the arrivals' plates: "1" through them).
+	var u := float(maxi(1, int(_trouble_strip.get("ui_scale"))))
+	var step := 17.0 * u
+	var rows: int = mini(_troubles.size(), 7) + (1 if _troubles.size() > 7 else 0)
+	var h: float = float(_trouble_strip.size.y)
+	var bottom: float = h - get_bar_height_px() - 3.0 * u
+	var first := h * 0.42 - step * float(above) * 0.5 if above > 0 else h * 0.3
+	var low := (h * 0.42 + step * float(above) * 0.5 + 6.0 * u if above > 0 else h * 0.3) + step * float(rows)
+	var shift := clampf(low - bottom, 0.0, maxf(0.0, first - 4.0 * u))
+	_trouble_strip.set("shift_up", shift)
+	_arrival_rings.set("shift_up", shift)
 
 
 ## Rows from GuestManager.get_arrivals(): who is coming, when, to which room, ready?
@@ -1701,8 +1725,21 @@ func _on_unread_count_changed(count: int) -> void:
 	var previous := _unread
 	_unread = maxi(0, count)
 	_refresh_mail()
-	if _unread > previous and _world_visible and Time.get_ticks_msec() >= _pager_quiet_until and Engine.get_process_frames() >= _pager_quiet_frame:
+	if _unread > previous and _world_visible and Time.get_ticks_msec() >= _pager_quiet_until and Engine.get_process_frames() >= _pager_quiet_frame and not _desk_has_the_letter():
 		_page_new_mail()
+
+
+const STAFF_RULES_H := preload("res://core/systems/staff_rules.gd")
+
+
+## The newest letter a booking, and somebody at the desk answers those.
+func _desk_has_the_letter() -> bool:
+	var state = CoreRoot.get_state() if CoreRoot != null else null
+	if state == null or not (state.biz is Dictionary) or EmailManager == null or EmailManager.inbox.is_empty():
+		return false
+	var newest = EmailManager.inbox[-1]
+	var staff = (state.biz as Dictionary).get("staff", {})
+	return newest is Dictionary and EmailManager._is_customer_mail(newest) and staff is Dictionary and STAFF_RULES_H.letters_covered(staff, CoreRoot.get_day())
 
 
 ## The mail already there as a camp starts or loads is not paged (Vera's first lands as you

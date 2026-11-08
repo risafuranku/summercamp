@@ -474,7 +474,7 @@ func _on_building_failed(coord: Vector2i, building_type: String) -> void:
 
 func _on_building_serviced(_coord: Vector2i, building_type: String, was_broken: bool, cost: int) -> void:
 	_sync_t = 0.0
-	if not _active or _hud == null:
+	if not _active or _hud == null or CoreRoot.actions.quiet_service:
 		return
 	if was_broken:
 		_play(SFX_DONE, 1.0)

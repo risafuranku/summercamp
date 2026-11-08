@@ -859,7 +859,7 @@ func _booking_card(mail: Dictionary) -> String:
 	t += tr("Arrives about 1-2 hours after you accept.") + "\n"
 	t += LANG.f("Free beds: %d of %d (needs %d)", [int(beds.get("free", 0)), int(beds.get("capacity", 0)), party]) + "\n"
 	if bool(mail.get("_actioned", false)):
-		t += "\n[b]%s[/b]\n" % tr("Already answered.")
+		t += "\n[b]%s[/b]\n" % (LANG.f("Booked by %s at the desk.", str(mail["_by_hand"])) if mail.has("_by_hand") else tr("Already answered."))
 	t += "\n" + _risk_lines(str(p.get("archetype", mail.get("archetype", ""))), party)
 	return t
 
