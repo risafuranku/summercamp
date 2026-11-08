@@ -6,15 +6,15 @@
 
 ## MANAGEMENT 2026-11-08 — „polishnout UX managementu podniků, UI knih, správa zamstnanců zboží objednávek, nějaký staty profitu a nákladů a tak.. pokračuj prostě v polishmentu management stránky hry"
 
-- [x] M1 The book on the counter and the staffroom's book drawn as big as the screen allows, ×3 at 1366×768 (`closeup_view.strip_over`)
-- [x] M2 Goods and orders one page: shelf, days it lasts, packs, price, total, cash, FILL, Hands order, SEND ORDER (`ledger_closeup._paint_goods`)
-- [x] M3 A hand's card: photo, wage, at work or away, speed, posts as ticks, day or late shift, let go (`_paint_card`)
-- [x] M4 Accounts: Today, Yesterday, profit, the week's chart, seven days, all told, last shift, open late, Z report (`_paint_books`)
-- [x] M5 What a place costs written where it happens, what a good goes through in a day, the hands' orders by that (`day_money`, `use_per_day`, `days_left`, `fill_order`, `restock`)
-- [x] M6 The camp's own book: lodging, facilities, wages, electricity, repairs, advertising, invested (`actions.note_camp`, `business_rules.camp_day`; the other warden's goes to the host's book)
-- [x] M7 CampStat's Money page: the table by place and category, today, yesterday, seven days, the chart beside it, no scrollbar
-- [x] M8 SoftSklad: Stock with a day's use and days left, Order with Fill up across every place, Books with profit and costs
-- [x] M9 Personal 98: a place's hand has their posts and the late shift
+- [x] M1 The book on the counter and the staffroom's book drawn as big as the screen allows, ×3 at 1366×768 (`closeup_view.strip_over`) (b7949764)
+- [x] M2 Goods and orders one page: shelf, days it lasts, packs, price, total, cash, FILL, Hands order, SEND ORDER (`ledger_closeup._paint_goods`) (b7949764)
+- [x] M3 A hand's card: photo, wage, at work or away, speed, posts as ticks, day or late shift, let go (`_paint_card`) (b7949764)
+- [x] M4 Accounts: Today, Yesterday, profit, the week's chart, seven days, all told, last shift, open late, Z report (`_paint_books`) (b7949764)
+- [x] M5 What a place costs written where it happens, what a good goes through in a day, the hands' orders by that (`day_money`, `use_per_day`, `days_left`, `fill_order`, `restock`) (b7949764)
+- [x] M6 The camp's own book: lodging, facilities, wages, electricity, repairs, advertising, invested (`actions.note_camp`, `business_rules.camp_day`; the other warden's goes to the host's book) (b7949764)
+- [x] M7 CampStat's Money page: the table by place and category, today, yesterday, seven days, the chart beside it, no scrollbar (b7949764)
+- [x] M8 SoftSklad: Stock with a day's use and days left, Order with Fill up across every place, Books with profit and costs (b7949764)
+- [x] M9 Personal 98: a place's hand has their posts and the late shift (b7949764)
 
 ## PROVOZ 2026-11-08 — „Dělej overall gameplay quality of life polishment co se týče provozu a managementu kempu. Od toho že jsem tam sám, na recepci dávám klíče, opravuju hajzly a sprchy, jedu stany a kukuřici, přes postupnej upgrade na chatky, zaměstnance v kukuřici, bistro hospoda, staffroom, zaměstnanci sami uklízej a jsou na recepci, a vlastně když mám plno zaměstnanců tak by celej kemp měl jet sám a já občas jen vypomůžu když je třeba. o všem musím být nějak informován skrz notifikace nebo komplexnější věci návštěvou podniků nebo přes pc, nějak šikovně jedoduše to vymyslet" (measured: `tools/provoz_check`, a whole camp staffed and left alone)
 
