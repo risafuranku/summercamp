@@ -215,6 +215,7 @@ func pay(bill_id: String) -> Dictionary:
 				return {"ok": false, "reason": "money_system_missing"}
 			if not CoreRoot.actions.spend_money(amount):
 				return {"ok": false, "reason": "insufficient_funds", "amount": amount}
+			CoreRoot.actions.note_camp("power", amount)
 		bills.remove_at(i)
 		refresh_power_cut(true)
 		return {"ok": true, "amount": amount}

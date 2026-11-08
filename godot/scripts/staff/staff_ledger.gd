@@ -44,6 +44,7 @@ var _boxes: Dictionary = {}
 
 
 func _ready() -> void:
+	strip_over = true
 	super._ready()
 	picture = load(PIC) if ResourceLoader.exists(PIC) else null
 
@@ -198,7 +199,7 @@ func _clicked(id: String) -> void:
 			CoreRoot.actions.staff_fire(_picked)
 			_stamp(tr("PAID OFF"))
 			var lines := ["Suit yourself.", "And who sweeps up now? You?", "I'll leave the key on the boiler."]
-			say(str(p2.get("name", "")), tr(str(lines[absi(hash(_picked)) % lines.size()])))
+			say(tr(str(p2.get("name", ""))), tr(str(lines[absi(hash(_picked)) % lines.size()])))
 			_picked = ""
 		"next":
 			_candidate += 1
@@ -219,7 +220,7 @@ func _clicked(id: String) -> void:
 					lines = ["I know where the boiler room is."]
 				elif str(who.get("strange", "")) == "unseen":
 					lines = ["You will not notice me."]
-				say(str(who["name"]), tr(str(lines[absi(hash(str(who["slug"]))) % lines.size()])))
+				say(tr(str(who["name"])), tr(str(lines[absi(hash(str(who["slug"]))) % lines.size()])))
 		"buy":
 			var g: Dictionary = RULES.GEAR.get(_gear_pick, {})
 			if CoreRoot.actions.staff_buy_gear(_gear_pick):
@@ -361,7 +362,7 @@ func _paint_staff(c: Control) -> void:
 			c.draw_rect(row, Color(1, 0.9, 0.5, 0.35))
 		elif hovered() == "crew:" + slug:
 			c.draw_rect(row, Color(1, 0.9, 0.5, 0.15))
-		_text(c, Vector2(LEFT.position.x, y), str(p.get("name", "")).replace("Mrs ", "Mrs."), INK)
+		_text(c, Vector2(LEFT.position.x, y), hand_name(str(p.get("name", ""))), INK)
 		var where := whereabouts(p, acts.get(slug, {}))
 		if int(p.get("owed", 0)) > 0:
 			where = "OWED"
@@ -372,7 +373,7 @@ func _paint_staff(c: Control) -> void:
 	if who.is_empty():
 		_text(c, RIGHT.position + Vector2(0, 21), tr("Pick one."), PENCIL)
 		return
-	_text(c, RIGHT.position + Vector2(0, 8), str(who.get("name", "")).replace("Mrs ", "Mrs."), INK)
+	_text(c, RIGHT.position + Vector2(0, 8), hand_name(str(who.get("name", ""))), INK)
 	_right(c, RIGHT.end.x, RIGHT.position.y + 8, LANG.f("$%d a day", RULES.wage_of(who)), PENCIL)
 	_text(c, RIGHT.position + Vector2(0, 19), tr("Sees to:"), PENCIL)
 	for i in RULES.JOBS.size():
@@ -407,7 +408,7 @@ func _paint_hire(c: Control) -> void:
 	if ph != null:
 		c.draw_texture_rect(ph, pr, false)
 	c.draw_rect(pr.grow(1.0), PENCIL, false, 1.0)
-	_text(c, Vector2(pr.end.x + 4, 58), str(p2["name"]).replace("Mrs ", "Mrs."), INK)
+	_text(c, Vector2(pr.end.x + 4, 58), hand_name(str(p2["name"])), INK)
 	_text(c, Vector2(pr.end.x + 4, 68), LANG.f("$%d a day", int(p2["wage"])), INK)
 	_text(c, Vector2(pr.end.x + 4, 78), LANG.f("%d of %d", [_candidate % ap.size() + 1, ap.size()]), PENCIL)
 	var y2 := 102.0

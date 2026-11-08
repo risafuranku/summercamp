@@ -1223,6 +1223,7 @@ func _process_income_minutes(elapsed_minutes: int) -> bool:
 	if total_income > 0:
 		if CoreRoot.actions != null and CoreRoot.actions.has_method("add_money"):
 			CoreRoot.actions.add_money(total_income)
+			CoreRoot.actions.note_camp("lodging", total_income)
 		elif CoreRoot != null and CoreRoot.has_method("apply_changes") and CoreRoot.has_method("get_money"):
 			CoreRoot.apply_changes({"money": CoreRoot.get_money() + total_income})
 

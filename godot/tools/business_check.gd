@@ -129,6 +129,60 @@ func _ready() -> void:
 	_expect(a.biz_buy_licence("pub") and state.money == 500 - int(RULES.info("pub")["licence"]), "the licence is bought")
 	_expect(a.biz_buy_licence("pub") and state.money == 500 - int(RULES.info("pub")["licence"]), "and only paid once")
 
+	# The money (8. 11.): what a place's day made and cost, the wages before the close, what a
+	# good goes through in a day, the shelves filled up, the camp's own book.
+	state.grid.cells.clear()
+	a.biz_prune([])
+	state.biz["orders"] = []
+	state.biz.erase("camp")
+	state.money = 50000
+	state.grid.occupy_cell(Vector2i(12, 12), "pub", "pub_12_12", Vector2i(12, 12))
+	var ms: Dictionary = a.biz_site("12:12", "pub")
+	ms["history"] = []
+	var hand := RULES.person("lojza", "pub")
+	_expect(a.biz_hire("12:12", hand, 20), "a hand for the money's pub")
+	_expect(BUSINESS.sell("12:12", {"beer": 12}, 60), "a day's sale")
+	var cost_used := int(round(RULES.unit_cost("pub", "beer") * 12))
+	var wage_due := int(hand["wage"])
+	var so_far := RULES.day_money(ms["today"])
+	_expect(int(so_far["takings"]) == 60 and int(so_far["goods"]) == cost_used and int(so_far["wages"]) == 0, "the day so far (%s)" % str(so_far))
+	var live := RULES.today_money(ms, 20)
+	_expect(int(live["wages"]) == wage_due and int(live["profit"]) == 60 - cost_used - wage_due, "today counts the wage it will pay (%s)" % str(live))
+	_expect(int((ms["today"]["used"] as Dictionary).get("beer", 0)) == 12, "what was used is written")
+	var fee_due: int = a.van_fee(21)
+	_expect(fee_due > 0 and a.biz_order("12:12", {"rum": 1}, 21), "an order")
+	_expect(int(ms["today"].get("van", 0)) == fee_due, "the van's fee goes on the place's day")
+	a.biz_add_order("12:12", {"rum": 1}, RULES.goods_cost("pub", {"rum": 1}) + 10, 30)
+	_expect(int(ms["today"].get("van", 0)) == fee_due + 10, "the other warden's order: its van too")
+	a.biz_short("12:12", 7)
+	_expect(int(ms["today"].get("short_money", 0)) == 7, "what went missing is written")
+	a.note_camp("lodging", 300)
+	a.note_camp("power", 40)
+	a.note_camp("invest", 1000)
+	var left_here := 60 - cost_used - wage_due - fee_due - 10 - 7
+	var c_today := RULES.camp_day(state.biz, 0, 20)
+	_expect(int(c_today["income"]) == 360 and int(c_today["invest"]) == 1000, "the camp's day, what came in (%s)" % str(c_today))
+	_expect(int(c_today["profit"]) == 300 - 40 + left_here, "the camp's day: what is left, the investment apart (%s)" % str(c_today))
+	_expect(int((c_today["places"] as Dictionary)["12:12"]) == left_here, "the place by what it left")
+	var told: Array = []
+	a.biz_remote = func(kind: String, args: Array) -> void: told.append([kind, args])
+	a.note_camp("repairs", 5)
+	a.biz_remote = Callable()
+	_expect(told.size() == 1 and str(told[0][0]) == "camp" and str(told[0][1][0]) == "repairs" and int(told[0][1][1]) == 5, "the other warden's goes to the host's book")
+	a.biz_close_day(20)
+	_expect(int(ms["yesterday"].get("wages", -1)) == wage_due, "the close writes the wages")
+	_expect(int((ms["total"] as Dictionary).get("profit", 0)) == left_here, "the place's whole run (%s)" % str(ms["total"]))
+	var c_closed := RULES.camp_day(state.biz, 1)
+	_expect(int(c_closed["lodging"]) == 300 and int(c_closed["wages"]) == wage_due and int(c_closed["cash"]) == state.money, "the camp's closed day (%s)" % str(c_closed))
+	_expect(int(RULES.camp_day(state.biz, 0)["lodging"]) == 0, "a new day in the camp's book")
+	_expect(is_equal_approx(RULES.use_per_day(ms, "beer"), 12.0), "what a good goes through in a day (%.2f)" % RULES.use_per_day(ms, "beer"))
+	ms["stock"]["beer"] = 24
+	_expect(RULES.days_left(ms, "beer") == 2, "the shelf lasts two days (%d)" % RULES.days_left(ms, "beer"))
+	_expect(RULES.days_left(ms, "kofola") == -1, "nothing known of a good nobody bought")
+	_expect(int(RULES.fill_order("pub", ms, {}).get("beer", 0)) >= 1, "filled up for a few days")
+	ms["stock"]["beer"] = RULES.cap_of("pub", "beer", ms)
+	_expect(not RULES.fill_order("pub", ms, {}).has("beer"), "a full shelf is left alone")
+
 	print("")
 	if _failures.is_empty():
 		print("BUSINESS CHECK: PASS")

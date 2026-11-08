@@ -1767,6 +1767,20 @@ disagree, this wins (the older lines say so).*
 - **By day plain play, by night the uncanny** as before (open late, PROTOTYP 540, Jaromir
   and Marta are untouched). The hands stay worse than a good warden.
 
+### The books and the money (2026-11-08)
+
+Richard: „polishnout UX managementu podniků, UI knih, správa zamstnanců zboží objednávek, nějaký staty profitu a nákladů a tak.. pokračuj prostě v polishmentu management stránky hry"
+
+- **The book on the counter** is as big as the screen allows. The line of pencil under it now goes over the foot of the picture (`closeup_view.strip_over`), so the page is scaled to the whole height: ×3 at 1366×768 where it was ×2. The staffroom's book the same. Five tabs: Goods, Menu, Staff, Gear, Accounts.
+- **Goods and orders are one page**: what is on the shelf, how many days that lasts at what the place goes through (or what is on the van), the packs written in with − and +, what a pack costs, the total and the cash. FILL writes in enough for a few days (`business_rules.fill_order`: `COVER_DAYS` of `use_per_day`, never more than the shelf holds, nothing off the menu). The tick Hands order, SEND ORDER and the van's fee stand on the same page. The line of pencil says a row in full when you are over it.
+- **A hand's card**: the ID photo, the wage, at work or away, how fast, the posts as ticks (one at a time), day or late shift, let go, and back to who is asking.
+- **Accounts**: Today and Yesterday: takings, goods (what was used, at what it cost), wages, the van, short, PROFIT; what sold, went away, the average. The last seven days' profit as a chart, the seven days added up and the place's whole run, the last shift's mark, the hours, OPEN LATE, Z REPORT.
+- **What a place costs** is written where it happens: `today.used` good by good, `today.van`, `today.short_money`; the day's close writes the wages and adds the day to `site.total`. `business_rules.day_money`, `sum_money`, `last_days`. The hands' own orders go by the same use (`restock` with the site).
+- **The camp's own book**: `biz.camp {today, history}` through `actions.note_camp`: lodging, facilities, staffroom wages, electricity, repairs, advertising, and what was invested. `business_rules.camp_day(biz, back)` puts it together with the places: income, costs, profit, each place by what it left.
+- **CampStat, Money**: the cash and the profit of today, yesterday and the week on the LCD; a table of the lodging, the facilities, each place by what it left, the staffroom's wages, electricity, repairs and the profit, three columns; the week as a chart (came in, cost, the cash at each day's end). Investment is written apart, so that a new bistro does not read as a bad day. Fits without a scrollbar.
+- **SoftSklad**: Stock has what goes in a day and the days left; Order has Fill up, every licensed place at once, one van; Books the same sums as the book on the counter and the week's takings against its costs.
+- **Personal 98**: a place's hand has their posts and the late shift there too, not only the staffroom's.
+
 ## 7c. The staffroom and the camp's own staff
 
 The user, 21. 10.: "a fifth tab in SoftSklad where you hire staff who clean; a staffroom

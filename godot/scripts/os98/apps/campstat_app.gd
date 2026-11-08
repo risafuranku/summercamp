@@ -450,10 +450,10 @@ func _lcd(y: float, cells: Array) -> float:
 ## A table: `cols` = [[title, width (0: the rest), align]], `rows` = arrays of cells. A
 ## cell is a String, or a Dictionary: {t, c (colour), b (bold)}, {bar: 0..1, c},
 ## {chip: text, c}, {btn: text, act, on}, {stars: n}.
-func _table(y: float, cols: Array, rows: Array, row_h := 18.0) -> float:
+func _table(y: float, cols: Array, rows: Array, row_h := 18.0, at_x := -1.0, wide := -1.0) -> float:
 	var c := _canvas
-	var x0 := PAD
-	var full := c.size.x - PAD * 2
+	var x0 := PAD if at_x < 0.0 else at_x
+	var full := c.size.x - PAD * 2 if wide < 0.0 else wide
 	var fixed := 0.0
 	for col in cols:
 		fixed += float(col[1])
@@ -949,111 +949,157 @@ func _crew() -> void:
 
 # ── money ────────────────────────────────────────────────────────────────────
 
+## The camp's money on a page (Richard 8. 11.: "some stats of profit and costs"): what each
+## part of it brought in or cost, today, yesterday and over the week; the week as a chart.
+const BIZ_RULES := preload("res://core/systems/business_rules.gd")
+const INCOME_ROWS := [["Lodging", "lodging"], ["Facilities", "facilities"]]
+const COST_ROWS := [["Staffroom wages", "staff_wages"], ["Electricity", "power"], ["Repairs", "repairs"], ["Advertising", "ads"]]
+
+
 func _page_money(y: float) -> float:
 	y = _title(y, tr("MONEY"), LANG.f("day %d", int(_snap.get("day", CoreRoot.get_day()))))
-	var passive := 0
-	var breakdown: Array = []
-	var m: Node = _shell.main_node()
-	var eco: Node = m.get_node_or_null("EconomyManager") if m != null else null
-	if eco != null:
-		if eco.has_method("calculate_day_income"):
-			passive = int(eco.calculate_day_income())
-		if eco.has_method("get_income_breakdown"):
-			breakdown = eco.get_income_breakdown()
-	var guests_income := 0
-	var guests := 0
 	var state = CoreRoot.get_state()
-	if state != null:
-		for g_any in state.guests:
-			if g_any is Dictionary and str(g_any.get("status", "")).to_lower() in ["active", "sleep"]:
-				guests += 1
-				guests_income += maxi(1, int(g_any.get("daily_income", 1)))
-	var total := guests_income + passive
-	y = _lcd(y, [["Cash", LANG.money("$" + _shell._group(CoreRoot.get_money()))], ["Income a day", LANG.money("$%d" % total)], ["Guests paying", str(guests)]])
-	y = _week_chart(y)
-	var top := float(maxi(1, maxi(guests_income, passive)))
-	var rows: Array = [
-		[LANG.f("Guests (%d)", guests), {"t": LANG.money("$%d" % guests_income), "b": true}, {"bar": guests_income / top, "c": GREEN}],
-		[tr("Facilities"), {"t": LANG.money("$%d" % passive), "b": true}, {"bar": passive / top, "c": T.NAVY}],
-		[{"t": tr("Total a day"), "b": true}, {"t": LANG.money("$%d" % total), "b": true}, ""],
-	]
-	y = _table(y, [["Income", 0, HORIZONTAL_ALIGNMENT_LEFT], ["a day", 80, HORIZONTAL_ALIGNMENT_RIGHT], ["", 150, HORIZONTAL_ALIGNMENT_LEFT]], rows)
-	if not breakdown.is_empty():
-		var brows: Array = []
-		for l in breakdown:
-			brows.append([tr(str(l))])
-		y = _table(y, [["Facilities", 0, HORIZONTAL_ALIGNMENT_LEFT]], brows)
-	return _para(y, tr("Electricity is billed separately (see Bills)."), GREY)
+	var biz: Dictionary = state.biz if state != null and state.biz is Dictionary else {}
+	var days: Array = []
+	for back in 7:
+		days.append(BIZ_RULES.camp_day(biz, back, int(_snap.get("day", CoreRoot.get_day()))))
+	var week := _week_sum(days, func(d: Dictionary) -> int: return int(d["profit"]))
+	y = _lcd(y, [["Cash", LANG.money("$" + _shell._group(CoreRoot.get_money()))], _lcd_profit("Today", int(days[0]["profit"])), _lcd_profit("Yesterday", int(days[1]["profit"])), _lcd_profit("7 days", week)])
+	var rows: Array = []
+	for r in INCOME_ROWS:
+		var key := str(r[1])
+		rows.append(_money_row(tr(str(r[0])), days, func(d: Dictionary) -> int: return int(d[key])))
+	# Each place by what it left: a place that cost more than it made in red.
+	var sites: Dictionary = biz.get("sites", {}) if biz.get("sites", {}) is Dictionary else {}
+	var keys: Array = sites.keys()
+	keys.sort()
+	var of_kind := {}
+	for key2 in keys:
+		var k2 := str((sites[key2] as Dictionary).get("kind", ""))
+		of_kind[k2] = int(of_kind.get(k2, 0)) + 1
+	var nth := {}
+	for key3 in keys:
+		var kind := str((sites[key3] as Dictionary).get("kind", ""))
+		nth[kind] = int(nth.get(kind, 0)) + 1
+		var name := tr(str(BIZ_RULES.info(kind).get("name", "")))
+		var label: String = name if int(of_kind[kind]) <= 1 else "%s %d" % [name, int(nth[kind])]
+		var at := str(key3)
+		var of_place := func(d: Dictionary) -> int: return int((d["places"] as Dictionary).get(at, 0))
+		if _any_money(days, of_place):
+			rows.append(_money_row(label, days, of_place, true))
+	for c0 in COST_ROWS:
+		var key4 := str(c0[1])
+		var of_cost := func(d: Dictionary) -> int: return -int(d[key4])
+		if key4 != "ads" or _any_money(days, of_cost):
+			rows.append(_money_row(tr(str(c0[0])), days, of_cost))
+	rows.append([{"t": tr("Profit"), "b": true}, _profit_cell(int(days[0]["profit"])), _profit_cell(int(days[1]["profit"])), _profit_cell(week)])
+	var invested := func(d: Dictionary) -> int: return -int(d["invest"])
+	if _any_money(days, invested):
+		var row := _money_row(tr("Invested"), days, invested)
+		row[0] = {"t": row[0], "c": GREY}
+		for n in range(1, 4):
+			(row[n] as Dictionary)["c"] = GREY
+		rows.append(row)
+	var c := _canvas
+	var chart_w := minf(196.0, c.size.x * 0.4)
+	var tw := c.size.x - PAD * 2 - chart_w - 8.0
+	var top := y
+	y = _table(y, [["", 0, HORIZONTAL_ALIGNMENT_LEFT], ["Today", 56, HORIZONTAL_ALIGNMENT_RIGHT], ["Yesterday", 62, HORIZONTAL_ALIGNMENT_RIGHT], ["7 days", 58, HORIZONTAL_ALIGNMENT_RIGHT]], rows, 16.0, PAD, tw)
+	_week_chart(Rect2(PAD + tw + 8.0, top, chart_w, maxf(y - 8.0 - top, 150.0)), days)
+	return maxf(y, top + 158.0)
 
 
-## The last seven days: what guests paid (green), what the electricity cost (amber),
-## and the cash at each day's end (the line), as the utility's software drew its graphs.
-func _week_chart(y: float) -> float:
+func _week_sum(days: Array, pick: Callable) -> int:
+	var n := 0
+	for d in days:
+		n += int(pick.call(d))
+	return n
+
+
+func _any_money(days: Array, pick: Callable) -> bool:
+	for d in days:
+		if int(pick.call(d)) != 0:
+			return true
+	return false
+
+
+## A row of the table: its name, the day's, yesterday's and the week's.
+func _money_row(label: String, days: Array, pick: Callable, loss_red := false) -> Array:
+	return [label, _money_cell(int(pick.call(days[0])), loss_red), _money_cell(int(pick.call(days[1])), loss_red), _money_cell(_week_sum(days, pick), loss_red)]
+
+
+func _money_cell(v: int, loss_red := false) -> Dictionary:
+	if v == 0:
+		return {"t": "-", "c": GREY}
+	return {"t": ("-" if v < 0 else "") + _amount(v), "c": RED if loss_red and v < 0 else T.TEXT}
+
+
+func _profit_cell(v: int) -> Dictionary:
+	return {"t": ("+" if v > 0 else ("-" if v < 0 else "")) + _amount(v), "b": true, "c": RED if v < 0 else GREEN}
+
+
+## An amount in the player's money without its sign of currency.
+func _amount(v: int) -> String:
+	return LANG.money("$" + _shell._group(absi(v))).replace("$", "").replace(" Kč", "")
+
+
+func _lcd_profit(label: String, v: int) -> Array:
+	return [label, ("+" if v > 0 else ("-" if v < 0 else "")) + LANG.money("$" + _shell._group(absi(v))), LCD_ON if v >= 0 else Color8(255, 90, 70)]
+
+
+## The last seven days: what came in (green), what it cost (amber), the cash at each day's
+## end (the line), as the utility's software drew its graphs.
+func _week_chart(r: Rect2, sums: Array) -> void:
 	var c := _canvas
 	var today := CoreRoot.get_day() if CoreRoot != null else 1
 	var days: Array = []
 	for i in range(6, -1, -1):
 		if today - i >= 1:
 			days.append(today - i)
-	var income := {}
-	var state = CoreRoot.get_state() if CoreRoot != null else null
-	if state != null:
-		for tx in state.guest_transactions:
-			if tx is Dictionary:
-				var d := int(tx.get("day", 0))
-				income[d] = int(income.get(d, 0)) + maxi(0, int(tx.get("amount", 0)))
-	var power := {}
-	for b in _snap.get("bills", []):
-		if b is Dictionary:
-			var d2 := int(b.get("service_day", 0))
-			power[d2] = int(power.get(d2, 0)) + maxi(0, int(b.get("amount", 0)))
 	var cash := {}
 	for d3 in days:
-		var v = _shell.stored("cash_d%d" % int(d3), null) if _shell.has_method("stored") else null
-		if v != null:
-			cash[d3] = int(v)
+		var back := today - int(d3)
+		var v: int = CoreRoot.get_money() if back == 0 else int((sums[back] as Dictionary).get("cash", -1))
+		if v >= 0:
+			cash[d3] = v
 	var top := 1.0
 	for d4 in days:
-		top = maxf(top, float(maxi(int(income.get(d4, 0)), int(power.get(d4, 0)))))
-	var ctop := 1.0
-	var cbot := 0.0
+		var s: Dictionary = sums[today - int(d4)]
+		top = maxf(top, maxf(float(s["income"]), float(s["costs"])))
+	var ctop := -INF
+	var cbot := INF
 	for v2 in cash.values():
 		ctop = maxf(ctop, float(v2))
 		cbot = minf(cbot, float(v2))
-	_text(Vector2(PAD, y), tr("THE LAST SEVEN DAYS"), T.NAVY, true)
-	_text(Vector2(PAD + 150, y), tr("guests paid"), GREEN)
-	_text(Vector2(PAD + 230, y), tr("electricity"), AMBER)
-	_text(Vector2(PAD + 304, y), tr("cash"), T.NAVY)
-	y += 16.0
-	var r := Rect2(PAD, y, c.size.x - PAD * 2, 110)
-	c.draw_style_box(T.box("field", T.WHITE, Vector4.ZERO), r)
-	var plot := Rect2(r.position + Vector2(8, 8), r.size - Vector2(16, 30))
+	_text(r.position + Vector2(4, 1), tr("came in"), GREEN)
+	_text(r.position + Vector2(66, 1), tr("cost"), AMBER)
+	_text(r.position + Vector2(126, 1), tr("cash"), T.NAVY)
+	var box := Rect2(r.position + Vector2(0, 18), r.size - Vector2(0, 18))
+	c.draw_style_box(T.box("field", T.WHITE, Vector4.ZERO), box)
+	var plot := Rect2(box.position + Vector2(6, 6), box.size - Vector2(12, 26))
 	for k in 4:
 		var gy := plot.position.y + plot.size.y * float(k) / 4.0
 		c.draw_rect(Rect2(plot.position.x, gy, plot.size.x, 1), Color8(228, 228, 236))
 	c.draw_rect(Rect2(plot.position.x, plot.end.y, plot.size.x, 1), T.SHADOW)
-	var n := maxi(1, days.size())
 	var cw := plot.size.x / 7.0
 	var pts := PackedVector2Array()
 	for i in days.size():
 		var d5 := int(days[i])
+		var s2: Dictionary = sums[today - d5]
 		var x := plot.position.x + cw * i
-		var hi := plot.size.y * float(income.get(d5, 0)) / top
-		var hp := plot.size.y * float(power.get(d5, 0)) / top
+		var hi := plot.size.y * float(s2["income"]) / top
+		var hc := plot.size.y * float(s2["costs"]) / top
 		var bw := floorf(cw * 0.3)
 		c.draw_rect(Rect2(x + cw * 0.5 - bw - 1, plot.end.y - hi, bw, hi), GREEN)
-		c.draw_rect(Rect2(x + cw * 0.5 + 1, plot.end.y - hp, bw, hp), Color8(220, 160, 20))
+		c.draw_rect(Rect2(x + cw * 0.5 + 1, plot.end.y - hc, bw, hc), Color8(220, 160, 20))
 		_text(Vector2(x, plot.end.y + 3), tr(Season.weekday_short(d5)) if d5 != today else tr("today"), GREY, false, cw, HORIZONTAL_ALIGNMENT_CENTER)
 		if cash.has(d5):
-			var k2 := (float(cash[d5]) - cbot) / maxf(1.0, ctop - cbot)
+			var k2 := 0.5 if ctop <= cbot else (float(cash[d5]) - cbot) / (ctop - cbot)
 			pts.append(Vector2(x + cw * 0.5, plot.end.y - plot.size.y * (0.08 + 0.84 * k2)))
 	if pts.size() >= 2:
 		c.draw_polyline(pts, T.NAVY, 1.0)
 	for p in pts:
 		c.draw_rect(Rect2(p - Vector2(2, 2), Vector2(4, 4)), T.NAVY)
-	if n == 1 and income.is_empty() and power.is_empty():
-		_text(Vector2(plot.position.x + 8, plot.position.y + 8), tr("The first day. The graph fills in as the days go."), GREY)
-	return r.end.y + 10.0
 
 
 # ── reviews ──────────────────────────────────────────────────────────────────

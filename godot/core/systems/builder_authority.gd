@@ -95,6 +95,7 @@ func _on_request_build(building_type: String, pos: Vector2i, rot: int) -> void:
 		if CoreRoot.get_money() < lamp_cost or not _actions.spend_money(lamp_cost):
 			EventBus.BuildRejected.emit(normalized_type, pos, normalized_rot, "insufficient_funds")
 			return
+		_actions.note_camp("invest", int(lamp_cost))
 		cell["lamp"] = true
 		_state.grid.cells[pos] = cell
 		EventBus.building_placed.emit("lamp_post", pos, Vector2i.ONE, normalized_rot)
@@ -112,6 +113,7 @@ func _on_request_build(building_type: String, pos: Vector2i, rot: int) -> void:
 		if CoreRoot.get_money() < bench_cost or not _actions.spend_money(bench_cost):
 			EventBus.BuildRejected.emit(normalized_type, pos, normalized_rot, "insufficient_funds")
 			return
+		_actions.note_camp("invest", int(bench_cost))
 		pcell["bench"] = normalized_rot
 		_state.grid.cells[pos] = pcell
 		EventBus.building_placed.emit("bench", pos, Vector2i.ONE, normalized_rot)
@@ -196,6 +198,7 @@ func _on_request_demolish(area: Rect2i) -> void:
 	if fee > 0 and not _actions.spend_money(fee):
 		EventBus.DemolishRejected.emit(rect, "fee_payment_failed")
 		return
+	_actions.note_camp("invest", fee)
 
 	EventBus.DemolishConfirmed.emit(rect, removed_count, fee, refund_total)
 

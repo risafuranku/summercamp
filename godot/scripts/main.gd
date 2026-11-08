@@ -3924,6 +3924,7 @@ func _on_day_tick(day_index: int) -> void:
 		income = int(economy_manager.calculate_day_income())
 	if income != 0 and CoreRoot.actions != null and CoreRoot.actions.has_method("add_money"):
 		CoreRoot.actions.add_money(income)
+		CoreRoot.actions.note_camp("facilities", income)
 	EventBus.day_advanced.emit(_day_index, income)
 	if EmailManager != null and EmailManager.has_method("settle_reputation"):
 		EmailManager.settle_reputation()
@@ -4124,6 +4125,7 @@ func atlas_buy_ad(kind: String, days: int) -> Dictionary:
 	if not _goggle.buy_ad(kind, days, now):
 		return {"ok": false, "reason": "no", "cost": cost}
 	CoreRoot.actions.spend_money(cost)
+	CoreRoot.actions.note_camp("ads", cost)
 	if Coop.is_client():
 		# The host's page runs it (the fee goes with the till).
 		Coop.send_request("atlas_ad", [kind, days, now])
@@ -4162,6 +4164,7 @@ func goggle_remove(id: int) -> Dictionary:
 	if Coop.is_client():
 		# The host's page; the fee goes with the till.
 		CoreRoot.actions.spend_money(cost)
+		CoreRoot.actions.note_camp("ads", cost)
 		var e: Dictionary = _goggle.by_id(id)
 		if not e.is_empty():
 			e["removing"] = _day_index
@@ -4170,6 +4173,7 @@ func goggle_remove(id: int) -> Dictionary:
 	if not _goggle.request_removal(id, _day_index):
 		return {"ok": false, "reason": "no", "cost": cost}
 	CoreRoot.actions.spend_money(cost)
+	CoreRoot.actions.note_camp("ads", cost)
 	return {"ok": true, "cost": cost}
 
 
@@ -5846,6 +5850,8 @@ func _coop_biz_change(kind: String, a: Array) -> void:
 				act.staff_set_job(str(a[0]), str(a[1]), bool(a[2]))
 		"s_gear":
 			act.staff_add_gear(str(a[0]))
+		"camp":
+			act.note_camp(str(a[0]), int(a[1]))
 
 
 ## The other machine: the other warden got you up.

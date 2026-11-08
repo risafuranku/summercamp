@@ -226,7 +226,7 @@ func _move(slug: String, place: String) -> void:
 		CoreRoot.actions.biz_fire(str(e["at"]), slug)
 	var ok: bool = CoreRoot.actions.staff_hire(person, since) if place == "staff" else CoreRoot.actions.biz_hire(place, person, since)
 	if ok:
-		_say(LANG.f("Moved: %s -> %s.", [str(p.get("name", "")), _place_label(place)]), GREEN)
+		_say(LANG.f("Moved: %s -> %s.", [tr(str(p.get("name", ""))), _place_label(place)]), GREEN)
 		_shell.play("ding", -10.0)
 
 
@@ -280,7 +280,7 @@ func _click(id: String) -> void:
 		var place := id.substr(5)
 		if _take_on(p, place):
 			_pick = str(p["slug"])
-			_say(LANG.f("Taken on: %s, from tomorrow (%s).", [str(p["name"]), _place_label(place)]), GREEN)
+			_say(LANG.f("Taken on: %s, from tomorrow (%s).", [tr(str(p["name"])), _place_label(place)]), GREEN)
 			_shell.play("ding", -10.0)
 		return
 	if id.begins_with("job:"):
@@ -289,6 +289,17 @@ func _click(id: String) -> void:
 			return
 		var job := id.substr(4)
 		CoreRoot.actions.staff_set_job(_pick, job, not RULES.does(e["p"], job))
+		_shell.play("click", -12.0)
+		return
+	if id.begins_with("role:") or id == "late":
+		var e3 := _entry(_pick)
+		if e3.is_empty() or str(e3["at"]) == "staff":
+			return
+		var p3: Dictionary = e3["p"]
+		var shift3 := str(p3.get("shift", "day"))
+		if id == "late":
+			shift3 = "late" if shift3 == "day" else "day"
+		CoreRoot.actions.biz_set_job(str(e3["at"]), _pick, id.substr(5) if id != "late" else str(p3.get("role", "")), shift3)
 		_shell.play("click", -12.0)
 		return
 	if id.begins_with("buy:"):
@@ -310,7 +321,7 @@ func _click(id: String) -> void:
 		if e2.is_empty():
 			return
 		var slug := _pick
-		var name := str((e2["p"] as Dictionary).get("name", ""))
+		var name := tr(str((e2["p"] as Dictionary).get("name", "")))
 		var at := str(e2["at"])
 		_shell.message_box(tr("Personal 98"), LANG.f("Let %s go?", name), "question", [tr("Yes"), tr("No")], func(b: String):
 			if b == tr("Yes"):
@@ -499,7 +510,7 @@ func _draw_staff(m: Rect2) -> void:
 			draw_rect(r, T.NAVY)
 		var fg := T.WHITE if sel else T.TEXT
 		draw_rect(Rect2(r.position + Vector2(4, 5), Vector2(8, 8)), PLACE_COL.get(_kind_of(str(e["at"])), T.NAVY))
-		_t(r.position + Vector2(16, 13), str(p.get("name", "")), fg)
+		_t(r.position + Vector2(16, 13), tr(str(p.get("name", ""))), fg)
 		_t(r.position + Vector2(118, 13), _place_label(str(e["at"])), fg)
 		var status := _status(e)
 		var warn := status in ["Away today", "In a guest bed"] or int(p.get("owed", 0)) > 0
@@ -516,8 +527,9 @@ func _draw_staff(m: Rect2) -> void:
 	var who: Dictionary = e2["p"]
 	var pr := Rect2(right.position + Vector2(12, 18), Vector2(52, 66))
 	_photo(pr, _pick)
-	_t(Vector2(pr.end.x + 10, pr.position.y + 14), str(who.get("name", "")), T.TEXT, true)
-	_t(Vector2(pr.end.x + 10, pr.position.y + 32), LANG.f("$%d a day", int(who.get("wage", 0))))
+	_t(Vector2(pr.end.x + 10, pr.position.y + 14), tr(str(who.get("name", ""))), T.TEXT, true)
+	var late_hand := str(e2["at"]) != "staff" and str(who.get("shift", "day")) == "late"
+	_t(Vector2(pr.end.x + 10, pr.position.y + 32), LANG.f("$%d a late shift" if late_hand else "$%d a day", BRT.shift_pay(who) if str(e2["at"]) != "staff" else int(who.get("wage", 0))))
 	var ways := [BRT.SPEED_WORD[clampi(int(who.get("speed", 1)), 0, 2)], str(BRT.TEMPER_WORD.get(str(who.get("temper", "flat")), ""))]
 	var wy := pr.position.y + 50
 	for w in ways:
@@ -542,6 +554,13 @@ func _draw_staff(m: Rect2) -> void:
 		for i in RULES.JOBS.size():
 			var id := str(RULES.JOBS[i][0])
 			_check(Vector2(right.position.x + 12 + (i % 2) * (bw + 6), jy + (i / 2) * 20), tr(str(RULES.JOBS[i][1])), RULES.does(who, id), "job:" + id)
+	else:
+		# A place's hand: their post there (one at a time), and the late shift.
+		var roles: Array = BRT.ROLES.get(_kind_of(str(e2["at"])), [])
+		for i in roles.size():
+			var rid := str(roles[i][0])
+			_check(Vector2(right.position.x + 12 + (i % 2) * (bw + 6), jy + (i / 2) * 18), tr(str(roles[i][1])), str(who.get("role", "")) == rid, "role:" + rid)
+		_check(Vector2(right.position.x + 12, right.end.y - 26), tr("Late shift"), late_hand, "late")
 	_button(Rect2(right.end.x - 102, right.end.y - 30, 90, 22), tr("Let go"), "fire")
 
 
@@ -560,7 +579,7 @@ func _draw_hire(m: Rect2) -> void:
 		var sel := i == _candidate % ap.size()
 		if sel:
 			draw_rect(r2, T.NAVY)
-		_t(r2.position + Vector2(4, 13), str(ap[i]["name"]), T.WHITE if sel else T.TEXT)
+		_t(r2.position + Vector2(4, 13), tr(str(ap[i]["name"])), T.WHITE if sel else T.TEXT)
 		_hit("cand:%d" % i, r2)
 	var free := RULES.gear_count(_st(), "locker") - _crew().size()
 	_t(Vector2(left.position.x + 12, alb.end.y + 22), LANG.f("Lockers free: %d", maxi(0, free)), GREEN if free > 0 else RED)
@@ -569,7 +588,7 @@ func _draw_hire(m: Rect2) -> void:
 	var slug := str(p2["slug"])
 	var pr := Rect2(right.position + Vector2(12, 18), Vector2(52, 66))
 	_photo(pr, slug)
-	_t(Vector2(pr.end.x + 10, pr.position.y + 14), str(p2["name"]), T.TEXT, true)
+	_t(Vector2(pr.end.x + 10, pr.position.y + 14), tr(str(p2["name"])), T.TEXT, true)
 	# (Their papers say how they are: the speed, the temper, where they come from.)
 	var ty := pr.position.y + 34
 	for line in p2.get("refs", []):

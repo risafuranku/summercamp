@@ -183,6 +183,127 @@ static func empty_day() -> Dictionary:
 	return {"sold": 0, "takings": 0, "lost": 0, "by_hand": 0, "waste": 0, "short": 0}
 
 
+## A day of a place's books in money (Richard 8. 11.: "some stats of profit and costs"): what
+## came in, what the goods cost off the van, the wages, the van's fee, what went missing from
+## the till, and what is left. `day`: its today, yesterday or one of its history.
+static func day_money(day: Dictionary) -> Dictionary:
+	var takings := int(day.get("takings", 0))
+	var goods_used := int(round(float(day.get("cost", 0.0))))
+	var wages := int(day.get("wages", 0))
+	var van := int(day.get("van", 0))
+	var short := int(day.get("short_money", 0))
+	return {"takings": takings, "goods": goods_used, "wages": wages, "van": van, "short": short, "profit": takings - goods_used - wages - van - short}
+
+
+## Those added up.
+static func sum_money(days: Array) -> Dictionary:
+	var out := {"takings": 0, "goods": 0, "wages": 0, "van": 0, "short": 0, "profit": 0}
+	for d in days:
+		var m := day_money(d)
+		for k in out:
+			out[k] = int(out[k]) + int(m[k])
+	return out
+
+
+## Today's, with the wages the day's close will pay already in: the day's profit does not
+## jump at night. `day`: today's number.
+static func today_money(site: Dictionary, day: int) -> Dictionary:
+	var d: Dictionary = (site.get("today", {}) as Dictionary).duplicate()
+	var w := 0
+	for p in site.get("crew", []):
+		if int(p.get("absent", -1)) == day or int(p.get("since", 0)) > day:
+			continue
+		w += shift_pay(p) + int(p.get("owed", 0))
+	d["wages"] = w
+	return day_money(d)
+
+
+## The week: the last closed days and today as it stands.
+static func week_money(site: Dictionary, day: int) -> Dictionary:
+	var out := sum_money((site.get("history", []) as Array).slice(-6))
+	var t := today_money(site, day)
+	for k in out:
+		out[k] = int(out[k]) + int(t[k])
+	return out
+
+
+## The whole camp's day, `back` days ago (0 today, out of the books of `biz`): what came in
+## (lodging, the facilities, the places' takings), what it cost to run (goods, wages, the van,
+## what went missing, electricity, repairs, advertising), what is left, and what was put into
+## the camp on top. Each place's own profit under "places": {key: profit}. With `day` (today's
+## number) today counts the wages its close will pay.
+static func camp_day(biz: Dictionary, back: int, day := -1) -> Dictionary:
+	var out := {"lodging": 0, "facilities": 0, "takings": 0, "goods": 0, "wages": 0, "staff_wages": 0, "van": 0, "short": 0, "power": 0, "repairs": 0, "ads": 0, "invest": 0}
+	var camp: Dictionary = biz.get("camp", {}) if biz.get("camp", {}) is Dictionary else {}
+	var rec: Dictionary = {}
+	if back <= 0:
+		rec = camp.get("today", {}) if camp.get("today", {}) is Dictionary else {}
+	else:
+		var hist: Array = camp.get("history", []) if camp.get("history", []) is Array else []
+		if hist.size() >= back:
+			rec = hist[hist.size() - back]
+	for k in ["lodging", "facilities", "staff_wages", "power", "repairs", "ads", "invest"]:
+		out[k] = int(rec.get(k, 0))
+	out["cash"] = int(rec.get("cash", -1))
+	if back <= 0 and day >= 0:
+		var staff: Dictionary = biz.get("staff", {}) if biz.get("staff", {}) is Dictionary else {}
+		var due := 0
+		for p in staff.get("crew", []):
+			if int(p.get("absent", -1)) == day or int(p.get("since", 0)) > day:
+				continue
+			due += int(p.get("wage", 25)) + int(p.get("owed", 0))
+		out["staff_wages"] = due
+	out["wages"] = int(out["staff_wages"])
+	var places := {}
+	var sites: Dictionary = biz.get("sites", {}) if biz.get("sites", {}) is Dictionary else {}
+	for key in sites:
+		var s: Dictionary = sites[key]
+		var one: Dictionary = {}
+		if back <= 0:
+			one = s.get("today", {})
+		else:
+			var h: Array = s.get("history", []) if s.get("history", []) is Array else []
+			if h.size() >= back:
+				one = h[h.size() - back]
+		var m := today_money(s, day) if back <= 0 and day >= 0 else day_money(one)
+		for k2 in ["takings", "goods", "wages", "van", "short"]:
+			out[k2] = int(out[k2]) + int(m[k2])
+		places[str(key)] = int(m["profit"])
+	out["places"] = places
+	out["income"] = int(out["lodging"]) + int(out["facilities"]) + int(out["takings"])
+	out["costs"] = int(out["goods"]) + int(out["wages"]) + int(out["van"]) + int(out["short"]) + int(out["power"]) + int(out["repairs"]) + int(out["ads"])
+	out["profit"] = int(out["income"]) - int(out["costs"])
+	return out
+
+
+## A place's last days, closed ones first and today last: up to `n` of them.
+static func last_days(site: Dictionary, n := 7) -> Array:
+	var days: Array = (site.get("history", []) as Array).duplicate()
+	days.append(site.get("today", {}))
+	return days.slice(maxi(0, days.size() - n))
+
+
+## How much of `good` goes in a day here: the closed days of the last week that used any
+## (0: not known yet).
+static func use_per_day(site: Dictionary, good: String) -> float:
+	var total := 0
+	var n := 0
+	for d in (site.get("history", []) as Array).slice(-USE_DAYS):
+		var used: Dictionary = (d as Dictionary).get("used", {}) if (d as Dictionary).get("used", {}) is Dictionary else {}
+		if int(used.get(good, 0)) > 0:
+			total += int(used[good])
+			n += 1
+	return float(total) / float(n) if n > 0 else 0.0
+
+
+## Days the shelf lasts at that rate (-1: not known yet).
+static func days_left(site: Dictionary, good: String) -> int:
+	var use := use_per_day(site, good)
+	if use <= 0.0:
+		return -1
+	return int(float((site.get("stock", {}) as Dictionary).get(good, 0)) / use)
+
+
 ## The cost of an order (goods: {good: packs}), the van's fee included.
 static func order_cost(kind: String, order: Dictionary) -> int:
 	var total := 0
@@ -260,6 +381,35 @@ static func kept(kind: String, good: String) -> bool:
 	return int((goods(kind).get(good, {}) as Dictionary).get("start", 0)) > 0
 
 
+## How many days the books look back for what a good uses; how many days' worth a full order
+## brings in (or a pack, if that is more).
+const USE_DAYS := 5
+const COVER_DAYS := 3.0
+
+
+## What brings a good up to a few days' use, in packs, never more than the shelf holds.
+static func packs_to_fill(kind: String, good: String, site: Dictionary, coming: int) -> int:
+	var d: Dictionary = goods(kind).get(good, {})
+	var pack := maxi(1, int(d.get("pack", 1)))
+	var have := int((site.get("stock", {}) as Dictionary).get(good, 0)) + coming
+	var want := maxi(pack, int(ceil(use_per_day(site, good) * COVER_DAYS)))
+	var room := (cap_of(kind, good, site) - have) / pack
+	return clampi(int(ceil(float(want - have) / float(pack))), 0, maxi(0, room))
+
+
+## The whole shelf brought up (the book's FILL and the program's): {good: packs}, what is not
+## kept, not on the menu or plentiful left out.
+static func fill_order(kind: String, site: Dictionary, coming: Dictionary) -> Dictionary:
+	var out := {}
+	for g in goods(kind):
+		if not kept(kind, g) or not menu_on(kind, site, g):
+			continue
+		var n := packs_to_fill(kind, str(g), site, int(coming.get(g, 0)))
+		if n > 0:
+			out[g] = n
+	return out
+
+
 ## The hands see to their own shelves (Richard 8. 11.: "the whole camp should run by
 ## itself"): anybody on a place's books, the box on its ORDER page left ticked.
 static func orders_itself(site: Dictionary) -> bool:
@@ -269,7 +419,7 @@ static func orders_itself(site: Dictionary) -> bool:
 ## What goes on the next van then: every good kept here running low and not on its way
 ## ({good: units coming}): {good: packs}, two of what is gone altogether, never more than
 ## the shelf holds.
-static func restock(kind: String, stock: Dictionary, coming: Dictionary) -> Dictionary:
+static func restock(kind: String, stock: Dictionary, coming: Dictionary, site := {}) -> Dictionary:
 	var out := {}
 	var gd := goods(kind)
 	for g in gd:
@@ -281,6 +431,9 @@ static func restock(kind: String, stock: Dictionary, coming: Dictionary) -> Dict
 		var d: Dictionary = gd[g]
 		var pack := maxi(1, int(d.get("pack", 1)))
 		out[g] = mini(2 if n <= 0 else 1, maxi(1, (int(d.get("cap", pack * 3)) - n) / pack))
+		# As much as a few days go through here, when the books know.
+		if not site.is_empty() and use_per_day(site, str(g)) > 0.0:
+			out[g] = maxi(1, packs_to_fill(kind, str(g), site, 0))
 	return out
 
 

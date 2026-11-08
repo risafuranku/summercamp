@@ -35,6 +35,7 @@ func place_building(building_id: String, origin: Vector2i, footprint: Vector2i =
 
 	# 3. Execute
 	_state.money -= cost
+	note_camp("invest", int(cost))
 	
 	var instance_id = str(Time.get_ticks_msec()) + "_" + str(randi()) # Simple unique ID for now
 	
@@ -133,6 +134,7 @@ func maintenance_shift(amount: float) -> bool:
 		return false
 		
 	_state.money -= total_cost
+	note_camp("repairs", int(total_cost))
 	
 	# Apply maintenance to ALL cells (simplifies lookup)
 	for coord in _state.grid.cells:
@@ -150,6 +152,22 @@ func maintenance_shift(amount: float) -> bool:
 ## The fear the camp has worked up to tonight (core/systems/night_swell.gd).
 func set_night_swell(value: float) -> void:
 	_state.night_swell = clampf(value, 0.0, 1.0)
+
+
+## The camp's own day in money, beside the places' (Richard 8. 11.: "some stats of profit and
+## costs"): "lodging" (what the guests pay), "facilities" (the flat earnings), "power",
+## "repairs", "ads", "invest" (what is put into the camp: buildings, upgrades, gear,
+## licences). The other warden's goes to the host's book. Read by business_rules.camp_day.
+func note_camp(what: String, amount: int) -> void:
+	if amount == 0:
+		return
+	var b := _biz()
+	var camp: Dictionary = b.get("camp", {}) if b.get("camp", {}) is Dictionary else {}
+	var today: Dictionary = camp.get("today", {}) if camp.get("today", {}) is Dictionary else {}
+	today[what] = int(today.get(what, 0)) + amount
+	camp["today"] = today
+	b["camp"] = camp
+	_biz_tell("camp", [what, amount])
 
 
 func spend_money(amount: int) -> bool:
@@ -275,10 +293,13 @@ func biz_take(key: String, needs: Dictionary) -> bool:
 		return false
 	_biz_upgrade(site)
 	var cost := 0.0
+	var used: Dictionary = site["today"].get("used", {}) if site["today"].get("used", {}) is Dictionary else {}
 	for g in needs:
 		site["stock"][g] = int(site["stock"].get(g, 0)) - int(needs[g])
 		site["lots"][g] = BIZ_RULES.lots_take(site["lots"].get(g, []), int(needs[g]))
 		cost += BIZ_RULES.unit_cost(str(site["kind"]), str(g)) * int(needs[g])
+		used[g] = int(used.get(g, 0)) + int(needs[g])
+	site["today"]["used"] = used
 	# What the goods cost off the van, for the Z report.
 	site["today"]["cost"] = float(site["today"].get("cost", 0.0)) + cost
 	if site.get("shift", {}) is Dictionary:
@@ -357,9 +378,11 @@ func biz_order(key: String, order: Dictionary, due_day: int) -> bool:
 			clean[g] = int(order[g])
 	if clean.is_empty():
 		return false
-	var cost := BIZ_RULES.goods_cost(str(site["kind"]), clean) + van_fee(due_day)
+	var fee_one := van_fee(due_day)
+	var cost := BIZ_RULES.goods_cost(str(site["kind"]), clean) + fee_one
 	if not spend_money(cost):
 		return false
+	site["today"]["van"] = int(site["today"].get("van", 0)) + fee_one
 	_biz()["orders"].append({"key": key, "goods": clean, "cost": cost, "due_day": due_day})
 	EventBus.state_changed.emit({"biz": "ordered"})
 	_biz_tell("order", [key, clean, cost, due_day])
@@ -392,6 +415,9 @@ func biz_order_all(orders: Dictionary, due_day: int) -> bool:
 		return false
 	# The van's fee goes on the first line (one van).
 	lines[0][2] = int(lines[0][2]) + fee
+	var first: Dictionary = (_biz()["sites"] as Dictionary).get(str(lines[0][0]), {})
+	if not first.is_empty():
+		first["today"]["van"] = int(first["today"].get("van", 0)) + fee
 	for l in lines:
 		_biz()["orders"].append({"key": str(l[0]), "goods": l[1], "cost": int(l[2]), "due_day": due_day})
 		_biz_tell("order", [str(l[0]), l[1], int(l[2]), due_day])
@@ -405,6 +431,11 @@ func biz_add_order(key: String, goods: Dictionary, cost: int, due_day: int) -> v
 	if not (_biz()["sites"] as Dictionary).has(key):
 		return
 	_biz()["orders"].append({"key": key, "goods": goods, "cost": cost, "due_day": due_day})
+	# (The other warden's order: what is over the goods is the van's fee.)
+	var site: Dictionary = _biz()["sites"][key]
+	var fee := cost - BIZ_RULES.goods_cost(str(site["kind"]), goods)
+	if fee > 0:
+		site["today"]["van"] = int(site["today"].get("van", 0)) + fee
 	EventBus.state_changed.emit({"biz": "ordered"})
 
 
@@ -509,6 +540,10 @@ func biz_buy_gear(key: String, id: String) -> bool:
 		return false
 	if not spend_money(int(g["price"])):
 		return false
+	var tot: Dictionary = site.get("total", {}) if site.get("total", {}) is Dictionary else {}
+	tot["gear"] = int(tot.get("gear", 0)) + int(g["price"])
+	site["total"] = tot
+	note_camp("invest", int(g["price"]))
 	site["gear"].append(id)
 	EventBus.state_changed.emit({"biz": "gear"})
 	_biz_tell("gear", [key, id])
@@ -700,6 +735,7 @@ func biz_short(key: String, money: int, good := "", n := 0) -> void:
 		return
 	if money > 0:
 		_state.money -= money
+		site["today"]["short_money"] = int(site["today"].get("short_money", 0)) + money
 		EventBus.money_changed.emit(_state.money)
 	if good != "" and n > 0 and int(site["stock"].get(good, 0)) >= n:
 		site["stock"][good] = int(site["stock"][good]) - n
@@ -724,6 +760,7 @@ func biz_close_day(day := -1) -> Dictionary:
 		var site: Dictionary = _biz()["sites"][key]
 		_biz_upgrade(site)
 		var crew: Array = site["crew"]
+		var site_wages := 0
 		for i in range(crew.size() - 1, -1, -1):
 			var p: Dictionary = crew[i]
 			# (Away, or taken on for a later day: no shift worked.)
@@ -733,6 +770,7 @@ func biz_close_day(day := -1) -> Dictionary:
 			if _state.money >= due:
 				_state.money -= due
 				wages += due
+				site_wages += due
 				p["owed"] = 0
 				p["unpaid"] = 0
 			else:
@@ -742,7 +780,14 @@ func biz_close_day(day := -1) -> Dictionary:
 					left.append(str(p.get("name", "A hand")))
 					_note_gone(p)
 					crew.remove_at(i)
-		# The last week, for the office programs' charts.
+		# The last week, for the books and the office programs; the place's whole run.
+		site["today"]["wages"] = site_wages
+		var total: Dictionary = site.get("total", {}) if site.get("total", {}) is Dictionary else {}
+		var closed := BIZ_RULES.day_money(site["today"])
+		for k in closed:
+			total[k] = int(total.get(k, 0)) + int(closed[k])
+		total["days"] = int(total.get("days", 0)) + 1
+		site["total"] = total
 		var history: Array = site.get("history", [])
 		history.append(site["today"])
 		while history.size() > 7:
@@ -753,6 +798,7 @@ func biz_close_day(day := -1) -> Dictionary:
 	# The staffroom's hands (staff_rules.gd): paid the same way, the day they came in.
 	var st := _staff()
 	var screw: Array = st["crew"]
+	var staff_wages := 0
 	for i in range(screw.size() - 1, -1, -1):
 		var p: Dictionary = screw[i]
 		if day >= 0 and (int(p.get("absent", -1)) == day or int(p.get("since", 0)) > day):
@@ -761,6 +807,7 @@ func biz_close_day(day := -1) -> Dictionary:
 		if _state.money >= due:
 			_state.money -= due
 			wages += due
+			staff_wages += due
 			p["owed"] = 0
 			p["unpaid"] = 0
 		else:
@@ -775,6 +822,18 @@ func biz_close_day(day := -1) -> Dictionary:
 	st["done_n"] = 0
 	if wages > 0:
 		EventBus.money_changed.emit(_state.money)
+	# The camp's own day goes in its book (the places' went in theirs above).
+	var camp: Dictionary = _biz().get("camp", {}) if _biz().get("camp", {}) is Dictionary else {}
+	var cday: Dictionary = camp.get("today", {}) if camp.get("today", {}) is Dictionary else {}
+	cday["staff_wages"] = staff_wages
+	cday["cash"] = _state.money
+	var chist: Array = camp.get("history", []) if camp.get("history", []) is Array else []
+	chist.append(cday)
+	while chist.size() > 7:
+		chist.pop_front()
+	camp["history"] = chist
+	camp["today"] = {}
+	_biz()["camp"] = camp
 	return {"wages": wages, "left": left}
 
 
@@ -849,6 +908,7 @@ func staff_buy_gear(id: String) -> bool:
 	var price := STAFF_RULES.gear_price(st, id)
 	if price <= 0 or not spend_money(price):
 		return false
+	note_camp("invest", price)
 	st["gear"][id] = STAFF_RULES.gear_count(st, id) + 1
 	EventBus.state_changed.emit({"biz": "staff_gear"})
 	_biz_tell("s_gear", [id])
@@ -898,6 +958,7 @@ func biz_buy_licence(kind: String) -> bool:
 		return true
 	if not spend_money(int(BIZ_RULES.info(kind).get("licence", 0))):
 		return false
+	note_camp("invest", int(BIZ_RULES.info(kind).get("licence", 0)))
 	b["licences"].append(kind)
 	# Co-op: the books are the host's (bought on the other machine it was lost with the
 	# host's next books: playtest 21. 10.); the money goes there with the till.
@@ -1005,6 +1066,7 @@ func service_building(coord: Vector2i, cost: int) -> bool:
 	var key := "%d:%d" % [root.x, root.y]
 	var was_broken: bool = _state.failures.has(key)
 	_state.money -= maxi(0, cost)
+	note_camp("repairs", maxi(0, cost))
 	_state.failures.erase(key)
 	# A lamp on a path: its bulb is the path cell's lamp_maintenance.
 	if type == "path" and bool(_state.grid.cells[root].get("lamp", false)):

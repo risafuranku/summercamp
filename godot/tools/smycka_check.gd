@@ -377,9 +377,9 @@ func book_steps() -> Array:
 	]
 	for kind in ["corn_stand", "pub", "restaurant", "vecerka", "bowling"]:
 		s.append_array([["eval", C + ".book_open('%s')" % kind], ["wait", 1.0]])
-		for page in ["menu", "stock", "order", "staff", "gear", "books"]:
+		for page in ["goods", "menu", "staff", "gear", "books"]:
 			s.append_array([["eval", C + ".book_page('%s')" % page], ["wait", 0.25], ["shot", "%s_%s" % [kind, page]]])
-			if page == "order":
+			if page == "goods":
 				s.append_array([["eval", C + ".book_sheet()"], ["wait", 0.25], ["shot", "%s_%s2" % [kind, page]], ["eval", C + ".book_sheet()"]])
 		s.append_array([["eval", C + ".book_shut()"], ["wait", 0.8]])
 	# Builder's Help > Keys, as long as the Czech makes it.

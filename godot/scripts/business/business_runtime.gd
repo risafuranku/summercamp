@@ -646,7 +646,7 @@ func _watch_goods(sites: Dictionary) -> void:
 		var coming := {}
 		for g in RULES.goods(kind):
 			coming[g] = on_order(key, g)
-		var want: Dictionary = RULES.restock(kind, s.get("stock", {}), coming)
+		var want: Dictionary = RULES.restock(kind, s.get("stock", {}), coming, s)
 		if not want.is_empty():
 			lines[key] = want
 			total += RULES.goods_cost(kind, want)

@@ -1778,6 +1778,7 @@ func _on_upgrade_confirmed() -> void:
 		if _building_upgrade_menu != null:
 			_building_upgrade_menu.close_menu()
 		return
+	CoreRoot.actions.note_camp("invest", int(cost))
 
 	if mode == "replace":
 		var origin = _pending_upgrade_context.get("origin", Vector2i.ZERO)
@@ -1840,6 +1841,7 @@ func map_upgrade(origin: Vector2i, current_type: String) -> bool:
 		return true
 	if not _economy_manager.has_method("spend_money") or not _economy_manager.spend_money(int(offer["cost"])):
 		return false
+	CoreRoot.actions.note_camp("invest", int(offer["cost"]))
 	# The replace points the open room at the new building; from the map no room is
 	# open on it, so whatever was open stays as it was.
 	var keep := [_active_tent_node, _active_cabin_node, _active_caravan_node]
@@ -1857,6 +1859,7 @@ func coop_upgrade(ctx: Dictionary) -> void:
 	var cost := int(ctx.get("cost", 0))
 	if not _economy_manager.spend_money(cost):
 		return
+	CoreRoot.actions.note_camp("invest", cost)
 	match str(ctx.get("mode", "")):
 		"replace":
 			_handle_replace_upgrade(ctx.get("origin", Vector2i.ZERO), str(ctx.get("old_type", "")), str(ctx.get("new_type", "")), cost)

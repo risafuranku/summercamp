@@ -34,6 +34,10 @@ var strip_text := ""
 ## How much of strip_text is shown (typewriter); -1 = all.
 var strip_shown := -1
 
+## The text strip laid over the foot of the picture and the picture as big as the window's
+## height lets it (the books: a lot of small writing, and the table at their foot is free).
+var strip_over := false
+
 var _vp: SubViewport
 var _canvas: Control
 var _backdrop: ColorRect
@@ -127,8 +131,12 @@ func _layout() -> void:
 	if _view == null:
 		return
 	var vp := get_viewport().get_visible_rect().size
-	_k = maxi(1, int(floor(minf(vp.x * 0.94 / float(W), vp.y * 0.94 / float(H)))))
-	_view.size = Vector2(W * _k, H * _k)
+	var tall := PIC_H if strip_over else H
+	if _vp.size.y != tall:
+		_vp.size = Vector2i(W, tall)
+		_canvas.size = Vector2(W, tall)
+	_k = maxi(1, int(floor(minf(vp.x * 0.94 / float(W), vp.y * (0.97 if strip_over else 0.94) / float(tall)))))
+	_view.size = Vector2(W * _k, tall * _k)
 	_view.position = ((vp - _view.size) * 0.5).floor()
 
 
@@ -215,14 +223,18 @@ func _draw_all() -> void:
 	_paint(c)
 	_draw_strip(c)
 	# A one-pixel bevel round the whole plate, like the HUD's.
+	var tall := float(PIC_H if strip_over else H)
 	c.draw_rect(Rect2(0, 0, W, 1), RETRO_UI.C_PLATE_LIGHT)
-	c.draw_rect(Rect2(0, 0, 1, H), RETRO_UI.C_PLATE_LIGHT)
-	c.draw_rect(Rect2(0, H - 1, W, 1), RETRO_UI.C_PLATE_DARK)
-	c.draw_rect(Rect2(W - 1, 0, 1, H), RETRO_UI.C_PLATE_DARK)
+	c.draw_rect(Rect2(0, 0, 1, tall), RETRO_UI.C_PLATE_LIGHT)
+	c.draw_rect(Rect2(0, tall - 1, W, 1), RETRO_UI.C_PLATE_DARK)
+	c.draw_rect(Rect2(W - 1, 0, 1, tall), RETRO_UI.C_PLATE_DARK)
 
 
 func _draw_strip(c: Control) -> void:
-	var y0 := float(PIC_H)
+	var y0 := float(PIC_H - STRIP_H) if strip_over else float(PIC_H)
+	# (Over the picture with nothing to say: the table shows.)
+	if strip_over and strip_text == "" and strip_who == "":
+		return
 	c.draw_rect(Rect2(0, y0, W, STRIP_H), Color(0.06, 0.05, 0.04))
 	c.draw_rect(Rect2(0, y0, W, 1), RETRO_UI.C_PLATE_DARK)
 	c.draw_rect(Rect2(0, y0 + 1, W, 1), RETRO_UI.C_PLATE_LIGHT * Color(1, 1, 1, 0.5))
@@ -276,6 +288,11 @@ func _hotspots() -> Array:
 
 func _paint(_c: Control) -> void:
 	pass
+
+
+## A hand's name as a narrow page writes it.
+func hand_name(s: String) -> String:
+	return tr(s).replace("Mrs ", "Mrs.").replace("Paní ", "P. ")
 
 
 func _clicked(_id: String) -> void:

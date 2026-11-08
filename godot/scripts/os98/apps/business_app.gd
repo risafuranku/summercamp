@@ -207,6 +207,24 @@ func _click(id: String) -> void:
 			CoreRoot.actions.biz_set_auto(_site, not bool(BUSINESS.site(_site).get("auto_order", true)))
 		"clear":
 			_order.clear()
+		"fill":
+			# Every place's shelves written in for a few days of what it goes through.
+			for key in _sites:
+				var there := BUSINESS.site(str(key))
+				var k2 := str(there.get("kind", ""))
+				var coming := {}
+				for g2 in RULES.goods(k2):
+					coming[g2] = BUSINESS.on_order(str(key), str(g2))
+				var wanted: Dictionary = RULES.fill_order(k2, there, coming)
+				if wanted.is_empty():
+					_order.erase(str(key))
+				else:
+					_order[str(key)] = wanted
+			if _order.is_empty():
+				_say(tr("The shelves are full."), GREEN)
+			else:
+				_say(LANG.f("Written in: $%d with the van.", _order_total()), GREEN)
+			_shell.play("click", -12.0)
 		"send":
 			var cost := _order_total()
 			if cost <= _van_fee():
@@ -315,6 +333,14 @@ func _tc(r: Rect2, s: String, col := T.TEXT, bold := false) -> void:
 	_t(Vector2(r.get_center().x - _w(s, bold) * 0.5, r.position.y + r.size.y * 0.5 + 4), s, col, bold)
 
 
+## `s` with its end cut off as far as it must be to fit `room`.
+func _clip(s: String, room: float) -> String:
+	var out := s
+	while out.length() > 4 and _w(out) > room:
+		out = out.substr(0, out.length() - 4) + "..."
+	return out
+
+
 func _button(r: Rect2, label: String, id: String, enabled := true) -> void:
 	var pushed := enabled and _down == id and _hover == id
 	draw_style_box(T.box("pressed" if pushed else "raised", T.FACE, Vector4.ZERO), r)
@@ -379,7 +405,7 @@ func _draw() -> void:
 	# The toolbar: five flat buttons, the active one pressed in.
 	for i in PAGES.size():
 		var id: String = PAGES[i][0]
-		var r := Rect2(4 + i * 72, 3, 70, 28)
+		var r := Rect2(4 + i * 84, 3, 82, 28)
 		if _page == id:
 			draw_style_box(T.box("pressed", T.LIGHT, Vector4.ZERO), r)
 		elif _hover == "page:" + id:
@@ -480,7 +506,7 @@ func _row_h(n: int, room: float) -> float:
 func _draw_stock(m: Rect2, site: Dictionary) -> void:
 	var kind := _kind()
 	var gd: Dictionary = RULES.goods(kind)
-	var cols := [["Item", 130], ["On shelf", 86, true], ["Level", 170], ["On the van", 90, true]]
+	var cols := [["Item", 130], ["On shelf", 80, true], ["Level", 150], ["A day", 58, true], ["Days", 46, true], ["On the van", 84, true]]
 	var lm := Rect2(m.position, Vector2(m.size.x, m.size.y - 30))
 	_list(lm, cols)
 	var rh := _row_h(gd.size(), lm.size.y - 24)
@@ -494,11 +520,16 @@ func _draw_stock(m: Rect2, site: Dictionary) -> void:
 		var warn := _load(ICONS + "tb_warning.png")
 		if low and warn != null:
 			draw_texture_rect(warn, Rect2(_col_x(lm, cols, 0) + 2, y + 1, 14, 14), false)
-		_t(Vector2(_col_x(lm, cols, 0) + 18, y + 13), tr(str(d["label"])), col)
-		_tr(_col_x(lm, cols, 2) - 6, y + 13, "%d %s" % [n, tr(str(d["unit"]))], col)
-		_blocks(Rect2(_col_x(lm, cols, 2) + 4, y + 3, 162, minf(12.0, rh - 4)), float(n) / float(maxi(1, RULES.cap_of(kind, g, site))), RED if low else T.NAVY)
+		_t(Vector2(_col_x(lm, cols, 0) + 18, y + 13), _clip(tr(str(d["label"])), 110.0), col)
+		_tr(_col_x(lm, cols, 2) - 6, y + 13, LANG.f("%d " + str(d["unit"]), n), col)
+		_blocks(Rect2(_col_x(lm, cols, 2) + 4, y + 3, 142, minf(12.0, rh - 4)), float(n) / float(maxi(1, RULES.cap_of(kind, g, site))), RED if low else T.NAVY)
+		# What it goes through and how long the shelf lasts at that.
+		var use: float = RULES.use_per_day(site, str(g))
+		var last: int = RULES.days_left(site, str(g))
+		_tr(_col_x(lm, cols, 4) - 6, y + 13, "%d" % maxi(1, int(round(use))) if use > 0.0 else "-", T.TEXT if use > 0.0 else T.SHADOW)
+		_tr(_col_x(lm, cols, 5) - 6, y + 13, "%d" % last if last >= 0 else "-", (RED if last <= 1 else T.TEXT) if last >= 0 else T.SHADOW)
 		var due: int = BUSINESS.on_order(_site, g)
-		_tr(_col_x(lm, cols, 4) - 6, y + 13, "+%d" % due if due > 0 else "-", GREEN if due > 0 else T.SHADOW)
+		_tr(_col_x(lm, cols, 6) - 6, y + 13, "+%d" % due if due > 0 else "-", GREEN if due > 0 else T.SHADOW)
 		i += 1
 	var foot := Rect2(m.position.x, lm.end.y + 4, m.size.x, 24)
 	_t(foot.position + Vector2(6, 16), LANG.f("Today: %d sold, $%d", [int(site["today"]["sold"]), int(site["today"]["takings"])]))
@@ -508,7 +539,7 @@ func _draw_order(m: Rect2, site: Dictionary) -> void:
 	var kind := _kind()
 	var gd: Dictionary = RULES.goods(kind)
 	var o: Dictionary = _order.get(_site, {})
-	var cols := [["Item", 104], ["Pack", 92], ["Pack $", 56, true], ["On shelf", 64, true], ["Room", 46, true], ["Packs", 82], ["Line $", 60, true]]
+	var cols := [["Item", 126], ["Pack", 70], ["Pack $", 56, true], ["On shelf", 64, true], ["Shelf room", 46, true], ["Packs", 82], ["Line $", 60, true]]
 	var lm := Rect2(m.position, Vector2(m.size.x, m.size.y - 58))
 	_list(lm, cols)
 	var rh := _row_h(gd.size(), lm.size.y - 24)
@@ -520,8 +551,8 @@ func _draw_order(m: Rect2, site: Dictionary) -> void:
 		var due: int = BUSINESS.on_order(_site, g)
 		var room := _room(_site, g)
 		var packs := int(o.get(g, 0))
-		_t(Vector2(_col_x(lm, cols, 0) + 5, y + 13), tr(str(d["label"])))
-		_t(Vector2(_col_x(lm, cols, 1) + 5, y + 13), "%d %s" % [int(d["pack"]), tr(str(d["unit"]))], T.SHADOW)
+		_t(Vector2(_col_x(lm, cols, 0) + 5, y + 13), _clip(tr(str(d["label"])), 118.0))
+		_t(Vector2(_col_x(lm, cols, 1) + 5, y + 13), LANG.f("%d " + str(d["unit"]), int(d["pack"])), T.SHADOW)
 		_tr(_col_x(lm, cols, 3) - 6, y + 13, LANG.money("$%d" % int(d["pack_cost"])))
 		_tr(_col_x(lm, cols, 4) - 6, y + 13, "%d" % have)
 		_tr(_col_x(lm, cols, 5) - 6, y + 13, "%d" % room, RED if room == 0 else T.TEXT)
@@ -545,7 +576,8 @@ func _draw_order(m: Rect2, site: Dictionary) -> void:
 		var c2 := RULES.goods_cost(k2, _order[key])
 		if c2 > 0:
 			parts.append(LANG.money("%s $%d" % [_site_label(str(key)), c2]))
-	_t(foot.position + Vector2(12, 22), ", ".join(parts) if not parts.is_empty() else tr("Nothing yet"), T.SHADOW)
+	var parts_text: String = ", ".join(parts) if not parts.is_empty() else tr("Nothing yet")
+	_t(foot.position + Vector2(12, 22), _clip(parts_text, foot.size.x - 300.0), T.SHADOW)
 	var fee := _van_fee()
 	_t(foot.position + Vector2(12, 38), LANG.f("One van $%d   Total $%d", [fee if cost > 0 else 0, cost]), RED if cost > CoreRoot.get_money() else T.TEXT, true)
 	var box := Rect2(foot.end.x - 186, foot.position.y + 2, 13, 13)
@@ -555,6 +587,7 @@ func _draw_order(m: Rect2, site: Dictionary) -> void:
 		_t(box.position + Vector2(2, 11), "x", GREEN, true)
 	_t(Vector2(box.end.x + 5, box.position.y + 11), tr("Hands order"), T.TEXT)
 	_hits.append(["auto", Rect2(box.position, Vector2(170, 13))])
+	_button(Rect2(foot.end.x - 276, foot.position.y + 18, 84, 24), tr("Fill up"), "fill")
 	_button(Rect2(foot.end.x - 186, foot.position.y + 18, 84, 24), tr("Clear"), "clear", cost > 0)
 	_button(Rect2(foot.end.x - 96, foot.position.y + 18, 88, 24), tr("Send order"), "send", cost > fee)
 
@@ -651,75 +684,104 @@ func _draw_gear(m: Rect2, site: Dictionary) -> void:
 		i += 1
 
 
+## An amount in the player's money without its sign of currency.
+func _amount(v: int) -> String:
+	return LANG.money("$" + _shell._group(absi(v))).replace("$", "").replace(" Kč", "")
+
+
+func _num(v: int) -> String:
+	return "-" if v == 0 else ("-" if v < 0 else "") + _amount(v)
+
+
 func _draw_books(m: Rect2, site: Dictionary) -> void:
-	var cols := [["", 104], ["Today", 70, true], ["Yesterday", 76, true]]
-	var rows := [["Sold", "sold", ""], ["Takings", "takings", "$"], ["Goods used", "cost", "$"], ["Served by you", "by_hand", ""], ["Went away", "lost", ""], ["Thrown out", "waste", ""], ["Short", "short", "$"]]
-	var tm := Rect2(m.position, Vector2(256, 22 + rows.size() * ROW_H + 6))
+	var last := RULES.last_days(site, 7)
+	var today := CoreRoot.get_day()
+	var now_money: Dictionary = RULES.today_money(site, today)
+	var sums: Array = [now_money, RULES.day_money(site["yesterday"]), RULES.week_money(site, today)]
+	var cols := [["", 100], ["Today", 56, true], ["Yesterday", 66, true], ["7 days", 60, true]]
+	var money_rows := [["Takings", "takings", 1], ["Goods", "goods", -1], ["Wages", "wages", -1], ["Van", "van", -1], ["Short", "short", -1]]
+	var count_rows := [["Sold", "sold"], ["Went away", "lost"], ["Thrown out", "waste"]]
+	var rh := 16.0
+	var tm := Rect2(m.position, Vector2(286, 22 + (money_rows.size() + 1 + count_rows.size()) * rh + 8))
 	_list(tm, cols)
-	for i in rows.size():
-		var y := tm.position.y + 22 + i * ROW_H
-		var key: String = rows[i][1]
-		var a := int(round(float((site["today"] as Dictionary).get(key, 0))))
-		var bad := key in ["lost", "waste", "short"]
-		_t(Vector2(tm.position.x + 7, y + 13), tr(str(rows[i][0])))
-		_tr(_col_x(tm, cols, 2) - 6, y + 13, LANG.money("%s%d" % [rows[i][2], a]), RED if bad and a > 0 else T.TEXT)
-		_tr(_col_x(tm, cols, 3) - 6, y + 13, LANG.money("%s%d" % [rows[i][2], int(round(float((site["yesterday"] as Dictionary).get(key, 0))))]))
+	var y := tm.position.y + 22
+	for r in money_rows:
+		_t(Vector2(tm.position.x + 7, y + 12), tr(str(r[0])))
+		for c in 3:
+			var v := int(sums[c][str(r[1])]) * int(r[2])
+			_tr(_col_x(tm, cols, c + 2) - 6, y + 12, _num(v), RED if r[1] == "short" and v != 0 else (T.TEXT if v != 0 else T.SHADOW))
+		y += rh
+	# The bottom line.
+	draw_line(Vector2(tm.position.x + 4, y + 1), Vector2(_col_x(tm, cols, 4) - 4, y + 1), T.SHADOW)
+	_t(Vector2(tm.position.x + 7, y + 14), tr("Profit"), T.TEXT, true)
+	for c2 in 3:
+		var pv := int(sums[c2]["profit"])
+		_tr(_col_x(tm, cols, c2 + 2) - 6, y + 14, ("+" if pv > 0 else "") + _num(pv), RED if pv < 0 else (GREEN if pv > 0 else T.SHADOW), true)
+	y += rh + 8
+	for r2 in count_rows:
+		_t(Vector2(tm.position.x + 7, y + 12), tr(str(r2[0])), T.SHADOW)
+		var key2 := str(r2[1])
+		var bad := key2 != "sold"
+		var week := 0
+		for d0 in last:
+			week += int((d0 as Dictionary).get(key2, 0))
+		var counts := [int((site["today"] as Dictionary).get(key2, 0)), int((site["yesterday"] as Dictionary).get(key2, 0)), week]
+		for c3 in 3:
+			_tr(_col_x(tm, cols, c3 + 2) - 6, y + 12, _num(counts[c3]), RED if bad and counts[c3] > 0 else (T.TEXT if counts[c3] > 0 else T.SHADOW))
+		y += rh
 	# The average, the evening.
-	var g := Rect2(tm.position.x, tm.end.y + 12, tm.size.x, m.end.y - tm.end.y - 12)
+	var g := Rect2(tm.position.x, tm.end.y + 10, tm.size.x, m.end.y - tm.end.y - 10)
 	_group(g, tr("The place"))
 	var n := int(site.get("all_orders", 0))
-	_t(g.position + Vector2(12, 22), LANG.f("Orders rated: %d", n))
+	_t(g.position + Vector2(12, 21), LANG.f("Orders rated: %d", n))
 	if n > 0:
-		_t(g.position + Vector2(12, 40), LANG.f("Average score: %d%%", int(round(float(site.get("all_score", 0)) / float(n)))), T.TEXT, true)
+		_t(g.position + Vector2(12, 36), LANG.f("Average score: %d%%", int(round(float(site.get("all_score", 0)) / float(n)))), T.TEXT, true)
 	# The last shift's Z report: its mark and the one thing to mend.
 	var z: Dictionary = site.get("zreport", {}) if site.get("zreport", {}) is Dictionary else {}
 	if not z.is_empty():
 		var mark: Dictionary = {"grade": z["grade"], "advice": z.get("advice", "")} if z.has("grade") else RULES.day_grade(z)
 		var gr := str(mark["grade"])
-		_t(g.position + Vector2(150, 22), LANG.f("Last shift: %s", gr), GREEN if gr in ["A", "B"] else (RED if gr in ["D", "E"] else T.TEXT), true)
-		var adv := tr(str(mark["advice"]))
-		while adv.length() > 4 and _w(adv) > g.size.x - 162:
-			adv = adv.substr(0, adv.length() - 4) + "..."
-		_t(g.position + Vector2(150, 40), adv, T.SHADOW)
+		var shift_line := LANG.f("Last shift: %s", gr)
+		_t(g.position + Vector2(12, 51), shift_line, GREEN if gr in ["A", "B"] else (RED if gr in ["D", "E"] else T.TEXT), true)
+		var adv_x := 12.0 + _w(shift_line, true) + 10.0
+		_t(g.position + Vector2(adv_x, 51), _clip(tr(str(mark["advice"])), g.size.x - adv_x - 10.0), T.SHADOW)
 	var late := bool(site.get("late", false))
-	_t(g.position + Vector2(12, 62), LANG.f("Open till %s", "23:00" if late else "20:00"))
-	_button(Rect2(g.position.x + 12, g.position.y + 70, 120, 22), tr("Shut at 20:00") if late else tr("Open late"), "late")
-	# The chart: the takings of the last seven days.
+	_t(g.position + Vector2(12, g.size.y - 12), LANG.f("Open till %s", "23:00" if late else "20:00"))
+	_button(Rect2(g.position.x + 150, g.position.y + g.size.y - 28, 120, 22), tr("Shut at 20:00") if late else tr("Open late"), "late")
+	# The chart: what came in and what it cost, the last seven days.
 	var ch := Rect2(tm.end.x + 10, m.position.y, m.end.x - tm.end.x - 10, m.size.y)
 	draw_style_box(T.box("field", T.WHITE, Vector4.ZERO), ch)
-	_t(ch.position + Vector2(8, 16), tr("Takings, last 7 days"), T.TEXT, true)
-	var days: Array = (site.get("history", []) as Array).duplicate()
-	days.append(site["today"])
-	while days.size() > 7:
-		days.pop_front()
+	_t(ch.position + Vector2(8, 16), tr("7 days"), T.TEXT, true)
+	var costs_w := _w(tr("Costs"))
+	var takings_w := _w(tr("Takings"))
+	var lx := ch.end.x - 8.0 - costs_w
+	_t(Vector2(lx, ch.position.y + 16), tr("Costs"), T.SHADOW)
+	draw_rect(Rect2(lx - 12, ch.position.y + 8, 8, 8), Color8(220, 160, 20))
+	lx -= 22.0 + takings_w
+	_t(Vector2(lx, ch.position.y + 16), tr("Takings"), T.SHADOW)
+	draw_rect(Rect2(lx - 12, ch.position.y + 8, 8, 8), T.NAVY)
 	var top := 10
-	for d in days:
-		top = maxi(top, int(d["takings"]))
+	var shown: Array = []
+	for d1 in last.size():
+		shown.append(now_money if d1 == last.size() - 1 else RULES.day_money(last[d1]))
+		var dm: Dictionary = shown[d1]
+		top = maxi(top, maxi(int(dm["takings"]), int(dm["takings"]) - int(dm["profit"])))
 	top = int(ceil(top / 10.0)) * 10
 	var plot := Rect2(ch.position.x + 40, ch.position.y + 30, ch.size.x - 52, ch.size.y - 52)
 	for k in 5:
 		var gy := plot.end.y - plot.size.y * k / 4.0
 		draw_line(Vector2(plot.position.x, gy), Vector2(plot.end.x, gy), T.LIGHT)
-		_tr(plot.position.x - 4, gy + 4, "%d" % int(top * k / 4.0), T.SHADOW)
+		_tr(plot.position.x - 4, gy + 4, _amount(int(top * k / 4.0)), T.SHADOW)
 	draw_line(plot.position, Vector2(plot.position.x, plot.end.y), T.TEXT)
 	draw_line(Vector2(plot.position.x, plot.end.y), plot.end, T.TEXT)
 	var bw := plot.size.x / 7.0
-	var today := CoreRoot.get_day()
-	for i in days.size():
-		var d: Dictionary = days[i]
-		var v := float(int(d["takings"])) / float(top)
-		var x := plot.position.x + (7 - days.size() + i) * bw
-		var bh := plot.size.y * v
-		var bar := Rect2(x + bw * 0.2, plot.end.y - bh, bw * 0.6, bh)
-		draw_rect(bar, T.NAVY if i < days.size() - 1 else Color8(0, 128, 128))
-		draw_rect(Rect2(bar.position + Vector2(bar.size.x, 2), Vector2(2, maxf(0.0, bh - 2))), T.SHADOW)
-		if int(d.get("lost", 0)) > 0:
-			var lh := minf(plot.size.y, plot.size.y * float(int(d["lost"])) / float(maxi(10, top / 4)))
-			draw_rect(Rect2(x + bw * 0.2 + bw * 0.6 - 4, plot.end.y - lh, 3, lh), RED)
-		var dn := today - (days.size() - 1 - i)
+	for i in last.size():
+		var dm2: Dictionary = shown[i]
+		var x := plot.position.x + (7 - last.size() + i) * bw
+		var hi := plot.size.y * float(int(dm2["takings"])) / float(top)
+		var hc := plot.size.y * float(maxi(0, int(dm2["takings"]) - int(dm2["profit"]))) / float(top)
+		draw_rect(Rect2(x + bw * 0.14, plot.end.y - hi, bw * 0.34, hi), T.NAVY if i < last.size() - 1 else Color8(0, 128, 128))
+		draw_rect(Rect2(x + bw * 0.52, plot.end.y - hc, bw * 0.34, hc), Color8(220, 160, 20))
+		var dn := today - (last.size() - 1 - i)
 		if dn >= 1:
 			_tc(Rect2(x, plot.end.y + 2, bw, 14), "%d" % dn, T.SHADOW)
-	draw_rect(Rect2(ch.end.x - 92, ch.position.y + 8, 8, 8), T.NAVY)
-	_t(Vector2(ch.end.x - 80, ch.position.y + 16), "$", T.SHADOW)
-	draw_rect(Rect2(ch.end.x - 60, ch.position.y + 8, 8, 8), RED)
-	_t(Vector2(ch.end.x - 48, ch.position.y + 16), tr("Lost"), T.SHADOW)

@@ -229,6 +229,6 @@ static func names_short(who: Array) -> String:
 		return ""
 	var head: Array = []
 	for i in mini(1, who.size()):
-		head.append(str(who[i]).replace("Mrs ", ""))
+		head.append(LANG.f(str(who[i])).replace("Mrs ", "").replace("Paní ", ""))
 	var text := ", ".join(head)
 	return text if who.size() <= 1 else "%s +%d" % [text, who.size() - 1]

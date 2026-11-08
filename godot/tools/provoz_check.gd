@@ -18,6 +18,9 @@ var _hands := "full"
 var _accept := false
 ## --verbose: every three hours each guest's needs and what they are at, the bistro's kitchen.
 var _verbose := false
+## --money: at 11:00 on the last day every book and every office program, with the days' real
+## numbers in them; "PROVOZ money" lines say what the camp's own book holds each night.
+var _money := false
 var _last_hour := -1
 var _start_day := 1
 var _running := false
@@ -198,9 +201,12 @@ func _process(delta: float) -> void:
 				if str(st.biz["sites"][key4].get("kind", "")) == "rest":
 					var ks: Dictionary = k2.site(key4)
 					print("PROVOZ kitchen %d %02d pass %d floor %d bufet %d places %s plates %s pot %s holds %s visitors %d trays cheese %d fries %d rawc %d rawf %d" % [day, h, k2.tickets(key4, "pass").size(), k2.tickets(key4, "floor").size(), k2.tickets(key4, "bufet").size(), str(k2.crew_places(key4)), str(k2.plates(key4)), str(ks["pot"]), "", preload("res://scripts/food/orders.gd").visitors(key4).size(), k2.prep(key4, "cheese"), k2.prep(key4, "fries"), k2.prep(key4, "cheese_raw"), k2.prep(key4, "chips_raw")])
-	if _shots_at.has("%d:%d" % [day - _start_day, h]):
+	if _money and day == _start_day + _days - 1 and h == 11:
+		_money_pictures()
+		return
+	if not _money and _shots_at.has("%d:%d" % [day - _start_day, h]):
 		_pictures("d%d_%02d" % [day, h])
-	if _pc_at.has("%d:%d" % [day - _start_day, h]):
+	if not _money and _pc_at.has("%d:%d" % [day - _start_day, h]):
 		_pc_pictures("d%d_%02d" % [day, h])
 	if h == 23:
 		var biz: Dictionary = st.biz
@@ -217,6 +223,7 @@ func _process(delta: float) -> void:
 			sold.append("%s %d sold $%d lost %d" % [str(s3.get("kind", "")), int((s3["today"] as Dictionary).get("sold", 0)), int((s3["today"] as Dictionary).get("takings", 0)), int((s3["today"] as Dictionary).get("lost", 0))])
 		print("PROVOZ day %d places %s" % [day, str(sold)])
 		print("PROVOZ day %d sums %s low %s orders %d" % [day, str(_day_stats), str(low), (biz.get("orders", []) as Array).size()])
+		print("PROVOZ money %d cash %d %s" % [day, int(st.money), str(BRT.camp_day(biz, 0))])
 		_day_stats = {}
 	if day >= _start_day + _days and h >= 7:
 		_running = false
@@ -273,6 +280,103 @@ func _pc_pictures(tag: String) -> void:
 	bi.close_interior()
 	await get_tree().create_timer(1.0).timeout
 	Engine.time_scale = _speed
+
+
+func _pc_app(script_name: String) -> Control:
+	for n in get_tree().root.find_children("*", "Control", true, false):
+		var sc = n.get_script()
+		if sc != null and str(sc.resource_path).ends_with(script_name) and (n as Control).is_visible_in_tree():
+			return n
+	return null
+
+
+func _pc_shot(crt, name: String) -> void:
+	await get_tree().create_timer(0.7).timeout
+	await RenderingServer.frame_post_draw
+	crt.get_viewport().get_texture().get_image().save_png(_out_dir.path_join("pc_%s.png" % name))
+
+
+## Every book and office program after a few real days (--money).
+func _money_pictures() -> void:
+	_running = false
+	Engine.time_scale = 1.0
+	var im = _main.get("_interior_manager")
+	im.call("open_startup_crt_view")
+	await get_tree().create_timer(9.0).timeout
+	var bi = im.get("_building_interior")
+	var crt = bi.get("_crt_ui")
+	var app = null
+	for i in 60:
+		crt.open_app("camp_status")
+		app = crt.app_of("camp_status")
+		if app != null:
+			break
+		await get_tree().create_timer(0.5).timeout
+	await get_tree().create_timer(1.0).timeout
+	app.select_page("money")
+	await _pc_shot(crt, "money_campstat")
+	for prog in ["staff_app", "pub_app", "bistro_app", "shop_app", "corn_app"]:
+		EventBus.program_installed.emit(prog)
+	await get_tree().create_timer(0.5).timeout
+	for prog2 in ["pub_app", "bistro_app", "shop_app", "corn_app"]:
+		crt.open_app(prog2)
+		await get_tree().create_timer(1.5).timeout
+		var a2 := _pc_app("business_app.gd")
+		if a2 == null:
+			print("PROVOZ no app ", prog2)
+			continue
+		for page in ["stock", "books"]:
+			a2.set("_page", page)
+			a2.queue_redraw()
+			await _pc_shot(crt, "%s_%s" % [prog2, page])
+		a2.set("_page", "order")
+		a2.call("_click", "fill")
+		a2.queue_redraw()
+		await _pc_shot(crt, "%s_order" % prog2)
+		print("PROVOZ fill %s %s" % [prog2, str(a2.get("_order"))])
+		a2.set("_order", {})
+	crt.open_app("staff_app")
+	await get_tree().create_timer(1.5).timeout
+	var st_app := _pc_app("staff_app.gd")
+	if st_app != null:
+		await _pc_shot(crt, "staff_first")
+		for e in st_app.call("_everyone"):
+			if str(e["at"]) != "staff":
+				st_app.set("_pick", str((e["p"] as Dictionary).get("slug", "")))
+				st_app.queue_redraw()
+				break
+		await _pc_shot(crt, "staff_place_hand")
+	bi.close_interior()
+	await get_tree().create_timer(2.0).timeout
+	# The books on the counters.
+	var biz = im.get("business")
+	var building := {"corn": "corn_stand", "pub": "pub", "rest": "restaurant", "vecerka": "vecerka"}
+	var sites: Dictionary = CoreRoot.get_state().biz["sites"]
+	for key in biz._live_sites():
+		var kind := str((sites[key] as Dictionary).get("kind", ""))
+		if not building.has(kind):
+			continue
+		var book: CanvasLayer = load("res://scripts/business/ledger_closeup.gd").new()
+		add_child(book)
+		book.layer = 98
+		book.call("open_for", key, building[kind], "goods")
+		await get_tree().create_timer(1.0).timeout
+		for page2 in ["goods", "staff", "books"]:
+			book.call("_clicked", "tab:" + page2)
+			await get_tree().create_timer(0.4).timeout
+			await RenderingServer.frame_post_draw
+			get_viewport().get_texture().get_image().save_png(_out_dir.path_join("book_%s_%s.png" % [kind, page2]))
+		var hands: Array = (sites[key] as Dictionary).get("crew", [])
+		if not hands.is_empty():
+			book.call("_clicked", "tab:staff")
+			book.call("_clicked", "crew:" + str((hands[0] as Dictionary).get("slug", "")))
+			await get_tree().create_timer(0.4).timeout
+			await RenderingServer.frame_post_draw
+			get_viewport().get_texture().get_image().save_png(_out_dir.path_join("book_%s_card.png" % kind))
+		book.call("close_view")
+		await get_tree().create_timer(0.8).timeout
+	print("PROVOZ: done")
+	get_tree().quit()
 
 
 ## The hand at the reception, looked at: from your place behind the counter and turned to
@@ -383,6 +487,11 @@ func order_book() -> void:
 	_book.call("open_for", key, "corn_stand", "order")
 
 
+func order_book_card() -> void:
+	_book.call("_clicked", "tab:staff")
+	_book.call("_clicked", "crew:franta")
+
+
 ## Every kind of plate at once (--part=plates --lang=cs): the words as they fit.
 func plates_camp() -> void:
 	var g: Vector2i = _main.get("world_generator").gate_tile()
@@ -449,7 +558,8 @@ func _ready() -> void:
 			["eval", C + ".books_camp()"], ["wait", 6.0], ["eval", C + ".books_crew()"], ["wait", 1.0],
 			["eval", C + ".staff_book()"], ["wait", 1.0], ["eval", C + ".staff_book_pick('hanka')"], ["wait", 0.4], ["shot", "b1_staff_book"],
 			["eval", C + ".staff_book_shut()"], ["wait", 0.8],
-			["eval", C + ".order_book()"], ["wait", 1.0], ["shot", "b2_order_book"], ["eval", C + ".staff_book_shut()"], ["wait", 0.8],
+			["eval", C + ".order_book()"], ["wait", 1.0], ["shot", "b2_order_book"],
+			["eval", C + ".order_book_card()"], ["wait", 0.6], ["shot", "b2b_card"], ["eval", C + ".staff_book_shut()"], ["wait", 0.8],
 			["call_on", "_interior_manager", "open_startup_crt_view", []], ["wait", 7.0],
 			["signal", "program_installed", "staff_app"], ["wait", 1.0],
 			["eval", "_interior_manager._building_interior._crt_ui.open_app('staff_app') != null"], ["wait", 2.0],
@@ -491,6 +601,8 @@ func _ready() -> void:
 			_accept = a.substr(9) == "1"
 		elif a == "--verbose":
 			_verbose = true
+		elif a == "--money":
+			_money = true
 	_steps = [
 		["wait_menu"], ["call", "_on_menu_new_camp", ["Provoz", 4242, false, true, {"threats": false, "weather": true, "events": true, "wear": true, "money": 100000}]], ["wait_gameplay"], ["wait", 2.0],
 		["auto_checkin", false], ["auto_accept", _accept],
