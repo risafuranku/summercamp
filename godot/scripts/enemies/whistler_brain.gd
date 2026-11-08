@@ -616,7 +616,8 @@ func _start_strike() -> void:
 	_music.stop()
 	_body.visible = false
 	_view_begin()
-	if _quarry_peer() == 0 and _player.has_method("set_controls_enabled"):
+	# (A stand-in passes it on to their machine: held there too.)
+	if _player.has_method("set_controls_enabled"):
 		_player.call("set_controls_enabled", false)
 	_ear(SFX_GARROTE, 2.0)
 	var fx := _fx()
@@ -790,7 +791,7 @@ func _end_strike(kill := false) -> void:
 		_set_pitch(p0)
 		_set_roll(r0)
 	_view_end()
-	if _quarry_peer() == 0 and _player != null and is_instance_valid(_player) and _player.has_method("set_controls_enabled"):
+	if _player != null and is_instance_valid(_player) and _player.has_method("set_controls_enabled"):
 		_player.call("set_controls_enabled", true)
 
 

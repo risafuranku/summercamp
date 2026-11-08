@@ -678,6 +678,9 @@ func _start_strike() -> void:
 		fx.glitch(0.4, 0.35)
 		fx.tinnitus(2.2)
 	_view_begin()
+	# (A stand-in passes it on: the warden on the other machine is held for it too, once.)
+	if _quarry_peer() != 0 and _player.has_method("set_controls_enabled"):
+		_player.call("set_controls_enabled", false)
 
 
 func _cue(at: float, id: String) -> bool:
@@ -833,7 +836,7 @@ func _end_strike(kill := false) -> void:
 		_set_pitch(float(_view0["pitch"]))
 		_set_roll(float(_view0["roll"]))
 	_view_end()
-	if _quarry_peer() == 0 and _player != null and is_instance_valid(_player) and _player.has_method("set_controls_enabled"):
+	if _player != null and is_instance_valid(_player) and _player.has_method("set_controls_enabled"):
 		_player.call("set_controls_enabled", true)
 
 

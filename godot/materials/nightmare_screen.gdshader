@@ -169,9 +169,9 @@ void fragment() {
 	if (lk > 0.004) {
 		vec2 lv = ((SCREEN_UV - 0.5) * 2.0 - leak_at) * vec2(aspect, 1.0);
 		float n3 = vnoise(floor(SCREEN_UV / (px * 6.0)) * 0.7 + vec2(0.0, floor(time_s * 4.0) * 0.37));
-		float burn = pow(clamp(1.0 - length(lv) / (0.5 + 1.15 * lk), 0.0, 1.0), 1.6) * (0.75 + 0.5 * n3);
+		float burn = pow(clamp(1.0 - length(lv) / (0.75 + 1.25 * lk), 0.0, 1.0), 1.4) * (0.75 + 0.5 * n3);
 		burn = floor(burn * 7.0) / 7.0;
-		c += mix(vec3(0.85, 0.28, 0.08), vec3(1.0, 0.72, 0.35), burn) * burn * lk * 0.9;
+		c += mix(vec3(0.85, 0.28, 0.08), vec3(1.0, 0.72, 0.35), burn) * burn * (0.35 + lk) * 1.05;
 	}
 	// His finder's four corners, closing on you, a game pixel thick, and its dot.
 	float fi = clamp(finder, 0.0, 1.0);

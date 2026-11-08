@@ -201,6 +201,18 @@ func framing_ahead() -> String:
 	return "framing"
 
 
+## Him framing from `deg` off where you look (+ right): his film's light from that side.
+func framing_side(deg: float) -> String:
+	var t = photographer()
+	var p: Node3D = _main.get("_player")
+	var cam: Camera3D = p.get_node("Head/Camera3D")
+	var fwd := (-cam.global_transform.basis.z).slide(Vector3(0, 1, 0)).normalized().rotated(Vector3.UP, deg_to_rad(-deg))
+	var at: Vector3 = t._stand(p.global_position + fwd * 10.0)
+	(t.get("_body") as Node3D).global_position = at if at != Vector3.INF else p.global_position + fwd * 10.0
+	t._enter_frame()
+	return "framing from %.0f" % deg
+
+
 func presence_now() -> String:
 	var fx = _main.get_tree().root.get_node_or_null("NightmareFX")
 	return "presence %.2f" % float(fx.get("_presence")) if fx != null else "no fx"
@@ -219,6 +231,7 @@ const SHADOW_STEPS := [
 	["wait", 1.5], ["eval", "_player.set('_pitch_target', 0.0)"], ["wait", 0.5],
 	["eval", F + ".framing_ahead()"], ["wait", 1.6], ["eval", F + ".presence_now()"], ["shot", "s4_framed"],
 	["eval", "_player.rotate_y(PI)"], ["wait", 1.0], ["eval", F + ".presence_now()"],
+	["wait", 3.0], ["eval", F + ".framing_side(100.0)"], ["wait", 1.8], ["shot", "s5_film_from_the_right"],
 ]
 
 

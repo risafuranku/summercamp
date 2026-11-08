@@ -990,7 +990,8 @@ func _film(progress: float, would_hit: bool, lens: Vector3, in_room := false) ->
 	if fx == null or not fx.has_method("set_mark"):
 		return
 	var beep := clampf(1.0 - (_elapsed - _beep_at) / 0.16, 0.0, 1.0)
-	var level := (0.12 + 0.6 * progress * progress) * (0.72 + 0.28 * beep) * (1.0 if would_hit else 0.55)
+	# (From the side or behind is where you need it most: nearly as strong as to your face.)
+	var level := (0.22 + 0.68 * progress * progress) * (0.66 + 0.34 * beep) * (1.0 if would_hit else 0.85)
 	fx.set_mark("leak", lens, null if in_room else _camera(), level, clampf(progress * 1.15, 0.0, 1.0) if would_hit else 0.0)
 
 
