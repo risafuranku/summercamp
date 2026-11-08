@@ -4,7 +4,8 @@ extends "res://tools/shot_driver.gd"
 ## there coming for you, stopped and looking, at a lamp's edge; you hidden in the office
 ## while she goes from lodging to lodging; out again; the morning, and the carnage inside
 ## a lodging she ate in. `--part=tear`: only a tent she tore open, the night and the camp
-## through the hole, the day through it, and the canvas sewn up.
+## through the hole, the day through it, and the canvas sewn up. `--part=strike`: her catch in
+## steps, the first in a camp and the last.
 ##   godot --path godot --audio-driver Dummy --resolution 1280x720 res://tools/babka_shots.tscn -- --out=<dir> [--part=tear]
 
 var _torn_key := ""
@@ -487,6 +488,83 @@ const LOOK_STEPS := [
 ]
 
 
+## Where her catch is (for the shots): its time, your pitch, the close-up, the cues.
+func probe_strike() -> String:
+	var g = granny()
+	var fx = _main.get_tree().root.get_node_or_null("NightmareFX")
+	var close: TextureRect = fx.get("_close") if fx != null else null
+	var frozen: TextureRect = fx.get("_frozen") if fx != null else null
+	var cam: Camera3D = (_main.get("_player") as Node).get_node("Head/Camera3D")
+	return "t %.2f pitch %.2f close %s %s frozen %s cues %s" % [float(g.get("_strike_t")), cam.rotation.x,
+		str(close.visible) if close != null else "-", str(close.texture.resource_path) if close != null and close.texture != null else "none",
+		str(frozen.visible) if frozen != null else "-", str((g.get("_strike_cues") as Dictionary).keys())]
+
+
+## Her `dist` m off at `deg` round your view (+ right), held there: her threads on your picture.
+func hold_at(dist: float, deg: float, phase: String) -> String:
+	var g = granny()
+	var p: Node3D = _main.get("_player")
+	var cam: Camera3D = p.get_node("Head/Camera3D")
+	var fwd := (-cam.global_transform.basis.z).slide(Vector3.UP).normalized().rotated(Vector3.UP, deg_to_rad(-deg))
+	var want := p.global_position + fwd * dist
+	var at: Vector3 = g._stand(want)
+	g._body.global_position = at if at != Vector3.INF else want
+	g.set("_noticed", 0.0)
+	g.set("_phase", phase)
+	g.set("_phase_t", 99.0)
+	g.set("_next_look", 99.0)
+	return "%s at %.0f m %.0f deg" % [phase, dist, deg]
+
+
+## Whether the camp has met her (the first catch only has her look).
+func met(on: bool) -> String:
+	var d = _main.get("_director")
+	if d != null and d.get("ever") is Dictionary:
+		(d.get("ever") as Dictionary)["granny_met"] = on
+	return "met %s" % on
+
+
+## Her threads on your picture (`--part=mould`): her off to the right, near; behind you; up
+## and looking.
+const MOULD_STEPS := [
+	["wait_menu"], ["call", "_on_menu_test_night", ["basket"]], ["wait", 4.0],
+	["call_on", "_interior_manager", "close_main_interior_if_open", []], ["wait", 1.5],
+	["eval", "get_tree().root.get_node('BabkaShots').keep_out()"],
+	["eval", "get_tree().root.get_node('BabkaShots').hold_at(9.0, 75.0, 'turn')"], ["wait", 3.0], ["shot", "m1_right_9m"],
+	["eval", "get_tree().root.get_node('BabkaShots').hold_at(5.0, 150.0, 'turn')"], ["wait", 2.5], ["shot", "m2_behind_5m"],
+	["eval", "get_tree().root.get_node('BabkaShots').hold_at(6.0, -20.0, 'stare')"], ["wait", 2.0], ["shot", "m3_looking"],
+]
+
+
+## Her catch in steps (`--part=strike`): the knife and your feet, down on your back, her face
+## coming down, the spores, the drag by the ankle, up again; the first in a camp (her look and
+## her sniff); the last (she eats).
+const STRIKE_STEPS := [
+	["wait_menu"], ["call", "_on_menu_test_night", ["basket"]], ["wait", 4.0],
+	["call_on", "_interior_manager", "close_main_interior_if_open", []], ["wait", 1.5],
+	["eval", "get_tree().root.get_node('BabkaShots').keep_out()"], ["eval", "_set_player_health(100)"],
+	["eval", "get_tree().root.get_node('BabkaShots').met(true)"],
+	["eval", "get_tree().root.get_node('BabkaShots').meet_granny()"], ["wait", 0.3],
+	["eval", "get_tree().root.get_node('BabkaShots').granny()._start_strike()"],
+	["wait", 0.12], ["shot", "k1_knife_feet"],
+	["wait", 0.35], ["shot", "k2_down"],
+	["wait", 0.45], ["eval", "get_tree().root.get_node('BabkaShots').probe_strike()"], ["shot", "k3_face_coming"],
+	["wait", 0.6], ["eval", "get_tree().root.get_node('BabkaShots').probe_strike()"], ["shot", "k4_face_over_you"],
+	["wait", 0.45], ["eval", "get_tree().root.get_node('BabkaShots').probe_strike()"], ["shot", "k5_dragged"],
+	["wait", 0.5], ["eval", "get_tree().root.get_node('BabkaShots').probe_strike()"], ["shot", "k6_let_go"],
+	["wait", 1.5], ["eval", "[_player_health, get_tree().root.get_node('BabkaShots').state()]"],
+	["eval", "_set_player_health(100)"], ["eval", "get_tree().root.get_node('BabkaShots').met(false)"],
+	["eval", "get_tree().root.get_node('BabkaShots').meet_granny()"], ["wait", 0.3],
+	["eval", "get_tree().root.get_node('BabkaShots').granny()._start_strike()"],
+	["wait", 1.4], ["shot", "l1_lesson_look"], ["wait", 2.5], ["eval", "_player_health"],
+	["eval", "_set_player_health(20)"], ["eval", "get_tree().root.get_node('BabkaShots').met(true)"],
+	["eval", "get_tree().root.get_node('BabkaShots').granny()._set_stage(2)"],
+	["eval", "get_tree().root.get_node('BabkaShots').meet_granny()"], ["wait", 0.3],
+	["eval", "get_tree().root.get_node('BabkaShots').granny()._start_strike()"],
+	["wait", 2.7], ["shot", "x1_kill_eating"], ["wait", 0.7], ["shot", "x2_kill_dark"],
+]
+
+
 ## A caravan for the smashed window (the test camp has none): one built through the real
 ## builder north of the gate, beside the far tents.
 func build_caravan() -> String:
@@ -551,6 +629,12 @@ func _ready() -> void:
 		return
 	if OS.get_cmdline_user_args().has("--part=look"):
 		_steps = LOOK_STEPS.duplicate(true)
+		return
+	if OS.get_cmdline_user_args().has("--part=strike"):
+		_steps = STRIKE_STEPS.duplicate(true)
+		return
+	if OS.get_cmdline_user_args().has("--part=mould"):
+		_steps = MOULD_STEPS.duplicate(true)
 		return
 	if OS.get_cmdline_user_args().has("--part=hitch"):
 		_steps = HITCH_STEPS.duplicate(true)

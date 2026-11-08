@@ -76,8 +76,17 @@ const CAMERA_AT := {
 	"run": Vector2(-0.26, 1.45),
 }
 const POLAROID = preload("res://scripts/enemies/polaroid.gd")
+## Turned away in time, his flash throws your shadow out ahead of you (flash_shadow.gd).
+const FLASH_SHADOW = preload("res://scripts/enemies/flash_shadow.gd")
+## Hidden from him behind drawn curtains (or in a tent) this many of his shots in a night:
+## he takes his pictures of a guest instead (a guest's night).
+const HIDDEN_SHOTS := 5
 const FIGURE = preload("res://scripts/figures/doom_figure.gd")
 var _fig: Dictionary = {}
+## His shots at your drawn curtains (or your tent) tonight.
+var _hidden_shots := 0
+## When the last focus beep went (his film's light pulses with it).
+var _beep_at := -9.0
 var _fig_yaw := 0.0
 var _fig_sector := 0
 var _fig_metres := 0.0
@@ -309,6 +318,7 @@ func _on_start() -> void:
 	_hum_stage = ""
 	_room_audio = AudioStreamPlayer.new()
 	_root.add_child(_room_audio)
+	FLASH_SHADOW.prewarm(_world_root, _my_model())
 	var start := _point_from_player(_dist + 6.0, _rng.randf_range(100.0, 260.0))
 	_body.global_position = start if start != Vector3.INF else _player_pos() + Vector3(_dist, 0, 0)
 	_enter_walk()
@@ -479,10 +489,14 @@ func _enter_frame() -> void:
 func _tick_frame() -> void:
 	var left := _phase_end - _elapsed
 	var progress := 1.0 - left / _frame_seconds
+	var would := _is_seen(_head(), 4.0)
+	_framed(progress, would)
+	_film(progress, would, _head())
 	# The beeps speed up as he settles the focus; the red lamp blinks with them.
 	if _elapsed >= _next_beep:
 		_next_beep = _elapsed + lerpf(0.5, 0.1, progress)
 		_sound(SFX_BEEP, _head(), 4.0, 1.0 + progress * 0.15, 40.0)
+		_beep_at = _elapsed
 		_set_af(true)
 	elif _elapsed > _next_beep - lerpf(0.4, 0.05, progress):
 		_set_af(false)
@@ -519,6 +533,7 @@ func _fire() -> void:
 		_feed("FLASH. He has you on film.")
 	else:
 		_dist = maxf(_min_dist, _dist - 2.0)
+		_throw_shadow(head)
 	_phase = Phase.AFTER
 	_phase_end = _elapsed + _rng.randf_range(1.4, 2.2)
 	# A moment in the flash, then the wave with the photo, giggling.
@@ -677,6 +692,7 @@ func _tick_indoors(_dt: float) -> void:
 			var im = _im()
 			if im != null and im.has_method("tent_flash") and _fx() != null:
 				im.tent_flash()
+			_hidden_from_him()
 		return
 	if _win.is_empty():
 		# (After a shot the while before the next window: gone from the glass.)
@@ -698,9 +714,14 @@ func _tick_indoors(_dt: float) -> void:
 		# Framing through the glass: beeps, the red lamp, the whine.
 		var left := _in_next - _elapsed
 		var progress := 1.0 - clampf(left / _frame_seconds, 0.0, 1.0)
+		var would := float(w.get("open", 1.0)) > 0.25 and float(w.get("facing", -1.0)) > 0.2
+		_framed(progress, would)
+		# (No eye of the warden in a room: the view's own, nightmare_fx._place.)
+		_film(progress, would, lamp, true)
 		if _elapsed >= _in_beep:
 			_in_beep = _elapsed + lerpf(0.5, 0.1, progress)
 			_room(SFX_BEEP, -6.0, 1.0 + progress * 0.15, true)
+			_beep_at = _elapsed
 			_set_af_at(lamp, true)
 		elif _elapsed > _in_beep - lerpf(0.4, 0.05, progress):
 			_set_af_at(lamp, false)
@@ -818,6 +839,7 @@ func _fire_through(w: Dictionary) -> void:
 	elif open <= 0.25:
 		# The curtain: a shape behind it, lit; he taps, annoyed.
 		get_tree_timer(0.6, func(): _room(SFX_TAP, -2.5, 0.9))
+		_hidden_from_him()
 	_in_step = 4
 	_in_next = _elapsed + _rng.randf_range(1.2, 2.0)
 
@@ -947,6 +969,65 @@ func _set_pose(p: String) -> void:
 	if _eyes != null and CAMERA_AT.has(p):
 		_eyes.set("height", (CAMERA_AT[p] as Vector2).y)
 		_eyes.set("x_off", (CAMERA_AT[p] as Vector2).x)
+
+
+## While he frames you and the shot would have you: your heart, the edges closing, with the
+## beeps (the sixth sense's own layer, nightmare_fx.set_presence; nothing when you are turned
+## away or behind something).
+func _framed(progress: float, would_hit: bool) -> void:
+	if not would_hit:
+		return
+	var fx := _fx()
+	if fx != null:
+		fx.set_presence("tourist", lerpf(0.25, 0.7, clampf(progress, 0.0, 1.0)))
+
+
+## Light leaking into the film from his side with the beeps, more as the focus closes, and,
+## while the shot would have you, the viewfinder's corners closing on you (nightmare_fx.set_mark
+## "leak"; Richard 8. 11.: "audiovizuály na úrovni pískače/holky"). Gone as you turn away.
+func _film(progress: float, would_hit: bool, lens: Vector3, in_room := false) -> void:
+	var fx := _fx()
+	if fx == null or not fx.has_method("set_mark"):
+		return
+	var beep := clampf(1.0 - (_elapsed - _beep_at) / 0.16, 0.0, 1.0)
+	var level := (0.12 + 0.6 * progress * progress) * (0.72 + 0.28 * beep) * (1.0 if would_hit else 0.55)
+	fx.set_mark("leak", lens, null if in_room else _camera(), level, clampf(progress * 1.15, 0.0, 1.0) if would_hit else 0.0)
+
+
+## The flash at `lens` out of your view with nothing between: your shadow out ahead of you.
+func _throw_shadow(lens: Vector3) -> void:
+	if _distance_to_player(lens) > 26.0 or _ray_blocked(lens, _player_pos() + Vector3(0, 1.2, 0)):
+		return
+	if _quarry_peer() != 0:
+		var fx := _fx()
+		if fx != null:
+			fx.call("ext", "flash_shadow", [lens])
+		return
+	FLASH_SHADOW.throw(_world_root, lens, _player, _my_model())
+
+
+func _my_model() -> int:
+	return int(Coop.my_look().get("m", 1)) if Coop != null and Coop.has_method("my_look") else 1
+
+
+## A shot of his at your drawn curtains or your tent: hide from him long enough in a night and
+## he goes to a guest's window instead (their night, their review).
+func _hidden_from_him() -> void:
+	_hidden_shots += 1
+	if _hidden_shots != HIDDEN_SHOTS:
+		return
+	var state = CoreRoot.get_state() if CoreRoot != null else null
+	if state == null or GuestManager == null:
+		return
+	var pick := {}
+	for g in state.guests:
+		if g is Dictionary and str(g.get("status", "")) in ["active", "sleep"]:
+			pick = g
+			if str(g.get("archetype", "")) == "drunk":
+				break
+	if pick.is_empty():
+		return
+	GuestManager.apply_guest_event(int(pick.get("id", -1)), -14.0, "Someone took pictures of us through the window all night. In the morning there was a photograph on the step: the two of us, asleep.")
 
 
 func _tick_flash(dt: float) -> void:

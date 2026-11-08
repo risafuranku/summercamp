@@ -19,7 +19,7 @@ func _init(p := 0) -> void:
 var _last := {}
 var _presence := 0.0
 ## The steady ones (each tick from a brain): at most this often each.
-const STEADY := {"set_dread": 0.1, "set_presence": 0.1, "set_eyes": 0.05, "set_spores": 0.1, "set_jam": 0.1, "set_chase": 0.1}
+const STEADY := {"set_dread": 0.1, "set_presence": 0.1, "set_eyes": 0.05, "set_spores": 0.1, "set_jam": 0.1, "set_chase": 0.1, "set_hush": 0.1, "set_mark": 0.05, "set_heat": 0.1}
 var _steady_at := {}
 
 
@@ -43,7 +43,7 @@ func _send(method: String, args: Array) -> void:
 		return
 	var packed: Array = pack(args)
 	var key := method
-	if method in ["set_dread", "set_presence", "set_spores", "set_jam", "set_chase"]:
+	if method in ["set_dread", "set_presence", "set_spores", "set_jam", "set_chase", "set_hush", "set_mark", "set_heat"]:
 		key = method + str(args[0])
 	var now := Time.get_ticks_msec() / 1000.0
 	# The steady ones again now and then even unchanged: the other side lets a level go
@@ -57,7 +57,7 @@ func _send(method: String, args: Array) -> void:
 		_steady_at[key] = now
 	_last[key] = packed
 	# A one-off (a face for two frames, a flash) is always sent; only what holds is kept.
-	if method in ["subliminal", "fever_pulse", "freeze", "glitch", "red_flash", "tinnitus", "white_blast", "blood", "ext", "jam_burst", "lock"]:
+	if method in ["subliminal", "fever_pulse", "freeze", "glitch", "red_flash", "tinnitus", "white_blast", "blood", "ext", "jam_burst", "lock", "hush_release", "mark_jolt"]:
 		_last.erase(key)
 	# An "off" ends what was on: always said, and the next "on" is new again.
 	if method.ends_with("_off"):
@@ -84,6 +84,27 @@ func set_chase(source: String, level: float, near: float = 0.0) -> void:
 
 func set_spores(source: String, level: float) -> void:
 	_send("set_spores", [source, snappedf(level, 0.02)])
+
+
+func set_hush(source: String, level: float) -> void:
+	_send("set_hush", [source, snappedf(level, 0.02)])
+
+
+func hush_release(after: float = 0.12) -> void:
+	_send("hush_release", [after])
+
+
+## Where it is goes in the world: the other machine places it by its own camera.
+func set_mark(kind: String, point: Vector3, cam: Camera3D, level: float, extra: float = 0.0) -> void:
+	_send("set_mark", [kind, point.snapped(Vector3.ONE * 0.05), cam, snappedf(level, 0.02), snappedf(extra, 0.02)])
+
+
+func mark_jolt(kind: String, strength: float = 1.0) -> void:
+	_send("mark_jolt", [kind, strength])
+
+
+func set_heat(source: String, level: float) -> void:
+	_send("set_heat", [source, snappedf(level, 0.05)])
 
 
 func presence() -> float:
@@ -192,9 +213,15 @@ func move_to(to: Vector3) -> void:
 
 ## A sound in the room with them, no direction.
 ## `wall`: heard from out there through the walls (WORLD_SOUNDS.wall_bus), not in the room.
-func play_2d(file: String, db: float, pitch: float, wall := false) -> void:
-	_send("play_2d", [file, db, pitch, wall])
+func play_2d(file: String, db: float, pitch: float, wall := false, key := "") -> void:
+	_send("play_2d", [file, db, pitch, wall, key])
 	_last.erase("play_2d")
+
+
+## A sound played with a `key` stopped dead there (the Whistler's song at their window).
+func stop_2d(key: String) -> void:
+	_send("stop_2d", [key])
+	_last.erase("stop_2d")
 
 
 ## Something of an enemy's own on their screen (coop_night.gd `_on_ext`).

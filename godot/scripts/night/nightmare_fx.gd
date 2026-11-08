@@ -96,6 +96,53 @@ const SENSE_RATE := 22050.0
 ## ears give out for a moment (the world gone, then the pop).
 var _strain := 0.0
 var _ears := 0.0
+## What the body itself does (the breath, the swallow, the ears giving out): the presence and
+## the strain, not the hush (holding your breath is the whole of the hush).
+var _ears_body := 0.0
+## The hush (the Whistler while he listens, `set_hush`; Richard 8. 11.: "ve stylu holky,
+## tichomě"): the camp holds its breath with you. The outdoors go down under you
+## (an Amplify on OutdoorAmbience, its own), your heart comes up in your ears (the sense's
+## heart and blood, no drone, no breath: you are holding it) and your own steps are loud
+## (the player's `step_boost_db`). `hush_release`: the music stopped dead, a moment of
+## nothing at all, then your breath out and the camp back.
+var _hush := 0.0
+var _hush_src := {}
+var _hush_amp: AudioEffectAmplify
+var _hush_player: Node
+var _hush_out := -1.0
+const HUSH_EARS := 0.62
+const HUSH_DUCK_DB := -17.0
+const HUSH_STEP_DB := 7.0
+const SFX_EXHALE := "res://assets/sfx/player/breath_cold.mp3"
+var _drop_then := ""
+## Their marks on the picture (Richard 8. 11.: "babce, fotografovi, pískačovi, rodince dej
+## audiovizuály na úrovni pískače/holky"; his of the Girl on 4. 11.: "vim že sem v píči, vim
+## odkud, a když se podivám tak takový unc, oukej teď dobrý ale mám problém", own effects, not
+## copied ones). Each from where the thing is, as her jamming is (`_place`), set every tick:
+##   strings  the Whistler's: guitar strings stretched over the picture from where he is,
+##            trembling with his song (`extra`: how hard, 0 dead still; `mark_jolt`: a twang)
+##   mould    the granny's: her white threads creeping in from the frame's edges, her side first
+##            (`extra` 1: she is up and looking, they hold and the colour goes sick;
+##            `mark_jolt`: she has let you be, they shrink back)
+##   leak     the Photographer's: light leaking into the film from his side with the beeps
+##            (`extra`: the viewfinder's corners closing on you, while he would have you)
+## In the ear, the strings only: their thin steel ring on his side (`_update_string_sound`).
+const MARK_RATE := {"strings": [1.1, 3.6], "mould": [0.34, 0.9], "leak": [2.6, 5.0]}
+const STRING_RATE := 22050.0
+var _mark_src := {}
+var _marks := {
+	"strings": {"v": 0.0, "x": 0.0, "at": Vector2(1.0, 0.0), "ang": 0.0},
+	"mould": {"v": 0.0, "x": 0.0, "at": Vector2(1.0, 0.0), "ang": 0.0},
+	"leak": {"v": 0.0, "x": 0.0, "at": Vector2(1.0, 0.0), "ang": 0.0},
+}
+var _string_jolt := 0.0
+var _string_snd: AudioStreamPlayer
+var _string_pb: AudioStreamGeneratorPlayback
+var _string_ph := [0.0, 0.0]
+var _string_gain := Vector2.ZERO
+## The boy's hot and cold on the picture (`set_heat`, -1 cold .. 1 burning), eased.
+var _heat := 0.0
+var _heat_src := {}
 var _noise_lp := 0.0
 var _noise_hp := 0.0
 var _ear_ph := [0.0, 0.0]
@@ -394,6 +441,37 @@ func presence() -> float:
 ## every tick: 0 none .. 1 she is breathing on you.
 func set_spores(source: String, level: float) -> void:
 	_spores_src[source] = clampf(level, 0.0, 1.0)
+
+
+## Something listening for you (the Whistler), set every tick: 0 none .. 1 at your ear.
+func set_hush(source: String, level: float) -> void:
+	_hush_src[source] = clampf(level, 0.0, 1.0)
+
+
+## One of their marks this tick (`kind`: the members above), from `point` as `cam` sees it.
+func set_mark(kind: String, point: Vector3, cam: Camera3D, level: float, extra: float = 0.0) -> void:
+	_mark_src[kind] = {"point": point, "cam": cam, "level": clampf(level, 0.0, 1.0), "extra": clampf(extra, 0.0, 1.0)}
+
+
+## A jolt of a mark: the strings twang; her threads shrink back.
+func mark_jolt(kind: String, strength: float = 1.0) -> void:
+	if kind == "strings":
+		_string_jolt = maxf(_string_jolt, clampf(strength, 0.0, 1.0))
+	elif _marks.has(kind):
+		_marks[kind]["v"] = float(_marks[kind]["v"]) * (1.0 - 0.8 * clampf(strength, 0.0, 1.0))
+
+
+## The boy's hot and cold (the picture goes the way he says), set every tick.
+func set_heat(source: String, level: float) -> void:
+	_heat_src[source] = clampf(level, -1.0, 1.0)
+
+
+## The listening over (the music stopped dead): everything gone for a moment, your heart
+## too, then your breath out and the camp comes back.
+func hush_release(after: float = 0.12) -> void:
+	if _hush <= 0.05:
+		return
+	_hush_out = _time + after
 
 
 ## Something jamming you this tick from `point` (0 off .. 1 on you), as `cam` sees it.
@@ -802,14 +880,30 @@ func _process(delta: float) -> void:
 	_spores_src.clear()
 	_spores = move_toward(_spores, want_s, delta * (0.6 if want_s > _spores else 0.25))
 	_strain = move_toward(_strain, _strain_target(), delta * 0.25)
-	_ears = maxf(_presence, _strain * 0.65)
+	var want_h := 0.0
+	for k in _hush_src:
+		want_h = maxf(want_h, float(_hush_src[k]))
+	_hush_src.clear()
+	# Comes up as you stop (two seconds, the song's first notes); lets go at once.
+	_hush = move_toward(_hush, want_h, delta * (0.7 if want_h > _hush else 1.6))
+	if _hush_out >= 0.0 and _time >= _hush_out:
+		_hush_out = -1.0
+		_drop_left = 0.38
+		_drop_then = SFX_EXHALE
+		_set_deaf(true)
+		_hush = 0.0
+	_ears_body = maxf(_presence, _strain * 0.65)
+	_ears = maxf(_ears_body, _hush * HUSH_EARS)
+	_update_hush()
 	_update_sense(delta)
 	_update_ears(delta)
 	_update_muffle()
 	_tick_jam(delta)
+	_tick_marks(delta)
 	_tick_lock(delta)
 	var jam := maxf(_jam, _jam_burst)
-	var on := _dread > 0.01 or _amount > 0.01 or _presence > 0.01 or _strain > 0.05 or _spores > 0.01 or jam > 0.01 or _lock_t >= 0.0
+	var marked := float(_marks["strings"]["v"]) > 0.004 or float(_marks["mould"]["v"]) > 0.004 or float(_marks["leak"]["v"]) > 0.004 or float(_marks["leak"]["x"]) > 0.01 or absf(_heat) > 0.005
+	var on := _dread > 0.01 or _amount > 0.01 or _presence > 0.01 or _strain > 0.05 or _spores > 0.01 or jam > 0.01 or _lock_t >= 0.0 or _hush > 0.01 or marked
 	_screen.visible = on
 	if on:
 		_mat.set_shader_parameter("jam", ceilf(jam * 6.0) / 6.0)
@@ -818,11 +912,21 @@ func _process(delta: float) -> void:
 		_mat.set_shader_parameter("clean", _lock_clean)
 		_mat.set_shader_parameter("punch", _lock_punch)
 		_mat.set_shader_parameter("spores", _spores)
+		_mat.set_shader_parameter("strings", float(_marks["strings"]["v"]))
+		_mat.set_shader_parameter("strings_at", _marks["strings"]["at"])
+		_mat.set_shader_parameter("strings_vib", maxf(float(_marks["strings"]["x"]), _string_jolt))
+		_mat.set_shader_parameter("mould", float(_marks["mould"]["v"]))
+		_mat.set_shader_parameter("mould_at", _marks["mould"]["at"])
+		_mat.set_shader_parameter("mould_hold", float(_marks["mould"]["x"]))
+		_mat.set_shader_parameter("leak", float(_marks["leak"]["v"]))
+		_mat.set_shader_parameter("leak_at", _marks["leak"]["at"])
+		_mat.set_shader_parameter("finder", float(_marks["leak"]["x"]))
+		_mat.set_shader_parameter("heat", _heat)
 		_mat.set_shader_parameter("amount", _amount)
 		_mat.set_shader_parameter("dread", _dread)
 		_mat.set_shader_parameter("time_s", _time)
 		# Hurt, the edges close in a little too.
-		_mat.set_shader_parameter("squeeze", maxf(_presence, _strain * 0.35))
+		_mat.set_shader_parameter("squeeze", maxf(maxf(_presence, _strain * 0.35), _hush * 0.3))
 		_mat.set_shader_parameter("beat", _beat_env)
 		var ws := DisplayServer.window_get_size()
 		_mat.set_shader_parameter("aspect", float(ws.x) / maxf(1.0, float(ws.y)))
@@ -869,27 +973,108 @@ func _tick_jam(delta: float) -> void:
 	_update_jam_sound()
 
 
-## Where it is from where you look: `_jam_ang`, and `_jam_at` on the picture: where it
+func _jam_place(point: Vector3, cam: Camera3D) -> void:
+	var p := _place(point, cam)
+	if not p.is_empty():
+		_jam_at = p["at"]
+		_jam_ang = p["ang"]
+
+
+## Where it is from where you look: "ang" (radians, 0 ahead), and "at" on the picture: where it
 ## stands if it is in the frame; else on the frame's edge, down the side and along the
 ## bottom the further round behind you it is.
-func _jam_place(point: Vector3, cam: Camera3D) -> void:
+func _place(point: Vector3, cam: Camera3D) -> Dictionary:
+	# (In a room the eye is the room's: the view's current camera.)
+	if cam == null and is_inside_tree():
+		cam = get_viewport().get_camera_3d()
 	if cam == null or not is_instance_valid(cam):
-		return
+		return {}
 	var vp := cam.get_viewport()
 	if vp == null:
-		return
+		return {}
 	var local: Vector3 = cam.global_transform.affine_inverse() * point
-	_jam_ang = atan2(local.x, -local.z)
+	var ang := atan2(local.x, -local.z)
 	var size := vp.get_visible_rect().size
 	var half := atan(tan(deg_to_rad(cam.fov) * 0.5) * size.x / maxf(size.y, 1.0))
-	var off := absf(_jam_ang) - half
+	var off := absf(ang) - half
 	if off <= 0.0 and not cam.is_position_behind(point):
 		var p := cam.unproject_position(point) / size
-		_jam_at = Vector2(clampf(p.x * 2.0 - 1.0, -1.0, 1.0), clampf(p.y * 2.0 - 1.0, -1.0, 1.0))
-		return
-	var side := 1.0 if _jam_ang >= 0.0 else -1.0
+		return {"ang": ang, "at": Vector2(clampf(p.x * 2.0 - 1.0, -1.0, 1.0), clampf(p.y * 2.0 - 1.0, -1.0, 1.0))}
+	var side := 1.0 if ang >= 0.0 else -1.0
 	var t := clampf(off / (PI - half), 0.0, 1.0)
-	_jam_at = Vector2(side, t * 2.0) if t < 0.5 else Vector2(side * (2.0 - t * 2.0), 1.0)
+	return {"ang": ang, "at": Vector2(side, t * 2.0) if t < 0.5 else Vector2(side * (2.0 - t * 2.0), 1.0)}
+
+
+## Their marks eased toward what was set this tick, placed; the boy's hot and cold.
+func _tick_marks(delta: float) -> void:
+	for kind in _marks:
+		var m: Dictionary = _marks[kind]
+		var src: Dictionary = _mark_src.get(kind, {})
+		var rates: Array = MARK_RATE[kind]
+		var want := float(src.get("level", 0.0))
+		m["v"] = move_toward(float(m["v"]), want, delta * float(rates[0] if want > float(m["v"]) else rates[1]))
+		if src.is_empty():
+			m["x"] = move_toward(float(m["x"]), 0.0, delta * 3.0)
+		else:
+			m["x"] = move_toward(float(m["x"]), float(src["extra"]), delta * 6.0)
+			var p := _place(src["point"], src["cam"])
+			if not p.is_empty():
+				m["at"] = p["at"]
+				m["ang"] = p["ang"]
+	_mark_src.clear()
+	_string_jolt = maxf(0.0, _string_jolt - delta * 2.6)
+	var want_heat := 0.0
+	for k in _heat_src:
+		if absf(float(_heat_src[k])) > absf(want_heat):
+			want_heat = float(_heat_src[k])
+	_heat_src.clear()
+	_heat = move_toward(_heat, want_heat, delta * 1.2)
+	_update_string_sound()
+
+
+## His strings in the ear: two thin steel partials, faint, on his side, higher the nearer he
+## is (the strings tighter), a tremble with the song; a short buffer, it answers your turning.
+func _update_string_sound() -> void:
+	var m: Dictionary = _marks["strings"]
+	var lv := float(m["v"])
+	if lv <= 0.01:
+		if _string_snd != null and _string_snd.playing:
+			_string_snd.stop()
+			_string_pb = null
+		return
+	if _string_snd == null:
+		_string_snd = AudioStreamPlayer.new()
+		var gen := AudioStreamGenerator.new()
+		gen.mix_rate = STRING_RATE
+		gen.buffer_length = 0.08
+		_string_snd.stream = gen
+		add_child(_string_snd)
+	if not _string_snd.playing:
+		_string_snd.play()
+		_string_pb = _string_snd.get_stream_playback() as AudioStreamGeneratorPlayback
+	if _string_pb == null:
+		return
+	var frames := _string_pb.get_frames_available()
+	if frames <= 0:
+		return
+	var vib := maxf(float(m["x"]), _string_jolt)
+	var ang := float(m["ang"])
+	var w := (sin(ang) + 1.0) * PI * 0.25
+	var gain_want := Vector2(maxf(cos(w), 0.15), maxf(sin(w), 0.15))
+	var hz := lerpf(780.0, 1240.0, lv)
+	var a_tone := 0.004 + 0.022 * lv * (0.4 + 0.6 * vib)
+	var dt := 1.0 / STRING_RATE
+	var buf := PackedVector2Array()
+	buf.resize(frames)
+	for i in frames:
+		var u := float(i + 1) / float(frames)
+		_string_ph[0] = fmod(_string_ph[0] + hz * dt, 1.0)
+		_string_ph[1] = fmod(_string_ph[1] + (hz * 1.503) * dt, 1.0)
+		var tremble := 1.0 + 0.35 * vib * sin(_time * 38.0 + float(i) * 0.002)
+		var v := (sin(TAU * _string_ph[0]) + 0.5 * sin(TAU * _string_ph[1])) * a_tone * tremble
+		buf[i] = _string_gain.lerp(gain_want, u) * v
+	_string_gain = gain_want
+	_string_pb.push_buffer(buf)
 
 
 ## The hiss and the whistle, made here: louder in the ear on its side, the whistle's pitch
@@ -1094,7 +1279,7 @@ func _strain_target() -> float:
 ## swallow while it builds; at the worst a moment with nothing at all (the Master bus
 ## down with the generator), and the pop as it comes back.
 func _update_ears(delta: float) -> void:
-	var e := _ears
+	var e := _ears_body
 	if e > 0.3:
 		if _breath == null and ResourceLoader.exists(SFX_BREATH):
 			_breath = AudioStreamPlayer.new()
@@ -1120,7 +1305,11 @@ func _update_ears(delta: float) -> void:
 		_drop_left -= delta
 		if _drop_left <= 0.0:
 			_set_deaf(false)
-			_one_shot(SFX_POP, -6.0)
+			if _drop_then != "":
+				_one_shot(_drop_then, -9.0)
+				_drop_then = ""
+			else:
+				_one_shot(SFX_POP, -6.0)
 	elif e > 0.78:
 		_drop_wait -= delta
 		if _drop_wait <= 0.0:
@@ -1131,6 +1320,27 @@ func _update_ears(delta: float) -> void:
 		_drop_wait = maxf(_drop_wait, 2.0)
 		if _deaf != null:
 			_set_deaf(false)
+
+
+## The hush on the camp's outdoors (its own Amplify on OutdoorAmbience) and on your feet.
+func _update_hush() -> void:
+	var bus := AudioServer.get_bus_index("OutdoorAmbience")
+	if _hush > 0.01 and bus >= 0:
+		if _hush_amp == null:
+			_hush_amp = AudioEffectAmplify.new()
+			AudioServer.add_bus_effect(bus, _hush_amp)
+		_hush_amp.volume_db = HUSH_DUCK_DB * _hush
+	elif _hush_amp != null:
+		if bus >= 0:
+			for i in AudioServer.get_bus_effect_count(bus):
+				if AudioServer.get_bus_effect(bus, i) == _hush_amp:
+					AudioServer.remove_bus_effect(bus, i)
+					break
+		_hush_amp = null
+	if _hush_player == null or not is_instance_valid(_hush_player):
+		_hush_player = get_tree().get_first_node_in_group("player") if is_inside_tree() else null
+	if _hush_player != null and "step_boost_db" in _hush_player:
+		_hush_player.set("step_boost_db", HUSH_STEP_DB * _hush)
 
 
 ## The world gone (an Amplify on Master far down) or back (taken off again).
@@ -1166,6 +1376,9 @@ func _one_shot(path: String, db: float) -> void:
 ## Never leave the camp's sound down or muffled behind (the menu, a new scene).
 func _exit_tree() -> void:
 	_set_deaf(false)
+	_hush = 0.0
+	_hush_out = -1.0
+	_update_hush()
 
 
 ## Your ears close over: the camp's sounds go far away as the presence rises, till

@@ -84,3 +84,18 @@ func _ready() -> void:
 		["eval", P + ".debug_rects()"],
 	])
 	_steps = s
+	# `--part=drink`: only the bottle, out, open, foam and a long drink (no bag: its hint
+	# moves the real mouse).
+	if OS.get_cmdline_user_args().has("--part=drink"):
+		var d: Array = [
+			["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+			["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.8],
+			["eval", "debug_jump_to(1, 10.5)"], ["wait", 4.0],
+			["eval", INV + ".add_item('beer')"], ["eval", INV + ".add_item('beer')"],
+			["key", "B"], ["wait", 0.7], ["shot", "h_bottle"], ["eval", P + ".bottle.set('shake', 0.2)"],
+			["keyhold", "B", true], ["wait", 3.5], ["keyhold", "B", false], ["wait", 2.6],
+			["keyhold", "B", true],
+		]
+		d.append_array(_burst("k_drink", 10, 0.1))
+		d.append_array([["keyhold", "B", false], ["wait", 0.6], ["shot", "k_after"], ["eval", P + ".debug_rects()"]])
+		_steps = d

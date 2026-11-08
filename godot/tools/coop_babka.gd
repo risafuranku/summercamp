@@ -28,7 +28,8 @@ func _ready() -> void:
 			["eval", "time_system.set_time_hours(21.6)"], ["eval", "_sync_runtime_state_from_systems(true)"], ["wait", 4.0],
 			["coop_signal", "host_night"], ["coop_wait_file", "client_night"],
 			# She is out, after the other warden: close to them, coming.
-			["eval", "debug_spawn_enemy('basket', 3)"], ["eval", G + ".set('soon', true)"], ["wait", 1.0],
+			# (The camp has met her: the first catch in a camp only looks, basket_brain._met.)
+			["eval", "debug_spawn_enemy('basket', 3)"], ["eval", G + ".set('soon', true)"], ["eval", "_director.ever.merge({'granny_met': true})"], ["wait", 1.0],
 			["eval", "_coop_night._aim(" + G + ", 'other')"], ["wait", 0.5],
 			["eval", G + "._body.set('global_position', _coop_night._proxies.values()[0]['body'].global_position - _coop_night._proxies.values()[0]['body'].global_transform.basis.z * 4.0)"],
 			["wait", 1.5], ["babka_report", "near_other"], ["coop_signal", "host_near"],

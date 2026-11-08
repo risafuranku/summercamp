@@ -13,6 +13,7 @@ extends RefCounted
 const DIR := "res://assets/sfx/npc/boy/"
 const NIGHTMARE_FX = preload("res://scripts/night/nightmare_fx.gd")
 const FACE := "res://assets/textury/npc/boy_face.png"
+const FACE_STEPS = preload("res://scripts/night/boy_face.gd")
 const CRAWL := "res://assets/textury/npc/boy_crawl.png"
 const CRAWL_FALLBACK := "res://assets/textury/npc/boy_t1.png"
 const PITCH := 1.22
@@ -111,8 +112,8 @@ func moved() -> void:
 func tick(delta: float) -> void:
 	if _face_t > 0.0:
 		_face_t -= delta
-		_face.position = Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * 10.0
 		NIGHTMARE_FX.update_retro(_face.get_viewport_rect().size.y)
+		FACE_STEPS.lay(_face, FACE_STEPS.LEN - _face_t, _face.get_viewport_rect().size)
 		if _face_t <= 0.0:
 			_face.visible = false
 	if host._intro_t >= 0.0 or host._caught_t >= 0.0 or not _started:
@@ -128,6 +129,10 @@ func tick(delta: float) -> void:
 			gap = maxf(0.0, gap - GAIN[tier] * delta)
 	_place()
 	_sounds(delta, crawling or home)
+	# Your heart and the edges closing as he gains on you.
+	var fx = NIGHTMARE_FX.get_for(host)
+	if fx != null:
+		fx.set_presence("boy", clampf(1.0 - gap / GAP_MAX, 0.0, 0.85))
 	if gap <= 0.0:
 		_catch()
 
@@ -176,12 +181,16 @@ func _catch() -> void:
 	gap = GAP_START
 	_still = 0.0
 	_say("tag_got", -2.0)
-	_sfx(DIR + "shriek.mp3", 0.0, 1.0)
+	# His face in steps (boy_face.gd): his head round to you, at you, the hit, dark.
+	host.get_tree().create_timer(FACE_STEPS.TURN).timeout.connect(func(): _sfx(DIR + "shriek.mp3", 0.0, 1.0))
 	if _face.texture != null:
 		_face.visible = true
-		_face_t = 0.85
+		_face_t = FACE_STEPS.LEN
 	host._bump_t = 0.0
-	host.player_hurt.emit(HIT[tier])
+	var hit: int = HIT[tier]
+	host.get_tree().create_timer(FACE_STEPS.HIT_AT).timeout.connect(func():
+		if is_instance_valid(host):
+			host.player_hurt.emit(hit))
 
 
 func _say(id: String, db: float) -> void:

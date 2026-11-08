@@ -32,9 +32,35 @@ uniform vec2 jam_at = vec2(1.0, 0.0);
 uniform float hold = 0.0;
 uniform float clean = 0.0;
 uniform float punch = 0.0;
+// Their marks on the picture (nightmare_fx.set_mark), each from where the thing is as her
+// jamming is; `*_at` as `jam_at`.
+// The Whistler's strings: six guitar strings stretched over the picture from where he is.
+// `strings_vib`: how they tremble with his song (0 dead still).
+uniform float strings = 0.0;
+uniform vec2 strings_at = vec2(1.0, 0.0);
+uniform float strings_vib = 0.0;
+// The granny's mould: white threads creeping in from the frame's edges, her side first.
+// `mould_hold`: she is up and looking, the colour goes sick.
+uniform float mould = 0.0;
+uniform vec2 mould_at = vec2(1.0, 0.0);
+uniform float mould_hold = 0.0;
+// The Photographer's film: light leaking in from his side; `finder`, the viewfinder's corners
+// closing on you while the shot would have you.
+uniform float leak = 0.0;
+uniform vec2 leak_at = vec2(1.0, 0.0);
+uniform float finder = 0.0;
+// The boy's hot and cold (nightmare_fx.set_heat): -1 cold and blue .. 1 burning.
+uniform float heat = 0.0;
 
 float hash(vec2 p) {
 	return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
+float vnoise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
 }
 
 void fragment() {
@@ -70,6 +96,11 @@ void fragment() {
 		uv.x += floor(wave * w * 3.0) * px.x;
 		uv = 0.5 + (uv - 0.5) * (1.0 - 0.045 * w * w - beat * 0.006 * w);
 	}
+	// Burning: the air shimmers, rows sliding a pixel or two.
+	if (heat > 0.6) {
+		float rowh = floor(uv.y / (px.y * 2.0));
+		uv.x += floor(sin(rowh * 0.7 + floor(time_s * 12.0) * 1.3) * (heat - 0.6) * 2.5) * px.x;
+	}
 	float a = clamp(amount, 0.0, 1.0);
 	float q = 1.0 - clamp(clean, 0.0, 1.0);
 	float d = clamp(dread, 0.0, 1.0) * q;
@@ -104,6 +135,57 @@ void fragment() {
 		float mote = step(1.0 - 0.0025 * sp, hash(mg * 1.31 + 17.0));
 		c = mix(c, haze * 0.75, mote * 0.5 * sp);
 	}
+	// Hot and cold: the picture goes the way he says.
+	float ht = clamp(heat, -1.0, 1.0);
+	if (abs(ht) > 0.005) {
+		float l3 = dot(c, vec3(0.3, 0.59, 0.11));
+		if (ht < 0.0) {
+			c = mix(c, vec3(l3) * vec3(0.7, 0.86, 1.18), -ht * 0.72);
+		} else {
+			c = mix(c, c * vec3(1.32, 0.84, 0.5) + vec3(0.03, 0.005, 0.0), ht * 0.7);
+		}
+	}
+	// Her threads: static (they grow, they do not flicker), a game pixel each, thicker toward
+	// the frame's edge, and first on her side.
+	float mo = clamp(mould, 0.0, 1.0);
+	if (mo > 0.004) {
+		vec2 cellp = floor(SCREEN_UV / px);
+		vec2 q2 = (SCREEN_UV - 0.5) * 2.0;
+		float edge_d = 1.0 - max(abs(q2.x), abs(q2.y));
+		float side = clamp(dot(normalize(q2 + vec2(0.001)), normalize(mould_at + vec2(0.001))), 0.0, 1.0);
+		float reach = mo * (0.12 + 0.36 * side * side);
+		float grown = clamp(1.0 - edge_d / max(reach, 0.0001), 0.0, 1.0);
+		float ridge = 1.0 - abs(vnoise(cellp * 0.085) * 2.0 - 1.0);
+		float ridge2 = 1.0 - abs(vnoise(cellp * 0.21 + 7.1) * 2.0 - 1.0);
+		float vein = max(pow(ridge, 5.0), pow(ridge2, 7.0) * 0.85);
+		float thread = step(0.95 - 0.55 * grown, vein) * step(0.001, grown);
+		vec3 mc = mix(vec3(0.76, 0.74, 0.64), vec3(0.42, 0.44, 0.34), hash(cellp));
+		c = mix(c, mc, thread * (0.25 + 0.4 * grown));
+		float l4 = dot(c, vec3(0.3, 0.59, 0.11));
+		c = mix(c, vec3(l4) * vec3(1.05, 0.98, 0.55), clamp(mould_hold, 0.0, 1.0) * 0.55);
+	}
+	// His film: the light leaks in from his side, ragged, in a few hard shades.
+	float lk = clamp(leak, 0.0, 1.0);
+	if (lk > 0.004) {
+		vec2 lv = ((SCREEN_UV - 0.5) * 2.0 - leak_at) * vec2(aspect, 1.0);
+		float n3 = vnoise(floor(SCREEN_UV / (px * 6.0)) * 0.7 + vec2(0.0, floor(time_s * 4.0) * 0.37));
+		float burn = pow(clamp(1.0 - length(lv) / (0.5 + 1.15 * lk), 0.0, 1.0), 1.6) * (0.75 + 0.5 * n3);
+		burn = floor(burn * 7.0) / 7.0;
+		c += mix(vec3(0.85, 0.28, 0.08), vec3(1.0, 0.72, 0.35), burn) * burn * lk * 0.9;
+	}
+	// His finder's four corners, closing on you, a game pixel thick, and its dot.
+	float fi = clamp(finder, 0.0, 1.0);
+	if (fi > 0.01) {
+		vec2 q3 = (SCREEN_UV - 0.5) * 2.0;
+		vec2 hs = mix(vec2(0.86, 0.86), vec2(0.34, 0.42), fi);
+		vec2 e3 = abs(q3) - hs;
+		float cw = px.y * 2.0 * 1.1;
+		float arm = 0.1 + 0.05 * fi;
+		float hb = step(abs(e3.y), cw) * step(e3.x, 0.0) * step(-arm, e3.x);
+		float vb = step(abs(e3.x), cw) * step(e3.y, 0.0) * step(-arm * aspect, e3.y);
+		float mid = step(length(q3 * vec2(aspect, 1.0)), 0.014);
+		c = mix(c, vec3(1.0, 0.28, 0.16), max(max(hb, vb), mid) * (0.35 + 0.55 * fi));
+	}
 	// The edges close in, banded (the palette's few shades), pulsing with the heart.
 	float sq = clamp(squeeze, 0.0, 1.0);
 	if (sq > 0.001) {
@@ -123,6 +205,39 @@ void fragment() {
 		float snow = step(1.0 - density, hash(jcell * 1.7 + tick * 11.3));
 		c *= 1.0 - floor(her * 6.0) / 6.0 * (0.45 + 0.5 * jm);
 		c = mix(c, mix(vec3(0.1, 0.1, 0.12), vec3(0.62, 0.6, 0.54), grainy * grainy), snow * 0.85);
+	}
+	// His strings: rays from where he is, a game pixel thick, trembling in standing waves.
+	float st_lv = clamp(strings, 0.0, 1.0);
+	if (st_lv > 0.004) {
+		vec2 g2 = floor(SCREEN_UV / px) * px;
+		vec2 p2 = (g2 - 0.5) * 2.0 * vec2(aspect, 1.0);
+		vec2 a2 = strings_at * vec2(aspect, 1.0);
+		// Stretched from him to you: toward the bottom of the picture, where you are (from
+		// the frame's bottom edge, him behind you: up over the picture).
+		vec2 to_you = vec2(0.0, 1.35) - a2;
+		vec2 to_c = length(to_you) > 0.5 ? normalize(to_you) : vec2(0.0, -1.0);
+		vec2 v2 = p2 - a2;
+		float r2 = length(v2);
+		float th = atan(v2.y, v2.x);
+		float th0 = atan(to_c.y, to_c.x);
+		float tick2 = floor(time_s * 14.0);
+		float best = 1000.0;
+		float idx = 0.0;
+		for (int i = 0; i < 6; i++) {
+			float ang = th0 + (float(i) - 2.5) * 0.16;
+			float wob = sin(r2 * 11.0 - tick2 * (1.1 + float(i) * 0.37)) * sin(clamp(r2 / 2.6, 0.0, 1.0) * PI);
+			ang += wob * strings_vib * (0.006 + 0.018 * strings_vib);
+			float dth = abs(mod(th - ang + PI, TAU) - PI);
+			float dd2 = r2 * sin(min(dth, 1.57));
+			if (dth < 1.57 && dd2 < best) {
+				best = dd2;
+				idx = float(i);
+			}
+		}
+		float line = step(best, px.y * 2.0 * 0.62);
+		float vis = line * smoothstep(0.0, 0.25, r2) * (1.0 - smoothstep(1.4, 3.2, r2));
+		vec3 steel = mix(vec3(0.62, 0.62, 0.7), vec3(0.85, 0.78, 0.5), mod(idx, 2.0));
+		c = mix(c, steel, vis * (0.16 + 0.36 * st_lv));
 	}
 	c *= 1.0 - bar;
 	COLOR = vec4(c, 1.0);

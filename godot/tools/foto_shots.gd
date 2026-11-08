@@ -148,6 +148,80 @@ func shot_now() -> String:
 	return "shot, hit %s" % str(t.get("_hit_last"))
 
 
+## Him `dist` m behind you (`deg` off straight behind) and the flash now: your shadow out
+## ahead of you (`--part=shadow`). Held still, so the shot is the flash's moment.
+func shot_behind(dist: float, deg: float) -> String:
+	var t = photographer()
+	var p: Node3D = _main.get("_player")
+	var cam: Camera3D = p.get_node("Head/Camera3D")
+	var back := (cam.global_transform.basis.z).slide(Vector3(0, 1, 0)).normalized().rotated(Vector3.UP, deg_to_rad(deg))
+	var want := p.global_position + back * dist
+	var at: Vector3 = t._stand(want)
+	(t.get("_body") as Node3D).global_position = at if at != Vector3.INF else want
+	t._fire()
+	var d: Node3D = _main.get("_world_3d").get_node_or_null("FlashShadow")
+	return "shot from behind, hit %s, shadow %s" % [str(t.get("_hit_last")), str(d.visible) if d != null else "none"]
+
+
+## The warden moved to open ground (nothing at eye height for 10 m all round, from points
+## round where they stand), looking a little down at the ground ahead.
+func open_ground() -> String:
+	var t = photographer()
+	var p: Node3D = _main.get("_player")
+	var from := p.global_position
+	for r in [0.0, 6.0, 12.0, 18.0, 24.0, 30.0]:
+		for k in 12:
+			var c: Vector3 = from + Vector3(r, 0, 0).rotated(Vector3.UP, TAU * float(k) / 12.0)
+			var g: Vector3 = t._stand(c)
+			if g == Vector3.INF:
+				continue
+			var ok := true
+			for a in 8:
+				var d := Vector3(0, 0, -10.0).rotated(Vector3.UP, TAU * float(a) / 8.0)
+				if t._ray_blocked(g + Vector3(0, 1.5, 0), g + d + Vector3(0, 1.5, 0)) or t._ray_blocked(g + Vector3(0, 0.4, 0), g + d * 0.6 + Vector3(0, 0.4, 0)):
+					ok = false
+					break
+			if ok:
+				p.global_position = g + Vector3(0, 0.05, 0)
+				p.set("_pitch", -0.4)
+				p.set("_pitch_target", -0.4)
+				return "open ground at %s (%.0f m off)" % [str(g.snapped(Vector3.ONE * 0.1)), r]
+	return "no open ground"
+
+
+## Him framing you ahead (`--part=shadow`): the presence while he would have you.
+func framing_ahead() -> String:
+	var t = photographer()
+	var p: Node3D = _main.get("_player")
+	var cam: Camera3D = p.get_node("Head/Camera3D")
+	var fwd := (-cam.global_transform.basis.z).slide(Vector3(0, 1, 0)).normalized()
+	var at: Vector3 = t._stand(p.global_position + fwd * 10.0)
+	(t.get("_body") as Node3D).global_position = at if at != Vector3.INF else p.global_position + fwd * 10.0
+	t._enter_frame()
+	return "framing"
+
+
+func presence_now() -> String:
+	var fx = _main.get_tree().root.get_node_or_null("NightmareFX")
+	return "presence %.2f" % float(fx.get("_presence")) if fx != null else "no fx"
+
+
+const SHADOW_STEPS := [
+	["wait_menu"], ["call", "_on_menu_test_night", ["tourist"]], ["wait", 4.0],
+	["call_on", "_interior_manager", "close_main_interior_if_open", []], ["wait", 2.0],
+	["call", "_stop_active_enemy_brain", []], ["wait", 1.0], ["eval", "_set_player_health(100)"],
+	["eval", "debug_spawn_enemy('tourist', 3)"], ["wait", 1.0],
+	# On open ground, looking a little down at the ground ahead, him behind: the flash.
+	["eval", F + ".open_ground()"], ["wait", 1.0],
+	["eval", F + ".shot_behind(9.0, 0.0)"], ["wait", 0.05], ["shot", "s1_shadow_ahead"],
+	["wait", 0.5], ["shot", "s2_shadow_gone"],
+	["eval", F + ".shot_behind(7.0, 35.0)"], ["wait", 0.05], ["shot", "s3_shadow_slant"],
+	["wait", 1.5], ["eval", "_player.set('_pitch_target', 0.0)"], ["wait", 0.5],
+	["eval", F + ".framing_ahead()"], ["wait", 1.6], ["eval", F + ".presence_now()"], ["shot", "s4_framed"],
+	["eval", "_player.rotate_y(PI)"], ["wait", 1.0], ["eval", F + ".presence_now()"],
+]
+
+
 const HITCH_STEPS := [
 	["wait_menu"], ["call", "_on_menu_test_night", ["tourist"]], ["wait", 4.0],
 	["call_on", "_interior_manager", "close_main_interior_if_open", []], ["wait", 2.0],
@@ -171,5 +245,8 @@ func _ready() -> void:
 	super._ready()
 	if OS.get_cmdline_user_args().has("--part=hitch"):
 		_steps = HITCH_STEPS.duplicate(true)
+		return
+	if OS.get_cmdline_user_args().has("--part=shadow"):
+		_steps = SHADOW_STEPS.duplicate(true)
 		return
 	_steps = WALK_STEPS.duplicate(true)

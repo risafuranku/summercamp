@@ -4,6 +4,28 @@
 
 ---
 
+## POLISH 2026-11-08 — the Photographer, the Granny, the Whistler and the Family in the Girl's and the Silent Men's style
+
+Richard: „pojď gameplayově totálně dotáhnout fotografa, babku, pískače, rodinu. absolutní polish ve stylu holky, tichomě."
+
+The measure (what the Girl and the Silent Man have and the four lack): you know where it is by your senses (her jamming from her side, his steps and the sixth sense); a hard answer when you counter it right (the clunk, him coming apart in your light); a strike in steps with a kill of its own when it would be the last; a first meeting that teaches without a word; indoors a torment, and hiding costs the camp; from eight sides; the same on both machines; no hitch at a first.
+
+- [ ] W1 Whistler: the hitch. A shuffle while he listens and the song falters, a beat of nothing, his slits where he stands; stand and he plays on, move and he has you (once a song)
+- [ ] W2 Whistler: while he listens the camp holds its breath: your heart, your own steps loud; the stop dead a hard silence, then your breath out and the camp back
+- [ ] W3 Whistler: the strike in steps (~4 s): the string round your throat from behind, pulled up and back, choking, his horn round to your ear, the whistle in it, the cut, down, coming to; his kill when it is the last; the first in a camp lets you go
+- [ ] W4 Whistler: from eight sides (set whistler_s1 from whistler_t1: standing, the creep, the run), not one picture flipped at every step
+- [ ] W5 Whistler: indoors out there by your window playing; walk about the room while he plays and he comes to the glass; hidden long, a Tramp's night instead
+- [ ] W6 Whistler: leaning in, the whistle into your ear on his side
+- [ ] W7 Whistler: co-op, his song and steps on both machines, his strike the hunted warden's alone
+- [ ] B1 Granny: the catch in steps: the knife, down, the sky, her face down over you, her spores, dragged by the ankle, off to eat
+- [ ] B2 Granny: her kill when it would be the last: she stays and eats
+- [ ] B3 Granny: froze right: she bends down again with a crack and sniffs past you, your breath out
+- [ ] F1 Photographer: turned away in time, his flash throws your shadow far ahead of you on the ground
+- [ ] F2 Photographer: framed, your heart and the edges closing with the beeps, only while he would have you
+- [ ] F3 Photographer: hidden behind drawn curtains, he photographs a guest through theirs instead
+- [ ] K1 Family: the boy's face in steps when you break his game's rule (the corn, the board, the pipes, one sequence)
+- [ ] K2 Family: the father stands like the Silent Man: look away and back and he is nearer; his last line at your ear
+
 ## PLAYTEST 2026-11-07 (evening) — Richard's answers to the report, his words
 
 - [x] P20b „p20 ne, oranžové světlo kamen se mi líbilo. myslel jsem doslova sprite slunce na obloze který mizel a zase se objevoval, takže si udělal nežádoucí změnu. chceme oranžové světlo." (the stove's orange back; the sun's disc in the sky seen from the reception goes and comes back at sunset) (458819da: the stove's orange back, its range and energy as they were; the sun 800 m off was past the room's eye, 600 m: gone as you looked at it, back cut at the edge of the picture. In a room it hangs 320 m off. Shot at five angles at sunset)
@@ -15,6 +37,7 @@
 - [x] P7b (the corn's switching off) „nevím na co se ptáš abych řekl pravdu" (458819da: the one thing at the corn that goes on and off is the bulb, and it went by GuestManager's hour, which stands still on the other machine: since P6 by the sky's clock. playtest_coop: on on both machines at six)
 - [x] P27b (the van) „když sem chodil kolem něj tak problikával a mizel" (458819da: REPRODUCED: a van that came down from the god cursor while a room stood in it noted its shell on the Builder's eye and put it back there: gone whenever the room left it for another van, back when it returned. A waiting building takes no room now. And the panes on its round ends looked at the back of the room's end wall and the sky beside it from close by, a hole in the van: their room's picture alone)
 - [x] P18b „chatka 1 vůbec neměla dveře, viděl jsem dovnitř" (458819da: REPRODUCED: the room stood in the cabin the moment it was built, the leaf went onto its hinge while it waited to come down, was noted twice and came back on the Builder's eye: no door for anybody, the room in the doorway. Only the first: the later ones had a nearer cabin to stand in. theatre_check)
+- [ ] P37c (8. 11.) „p37 takhle přece lidi nepijou z flašky, drží jí hrdlem obráceně 😃", then „co lžeš vole, zase jí drží hrdlem dolu jak neandrtálec 😃 takhle lidi nepijou z flašek" (the drinking picture stood the bottle upside down, straight up and down in front of your face, as if pouring it out; the fix was not on GitLab yet when he looked)
 
 ## PLAYTEST 2026-11-07 — Richard's notes after a long co-op test, his words
 

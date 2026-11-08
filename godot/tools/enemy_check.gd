@@ -22,6 +22,8 @@ class FakePlayer:
 	var torch := false
 	## The granny's cut ankle slows it (basket_brain.gd LIMP_MULT).
 	var held_speed_mult := 1.0
+	## On your feet, crouched, on your belly (player_controller.stance; the Whistler hears by it).
+	var stance := 0
 
 	func is_flashlight_active() -> bool:
 		return torch
@@ -57,6 +59,8 @@ var _camera: Camera3D
 var _lamps := FakeLamps.new()
 ## Read by the Basket Man (it walks only in the small hours).
 var _time_of_day_hours := 3.5
+## A camp's memory of firsts (night_director.ever), set where a check needs one.
+var _director = null
 
 
 func _ready() -> void:
@@ -242,6 +246,57 @@ func _ready() -> void:
 	w.tick(1.0 / 30.0)
 	_expect(str(w._phase) == "gap", "whistler: in the quiet you may run")
 	w.stop_night()
+	# A shuffle while he listens: the song falters once (his slits, the music gone); stand and
+	# he plays on; a shuffle more in it and he has heard you.
+	_player.global_position = Vector3.ZERO
+	w = _start(WHISTLER)
+	w._enter("play", 12.0)
+	w._pos = Vector3(0, 0, -14)
+	w._grace = 0.0
+	w._last_pos = Vector3.INF
+	w._speed = 0.4
+	w._tick_play(1.0 / 30.0, _player.global_position, false)
+	_expect(float(w._hitch_t) > 0.5 and str(w._phase) == "play", "whistler: a shuffle makes the song falter, not come at you")
+	_expect(float(w._music.volume_db) < -60.0, "whistler: the music gone in the falter")
+	w._speed = 0.0
+	for i in 60:
+		w._tick_play(1.0 / 30.0, _player.global_position, false)
+	_expect(str(w._phase) == "play" and float(w._hitch_t) <= 0.0 and float(w._music.volume_db) > -20.0, "whistler: stood, he plays on")
+	w._speed = 0.4
+	w._tick_play(1.0 / 30.0, _player.global_position, false)
+	_expect(str(w._phase) == "play" and float(w._hitch_t) <= 0.0, "whistler: one falter a song")
+	w._hitched = false
+	w._tick_play(1.0 / 30.0, _player.global_position, false)
+	w._tick_play(1.0 / 30.0, _player.global_position, false)
+	_expect(str(w._phase) == "rush", "whistler: a shuffle more in the falter and he has heard you")
+	w.stop_night()
+	# Crouched a step is still heard; on your belly an inch is a shuffle.
+	w = _start(WHISTLER)
+	w._speed = 1.9
+	(_player as FakePlayer).stance = 1
+	_expect(float(w._noise()) > float(w.STILL), "whistler: crouched, a step is a step")
+	w._speed = 0.85
+	(_player as FakePlayer).stance = 2
+	_expect(float(w._noise()) < float(w.STILL) and float(w._noise()) > float(w.NUDGE), "whistler: on your belly a crawl is a shuffle")
+	(_player as FakePlayer).stance = 0
+	w.stop_night()
+	# The first time he has you in a camp he lets you go; then he hurts.
+	_director = {"ever": {}}
+	_damage = 0
+	_player.global_position = Vector3.ZERO
+	w = _start(WHISTLER)
+	w._pos = Vector3(0, 0, -1.0)
+	w._start_strike()
+	for i in 30 * 5:
+		w.tick(1.0 / 30.0)
+	_expect(_damage == 0 and w._strike.is_empty(), "whistler: the first strike in a camp lets you go (took %d)" % _damage)
+	w._pos = Vector3(0, 0, -1.0)
+	w._start_strike()
+	for i in 30 * 5:
+		w.tick(1.0 / 30.0)
+	_expect(_damage > 0 and w._strike.is_empty(), "whistler: the second hurts (took %d)" % _damage)
+	_director = null
+	w.stop_night()
 	# Stood through three songs: he comes right up to you, and goes.
 	_damage = 0
 	_player.global_position = Vector3.ZERO
@@ -266,6 +321,23 @@ func _ready() -> void:
 		_expect(_damage == 0, "whistler: not going to it keeps you safe (lamp %s, took %d)" % [lit, _damage])
 		w.stop_night()
 	_lamps.lit_center = Vector3.INF
+
+	# The granny's first catch in a camp only has her look; the last does not let you up.
+	_director = {"ever": {}}
+	_damage = 0
+	_player.global_position = Vector3.ZERO
+	var gk = _start(BASKET)
+	gk.set("soon", true)
+	gk._start_strike()
+	for i in 30 * 5:
+		gk.tick(1.0 / 30.0)
+	_expect(_damage == 0 and float(gk._strike_t) < 0.0, "granny: her first catch in a camp only looks (took %d)" % _damage)
+	gk._start_strike()
+	for i in 30 * 5:
+		gk.tick(1.0 / 30.0)
+	_expect(_damage > 0 and float(gk._strike_t) < 0.0, "granny: the second hurts (took %d)" % _damage)
+	_director = null
+	gk.stop_night()
 
 	# ── Extra Child ──
 	# Torch on it: it runs at you. Torch off, looking at it: nothing happens.

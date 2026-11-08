@@ -388,6 +388,45 @@ def silent_sheets(fig, desc):
 		"reference image. " + same + SILENT_TAIL + BG)
 	return out
 
+## The Whistler (scripts/enemies/whistler_brain.gd, DESIGN §5a.3; Richard 8. 11.: "absolutní
+## polish ve stylu holky, tichomě"): one picture flipped at every step till now. From eight
+## sides after his approved sprite npc/whistler_t1.png: standing (listening), the creep while
+## he plays, the run at where he heard you.
+WHISTLER = {
+	"whistler_s1": "a turned tramp: a battered brown cowboy hat, a dead grey face with black hollow eyes, "
+		"his mouth gone into a black horn like the bell of a megaphone growing out of his face, a red and "
+		"black checked flannel shirt, faded blue jeans, heavy brown boots, a dark canvas rucksack and an "
+		"acoustic guitar slung on his back with its neck up behind his left shoulder, his arms hanging at "
+		"his sides",
+}
+WHISTLER_TAIL = "Eerie and unsettling, an enemy in a horror game. "
+WHISTLER_WALK = WALK.replace("A calm walking pace, the body upright. ", "A slow creeping step, the body "
+	"upright and stiff, the arms hanging at the sides, the head cocked a little to one side as if listening. ")
+WHISTLER_RUN = RUN.replace("leaning a little forward", "leaning far forward at a flat-out sprint")
+for _fig, _desc in WHISTLER.items():
+	FIGURES[_fig] = ("assets/textury/npc/whistler_t1.png", _desc)
+
+
+def whistler_sheets(fig, desc):
+	same = SAME % desc
+	out = {
+		"turn": ("16:9", "front", BABKA_STYLE + "A character turnaround model sheet: five full-body views of one "
+			"and the same man standing perfectly still, the arms hanging at his sides, the head cocked a little "
+			"as if listening, side by side in a single row, evenly spaced with clear magenta gaps between them, "
+			"all exactly the same height and scale with the feet on one common baseline near the bottom edge: "
+			+ VIEWS + ". " + same + WHISTLER_TAIL + BG),
+	}
+	for v in range(1, 6):
+		# From the front the horn comes at you: its round black mouth toward the viewer (the
+		# first run drew it side on while the body came straight on).
+		facing = "The horn points straight at the viewer, its round black opening facing out of the picture. " if v == 1 else ""
+		# Every run frame as tall as the next (one drew a crouch a quarter lower).
+		even = "Every frame is about the same height, upright at a sprint, no crouching. "
+		out["walk%d" % v] = ("16:9", "turn", BABKA_STYLE + (WHISTLER_WALK % VIEW[v]) + facing + same + WHISTLER_TAIL + BG)
+		out["run%d" % v] = ("16:9", "turn", BABKA_STYLE + (WHISTLER_RUN % RUN_VIEW[v]) + facing + even + same + WHISTLER_TAIL + BG)
+	return out
+
+
 # id suffix -> (aspect, which reference, text). "front": the sprite alone; "turn": the
 # sprite beside its picked turnaround.
 def sheets(fig, desc):
@@ -395,6 +434,8 @@ def sheets(fig, desc):
 		return babka_sheets(fig, desc)
 	if fig in SILENT:
 		return silent_sheets(fig, desc)
+	if fig in WHISTLER:
+		return whistler_sheets(fig, desc)
 	same = SAME % desc
 	out = {
 		"turn": ("16:9", "front", STYLE + "A character turnaround model sheet: five full-body views "

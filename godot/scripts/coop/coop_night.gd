@@ -534,7 +534,8 @@ func _snapshot_root(root: Node, prefix: String, out: Array, with_root := false, 
 			if a.stream == null or a.stream.resource_path == "" or not a.playing:
 				continue
 			out.append({"k": key, "t": "a", "st": a.stream.resource_path, "pos": a.global_position, "db": float(a.get_meta("coop_db", a.volume_db)), "pt": a.pitch_scale,
-				"md": a.max_distance, "us": a.unit_size, "at": a.get_playback_position(), "bus": str(a.bus)})
+				"md": a.max_distance, "us": a.unit_size, "at": a.get_playback_position(), "bus": str(a.bus), "cut": a.has_meta("coop_cut"),
+				"lp": a.stream is AudioStreamMP3 and (a.stream as AudioStreamMP3).loop})
 		elif n is Light3D:
 			var l := n as Light3D
 			out.append({"k": key, "t": "l", "spot": n is SpotLight3D, "xf": l.global_transform, "v": _shown_below(l, root, for_quarry), "c": l.light_color,
@@ -710,6 +711,12 @@ func show_view(items: Array) -> void:
 						continue
 					a = AudioStreamPlayer3D.new()
 					a.stream = load(st_path)
+					# Looped there, looped here (the Whistler's song, longer than its file).
+					if bool(it.get("lp", false)) and a.stream is AudioStreamMP3 and not (a.stream as AudioStreamMP3).loop:
+						a.stream = (a.stream as AudioStreamMP3).duplicate()
+						(a.stream as AudioStreamMP3).loop = true
+					if bool(it.get("cut", false)):
+						a.set_meta("coop_cut", true)
 					_mirror_root.add_child(a)
 					_mirror[key] = a
 					a.global_position = it["pos"]
@@ -742,8 +749,8 @@ func show_view(items: Array) -> void:
 		if not seen.has(key):
 			var gone = _mirror[key]
 			if gone != null and is_instance_valid(gone):
-				# A sound plays out; the rest goes at once.
-				if gone is AudioStreamPlayer3D and (gone as AudioStreamPlayer3D).playing:
+				# A sound plays out (but one stopped dead there: coop_cut); the rest goes at once.
+				if gone is AudioStreamPlayer3D and (gone as AudioStreamPlayer3D).playing and not (gone as Node).has_meta("coop_cut"):
 					(gone as AudioStreamPlayer3D).finished.connect((gone as Node).queue_free)
 				else:
 					(gone as Node).queue_free()
@@ -782,6 +789,18 @@ func on_fx(method: String, args: Array) -> void:
 				add_child(p)
 				p.finished.connect(p.queue_free)
 				p.play()
+				# Kept by its key to be stopped dead (stop_2d), one at a time.
+				var key := str(a[4]) if a.size() > 4 else ""
+				if key != "":
+					var old = _keyed_2d.get(key)
+					if old != null and is_instance_valid(old):
+						(old as Node).queue_free()
+					_keyed_2d[key] = p
+		"stop_2d":
+			var held = _keyed_2d.get(str(a[0]))
+			if held != null and is_instance_valid(held):
+				(held as Node).queue_free()
+			_keyed_2d.erase(str(a[0]))
 		"ext":
 			_on_ext(str(a[0]), a[1] as Array)
 		_:
@@ -812,6 +831,12 @@ func _on_ext(what: String, args: Array) -> void:
 			var flash: Callable = _window_at(args[0]).get("flash", Callable())
 			if flash.is_valid():
 				flash.call()
+		"flash_shadow":
+			# His flash behind this warden, out of their view: their shadow ahead of them.
+			var spl = main.get("_player")
+			var sworld: Node3D = main.get("_world_3d")
+			if spl != null and sworld != null and not args.is_empty():
+				FLASH_SHADOW.throw(sworld, args[0], spl, int(Coop.my_look().get("m", 1)))
 		"relay", "relay_off":
 			# The mushroom granny's meal on this office radio too (basket_brain._relay).
 			var im = main.get("_interior_manager")
@@ -826,7 +851,10 @@ func _on_ext(what: String, args: Array) -> void:
 
 
 const POLAROID := preload("res://scripts/enemies/polaroid.gd")
+const FLASH_SHADOW := preload("res://scripts/enemies/flash_shadow.gd")
 var _polaroid: CanvasLayer
+## Sounds in this warden's room kept by their key (play_2d with a key, stop_2d).
+var _keyed_2d := {}
 
 
 ## The window of the room you are in at `at` (InteriorManager.photo_windows), {} none.
@@ -863,9 +891,9 @@ func _rfx_apply(method: String, args: Array) -> void:
 	if fx == null:
 		return
 	match method:
-		"set_dread", "set_presence", "set_spores":
+		"set_dread", "set_presence", "set_spores", "set_hush", "set_heat":
 			_rfx_levels[method + "|" + str(args[0])] = [method, str(args[0]), float(args[1]), Time.get_ticks_msec()]
-		"set_eyes", "set_jam", "set_chase":
+		"set_eyes", "set_jam", "set_chase", "set_mark":
 			_rfx_levels[method + "|" + str(args[0])] = [method, args, 0.0, Time.get_ticks_msec()]
 		"close_up", "overlay", "split":
 			if args.is_empty() or args[0] == null:
@@ -897,10 +925,10 @@ func _rfx_tick() -> void:
 	var now := Time.get_ticks_msec()
 	for k in _rfx_levels.keys():
 		var e: Array = _rfx_levels[k]
-		if now - int(e[3]) > (250 if str(e[0]) == "set_eyes" else (400 if str(e[0]) == "set_jam" else 1000)):
+		if now - int(e[3]) > (250 if str(e[0]) == "set_eyes" else (400 if str(e[0]) == "set_jam" or str(e[0]) == "set_mark" else 1000)):
 			_rfx_levels.erase(k)
 			continue
-		if str(e[0]) == "set_eyes" or str(e[0]) == "set_jam" or str(e[0]) == "set_chase":
+		if str(e[0]) == "set_eyes" or str(e[0]) == "set_jam" or str(e[0]) == "set_chase" or str(e[0]) == "set_mark":
 			fx.callv(str(e[0]), e[1])
 		else:
 			fx.call(str(e[0]), str(e[1]), float(e[2]))

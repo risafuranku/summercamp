@@ -67,6 +67,8 @@ const TRAIL_MAX := 24
 const S := "res://assets/sfx/npc/babka/"
 const G := "res://assets/sfx/npc/granny/"
 const STEPS := [S + "step_grass_a.mp3", S + "step_grass_b.mp3", S + "step_grass_c.mp3", S + "step_grass_d.mp3"]
+## Your own breath let out when she has let you be.
+const SFX_EXHALE := "res://assets/sfx/player/breath_cold.mp3"
 const SFX := {
 	# (The loops as seamless OGG, tools/audiogen/ambience_loop.py --trim: the MP3s gapped
 	# or clicked at every repeat, the spores half a second of silence.)
@@ -120,8 +122,11 @@ const TURN_AWAY_SEC := 2.6
 const REACH_M := 1.45
 ## A catch, by the night's difficulty 1..5 (100 health: two or three of them).
 const HIT := Vector2i(38, 52)
-const STRIKE_SEC := 2.7
-const RISE_SEC := 0.4
+const STRIKE_SEC := 3.3
+const RISE_SEC := 0.45
+## When her face has come down (the drag after it), and the last catch's length.
+const STRIKE_FACE_END := 1.9
+const KILL_SEC := 3.7
 const FED_SEC := 16.0
 ## Light at you at which she will not come on (a lamp), and the light she will not step in.
 const LAMP_SAFE := 0.35
@@ -159,6 +164,9 @@ var _ate_in: Dictionary = {}
 var _fed_until := -1.0
 var _hidden_t := 0.0
 var _strike_t := -1.0
+var _strike_cues := {}
+var _strike_kill := false
+var _strike_lesson := false
 var _speed := 0.0
 var _last_pos := Vector3.INF
 var _dir := Vector3.FORWARD
@@ -645,61 +653,171 @@ func _show_arm(k: float) -> void:
 
 # ── the strike ───────────────────────────────────────────────────────────────
 
+## The catch, in steps as every strike of the night (Richard 8. 11.: "ve stylu holky,
+## tichomě"): the knife at your ankles and your eyes go to your feet; down on your back, the
+## sky; her face comes down over you by steps, her spores in your face, something drips on
+## you, she sniffs; she takes your ankle and drags you a few steps through the grass; she
+## lets go and goes off to eat. The first time in a camp she only has her look and her
+## sniff. When it would be the last she does not go: she eats.
 func _start_strike() -> void:
+	if _strike_t >= 0.0:
+		return
+	var lesson := not _met()
+	_strike_kill = not lesson and _player_health() - _hit <= 0
+	_strike_lesson = lesson
+	_mark_met()
 	_strike_t = 0.0
+	_strike_cues.clear()
 	_set_phase("strike", 0.0)
-	claimed = true
+	if not lesson:
+		claimed = true
 	_sound_quarry(SFX["tendon"], _player_pos() + Vector3(0, 0.2, 0), 3.0, 1.0, 10.0)
 	var fx := _fx()
 	if fx != null:
 		fx.freeze(0.08)
+		fx.glitch(0.4, 0.35)
 		fx.tinnitus(2.2)
 	_view_begin()
+
+
+func _cue(at: float, id: String) -> bool:
+	if _strike_t >= at and not _strike_cues.has(id):
+		_strike_cues[id] = true
+		return true
+	return false
 
 
 func _tick_strike(dt: float) -> void:
 	_strike_t += dt
 	var t := _strike_t
+	var st := floorf(t * 12.0) / 12.0
 	var fx := _fx()
-	if t >= 0.3 and t - dt < 0.3:
-		_hurt(_hit)
-		_sound_quarry(SFX["fall"], _player_pos() + Vector3(0, 0.2, 0), 2.0, 1.0, 10.0)
-		if fx != null:
-			fx.red_flash(0.55)
-			fx.blood(0.5)
 	if _player == null or not is_instance_valid(_player):
 		return
-	# Down in the grass, on your back: the sky, and her leaning over you.
-	var down := clampf((t - 0.25) / 0.35, 0.0, 1.0)
-	# And up again by steps: from on your back you stood in one frame.
-	var rising := clampf((t - (STRIKE_SEC - RISE_SEC)) / RISE_SEC, 0.0, 1.0)
-	down *= 1.0 - floorf(rising * 6.0) / 6.0
-	if not _view0.is_empty():
-		_set_pitch(float(_view0["pitch"]) + lerpf(0.0, 0.95, down))
-		_set_roll(float(_view0["roll"]) + lerpf(0.0, 0.32, down))
 	if _quarry_peer() == 0 and _player.has_method("set_controls_enabled"):
 		_player.call("set_controls_enabled", false)
-	if rising > 0.0 and fx != null:
-		fx.close_up_off()
-	elif t >= 0.6 and fx != null:
-		var k := clampf((t - 0.6) / 1.2, 0.0, 1.0)
-		var st := floorf(k * 6.0) / 6.0
-		fx.close_up(_tex_face[_stage], lerpf(0.9, 1.35, st), 1.0 + 0.08 * st, 0.004 + 0.01 * st, 0.0, Vector2(0, lerpf(0.12, -0.02, st)))
-	if t >= 0.9 and t - dt < 0.9:
+	var p0 := float(_view0.get("pitch", 0.0))
+	var r0 := float(_view0.get("roll", 0.0))
+	# Your eyes to your feet: the knife.
+	if st < 0.3:
+		_set_pitch(p0 - 0.35 * minf(st / 0.17, 1.0))
+	# Down on your back: the sky, by steps.
+	elif st < 0.65:
+		var k := floorf((st - 0.3) / 0.35 * 6.0) / 6.0
+		_set_pitch(p0 + lerpf(-0.35, 0.95, k))
+		_set_roll(r0 + 0.32 * k)
+	elif t < STRIKE_SEC - RISE_SEC or _strike_kill:
+		_set_pitch(p0 + 0.95 + (0.025 * sin(st * 40.0) if _strike_kill and st > STRIKE_FACE_END else 0.0))
+		_set_roll(r0 + 0.32)
+	if _cue(0.3, "fall"):
+		_sound_quarry(SFX["fall"], _player_pos() + Vector3(0, 0.2, 0), 2.0, 1.0, 10.0)
+		if not _strike_lesson and not _strike_kill:
+			_hurt(_hit)
+			if fx != null:
+				fx.red_flash(0.55)
+				fx.blood(0.5)
+	# Her face down over you, by steps; her spores in your face.
+	if st >= 0.65 and st < STRIKE_FACE_END:
+		var k := clampf((st - 0.65) / 1.15, 0.0, 1.0)
+		var s6 := floorf(k * 6.0) / 6.0
+		if fx != null:
+			fx.close_up(_strike_face(), lerpf(0.9, 1.38, s6), 1.0 + 0.08 * s6, 0.004 + 0.012 * s6, 0.0, Vector2(0, lerpf(0.14, -0.02, s6)))
+			fx.set_spores("basket", 1.0)
+	if _cue(0.95, "sniff"):
 		_sound_quarry(SFX["sniff"], _player_pos() + Vector3(0, 1.0, 0), 2.0, 0.95, 8.0)
-	if t >= STRIKE_SEC:
+	if _cue(1.15, "breath"):
+		_sound_quarry(SFX["breath"], _player_pos() + Vector3(0, 1.2, 0), -2.0, 0.9, 6.0)
+	if _cue(1.45, "drip") and fx != null and not _strike_lesson:
+		fx.blood(0.2, Vector2(0.52, 0.18))
+	if _strike_kill:
+		_tick_strike_kill(st, fx)
+		return
+	if _strike_lesson:
+		# The first: her look and her sniff, and she lets you be.
+		if _cue(STRIKE_FACE_END, "leave"):
+			if fx != null:
+				fx.close_up_off()
+			_sound_quarry(SFX["leave"], _player_pos() + Vector3(0, 0.6, 0), 0.0, 1.0, 20.0)
+		_tick_rise(t, STRIKE_SEC - 0.7, fx)
+		return
+	# Dragged by the ankle through the grass, in three pulls, toward where she is.
+	if _cue(STRIKE_FACE_END, "grab"):
+		if fx != null:
+			fx.close_up_off()
+		_sound_quarry(SFX["creak"], _player_pos() + Vector3(0, 0.5, 0), 0.0, 0.9, 12.0)
+	for n in 3:
+		var at := STRIKE_FACE_END + 0.08 + 0.24 * float(n)
+		if _cue(at, "pull" + str(n)):
+			_drag_pull()
+			if fx != null:
+				fx.glitch(0.25, 0.15)
+	if t >= STRIKE_FACE_END + 0.08 and t < STRIKE_FACE_END + 0.8:
+		var since := fmod(t - STRIKE_FACE_END - 0.08, 0.24)
+		_set_pitch(p0 + 0.95 + (0.07 if since < 0.08 else 0.0))
+	_tick_rise(t, STRIKE_SEC, fx)
+
+
+## The last catch: she stays over you and eats; it goes dark.
+func _tick_strike_kill(st: float, fx) -> void:
+	var k := clampf((st - STRIKE_FACE_END) / (KILL_SEC - STRIKE_FACE_END), 0.0, 1.0)
+	if st >= STRIKE_FACE_END and fx != null:
+		fx.close_up(_strike_face(true), lerpf(1.38, 2.7, k * k), 1.08, 0.016 + 0.02 * k, 0.0, Vector2(0, lerpf(-0.02, 0.06, k)))
+		fx.set_spores("basket", 1.0)
+		fx.set_black(lerpf(0.0, 1.0, k * k * k))
+	if _cue(STRIKE_FACE_END + 0.1, "eat"):
+		_sound_quarry(SFX["eat_a"], _player_pos() + Vector3(0, 1.1, 0), 1.0, 1.0, 6.0)
+	if _cue(STRIKE_FACE_END + 0.6, "bite") and fx != null:
+		fx.red_flash(0.4)
+		fx.blood(0.45, Vector2(0.45, 0.35))
+	if _cue(STRIKE_FACE_END + 1.0, "bone"):
+		_sound_quarry(SFX["bone"], _player_pos() + Vector3(0, 1.0, 0), 1.0, 0.95, 6.0)
+		if fx != null:
+			fx.blood(0.6, Vector2(0.6, 0.5))
+	if st >= KILL_SEC:
+		# Black and held first: the end of you takes it from there.
+		_end_strike(true)
+		_hurt(_hit)
+
+
+## Up again by steps (from on your back you stood in one frame), and she is off to eat.
+func _tick_rise(t: float, end: float, fx) -> void:
+	var rising := clampf((t - (end - RISE_SEC)) / RISE_SEC, 0.0, 1.0)
+	if rising > 0.0:
+		var k := floorf(rising * 6.0) / 6.0
+		_set_pitch(float(_view0.get("pitch", 0.0)) + 0.95 * (1.0 - k))
+		_set_roll(float(_view0.get("roll", 0.0)) + 0.32 * (1.0 - k))
+	if t >= end:
 		_end_strike()
-		# Off to eat, with you lying there: she has had her taste.
+		# Off to eat, with you lying there: she has had her taste (the first time, her look).
 		_fed_until = _elapsed + FED_SEC
 		_hidden_t = HIDDEN_SEC
 		var p := _point_from_player(_rng.randf_range(5.0, 8.0), 180.0)
 		if p != Vector3.INF:
 			_place_body(p)
-		_feed("A knife at your ankles, low in the grass.")
 		_set_phase("hunt", 0.0)
 
 
-func _end_strike() -> void:
+## A pull at your ankle: you along the grass toward her (where one can lie), the grass and
+## her boots.
+func _drag_pull() -> void:
+	var her := _body.global_position if _body != null else _player_pos() - _forward_flat()
+	var dir := her - _player_pos()
+	dir.y = 0.0
+	if dir.length() < 0.3:
+		dir = -_forward_flat()
+	var to := _stand(_player_pos() + dir.normalized() * 0.55)
+	if to != Vector3.INF and not _ray_blocked(_player_pos() + Vector3(0, 0.4, 0), to + Vector3(0, 0.4, 0)):
+		_move_player(to)
+	_sound_quarry(STEPS[_rng.randi() % STEPS.size()], _player_pos() + Vector3(0, 0.1, 0), 2.0, 0.8, 8.0)
+
+
+## Her face for the catch: by how fed she is; the last one, her worst.
+func _strike_face(worst := false) -> Texture2D:
+	var i := _tex_face.size() - 1 if worst else _stage
+	return _tex_face[clampi(i, 0, _tex_face.size() - 1)]
+
+
+func _end_strike(kill := false) -> void:
 	if _strike_t < 0.0:
 		return
 	_strike_t = -1.0
@@ -707,12 +825,36 @@ func _end_strike() -> void:
 	if fx != null:
 		fx.close_up_off()
 		fx.glitch(0.5, 0.5)
+		if kill:
+			fx.set_black(1.0)
+	if kill:
+		return
 	if not _view0.is_empty():
 		_set_pitch(float(_view0["pitch"]))
 		_set_roll(float(_view0["roll"]))
 	_view_end()
 	if _quarry_peer() == 0 and _player != null and is_instance_valid(_player) and _player.has_method("set_controls_enabled"):
 		_player.call("set_controls_enabled", true)
+
+
+## Has she had a warden of this camp once (the first only has her look)? (No director, no
+## camp to remember it: a harness.)
+func _met() -> bool:
+	var d = _director()
+	if d == null or not (d.get("ever") is Dictionary):
+		return true
+	return bool((d.get("ever") as Dictionary).get("granny_met", false))
+
+
+func _mark_met() -> void:
+	var d = _director()
+	if d != null and d.get("ever") is Dictionary:
+		(d.get("ever") as Dictionary)["granny_met"] = true
+
+
+func _director():
+	var scene := _world_root.get_tree().current_scene if _world_root != null and _world_root.is_inside_tree() else null
+	return scene.get("_director") if scene != null else null
 
 
 # ── hidden: the guests ───────────────────────────────────────────────────────
@@ -1378,11 +1520,35 @@ func _set_phase(phase: String, seconds: float) -> void:
 				_hum.stream_paused = true
 		"lunge":
 			_sound(SFX["lunge"], _body.global_position + Vector3(0, 0.6, 0), 3.0, 1.0, 35.0)
+		"turn":
+			# You froze over her look and she lets you be: her back cracks as she bends down
+			# again, a long sniff past you, and your breath goes out of you.
+			if was == "stare":
+				_sound(SFX["crack"], _body.global_position + Vector3(0, 1.4, 0), 0.0, _rng.randf_range(0.8, 0.88), 26.0)
+				_sound(SFX["sniff"], _body.global_position + Vector3(0, 1.6, 0), -1.0, 0.85, 14.0)
+				_at_you(SFX_EXHALE, -10.0, 0.9)
+				var mfx := _fx()
+				if mfx != null and mfx.has_method("mark_jolt"):
+					mfx.mark_jolt("mould", 1.0)
 		"hunt":
 			if was in ["look", "stare", "turn", "reach"]:
 				_next_look = _rng.randf_range(LOOK_NEAR.x, LOOK_NEAR.y) if _distance_to_player(_body.global_position) < 10.0 else _rng.randf_range(LOOK_EVERY.x, LOOK_EVERY.y)
 	if _body != null:
 		_body.visible = not (phase in ["away", "eat", "idle_hidden"])
+
+
+## A sound at you, at the gain written (its nearness would add to it): only the hunted hear it.
+func _at_you(path: String, db: float, delay: float = 0.0) -> void:
+	if delay > 0.0 and _world_root != null and _world_root.is_inside_tree():
+		_world_root.get_tree().create_timer(delay).timeout.connect(func():
+			if _night_active:
+				_at_you(path, db))
+		return
+	var cam := _camera()
+	var at := (cam.global_position if cam != null else _player_pos() + Vector3(0, 1.5, 0)) + _forward_flat() * 0.3
+	var p := _sound_quarry(path, at, db, 1.0, 6.0)
+	if p != null:
+		p.unit_size = 0.3
 
 
 func _straight() -> bool:
@@ -1534,6 +1700,10 @@ func _update_senses(_dt: float, out: bool) -> void:
 	fx.set_presence("basket", level)
 	if fx.has_method("set_spores"):
 		fx.set_spores("basket", clampf(1.0 - (d - 1.5) / 8.5, 0.0, 1.0))
+	# Her white threads in from the frame's edges, her side first (Richard 8. 11.: "audiovizuály
+	# na úrovni pískače/holky"); her up and looking, they hold and the colour goes sick.
+	if fx.has_method("set_mark"):
+		fx.set_mark("mould", _body.global_position + Vector3(0, 1.2, 0), _camera(), clampf(1.0 - (d - 3.0) / 22.0, 0.0, 1.0), 1.0 if _phase in ["look", "stare"] else 0.0)
 
 
 # ── the morning ──────────────────────────────────────────────────────────────

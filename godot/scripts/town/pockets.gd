@@ -51,10 +51,10 @@ const ANCHOR := {
 	# the filter comes in at the bottom at x 65.
 	"hand4_lighting": Vector2(65, 17),
 }
-## Where on the drinking pictures (their pixels) the neck is where it goes out of the view, at
-## your mouth, and on the way up.
-const DRINK_NECK := Vector2(30, 90)
-const RAISE_NECK := Vector2(12, 84)
+## Where on the drinking pictures (their pixels) the bottle's mouth is: at your lips, on the
+## bottom edge in the middle; on the way up, its neck's end, coming to them.
+const DRINK_NECK := Vector2(9, 76)
+const RAISE_NECK := Vector2(1, 18)
 ## Where on the cigarette pictures your fingers hold it (from its bottom left corner).
 const CIG_GRIP := Vector2(11, -11)
 const WOBBLE_SHADER := """
@@ -1019,14 +1019,18 @@ func _layout_right(vp: Vector2, s: float, bar: float, bob: Vector2, step: float)
 	var x := vp.x * 0.64
 	var y := vp.y - bar - _right.size.y * 0.72 * up
 	if frame == "hand4_beer_drink":
-		# The neck goes in under the bottom edge, in the middle, at your mouth: the whole of the
-		# bottle with its mouth showing stood upside down in front of you, in the air (the
-		# user 7. 11.: "the hands with the beer are broken too").
+		# Drinking as your own eyes see it (Grok hand9_beer_drink_7): the bottle's mouth at your
+		# lips on the bottom edge, tipped up to the right, the back of your hand toward you and
+		# the fingers over it, the neck out of the thumb's side of the fist. (The user 8. 11. of
+		# the ones before: "drží tu flašku OBRÁCENĚ! normálně držíš flašku hrdlem nahoru, a pak
+		# jí dáváš k puse": the neck was out of the little finger's side, a wrist that cannot be.)
 		x = vp.x * 0.5 - DRINK_NECK.x * s
 		y = vp.y - bar - DRINK_NECK.y * s * up + (1.0 - up) * _right.size.y * 0.4
 	elif frame == "hand4_beer_raise":
+		# On the way up (the same hand and grip turned back, tools/artgen out hand9_beer_raise_4):
+		# the bottle lying level in front of you, its neck in the middle, coming to your mouth.
 		x = vp.x * 0.5 - RAISE_NECK.x * s
-		y = vp.y - bar - RAISE_NECK.y * s * up
+		y = (vp.y - bar) * 0.68 - RAISE_NECK.y * s + (1.0 - up) * (vp.y - bar) * 0.4
 	elif frame == "hand2_beer_tilt":
 		x = vp.x * 0.55 - _right.size.x * 0.5
 		y = vp.y - bar - _right.size.y * 0.85 * up

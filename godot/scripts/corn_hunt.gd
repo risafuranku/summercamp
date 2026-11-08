@@ -52,6 +52,12 @@ const BOY_HIT := [0, 16, 24, 34]
 
 ## The family's boy instead of a guest: his tier 1-3 (0: a guest).
 var boy := 0
+## His face when you looked back (boy_face.gd): how far into it (-1 none), the picture.
+const BOY_FACE_STEPS = preload("res://scripts/night/boy_face.gd")
+const REMOTE_FX = preload("res://scripts/coop/remote_fx.gd")
+var _remote_fx: Node
+var _face_age := -1.0
+var _face_tex: Texture2D
 ## The last hint he gave ("cold", "warm", "hot") and how many times his face came round
 ## (for the checks).
 var last_hint := ""
@@ -228,6 +234,7 @@ func _process(delta: float) -> void:
 	var in_corn: bool = _corn.in_maze(ppos) or (ppos.x < _corn.fence_x and absf(ppos.z - _corn.gate_z) < 2.0)
 
 	if boy > 0:
+		_tick_boy_face(delta)
 		_boy_process(delta, player, ppos, in_corn)
 	# The guest calls out until found.
 	elif not _following:
@@ -404,6 +411,7 @@ func _boy_process(delta: float, player: Node3D, ppos: Vector3, in_corn: bool) ->
 	if not _following:
 		if in_corn:
 			_boy_hints(delta, ppos)
+			_boy_heat()
 		if Vector2(ppos.x - _guest.global_position.x, ppos.z - _guest.global_position.z).length() < 1.6:
 			_set_hint("[E] Take his hand")
 			if Input.is_action_just_pressed("interact"):
@@ -515,29 +523,70 @@ func _boy_strike(player: Node3D) -> void:
 	_look_t = 0.0
 	_last_dist = -1
 	strikes += 1
-	var world: Node = _main.get("_world_3d")
-	var fx = NIGHTMARE_FX.get_for(world) if world != null else null
+	var fx = _boy_fx()
 	_sfx_2d(BOY_DIR + "turn.mp3", 0.0, 1.0)
-	_sfx_2d(BOY_DIR + "shriek.mp3", 2.0, 1.0)
+	get_tree().create_timer(BOY_FACE_STEPS.TURN).timeout.connect(func(): _sfx_2d(BOY_DIR + "shriek.mp3", 2.0, 1.0))
 	if fx != null:
-		var face: Texture2D = load(BOY_FACE if ResourceLoader.exists(BOY_FACE) else "res://assets/textury/npc/host_kid.png")
 		fx.freeze(0.12)
-		fx.close_up(face, 1.0, 1.0, 0.015)
-		fx.glitch(0.9, 0.7)
 		fx.tinnitus(2.5)
-		# Red once his face is gone (over it, it hid him).
-		get_tree().create_timer(0.9).timeout.connect(func():
-			fx.close_up_off()
-			fx.red_flash(0.55))
-	if leader != null and is_instance_valid(leader) and player == leader:
-		Coop.send_night_event("hurt", [BOY_HIT[boy]])
-	elif _main.has_method("damage_player"):
-		_main.damage_player(BOY_HIT[boy])
+	# His face in steps (boy_face.gd): his head round to you, at you, the hit, dark.
+	_face_tex = load(BOY_FACE if ResourceLoader.exists(BOY_FACE) else "res://assets/textury/npc/host_kid.png")
+	_face_age = 0.0
+	var hurt_who = leader if leader != null and is_instance_valid(leader) and player == leader else null
+	get_tree().create_timer(BOY_FACE_STEPS.HIT_AT).timeout.connect(func():
+		if fx != null:
+			fx.red_flash(0.55)
+			fx.glitch(0.9, 0.7)
+		if hurt_who != null:
+			Coop.send_night_event("hurt", [BOY_HIT[boy]])
+		elif _main.has_method("damage_player"):
+			_main.damage_player(BOY_HIT[boy]))
 	get_tree().create_timer(2.2).timeout.connect(_say_looked)
 	# Back in the corn, far from you, hiding again.
 	_boy_look(_boy_back)
 	_guest.global_position = _corn.tile_world(_far_tile([_corn.world_tile(player.global_position)]))
 	_whisper_t = 4.0
+
+
+## The picture goes the way he says: cold, warmer, burning (nightmare_fx.set_heat; Richard 8.
+## 11.: "audiovizuály na úrovni pískače/holky"). It lies when he lies.
+func _boy_heat() -> void:
+	if last_hint == "":
+		return
+	var fx = _boy_fx()
+	if fx != null and fx.has_method("set_heat"):
+		fx.set_heat("boy", float({"cold": -0.7, "warm": 0.22, "hot": 1.0}.get(last_hint, 0.0)))
+
+
+## The screen of the warden who is with him: the other warden's if their stand-in leads him.
+func _boy_fx():
+	if leader != null and is_instance_valid(leader):
+		var peer := int(leader.get_meta("coop_id", 0))
+		if peer != 0:
+			if _remote_fx == null or int(_remote_fx.get("peer")) != peer:
+				_remote_fx = REMOTE_FX.new(peer)
+			return _remote_fx
+	var world: Node = _main.get("_world_3d") if _main != null else null
+	return NIGHTMARE_FX.get_for(world) if world != null else null
+
+
+## His face as it stands `_face_age` s in (boy_face.gd), on the night's screen.
+func _tick_boy_face(delta: float) -> void:
+	if _face_age < 0.0:
+		return
+	_face_age += delta
+	var fx = _boy_fx()
+	if fx == null:
+		return
+	var st: Dictionary = BOY_FACE_STEPS.step(_face_age)
+	if not bool(st["on"]):
+		_face_age = -1.0
+		fx.close_up_off()
+		fx.set_black(0.0)
+		return
+	var w := float(st["w"])
+	fx.close_up(_face_tex, w, float(st["h"]) / w, float(st["shake"]), float(st["rot"]))
+	fx.set_black(float(st["dark"]) * 0.9)
 
 
 ## His picture (front or back), kept to his height.

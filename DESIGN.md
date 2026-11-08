@@ -358,12 +358,37 @@ does not see, and a night with him is musical chairs:
   is listening: any move past a shuffle, on anything, and he has heard you. The first notes
   come up out of nothing (two seconds, a little over one on a heavy night): that is your
   time to stop. He comes nearer through the song, and from 16 m you can make him out.
-- **The quiet**: a hand flat on the strings, the music stops dead, his eyes a moment, two
-  pale slits where he stands. Now you can move: 24 seconds on a light night, 13 on a heavy
-  one. Go. Indoors he cannot reach you, and when you come out he has gone off for a while.
+- **The falter** (Richard 8. 11.: "absolutní polish ve stylu holky, tichomě"): a shuffle
+  while he listens, slower than a step, and his song falters: the music gone in the middle of
+  a note, his slits open where he stands, nothing. Stand, and he plays on; a shuffle more, or
+  a step, and he has heard you. Once a song. How you move counts as your steps sound: crouched
+  a step is still a step, on your belly an inch is a shuffle (`STANCE_NOISE`).
+- **His strings** (Richard 8. 11.: "babce, fotografovi, pískačovi, rodince dej audiovizuály na
+  úrovni pískače/holky"; each of the four has its own mark on the picture, `nightmare_fx.
+  set_mark`, drawn in `materials/nightmare_screen.gdshader`, placed as the Girl's jamming is):
+  six guitar strings stretched over the picture from where he is to you, a game pixel thick,
+  in standing waves: up with his first notes, trembling with the song, dead still in the
+  falter (a twang first), jangling at a run, gone with the song stopped dead. Follow them
+  and you know where he is. In the ear their thin steel ring on his side, higher the nearer.
+- **The hush**: while he listens the camp holds its breath with you (`nightmare_fx.set_hush`):
+  the outdoors go down (an Amplify on OutdoorAmbience), your heart and blood come up in your
+  ears (the sense's heart, no drone, no breath: you are holding it), your own steps are louder
+  (`player_controller.step_boost_db`). The first notes bring it up: your time to stop.
+- **The quiet**: a hand flat on the strings, the music stops dead, and if you stood through it,
+  a moment of nothing at all, your heart too, then your breath out and the camp back
+  (`hush_release`); his eyes a moment, two pale slits where he stands. Now you can move: 24
+  seconds on a light night, 13 on a heavy one. Go. Indoors he cannot reach you, and when you
+  come out he has gone off for a while.
 - **He comes**: at a run to where he heard you, the guitar jangling; there he whistles again,
-  the first notes short. At your back: the string round your neck, his horn at your ear (the
-  close-up grows as the string tightens), the hit. A lamp's light: he stops at its edge and goes.
+  the first notes short. A lamp's light: he stops at its edge and goes.
+- **The strike, in steps** (as the Girl's, ~4 s): the string round your throat from behind
+  (his hands and the string across the bottom of your view, Grok `whistler_garrote`), your
+  head pulled back to the sky, choking; the string tightening, the edges going; his horn comes
+  round to your ear from the side he is on (`whistler_face`) and his tune is whistled into it;
+  the cut, red, down in the grass, black, and you come to on the ground with his song going
+  off into the dark. When it would be the last, the string only tightens as it goes dark. The
+  first in a camp (`director.ever["whistler_met"]`) lets you go: the tune in your ear, the
+  string loose, him gone a while.
 - **He leans in**: stood through three songs in the open, he walks right up to you and
   whistles into your ear. Stand it out and he goes for a minute; move and he has you.
 - Heavy, a guest's voice calls for help out of the dark in the middle of a song, to make you
@@ -371,8 +396,19 @@ does not see, and a night with him is musical chairs:
 - **The fire nobody lit** (medium on): a campfire out by the trees, him on a log by it
   playing in its light. Its light is not safe: go near and the fire dies and he is
   behind you.
-- **Indoors**: his song under the window now and then, quiet, stopped in the middle of
-  a bar.
+- **Indoors**: now and then his song through the walls with him out there by a window of
+  your room whose curtain is open, a shape in the dark (seen through it); when the song stops
+  his slits are there a moment. Walk about the room while he plays and the song stops dead, and
+  a moment later he is at the glass, his horn to it, whistling in, his slits there. Hidden 80 s
+  in his night and he plays to a Tramp's tent instead (a guest's night, its review).
+- **From eight sides** (`npc/sets/whistler_s1`, figure `whistler_s1` in
+  `tools/artgen/figure_prompts.py` WHISTLER, from `npc/whistler_t1.png`): standing (listening,
+  turned to you), the creep while he plays, the run at where he heard you; by his fire his own
+  sitting picture.
+- **Co-op**: his song stopped dead is stopped on the other machines too (meta `coop_cut`: not
+  played out), looped there as here; at a joining warden's window his song is played and
+  stopped dead on their machine (`play_2d` with a key, `stop_2d`); the falter, the hush, the
+  strike are the hunted warden's.
 
 ### 5a.4 The Granny (Mushroom Pickers; `scripts/enemies/basket_brain.gd`)
 
@@ -393,9 +429,20 @@ She never says a word.
   dead, her back cracks and she straightens up and looks; half a second after the crack
   she sees. Move in her sight and she comes at a run; freeze and she stands over you a
   while, looking, then turns away a few steps and comes on again.
-- **The catch**: the knife at your ankles; you go down on your back in the grass, her
-  face over you, and she goes off to eat. You limp for a while (slower, no sprint). Two
-  or three catches kill (game over, as with the others).
+- **The catch, in steps** (8. 11., as the Girl's): the knife at your ankles and your eyes go
+  to your feet; down on your back, the sky; her face comes down over you by steps (the face of
+  how fed she is), her spores in your face, something drips on you, she sniffs and breathes on
+  you; she takes your ankle and drags you three pulls through the grass, you looking up at her
+  standing at your feet; she lets go and goes off to eat. Two or three catches kill: the
+  last one she does not go, she eats (her worst face
+  down over you, the munching, the bone, the blood, dark). The first catch in a camp
+  (`director.ever["granny_met"]`) only has her look and her sniff.
+- **Froze right**: when she has stood over you looking and turns away, her back cracks as
+  she bends down again, a long sniff past you, and your breath goes out of you; her threads
+  shrink back.
+- **Her threads** (her mark on the picture, 8. 11.): pale mould creeping in from the frame's
+  edges, first on her side, still, growing as she comes; up and looking they hold and the
+  colour goes sick.
 - **Lamps**: she never steps into a lamp's light. The lamp you stand under, or one in her
   way, she puts out: at the edge of its light she straightens and reaches her far too
   long arm up to the bulb (~5 s, less fed); the bulb goes into her basket and the lamp is
@@ -458,6 +505,19 @@ curtains.
   the flash. In your view with a clear line: the white, your ears ring, his burnt-in face,
   a lot of health, and the picture of you develops at the corner of your eye (every third,
   him in it, right behind you). Out of view: the place lights up and he walks on, closer.
+- **Turned away in time** (8. 11., the Girl's clunk in his own kind): his flash going off
+  behind you with nothing between throws your shadow far out ahead of you on the ground, your
+  own warden's outline, black, from your feet away from him, for the flash's third of a second
+  (`scripts/enemies/flash_shadow.gd`, a decal; on the hunted warden's machine). You did it
+  right, and you see from where he fired.
+- **Framed**: while he frames you and the shot would have you, your heart and the edges
+  closing come up with the beeps (the sixth sense's layer, `set_presence`); turned away or
+  behind something, nothing. Through your window too.
+- **His film** (his mark on the picture, 8. 11.): light leaking in from his side, ragged, in
+  hard shades, pulsing with the beeps, more as the focus closes; and while the shot would have
+  you, the four corners of his viewfinder closing on you, red, with its dot.
+- **Hidden from him**: five of his shots at your drawn curtains or at your tent in a night, and
+  he takes his pictures of a guest instead (a guest's night: "a photograph on the step").
 - **As it goes**: two pictures and his neck has broken (the head hangs off it); four and
   it has let go (the head at his belly, screaming photographs). Three and he runs at your
   back. The last picture: the frame stops, his lens-face comes at you, your own face
@@ -572,10 +632,19 @@ learn:
   now and then (warmer when you go away) and asks you to turn round; heavy (4-5) more,
   and his face hits harder. In the pipes: light the boy, medium the raccoon, heavy both
   (`sewer_pipe_minigame.boy_tier`, `pipe_director.absent`).
+- **Hot and cold** (8. 11., `nightmare_fx.set_heat`): in the corn the picture goes the way he
+  says: cold and blue, warmer, burning orange with the air shimmering. It lies when he lies.
+  At the board your heart and the edges close while he looks; in the pipes as he gains on you.
+- **His face, in steps** (8. 11., the same in the corn, at the board and in the pipes,
+  `scripts/night/boy_face.gd`): his head comes round to you (the face narrow and widening in
+  four steps, a head turning), then it comes at you twitching with the shriek, the hit, and it
+  goes dark.
 - **His father is the omen**: once the boy is out there, now and then the father stands
   in your way in the dark 8-11 m off, his hand out holding a hand that is not there, and
   asks after him in Czech, one line more each time ("Neviděl jste mýho kluka?" ... the
-  last asked twice); look away or come near and he is not there.
+  last asked twice). He stands as the Silent Man does (8. 11.): look away and back and he is
+  a step nearer, twice; the third time he is not there, and asks it once more at your ear.
+  Walk at him and he is not there.
 - **Not found by dawn**: the family is gone in the morning (`claimed`). No text says
   any of it: the voices do (`tools/audiogen/night_voices.tsv`; the boy is a young voice
   pitched up).

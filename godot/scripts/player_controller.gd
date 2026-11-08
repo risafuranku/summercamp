@@ -278,6 +278,8 @@ const SURFACE_SPEED := {"snow": 0.86, "mud": 0.92, "puddle": 0.94}
 var _surface_speed := 1.0
 var _surface_t := 0.0
 var _step_players: Array = []
+## Your own steps louder while something listens for you (nightmare_fx set_hush: the Whistler).
+var step_boost_db := 0.0
 var _step_next := 0
 var _step_last := -1
 var _was_on_floor := true
@@ -1599,7 +1601,7 @@ func _play_step(motion: float) -> void:
 	p.stream = set[k]
 	var run := clampf(motion, 0.0, 1.0)
 	# Crouched you tread softly, lying down you hardly make a sound (noise_level()).
-	p.volume_db = lerpf(-15.0, -8.0, run) + randf_range(-1.5, 1.0) + [0.0, -7.0, -12.0][stance]
+	p.volume_db = lerpf(-15.0, -8.0, run) + randf_range(-1.5, 1.0) + [0.0, -7.0, -12.0][stance] + step_boost_db
 	p.pitch_scale = lerpf(0.97, 1.06, run) * randf_range(0.93, 1.07)
 	p.play()
 	_play_foley(run)

@@ -14,7 +14,8 @@ extends "res://scripts/enemies/child_brain.gd"
 ##
 ## His father is the omen: once the boy is out there, now and then the father stands in
 ## your way in the dark, his hand out holding nothing, and asks after him; look away and
-## he is not there.
+## back and he is nearer (twice), the third time he is not there and asks it once more,
+## at your ear (Richard 8. 11.: "ve stylu holky, tichomě": he stands as the Silent Man does).
 ##
 ## Found and out: he is back in the tent by morning, remembering nothing. Not found by
 ## dawn: the family is gone (`claimed`, main._claim_turned_guests).
@@ -31,6 +32,11 @@ const DAD_EVERY := [Vector2(55.0, 85.0), Vector2(40.0, 65.0), Vector2(28.0, 45.0
 const DAD_DIST := Vector2(8.0, 11.0)
 const DAD_STAND := 12.0
 const DAD_NEAR := 3.5
+## Looked away from and back to: steps nearer at most, each to this share of the way.
+const DAD_STEPS := 2
+const DAD_STEP := 0.68
+## How near a step of his own may bring him (m; you walking at him, DAD_NEAR, ends it).
+const DAD_STEP_NEAR := 2.8
 
 ## 1 light, 2 medium, 3 heavy.
 var tier := 1
@@ -46,6 +52,10 @@ var _dad_until := -1.0
 var _dad_seen := false
 var _dad_unseen := 0.0
 var _dad_line := 0
+## Looked away from and back to, he is a step nearer (as the Silent Man stands): how many
+## steps tonight's showing has taken; what he asked, for his last word at your ear.
+var _dad_steps := 0
+var _dad_said := ""
 
 
 func get_enemy_id() -> String:
@@ -153,8 +163,9 @@ func _boy_out() -> bool:
 
 ## Now and then, while the boy is out there and you are outdoors: the father in front of
 ## you in the dark, 8-11 m off, his hand out holding nothing, asking after him (a line
-## more each time, the last one asked twice). Gone when you look away, come near, or after
-## a while.
+## more each time, the last one asked twice). Look away and back: he is a step nearer, twice;
+## the third time he is gone, and asks it once more at your ear. Gone too when you come
+## near, or after a while.
 func _tick_dad(dt: float) -> void:
 	if _dad == null:
 		return
@@ -166,9 +177,29 @@ func _tick_dad(dt: float) -> void:
 			_dad_unseen = 0.0
 		else:
 			_dad_unseen += dt
-		var gone := _elapsed >= _dad_until or _distance_to_player(_dad.global_position) < DAD_NEAR \
-			or (_dad_seen and _dad_unseen > 0.6) or not _boy_out()
+		# Looked away from: nearer when you look back (twice), the third time gone.
+		if _dad_seen and _dad_unseen > 0.6 and _dad_steps < DAD_STEPS:
+			var me := _player_pos()
+			var nearer := _stand(me + (_dad.global_position - me) * DAD_STEP)
+			if nearer != Vector3.INF and _distance_to_player(nearer) >= DAD_STEP_NEAR and not _is_seen(nearer + Vector3(0, 1.4, 0)):
+				_dad.global_position = nearer
+				_dad_steps += 1
+				_dad_seen = false
+				_dad_unseen = 0.0
+				_dad_until = maxf(_dad_until, _elapsed + 6.0)
+				return
+		var looked_away := _dad_seen and _dad_unseen > 0.6
+		# (A step of his own nearer than you may walk at him is not you walking at him.)
+		var near := DAD_NEAR if _dad_steps == 0 else DAD_STEP_NEAR - 0.6
+		var gone := _elapsed >= _dad_until or _distance_to_player(_dad.global_position) < near \
+			or looked_away or not _boy_out()
 		if gone:
+			if looked_away and _dad_said != "" and _boy_out():
+				# His question once more, at your ear.
+				var side := _forward_flat().cross(Vector3.UP) * (0.3 if _rng.randf() < 0.5 else -0.3)
+				var p := _sound_quarry(_dad_said, _player_pos() + Vector3(0, 1.55, 0) + side, -8.0, 0.96, 6.0)
+				if p != null:
+					p.unit_size = 0.4
 			_dad.visible = false
 			var every: Vector2 = DAD_EVERY[tier - 1]
 			_dad_next = _rng.randf_range(every.x, every.y)
@@ -190,8 +221,10 @@ func _tick_dad(dt: float) -> void:
 		_dad.visible = true
 		_dad_seen = false
 		_dad_unseen = 0.0
+		_dad_steps = 0
 		_dad_until = _elapsed + DAD_STAND
 		var line: String = DAD_LINES[mini(_dad_line, DAD_LINES.size() - 1)]
+		_dad_said = line
 		_dad_line += 1
 		_sound_quarry(line, p + Vector3(0, 1.6, 0), -2.0, 1.0, 30.0)
 		return

@@ -249,6 +249,7 @@ func was_fixed() -> bool:
 
 const BOY_DIR := "res://assets/sfx/npc/boy/"
 const BOY_FACE := "res://assets/textury/npc/boy_face.png"
+const BOY_FACE_STEPS = preload("res://scripts/night/boy_face.gd")
 const BOY_FRONT := "res://assets/textury/npc/boy_t1.png"
 const BOY_PITCH := 1.22
 ## By his tier (1 light .. 3 heavy): the gap between words (s, from, to), the chance he
@@ -323,6 +324,10 @@ func _boy_tick(delta: float) -> void:
 			var gap: Vector2 = BOY_WORD_GAP[boy]
 			_boy_t = randf_range(gap.x, gap.y)
 		"look":
+			# Your heart and the edges closing while he looks (the sense's layer).
+			var lfx = _night_fx()
+			if lfx != null:
+				lfx.set_presence("boy", 0.72)
 			if _boy_t <= 0.0:
 				boy_phase = "wait"
 				_boy_t = randf_range(1.0, 2.2)
@@ -360,16 +365,20 @@ func _boy_catch() -> void:
 	for i in _up.size():
 		_up[i] = false
 	_flash = 1.0
-	_boy_face_t = 0.85
+	# His face in steps (boy_face.gd): his head round to you, at you, the hit, dark.
+	_boy_face_t = BOY_FACE_STEPS.LEN
 	var fx = _night_fx()
-	_boy_sfx(BOY_DIR + "shriek.mp3", 2.0, 1.0)
+	_boy_sfx(BOY_DIR + "turn.mp3", 0.0, 1.0)
+	get_tree().create_timer(BOY_FACE_STEPS.TURN).timeout.connect(func(): _boy_sfx(BOY_DIR + "shriek.mp3", 2.0, 1.0))
 	if fx != null:
-		fx.glitch(0.9, 0.6)
-		fx.red_flash(0.5)
 		fx.tinnitus(2.0)
 	var main := get_parent()
-	if main != null and main.has_method("damage_player"):
-		main.damage_player(BOY_HIT[boy])
+	get_tree().create_timer(BOY_FACE_STEPS.HIT_AT).timeout.connect(func():
+		if fx != null:
+			fx.glitch(0.9, 0.6)
+			fx.red_flash(0.5)
+		if main != null and main.has_method("damage_player"):
+			main.damage_player(BOY_HIT[boy]))
 	get_tree().create_timer(1.6).timeout.connect(func():
 		if visible and boy > 0:
 			_boy_say("moved_1", -4.0))
@@ -430,13 +439,9 @@ func _draw_boy_face(screen: Vector2) -> void:
 		_face_rect.material = NIGHTMARE_FX.retro_material()
 		add_child(_face_rect)
 	NIGHTMARE_FX.update_retro(screen.y)
-	var side := minf(screen.x, screen.y) * (1.05 + 0.25 * (1.0 - _boy_face_t / 0.85))
-	var shake := Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * screen.y * 0.012
 	_board.draw_rect(Rect2(Vector2.ZERO, screen), Color(0, 0, 0, 0.85))
 	_face_rect.texture = _boy_face
-	_face_rect.position = ((screen - Vector2(side, side)) * 0.5 + shake).floor()
-	_face_rect.size = Vector2(side, side)
-	_face_rect.visible = true
+	BOY_FACE_STEPS.lay(_face_rect, BOY_FACE_STEPS.LEN - _boy_face_t, screen)
 
 
 # ── drawing: the Grok picture of the board, the states painted onto it ───────
