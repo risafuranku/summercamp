@@ -207,7 +207,7 @@ func _spots() -> Array:
 	var b: Dictionary = s["basket"]
 	var chips := kitchen.prep(building_key, "chips_raw")
 	if str(b["st"]) == "up" and int(b["n"]) == 0 and chips > 0:
-		out.append({"id": "bucket", "rect": BUCKET, "verb": "Fill the basket with raw chips (%d)" % chips})
+		out.append({"id": "bucket", "rect": BUCKET, "verb": "Fill the basket with raw chips (%d)" % chips, "carry": {"tex": TEX + "chips_heap.png", "m": dm("chips_heap"), "to": FRYER}})
 	if int(b["n"]) > 0:
 		out.append({"id": "basket", "node": _basket, "verb": _basket_verb(b)})
 	for i in mini(SLOTS.size(), (s["pan"] as Array).size()):
@@ -453,7 +453,7 @@ func _closing() -> void:
 func hand_tool() -> String:
 	var id := _held if _held != "" else _hover
 	if id.begins_with("slot:") or id == "basket":
-		return "tongs"
+		return "tongs_bare"
 	return "open"
 
 # ── debug (tools/bistro_shots.gd, tools/bistro_coop.gd) ──────────────────────

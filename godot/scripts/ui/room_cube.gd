@@ -6,7 +6,10 @@ extends RefCounted
 ## its things where they stand, not a painted stand-in (the user 4. 11.: "the interiors of
 ## the cabins and the buildings must show through the windows from far off too; now they
 ## are not there, and you see them pop in as they start to be drawn when you come near").
-## Each picture is a SubViewport drawn once and kept: nothing is read back from the GPU.
+## Each picture is a SubViewport drawn once and kept: nothing is read back from the GPU. Drawn,
+## it leaves the world's list of those looking at it (a world takes 64 that use visibility
+## ranges, six a room kind ran them out in a built-up camp: the error in the log, and past the
+## 64th the views out of the windows lost what has a range).
 
 ## The faces, [forward, up] each, right = forward x up: the shader has the same table.
 const FACES := [
@@ -42,7 +45,14 @@ static func bake(host: Node, world: World3D, eye: Vector3, cull_mask: int, px :=
 		cam.transform = Transform3D(Basis(fwd.cross(up), up, -fwd), eye)
 		vp.add_child(cam)
 		out.append(vp.get_texture())
+		_drawn(vp)
 	return out
+
+
+static func _drawn(vp: SubViewport) -> void:
+	await RenderingServer.frame_post_draw
+	if is_instance_valid(vp):
+		RenderingServer.viewport_set_scenario(vp.get_viewport_rid(), RID())
 
 
 ## A pane's material for one building: `tex` from bake(), the room's box and the eye it was

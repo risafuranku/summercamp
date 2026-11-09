@@ -222,7 +222,7 @@ func _process(delta: float) -> void:
 
 ## The next step, a few times a second: the station says what it is, the frame finds it.
 func _refresh_hint() -> void:
-	var h: Dictionary = station.call("next_hint") if hints_on and station != null and is_instance_valid(station) and station.has_method("next_hint") else {}
+	var h: Dictionary = station.call("next_hint_by_hand") if hints_on and station != null and is_instance_valid(station) and station.has_method("next_hint_by_hand") else {}
 	if str(h) != str(_hint):
 		_hint_t = 0.0
 	_hint = h

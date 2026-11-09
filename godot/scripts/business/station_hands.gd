@@ -22,6 +22,8 @@ const TOOLS := {
 	"open": {"rest": "st_open", "act": "st_grab"},
 	"press": {"rest": "st_open", "act": "st_press"},
 	"tongs": {"rest": "st_tongs", "act": "st_tongs_cob"},
+	# (The same tongs closed on nothing: a cob in them over a sausage or a hot dog at the bistro.)
+	"tongs_bare": {"rest": "st_tongs", "act": "st_tongs"},
 	"brush": {"rest": "st_brush", "act": "st_brush_stroke"},
 	"salt": {"rest": "st_salt", "act": "st_salt_shake"},
 	"husk": {"rest": "st_open", "act": "st_husk"},

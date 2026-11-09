@@ -314,11 +314,11 @@ func _sky(main: Node) -> Color:
 ## A lamp post's light where you stand (its pool on the ground, its glow).
 func _lamp_light(main: Node) -> Color:
 	var p = main.get("_player") as Node3D
-	if p == null:
+	if p == null or not p.is_inside_tree():
 		return Color.BLACK
 	var c := Color.BLACK
 	for lamp in _lamps:
-		if lamp == null or not is_instance_valid(lamp):
+		if lamp == null or not is_instance_valid(lamp) or not (lamp as Node3D).is_inside_tree():
 			continue
 		var d := (lamp as Node3D).global_position.distance_to(p.global_position)
 		if d > 14.0:

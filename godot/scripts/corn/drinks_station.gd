@@ -6,14 +6,14 @@ extends "res://scripts/corn/corn_station.gd"
 ## corn/st_drinks.png): the stack of cups, the drip grate, the tray of bags and straws;
 ## standing on it the orange barrel of iced tea with its tap and the big bottle of
 ## raspberry lemonade. Things are sprites at the room's pixel.
-##   the cups    a click: a cup onto the grate under the barrel's tap
+##   the cups    carry one to the grate under the barrel's tap (a click too)
 ##   the tap     hold: the tea runs into the cup (its column: the green window is right;
 ##               over the top it runs onto the grate)
-##   the bags    a click: an empty bag onto the table
+##   the bags    carry an empty one onto the table (a click too)
 ##   the bottle  hold: it tips and the lemonade runs into the bag, to the line
-##   the straws  a click on the filled bag: tied round a straw
-##   the drink   a click: over the counter to the picked drink slip (else the oldest);
-##               the wrong drink, half a cup or an open bag and they hand it back
+##   the straws  the filled bag carried to them, or a click on them: tied round a straw
+##   the drink   carried over the counter to the picked drink slip (else the oldest; a click
+##               too); the wrong drink, half a cup or an open bag and they hand it back
 ##   BIN         (the frame) what is on the table into the bin
 
 const DRINK_TEX := "res://assets/textury/corn/"
@@ -33,6 +33,10 @@ const STRAWS := Rect2(462, 170, 96, 140)
 const HAND := Rect2(120, 0, 400, 40)
 const CUP_M := 0.1
 const BAG_M := 0.16
+## Where a new cup or bag may be let go; past this line of the table it is over the counter.
+const CUP_ZONE := Rect2(70, 130, 170, 180)
+const BAG_ZONE := Rect2(290, 170, 170, 170)
+const OVER_COUNTER_Y := 70.0
 
 ## What is on the table: {kind: tea|limo, fill, tied, spilt} ({} none).
 var _drink: Dictionary = {}
@@ -46,6 +50,9 @@ var _bag_full: Sprite3D
 var _stream: Sprite3D
 var _fill: Sprite3D
 var _rng := RandomNumberGenerator.new()
+## In the hand: "" nothing, "cup" / "bag" a new one off its pile, "drink" the one on the table.
+var _carry := ""
+var _hand_spr: Sprite3D
 ## Opens the books (set by the stand's view).
 var open_books: Callable
 
@@ -70,7 +77,8 @@ func _build() -> void:
 	_bag_full.region_enabled = true
 	_stream = _stand("stream_tea", 0.12)
 	_fill = meter(5, 18)
-	for s in [_cup_empty, _cup_full, _bag_empty, _bag_full, _stream, _fill]:
+	_hand_spr = _stand("cup_empty", CUP_M)
+	for s in [_cup_empty, _cup_full, _bag_empty, _bag_full, _stream, _fill, _hand_spr]:
 		(s as Node3D).visible = false
 
 
@@ -137,10 +145,12 @@ func next_hint() -> Dictionary:
 		elif not bool(_drink["tied"]):
 			if fill < CORN.FILL_OK.x:
 				return {"node": _bottle, "gesture": "hold"}
-			return {"rect": STRAWS, "gesture": "click"}
-		return {"ui": "serve"} if not t.is_empty() else {}
+			return {"node": _bag_full, "gesture": "drag", "to": STRAWS.get_center()}
+		return {"node": (_cup_full if kind == "tea" else _bag_full), "gesture": "drag", "to": HAND.get_center()} if not t.is_empty() else {}
 	if not t.is_empty():
-		return {"rect": CUPS if str(t.get("kind", "")) == "tea" else BAGS, "gesture": "click"}
+		if str(t.get("kind", "")) == "tea":
+			return {"rect": CUPS, "gesture": "drag", "to": GRATE_AT}
+		return {"rect": BAGS, "gesture": "drag", "to": BAG_AT}
 	if not cob_tickets().is_empty():
 		return {"tab": "counter"}
 	return {}
@@ -168,6 +178,10 @@ func _show() -> void:
 	if limo:
 		put(_bag_empty, BAG_AT, 0.004)
 		_fill_region(_bag_full, fill if not bool(_drink["tied"]) else 1.0, BAG_AT)
+	if _carry == "drink" and on:
+		var at := held_at(CARRY_LIFT)
+		(_cup_empty if tea else _bag_empty).position = at
+		(_cup_full if tea else _bag_full).position = at + Vector3(0.0, 0.0, 0.003)
 	# The tea or the lemonade running while the tap is held or the bottle tipped.
 	_stream.visible = _pouring and on
 	if _stream.visible:
@@ -184,7 +198,7 @@ func _show() -> void:
 	_bottle.rotation.z = deg_to_rad(-40.0) if _pouring and limo else 0.0
 	# Tipped to pour it is held as it is (a billboard would stand it upright).
 	_bottle.billboard = BaseMaterial3D.BILLBOARD_DISABLED if _pouring and limo else BaseMaterial3D.BILLBOARD_FIXED_Y
-	_fill.visible = on and not bool(_drink.get("tied", false))
+	_fill.visible = on and not bool(_drink.get("tied", false)) and _carry != "drink"
 	if _fill.visible:
 		var at := (GRATE_AT if tea else BAG_AT) + Vector2(46, 0)
 		put(_fill, at, 0.0)
@@ -247,9 +261,9 @@ func hand_tool() -> String:
 func _press(id: String) -> void:
 	match id:
 		"cups":
-			_new("tea")
+			_pick_up("tea", "cup", "cup_empty", CUP_M, CUP_ZONE)
 		"bags":
-			_new("limo")
+			_pick_up("limo", "bag", "bag_empty", BAG_M, BAG_ZONE)
 		"tap", "bottle":
 			_pouring = true
 			sfx("tea_pour" if id == "tap" else "pour", -10.0, _rng.randf_range(0.95, 1.05))
@@ -258,12 +272,49 @@ func _press(id: String) -> void:
 				_drink["tied"] = true
 				sfx("bag_tie", -8.0)
 				hop(_bag_full)
-		"drink", "hand":
+		"drink":
+			_carry = "drink"
+			sfx("plate_down", -18.0, 1.6)
+			mark_target(HAND)
+		"hand":
 			_hand_over()
+
+
+## A new cup or bag off its pile, in the hand (a dry barrel says so instead).
+func _pick_up(kind: String, what: String, tex: String, metres: float, zone: Rect2) -> void:
+	if BUSINESS.stock_of(building_key, kind) == 0:
+		_new(kind)
+		return
+	_carry = what
+	retex(_hand_spr, DRINK_TEX + tex + ".png", metres)
+	if _hand_spr.texture != null:
+		_hand_spr.offset = Vector2(0, float(_hand_spr.texture.get_height()) * 0.5)
+	_hand_spr.position = held_at(CARRY_LIFT)
+	_hand_spr.visible = true
+	mark_target(zone)
 
 
 func _release(_id: String) -> void:
 	_pouring = false
+	var had := _carry
+	_carry = ""
+	_hand_spr.visible = false
+	mark_target(Rect2())
+	var at := held_px()
+	match had:
+		"cup":
+			if was_click() or CUP_ZONE.grow(20.0).has_point(at):
+				_new("tea")
+		"bag":
+			if was_click() or BAG_ZONE.grow(20.0).has_point(at):
+				_new("limo")
+		"drink":
+			if was_click() or at.y < OVER_COUNTER_Y:
+				_hand_over()
+			elif str(_drink.get("kind", "")) == "limo" and not bool(_drink["tied"]) and float(_drink["fill"]) >= 0.5 and STRAWS.grow(24.0).has_point(at):
+				_drink["tied"] = true
+				sfx("bag_tie", -8.0)
+				hop(_bag_full)
 
 
 func _new(kind: String) -> void:
@@ -277,6 +328,8 @@ func _new(kind: String) -> void:
 
 
 func _tick(delta: float) -> void:
+	if _hand_spr.visible:
+		_hand_spr.position = held_at(CARRY_LIFT)
 	if not _pouring or _drink.is_empty():
 		return
 	var rate := float(CORN.DRINKS[str(_drink["kind"])]["rate"])
@@ -337,6 +390,9 @@ func bar_button(id: String) -> void:
 
 func _closing() -> void:
 	_pouring = false
+	_carry = ""
+	if _hand_spr != null:
+		_hand_spr.visible = false
 
 
 ## The barrel and the lemonade, for the frame's bar.
@@ -349,6 +405,7 @@ func bar_text() -> String:
 # ── debug (tools/stand_check.gd, tools/stand_shots.gd) ───────────────────────
 
 func debug_click(id: String) -> void:
+	down_begin()
 	_press(id)
 	_release(id)
 

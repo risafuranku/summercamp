@@ -317,7 +317,7 @@ func _spots() -> Array:
 	for j in SIZES.size():
 		var size := int(SIZES[j])
 		if available(size) > 0 and g.has(-1):
-			out.append({"id": "cubby:%d" % size, "rect": _cubby_rect(j), "verb": tr("A pair of %d for %s") % [size, who]})
+			out.append({"id": "cubby:%d" % size, "rect": _cubby_rect(j), "verb": tr("A pair of %d for %s") % [size, who], "carry": {"tex": BTEX + ("shoes_red.png" if j % 2 == 0 else "shoes_blue.png"), "m": PAIR_M, "to": Rect2(120, 40, 400, 150)}})
 	for k in mini(g.size(), _slot_pairs.size()):
 		if int(g[k]) >= 0:
 			out.append({"id": "slot:%d" % k, "node": _slot_pairs[k], "verb": tr("Take the %d back") % int(g[k])})

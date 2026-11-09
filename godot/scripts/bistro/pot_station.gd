@@ -103,7 +103,7 @@ func _spots() -> Array:
 	if int(loaf.get("left", 0)) <= 0:
 		var d: int = maxi(0, BUSINESS.stock_of(building_key, "dumplings"))
 		if d > 0:
-			out.append({"id": "steamer", "rect": STEAMER, "verb": "A loaf of dumplings out of the steamer"})
+			out.append({"id": "steamer", "rect": STEAMER, "verb": "A loaf of dumplings out of the steamer", "carry": {"tex": TEX + "loaf.png", "m": dm("loaf"), "to": BOARD}})
 	else:
 		out.append({"id": "loaf", "node": _loaf, "verb": "Cut a slice with the thread (%d left)" % int(loaf["left"])})
 	return out

@@ -38,6 +38,8 @@ const ON_PLATE := {
 	"sausage": Vector2(-6, -2), "mustard": Vector2(14, -12), "bread": Vector2(20, 14),
 }
 const PLATE_LIFT := 0.016
+## Where a plate, or anything for it, is carried.
+const PLATE_ZONE := Rect2(272, 170, 200, 170)
 ## The food on the plate a quarter bigger than drawn (to be told apart at a glance).
 const FOOD_K := 1.25
 
@@ -261,21 +263,21 @@ func _spots() -> Array:
 		return out
 	var pl: Dictionary = kitchen.plates(building_key)
 	if not _has_plate and int(pl["clean"]) > 0:
-		out.append({"id": "stack", "rect": STACK, "verb": "Take a clean plate (%d)" % int(pl["clean"])})
+		out.append({"id": "stack", "rect": STACK, "verb": "Take a clean plate (%d)" % int(pl["clean"]), "carry": {"tex": TEX + "plate_top.png", "m": dm("plate_top"), "to": PLATE_ZONE}})
 	if _has_plate:
 		var pot: Dictionary = kitchen.site(building_key)["pot"]
 		if int(pot["level"]) > 0:
-			out.append({"id": "goulash", "rect": POT, "verb": "Ladle goulash onto the plate" if float(pot["heat"]) >= 0.6 else "The goulash is not hot yet"})
+			out.append({"id": "goulash", "rect": POT, "verb": "Ladle goulash onto the plate" if float(pot["heat"]) >= 0.6 else "The goulash is not hot yet", "carry": _food_carry("goulash")})
 		for part in ["cheese", "fries", "dumpling", "sausage"]:
 			var have := kitchen.prep(building_key, part)
 			if have > 0:
 				var r: Rect2 = {"cheese": SHELF_CHEESE, "fries": SHELF_FRIES, "dumpling": SHELF_DUMPLING, "sausage": SHELF_SAUSAGE}[part]
-				out.append({"id": part, "rect": r, "verb": "Put %s on the plate (%d)" % [_label(part), have]})
-		out.append({"id": "tartar", "rect": TARTAR, "verb": "Put tartar on the plate"})
-		out.append({"id": "onion", "rect": ONION, "verb": "Put onion on the plate"})
-		out.append({"id": "mustard", "rect": MUSTARD, "verb": "A spoon of mustard on the plate"})
+				out.append({"id": part, "rect": r, "verb": "Put %s on the plate (%d)" % [_label(part), have], "carry": _food_carry(part)})
+		out.append({"id": "tartar", "rect": TARTAR, "verb": "Put tartar on the plate", "carry": _food_carry("tartar")})
+		out.append({"id": "onion", "rect": ONION, "verb": "Put onion on the plate", "carry": _food_carry("onion")})
+		out.append({"id": "mustard", "rect": MUSTARD, "verb": "A spoon of mustard on the plate", "carry": _food_carry("mustard")})
 		if BUSINESS.stock_of(building_key, "bread") != 0:
-			out.append({"id": "bread", "rect": BREAD, "verb": "A slice of bread on the plate"})
+			out.append({"id": "bread", "rect": BREAD, "verb": "A slice of bread on the plate", "carry": _food_carry("bread")})
 		if not _plate.is_empty():
 			out.append({"id": "plate", "node": _plate_spr, "verb": "Take the %s off again" % _label(str(_plate[-1]))})
 			var t := _picked_ticket()
@@ -284,12 +286,19 @@ func _spots() -> Array:
 	return out
 
 
+## A thing for the plate, on its way to it in the hand.
+func _food_carry(part: String) -> Dictionary:
+	if part == "sausage":
+		return {"tex": TEX + "sausage_done.png", "m": 0.12, "to": PLATE_ZONE}
+	return {"tex": TEX + "food_%s.png" % part, "m": dm("food_" + part) * FOOD_K, "to": PLATE_ZONE}
+
+
 ## The tongs for the sausages, the ladle in the goulash, the bare glove for the rest.
 func hand_tool() -> String:
 	var id := _held if _held != "" else _hover
 	match id:
 		"sausage", "cheese":
-			return "tongs"
+			return "tongs_bare"
 		"goulash":
 			return "ladle"
 		"bell":

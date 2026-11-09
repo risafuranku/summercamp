@@ -29,7 +29,11 @@ extends Node3D
 ##   _build()              make the things once (sprites, meters), in the room
 ##   _show()               put them where the state says (twelve a second, always)
 ##   _spots() -> Array     what can be used now: {id, rect: Rect2 (design px)} or
-##                         {id, node: a sprite}, and "verb": what a click would do
+##                         {id, node: a sprite}, and "verb": what a click would do; "carry":
+##                         {tex + m + flat or copy (a sprite), to: Rect2 and / or over: a y
+##                         (let go past it: over the counter), lit, hide}: taking it up
+##                         carries a picture of it to where it goes, and let go there (or
+##                         pressed and let go on the spot) it is _press + _release
 ##   _press(id) / _release(id) / _drag(at)   the pointer on a spot (at: design px)
 ##   _key(event)           a key while at it
 ##   _tick(delta)          every frame while somebody is at it here
@@ -209,6 +213,120 @@ func metres_x(px: float) -> float:
 ## Where the pointer's ray crosses the height `lift` over the surface (this node's space):
 ## a thing held in the hand is drawn there, right under the finger, not over the point
 ## of the surface below it.
+## Every place is worked with the hands (the user 9. 11.: "somebody who does not know the
+## controls has no idea where to click; he wanted to drag everything, the cob into the pot, out
+## of it, shake the salt"): a thing goes where you carry it and is let go there; press and let
+## go on the spot and it is a click, the thing does the obvious, as it always did.
+const CLICK_MS := 240
+const CLICK_PX := 9.0
+## How high over the surface a thing goes in the hand.
+const CARRY_LIFT := 0.1
+var _down_ms := 0
+var _down_at := Vector2.ZERO
+var _went := 0.0
+
+
+## A press has begun (press(), a harness's debug_click).
+func down_begin() -> void:
+	_down_ms = Time.get_ticks_msec()
+	_down_at = _mouse_free
+	_went = 0.0
+
+
+func down_note(at: Vector2) -> void:
+	_went = maxf(_went, at.distance_to(_down_at))
+
+
+func was_click() -> bool:
+	return _went < CLICK_PX and Time.get_ticks_msec() - _down_ms < CLICK_MS
+
+
+## What a spot's "carry" has taken up ({} nothing), and its picture in the hand.
+var _carried: Dictionary = {}
+var _carry_spr: Sprite3D
+
+
+func _carry_of(id: String) -> Dictionary:
+	for s in _spots():
+		if str(s.get("id", "")) == id and s.has("carry"):
+			return s["carry"]
+	return {}
+
+
+func _carry_begin(c: Dictionary) -> void:
+	_carried = c
+	var from = c.get("copy", null)
+	if from is Sprite3D and is_instance_valid(from) and (from as Sprite3D).texture != null:
+		_carry_spr = (from as Sprite3D).duplicate(0) as Sprite3D
+		_carry_spr.material_overlay = null
+		add_child(_carry_spr)
+	elif str(c.get("tex", "")) != "":
+		var flat := bool(c.get("flat", true))
+		_carry_spr = sprite(str(c["tex"]), float(c.get("m", 0.12)), flat)
+		if not flat and _carry_spr.texture != null:
+			_carry_spr.offset = Vector2(0, float(_carry_spr.texture.get_height()) * 0.5)
+			_carry_spr.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+	if c.has("to"):
+		mark_target(c["to"])
+	elif c.has("lit"):
+		mark_target(c["lit"])
+	_carry_follow()
+
+
+func _carry_follow() -> void:
+	if _carried.is_empty():
+		return
+	if _carry_spr != null and is_instance_valid(_carry_spr):
+		_carry_spr.position = held_at(float(_carried.get("lift", CARRY_LIFT)))
+	var gone = _carried.get("hide", null)
+	if gone is Node3D and is_instance_valid(gone):
+		(gone as Node3D).visible = false
+
+
+## The hand has let go; the picture is gone, what it stood for shown again (whatever is to
+## become of it, _show() says next).
+func _carry_end() -> void:
+	var gone = _carried.get("hide", null)
+	if gone is Node3D and is_instance_valid(gone):
+		(gone as Node3D).visible = true
+	_carried = {}
+	if _carry_spr != null and is_instance_valid(_carry_spr):
+		_carry_spr.queue_free()
+	_carry_spr = null
+	mark_target(Rect2())
+
+
+func _carry_landed(c: Dictionary) -> bool:
+	var at := held_px(float(c.get("lift", CARRY_LIFT)))
+	if c.has("over") and at.y < float(c["over"]):
+		return true
+	return c.has("to") and (c["to"] as Rect2).grow(24.0).has_point(at)
+
+
+## The point of the surface right under a thing held `lift` metres over it (where you see it
+## go): the pointer's own ray meets the surface further off, past what the thing is over.
+func held_px(lift := CARRY_LIFT) -> Vector2:
+	return design_of(held_at(lift))
+
+
+## next_hint() as the hand would do it: a click on something that is carried is the carrying.
+func next_hint_by_hand() -> Dictionary:
+	var h: Dictionary = next_hint()
+	if str(h.get("gesture", "")) != "click":
+		return h
+	for s in _spots():
+		if s.has("carry") and ((h.has("node") and s.get("node", null) == h["node"]) or (h.has("rect") and s.get("rect", null) == h["rect"])):
+			var c: Dictionary = s["carry"]
+			var out := h.duplicate()
+			out["gesture"] = "drag"
+			if c.has("to"):
+				out["to"] = (c["to"] as Rect2).get_center()
+			elif c.has("lit"):
+				out["to"] = (c["lit"] as Rect2).get_center()
+			return out
+	return h
+
+
 func held_at(lift: float) -> Vector3:
 	if _ray_d == Vector3.ZERO:
 		return local_at(_mouse_free, lift)
@@ -457,6 +575,7 @@ func point(vp_mouse: Vector2) -> void:
 			_mouse = _mouse_free
 	_find_hover()
 	if _held != "":
+		down_note(_mouse_free)
 		_drag(_mouse_free)
 	_point_hand()
 
@@ -762,6 +881,11 @@ func press() -> void:
 	_point_hand()
 	if _hands_ui != null and is_instance_valid(_hands_ui):
 		_hands_ui.call("act", true)
+	down_begin()
+	var c := _carry_of(_held)
+	if not c.is_empty():
+		_carry_begin(c)
+		return
 	_press(_held)
 
 
@@ -772,6 +896,14 @@ func release() -> void:
 	_held = ""
 	if _hands_ui != null and is_instance_valid(_hands_ui):
 		_hands_ui.call("act", false)
+	if not _carried.is_empty():
+		var c := _carried
+		var done := was_click() or _carry_landed(c)
+		_carry_end()
+		if done:
+			_press(was)
+			_release(was)
+		return
 	_release(was)
 
 
@@ -980,6 +1112,7 @@ func _process(delta: float) -> void:
 	# the pointer smoothly); for the others in the room twelve a second.
 	if _open and is_visible_in_tree():
 		_show()
+		_carry_follow()
 	_acc += delta
 	if _acc < STEP:
 		return

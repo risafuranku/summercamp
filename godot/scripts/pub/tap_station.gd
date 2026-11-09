@@ -4,15 +4,15 @@ extends "res://scripts/pub/pub_station.gd"
 ## from the side, its faucet's spout over the drip tray, the black handle on top of it,
 ## the clean mugs on the board at the left (the washer puts them there), the foam knife
 ## at the right. Things are sprites at the room's pixel (the pub's Grok sheets).
-##   a mug   click the board: a clean mug under the spout (no clean mugs, nothing to pour
-##           into: the washer)
+##   a mug   carry one off the board to under the spout, or a click on the board (no clean
+##           mugs, nothing to pour into: the washer)
 ##   pour    take the handle and draw it towards you: beer, with a little head; push it
 ##           away: foam only. Let go and it springs back. The head settles back to beer
 ##           while you wait; over the rim it runs onto the tray.
-##   knife   a click takes the top off the head
-##   serve   click the mug: over the bar to the mat you picked, or to whoever's order it
-##           matches best (pub_rules.judge_pour); the wrong pour they send back: a mark
-##           in pencil on their mat, the money when they go.
+##   knife   drawn across the top of the mug, or a click: it takes the top off the head
+##   serve   carry the mug over the bar and let go, or click it: to the mat you picked, or to
+##           whoever's order it matches best (pub_rules.judge_pour); the wrong pour they send
+##           back: a mark in pencil on their mat, the money when they go.
 ##   the bill on the bar's right (scripts/pub/bill_spot.gd): the mat of whoever wants to
 ##           pay with their marks; a click on it (or on BILL on the rail) settles it.
 ## SERVE (Space, Enter) sends the mug over; the next step is lit (`next_hint`): a mug,
@@ -47,6 +47,14 @@ const HANDLE_UP := 0.375
 const MUG_M := 0.18
 const IN_BOTTOM := 0.94
 const IN_RIM := 0.08
+## The hands (station3d): where a mug off the board may be let go, the line past which one is
+## over the bar to the guests and the strip that lights up for it, the top of the mug and how
+## far along it the knife goes for a cut.
+const UNDER_TAP := Rect2(217, 126, 140, 110)
+const GUESTS_Y := 104.0
+const GUESTS := Rect2(150, 18, 340, 70)
+const OVER_MUG := Rect2(235, 130, 110, 90)
+const CUT_PX := 26.0
 
 var _tap2: Sprite3D
 var _mug := false
@@ -58,6 +66,12 @@ var _lever := 0.0
 var _grab_y := -1.0
 var _slide := -1.0
 var _knife_t := -1.0
+## In the hand: "" nothing, "new" a clean mug off the board, "full" the mug from the tap.
+var _carry := ""
+var _hand_mug: Sprite3D
+## Where the mug under the tap stands now: it goes with the hand, and back when let go.
+var _foot := MUG_FOOT
+var _cut_x := -9999.0
 var _cough := 0.0
 var _rng := RandomNumberGenerator.new()
 var _pour_loop: AudioStreamPlayer
@@ -91,6 +105,8 @@ func _build() -> void:
 	_foam_spr = psprite("foam", 0.12)
 	_stream = psprite("stream_beer", 0.3)
 	_stream.region_enabled = true
+	_hand_mug = psprite("mug_clean", MUG_M)
+	_hand_mug.visible = false
 	_knife = psprite("knife", 0.16, true)
 	put(_knife, KNIFE_AT, 0.006)
 	_level_meter = meter(7, 22)
@@ -179,14 +195,14 @@ func next_hint() -> Dictionary:
 		if not _mug:
 			if int(taproom.mugs(building_key)["clean"]) <= 0:
 				return {"tab": "wash"}
-			return {"rect": BOARD, "gesture": "click"}
+			return {"rect": BOARD, "gesture": "drag", "to": MUG_FOOT}
 		var want := float(PUB.DRINKS[str(t["drink"])]["beer"])
 		if _beer + _foam < 0.92:
 			var foam_first := str(t["drink"]) == "mliko" and _foam < 0.6
 			return {"node": _handle, "gesture": "drag", "to": HANDLE_AT + Vector2(0, -70 if foam_first else 70)}
 		if _beer < want - 0.065:
 			return {"node": _handle, "gesture": "drag", "to": HANDLE_AT + Vector2(0, 70)}
-		return {"ui": "serve"}
+		return {"node": _mug_spr, "gesture": "drag", "to": MUG_FOOT + Vector2(0, -130)}
 	if not current_bill().is_empty():
 		return {"rect": _bill.MAT, "gesture": "click"}
 	if not orders_here("bar").is_empty():
@@ -210,7 +226,7 @@ func _show() -> void:
 	_bill.call("pick", current_bill())
 	_bill.call("show_state")
 	_tap2.visible = BUSINESS.has_gear(building_key, "tap2")
-	var clean := int(taproom.mugs(building_key)["clean"]) - (1 if _mug else 0)
+	var clean := int(taproom.mugs(building_key)["clean"]) - (1 if _mug or _carry == "new" else 0)
 	for i in _board_mugs.size():
 		var s: Sprite3D = _board_mugs[i]
 		s.visible = i < clean
@@ -220,8 +236,8 @@ func _show() -> void:
 	_beer_spr.visible = _mug and _beer > 0.01
 	_foam_spr.visible = _mug and _foam > 0.01
 	# The bar's stations stand side by side: a column only at the one you are at.
-	_level_meter.visible = _mug and is_open()
-	var foot := MUG_FOOT
+	_level_meter.visible = _mug and is_open() and _carry != "full"
+	var foot := _foot
 	if _slide >= 0.0:
 		# Over the bar to the guest, sliding (smooth).
 		var ks := clampf(_slide / 0.5, 0.0, 1.0)
@@ -261,7 +277,9 @@ func _show() -> void:
 			_stream.position = local_at(MUG_FOOT, 0.004) + Vector3(0, level, 0.002)
 	# The handle drawn towards you or pushed away (smooth).
 	_handle_pivot.rotation.z = _lever * 0.55
-	if _knife_t >= 0.0:
+	if _held == "knife" and _went >= CLICK_PX:
+		_knife.position = held_at(0.2)
+	elif _knife_t >= 0.0:
 		put(_knife, MUG_FOOT + Vector2(-30 + _knife_t / 0.35 * 60.0, -6), 0.16)
 	else:
 		put(_knife, KNIFE_AT, 0.006)
@@ -324,7 +342,11 @@ func _press(id: String) -> void:
 		return
 	match id:
 		"board":
-			_put_mug()
+			_carry = "new"
+			_hand_mug.position = held_at(CARRY_LIFT)
+			_hand_mug.visible = true
+			sfx("glass_down", -18.0, 1.3)
+			mark_target(UNDER_TAP)
 		"handle":
 			# The handle always goes with the hand (no mug under it: nothing comes out). It
 			# is pulled by how far the pointer moves on the screen: the handle stands high on
@@ -332,14 +354,24 @@ func _press(id: String) -> void:
 			_grab_y = _vp_mouse.y
 			_put_mug()
 		"mug":
-			_serve()
+			_carry = "full"
+			mark_target(GUESTS)
 		"knife":
-			_foam = maxf(0.0, _foam - 0.12)
-			_knife_t = 0.0
-			sfx("scrape", -14.0, 1.4)
+			_cut_x = -9999.0
 
 
-func _drag(_at: Vector2) -> void:
+func _cut_head() -> void:
+	_foam = maxf(0.0, _foam - 0.12)
+	sfx("scrape", -14.0, 1.4)
+
+
+func _drag(at: Vector2) -> void:
+	if _held == "knife" and _mug and _foam > 0.0 and OVER_MUG.has_point(at):
+		if _cut_x < -9000.0:
+			_cut_x = at.x
+		elif absf(at.x - _cut_x) >= CUT_PX:
+			_cut_x = at.x
+			_cut_head()
 	if _held != "handle" or _grab_y < 0.0 or _vp_mouse.y < 0.0:
 		return
 	# Towards you (down the screen) draws the beer, away pushes the foam: a tenth of the
@@ -360,6 +392,21 @@ func _release(id: String) -> void:
 		if absf(_lever) > 0.5:
 			sfx("tap_close", -6.0)
 		_grab_y = -1.0
+	if id == "knife" and was_click():
+		_cut_head()
+		_knife_t = 0.0
+	var had := _carry
+	_carry = ""
+	_hand_mug.visible = false
+	mark_target(Rect2())
+	if had == "new":
+		if was_click() or UNDER_TAP.grow(24.0).has_point(held_px()):
+			_put_mug()
+	elif had == "full":
+		if was_click() or _mouse_free.y < GUESTS_Y:
+			_serve()
+		else:
+			sfx("glass_down", -16.0)
 
 
 func _put_mug() -> bool:
@@ -371,6 +418,7 @@ func _put_mug() -> bool:
 		sfx("tick", -14.0, 0.7)
 		return false
 	_mug = true
+	_foot = MUG_FOOT
 	_beer = 0.0
 	_foam = 0.0
 	_spilled = 0.0
@@ -395,6 +443,13 @@ func _start(pull: bool) -> void:
 # ── time ─────────────────────────────────────────────────────────────────────
 
 func _tick(delta: float) -> void:
+	if _hand_mug.visible:
+		_hand_mug.position = held_at(CARRY_LIFT)
+	# The mug goes with the hand along the bar; let go short of the guests, back under the tap.
+	if _carry == "full" and _mouse_free.x > -500.0:
+		_foot = Vector2(clampf(_mouse_free.x, 30.0, 610.0), clampf(_mouse_free.y, 24.0, 300.0))
+	elif _carry != "full" and _slide < 0.0:
+		_foot = _foot.lerp(MUG_FOOT, 1.0 - exp(-18.0 * delta))
 	if _held != "handle":
 		# Let go: it springs back up, in steps.
 		_lever = move_toward(_lever, 0.0, delta * 8.0)
@@ -562,6 +617,10 @@ func _opened() -> void:
 func _closing() -> void:
 	_lever = 0.0
 	_grab_y = -1.0
+	_carry = ""
+	if _hand_mug != null:
+		_hand_mug.visible = false
+	_foot = MUG_FOOT
 	_pour_loop.stop()
 	# A mug on its way over the bar is gone when you turn away (time stops here).
 	if _slide >= 0.0:
@@ -589,4 +648,6 @@ func debug_pour_right() -> void:
 
 
 func debug_click(id: String) -> void:
+	down_begin()
 	_press(id)
+	_release(id)

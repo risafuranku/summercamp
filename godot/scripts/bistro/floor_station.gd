@@ -22,6 +22,9 @@ const CRATE := Rect2(522, 0, 118, 300)
 const BOTTLE_AT := Vector2(450, 300)
 const OPENER := Rect2(466, 40, 64, 190)
 const BOTTLE_M := 0.24
+## Where a bottle out of the crate stands; the line past which it is over the counter.
+const BOTTLE_ZONE := Rect2(380, 210, 140, 150)
+const OVER_Y := 70.0
 const CAP_M := 0.03
 const CAPS := 12
 ## The dish's own picture on its plate, bigger than the pass's (to be told at a glance:
@@ -147,15 +150,15 @@ func _spots() -> Array:
 		var pl: Dictionary = _plates[int(w["i"])]
 		out.append({"id": "plate:" + str(t["id"]), "node": pl["plate"], "verb": "Out to %s: %s" % [ORDERS_first(str(t["name"])), RULES.dish_label(str(t["dish"])).to_lower()]})
 	if _bottle.is_empty():
-		out.append({"id": "crate_kofola", "rect": Rect2(CRATE.position, Vector2(CRATE.size.x * 0.5, CRATE.size.y)), "verb": "A kofola out of the crate (%d)" % maxi(0, BUSINESS.stock_of(building_key, "kofola"))})
-		out.append({"id": "crate_malinovka", "rect": Rect2(CRATE.position + Vector2(CRATE.size.x * 0.5, 0), Vector2(CRATE.size.x * 0.5, CRATE.size.y)), "verb": "A malinovka out of the crate (%d)" % maxi(0, BUSINESS.stock_of(building_key, "malinovka"))})
+		out.append({"id": "crate_kofola", "rect": Rect2(CRATE.position, Vector2(CRATE.size.x * 0.5, CRATE.size.y)), "verb": "A kofola out of the crate (%d)" % maxi(0, BUSINESS.stock_of(building_key, "kofola")), "carry": {"tex": TEX + "bottle_kofola.png", "m": BOTTLE_M, "flat": false, "to": BOTTLE_ZONE}})
+		out.append({"id": "crate_malinovka", "rect": Rect2(CRATE.position + Vector2(CRATE.size.x * 0.5, 0), Vector2(CRATE.size.x * 0.5, CRATE.size.y)), "verb": "A malinovka out of the crate (%d)" % maxi(0, BUSINESS.stock_of(building_key, "malinovka")), "carry": {"tex": TEX + "bottle_malinovka.png", "m": BOTTLE_M, "flat": false, "to": BOTTLE_ZONE}})
 	else:
 		if not bool(_bottle["open"]):
 			out.append({"id": "opener", "rect": OPENER, "verb": "Hold the opener on the cap and lift"})
 			out.append({"id": "cap", "node": _bottle_spr, "verb": "Hold the opener on the cap and lift"})
 		else:
 			var tb := _ticket_for(str(_bottle["kind"]))
-			out.append({"id": "bottle", "node": _bottle_spr, "verb": "Over the counter to %s" % ORDERS_first(str(tb["name"])) if not tb.is_empty() else "Nobody asked for it"})
+			out.append({"id": "bottle", "node": _bottle_spr, "verb": "Over the counter to %s" % ORDERS_first(str(tb["name"])) if not tb.is_empty() else "Nobody asked for it", "carry": {"copy": _bottle_spr, "hide": _bottle_spr, "over": OVER_Y, "lit": Rect2(400, 4, 120, 70)}})
 	return out
 
 

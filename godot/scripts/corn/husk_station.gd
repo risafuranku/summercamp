@@ -149,7 +149,6 @@ func hand_tool() -> String:
 
 
 func _press(id: String) -> void:
-	down_begin()
 	match id:
 		"crate":
 			if BUSINESS.stock_of(building_key, "cobs") == 0:
@@ -179,7 +178,6 @@ func _pick_silk() -> void:
 
 
 func _drag(at: Vector2) -> void:
-	down_note(at)
 	if _rub_from.x > -9000.0 and _rub_from != Vector2(-1, -1) and not _cob.is_empty() and int(_cob["silk"]) > 0 and at.distance_to(_rub_from) >= RUB:
 		_pick_silk()
 		_rub_from = at
@@ -200,12 +198,13 @@ func _release(_id: String) -> void:
 	_carry = ""
 	_hand_cob.visible = false
 	mark_target(Rect2())
-	if had == "new" and (was_click() or TABLE_ZONE.has_point(_mouse_free)):
+	var at := held_px()
+	if had == "new" and (was_click() or TABLE_ZONE.has_point(at)):
 		_take()
 	elif had == "clean" and not _cob.is_empty():
-		if was_click() or BOWL.grow(30.0).has_point(_mouse_free):
+		if was_click() or BOWL.grow(30.0).has_point(at):
 			_into_bowl()
-		elif POT_HERE.grow(20.0).has_point(_mouse_free) and stand.free_slot(building_key) >= 0:
+		elif POT_HERE.grow(20.0).has_point(at) and stand.free_slot(building_key) >= 0:
 			_into_pot()
 
 
@@ -307,6 +306,7 @@ func alert() -> int:
 # ── debug (tools/stand_check.gd, tools/stand_shots.gd) ───────────────────────
 
 func debug_click(id: String) -> void:
+	down_begin()
 	_press(id)
 	_release(id)
 

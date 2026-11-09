@@ -16,6 +16,9 @@ func setup(px: Vector2i, font: Font, font_size: int, col: Color, align := HORIZO
 	size = px
 	transparent_bg = true
 	disable_3d = true
+	# Words only: off the list of those looking at the world (a world takes 64 that use
+	# visibility ranges, and a built-up camp has a sign for every lodging: room_cube.gd).
+	RenderingServer.viewport_set_scenario(get_viewport_rid(), RID())
 	gui_disable_input = true
 	render_target_update_mode = SubViewport.UPDATE_ONCE
 	_label = Label.new()

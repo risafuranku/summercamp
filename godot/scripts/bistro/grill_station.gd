@@ -18,6 +18,7 @@ const TRAY := Rect2(36, 118, 92, 172)
 const SLOTS := [Vector2(250, 150), Vector2(380, 150), Vector2(250, 262), Vector2(380, 262)]
 const RACK := Rect2(476, 100, 132, 222)
 const SAUSAGE_M := 0.12
+const GRATE := Rect2(186, 92, 260, 230)
 
 var _tray: Array = []
 var _sausages: Array = []
@@ -129,10 +130,16 @@ func _spots() -> Array:
 			verb = "Black: into the bin"
 		elif look == "sausage_done":
 			verb = "Brown all over: onto the rack"
-		out.append({"id": "slot:%d" % i, "node": _sausages[i], "verb": verb})
+		var spot := {"id": "slot:%d" % i, "node": _sausages[i], "verb": verb}
+		if look == "sausage_done":
+			spot["carry"] = {"copy": _sausages[i], "hide": _sausages[i], "to": RACK}
+		out.append(spot)
 	var stock := maxi(0, BUSINESS.stock_of(building_key, "sausage"))
 	if free:
-		out.append({"id": "tray", "rect": TRAY, "verb": "A sausage onto the grill (%d in the box)" % stock if stock > 0 else "No sausages: order them in the books"})
+		var tray := {"id": "tray", "rect": TRAY, "verb": "A sausage onto the grill (%d in the box)" % stock if stock > 0 else "No sausages: order them in the books"}
+		if stock > 0:
+			tray["carry"] = {"tex": TEX + "sausage_raw.png", "m": SAUSAGE_M, "to": GRATE}
+		out.append(tray)
 	return out
 
 
@@ -142,7 +149,7 @@ func where() -> String:
 
 func hand_tool() -> String:
 	var id := _held if _held != "" else _hover
-	return "tongs" if id.begins_with("slot:") or id == "tray" else "open"
+	return "tongs_bare" if id.begins_with("slot:") or id == "tray" else "open"
 
 
 func _press(id: String) -> void:

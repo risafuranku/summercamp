@@ -280,7 +280,7 @@ func _spots() -> Array:
 	if not all_rung(t):
 		for i in mini(items.size(), _items.size()):
 			if not rung.has(i) and (_items[i] as Sprite3D).visible:
-				out.append({"id": "item:%d" % i, "node": _items[i], "verb": "Ring up the %s" % item_label(str(items[i]))})
+				out.append({"id": "item:%d" % i, "node": _items[i], "verb": "Ring up the %s" % item_label(str(items[i])), "carry": {"copy": _items[i], "hide": _items[i], "to": Rect2(BAG_AT - Vector2(90, 34), Vector2(180, 100))}})
 		if _to_fetch(t) > 0:
 			out.append({"id": "cigs", "rect": CIGS, "verb": "A pack of Start off the wall for %s" % first_name(str(t["name"]))})
 		return out
@@ -288,7 +288,7 @@ func _spots() -> Array:
 		out.append({"id": "paid", "rect": Rect2(MAT_AT - MAT_R, MAT_R * 2.0), "verb": "Take the money"})
 		return out
 	for d in DRAWER:
-		out.append({"id": "c:%d" % int(d[0]), "rect": d[1], "verb": "Count out %d" % int(d[0])})
+		out.append({"id": "c:%d" % int(d[0]), "rect": d[1], "verb": "Count out %d" % int(d[0]), "carry": {"tex": JTEX + str(PIECE_TEX.get(int(d[0]), "coin1")) + ".png", "m": float(PIECE_M.get(int(d[0]), 0.04)), "to": Rect2(MAT_AT - MAT_R, MAT_R * 2.0)}})
 	var mat: Array = t["mat"]
 	for i in mini(mat.size(), _change.size()):
 		out.append({"id": "back:%d" % i, "node": _change[i], "verb": "Take the %d back" % int(mat[i])})

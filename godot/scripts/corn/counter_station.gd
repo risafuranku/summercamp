@@ -350,7 +350,6 @@ func hand_tool() -> String:
 
 
 func _press(id: String) -> void:
-	down_begin()
 	if id.begins_with("cob:"):
 		var cook := 0.0
 		for c in stand.pot(building_key):
@@ -426,7 +425,7 @@ func _release(id: String) -> void:
 	var had := _hand
 	_hand = ""
 	_hand_spr.visible = false
-	var at := _mouse_free
+	var at := held_px()
 	var click := was_click()
 	if id == "pot":
 		if click:
@@ -456,7 +455,6 @@ func _release(id: String) -> void:
 
 
 func _drag(at: Vector2) -> void:
-	down_note(at)
 	if _held == "salt" and not _board.is_empty():
 		_shaking(at)
 		return
@@ -610,6 +608,7 @@ func _closing() -> void:
 # ── debug (tools/stand_check.gd, tools/stand_shots.gd) ───────────────────────
 
 func debug_click(id: String) -> void:
+	down_begin()
 	_press(id)
 	_release(id)
 

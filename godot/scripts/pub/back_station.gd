@@ -3,10 +3,11 @@ extends "res://scripts/pub/pub_station.gd"
 ## The bottles (DESIGN.md §7b "the pub"), worked at the left end of the bar top in the
 ## room: the rum, the zelena, the slivovice and the kofola standing in a row, the glass in
 ## front of them on the barman's side. Things are sprites at the room's pixel.
-##   take a bottle (a click): it comes over the glass, and the glass is the one for it (a
-##   shot glass, the tall glass for the kofola); hold the button on it: it tips and pours,
-##   the glass fills; to the line, not over it (the column by the glass, its green
-##   window). Then the glass: over the bar to whoever ordered it.
+##   carry a bottle to the glass (or a click on it): it comes over the glass, and the glass
+##   is the one for it (a shot glass, the tall glass for the kofola); hold the button on it:
+##   it tips and pours, the glass fills; to the line, not over it (the column by the glass,
+##   its green window). Then the glass, carried over the bar (or a click): to whoever
+##   ordered it.
 
 const BUSINESS := preload("res://scripts/business/business_runtime.gd")
 const BOTTLES := ["rum", "zelena", "slivovice", "kofola"]
@@ -17,6 +18,11 @@ const BOTTLE_X := [244.0, 292.0, 340.0, 388.0]
 const GLASS_AT := Vector2(196, 204)
 const LIFT := 0.0
 const BOTTLE_M := 0.3
+## The hands (station3d): where a bottle may be let go; the line past which a glass is over
+## the bar, the strip lit for it.
+const AT_GLASS := Rect2(106, 134, 180, 150)
+const GUESTS_Y := 104.0
+const GUESTS := Rect2(90, 18, 340, 70)
 
 var _bottle := ""
 var _fill := 0.0
@@ -24,6 +30,9 @@ var _spill := 0.0
 var _pouring := false
 var _tip := 0.0
 var _slide := -1.0
+## In the hand: "" nothing, a bottle's name, "glass" the poured glass.
+var _carry := ""
+var _foot := GLASS_AT
 var _rng := RandomNumberGenerator.new()
 var _bottles: Dictionary = {}
 var _glass: Sprite3D
@@ -89,12 +98,12 @@ func next_hint() -> Dictionary:
 	var drink := str(t["drink"])
 	if _bottle == "":
 		var b = _bottles.get(drink, null)
-		return {"node": b, "gesture": "click"} if b != null else {}
+		return {"node": b, "gesture": "drag", "to": GLASS_AT} if b != null else {}
 	if _bottle != drink:
 		return {}
 	if _fill < _line_of(drink) - 0.05:
 		return {"node": _bottles[drink], "gesture": "hold"}
-	return {"ui": "serve"}
+	return {"node": _glass, "gesture": "drag", "to": GLASS_AT + Vector2(0, -130)}
 
 
 func _tall() -> bool:
@@ -115,7 +124,10 @@ func _show() -> void:
 		var s: Sprite3D = _bottles[b]
 		var stock := BUSINESS.stock_of(building_key, str(PUB.DRINKS[b]["good"]))
 		s.modulate = Color(1, 1, 1) if stock != 0 else Color(0.5, 0.5, 0.5)
-		if b == _bottle and _slide < 0.0:
+		if b == _carry:
+			s.rotation.z = 0.0
+			s.position = held_at(0.08)
+		elif b == _bottle and _slide < 0.0:
 			# Up in the hand beside the glass, tipping over it as it pours (in steps): its
 			# mouth just over the rim, the bottle turning about its foot.
 			var a := floorf(_tip * 4.0) / 4.0 * 1.75
@@ -129,11 +141,11 @@ func _show() -> void:
 	var has_glass := _bottle != ""
 	_glass.visible = has_glass
 	_glass_fill.visible = has_glass and _fill > 0.01
-	_line.visible = has_glass and _slide < 0.0 and is_open()
+	_line.visible = has_glass and _slide < 0.0 and is_open() and _carry != "glass"
 	_stream.visible = has_glass and _tip > 0.7 and _slide < 0.0
 	if not has_glass:
 		return
-	var foot := GLASS_AT
+	var foot := _foot
 	if _slide >= 0.0:
 		# Over the bar to them: away across the top, in steps.
 		foot.y -= floorf(_slide / 0.5 * 6.0) / 6.0 * 200.0
@@ -200,26 +212,45 @@ func _press(id: String) -> void:
 		if _fill > 0.02:
 			say("", "There is a glass half poured already.")
 			return
-		_bottle = id.substr(7)
-		_fill = 0.0
-		_spill = 0.0
-		sfx("glass_down", -12.0, 1.2)
-		hop(_glass)
+		_carry = id.substr(7)
+		sfx("glass_down", -20.0, 1.5)
+		mark_target(AT_GLASS)
 		return
 	match id:
 		"pour":
 			_pouring = true
 			sfx("tap_pour", -12.0, 1.4 if not _tall() else 1.0)
 		"glass":
-			_serve()
+			_carry = "glass"
+			mark_target(GUESTS)
 
 
 func _release(id: String) -> void:
 	if id == "pour":
 		_pouring = false
+	var had := _carry
+	_carry = ""
+	mark_target(Rect2())
+	if had == "glass":
+		if was_click() or _mouse_free.y < GUESTS_Y:
+			_serve()
+		else:
+			sfx("glass_down", -18.0, 1.2)
+	elif had != "" and (was_click() or AT_GLASS.grow(24.0).has_point(held_px(0.08))):
+		_bottle = had
+		_fill = 0.0
+		_spill = 0.0
+		_foot = GLASS_AT
+		sfx("glass_down", -12.0, 1.2)
+		hop(_glass)
 
 
 func _tick(delta: float) -> void:
+	# The glass goes with the hand along the bar; let go short of them, back to its place.
+	if _carry == "glass" and _mouse_free.x > -500.0:
+		_foot = Vector2(clampf(_mouse_free.x, 30.0, 610.0), clampf(_mouse_free.y, 24.0, 300.0))
+	elif _carry != "glass" and _slide < 0.0:
+		_foot = _foot.lerp(GLASS_AT, 1.0 - exp(-18.0 * delta))
 	_tip = move_toward(_tip, 1.0 if _pouring else 0.0, delta * 6.0)
 	if _pouring and _tip > 0.7:
 		_fill += (PUB.RATE_TALL if _tall() else PUB.RATE_SHOT) * delta
@@ -266,6 +297,8 @@ func _serve() -> void:
 
 func _closing() -> void:
 	_pouring = false
+	_carry = ""
+	_foot = GLASS_AT
 	_tip = 0.0
 	if _slide >= 0.0:
 		_slide = -1.0
@@ -289,4 +322,6 @@ func debug_pour(bottle: String, fill: float) -> void:
 
 
 func debug_click(id: String) -> void:
+	down_begin()
 	_press(id)
+	_release(id)

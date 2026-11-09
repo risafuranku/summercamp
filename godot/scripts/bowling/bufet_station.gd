@@ -208,13 +208,13 @@ func _spots() -> Array:
 	var menu: Array = state.bufet_menu(building_key)
 	var room := _tray.size() < TRAY_MAX
 	if room and menu.has("hotdog"):
-		out.append({"id": "add:hotdog", "rect": Rect2(STEAMER_AT - Vector2(46, 60), Vector2(92, 80)), "verb": tr("A hot dog onto the tray")})
+		out.append({"id": "add:hotdog", "rect": Rect2(STEAMER_AT - Vector2(46, 60), Vector2(92, 80)), "verb": tr("A hot dog onto the tray"), "carry": _item_carry("hotdog")})
 	if room and menu.has("pickled"):
-		out.append({"id": "add:pickled", "rect": Rect2(JAR_AT - Vector2(24, 52), Vector2(48, 56)), "verb": tr("An utopenec out of the jar")})
+		out.append({"id": "add:pickled", "rect": Rect2(JAR_AT - Vector2(24, 52), Vector2(48, 56)), "verb": tr("An utopenec out of the jar"), "carry": _item_carry("pickled")})
 	if room and menu.has("crisps"):
-		out.append({"id": "add:crisps", "rect": Rect2(CRISPS_AT - Vector2(46, 46), Vector2(92, 64)), "verb": tr("A bag of crisps")})
+		out.append({"id": "add:crisps", "rect": Rect2(CRISPS_AT - Vector2(46, 46), Vector2(92, 64)), "verb": tr("A bag of crisps"), "carry": _item_carry("crisps")})
 	if room and menu.has("tatranka"):
-		out.append({"id": "add:tatranka", "rect": Rect2(WAFER_AT - Vector2(34, 22), Vector2(68, 44)), "verb": tr("A Tatranka")})
+		out.append({"id": "add:tatranka", "rect": Rect2(WAFER_AT - Vector2(34, 22), Vector2(68, 44)), "verb": tr("A Tatranka"), "carry": _item_carry("tatranka")})
 	for it in TAPS:
 		if room and menu.has(it):
 			var tap: Vector2 = TAPS[it]
@@ -222,6 +222,11 @@ func _spots() -> Array:
 	for i in _tray.size():
 		out.append({"id": "off:%d" % i, "node": _tray[i]["s"], "verb": tr("Take it off the tray")})
 	return out
+
+
+## A thing for the tray, on its way to it in the hand.
+func _item_carry(item: String) -> Dictionary:
+	return {"tex": BTEX + str(ITEM_TEX.get(item, item)) + ".png", "m": float(ITEM_M.get(item, 0.16)), "flat": false, "to": Rect2(TRAY_AT - Vector2(130, 80), Vector2(260, 160))}
 
 
 func _press(id: String) -> void:
@@ -404,7 +409,7 @@ func hand_tool() -> String:
 	if id.begins_with("tap:"):
 		return "tap"
 	if id.begins_with("add:"):
-		return "tongs" if id == "add:hotdog" or id == "add:pickled" else "open"
+		return "tongs_bare" if id == "add:hotdog" or id == "add:pickled" else "open"
 	return "open"
 
 

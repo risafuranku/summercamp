@@ -20,6 +20,9 @@ const TINS := Rect2(5, 245, 222, 115)
 const STACK := Rect2(240, 35, 149, 200)
 const BOWL_AT := Vector2(470, 250)
 const BOWL_M := 0.13
+## Where a bowl stands to be filled; the line past which one is over the counter.
+const BOWL_ZONE := Rect2(390, 180, 160, 150)
+const OVER_Y := 110.0
 
 ## The bowl at the pot: {ladles} ({} none).
 var _bowl: Dictionary = {}
@@ -68,12 +71,12 @@ func _spots() -> Array:
 		return out
 	var level := int(kitchen.site(building_key)["soup"]["level"])
 	if _bowl.is_empty() and int(kitchen.plates(building_key)["clean"]) > 0:
-		out.append({"id": "stack", "rect": STACK, "verb": "A clean bowl under the ladle"})
+		out.append({"id": "stack", "rect": STACK, "verb": "A clean bowl under the ladle", "carry": {"tex": TEX + "bowl_empty.png", "m": BOWL_M, "to": BOWL_ZONE}})
 	if not _bowl.is_empty():
 		if level > 0:
-			out.append({"id": "pot", "rect": POT, "verb": "A ladle of the soup of the day (%d in)" % int(_bowl["ladles"])})
+			out.append({"id": "pot", "rect": POT, "verb": "A ladle of the soup of the day (%d in)" % int(_bowl["ladles"]), "carry": {"tex": TEX + "spoon.png", "m": 0.2, "to": BOWL_ZONE}})
 		if int(_bowl["ladles"]) > 0:
-			out.append({"id": "bowl", "node": _bowl_spr, "verb": _serve_verb()})
+			out.append({"id": "bowl", "node": _bowl_spr, "verb": _serve_verb(), "carry": {"copy": _bowl_spr, "hide": _bowl_spr, "over": OVER_Y, "lit": Rect2(230, 6, 400, 80)}})
 	if level < RULES.SOUP_CAP - RULES.SOUP_REFILL + 1:
 		var tins := maxi(0, BUSINESS.stock_of(building_key, "soup"))
 		out.append({"id": "tins", "rect": TINS, "verb": "Tip a tin into the pot (%d)" % tins if tins > 0 else "No soup tins: order them in the books"})

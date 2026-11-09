@@ -177,7 +177,7 @@ func _spots() -> Array:
 		for e in _cartons:
 			if (e["box"] as Sprite3D).visible and str(e["good"]) != "":
 				var g := str(e["good"])
-				out.append({"id": "carton:" + g, "node": e["box"], "verb": "Take a carton of %s" % str(RULES.goods().get(g, {}).get("label", g)).to_lower()})
+				out.append({"id": "carton:" + g, "node": e["box"], "verb": "Take a carton of %s" % str(RULES.goods().get(g, {}).get("label", g)).to_lower(), "carry": {"copy": e["box"], "hide": e["box"], "to": Rect2(BOX_AT - Vector2(120, 86), Vector2(240, 180))}})
 	elif _box.visible and clampf((_t - float(_work["t"])) / 0.35, 0.0, 1.0) >= 1.0:
 		out.append({"id": "box", "node": _box, "verb": "Price the goods" if bool(_work["open"]) else "Cut the tape"})
 	return out

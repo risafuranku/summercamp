@@ -96,11 +96,11 @@ func _spots() -> Array:
 		return out
 	var stock: int = maxi(0, BUSINESS.stock_of(building_key, "potatoes"))
 	if _drum == 0 and _run < 0.0 and stock > 0:
-		out.append({"id": "sack", "rect": SACK, "verb": "Tip potatoes into the peeler (%d in the sack)" % stock})
+		out.append({"id": "sack", "rect": SACK, "verb": "Tip potatoes into the peeler (%d in the sack)" % stock, "carry": {"tex": TEX + "potato_raw.png", "m": dm("potato_raw"), "to": DRUM}})
 	if _drum > 0:
 		out.append({"id": "switch", "rect": SWITCH, "verb": "Stop the peeler" if _run >= 0.0 else "Start the peeler"})
 	if _peeled > 0 and not _in_cutter:
-		out.append({"id": "peeled", "rect": Rect2(CHUTE_AT - Vector2(40, 22), Vector2(80, 40)), "verb": "A peeled potato into the cutter (%d)" % _peeled})
+		out.append({"id": "peeled", "rect": Rect2(CHUTE_AT - Vector2(40, 22), Vector2(80, 40)), "verb": "A peeled potato into the cutter (%d)" % _peeled, "carry": {"tex": TEX + "potato_peeled.png", "m": dm("potato_peeled"), "to": CUTTER}})
 	if _in_cutter:
 		out.append({"id": "lever", "rect": LEVER, "verb": "Pull the lever down"})
 	return out

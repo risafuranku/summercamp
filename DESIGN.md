@@ -1415,8 +1415,14 @@ the stations in 3D, like the bistro's and the pub's.*
     the crate to the table, its leaves pulled, the silk rubbed off, the clean cob into the
     bowl, the bowl lifted over the pot and let go, the tongs to the board, the brush along
     it, the salt taken up and shaken, a napkin laid on and the wrapped cob carried over to
-    the guest. The cash box no longer opens the books, only the BOOKS button does. First the
-    corn stand; the pub and the others in the same way are still to do.
+    the guest. The cash box no longer opens the books, only the BOOKS button does. The other
+    places the same (station3d: a spot's "carry", or a station's own): the tap's mug off the
+    board and over the bar, the knife across the head, a bottle to the glass, the kegs rolled
+    on and off the pallet; a plate and all that goes on it at the bistro's pass, the sausages,
+    the bowls, the bottles; the goods to the bag at the Jednota's till, the coins to the mat,
+    a carton to the table; the shoes to the counter, the snacks to the tray at the bowling
+    alley. Holding (the taps, the stirring, the brush) stays holding. Where the hint glove
+    points it shows the carrying.
 - **The orders** are paper slips on the rail: the name, a cob, the salt they want (a mark a
   shake, NO S for none), the wait; the picked one big in the corner, ticking off BUTTER,
   the salt (green when it is right, red when too much) and NAPKIN. One cob each, all at

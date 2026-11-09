@@ -670,8 +670,9 @@ func update_celestial_bodies() -> void:
 	var sprite_scale = sky_distance / CELESTIAL_SPRITE_REFERENCE_DISTANCE
 	_sun_sprite_3d.global_position = cam_pos + sun_dir * sky_distance
 	_moon_sprite_3d.global_position = cam_pos + moon_dir * sky_distance
-	_sun_sprite_3d.look_at(cam_pos, Vector3.UP)
-	_moon_sprite_3d.look_at(cam_pos, Vector3.UP)
+	# (Straight overhead no up would do: the disc looks down at you from another.)
+	_sun_sprite_3d.look_at(cam_pos, Vector3.UP if absf(sun_dir.y) < 0.999 else Vector3.FORWARD)
+	_moon_sprite_3d.look_at(cam_pos, Vector3.UP if absf(moon_dir.y) < 0.999 else Vector3.FORWARD)
 	_set_sprite_size(_sun_sprite_3d, SUN_SPRITE_BASE_SIZE * sprite_scale)
 	_set_sprite_size(_moon_sprite_3d, MOON_SPRITE_BASE_SIZE * sprite_scale)
 	var sun_horizon_visibility = _sun_horizon_visibility(sun_dir.y)

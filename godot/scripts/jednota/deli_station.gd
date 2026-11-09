@@ -205,7 +205,7 @@ func _spots() -> Array:
 			out.append({"id": "wrap", "rect": PAPER, "verb": "Wrap it in paper"})
 	else:
 		var who := first_name(str(t.get("name", ""))) if not t.is_empty() else ""
-		out.append({"id": "give", "node": _parcel, "verb": LANG.f("Over the counter to %s (%d g)", [who, int(round(grams()))]) if who != "" else "Nobody asked for it"})
+		out.append({"id": "give", "node": _parcel, "verb": LANG.f("Over the counter to %s (%d g)", [who, int(round(grams()))]) if who != "" else "Nobody asked for it", "carry": {"copy": _parcel, "hide": _parcel, "over": 90.0, "lit": Rect2(120, 6, 400, 74)}})
 	return out
 
 

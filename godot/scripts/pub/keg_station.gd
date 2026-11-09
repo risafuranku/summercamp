@@ -6,10 +6,11 @@ extends "res://scripts/pub/pub_station.gd"
 ## books' beer: service_interior._fill_cellar). Things are sprites at the room's pixel.
 ##   the head     a click takes it off the keg; held on a full keg, it screws down and the
 ##                line fills (`coupled`)
-##   the keg      spent (the chalk cross), off its head: roll it off the pallet (a click);
-##                then a full one on: a click on one of them, standing along the rack
-##                (playtest 7. 11.: "I don't know where to get a new one, the ones standing
-##                there take no click": they were the room's, the click was on the floor)
+##   the keg      spent (the chalk cross), off its head: roll it off the pallet (drag it away
+##                or a click); then a full one on: drag one of them, standing along the rack,
+##                onto the pallet, or a click on it (playtest 7. 11.: "I don't know where to
+##                get a new one, the ones standing there take no click": they were the
+##                room's, the click was on the floor)
 ##   the gas      hold the valve and drag up for more, down for less: in the green it pours
 ##                right; low it comes flat and slow, high all foam
 ## What is left in it is chalked on it.
@@ -29,6 +30,10 @@ const HOSE_BITS := 7
 const VALVE_AT := Vector2(90, 160)
 const TWIST_SEC := 0.9
 const KEG_M := 0.6
+## The hands (station3d): the pallet lit for a keg rolled to it, how far off it the spent one
+## must be rolled.
+const ON_PALLET := Rect2(190, 40, 260, 220)
+const ROLLED_OFF := 150.0
 ## Off the keg, the head hangs on its hose here (station pixels from the pallet).
 const HEAD_HANG := Vector2(-95, 6)
 
@@ -49,6 +54,8 @@ var _spent_keg: Sprite3D
 var _spent_t := -1.0
 var _roll_from := Vector2.ZERO
 var _hose: Array = []
+## Rolled by hand: "" nothing, "spare" a full keg to the pallet, "spent" the spent one off it.
+var _carry := ""
 
 
 func _build() -> void:
@@ -119,12 +126,12 @@ func _show() -> void:
 	pretex(_keg, "keg_empty" if pallet == "empty" else "keg", KEG_M)
 	# Rolled across from the rack, in the four steps the room moves in.
 	var roll := ceilf(_roll / ROLL_SEC * 4.0) / 4.0
-	put(_keg, PALLET.lerp(_roll_from, roll), 0.0)
+	put(_keg, _mouse_free if _carry == "spent" and _mouse_free.x > -500.0 else PALLET.lerp(_roll_from, roll), 0.0)
 	var spares: int = taproom.spares(building_key)
 	for i in _spare_kegs.size():
 		var s: Sprite3D = _spare_kegs[i]
 		s.visible = i < spares
-		put(s, SPARE_AT + Vector2(SPARE_STEP * float(i), 0.0), 0.02)
+		put(s, _mouse_free if _carry == "spare" and i == mini(spares, SPARE_MAX) - 1 and _mouse_free.x > -500.0 else SPARE_AT + Vector2(SPARE_STEP * float(i), 0.0), 0.02)
 	_spent_keg.visible = _spent_t >= 0.0
 	if _spent_keg.visible:
 		put(_spent_keg, PALLET.lerp(ROLL_OUT, floorf(_spent_t / ROLL_SEC * 5.0) / 5.0), 0.0)
@@ -207,9 +214,7 @@ func _press(id: String) -> void:
 				if bool(k["coupled"]):
 					say("", "The head is still on it.")
 					return
-				taproom.set_keg(building_key, {"pallet": "none", "line": 0})
-				_spent_t = 0.0
-				sfx("keg_roll", -6.0)
+				_carry = "spent"
 			else:
 				say("", "%d pints left in it." % int(k["line"]))
 		"spare":
@@ -217,13 +222,11 @@ func _press(id: String) -> void:
 				say("", "The pallet is taken.")
 				return
 			var beer := maxi(0, BUSINESS.stock_of(building_key, "beer"))
-			var spares: int = taproom.spares(building_key)
-			if beer <= 0 or spares <= 0:
+			if beer <= 0 or taproom.spares(building_key) <= 0:
 				return
-			_roll_from = SPARE_AT + Vector2(SPARE_STEP * float(mini(spares, SPARE_MAX) - 1), 0.0)
-			taproom.set_keg(building_key, {"pallet": "full", "line": mini(PUB.KEG_PINTS, beer), "coupled": false})
-			_roll = ROLL_SEC
-			sfx("keg_roll", -6.0, 0.9)
+			_carry = "spare"
+			sfx("keg_roll", -14.0, 1.1)
+			mark_target(ON_PALLET)
 		"valve":
 			_valve_from = _mouse_free.y
 			_gas_from = float(k["gas"])
@@ -238,6 +241,21 @@ func _release(id: String) -> void:
 		_twist = -1.0
 	if id == "valve" and _valve_from >= 0.0:
 		_valve_from = -1.0
+	var had := _carry
+	_carry = ""
+	mark_target(Rect2())
+	var at := _mouse_free
+	if had == "spent" and (was_click() or at.distance_to(PALLET) >= ROLLED_OFF):
+		taproom.set_keg(building_key, {"pallet": "none", "line": 0})
+		_spent_t = 0.0
+		sfx("keg_roll", -6.0)
+	elif had == "spare" and (was_click() or ON_PALLET.grow(30.0).has_point(at)):
+		var beer := maxi(0, BUSINESS.stock_of(building_key, "beer"))
+		var spares: int = taproom.spares(building_key)
+		_roll_from = SPARE_AT + Vector2(SPARE_STEP * float(mini(spares, SPARE_MAX) - 1), 0.0) if was_click() else at
+		taproom.set_keg(building_key, {"pallet": "full", "line": mini(PUB.KEG_PINTS, beer), "coupled": false})
+		_roll = ROLL_SEC
+		sfx("keg_roll", -6.0, 0.9)
 
 
 func _drag(at: Vector2) -> void:
@@ -274,6 +292,7 @@ func _tick(delta: float) -> void:
 func _closing() -> void:
 	_twist = -1.0
 	_valve_from = -1.0
+	_carry = ""
 	_hiss.stop()
 
 
@@ -286,9 +305,9 @@ func next_hint() -> Dictionary:
 	var k: Dictionary = taproom.keg(building_key)
 	var pallet := str(k["pallet"])
 	if pallet == "empty":
-		return {"node": _head, "gesture": "click"} if bool(k["coupled"]) else {"node": _keg, "gesture": "click"}
+		return {"node": _head, "gesture": "click"} if bool(k["coupled"]) else {"node": _keg, "gesture": "drag", "to": PALLET + Vector2(90, 150)}
 	if pallet == "none":
-		return {"node": _spare_kegs[0], "gesture": "click"} if taproom.spares(building_key) > 0 else {"ui": "books"}
+		return {"node": _spare_kegs[0], "gesture": "drag", "to": PALLET} if taproom.spares(building_key) > 0 else {"ui": "books"}
 	if not bool(k["coupled"]):
 		return {"node": _head, "gesture": "hold"}
 	var band := PUB.gas_band(float(k["gas"]))
@@ -331,4 +350,7 @@ func debug_click(id: String) -> void:
 	if id == "coupler_on":
 		taproom.set_keg(building_key, {"coupled": true})
 		return
+	down_begin()
 	_press(id)
+	if id in ["spare", "line_keg"]:
+		_release(id)
