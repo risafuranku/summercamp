@@ -140,8 +140,16 @@ func build_hint_text(interact_distance: float, utility_repairs_enabled: bool) ->
 ## anywhere, E only at the doors"): standing before one of them and looking at it. What has
 ## no door (a stand, a sign, the barrier) is used from where it is.
 const DOOR_ANIM = preload("res://scripts/attractions/door_anim.gd")
-const DOOR_REACH_M := 3.2
-const DOOR_LOOK := 0.55
+const DOOR_REACH_M := 2.8
+## The crosshair has to be on the door (the user 9. 11.: "check the hover and the hitboxes, the
+## reception's door does not feel right": E was offered three metres along the wall, looking
+## at the sky): the doorway's rectangle, this much to spare round it.
+const DOOR_SPARE_M := 0.32
+const DOOR_HALF_M := 0.52
+const DOOR_TOP_M := 2.15
+## The tent's whole front is its door.
+const FLAP_HALF_M := 1.05
+const FLAP_TOP_M := 1.4
 
 
 func _at_door(structure: Node3D) -> bool:
@@ -163,13 +171,41 @@ func _at_door(structure: Node3D) -> bool:
 		var flat := Vector2(at.x - player.global_position.x, at.z - player.global_position.z)
 		if flat.length() > DOOR_REACH_M:
 			continue
-		if cam == null or flat.length() < 0.8:
+		if cam == null:
 			return true
-		var fwd := -cam.global_basis.z
-		var to := Vector2(fwd.x, fwd.z).normalized()
-		if to.dot(flat.normalized()) >= DOOR_LOOK:
+		if _looking_at_doorway(cam, way, player):
 			return true
 	return false
+
+
+## The line of your look through the doorway's plane, in its rectangle (or near enough).
+func _looking_at_doorway(cam: Camera3D, way: Dictionary, player: Node3D) -> bool:
+	var at: Vector3 = way["outside"]
+	var inn: Vector3 = way.get("inside", at)
+	var out := Vector3(at.x - inn.x, 0.0, at.z - inn.z)
+	if out.length() < 0.01:
+		return true
+	out = out.normalized()
+	var mid := (at + inn) * 0.5
+	var from := cam.global_position
+	var look: Vector3 = -(player.call("look_basis") as Basis).z if player.has_method("look_basis") else -cam.global_basis.z
+	var into := look.dot(out)
+	# Facing the way out of it, or along its wall.
+	if into > -0.15:
+		return false
+	var t := (mid - from).dot(out) / into
+	if t < 0.0:
+		return false
+	var hit := from + look * t
+	var side := Vector3.UP.cross(out)
+	var ducks := bool(way.get("duck", false))
+	var half: float = FLAP_HALF_M if ducks else DOOR_HALF_M
+	var top: float = FLAP_TOP_M if ducks else DOOR_TOP_M
+	var feet: float = (way.get("sill", mid) as Vector3).y
+	# Right up against it the door is all there is to look at.
+	if Vector2(at.x - from.x, at.z - from.z).length() < 0.6:
+		return true
+	return absf((hit - mid).dot(side)) <= half + DOOR_SPARE_M and hit.y >= feet - DOOR_SPARE_M and hit.y <= feet + top + DOOR_SPARE_M
 
 
 func _get_player() -> Node:

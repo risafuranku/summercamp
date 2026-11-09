@@ -24,6 +24,29 @@ const ANTLERED_FROM := 0.7
 const SECOND_KIND_FROM := 0.6
 ## All that is left of the radio with nothing worked up to: it only frets.
 const DREAD_FLOOR := 0.15
+## Within the night (the user 9. 11.: "night fell and the radio went straight mad, the enemy
+## making its sounds, no working up to it... you cannot throw the worst at the player the moment
+## the night begins"): from dusk to BUILD_FROM the camp's own quiet, the night all there from
+## BUILD_FULL; what the radio may be till it has begun to build.
+const BUILD_FROM := 20.6
+const BUILD_FULL := 23.6
+const BUILD_CALM := 0.2
+
+
+## How far the night has got to working itself up at `hours`, 0-1 (after midnight, by day: 1).
+static func build(hours: float) -> float:
+	var h := fposmod(hours, 24.0)
+	if h < 12.0:
+		return 1.0
+	var k := clampf((h - BUILD_FROM) / (BUILD_FULL - BUILD_FROM), 0.0, 1.0)
+	return k * k * (3.0 - 2.0 * k)
+
+
+## The hour the `nth` of tonight's comes out (nobody at dusk: the worse the camp has got, the
+## sooner; `roll` 0-1 tonight's own).
+static func arrival(swell: float, nth: int, roll: float) -> float:
+	var s := clampf(swell, 0.0, 1.0)
+	return 20.0 + lerpf(2.0, 0.9, s) + 0.6 * roll + float(nth) * lerpf(0.9, 0.45, s)
 
 
 ## What the guests in the camp are like tonight, 0-1: `guests` checked in, `unhappy` of them,

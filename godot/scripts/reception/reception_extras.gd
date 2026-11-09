@@ -930,6 +930,7 @@ func go_out_front() -> void:
 		{"pos": Vector3(FRONT_STEP_OUT.x, eye, FRONT_STEP_OUT.z), "rot": Vector3.ZERO},
 	])
 	_walk = WALK_PATH.play(host, camera, keys, dur)
+	_walk.parallel().tween_callback(Coop.send_door.bind("office", 0, 3.0)).set_delay(dur * 0.38)
 	if door != null:
 		_walk.parallel().tween_callback(_play.bind(SFX_FRONT_DOOR, -8.0)).set_delay(dur * 0.38)
 		_walk.parallel().tween_property(door, "rotation_degrees:y", FRONT_DOOR_OPEN_DEG, 0.7) \

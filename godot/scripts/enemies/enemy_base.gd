@@ -58,6 +58,37 @@ var _dawn_t := 0.0
 var _dawn_sounds: Array = []
 
 
+## Not out yet tonight (hold_until): the clock's hour it comes (-1: it is out); nothing of it
+## till then, no sound, no eyes, no place in the radio's count; the brain and what it loads are
+## made at dusk all the same, not in the middle of the night.
+var _arrive_hour := -1.0
+var _hour_callable: Callable
+
+
+func hold_until(hour: float) -> void:
+	if not _night_active or _root == null:
+		return
+	_arrive_hour = hour
+	_night_active = false
+	if _body != null and is_instance_valid(_body):
+		_body.visible = false
+	_pause_sounds(true)
+
+
+func _pause_sounds(on: bool) -> void:
+	if _root == null or not is_instance_valid(_root):
+		return
+	for p in _root.find_children("*", "AudioStreamPlayer3D", true, false) + _root.find_children("*", "AudioStreamPlayer", true, false):
+		p.set("stream_paused", on)
+
+
+func _hour_come() -> bool:
+	if not _hour_callable.is_valid():
+		return true
+	# Counted from noon: the night's hours in order.
+	return fposmod(float(_hour_callable.call()) - 12.0, 24.0) >= fposmod(_arrive_hour - 12.0, 24.0)
+
+
 func start_night(seed: int, difficulty: int, references: Dictionary) -> void:
 	stop_night()
 	_world_root = references.get("world_root", null) as Node3D
@@ -68,6 +99,7 @@ func start_night(seed: int, difficulty: int, references: Dictionary) -> void:
 	_is_night_callable = references.get("is_night_callable", Callable()) as Callable
 	_allow_actions_callable = references.get("allow_actions_callable", Callable()) as Callable
 	_notify_callable = references.get("notify_callable", Callable()) as Callable
+	_hour_callable = references.get("hour_callable", Callable()) as Callable
 	var entry_any = references.get("night_entry", {})
 	_night_entry = (entry_any as Dictionary).duplicate(true) if entry_any is Dictionary else {}
 	if _world_root == null or _player == null:
@@ -87,6 +119,10 @@ func start_night(seed: int, difficulty: int, references: Dictionary) -> void:
 
 
 func tick(delta: float) -> void:
+	if _arrive_hour >= 0.0 and _root != null and _hour_come():
+		_arrive_hour = -1.0
+		_night_active = true
+		_pause_sounds(false)
 	if not _night_active:
 		return
 	var dt := maxf(delta, 0.0)
@@ -132,6 +168,7 @@ func dawn_tick(dt: float) -> bool:
 
 func stop_night() -> void:
 	_night_active = false
+	_arrive_hour = -1.0
 	_dawn_sounds = []
 	_on_stop()
 	if _remote_fx != null and is_instance_valid(_remote_fx):

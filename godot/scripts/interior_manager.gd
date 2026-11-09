@@ -41,6 +41,7 @@ const COOP_FIGURE = preload("res://scripts/coop/remote_player.gd")
 const COOP_LOOKS = preload("res://scripts/coop/warden_looks.gd")
 ## The beds of the camp's own tents, cabins and caravans for a warden to sleep in.
 const LODGE_BED = preload("res://scripts/lodge_bed.gd")
+const CABIN_LAYOUT = preload("res://scripts/cabin_layout.gd")
 const HOVER_GLINT = preload("res://scripts/ui/hover_glint.gd")
 const DOOR_ANIM = preload("res://scripts/attractions/door_anim.gd")
 ## On foot through a door, in and out, at every building (scripts/ui/door_through.gd).
@@ -163,6 +164,7 @@ func town_trip() -> Node:
 
 func _process(delta: float) -> void:
 	_tick_tent_doors(delta)
+	_coop_rooms_from_camp(delta)
 	_tick_cubes(delta)
 	_tick_eyes(delta)
 
@@ -768,6 +770,7 @@ func _on_crt_interact() -> void:
 		var leaf := _nearest_door(shell, stop)
 		if leaf != null:
 			DOOR_ANIM.open(leaf, 3.0)
+		Coop.send_door("office", 0, 2.6)
 		_play_office_door(OFFICE_DOOR_OPEN)
 		var tw := create_tween()
 		_stepping_out = tw
@@ -1010,6 +1013,16 @@ var _walked_up_to := 0
 var _walked_in_ms := -100000
 
 
+## The other machines swing `structure`'s door as this machine does, when it starts to open:
+## told by "in" (the warden gone in, the room up) it opened after they had walked through it (the
+## user 9. 11.: "the player goes through and only then the door").
+func coop_door_opens(structure: Node3D, door: Variant, seconds := 2.6) -> void:
+	if not Coop.is_active() or door == null:
+		return
+	var pick: int = DOOR_ANIM.find_doors(structure).find(door)
+	Coop.send_door(_room_key_for(structure), maxi(pick, 0), seconds)
+
+
 func _walk_up_first(structure: Node3D, again: Callable, room: Object = null) -> bool:
 	if structure == null or not is_instance_valid(structure):
 		return false
@@ -1051,6 +1064,7 @@ func _walk_up_first(structure: Node3D, again: Callable, room: Object = null) -> 
 		DOOR_ANIM.open(way["door"], 3.0)
 	if way.get("pair") != null:
 		DOOR_ANIM.open(way["pair"], 3.0)
+	coop_door_opens(structure, way.get("door"))
 	_set_player_controls_enabled(false)
 	var mask := body.collision_mask
 	body.collision_mask = 0
@@ -2205,7 +2219,15 @@ func coop_room() -> Dictionary:
 			info["go"] = walk
 		return info
 	var node: Node3D = _open_room_node(it)
-	return {"k": _room_key_for(node), "t": _room_kind(it), "s": _room_part(it), "w": _room_job(it)}
+	var out := {"k": _room_key_for(node), "t": _room_kind(it), "s": _room_part(it), "w": _room_job(it)}
+	# Where in it you stand and which way you look, for whoever looks in from the camp.
+	var root := _room_root_of(it)
+	var cam := it.get("_interior_camera") as Camera3D
+	if root != null and cam != null and cam.is_inside_tree():
+		var at := root.to_local(cam.global_position)
+		var f: Vector3 = root.global_basis.inverse() * (-cam.global_basis.z)
+		out["e"] = [snappedf(at.x, 0.01), snappedf(at.z, 0.01), snappedf(atan2(-f.x, -f.z), 0.02)]
+	return out
 
 
 ## Whom another warden is seeing to at the counter now (-999 nobody).
@@ -2269,6 +2291,107 @@ func _open_room_interior():
 		if it != null and is_instance_valid(it) and it.has_method("is_open") and it.is_open():
 			return it
 	return null
+
+
+func _room_root_of(it) -> Node3D:
+	var n: Variant = null
+	if it == _cabin_interior:
+		n = it.get("_cabin_root")
+	elif it == _tent_interior:
+		n = it.get("_tent_root")
+	elif it == _caravan_interior:
+		n = it.get("_root")
+	elif it == _service_interior:
+		n = it.get("_room_root")
+	return n as Node3D
+
+
+## The other wardens in a cabin, a van, a tent or a business seen from the camp through its
+## windows, where they stand and walking as they walk (the user 9. 11.: "from outside I do not
+## see the player go about the cabin to its windows, check all the interiors"): `_inview_*` is
+## the one room of each kind the camp looks into now, the room built in the building a
+## business's (its copy behind the glass). id -> {fig, at (room space), walk}.
+const ROOM_FIG_SPEED := 2.6
+var _room_figs: Dictionary = {}
+
+
+func _coop_room_seen(info: Dictionary) -> Array:
+	var kind := str(info.get("t", ""))
+	var key := str(info.get("k", ""))
+	var it = null
+	var host: Node3D = null
+	match kind:
+		"cabin":
+			it = _cabin_interior
+			host = it.get("_inview_cabin") as Node3D if it != null else null
+		"caravan":
+			it = _caravan_interior
+			host = it.get("_inview_van") as Node3D if it != null else null
+		"tent":
+			it = _tent_interior
+			host = it.get("_inview_tent") as Node3D if it != null else null
+		"service":
+			# A business's room behind its glass; the back rooms have no windows on the camp.
+			var part := str(info.get("s", ""))
+			if not (part == "rest/dining" or part == "pub/main" or part.begins_with("vecerka/shop")):
+				return []
+			var st: Node3D = DOOR_ANIM.structure_at(Vector2i(int(key.get_slice(":", 0)), int(key.get_slice(":", 1)))) if key.contains(":") else null
+			if st == null:
+				return []
+			for c in st.find_children("*Room", "Node3D", true, false):
+				if (c as Node).has_meta("no_wear"):
+					return [c, _world_3d, 0.0]
+			return []
+	if it == null or not is_instance_valid(it) or it.is_open() or host == null or not is_instance_valid(host) or _room_key_for(host) != key:
+		return []
+	var root := _room_root_of(it)
+	if root == null:
+		return []
+	var floor_y := 0.0
+	if kind == "cabin":
+		floor_y = CABIN_LAYOUT.ROOM_FLOOR
+	elif kind == "caravan":
+		floor_y = 0.04
+	return [root, it.get("_viewport"), floor_y]
+
+
+func _coop_rooms_from_camp(delta: float) -> void:
+	if _room_figs.is_empty() and not Coop.has_partner():
+		return
+	var seen := {}
+	for id in Coop.others():
+		var info: Dictionary = Coop.state_of(id).get("room", {})
+		var e: Variant = info.get("e", null)
+		if not (e is Array) or (e as Array).size() < 3:
+			continue
+		var where := _coop_room_seen(info)
+		if where.is_empty() or where[1] == null:
+			continue
+		seen[id] = true
+		var rec: Dictionary = _room_figs.get(id, {})
+		var want := Vector3(float(e[0]), float(where[2]), float(e[1]))
+		if rec.is_empty() or not is_instance_valid(rec["fig"]) or (rec["fig"] as Node).get_parent() != where[1]:
+			if not rec.is_empty() and is_instance_valid(rec["fig"]):
+				(rec["fig"] as Node).queue_free()
+			var look: Dictionary = Coop.look_of(id)
+			var fig = COOP_FIGURE.new()
+			fig.setup(int(look.get("m", 1)), int(look.get("c", 0)), true)
+			(where[1] as Node).add_child(fig)
+			rec = {"fig": fig, "at": want}
+			_room_figs[id] = rec
+		var root: Node3D = where[0]
+		var at: Vector3 = (rec["at"] as Vector3).move_toward(want, ROOM_FIG_SPEED * delta)
+		rec["at"] = at
+		var yaw := float(e[2])
+		var face: Vector3 = root.global_basis * Vector3(-sin(yaw), 0.0, -cos(yaw))
+		rec["fig"].show_at(root.global_transform * at, "prone" if str(info.get("t", "")) == "tent" else "stand", false, face)
+		rec["fig"].set_walking(at.distance_to(want) > 0.03)
+	for id in _room_figs.keys():
+		if not seen.has(id):
+			var f = _room_figs[id]["fig"]
+			if is_instance_valid(f):
+				(f as Node).queue_free()
+			_room_figs.erase(id)
 
 
 func _open_room_node(it) -> Node3D:

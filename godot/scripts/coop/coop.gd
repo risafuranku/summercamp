@@ -853,6 +853,24 @@ func _inv(kind: String, data: Array) -> void:
 		sender = 0
 
 
+## A building's door opening under this machine's warden (`key` the room's, "office" the
+## reception), everyone's to everyone: reliable and at once, a figure walks through it a moment
+## later (main.coop_door).
+func send_door(key: String, pick: int, seconds: float) -> void:
+	if role != Role.NONE and not wardens.is_empty():
+		_door.rpc(key, pick, seconds)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _door(key: String, pick: int, seconds: float) -> void:
+	var id := multiplayer.get_remote_sender_id()
+	if not wardens.has(id):
+		return
+	var main := _main()
+	if main != null and main.has_method("coop_door"):
+		main.coop_door(key, pick, seconds)
+
+
 ## A tent's door unzipped or zipped up (interior_manager.tent_doors), everyone's to
 ## everyone: it stays as somebody left it on every machine.
 func send_tent_door(key: String, open: bool) -> void:

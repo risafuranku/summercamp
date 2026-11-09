@@ -518,6 +518,9 @@ func _tick_out() -> void:
 		_out_open = true
 		for d in doors:
 			DOOR_ANIM.open(d, 6.0)
+		var im := get_parent()
+		if im != null and im.has_method("coop_door_opens") and not doors.is_empty():
+			im.call("coop_door_opens", _structure, doors[0], 3.0)
 		# (A tent unzips its door.)
 		if _room.has_method("door_opening"):
 			_room.call("door_opening")

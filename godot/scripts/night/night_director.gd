@@ -351,7 +351,8 @@ func _update_state(ctx: Dictionary) -> void:
 	var ago := 0.21 * float(ctx.get("swell", 0.0))
 	var want := 0.2 * deep + hiding + ago + 0.07 * float(ctx.get("pressure", 0.3)) + 0.12 * float(ctx.get("hunting", 0)) \
 		+ (0.16 if bool(ctx.get("dark", false)) else 0.0) + alone + 0.06 * float(ignored) - 0.04 * float(investigated)
-	want = clampf(want, 0.0, 1.0)
+	# The night works up to it from dusk (night_swell.build).
+	want = clampf(want * lerpf(0.3, 1.0, float(ctx.get("build", 1.0))), 0.0, 1.0)
 	# It builds over minutes, not seconds.
 	tension = move_toward(tension, want, DECIDE_EVERY * 0.006)
 	if float(ctx.get("hunter_near_m", INF)) < CONFRONT_NEAR_M:

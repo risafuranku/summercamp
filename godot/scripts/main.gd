@@ -647,6 +647,7 @@ func _director_context() -> Dictionary:
 		"night": night and _gameplay_started and not _game_over_active,
 		"quiet": _day_index <= QUIET_NIGHTS,
 		"swell": float(CoreRoot.get_state().night_swell),
+		"build": NIGHT_SWELL.build(hour),
 		"hour": hour,
 		"place": place,
 		"pos": pos,
@@ -766,7 +767,7 @@ func _omen_context() -> Dictionary:
 	var mood: Dictionary = GuestManager.get_camp_mood_summary() if GuestManager != null and GuestManager.has_method("get_camp_mood_summary") else {}
 	var hunting := 0
 	for b in _enemy_brains:
-		if b != null:
+		if b != null and b.get("_night_active") != false:
 			hunting += 1
 	return {
 		"guests": int(mood.get("guests", 0)),
@@ -2432,6 +2433,15 @@ func _activate_runtime_enemy_for_night(night_index: int) -> void:
 		kinds += 1
 	if swell >= NIGHT_SWELL.ANTLERED_FROM and _antlered_comes(kinds):
 		_start_enemy_brain(STALKER_BRAIN_SCRIPT, night_index, mini(5, worst + 1), {})
+	# Nobody comes out at dusk, one after the other as the night goes on (night_swell.arrival).
+	var out_in_turn := _enemy_brains.duplicate()
+	for i in out_in_turn.size():
+		var at: int = i + _liminal_forecast_rng.randi_range(0, out_in_turn.size() - 1 - i)
+		var who = out_in_turn[at]
+		out_in_turn[at] = out_in_turn[i]
+		out_in_turn[i] = who
+		if who.has_method("hold_until"):
+			who.hold_until(NIGHT_SWELL.arrival(swell, i, _liminal_forecast_rng.randf()))
 	_last_night_kinds = came
 	_active_enemy_spawned_this_night = total_spawned
 	var claimed_virtual = mini(total_spawned, _liminal_virtual_enemy_count)
@@ -2547,6 +2557,7 @@ func _start_enemy_brain(script: Script, night_index: int, difficulty: int, night
 		"audio_manager": _audio_manager,
 		"damage_callable": Callable(self, "damage_player"),
 		"is_night_callable": Callable(self, "_is_enemy_night_active"),
+		"hour_callable": Callable(self, "_enemy_hour"),
 		"allow_actions_callable": Callable(self, "_can_enemy_runtime_actions"),
 		"notify_callable": Callable(self, "_on_enemy_notice"),
 		"night_entry": night_entry.duplicate(true),
@@ -2560,6 +2571,10 @@ func _start_enemy_brain(script: Script, night_index: int, difficulty: int, night
 	if _active_enemy_brain == null:
 		_active_enemy_brain = brain
 		_active_enemy_brain_id = str(brain.get_enemy_id()) if brain.has_method("get_enemy_id") else "?"
+
+
+func _enemy_hour() -> float:
+	return _time_of_day_hours
 
 
 ## An enemy's first sign of the night, as one feed line.
@@ -5695,7 +5710,10 @@ func _on_coop_partner_moved(id: int, s: Dictionary) -> void:
 	var room_info: Dictionary = s.get("room", {})
 	var inside := bool(s.get("in", false))
 	if inside != bool(was["in"]) and not s.is_empty():
-		_coop_swing_door(str(room_info.get("k", "")) if inside else str(was["room"]))
+		# (A door walked through on foot was told as it opened: coop_door.)
+		var door_key := str(room_info.get("k", "")) if inside else str(was["room"])
+		if Time.get_ticks_msec() - int(_coop_door_told.get(door_key, -100000)) > 4000:
+			_coop_swing_door(door_key)
 	was["in"] = inside
 	if inside and room_info.has("k"):
 		was["room"] = str(room_info["k"])
@@ -6201,7 +6219,7 @@ func coop_show_screen(frame: PackedByteArray) -> void:
 
 
 ## The door of the building with room key `key` ("x:y", or "office") opens and shuts.
-func _coop_swing_door(key: String) -> void:
+func _coop_swing_door(key: String, pick := 0, seconds := 1.4) -> void:
 	var st: Node3D = null
 	if key == "office":
 		st = debug_structure_of_type("main_building")
@@ -6210,9 +6228,18 @@ func _coop_swing_door(key: String) -> void:
 		st = COOP_DOOR_ANIM.structure_at(Vector2i(int(parts[0]), int(parts[1])))
 	if st == null:
 		return
-	var door := COOP_DOOR_ANIM.find_door(st)
-	if door != null:
-		COOP_DOOR_ANIM.open(door, 1.4)
+	var doors: Array = COOP_DOOR_ANIM.find_doors(st)
+	if not doors.is_empty():
+		COOP_DOOR_ANIM.open(doors[clampi(pick, 0, doors.size() - 1)], seconds)
+
+
+var _coop_door_told: Dictionary = {}
+
+
+## Another warden is opening this door now (coop.gd `_door`).
+func coop_door(key: String, pick: int, seconds: float) -> void:
+	_coop_door_told[key] = Time.get_ticks_msec()
+	_coop_swing_door(key, pick, seconds)
 
 
 ## The host: a room's state as it is now, to the other machine.

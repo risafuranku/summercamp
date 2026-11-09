@@ -319,6 +319,8 @@ static func compute_target(ctx: Dictionary) -> float:
 	if night:
 		t += 0.06 + minf(0.3, 0.12 * tonight.size())
 	t += float(ctx.get("near", 0.0)) * 0.35
+	# Up through the evening, never all at once at dusk (night_swell.build).
+	t = minf(t, lerpf(NIGHT_SWELL.BUILD_CALM, 1.0, NIGHT_SWELL.build(float(ctx.get("hours", 12.0)))))
 	return clampf(minf(t, NIGHT_SWELL.dread_cap(float(ctx.get("swell", 0.0)))), 0.0, 1.0)
 
 
