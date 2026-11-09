@@ -37,7 +37,8 @@ const DOOR_W := 0.64
 const LINE_Z := 2.42
 ## The eye, walking.
 const EYE := 1.6
-## How fast the other wardens walk here.
+## At the passage's door to the reception, facing it (the spot's own look is out of it).
+const TO_LOBBY := Vector3(-0.035, 0.0, 0.0)
 
 var room
 var block: Node3D
@@ -149,6 +150,18 @@ func build(hour: float, arrive: String) -> void:
 	_crew = MATES.new(room, spots(), ways(), "lobby")
 	var at := arrive if spots().has(arrive) else "lobby"
 	_walker.put(at)
+	# Out of a room you come through its door still going that way and turn along the corridor
+	# (the spot's own look is at the door behind you: the user 9. 11., "all at once facing
+	# backwards").
+	if at != "lobby":
+		var d := PLAN.hall_door(int(at.substr(1)))
+		var along: float = spots()["top" if bool(PLAN.ROOMS[int(at.substr(1))]["up"]) else "junction"]["at"].x - d.x
+		room._cam.position = Vector3(d.x, d.y + EYE, NORTH + 0.22)
+		room._base_rot = Vector3(deg_to_rad(-4.0), PI, 0.0)
+		_walker.here = "out"
+		room.get_tree().create_timer(0.12).timeout.connect(func():
+			if _walker != null and room.is_open() and str(_walker.here) == "out":
+				_walker.go(at, Callable(), Vector3(deg_to_rad(-2.0), deg_to_rad(-90.0 if along >= 0.0 else 90.0), 0.0)))
 	# The corridor's ends and the stairs lit on the floor under the pointer; the stair's foot takes
 	# you up, its top down (the user 6. 11.: "I could only get about by knocking on doors, upstairs
 	# only by clicking a door through the ceiling"); a room's door walks you to it by its own click
@@ -253,6 +266,26 @@ func _stairs(root: Node3D) -> void:
 		var top := rise * float(i + 1)
 		var x := x1 - tread * (float(i) + 0.5)
 		K.slab(root, Vector3(tread + 0.01, top, z1 - z0), Vector3(x, top * 0.5, (z0 + z1) * 0.5), wood, "Step")
+	# The stairs' side along the corridor papered like its walls, up the line of the steps,
+	# and a lamp's spill on it: bare wood at a grazing light it stood there as a black wall.
+	var side := SurfaceTool.new()
+	side.begin(Mesh.PRIMITIVE_TRIANGLES)
+	side.set_normal(Vector3(0.0, 0.0, -1.0))
+	side.add_vertex(Vector3(x1, 0.0, z0 - 0.012))
+	side.add_vertex(Vector3(PLAN.STAIRS_X.x, PLAN.UPPER_Y, z0 - 0.012))
+	side.add_vertex(Vector3(PLAN.STAIRS_X.x, 0.0, z0 - 0.012))
+	var panel := MeshInstance3D.new()
+	panel.name = "StairSide"
+	panel.mesh = side.commit()
+	panel.material_override = _wall()
+	root.add_child(panel)
+	var spill := OmniLight3D.new()
+	spill.light_color = Color(1.0, 0.82, 0.56)
+	spill.light_energy = 0.42
+	spill.omni_range = 4.2
+	spill.omni_attenuation = 1.1
+	spill.position = Vector3(7.8, 1.5, 2.2)
+	root.add_child(spill)
 	# The rail on the open side, up the slope, and round the well upstairs.
 	var len := sqrt(run * run + PLAN.UPPER_Y * PLAN.UPPER_Y)
 	var rail := K.slab(root, Vector3(len, 0.05, 0.05), Vector3((PLAN.STAIRS_X.x + x1) * 0.5, PLAN.UPPER_Y * 0.5 + 0.95, z0 + 0.03), wood, "Rail")
@@ -497,7 +530,7 @@ func click(id: String, _hour: float) -> bool:
 	if _walker.busy or _busy_door:
 		return true
 	if id == "lobby":
-		_walker.go("lobby", func(): _to_lobby())
+		_walker.go("lobby", func(): _to_lobby(), TO_LOBBY)
 		return true
 	if id == "housephone":
 		_walker.go("junction", func(): _fx_play("phone/dead.mp3", -13.0), Vector3(deg_to_rad(-8.0), deg_to_rad(-140.0), 0.0))
@@ -547,7 +580,7 @@ func wants_out() -> bool:
 func walk_out() -> void:
 	if _walker == null or _walker.busy:
 		return
-	_walker.go("lobby", func(): _to_lobby())
+	_walker.go("lobby", func(): _to_lobby(), TO_LOBBY)
 
 
 # ── co-op ────────────────────────────────────────────────────────────────────
@@ -588,11 +621,9 @@ func mate_leaves(id: int, fig: Node, where: String) -> bool:
 		_fx_play("motel/lock_turn.mp3", -12.0)
 		return true
 	# Back to the reception, along the corridor.
-	var way = WALK.new(room, spots(), ways(), _crew._nearest(_crew.mates[id]["at"]))
 	var path: Array = []
-	for sp in way.path_to("lobby"):
+	for sp in WALK.route(spots(), ways(), _crew._nearest(_crew.mates[id]["at"]), "lobby"):
 		path.append(_crew.feet(str(sp)))
-	way.free_all()
 	_crew.leave(id, path, gone)
 	return true
 

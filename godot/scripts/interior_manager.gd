@@ -41,6 +41,7 @@ const COOP_FIGURE = preload("res://scripts/coop/remote_player.gd")
 const COOP_LOOKS = preload("res://scripts/coop/warden_looks.gd")
 ## The beds of the camp's own tents, cabins and caravans for a warden to sleep in.
 const LODGE_BED = preload("res://scripts/lodge_bed.gd")
+const HOVER_GLINT = preload("res://scripts/ui/hover_glint.gd")
 const DOOR_ANIM = preload("res://scripts/attractions/door_anim.gd")
 ## On foot through a door, in and out, at every building (scripts/ui/door_through.gd).
 const DOOR_THROUGH = preload("res://scripts/ui/door_through.gd")
@@ -2004,6 +2005,69 @@ func tent_door_open(key: String) -> bool:
 	return bool(tent_doors.get(key, false))
 
 
+## The pull of a tent's zip under the crosshair, in reach (null none): zipped or unzipped from
+## outside by its own click, a tent with guests in it is theirs. The nearest to the line of your
+## look (a spot in the air: the tent's own box stands in front of its door).
+const TENT_ZIP_REACH := 2.8
+const TENT_ZIP_SPOT := 0.2
+const SFX_TENT_ZIP := "res://assets/sfx/rooms/tent_zip.mp3"
+var _zip_glint = HOVER_GLINT.new()
+
+
+func _tent_zip_under() -> Node3D:
+	var body := _player as Node3D
+	var cam := body.get_node_or_null("Head/Camera3D") as Camera3D if body != null else null
+	if cam == null or _world_3d == null:
+		return null
+	# (Where the crosshair really is: looking down the picture is sheared, player_controller.)
+	var from := cam.global_position
+	var way: Vector3 = -(body.call("look_basis") as Basis).z
+	var best: Node3D = null
+	var near := INF
+	for z in get_tree().get_nodes_in_group("tent_zip"):
+		var to: Vector3 = (z as Node3D).global_position - from
+		var along := to.dot(way)
+		if along < 0.2 or along > TENT_ZIP_REACH:
+			continue
+		var off := (to - way * along).length()
+		if off < TENT_ZIP_SPOT + 0.03 * along and off < near:
+			near = off
+			best = z
+	if best == null:
+		return null
+	var key := _room_key_for(resolve_interactable_structure(best))
+	if key == "" or bool(GuestManager.get_room_state(key).get("occupied", false)):
+		return null
+	return best
+
+
+## What the pull under the crosshair would do ("" none), its glint with it.
+func tent_zip_hint() -> String:
+	var n := _tent_zip_under()
+	if n == null:
+		_zip_glint.show_on([])
+		return ""
+	_zip_glint.show_on([n])
+	return "Unzip" if not tent_door_open(_room_key_for(resolve_interactable_structure(n))) else "Zip up"
+
+
+## E or the left button on it: true when it took it.
+func tent_zip_use() -> bool:
+	var n := _tent_zip_under()
+	if n == null:
+		return false
+	var key := _room_key_for(resolve_interactable_structure(n))
+	set_tent_door(key, not tent_door_open(key))
+	var s := AudioStreamPlayer3D.new()
+	s.stream = load(SFX_TENT_ZIP)
+	s.unit_size = 3.0
+	s.volume_db = -6.0
+	s.finished.connect(s.queue_free)
+	n.add_child(s)
+	s.play()
+	return true
+
+
 func set_tent_door(key: String, open: bool, send := true) -> void:
 	if key == "":
 		return
@@ -2157,7 +2221,7 @@ func coop_desk_guest() -> int:
 ## Where the other warden stands in the office building (its rooms' own coordinates,
 ## on the floor): leaning on the counter from the front, by the set at the foot of the
 ## bed, at the back of the store; at the PC, on its chair (beside you, at the counter).
-const COOP_OFFICE_SPOTS := {"office": Vector3(-0.6, 0.0, -0.9), "back": Vector3(-4.3, 0.0, 1.85), "store": Vector3(-0.3, 0.0, 3.95), "bench": Vector3(-1.05, 0.0, -1.5)}
+const COOP_OFFICE_SPOTS := {"office": Vector3(-0.6, 0.0, -0.9), "back": Vector3(-4.3, 0.0, 1.85), "store": Vector3(-0.3, 0.0, 3.95), "bench": Vector3(-1.05, 0.0, -1.5), "side": Vector3(1.8, 0.0, 1.34)}
 ## At the desk: behind the counter to your right, by the phone (the "write" picture is
 ## the body from the hips up; the counter top hides where it ends).
 const COOP_DESK_SPOT := Vector3(1.15, 0.84, 0.74)
@@ -2174,6 +2238,8 @@ const COOP_OFFICE_WAYS := {
 	"store": [Vector3(-0.6, 0.0, -0.9), Vector3(-0.7, 0.0, 0.7), Vector3(0.12, 0.0, 1.85), Vector3(0.0, 0.0, 2.55), Vector3(-0.3, 0.0, 3.95)],
 	# By the bench under the window (reception_extras.go_bench): a step from the counter.
 	"bench": [Vector3(-0.6, 0.0, -0.9), Vector3(-1.05, 0.0, -1.5)],
+	# To the side window by the stove (go_side): round the counter's end.
+	"side": [Vector3(-0.6, 0.0, -0.9), Vector3(1.86, 0.0, -0.75), Vector3(1.95, 0.0, 0.62), Vector3(1.8, 0.0, 1.34)],
 }
 
 

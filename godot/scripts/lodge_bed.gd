@@ -216,6 +216,7 @@ func _try_sleep() -> void:
 	_sleep.say = func(line: String): _office_call("say", [line], null)
 	_sleep.night_begun = func(): return bool(_office_call("night_begun", [], true))
 	_sleep.woke_early = func(): _office_call("get_up", [], null)
+	_sleep.eyes_opened = func(): _office_call("eyes_opened", [], null)
 	_office_call("lie_down", [], null)
 	_sleep.start()
 

@@ -293,7 +293,14 @@ func _lobby_things(hour: float) -> void:
 	var sp := _lobby_spots()
 	_walker = WALK.new(room, sp, WAYS_LOBBY, "door", SFX + "rooms/steps_wood.mp3", -17.0)
 	_walker.on_go = func(to: String): _went(to)
-	_walker.put(str(room.arrive_spot) if sp.has(str(room.arrive_spot)) else "door")
+	var from_hall := str(room.arrive_spot) == "hall" and sp.has("hall")
+	# Back through from the corridor you are still going the way you were going: into the
+	# reception, the door behind you (the spot's own look is for walking up to that door).
+	_walker.put("hall" if from_hall else "door", Vector3(deg_to_rad(-4.0), 0.0, 0.0) if from_hall else null)
+	if from_hall:
+		room.get_tree().create_timer(0.25).timeout.connect(func():
+			if _alive() and str(_walker.here) == "hall":
+				_walker.go("end", Callable(), Vector3(deg_to_rad(-4.0), deg_to_rad(82.0), 0.0)))
 	# The counter lit on the floor; the doors take you through by their own click.
 	_walker.floor_spots(["desk"], Vector2(0.8, 0.8))
 	_crew = MATES.new(room, sp, WAYS_LOBBY, "door")
@@ -1473,9 +1480,10 @@ func walk_out() -> void:
 	if _walker == null or _walker.busy:
 		return
 	if n == 0:
+		# Facing the door you are going out of (the spot's own look is into the room).
 		_walker.go("door", func():
 			_play("dvereotevrit.mp3", -8.0)
-			room.close())
+			room.close(), Vector3(deg_to_rad(-5.0), 0.0, 0.0))
 		return
 	if _peeping:
 		_close_peephole()
@@ -2026,10 +2034,8 @@ func mate_leaves(id: int, fig: Node, where: String) -> bool:
 	if n == 0 and where == "motel_hall":
 		out = "hall"
 	var path: Array = []
-	var way = WALK.new(room, _crew.spots, _crew.ways, _crew._nearest(_crew.mates[id]["at"]))
-	for sp in way.path_to(out):
+	for sp in WALK.route(_crew.spots, _crew.ways, _crew._nearest(_crew.mates[id]["at"]), out):
 		path.append(_crew.feet(str(sp)))
-	way.free_all()
 	if n == 0 and where == "motel_hall":
 		path.append(Vector3(PLAN.LOBBY_HALL_X, 0.0, PLAN.lobby_size().z * 0.5 - 0.05))
 	elif n == 0:

@@ -4429,6 +4429,8 @@ func _try_interact() -> void:
 	if _coop_partner_down_near():
 		_coop_lift_partner()
 		return
+	if _interior_manager != null and not _is_any_interior_open() and _interior_manager.tent_zip_use():
+		return
 	if Coop.is_client():
 		_coop_client_interact()
 		return
@@ -4767,6 +4769,12 @@ func _update_interaction_hint() -> void:
 	var carry := get_tree().get_first_node_in_group("carry")
 	if carry != null and str(carry.hint()) != "":
 		_hud_manager.set_hint_text(str(carry.hint()))
+		return
+	var zip := ""
+	if _interior_manager != null and not _is_any_interior_open():
+		zip = str(_interior_manager.tent_zip_hint())
+	if zip != "":
+		_hud_manager.set_hint_text("[E] %s" % tr(zip))
 		return
 	if Coop.is_client():
 		_hud_manager.set_hint_text(_coop_client_hint())
@@ -6678,6 +6686,8 @@ func coop_local_warden() -> Dictionary:
 	# In bed (the night passes only when both are: camp_office.gd).
 	if camp_office != null and is_instance_valid(camp_office) and camp_office.in_bed():
 		s["z"] = true
+		if camp_office.eyes_shut():
+			s["zs"] = true
 	return s
 
 
@@ -6686,6 +6696,11 @@ func coop_clock() -> Dictionary:
 	var state = CoreRoot.get_state()
 	var night_passing: bool = camp_office != null and is_instance_valid(camp_office) and camp_office.is_fast_forwarding()
 	var c := {"d": _day_index, "h": _time_of_day_hours, "w": _weather_state, "pw": _is_grid_powered(), "m": int(state.money) if state != null else 0, "sl": night_passing, "mq": _coop_till_acked}
+	# The nights slept here, what keeps the others from sleeping (camp_office.gd).
+	if camp_office != null and is_instance_valid(camp_office):
+		c["sln"] = camp_office.nights_passed
+		if camp_office.kept_awake_here():
+			c["ka"] = true
 	if clock_scale != 1.0:
 		c["cs"] = clock_scale
 	var build: float = weather_system.storm_build() if weather_system != null else 0.0

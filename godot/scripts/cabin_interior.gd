@@ -556,6 +556,10 @@ func _update_hover() -> void:
 			HandCursor.want(HandCursor.WALK)
 			_glint.show_on(_bath_door_now().get("meshes", []))
 			return
+		if n != null and _node_has_click_type(n, "cabin_front_door"):
+			HandCursor.want(HandCursor.WALK)
+			_glint.show_on((_front_doors.get(_cabin_level, {}) as Dictionary).get("meshes", []))
+			return
 		if n != null and _node_has_click_type(n, "cabin_window_spot"):
 			var spot := _spot_by_id(str(n.get_meta("spot_id", "")))
 			if not spot.is_empty():
@@ -1050,9 +1054,7 @@ func _input(event: InputEvent) -> void:
 		if _active_room == "bathroom":
 			_walk_to("main")
 		else:
-			var im := get_parent()
-			if lodge_sleeping or im == null or not im.has_method("leave_on_foot") or not im.leave_on_foot(self, _anchor, close_cabin):
-				close_cabin()
+			_go_out()
 		get_viewport().set_input_as_handled()
 		return
 
@@ -1077,6 +1079,13 @@ func _input(event: InputEvent) -> void:
 			_toggle_manual_lights()
 			get_viewport().set_input_as_handled()
 			return
+
+
+## Out by the front door, on foot.
+func _go_out() -> void:
+	var im := get_parent()
+	if lodge_sleeping or im == null or not im.has_method("leave_on_foot") or not im.leave_on_foot(self, _anchor, close_cabin):
+		close_cabin()
 
 
 ## The upgrade catalog on screen (normalised), wherever the head is turned (in the room:
@@ -1117,6 +1126,9 @@ func _try_click_world(event: InputEventMouseButton) -> bool:
 		return true
 	if _node_has_click_type(collider, "cabin_bath_door"):
 		_walk_to("bathroom")
+		return true
+	if _node_has_click_type(collider, "cabin_front_door"):
+		_go_out()
 		return true
 	if _node_has_click_type(collider, "cabin_window_spot"):
 		_walk_spot(str(collider.get_meta("spot_id", "")))
@@ -1469,7 +1481,20 @@ func _build_level_shell(lv: int) -> void:
 	fdoor.position = Vector3(0, f + CL.DOOR_H * 0.5, fz + t * 0.5)
 	fdoor.rotation_degrees.y = 180.0
 	shell.add_child(fdoor)
-	K.slab(shell, Vector3(0.05, 0.05, 0.06), Vector3(-0.3, f + 0.95, fz + t * 0.5 - 0.03), K.surface("galvanized", 0.4), "FrontDoorHandle")
+	var fhandle := K.slab(shell, Vector3(0.05, 0.05, 0.06), Vector3(-0.3, f + 0.95, fz + t * 0.5 - 0.03), K.surface("galvanized", 0.4), "FrontDoorHandle")
+	# A click on it takes you out as Space does (the user 9. 11.: "I cannot click the cabin's
+	# door to go out"), under the feet like the bathroom's.
+	var fbody := StaticBody3D.new()
+	fbody.name = "FrontDoorBody"
+	fbody.set_meta("interior_click_type", "cabin_front_door")
+	var fshape := CollisionShape3D.new()
+	var fbox := BoxShape3D.new()
+	fbox.size = Vector3(CL.DOOR_W, CL.DOOR_H, 0.12)
+	fshape.shape = fbox
+	fbody.add_child(fshape)
+	fbody.position = Vector3(0, f + CL.DOOR_H * 0.5, fz + t * 0.5 - 0.04)
+	shell.add_child(fbody)
+	_front_doors[lv] = {"meshes": [fdoor, fhandle], "body": fbody}
 	# The windows: frames, the view out, a curtain each.
 	for win in CL.windows(lv):
 		_room_window(shell, lv, win)
@@ -2087,6 +2112,10 @@ func door_spec(structure: Node3D) -> Dictionary:
 		"size": Vector2(CL.DOOR_W, CL.DOOR_H), "inner": CL.WALL_T + 0.03, "leaf": leaf, "one_world": true}
 
 
+## The way out each tier has: {meshes, body}.
+var _front_doors: Dictionary = {}
+
+
 func _bath_door_now() -> Dictionary:
 	return _bath_doors.get(_cabin_level, {})
 
@@ -2116,6 +2145,8 @@ func _update_bath_doors() -> void:
 	var on := _active_room == "main" and not _walking()
 	for lv in _bath_doors.keys():
 		(_bath_doors[lv]["body"] as StaticBody3D).collision_layer = 1 if on and int(lv) == _cabin_level else 0
+	for lv in _front_doors.keys():
+		(_front_doors[lv]["body"] as StaticBody3D).collision_layer = 1 if on and int(lv) == _cabin_level else 0
 
 
 func _walk_to(room: String) -> void:

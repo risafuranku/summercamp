@@ -45,6 +45,8 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
+	if Input.get_mouse_mode() != Input.MOUSE_MODE_CAPTURED and Rect2(global_position, size * scale).has_point(get_viewport().get_mouse_position()):
+		HandCursor.want(HandCursor.POINT)
 	var now := clampi(int(floorf((_t - 0.25) / EACH_SEC)), -1, items.size())
 	if now != _shown:
 		if now >= 0 and now < items.size() and play.is_valid():
@@ -53,6 +55,17 @@ func _process(delta: float) -> void:
 			play.call("diploma")
 		_shown = now
 	queue_redraw()
+
+
+## With the pointer free (behind a counter, at a station): its click comes here first. A
+## station takes every click in its own _input, the window's own turn never came and OK could
+## not be pressed (the user 9. 11.: "when I have the cursor, let me click OK on the board").
+func _input(e: InputEvent) -> void:
+	if Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
+		return
+	if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT and Rect2(global_position, size * scale).has_point(e.position):
+		get_viewport().set_input_as_handled()
+		_close()
 
 
 func _ok_rect() -> Rect2:

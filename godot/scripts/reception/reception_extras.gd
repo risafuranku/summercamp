@@ -116,6 +116,13 @@ const BENCH_WAY := [
 	{"pos": Vector3(0.4, 1.5, -1.15), "to": PI * 0.42, "back": -PI * 0.5},
 ]
 const BENCH_WALK_SEC := 3.2
+## At the side window by the stove (the user 9. 11.: "I cannot go and stand at the side window
+## by the stove"): a place on your side of the counter like the bench on the guests', a click
+## on the floor before it, the window ahead.
+const SIDE_STAND := Vector3(1.8, 1.5, 1.34)
+const SIDE_ROT := Vector3(deg_to_rad(-3.0), -PI * 0.5, 0.0)
+const SIDE_WALK_SEC := 1.5
+var look_side = INTERIOR_LOOK.new(180.0, 26.0, 38.0)
 ## Toward the bed and its window at the front end, the room's length beside it.
 const BACK_ROT := Vector3(deg_to_rad(-11.0), deg_to_rad(52.0), 0.0)
 var back_base_rot := BACK_ROT
@@ -169,6 +176,7 @@ func build(host_node, root: Node3D, cam: Camera3D) -> void:
 		_hot_body("bench", root, Vector3(-1.05, 0.4, -2.18), Vector3(1.4, 0.8, 0.5), bench_meshes)
 	# Where you stand at the window: the floor before the bench, it takes the click too.
 	_floor_spot("bench_floor", root, Vector3(-1.05, 0.07, -1.5), Vector2(1.3, 0.8))
+	_floor_spot("side_floor", root, Vector3(SIDE_STAND.x, 0.07, SIDE_STAND.z), Vector2(0.9, 0.9))
 	back.build(root, host)
 	for id in back.hot.keys():
 		hot[id] = back.hot[id]
@@ -588,7 +596,7 @@ func process(delta: float, hour: float) -> bool:
 		return true
 	_hover = _hover_under_mouse()
 	if _hover != "":
-		var walks := _hover in ["door", "doorway", "front_door", "store_door", "store_doorway", "bench", "bench_floor", "back_window_spot", "back_stand_spot"] and not (_hover == "door" and where == "back")
+		var walks := _hover in ["door", "doorway", "front_door", "store_door", "store_doorway", "bench", "bench_floor", "side_floor", "back_window_spot", "back_stand_spot"] and not (_hover == "door" and where == "back")
 		# A diploma is looked at: the eye.
 		HandCursor.want(HandCursor.WALK if walks else (HandCursor.LOOK if _hover.begins_with("diploma") else HandCursor.POINT))
 		glint.show_on(hot[_hover]["meshes"])
@@ -596,9 +604,9 @@ func process(delta: float, hour: float) -> bool:
 		glint.clear()
 	if where != "office":
 		var vp: Viewport = host.get_viewport()
-		var look = look_back if where == "back" else (look_bench if where == "bench" else look_store)
+		var look = look_back if where == "back" else (look_bench if where == "bench" else (look_side if where == "side" else look_store))
 		var offset: Vector3 = look.update(delta, INTERIOR_LOOK.cursor_of(vp), INTERIOR_LOOK.turn_axis())
-		var base: Vector3 = back_base_rot if where == "back" else (bench_base_rot if where == "bench" else STORE_ROOM.STAND_ROT)
+		var base: Vector3 = back_base_rot if where == "back" else (bench_base_rot if where == "bench" else (SIDE_ROT if where == "side" else STORE_ROOM.STAND_ROT))
 		var want: Vector3 = base + offset
 		# The yaw wraps round: follow it the short way.
 		want.y = camera.rotation.y + wrapf(want.y - camera.rotation.y, -PI, PI)
@@ -646,7 +654,7 @@ func _hover_under_mouse() -> String:
 				return id if _door_pivot.rotation_degrees.y > DOOR_OPEN_DEG * 0.5 else "door"
 			if id == "store_doorway":
 				return id if where == "store" else ""
-			if id == "bench_floor":
+			if id == "bench_floor" or id == "side_floor":
 				return id if where == "office" else ""
 			if id == "back_window_spot":
 				return id if where == "back" and not at_back_window else ""
@@ -655,7 +663,7 @@ func _hover_under_mouse() -> String:
 			# (From the bench too: the door is beside you, and the store and the back room
 			# are round the counter, the user 4. 11.)
 			if id in ["front_door", "store_door"]:
-				return id if where in ["office", "bench"] else ""
+				return id if where in ["office", "bench", "side"] else ""
 			if id == "door":
 				return id if where != "store" else ""
 			# The first-aid cabinet only while it has something in it and you need it.
@@ -664,8 +672,8 @@ func _hover_under_mouse() -> String:
 			var room := "back" if back.hot.has(id) else ("store" if store.hot.has(id) else "office")
 			# (The bench is under the office's window: from it the office's things are there
 			# to use, its curtains first; nothing glinted from it, the user 4. 11.)
-			if where == "bench" and room == "office":
-				return id if id != "bench" else ""
+			if where in ["bench", "side"] and room == "office":
+				return id if id != "bench" or where == "side" else ""
 			return id if room == where else ""
 		n = n.get_parent()
 	return ""
@@ -710,6 +718,8 @@ func click() -> bool:
 			go_out_front()
 		"bench", "bench_floor":
 			go_bench()
+		"side_floor":
+			go_side()
 		"back_window_spot":
 			go_back_window(true)
 		"back_stand_spot":
@@ -824,7 +834,7 @@ func _from_bench() -> Array:
 
 
 func go_back_room() -> void:
-	if _walking() or where not in ["office", "bench"]:
+	if _walking() or where not in ["office", "bench", "side"]:
 		return
 	_refresh_megaphone()
 	glint.clear()
@@ -853,7 +863,7 @@ func go_back_room() -> void:
 
 
 func go_store() -> void:
-	if _walking() or where not in ["office", "bench"]:
+	if _walking() or where not in ["office", "bench", "side"]:
 		return
 	glint.clear()
 	var lead := BENCH_WALK_SEC if where == "bench" else 0.0
@@ -886,7 +896,7 @@ func go_store() -> void:
 ## dither takes you outside as you step into the doorway, still walking (playtest
 ## 18. 10.: a click closed the room on the spot, "standing there").
 func go_out_front() -> void:
-	if _walking() or where not in ["office", "bench"]:
+	if _walking() or where not in ["office", "bench", "side"]:
 		return
 	glint.clear()
 	_play_steps()
@@ -902,6 +912,13 @@ func go_out_front() -> void:
 		dur *= 0.7
 		keys.append({"pos": Vector3(0.3, 1.49, -1.5), "rot": Vector3(-0.03, -PI * 0.42, 0.0)})
 		keys.append({"pos": Vector3(1.25, 1.48, -1.6), "rot": Vector3(-0.02, -PI * 0.2, 0.0)})
+	elif where == "side":
+		# From here the counter's end is just across the floor.
+		dur *= 0.8
+		keys.append_array([
+			{"pos": Vector3(1.95, 1.49, 0.62), "rot": Vector3(-0.05, -PI * 0.2, 0.0)},
+			{"pos": Vector3(1.86, 1.47, -0.85), "rot": Vector3(-0.02, 0.04, 0.0)},
+		])
 	else:
 		keys.append_array([
 			{"pos": Vector3(1.0, 1.5, 0.98), "rot": Vector3(-0.06, -PI * 0.45, 0.0)},
@@ -984,6 +1001,20 @@ func go_back_window(to_window: bool) -> void:
 	)
 
 
+## To the side window by the stove, along your side of the counter.
+func go_side() -> void:
+	if _walking() or where != "office":
+		return
+	glint.clear()
+	_play_steps()
+	_note_walk("side", SIDE_WALK_SEC)
+	_walk = WALK_PATH.play(host, camera, [{"pos": camera.position, "rot": camera.rotation}, {"pos": SIDE_STAND, "rot": SIDE_ROT}], SIDE_WALK_SEC)
+	_walk.tween_callback(func():
+		where = "side"
+		look_side.reset()
+	)
+
+
 ## To the bench under the window: round the counter's end, standing in front of it.
 func go_bench() -> void:
 	if _walking() or where != "office":
@@ -1015,6 +1046,8 @@ func go_office() -> void:
 	if where == "bench":
 		# Back round the counter the way you came.
 		keys.append_array(_from_bench())
+	elif where == "side":
+		pass
 	elif where == "back":
 		at_back_window = false
 		back_base_rot = BACK_ROT
@@ -1033,7 +1066,7 @@ func go_office() -> void:
 		pivot = _store_pivot
 		store.set_bulb(false)
 	keys.append({"pos": to_pos, "rot": to_rot})
-	var dur := BENCH_WALK_SEC if where == "bench" else 1.9
+	var dur := BENCH_WALK_SEC if where == "bench" else (SIDE_WALK_SEC if where == "side" else 1.9)
 	_note_walk("office", dur)
 	_walk = WALK_PATH.play(host, camera, keys, dur)
 	if opens_first:
@@ -1146,6 +1179,7 @@ func _try_sleep() -> void:
 	sleep.say = func(line: String): _office_call("say", [line], null)
 	sleep.night_begun = func(): return bool(_office_call("night_begun", [], true))
 	sleep.woke_early = func(): _office_call("get_up", [], null)
+	sleep.eyes_opened = func(): _office_call("eyes_opened", [], null)
 	_office_call("lie_down", [], null)
 	glint.clear()
 	sleep.start()

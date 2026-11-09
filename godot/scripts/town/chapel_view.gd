@@ -2115,7 +2115,7 @@ func walk_out() -> void:
 		return
 	_walker.go("door", func():
 		_play("chapel/door.mp3", -10.0)
-		room.close())
+		room.close(), Vector3(deg_to_rad(-3.0), PI, 0.0))
 
 
 ## The other wardens: in the aisle under the loft, a little ahead of the door.

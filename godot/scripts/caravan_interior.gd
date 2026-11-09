@@ -248,8 +248,11 @@ func _process(delta: float) -> void:
 	# the hovers everywhere"): the brochure, a curtain, the van's things.
 	var under := _collider_under(get_viewport().get_mouse_position())
 	var lit: Array = []
+	var way_out: bool = under != null and under == _door_body and not lodge_sleeping
 	if _brochure_hover():
 		lit = [_brochure, _brochure_cover]
+	elif way_out:
+		lit = _door_pivot.find_children("Door", "MeshInstance3D", false, false)
 	elif _life != null and _life.is_thing(under):
 		lit = _meshes_under(under)
 	else:
@@ -258,7 +261,7 @@ func _process(delta: float) -> void:
 			lit = wp.curtain.meshes
 	_glint.show_on(lit)
 	if not lit.is_empty():
-		HandCursor.want(HandCursor.POINT)
+		HandCursor.want(HandCursor.WALK if way_out else HandCursor.POINT)
 	elif INTERIOR_LOOK.in_exit_zone(get_viewport()):
 		HandCursor.want(HandCursor.WALK)
 	if _fairy_mat != null:
@@ -293,6 +296,10 @@ func _input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			return
 		var hit := _collider_under(event.position)
+		if hit != null and hit == _door_body and not lodge_sleeping:
+			walk_out()
+			get_viewport().set_input_as_handled()
+			return
 		if _life != null and _life.is_thing(hit):
 			_life.click(hit)
 			get_viewport().set_input_as_handled()
@@ -878,6 +885,7 @@ func _ensure_inview() -> void:
 # takes it on from there (interior_manager._step_out_of).
 
 var _door_pivot: Node3D
+var _door_body: StaticBody3D
 var _door_view
 var _walk: Tween
 var _walking := false
@@ -911,6 +919,16 @@ func _build_door() -> void:
 		q.position = Vector3(DOOR_W * 0.5, DOOR_H * 0.5, -0.01 * s)
 		q.rotation.y = PI if s > 0.0 else 0.0
 		_door_pivot.add_child(q)
+	# A click on it takes you out, as any door (the user 9. 11.).
+	_door_body = StaticBody3D.new()
+	_door_body.name = "DoorBody"
+	var dshape := CollisionShape3D.new()
+	var dbox := BoxShape3D.new()
+	dbox.size = Vector3(DOOR_W, DOOR_H, 0.1)
+	dshape.shape = dbox
+	_door_body.add_child(dshape)
+	_door_body.position = Vector3(DOOR_W * 0.5, DOOR_H * 0.5, -0.04)
+	_door_pivot.add_child(_door_body)
 	INTERIOR_KIT.slab(_door_pivot, Vector3(DOOR_W, DOOR_H, 0.018), Vector3(DOOR_W * 0.5, DOOR_H * 0.5, 0.0), INTERIOR_KIT.surface("veneer_dark", 0.6), "DoorEdge")
 
 

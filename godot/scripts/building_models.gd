@@ -1193,6 +1193,10 @@ func _porch(r: Node3D, pw: float, pd: float, front: float, trim: Material, tin: 
 const TENT_DOORWAY := Vector2(2.0, 1.28)
 
 
+## Where the zip's pull hangs on the door, from the tent's front foot.
+const ZIP_AT := Vector2(-0.34, 0.66)
+
+
 ## Details for one A-frame tent of `w` x `h` x `d` (ridge along Z) placed at `at`.
 func tent_details(r: Node3D, w: float, h: float, d: float, at: Vector3, yaw: float, color: Color) -> void:
 	var t := Node3D.new()
@@ -1211,6 +1215,12 @@ func tent_details(r: Node3D, w: float, h: float, d: float, at: Vector3, yaw: flo
 	# stays so for everybody till somebody zips it): the tent's inside in it near
 	# (tent_interior's view from the camp), its dark further off; the flap rolled up either
 	# side of it.
+	# The zip's pull, low on the door's side away from the number's post, a small spot of its
+	# own under the crosshair (the user 9. 11.: "let me zip the tent from outside, some small
+	# handy hitbox"; the middle of the door stays the way in, the tent's box is in front of
+	# all this: interior_manager._tent_zip_under).
+	var pull := _box(t, "TentZipPull", Vector3(0.05, 0.1, 0.014), Vector3(ZIP_AT.x, ZIP_AT.y, d * 0.5 + 0.03), _camp_or("galvanized.png", Color(0.7, 0.7, 0.68), "metal"))
+	pull.add_to_group("tent_zip")
 	var way := _prism_flap(da, db, Color(0.03, 0.025, 0.02))
 	way.name = "TentDoorWay"
 	way.position = Vector3(0, 0, d * 0.5 + 0.01)

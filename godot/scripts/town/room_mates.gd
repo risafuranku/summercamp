@@ -44,9 +44,7 @@ func walk(id: int, spot: String) -> void:
 	var m: Dictionary = mates.get(id, {})
 	if m.is_empty() or not spots.has(spot):
 		return
-	var way = WALK.new(room, spots, ways, _nearest(m["at"]))
-	var legs: Array = way.path_to(spot)
-	way.free_all()
+	var legs: Array = WALK.route(spots, ways, _nearest(m["at"]), spot)
 	var path: Array = []
 	for s in legs:
 		path.append(feet(str(s)))

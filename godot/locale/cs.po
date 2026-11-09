@@ -33381,3 +33381,19 @@ msgstr "%d {klas|klasy|klasů}"
 #. manual
 msgid "%d bowls"
 msgstr "%d {miska|misky|misek}"
+
+#. manual
+msgid "Microphone"
+msgstr "Mikrofon"
+
+#. manual
+msgid "DEFAULT"
+msgstr "VÝCHOZÍ"
+
+#. manual
+msgid "Zip up"
+msgstr "Zapnout zip"
+
+#. manual
+msgid "Unzip"
+msgstr "Rozepnout zip"

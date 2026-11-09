@@ -385,10 +385,13 @@ class OptionsPage:
 	## bobs and leans (0 against sickness).
 	const FOV_STEPS := [60.0, 64.0, 68.0, 72.0, 76.0, 80.0, 84.0, 90.0]
 	const PCT_STEPS := [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
-	## A row's height: twelve rows fit the title screen's plate and the pause menu's.
-	const ROW_VP := 14.0
+	## A row's height: thirteen rows fit the title screen's plate and the pause menu's.
+	const ROW_VP := 13.0
 	## Where "View and body" is on the main rows (back from that page lands on it).
-	const BODY_ROW := 6
+	const BODY_ROW := 7
+	## The microphones' list, a row's height; as many as a page holds.
+	const DROP_ROW_VP := 12.0
+	const DROP_MAX := 12
 
 	var ui_scale: int = 3
 	var selected: int = 0
@@ -402,6 +405,12 @@ class OptionsPage:
 	var _highlight: Control
 	var _sfx: AudioStreamPlayer
 	var _bound: bool = false
+	## The microphones' list while it is open (over the page; a click off it closes it), its
+	## rows, which is lit, what each stands for.
+	var _drop: Control
+	var _drop_rows: Array[Control] = []
+	var _drop_devices: Array = []
+	var _drop_i: int = 0
 
 	func _init() -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -417,6 +426,7 @@ class OptionsPage:
 			_bound = true
 
 	func build() -> void:
+		_close_drop()
 		for child in get_children():
 			if child == _sfx:
 				continue
@@ -428,6 +438,7 @@ class OptionsPage:
 			{"id": "render", "name": "Render style"},
 			{"id": "palette", "name": "256-colour palette"},
 			{"id": "volume", "name": "Master volume", "bar": VOLUME_STEPS.size() - 1},
+			{"id": "mic", "name": "Microphone", "action": true},
 			# The pointer's speed for every look (playtest 1. 11.: "add mouse sensitivity":
 			# it was only the warden's X and Y, two pages down); those stay as fine tuning.
 			{"id": "mouse", "name": "Mouse sensitivity", "bar": MOUSE_STEPS.size() - 1},
@@ -549,6 +560,8 @@ class OptionsPage:
 					var mi := _nearest(MOUSE_STEPS, m)
 					text = "%d%%" % int(round(m * 100.0))
 					bar_value = float(mi + 1) / float(MOUSE_STEPS.size())
+				"mic":
+					text = "%s  v" % _mic_name(GameSettings.get_mic_device())
 				"invert":
 					text = "ON" if GameSettings.get_invert_mouse_y() else "OFF"
 				"hints":
@@ -576,7 +589,111 @@ class OptionsPage:
 			if _bars[i] != null and bar_value >= 0.0:
 				_bars[i].set_value(bar_value)
 
+	## A microphone as a row says it: the default in the game's words, the rest as Windows names
+	## them, short enough for the row.
+	func _mic_name(device: String) -> String:
+		if device == GameSettings.MIC_DEFAULT:
+			return tr("DEFAULT")
+		return device.to_upper() if device.length() <= 26 else device.substr(0, 24).to_upper() + ".."
+
+	func _open_drop() -> void:
+		_close_drop()
+		_drop_devices = GameSettings.get_mic_devices().slice(0, DROP_MAX)
+		_drop_i = maxi(0, _drop_devices.find(GameSettings.get_mic_device()))
+		var s := float(ui_scale)
+		var row: Control = _row_nodes[selected]
+		# Off it, a click closes it; nothing under it answers.
+		_drop = Control.new()
+		_drop.mouse_filter = Control.MOUSE_FILTER_STOP
+		_drop.position = -global_position
+		_drop.size = get_viewport().get_visible_rect().size
+		_drop.gui_input.connect(func(ev: InputEvent) -> void:
+			var mb := ev as InputEventMouseButton
+			if mb != null and mb.pressed:
+				_close_drop()
+				_play(1.0)
+		)
+		add_child(_drop)
+		var w := size.x * 0.62
+		var h := float(_drop_devices.size()) * DROP_ROW_VP * s + 4.0 * s
+		var panel := RETRO_UI.BevelPanel.new()
+		panel.ui_scale = ui_scale
+		panel.fill = Color(0.1, 0.07, 0.05, 1.0)
+		panel.light = RETRO_UI.C_AMBER_DIM
+		panel.dark = Color(0.05, 0.03, 0.02, 1.0)
+		panel.mouse_filter = Control.MOUSE_FILTER_STOP
+		# Under its row, or as far up as the page's foot needs.
+		var top := minf(row.position.y + row.size.y, maxf(0.0, size.y - h))
+		panel.position = global_position + Vector2(size.x - w, top)
+		panel.size = Vector2(w, h)
+		_drop.add_child(panel)
+		_drop_rows.clear()
+		for i in _drop_devices.size():
+			var r := Control.new()
+			r.position = Vector2(2.0 * s, 2.0 * s + float(i) * DROP_ROW_VP * s)
+			r.size = Vector2(w - 4.0 * s, DROP_ROW_VP * s)
+			r.mouse_filter = Control.MOUSE_FILTER_STOP
+			r.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+			var index := i
+			r.mouse_entered.connect(func() -> void: _drop_light(index, true))
+			r.gui_input.connect(func(ev: InputEvent) -> void:
+				var mb := ev as InputEventMouseButton
+				if mb != null and mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
+					_drop_pick(index)
+			)
+			panel.add_child(r)
+			var lit := ColorRect.new()
+			lit.name = "Lit"
+			lit.color = Color(0.32, 0.2, 0.09, 1.0)
+			lit.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			lit.size = r.size
+			lit.visible = false
+			r.add_child(lit)
+			var l := RETRO_UI.label(_mic_name(str(_drop_devices[i])), RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_BONE, ui_scale)
+			l.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+			l.clip_text = true
+			l.position = Vector2(3.0 * s, 0.0)
+			l.size = Vector2(r.size.x - 6.0 * s, r.size.y)
+			RETRO_UI.place_on_baseline(l, 9.0, ui_scale)
+			l.offset_left = 3.0 * s
+			l.offset_right = r.size.x - 3.0 * s
+			r.add_child(l)
+			_drop_rows.append(r)
+		_drop_light(_drop_i, false)
+		_play(0.85)
+
+	func _close_drop() -> void:
+		if _drop != null:
+			remove_child(_drop)
+			_drop.queue_free()
+		_drop = null
+		_drop_rows.clear()
+
+	func _drop_light(i: int, sound: bool) -> void:
+		if i != _drop_i and sound:
+			_play(1.0)
+		_drop_i = i
+		for k in _drop_rows.size():
+			(_drop_rows[k].get_node("Lit") as ColorRect).visible = k == i
+
+	func _drop_pick(i: int) -> void:
+		GameSettings.set_mic_device(str(_drop_devices[i]), true)
+		_close_drop()
+		_play(0.85)
+		refresh()
+
 	func handle_input(event: InputEvent) -> bool:
+		if _drop != null:
+			if event.is_action_pressed("ui_down", true):
+				_drop_light(posmod(_drop_i + 1, _drop_rows.size()), true)
+			elif event.is_action_pressed("ui_up", true):
+				_drop_light(posmod(_drop_i - 1, _drop_rows.size()), true)
+			elif event.is_action_pressed("ui_accept"):
+				_drop_pick(_drop_i)
+			elif event.is_action_pressed("ui_cancel"):
+				_close_drop()
+				_play(1.0)
+			return true
 		if event.is_action_pressed("ui_down", true):
 			_select(posmod(selected + 1, _rows.size()))
 			return true
@@ -661,6 +778,10 @@ class OptionsPage:
 					selected = 0 if id == "body" else BODY_ROW
 					_play(0.85)
 					build()
+				return
+			"mic":
+				if activate:
+					_open_drop()
 				return
 			"controls":
 				if activate:

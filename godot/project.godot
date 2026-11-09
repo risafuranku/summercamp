@@ -47,9 +47,10 @@ window/stretch/aspect="expand"
 
 [rendering]
 
+rendering_device/d3d12/max_resource_descriptors=524288
+rendering_device/d3d12/max_sampler_descriptors=2048
 textures/canvas_textures/default_texture_filter=0
 rendering_device/driver.windows="d3d12"
-rendering_device/d3d12/max_resource_descriptors=524288
 
 [shader_globals]
 
@@ -69,7 +70,6 @@ body_3={
 "type": "vec4",
 "value": Vector4(0, 0, -999, 0)
 }
-
 wind_strength={
 "type": "float",
 "value": 0.15

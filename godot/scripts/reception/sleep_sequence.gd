@@ -48,6 +48,8 @@ var wake_text: Callable
 var may_sleep: Callable
 var night_begun: Callable
 var woke_early: Callable
+## Co-op: your eyes open again in bed (the other got up before the night began).
+var eyes_opened: Callable
 ## Awake and kept awake: the next thing on your mind ("" for nothing) and how it is said. You turn
 ## over with it: the bed will not have you, the game has not stopped.
 var awake_line: Callable
@@ -236,7 +238,10 @@ func _process(delta: float) -> void:
 			# Breathing: the view settles and drifts a hair.
 			camera.rotation.x = lie_rot.x + sin(_t * 1.3) * 0.006
 			_tick_toss(delta)
-			if _t >= 2.8 and (not may_sleep.is_valid() or bool(may_sleep.call())):
+			# (The night gone by over you, whatever the line lost: the morning, not the bed.)
+			if night_begun.is_valid() and bool(night_begun.call()) and fast_forward_done.is_valid() and bool(fast_forward_done.call()):
+				_enter(ALARM)
+			elif _t >= 2.8 and (not may_sleep.is_valid() or bool(may_sleep.call())):
 				_enter(LIDS)
 		LIDS:
 			# Heavy blinks, each closer to shut, then shut.
@@ -252,6 +257,8 @@ func _process(delta: float) -> void:
 				_tick.stop()
 				_lids = 0.0
 				_ff_started = false
+				if eyes_opened.is_valid():
+					eyes_opened.call()
 				_enter(WATCH)
 				_overlay.queue_redraw()
 				return

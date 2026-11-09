@@ -24,6 +24,10 @@ var _retro_preset: String = DEFAULT_RETRO_PRESET
 var _retro_palette_enabled: bool = true
 var _mouse_sensitivity: float = DEFAULT_MOUSE_SENSITIVITY
 var _invert_mouse_y: bool = false
+## The microphone for the walkie-talkie and the megaphone (the user 9. 11.: "the system's by
+## default, but let me pick it from a dropdown"); a device gone from the machine is the default.
+const MIC_DEFAULT := "Default"
+var _mic_device: String = MIC_DEFAULT
 ## Keys you can change in Controls: action -> [its line in the list, the key it starts on].
 ## The walkie-talkie's is V (X is the cigarette's and the bottle's), the megaphone's G.
 const REBINDABLE := {
@@ -155,6 +159,33 @@ func set_master_volume_db(volume_db: float, apply_now: bool = true, persist: boo
 	_emit_changed()
 
 
+## The default first, then what this machine has.
+func get_mic_devices() -> Array:
+	var out: Array = [MIC_DEFAULT]
+	for d in AudioServer.get_input_device_list():
+		if str(d) != MIC_DEFAULT:
+			out.append(str(d))
+	return out
+
+
+func get_mic_device() -> String:
+	return _mic_device
+
+
+func set_mic_device(device: String, persist: bool = true) -> void:
+	_mic_device = device
+	_apply_mic()
+	if persist:
+		save_settings()
+	_emit_changed()
+
+
+func _apply_mic() -> void:
+	var want := _mic_device if AudioServer.get_input_device_list().has(_mic_device) else MIC_DEFAULT
+	if AudioServer.input_device != want:
+		AudioServer.input_device = want
+
+
 func reset_defaults() -> void:
 	_window_mode = MODE_WINDOWED
 	_resolution = DEFAULT_RESOLUTION
@@ -163,6 +194,7 @@ func reset_defaults() -> void:
 	_retro_palette_enabled = true
 	_mouse_sensitivity = DEFAULT_MOUSE_SENSITIVITY
 	_invert_mouse_y = false
+	_mic_device = MIC_DEFAULT
 	apply_settings()
 	save_settings()
 	_emit_changed()
@@ -194,6 +226,7 @@ func apply_settings() -> void:
 	_apply_audio()
 	_apply_retro()
 	_apply_keys()
+	_apply_mic()
 
 
 func load_settings() -> void:
@@ -216,6 +249,7 @@ func load_settings() -> void:
 	# lay unused in players' files (3.0 on the user's) and would have tripled the look.
 	_mouse_sensitivity = clampf(float(cfg.get_value("input", "look_sensitivity", DEFAULT_MOUSE_SENSITIVITY)), MOUSE_SENSITIVITY_MIN, MOUSE_SENSITIVITY_MAX)
 	_invert_mouse_y = bool(cfg.get_value("input", "invert_mouse_y", false))
+	_mic_device = str(cfg.get_value("audio", "mic_device", MIC_DEFAULT))
 	for action in REBINDABLE.keys():
 		_keys[action] = int(cfg.get_value("keys", action, REBINDABLE[action][1]))
 
@@ -232,6 +266,7 @@ func save_settings() -> void:
 	cfg.set_value("video", "retro_preset", _retro_preset)
 	cfg.set_value("video", "retro_palette", _retro_palette_enabled)
 	cfg.set_value("audio", "master_db", _master_db)
+	cfg.set_value("audio", "mic_device", _mic_device)
 	cfg.set_value("input", "look_sensitivity", _mouse_sensitivity)
 	cfg.set_value("input", "invert_mouse_y", _invert_mouse_y)
 	for action in REBINDABLE.keys():
