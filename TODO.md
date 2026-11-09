@@ -4,6 +4,23 @@
 
 ---
 
+## PLAYTEST 2026-11-09 — Richard's notes (his words, then the note in brackets; tick with the commit)
+
+- [x] J1 (e82e66b2) „fixnout movement v motelu po vzoru kaple. je to fakt hrozné hrozné, projdu zpět na recepci a najednou jsem čelem vzad a další věci."
+- [x] J2 (e82e66b2) „nastavení mikfofonu, v defaultu at je default, ale at jde vybrat z dropdown menu"
+- [x] J3 (e82e66b2) „ať jde zapnout stan zvenčí, udělej nějaký malý šikovný hitbox"
+- [x] J4 (e1bb6220) „nevidim zvenčí jak se hráč pohybuje po chatce k různým oknům. zkontrolovat všechny interiéry"
+- [x] J5 (e82e66b2) „nejde v chatce kliknout na dveře pro odchod, mělo by to jít také kromě mezerníku"
+- [x] J6 (137339e8) „klíče přesunout do šuplíku pod pult, cesta ke klíčům na zdi je dost krkolomná. razítka udělat jako 3D objekty, ať nejsou tak napláclé na té desce"
+- [x] J7 (e1bb6220) „zkontroluj pořádně hover/hitboxy, nezdá se nám dveře od recepce"
+- [x] J8 (e82e66b2) „spaní pořád v coopu nefunguje spolehlivě na první pokus"
+- [x] J9 (137339e8, the corn stand; the pub and the others in the same way still to do) „když vidim hrát někoho kukuřici nebo hospodu nebo cokoliv tak je to absolutní pain. člověk co nezná ovládání absolutně neví co má dělat a kam má klikat. furt se mu otvírala dokola účetní kniha protože klikal na prkno. měl nutkání vše drag n dropovat, dragnout kukuřici do hrnce, pak jí dragnout ven, pak sypat solničkou... udělej to víc přirozený ty úkony, začni remasterem samotný kukuřice."
+- [x] J10 (e82e66b2) „na recepci nejde stoupnout k bočnímu oknu u krbu"
+- [x] J11 (e82e66b2) „když mám k dispozici kurzor (např obsluhuji), nech mě odkliknout OK na tabuli že máme odemčené nové builder věci"
+- [x] J12 (137339e8) „možnost neprodávat v kukuřičnym stánku kuku. když neprodávám nic, stánek se zavře, nebude svítit, lidé k němu nechodí"
+- [x] J13 (e1bb6220) „v multiplayeru špatně synclá animace dveří a sprite ostatnich hracu. spatne nacasovane, hrac projde a az pak jsou dvere."
+- [x] J14 (e1bb6220) „zacla noc a v radiu hned hraje schyza, enemák dělá zvuky, žádné budování napětí... nemůžeš hned se začátkem noci jet do hráče absolutní bomby"
+
 ## BOSS 98 2026-11-08 — „Nějak kompletně překopat program na 7mičce. chybí tam kuželky, je to nepřehledné přes ty horní taby... udělej ho celý uplně odznova, prostě managerský program"
 
 - [x] B1 One program instead of five, nothing along the top: a desk down the left with a key for every page and place (`os98/apps/boss_app.gd`) (b28b7f23)

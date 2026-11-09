@@ -709,6 +709,7 @@ func _build_drawer(tex: Texture2D) -> void:
 	var post_a := K.slab(_drawer, Vector3(0.016, 0.014, 0.036), Vector3(-0.06, 0.858, 0.026), brass, "KeyDrawerPost")
 	var post_b := K.slab(_drawer, Vector3(0.016, 0.014, 0.036), Vector3(0.06, 0.858, 0.026), brass, "KeyDrawerPost")
 	_drawer_pull = [bar, post_a, post_b]
+	_hot("drawer", Vector3(DRAWER_X, 0.86, DRAWER_SHUT_Z + 0.03), Vector3(w + 0.05, 0.1, 0.08), _drawer_pull)
 	var pm := PlaneMesh.new()
 	pm.size = DRAWER_PIC
 	_board = MeshInstance3D.new()
@@ -741,6 +742,8 @@ func _build_stamps() -> void:
 		_turned(root, 0.02, 0.027, 0.034, 0.107, dark, "StampKnob")
 		_turned(root, 0.012, 0.02, 0.012, 0.13, _on_it("plastic", 0.2, ink * 1.25), "StampCap")
 		_stamps[kind] = {"root": root, "home": root.position, "press": -1.0}
+	# From across the room a click on them goes up to the counter, as the bell does.
+	_hot("stamps", Vector3(0.57, SHEET_Y + 0.07, 0.15), Vector3(0.2, 0.16, 0.36), _stamps.values().map(func(s): return s["root"]))
 
 
 ## The label maker, where the picture had it: its shell, the wheel of letters on top, the grip

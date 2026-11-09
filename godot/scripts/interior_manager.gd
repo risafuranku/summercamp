@@ -2306,9 +2306,10 @@ func _room_root_of(it) -> Node3D:
 	return n as Node3D
 
 
-## The other wardens in a cabin, a van, a tent or a business seen from the camp through its
-## windows, where they stand and walking as they walk (the user 9. 11.: "from outside I do not
-## see the player go about the cabin to its windows, check all the interiors"): `_inview_*` is
+## The other wardens in a cabin, a van or a business seen from the camp through its windows,
+## where they stand and walking as they walk (the user 9. 11.: "from outside I do not see the
+## player go about the cabin to its windows, check all the interiors"; a tent shows its own
+## through its door: tent_interior._inview_wardens): `_inview_*` is
 ## the one room of each kind the camp looks into now, the room built in the building a
 ## business's (its copy behind the glass). id -> {fig, at (room space), walk}.
 const ROOM_FIG_SPEED := 2.6
@@ -2327,9 +2328,6 @@ func _coop_room_seen(info: Dictionary) -> Array:
 		"caravan":
 			it = _caravan_interior
 			host = it.get("_inview_van") as Node3D if it != null else null
-		"tent":
-			it = _tent_interior
-			host = it.get("_inview_tent") as Node3D if it != null else null
 		"service":
 			# A business's room behind its glass; the back rooms have no windows on the camp.
 			var part := str(info.get("s", ""))
@@ -2384,7 +2382,7 @@ func _coop_rooms_from_camp(delta: float) -> void:
 		rec["at"] = at
 		var yaw := float(e[2])
 		var face: Vector3 = root.global_basis * Vector3(-sin(yaw), 0.0, -cos(yaw))
-		rec["fig"].show_at(root.global_transform * at, "prone" if str(info.get("t", "")) == "tent" else "stand", false, face)
+		rec["fig"].show_at(root.global_transform * at, "stand", false, face)
 		rec["fig"].set_walking(at.distance_to(want) > 0.03)
 	for id in _room_figs.keys():
 		if not seen.has(id):

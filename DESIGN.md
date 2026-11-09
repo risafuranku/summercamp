@@ -172,7 +172,7 @@ Six archetypes, with different needs (`core/systems/guest_needs_system.gd`):
   road for an hour or two (ARRIVALS in the HUD counts down), then stands outside the
   barrier at the gatehouse; it lifts and they walk up the gate lane to the reception's
   door beside it and queue along the lane. The player checks them in at the desk, by hand, the way Papers Please did
-  it: their card and booking into the register, the right key off the board (only for a
+  it: their card and booking into the register, the right key out of the drawer under the counter (only for a
   room that is made up), the stamp, the papers back. Until then they wait, grumble after
   ~45 minutes and drive off after ~2.5 hours with a one-star review; stamped REFUSED they
   go at once and say so. Time at the desk sours the mood they arrive with. Late at
@@ -1409,6 +1409,14 @@ the stations in 3D, like the bistro's and the pub's.*
     a napkin round it, then over the counter to the slip picked on the rail (else the
     oldest). Hard, soft, unbuttered or the salt far off and they hand it back. BIN throws
     away what is on the board.
+  - **By hand** (the user 9. 11.: "somebody who does not know the controls has no idea what
+    to do or where to click... he kept wanting to drag and drop everything"): the same work
+    goes by what a hand wants to do, and a click still does every step. A cob dragged from
+    the crate to the table, its leaves pulled, the silk rubbed off, the clean cob into the
+    bowl, the bowl lifted over the pot and let go, the tongs to the board, the brush along
+    it, the salt taken up and shaken, a napkin laid on and the wrapped cob carried over to
+    the guest. The cash box no longer opens the books, only the BOOKS button does. First the
+    corn stand; the pub and the others in the same way are still to do.
 - **The orders** are paper slips on the rail: the name, a cob, the salt they want (a mark a
   shake, NO S for none), the wait; the picked one big in the corner, ticking off BUTTER,
   the salt (green when it is right, red when too much) and NAPKIN. One cob each, all at
@@ -1864,7 +1872,7 @@ see the others sitting at the laptop".
   pub and the staffroom to "when I have plenty of staff the whole camp should run by
   itself and I only help out when needed"; `tools/provoz_check` builds it all and leaves
   it alone). Each piece of the camp passes from you to a hand:
-  **The reception** (job Reception, one hand): behind the counter by the key board all day
+  **The reception** (job Reception, one hand): behind the counter at its end all day
   (`desk_room.HAND_SPOT`, seen through the panes too; a step back while you are at the desk
   yourself; the guest does not ring at them), takes in whoever waits with a lodging made
   up (the others wait, not the whole line behind them), writes them in the book on the

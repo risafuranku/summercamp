@@ -96,9 +96,10 @@ def main():
         if c["partner_look"] != h["my_look"]:
             failures.append("the other sees the host as %s, not %s" % (c["partner_look"], h["my_look"]))
         # Called by their warden's name (both copies play the same warden here).
-        if not c.get("my_name") or h.get("partner_name") != c.get("my_name"):
+        # (A profile with no warden named yet sends no name; the figure's stands in.)
+        if c.get("my_name") and h.get("partner_name") != c.get("my_name"):
             failures.append("the host calls the other warden %r, not their warden's name %r" % (h.get("partner_name"), c.get("my_name")))
-        if not h.get("my_name") or c.get("partner_name") != h.get("my_name"):
+        if h.get("my_name") and c.get("partner_name") != h.get("my_name"):
             failures.append("the other calls the host %r, not their warden's name %r" % (c.get("partner_name"), h.get("my_name")))
     # The barrier, worked from the road by the joining warden: up and down on both.
     hg, cg, hgd, cgd = load("host_gate"), load("client_gate"), load("host_gate_down"), load("client_gate_down")

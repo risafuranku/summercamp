@@ -162,8 +162,8 @@ const DESK_ROOM = preload("res://scripts/reception/desk_room.gd")
 const RADIO_AT := Vector3(1.12, 0.82, -1.6)
 const RADIO_CLICK_CENTER_LOCAL := RADIO_AT + Vector3(0.0, 0.11, 0.0) + PC_OFFSET
 const RADIO_CLICK_SIZE := Vector3(0.38, 0.26, 0.2)
-const NOTEBOOK_CLICK_CENTER_LOCAL := Vector3(-0.12, 1.0, 0.34)
-const NOTEBOOK_CLICK_SIZE := Vector3(0.70, 0.22, 0.50)
+const NOTEBOOK_CLICK_CENTER_LOCAL := Vector3(-0.24, 1.0, 0.14)
+const NOTEBOOK_CLICK_SIZE := Vector3(0.46, 0.2, 0.4)
 const CRT_ENTER_FOV: float = 41.0
 const CRT_READY_FOV: float = 35.0
 const CRT_LOOK_BACK_HOLD_SEC: float = 0.5
@@ -2904,8 +2904,7 @@ func _create_reception_notebook() -> void:
 	var click_body = StaticBody3D.new()
 	click_body.name = "ReceptionNotebookClickBody"
 	click_body.position = NOTEBOOK_CLICK_CENTER_LOCAL
-	# Reserved interaction slot: the reception desk UI was cut with the assignment
-	# system. `_try_click_room()` has no handler for it, so the click falls through.
+	# A click on the book goes up to the counter (_try_click_room).
 	click_body.set_meta("interior_click_type", "reception_notebook")
 	var click_shape = CollisionShape3D.new()
 	var box_shape = BoxShape3D.new()

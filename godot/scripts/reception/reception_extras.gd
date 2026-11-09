@@ -689,7 +689,7 @@ func click() -> bool:
 		"phone":
 			glint.clear()
 			phone_view.open_view()
-		"guest", "bell":
+		"guest", "bell", "stamps", "drawer":
 			glint.clear()
 			host.open_checkin_desk()
 		"board":
@@ -754,6 +754,8 @@ const COOP_REFUSALS := {
 	"phone": "You leave the phone to the other warden.",
 	"guest": "The other warden does the check-ins.",
 	"bell": "The other warden does the check-ins.",
+	"stamps": "The other warden does the check-ins.",
+	"drawer": "The other warden does the check-ins.",
 	"board": "You leave the board to the other warden.",
 	"desk_busy": "The other warden is at the desk with a guest. You wait your turn.",
 }
