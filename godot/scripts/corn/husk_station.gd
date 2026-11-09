@@ -4,11 +4,11 @@ extends "res://scripts/corn/corn_station.gd"
 ## counter beside the pot: the crate of cobs in their husks at the left, the table, the
 ## bowl the husked ones go in and the bucket for the husks at the right (the stand's Build
 ## picture, corn/st_husk.png). Things are sprites at the room's pixel.
-##   the crate   a click: a cob in its husk onto the table (one off the books' cobs)
+##   the crate   carry a cob in its husk to the table (one off the books' cobs); a click too
 ##   the cob     hold the button on it and pull away: a leaf comes off and flies into the
 ##               bucket (four leaves; two with the husking table, gear); then the silk at
-##               its tip: a click picks a tuft (three)
-##   clean       a click (or the bowl): into the bowl, for the pot
+##               its tip: rub it off, or a click a tuft (three)
+##   clean       carry it to the bowl, or straight into the pot beyond it; a click: the bowl
 
 ## On the counter (design px, stand_layout.SURFACES: 2 mm a px).
 const CRATE := Rect2(10, 15, 165, 265)
@@ -22,6 +22,11 @@ const COB_M := 0.26
 const BOWL_COB_M := 0.16
 ## A pull this long (design px) takes a leaf off.
 const PULL := 34.0
+## Where a cob from the crate may be let go; the pot from here (the counter's picture goes
+## on from this one's edge); how far a rub goes for a tuft.
+const TABLE_ZONE := Rect2(170, 40, 310, 300)
+const POT_HERE := Rect2(665, 108, 140, 128)
+const RUB := 18.0
 
 ## The cob on the table: {leaves, silk} ({} none). Yours alone (taken off the books).
 var _cob: Dictionary = {}
@@ -34,6 +39,10 @@ var _pull_from := Vector2(-1, -1)
 var _rng := RandomNumberGenerator.new()
 ## Opens the books (set by the stand's view).
 var open_books: Callable
+## In the hand: "" nothing, "new" a cob from the crate, "clean" the husked one off the table.
+var _carry := ""
+var _hand_cob: Sprite3D
+var _rub_from := Vector2(-1, -1)
 
 
 ## The husking table once bought, under the cob being husked.
@@ -48,6 +57,8 @@ func _build() -> void:
 	_gear_table.visible = false
 	_cob_spr = lying("cob_raw", COB_M)
 	_cob_spr.visible = false
+	_hand_cob = lying("cob_husk", COB_M)
+	_hand_cob.visible = false
 	for i in CORN.LEAVES:
 		var l := lying("husk_leaf", COB_M * 0.95, 0.16 if i % 2 == 0 else -0.16)
 		l.visible = false
@@ -79,7 +90,8 @@ func _show() -> void:
 	if on:
 		var leaves := int(_cob["leaves"])
 		cretex(_cob_spr, "cob_husk" if leaves > 0 else "cob_raw", COB_M)
-		put(_cob_spr, TABLE_AT, 0.03)
+		if _carry != "clean":
+			put(_cob_spr, TABLE_AT, 0.03)
 		for i in _leaf_spr.size():
 			var l: Sprite3D = _leaf_spr[i]
 			l.visible = i < leaves
@@ -137,23 +149,40 @@ func hand_tool() -> String:
 
 
 func _press(id: String) -> void:
+	down_begin()
 	match id:
 		"crate":
-			_take()
+			if BUSINESS.stock_of(building_key, "cobs") == 0:
+				_take()
+				return
+			_carry = "new"
+			_hand_cob.visible = true
+			_hand_cob.position = held_at(CARRY_LIFT)
+			mark_target(Rect2(TABLE_AT - Vector2(88.0, 58.0), Vector2(176.0, 116.0)))
 		"cob":
 			if int(_cob["leaves"]) > 0:
 				_pull_from = _mouse_free
 			elif int(_cob["silk"]) > 0:
-				_cob["silk"] = int(_cob["silk"]) - 1
-				sfx("tick", -14.0, _rng.randf_range(1.4, 1.7))
+				_pick_silk()
+				_rub_from = _mouse_free
 			else:
-				_into_bowl()
+				_carry = "clean"
+				mark_target(BOWL)
 		"bowl":
 			if not _cob.is_empty() and int(_cob["leaves"]) == 0 and int(_cob["silk"]) == 0:
 				_into_bowl()
 
 
+func _pick_silk() -> void:
+	_cob["silk"] = int(_cob["silk"]) - 1
+	sfx("tick", -14.0, _rng.randf_range(1.4, 1.7))
+
+
 func _drag(at: Vector2) -> void:
+	down_note(at)
+	if _rub_from.x > -9000.0 and _rub_from != Vector2(-1, -1) and not _cob.is_empty() and int(_cob["silk"]) > 0 and at.distance_to(_rub_from) >= RUB:
+		_pick_silk()
+		_rub_from = at
 	if _pull_from.x < 0.0 or at.x < -500.0 or _cob.is_empty():
 		return
 	if at.distance_to(_pull_from) >= PULL and int(_cob["leaves"]) > 0:
@@ -166,6 +195,27 @@ func _drag(at: Vector2) -> void:
 
 func _release(_id: String) -> void:
 	_pull_from = Vector2(-1, -1)
+	_rub_from = Vector2(-1, -1)
+	var had := _carry
+	_carry = ""
+	_hand_cob.visible = false
+	mark_target(Rect2())
+	if had == "new" and (was_click() or TABLE_ZONE.has_point(_mouse_free)):
+		_take()
+	elif had == "clean" and not _cob.is_empty():
+		if was_click() or BOWL.grow(30.0).has_point(_mouse_free):
+			_into_bowl()
+		elif POT_HERE.grow(20.0).has_point(_mouse_free) and stand.free_slot(building_key) >= 0:
+			_into_pot()
+
+
+## Straight into the pot beyond the bowl (it stands right there, past the table's end).
+func _into_pot() -> void:
+	_cob = {}
+	stand.act(building_key, "husked", [1])
+	stand.act(building_key, "in", [stand.new_id(), stand.free_slot(building_key)])
+	sfx("cob_in", -8.0, _rng.randf_range(0.95, 1.05))
+	sfx("splash", -16.0, _rng.randf_range(1.1, 1.3))
 
 
 func _take() -> void:
@@ -191,6 +241,10 @@ func _into_bowl() -> void:
 
 
 func _tick(delta: float) -> void:
+	if _carry == "new":
+		_hand_cob.position = held_at(CARRY_LIFT)
+	elif _carry == "clean":
+		_cob_spr.position = held_at(CARRY_LIFT)
 	for f in _flying:
 		f["t"] = float(f["t"]) + delta
 	var keep: Array = []
@@ -204,6 +258,10 @@ func _tick(delta: float) -> void:
 
 func _closing() -> void:
 	_pull_from = Vector2(-1, -1)
+	_rub_from = Vector2(-1, -1)
+	_carry = ""
+	if _hand_cob != null:
+		_hand_cob.visible = false
 
 
 func bar_buttons() -> Array:
@@ -227,12 +285,12 @@ func next_hint() -> Dictionary:
 		if int(_cob["leaves"]) > 0:
 			return {"node": _cob_spr, "gesture": "drag", "to": TABLE_AT + Vector2(0, -90)}
 		if int(_cob["silk"]) > 0:
-			return {"node": _cob_spr, "gesture": "click"}
-		return {"rect": BOWL, "gesture": "click"}
+			return {"node": _cob_spr, "gesture": "rub"}
+		return {"node": _cob_spr, "gesture": "drag", "to": BOWL.get_center()}
 	var wanted := cob_tickets().size()
 	var ready := int(stand.bowl(building_key)) + (stand.pot(building_key) as Array).size()
 	if wanted > ready and BUSINESS.stock_of(building_key, "cobs") != 0:
-		return {"rect": CRATE, "gesture": "click"}
+		return {"rect": CRATE, "gesture": "drag", "to": TABLE_AT}
 	if wanted > 0:
 		return {"tab": "counter"}
 	return {}
@@ -250,6 +308,7 @@ func alert() -> int:
 
 func debug_click(id: String) -> void:
 	_press(id)
+	_release(id)
 
 
 ## The cob on the table husked clean at once (a leaf pull is a press and a drag).

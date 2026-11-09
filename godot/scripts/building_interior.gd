@@ -27,6 +27,7 @@ const RECEPTION_PREFIX := {
 	# planks, the counter's kick, the metal bits. The binders and the book: a picture on
 	# the shelf (K.picture "book_spines").
 	"WaitBench": ["planks_dark", 0.5], "FrontDoorFrame": ["planks_dark", 0.6], "CounterKick": ["veneer_dark", 0.7],
+	"CounterPart": ["pub_panel", 1.0], "CounterTop": ["veneer_dark", 0.8],
 	"DrawerHandle": ["galvanized", 0.2], "BackDoorHandle": ["galvanized", 0.2], "Binder": "", "ShelfBook": "",
 }
 const TEXTURE_STYLE_SCRIPT = preload("res://scripts/texture_style.gd")
@@ -1428,8 +1429,15 @@ func _build_room_things() -> void:
 
 	# ── THE COUNTER: across the room in front of you, the guests on the far side;
 	# its left end steps down to the PC desk, its right end leaves a gap to the wall.
-	_add_box(_room_root, "Counter",    Vector3(0.56, 0.45, 0.20), Vector3(2.08, 0.90, 0.60), Color(0.40, 0.28, 0.16))
-	_add_box(_room_root, "CounterTop", Vector3(0.56, 0.93, 0.18), Vector3(2.20, 0.06, 0.74), Color(0.56, 0.42, 0.28), true)
+	# (Your side of it has a bite out of it in the middle, under the top: the keys' drawer is at
+	# the back of that, its front in view from over the register: desk_room.)
+	_add_box(_room_root, "Counter",    Vector3(0.56, 0.40, 0.20), Vector3(2.08, 0.80, 0.60), Color(0.40, 0.28, 0.16))
+	_add_box(_room_root, "CounterPartL", Vector3(-0.29, 0.85, 0.20), Vector3(0.38, 0.10, 0.60), Color(0.40, 0.28, 0.16))
+	_add_box(_room_root, "CounterPartR", Vector3(1.18, 0.85, 0.20), Vector3(0.84, 0.10, 0.60), Color(0.40, 0.28, 0.16))
+	_add_box(_room_root, "CounterPartM", Vector3(0.33, 0.85, 0.12), Vector3(0.86, 0.10, 0.44), Color(0.40, 0.28, 0.16))
+	_add_box(_room_root, "CounterTop", Vector3(0.56, 0.93, 0.075), Vector3(2.20, 0.06, 0.53), Color(0.56, 0.42, 0.28), true)
+	_add_box(_room_root, "CounterTopL", Vector3(-0.32, 0.93, 0.445), Vector3(0.44, 0.06, 0.21), Color(0.56, 0.42, 0.28), true)
+	_add_box(_room_root, "CounterTopR", Vector3(1.21, 0.93, 0.445), Vector3(0.90, 0.06, 0.21), Color(0.56, 0.42, 0.28), true)
 	_add_box(_room_root, "CounterKick", Vector3(0.56, 0.06, -0.12), Vector3(2.08, 0.12, 0.04), Color(0.22, 0.14, 0.08))
 	# The bench by the window for whoever waits second.
 	_add_box(_room_root, "WaitBench", Vector3(-1.05, 0.44, -2.18), Vector3(1.3, 0.06, 0.36), Color(0.44, 0.30, 0.18))
@@ -1445,10 +1453,10 @@ func _build_room_things() -> void:
 
 	# ── PROPS AND PICTURES (tools/blender, assets/textury/camp) ───────────────
 	K.prop(_room_root, "filing_cabinet", Vector3(2.2, 0.05, -1.1), -90.0)
-	# The key board on the wall to your right, behind the counter.
+	# The district on the wall to your right, behind the counter (where the key board hung
+	# till the keys went into the drawer: desk_room).
 	K.picture(_room_root, "book_spines", Vector2(0.72, 0.34), Vector3(2.12, 2.03, -1.02), -90.0, "ShelfBooks")
-	# (Moved toward the counter for the side window, the user 4. 11.: desk_room BOARD_AT.)
-	K.picture(_room_root, "key_rack", Vector2(0.72, 0.405), Vector3(2.47, 1.52, 0.435), -90.0, "KeyRack")
+	K.picture(_room_root, "district_map", Vector2(0.42, 0.448), Vector3(2.47, 1.52, 0.435), -90.0, "DistrictMap")
 	K.picture(_room_root, "poster_mushrooms", Vector2(0.44, 0.58), Vector3(-2.47, 1.56, -0.9), 90.0, "PosterA")
 
 	K.picture(_room_root, "picture_deer", Vector2(0.48, 0.64), Vector3(-1.26, 1.56, 2.47), 180.0, "PosterC")
@@ -2860,7 +2868,7 @@ func _create_reception_notebook() -> void:
 
 	var notebook_root = Node3D.new()
 	notebook_root.name = "ReceptionNotebook"
-	notebook_root.position = Vector3(-0.12, 0.965, 0.34)
+	notebook_root.position = Vector3(-0.24, 0.965, 0.14)
 	notebook_root.rotation = Vector3(deg_to_rad(2.0), deg_to_rad(32.0), deg_to_rad(-8.0))
 	_room_root.add_child(notebook_root)
 

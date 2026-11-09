@@ -37,24 +37,41 @@ const HAND_M := 1.74
 const DOOM_HAND = preload("res://scripts/figures/doom_figure.gd")
 ## The check-in played on the counter itself (the user 30. 10.), checkin_desk.gd's picture
 ## laid on it: its counter part (y 104..270 of the 384) over the counter's top left of the
-## phone, the far edge where the guest stands; its key board (x 284..478, y 280..384) on
-## the right wall over the old picture of the board. Your eye over the counter; look up at
-## the guest, turn right to the keys (the edges of the screen, the arrows).
+## phone, the far edge where the guest stands; its key board (x 284..478, y 280..384) in the
+## drawer under the counter's edge. Your eye over the counter; look up at the guest.
 const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
-const DESK_EYE := Vector3(0.1, 1.42, 0.46)
-const DESK_LOOK_AT := Vector3(0.12, 0.965, -0.02)
-## Turned right to the keys you lean over to them: the eye goes up to the board.
-const BOARD_EYE := Vector3(1.86, 1.5, 0.435)
+const HOVER_GLINT = preload("res://scripts/ui/hover_glint.gd")
+const DESK_EYE := Vector3(0.1, 1.42, 0.56)
+const DESK_LOOK_AT := Vector3(0.12, 0.965, 0.097)
 const SHEET_X0 := -0.52
 const SHEET_W := 1.45
 const SHEET_Z0 := -0.17
 const SHEET_D := 0.5015
 const SHEET_Y := 0.965
 const SHEET_PX_Y := Vector2(104.0, 166.0)
-const BOARD_AT := Vector3(2.462, 1.52, 0.435)
-const BOARD_SIZE := Vector2(0.72, 0.386)
 const BOARD_PX := Rect2(284, 280, 194, 104)
+## The keys, in a drawer under the counter (the user 9. 11.: "move the keys to a drawer under
+## the counter, the way to the keys on the wall is quite awkward"): at the back of the bite out
+## of your side of the counter (building_interior: its front in view from over the register).
+## It comes out to you and the eye leans back from the counter, so that the keys, the papers
+## and whoever is across it are all in view: a key goes straight to them, no turn of the head.
+const DRAWER_X := 0.33
+const DRAWER_FELT_Y := 0.823
+const DRAWER_SHUT_Z := 0.351
+const DRAWER_OPEN_Z := 0.79
+const DRAWER_DEEP := 0.5
+const DRAWER_PIC := Vector2(0.8, 0.429)
+const DRAWER_EYE := Vector3(0.32, 1.5, 1.0)
+const DRAWER_LOOK_AT := Vector3(0.32, 0.9, 0.44)
+const DRAWER_SEC := 0.42
+const SFX_DRAWER := "res://assets/sfx/jednota/drawer.mp3"
+## The stamps, standing on the counter (the user 9. 11.: "make the stamps 3D objects, so they
+## are not so flat on that board"): how far off the paper one is carried, how long the press.
+const STAMP_LIFT := 0.07
+const STAMP_PRESS_SEC := 0.3
+const STAMP_INK := {"in": Color(0.3, 0.72, 0.36), "out": Color(0.86, 0.26, 0.2)}
+const DYMO_LIFT := 0.03
 const STEP_SEC := 0.6
 ## Carried over the counter: where the guest's side begins on the counter's picture (a share
 ## of its depth from the far edge), the plane it goes along on the way to them, the row of
@@ -96,6 +113,18 @@ var look = INTERIOR_LOOK.new(112.0, 44.0, 12.0)
 var _sheet: MeshInstance3D
 var _board: MeshInstance3D
 var _board_t := 0.0
+var _drawer: Node3D
+var _drawer_pull: Array = []
+var _drawer_open := false
+## How far out, 0..1 in time (_drawer_k: as it moves).
+var _drawer_t := 0.0
+var _drawer_rot := Vector3.ZERO
+var _front_hot := false
+var _glint = HOVER_GLINT.new()
+## kind -> {root, home, press (seconds into the press, -1 not), label}
+var _stamps: Dictionary = {}
+## The label maker beside them, lifted a little while it is in your hand.
+var _dymo: Node3D
 var _at_desk := false
 var _cam_from: Array = []
 var _cam_tween: Tween
@@ -122,6 +151,8 @@ func build(host_node, extras_node, root: Node3D) -> void:
 	_second = _make_person("DeskGuestNext")
 	_build_bell()
 	_build_door()
+	_build_stamps()
+	_build_dymo()
 	_hot("guest", COUNTER_SPOT + Vector3(0, 0.9, 0), Vector3(0.8, 1.8, 0.5), [])
 	_hot("bell", BELL_POS + Vector3(0, 0.06, 0), Vector3(0.26, 0.22, 0.26), [_bell])
 	desk = DESK.new()
@@ -222,20 +253,16 @@ func front_door() -> Node3D:
 
 func process(delta: float, in_office: bool) -> void:
 	_tick_desk(delta)
-	# The keys on the wall all the time, as they hang (the picture of an empty board stood
-	# there off the counter: "the keys vanish from the wall", X4 of 5. 11.).
+	_tick_drawer(delta)
+	_tick_stamps(delta)
+	_tick_dymo(delta)
+	# The drawer is in the counter from the moment you come in, not only at the desk.
 	_board_t -= delta
 	if _board_t <= 0.0:
 		_board_t = 1.0
 		if _sheet == null or not is_instance_valid(_sheet):
 			_make_sheets()
-			_board.visible = true
 			_sheet.visible = _at_desk
-		var pic := room_root.get_node_or_null("KeyRack") as Node3D
-		if pic != null:
-			pic.visible = false
-		if not _at_desk:
-			desk.redraw_board()
 	_poll -= delta
 	if _poll <= 0.0:
 		_poll = POLL_SEC
@@ -269,10 +296,6 @@ func process(delta: float, in_office: bool) -> void:
 func _step_up() -> void:
 	_make_sheets()
 	_sheet.visible = true
-	_board.visible = true
-	var pic := room_root.get_node_or_null("KeyRack") as Node3D
-	if pic != null:
-		pic.visible = false
 	# The office's own notebook lies where the register is laid.
 	var book := room_root.get_node_or_null("ReceptionNotebook") as Node3D
 	if book != null:
@@ -280,6 +303,7 @@ func _step_up() -> void:
 	var cam: Camera3D = host._interior_camera
 	_cam_from = [cam.position, cam.rotation]
 	_desk_rot = Transform3D(Basis(), DESK_EYE).looking_at(DESK_LOOK_AT, Vector3.UP).basis.get_euler()
+	_drawer_rot = Transform3D(Basis(), DRAWER_EYE).looking_at(DRAWER_LOOK_AT, Vector3.UP).basis.get_euler()
 	look.reset()
 	_at_desk = true
 	_glide(DESK_EYE, _desk_rot)
@@ -288,11 +312,14 @@ func _step_up() -> void:
 func _step_down() -> void:
 	_at_desk = false
 	desk.in_air = false
+	desk.stamp_3d_hover = ""
+	_front_hot = false
+	_glint.clear()
+	_set_drawer(false)
 	if _air != null:
 		_air.visible = false
 	if _sheet != null:
 		_sheet.visible = false
-	# (The board stays: the keys hang on the wall all the time, process().)
 	var book := room_root.get_node_or_null("ReceptionNotebook") as Node3D
 	if book != null:
 		book.visible = true
@@ -349,14 +376,101 @@ func _tick_desk(delta: float) -> void:
 	# a held button, writing or carrying, widens it further); W A S D turn the head as well.
 	look.dead = DESK_DEAD
 	var offset: Vector3 = look.update(delta, INTERIOR_LOOK.cursor_of(vp) if debug_pointer.x < 0.0 else Vector2(-1, -1), INTERIOR_LOOK.turn_axis())
-	var k := clampf((-look.yaw_deg - 40.0) / 45.0, 0.0, 1.0)
-	k = k * k * (3.0 - 2.0 * k)
-	cam.position = DESK_EYE.lerp(BOARD_EYE, k)
-	cam.rotation = _desk_rot + offset + Vector3(deg_to_rad(30.0) * k, 0.0, 0.0)
+	# The label maker works on the keys' labels: the drawer comes out for it.
+	if desk.labels_mode():
+		_set_drawer(true)
+	var k := _drawer_k()
+	cam.position = DESK_EYE.lerp(DRAWER_EYE, k)
+	cam.rotation = _desk_rot.lerp(_drawer_rot, k) + offset
 	_point()
 
 
-## The pointer through the room's eye onto the counter's picture or the wall's board.
+func _set_drawer(open: bool) -> void:
+	if open == _drawer_open or _drawer == null:
+		return
+	_drawer_open = open
+	_play(SFX_DRAWER, -8.0 if open else -11.0)
+
+
+## How far out it is as it goes: in and out of it gently, nothing at the end of it.
+func _drawer_k() -> float:
+	var t := _drawer_t
+	return t * t * t * (t * (t * 6.0 - 15.0) + 10.0)
+
+
+func _tick_drawer(delta: float) -> void:
+	var want := 1.0 if _drawer_open else 0.0
+	if _drawer == null or _drawer_t == want:
+		return
+	_drawer_t = move_toward(_drawer_t, want, delta / DRAWER_SEC)
+	_drawer.position.z = lerpf(DRAWER_SHUT_Z, DRAWER_OPEN_Z, _drawer_k())
+	_board.visible = _drawer_t > 0.0
+	if _drawer_t >= 1.0:
+		desk.rattle_keys()
+
+
+func _tick_dymo(delta: float) -> void:
+	var want := SHEET_Y + (DYMO_LIFT if _at_desk and desk.labels_mode() else 0.0)
+	if _dymo.position.y != want:
+		_dymo.position.y = move_toward(_dymo.position.y, want, delta * 0.3)
+
+
+## The stamp in hand goes with the pointer, over the counter; pressed, it comes down on the
+## paper and up again; put down (or used), back to its place, in an arc.
+func _tick_stamps(delta: float) -> void:
+	var held: String = desk.holding_stamp() if _at_desk else ""
+	for kind in _stamps:
+		var s: Dictionary = _stamps[kind]
+		var root: Node3D = s["root"]
+		var press := float(s["press"])
+		if press >= 0.0:
+			press += delta
+			s["press"] = press if press < STAMP_PRESS_SEC else -1.0
+			var k := clampf(press / STAMP_PRESS_SEC, 0.0, 1.0)
+			# Down fast, a moment on the paper, up.
+			var up := 0.0
+			if k < 0.2:
+				up = 1.0 - k / 0.2
+			elif k > 0.5:
+				up = (k - 0.5) / 0.5
+			root.position.y = SHEET_Y + STAMP_LIFT * up
+			continue
+		if kind == held:
+			if desk.pointer.x >= 0.0 and not desk.pointer_on_board:
+				root.position = root.position.lerp(_counter_at(desk.pointer) + Vector3(0.0, STAMP_LIFT, 0.0), 1.0 - exp(-40.0 * delta))
+			continue
+		var home: Vector3 = s["home"]
+		if root.position == home:
+			continue
+		var off := Vector2(root.position.x - home.x, root.position.z - home.z) * exp(-13.0 * delta)
+		if off.length() < 0.003:
+			root.position = home
+		else:
+			root.position = Vector3(home.x + off.x, home.y + STAMP_LIFT * clampf(off.length() / 0.1, 0.0, 1.0), home.z + off.y)
+
+
+## A point of the counter's picture, in the room.
+func _counter_at(px: Vector2) -> Vector3:
+	return Vector3(SHEET_X0 + px.x / 480.0 * SHEET_W, SHEET_Y, SHEET_Z0 + clampf((px.y - SHEET_PX_Y.x) / SHEET_PX_Y.y, 0.0, 1.0) * SHEET_D)
+
+
+func _stamp_under(o: Vector3, d: Vector3) -> String:
+	for kind in _stamps:
+		var c: Vector3 = _stamps[kind]["home"]
+		if AABB(c + Vector3(-0.07, 0.0, -0.05), Vector3(0.14, 0.14, 0.1)).intersects_ray(o, d) != null:
+			return str(kind)
+	return ""
+
+
+## The drawer's front (the pull and the board it is on), where it is now.
+func _front_under(o: Vector3, d: Vector3) -> bool:
+	if _drawer == null:
+		return false
+	var w := DRAWER_PIC.x + 0.06
+	return AABB(Vector3(DRAWER_X - w * 0.5, 0.79, _drawer.position.z - 0.02), Vector3(w, 0.12, 0.08)).intersects_ray(o, d) != null
+
+
+## The pointer through the room's eye onto the counter's picture or the keys in the drawer.
 func _point() -> void:
 	var cam: Camera3D = host._interior_camera
 	var vpm: Vector2 = host._to_interior_viewport_pos(host.get_viewport().get_mouse_position())
@@ -364,31 +478,41 @@ func _point() -> void:
 		vpm = debug_pointer
 	var o: Vector3 = room_root.to_local(cam.project_ray_origin(vpm))
 	var d: Vector3 = room_root.global_basis.inverse() * cam.project_ray_normal(vpm)
-	var best := INF
 	var px := Vector2(-1, -1)
-	var wall := false
+	var in_drawer := false
 	if absf(d.y) > 0.0001:
+		if _drawer_t >= 1.0:
+			var dp := o + d * ((DRAWER_FELT_Y - o.y) / d.y)
+			var near := DRAWER_OPEN_Z - 0.02
+			var u2 := (dp.x - (DRAWER_X - DRAWER_PIC.x * 0.5)) / DRAWER_PIC.x
+			var v2 := (dp.z - (near - DRAWER_PIC.y)) / DRAWER_PIC.y
+			if d.y < 0.0 and u2 >= 0.0 and u2 <= 1.0 and v2 >= 0.0 and v2 <= 1.0:
+				px = Vector2(BOARD_PX.position.x + u2 * BOARD_PX.size.x, BOARD_PX.position.y + v2 * BOARD_PX.size.y - desk.RACK_3D.y)
+				in_drawer = true
 		var t := (SHEET_Y - o.y) / d.y
-		if t > 0.0:
+		if not in_drawer and t > 0.0:
 			var p := o + d * t
 			var u := (p.x - SHEET_X0) / SHEET_W
 			var v := (p.z - SHEET_Z0) / SHEET_D
-			# Past the far edge, over to the guest: where the papers go back.
-			if u >= 0.0 and u <= 1.0 and v >= -0.25 and v <= 1.0:
-				best = t
+			# Past the far edge, over to the guest: where the papers go back. (Past the near one,
+			# something in hand on its way from the drawer: the strip of the counter's edge.)
+			var near_v := 1.3 if desk.carrying() and _drawer_t >= 1.0 else 1.0
+			if u >= 0.0 and u <= 1.0 and v >= -0.25 and v <= near_v:
 				px = Vector2(u * 480.0, SHEET_PX_Y.x + clampf(v, 0.0, 1.0) * SHEET_PX_Y.y)
-	if absf(d.x) > 0.0001:
-		var t2 := (BOARD_AT.x - o.x) / d.x
-		if t2 > 0.0 and t2 < best:
-			var p2 := o + d * t2
-			var u2 := (p2.z - (BOARD_AT.z - BOARD_SIZE.x * 0.5)) / BOARD_SIZE.x
-			var v2 := ((BOARD_AT.y + BOARD_SIZE.y * 0.5) - p2.y) / BOARD_SIZE.y
-			if u2 >= 0.0 and u2 <= 1.0 and v2 >= 0.0 and v2 <= 1.0:
-				px = Vector2(BOARD_PX.position.x + u2 * BOARD_PX.size.x, BOARD_PX.position.y + v2 * BOARD_PX.size.y - desk.RACK_3D.y)
-				wall = true
-	px = _carry_over(o, d, px, wall)
+	px = _carry_over(o, d, px, in_drawer)
 	desk.pointer = px
-	desk.pointer_on_wall = wall
+	desk.pointer_on_board = in_drawer
+	desk.stamp_3d_hover = _stamp_under(o, d) if desk.holding_nothing() else ""
+	_front_hot = desk.holding_nothing() and _front_under(o, d)
+	if _front_hot:
+		HandCursor.want(HandCursor.POINT)
+		_glint.show_on(_drawer_pull)
+	elif desk.stamp_3d_hover != "":
+		_glint.show_on([_stamps[desk.stamp_3d_hover]["root"]])
+	elif desk.holding_nothing() and DESK.DYMO.has_point(px):
+		_glint.show_on([_dymo])
+	else:
+		_glint.clear()
 	# The PC across the room takes a click (input).
 	if px.x < 0.0 and desk.holding_nothing() and host.crt_under(host.get_viewport().get_mouse_position()) >= 0:
 		HandCursor.want(HandCursor.POINT)
@@ -400,10 +524,10 @@ func _point() -> void:
 ## anybody's guess). The picture draws it in rows the counter does not show; a quad in
 ## the room shows those rows. Let go there, it is theirs (the picture's own giving: it is
 ## above GIVE).
-func _carry_over(o: Vector3, d: Vector3, px: Vector2, wall: bool) -> Vector2:
+func _carry_over(o: Vector3, d: Vector3, px: Vector2, in_drawer: bool) -> Vector2:
 	var over := false
 	var at := Vector3.ZERO
-	if desk.carrying() and not wall and absf(d.z) > 0.0001:
+	if desk.carrying() and not in_drawer and absf(d.z) > 0.0001:
 		var past := d.y >= -0.001
 		if not past:
 			var p := o + d * ((SHEET_Y - o.y) / d.y)
@@ -494,19 +618,23 @@ func input(event: InputEvent) -> void:
 		return
 	var mb := event as InputEventMouseButton
 	if (mb.button_index == MOUSE_BUTTON_WHEEL_UP or mb.button_index == MOUSE_BUTTON_WHEEL_DOWN) and mb.pressed:
-		if desk.pointer_on_wall:
+		if desk.pointer_on_board:
 			desk.wheel(1 if mb.button_index == MOUSE_BUTTON_WHEEL_DOWN else -1)
 		return
 	if mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
 		if not desk.put_down():
-			desk.close_desk()
+			_back_out()
 		return
 	if mb.button_index != MOUSE_BUTTON_LEFT:
 		return
 	if mb.pressed:
+		# The drawer's front, nothing in hand: out, or in.
+		if _front_hot:
+			_set_drawer(not _drawer_open)
+			return
 		# The band at the bottom of the screen, nothing in hand: up from the counter.
 		if desk.holding_nothing() and INTERIOR_LOOK.in_exit_zone(host.get_viewport()):
-			desk.close_desk()
+			_back_out()
 			return
 		# Turned to the PC, its screen clicked: over to it (the user 4. 11.).
 		if desk.holding_nothing() and desk.pointer.x < 0.0:
@@ -515,13 +643,24 @@ func input(event: InputEvent) -> void:
 				_to_pc = screen
 				desk.close_desk()
 				return
+		var was_held: String = desk.holding_stamp()
 		desk.press_at()
+		if was_held != "" and desk.holding_stamp() == "":
+			_stamps[was_held]["press"] = 0.0
 	else:
 		_hand_over()
 		desk.release_at()
 		desk.in_air = false
 		if _air != null:
 			_air.visible = false
+
+
+## One step back from the work: the drawer shut first, then up from the counter.
+func _back_out() -> void:
+	if _drawer_open:
+		_set_drawer(false)
+	else:
+		desk.close_desk()
 
 
 func _make_sheets() -> void:
@@ -538,17 +677,100 @@ func _make_sheets() -> void:
 	_sheet.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_sheet.set_meta("retro_text", true)
 	room_root.add_child(_sheet)
-	var q := QuadMesh.new()
-	q.size = BOARD_SIZE
+	_build_drawer(tex)
+
+
+## A surface that goes with what moves (K.surface is mapped to the world: it would slide over
+## a drawer as it comes out).
+func _on_it(tex: String, metres: float, tint := Color.WHITE) -> StandardMaterial3D:
+	var m := K.surface(tex, metres, tint).duplicate() as StandardMaterial3D
+	m.uv1_world_triplanar = false
+	return m
+
+
+## The drawer: boards, a pull, and in it the desk's key board lying on its back, the top of its
+## picture to the far side.
+func _build_drawer(tex: Texture2D) -> void:
+	_drawer = Node3D.new()
+	_drawer.name = "KeyDrawer"
+	_drawer.position = Vector3(DRAWER_X, 0.0, DRAWER_SHUT_Z)
+	room_root.add_child(_drawer)
+	var wood := _on_it("veneer_dark", 0.3)
+	var w := DRAWER_PIC.x
+	var deep_z := -DRAWER_DEEP * 0.5
+	K.slab(_drawer, Vector3(w + 0.05, 0.092, 0.022), Vector3(0.0, 0.853, 0.0), _on_it("veneer_dark", 0.3, Color(1.25, 1.2, 1.15)), "KeyDrawerFront")
+	K.slab(_drawer, Vector3(w + 0.04, 0.012, DRAWER_DEEP), Vector3(0.0, 0.815, deep_z), wood, "KeyDrawerFloor")
+	K.slab(_drawer, Vector3(0.02, 0.066, DRAWER_DEEP), Vector3(-(w * 0.5 + 0.01), 0.848, deep_z), wood, "KeyDrawerLeft")
+	K.slab(_drawer, Vector3(0.02, 0.066, DRAWER_DEEP), Vector3(w * 0.5 + 0.01, 0.848, deep_z), wood, "KeyDrawerRight")
+	K.slab(_drawer, Vector3(w + 0.04, 0.066, 0.02), Vector3(0.0, 0.848, -DRAWER_DEEP + 0.01), wood, "KeyDrawerBack")
+	# The pull: a bar on two posts, the brass of the keys.
+	var brass := _on_it("galvanized", 0.08, Color(1.45, 1.08, 0.5))
+	var bar := K.slab(_drawer, Vector3(0.15, 0.018, 0.016), Vector3(0.0, 0.858, 0.044), brass, "KeyDrawerPull")
+	var post_a := K.slab(_drawer, Vector3(0.016, 0.014, 0.036), Vector3(-0.06, 0.858, 0.026), brass, "KeyDrawerPost")
+	var post_b := K.slab(_drawer, Vector3(0.016, 0.014, 0.036), Vector3(0.06, 0.858, 0.026), brass, "KeyDrawerPost")
+	_drawer_pull = [bar, post_a, post_b]
+	var pm := PlaneMesh.new()
+	pm.size = DRAWER_PIC
 	_board = MeshInstance3D.new()
 	_board.name = "DeskKeyBoard"
-	_board.mesh = q
+	_board.mesh = pm
 	_board.material_override = _sheet_mat(tex, Vector2(BOARD_PX.position.x / float(desk.W), BOARD_PX.position.y / float(desk.H_3D)), Vector2(BOARD_PX.size.x / float(desk.W), BOARD_PX.size.y / float(desk.H_3D)))
-	_board.position = BOARD_AT
-	_board.rotation_degrees.y = -90.0
+	_board.position = Vector3(0.0, DRAWER_FELT_Y, -0.02 - DRAWER_PIC.y * 0.5)
 	_board.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_board.set_meta("retro_text", true)
-	room_root.add_child(_board)
+	_board.visible = false
+	_drawer.add_child(_board)
+
+
+## The two stamps standing on the counter, where the picture had them: rubber, a wooden mount,
+## a neck and a knob in the colour of its ink. (Their Dymo tapes lie in front of them on the
+## counter's picture: on the mount the words were too small to read.)
+func _build_stamps() -> void:
+	for kind in DESK.STAMP_HOME.keys():
+		var home_px: Vector2 = DESK.STAMP_HOME[kind] + DESK.STAMP_SIZE * 0.5
+		var root := Node3D.new()
+		root.name = "Stamp_" + str(kind)
+		root.position = _counter_at(home_px)
+		room_root.add_child(root)
+		var ink: Color = STAMP_INK[kind]
+		var wood := _on_it("knotty_pine", 0.16, Color(0.8, 0.68, 0.56))
+		var dark := _on_it("veneer_dark", 0.12, Color(1.3, 1.2, 1.1))
+		K.slab(root, Vector3(0.1, 0.01, 0.056), Vector3(0.0, 0.005, 0.0), _on_it("plastic", 0.2, ink * 0.45), "StampRubber")
+		K.slab(root, Vector3(0.112, 0.03, 0.064), Vector3(0.0, 0.025, 0.0), wood, "StampMount")
+		_turned(root, 0.013, 0.013, 0.05, 0.065, dark, "StampNeck")
+		_turned(root, 0.02, 0.027, 0.034, 0.107, dark, "StampKnob")
+		_turned(root, 0.012, 0.02, 0.012, 0.13, _on_it("plastic", 0.2, ink * 1.25), "StampCap")
+		_stamps[kind] = {"root": root, "home": root.position, "press": -1.0}
+
+
+## The label maker, where the picture had it: its shell, the wheel of letters on top, the grip
+## to your hand and a bit of red tape out of its nose.
+func _build_dymo() -> void:
+	_dymo = Node3D.new()
+	_dymo.name = "DeskDymo"
+	_dymo.position = _counter_at(DESK.DYMO.get_center())
+	room_root.add_child(_dymo)
+	var shell := _on_it("plastic", 0.2, Color(0.46, 0.47, 0.5))
+	K.slab(_dymo, Vector3(0.12, 0.04, 0.08), Vector3(0.0, 0.02, 0.0), shell, "DymoBody")
+	K.slab(_dymo, Vector3(0.036, 0.034, 0.07), Vector3(-0.012, 0.017, 0.07), shell, "DymoGrip")
+	_turned(_dymo, 0.034, 0.036, 0.016, 0.048, _on_it("plastic", 0.2, Color(0.2, 0.2, 0.23)), "DymoWheel")
+	K.slab(_dymo, Vector3(0.03, 0.004, 0.014), Vector3(0.072, 0.03, 0.0), _on_it("plastic", 0.2, Color(0.85, 0.16, 0.12)), "DymoTape")
+
+
+## A turned piece of a stamp: eight-sided, standing `at` up the stamp's middle.
+func _turned(root: Node3D, top: float, bottom: float, tall: float, at: float, mat: Material, n: String) -> void:
+	var c := CylinderMesh.new()
+	c.top_radius = top
+	c.bottom_radius = bottom
+	c.height = tall
+	c.radial_segments = 8
+	c.rings = 1
+	var mi := MeshInstance3D.new()
+	mi.name = n
+	mi.mesh = c
+	mi.material_override = mat
+	mi.position.y = at
+	root.add_child(mi)
 
 
 func _sheet_mat(tex: Texture2D, offset: Vector2, scale: Vector2) -> StandardMaterial3D:

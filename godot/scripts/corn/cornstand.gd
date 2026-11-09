@@ -133,7 +133,7 @@ func tickets(key: String, only := "") -> Array:
 				continue
 			if only == "drink" and str(t["kind"]) == "cob":
 				continue
-			if str(t["kind"]) != "cob" and not BIZ_RULES.menu_on("corn", books, str(t["kind"])):
+			if not BIZ_RULES.menu_on("corn", books, str(t["kind"])):
 				continue
 			if not BUSINESS.takes_orders_at(key, int(t["since"])):
 				continue

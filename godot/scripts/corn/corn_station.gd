@@ -17,6 +17,34 @@ const CORN_TEX := "res://assets/textury/corn/"
 const PAPER := "res://assets/textury/bistro/"
 const MARKS := "res://assets/textury/ui/"
 
+## The stand is worked with the hands (the user 9. 11.: "somebody who does not know the controls
+## has no idea where to click; he wanted to drag everything, the cob into the pot, out of it,
+## shake the salt"): a thing goes where you carry it and is let go there; press and let go
+## on the spot and it is a click, the thing does the obvious, as it always did.
+const CLICK_MS := 240
+const CLICK_PX := 9.0
+## How high over the counter a thing goes in the hand.
+const CARRY_LIFT := 0.1
+var _down_ms := 0
+var _down_at := Vector2.ZERO
+var _went := 0.0
+
+
+## A press has begun (every `_press`).
+func down_begin() -> void:
+	_down_ms = Time.get_ticks_msec()
+	_down_at = _mouse_free
+	_went = 0.0
+
+
+func down_note(at: Vector2) -> void:
+	_went = maxf(_went, at.distance_to(_down_at))
+
+
+func was_click() -> bool:
+	return _went < CLICK_PX and Time.get_ticks_msec() - _down_ms < CLICK_MS
+
+
 ## The order picked on the rail (the counter hands the cob to them first).
 static var picked := ""
 

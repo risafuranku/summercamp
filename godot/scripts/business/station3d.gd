@@ -491,10 +491,11 @@ func _find_hover() -> void:
 			if sp != null and is_instance_valid(sp) and (sp as Node3D).is_visible_in_tree() and _screen_rect(sp as Node3D).grow(2.0).has_point(_vp_mouse):
 				_set_hover(str(s["id"]), str(s.get("verb", "")), sp)
 				return
-	if _mouse.x >= 0.0:
+	if _mouse.x >= 0.0 or _vp_mouse.x >= 0.0:
 		for i in range(spots.size() - 1, -1, -1):
 			var s: Dictionary = spots[i]
-			if s.has("rect") and (s["rect"] as Rect2).has_point(_mouse):
+			# ("free": a place out past this surface's picture, the next station's end of the counter.)
+			if s.has("rect") and (s["rect"] as Rect2).has_point(_mouse_free if bool(s.get("free", false)) else _mouse):
 				_set_hover(str(s["id"]), str(s.get("verb", "")), s["rect"])
 				return
 	_set_hover("", "")

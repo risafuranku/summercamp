@@ -788,7 +788,7 @@ static func day_grade(z: Dictionary) -> Dictionary:
 ## do not order it ([id, label, the place's own: never off]). Nothing to unlock: only
 ## switches. The tickets of each place leave out what is off.
 const MENU := {
-	"corn": [["cob", "Corn on the cob", true], ["tea", "Iced tea", false], ["limo", "Lemonade in a bag", false]],
+	"corn": [["cob", "Corn on the cob", false], ["tea", "Iced tea", false], ["limo", "Lemonade in a bag", false]],
 	"pub": [["beer", "Draught beer", true], ["rum", "Rum", false], ["zelena", "Zelena", false], ["slivovice", "Slivovice", false], ["kofola", "Kofola", false]],
 	"rest": [["smazak", "Fried cheese", true], ["fries", "Chips", false], ["goulash", "Goulash and dumplings", false], ["sausage", "Grilled sausage", false], ["soup", "Soup of the day", false], ["drinks", "Bottled drinks", false]],
 	"vecerka": [["bread", "Bread and rolls", true], ["salami", "Salami", false], ["milk", "Milk", false], ["pickles", "Pickles", false], ["beer", "Beer", false], ["icecream", "Ice cream", false],
@@ -814,6 +814,18 @@ static func menu_on(kind: String, site: Dictionary, item: String) -> bool:
 		if str(row[0]) == sw and bool(row[2]):
 			return true
 	return not (site.get("menu_off", []) as Array).has(sw)
+
+
+## Nothing ticked on the menu (the user 9. 11.: "let me not sell corn at the stand; selling
+## nothing the stand is shut, no light, nobody comes"; only a place with no line it must keep).
+static func sells_nothing(kind: String, site: Dictionary) -> bool:
+	var rows: Array = MENU.get(kind, [])
+	if rows.is_empty():
+		return false
+	for row in rows:
+		if menu_on(kind, site, str(row[0])):
+			return false
+	return true
 
 
 ## Last orders this long (game minutes) before a place shuts: the bell, and nobody new

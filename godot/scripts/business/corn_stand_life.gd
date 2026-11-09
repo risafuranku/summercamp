@@ -6,6 +6,8 @@ extends Node3D
 ## worked from scripts/corn/stand_view.gd), steam off the pot in puffs (a Grok sprite, in
 ## steps, twelve a second), the awning's flaps stirring in the wind.
 
+const BUSINESS := preload("res://scripts/business/business_runtime.gd")
+const RULES := preload("res://core/systems/business_rules.gd")
 const FPS := 12.0
 const PUFFS := 3
 const LAYOUT := preload("res://scripts/corn/stand_layout.gd")
@@ -92,6 +94,35 @@ func _setup() -> void:
 		s.transparent = true
 		r.add_child(s)
 		_puffs.append({"sprite": s, "phase": float(i) / float(PUFFS)})
+
+
+## The closed card on the counter's front (door_sign_closed.png, as on the businesses' doors).
+var _shut_card: Sprite3D
+
+
+func _shut_by_menu() -> bool:
+	var r := get_parent()
+	if r == null or not r.has_meta("grid_origin"):
+		return false
+	var o: Vector2i = r.get_meta("grid_origin")
+	var key := "%d:%d" % [o.x, o.y]
+	var site: Dictionary = BUSINESS.site(key)
+	return not site.is_empty() and RULES.sells_nothing("corn", site)
+
+
+func _show_shut(shut: bool) -> void:
+	if _shut_card == null and shut and ResourceLoader.exists("res://assets/textury/camp/door_sign_closed.png"):
+		_shut_card = Sprite3D.new()
+		_shut_card.name = "ShutCard"
+		_shut_card.texture = load("res://assets/textury/camp/door_sign_closed.png")
+		_shut_card.pixel_size = 0.5 / float(_shut_card.texture.get_width())
+		_shut_card.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		_shut_card.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+		_shut_card.shaded = true
+		_shut_card.position = Vector3(0.0, 0.72, 0.68)
+		get_parent().add_child(_shut_card)
+	if _shut_card != null:
+		_shut_card.visible = shut
 
 
 ## The stand's place in the camp (guest_agents: an open-air place, its guests posed here).
@@ -316,10 +347,14 @@ func _process(delta: float) -> void:
 		# no longer see what you were serving.
 		var main := get_tree().current_scene
 		var h: float = main.call("season_hour") if main != null and main.has_method("season_hour") else 12.0
-		_bulb.visible = h >= BULB_ON or h < BULB_OFF
+		# Nothing on its menu: shut, dark, nothing on the boil, the card on the counter.
+		var shut := _shut_by_menu()
+		_bulb.visible = not shut and (h >= BULB_ON or h < BULB_OFF)
+		_show_shut(shut)
 	for p in _puffs:
 		var age := fmod(_t * 0.35 + float(p["phase"]), 1.0)
 		var s: Sprite3D = p["sprite"]
+		s.visible = _shut_card == null or not _shut_card.visible
 		s.position = _steam_at + Vector3(sin(_t * 1.3 + float(p["phase"]) * 6.0) * 0.08 * age, age * 0.7, age * 0.1)
 		s.scale = Vector3.ONE * (0.6 + age * 1.0)
 		s.modulate = Color(1, 1, 1, (1.0 - age) * 0.3)

@@ -276,6 +276,8 @@ static func takes_orders_at(key: String, abs_min: int) -> bool:
 	var s := site(key)
 	if s.is_empty():
 		return true
+	if RULES.sells_nothing(str(s.get("kind", "")), s):
+		return false
 	var mod := posmod(abs_min, 1440)
 	return mod >= OPEN_HOUR * 60 and mod < RULES.last_orders_at(bool(s.get("late", false)))
 
@@ -342,7 +344,9 @@ func _watch_late(sites: Dictionary) -> void:
 	if life != null and "order_hours" in life:
 		var hours := {}
 		for key in sites:
-			hours[str(key)] = [OPEN_HOUR * 60, RULES.last_orders_at(bool(site(key).get("late", false)))]
+			var s2 := site(key)
+			# (Shut for good by its menu: never open, nobody sets out for it.)
+			hours[str(key)] = [0, 0] if RULES.sells_nothing(str(s2.get("kind", "")), s2) else [OPEN_HOUR * 60, RULES.last_orders_at(bool(s2.get("late", false)))]
 		life.order_hours = hours
 	var main := get_tree().current_scene
 	var hud = main.get("_hud_manager") if main != null else null

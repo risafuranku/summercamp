@@ -218,15 +218,17 @@ var _scare_cool_until := -INF     # (day * 24 + hour) before another may show
 
 ## Played in the office itself (the user 30. 10.: "a 3D minigame like the corn stand and
 ## the pub: the things laid on the table readably, the stamp to pick up, the keys hanging
-## on their hooks on the wall, played in that room"): desk_room.gd lays this picture on the
-## real counter and the key board on the wall beside it, casts the pointer onto them and
+## on their hooks, played in that room"): desk_room.gd lays this picture on the real counter
+## and the key board in the drawer under it, casts the pointer onto them and
 ## gives it here in this picture's pixels (`pointer`, press_at / release_at). The booth's
 ## pictures are not drawn (the room and the guest are real), the background is clear; the
-## key board is drawn RACK_3D lower in the picture (its own part for the wall).
+## key board is drawn RACK_3D lower in the picture (its own part for the drawer).
 var mode_3d := false
 var pointer := Vector2(-1, -1)
-## The pointer is on the wall's key board (the key in hand drawn there, not on the counter).
-var pointer_on_wall := false
+## The pointer is on the key board in the drawer (the key in hand drawn there, not on the counter).
+var pointer_on_board := false
+## The stamp under the room's pointer ("in" / "out"): they stand on the counter (desk_room's).
+var stamp_3d_hover := ""
 ## Where the pointer last was on the counter or the board (a thing let go off them goes
 ## down there, not back to the guest).
 var _last_ok := Vector2(-1, -1)
@@ -289,23 +291,6 @@ func is_open() -> bool:
 
 func picture() -> Texture2D:
 	return _vp.get_texture()
-
-
-var _board_was := ""
-
-
-## The board on the wall as the rooms are now while the desk is shut (its picture drawn once
-## when a key has come or gone: the keys hang there all the time, X4 of 5. 11.).
-func redraw_board() -> void:
-	if visible:
-		return
-	_refresh_keys()
-	var now := str(_keys) + str(_slots)
-	if now == _board_was:
-		return
-	_board_was = now
-	_canvas.queue_redraw()
-	_vp.render_target_update_mode = SubViewport.UPDATE_ONCE
 
 
 func current_guest_id() -> int:
@@ -771,6 +756,19 @@ func holding_nothing() -> bool:
 	return _drag == "" and _holding_stamp == "" and not _labels_mode
 
 
+func holding_stamp() -> String:
+	return _holding_stamp
+
+
+func labels_mode() -> bool:
+	return _labels_mode
+
+
+## The drawer has come out: the keys in it shift.
+func rattle_keys() -> void:
+	_play("keys", -16.0)
+
+
 ## A paper or a key in hand: what can go over the counter to the guest.
 func carrying() -> bool:
 	return _drag == "card" or _drag == "slip" or _drag.begins_with("key:")
@@ -807,7 +805,7 @@ func put_down() -> bool:
 	return false
 
 
-## A board of keys turned by the wheel over it (3D).
+## A board of keys turned by the wheel over it (3D, in the drawer).
 func wheel(dir: int) -> void:
 	_turn_page(_page + dir)
 
@@ -911,6 +909,9 @@ func _thing_at(p: Vector2) -> String:
 	var tab := _tab_at(p)
 	if tab >= 0 and _drag == "":
 		return "tab:%d" % tab
+	# A stamp stands up off the counter: nearer than the paper it may be seen against.
+	if mode_3d and stamp_3d_hover != "" and not _labels_mode:
+		return "stamp:" + stamp_3d_hover
 	# With the label maker in hand only the labels (and putting it down) answer.
 	if _labels_mode:
 		if DYMO.has_point(p):
@@ -929,7 +930,7 @@ func _thing_at(p: Vector2) -> String:
 				hit.position += _key_pos(str(kd["key"]))
 				if hit.has_point(p):
 					return "key:" + str(kd["key"])
-	var stamp := _stamp_under(p)
+	var stamp := _stamp_under(p) if not mode_3d else ""
 	if stamp != "":
 		return stamp
 	return "dymo" if DYMO.has_point(p) else ""
@@ -1348,19 +1349,20 @@ func _draw_all() -> void:
 	_draw_rack(c)
 	if mode_3d:
 		c.draw_set_transform(sh)
-	_draw_dymo(c)
+	if not mode_3d:
+		_draw_dymo(c)
 	_draw_stamps(c)
 	# Papers: the one not on top first.
 	var top := _top_paper()
 	var order: Array = ["slip", "card"] if top == "card" else ["card", "slip"]
 	for d in order:
 		_draw_paper(c, d)
-	if mode_3d and pointer_on_wall:
+	if mode_3d and pointer_on_board:
 		c.draw_set_transform(sh + RACK_3D)
 	_draw_dragged_key(c)
 	if mode_3d:
 		c.draw_set_transform(sh)
-	if _holding_stamp != "" and _mouse.x >= 0.0:
+	if _holding_stamp != "" and _mouse.x >= 0.0 and not mode_3d:
 		_draw_stamp_tool(c, _holding_stamp, _mouse - STAMP_SIZE * 0.5 + Vector2(0, -6), true)
 	c.draw_set_transform(Vector2.ZERO)
 
@@ -1714,6 +1716,9 @@ func _draw_dymo(c: Control) -> void:
 
 
 func _draw_stamps(c: Control) -> void:
+	if mode_3d:
+		_draw_stamp_tapes(c)
+		return
 	var out := _setout()
 	for s in STAMP_HOME.keys():
 		if _holding_stamp == s:
@@ -1724,6 +1729,23 @@ func _draw_stamps(c: Control) -> void:
 		ks = 1.0 - pow(1.0 - ks, 3.0)
 		var home: Vector2 = STAMP_HOME[s]
 		_draw_stamp_tool(c, str(s), Vector2(home.x, lerpf(float(H) + 6.0, home.y, ks)), false)
+
+
+## 3D: the stamps themselves stand on the counter (desk_room); here their Dymo tapes, stuck on
+## the wood in front of them.
+func _draw_stamp_tapes(c: Control) -> void:
+	for s in STAMP_HOME.keys():
+		var home: Vector2 = STAMP_HOME[s]
+		var text := (tr("CHECKED IN") if str(s) == "in" else tr("REFUSED"))
+		var tw := F_TINY.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
+		var r := Rect2((home + Vector2((STAMP_SIZE.x - tw - 6.0) * 0.5, STAMP_SIZE.y - 2.0)).floor(), Vector2(tw + 6.0, 9.0))
+		var tape: Color = TAPE["tent"] if str(s) == "in" else TAPE["cabin"]
+		c.draw_rect(r, tape)
+		c.draw_rect(Rect2(r.position, Vector2(r.size.x, 1)), tape.lightened(0.3))
+		c.draw_rect(Rect2(r.position + Vector2(0, r.size.y - 1), Vector2(r.size.x, 1)), tape.darkened(0.4))
+		var at := r.position + Vector2(3, 7)
+		F_TINY.draw_string(c.get_canvas_item(), at + Vector2(0, 1), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, tape.darkened(0.45))
+		F_TINY.draw_string(c.get_canvas_item(), at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color8(240, 238, 230))
 
 
 ## The register as its cover swings over (`k` 0 shut .. 1 open): the right page under the

@@ -4,14 +4,17 @@ extends "res://scripts/corn/corn_station.gd"
 ## counter out in the camp: the pot of boiling water at the left, the board, the butter and
 ## its brush, the salt, the napkins, the cash box (the stand's Build picture,
 ## corn/st_counter.png). Things are sprites at the room's pixel.
-##   the pot     a click puts a husked cob from the bowl in (the husking fills the bowl); it
-##               boils pale, then bright yellow (done), then grey and soft
-##   a cob       a click takes it out onto the board, however done it is
-##   the board   hold the button on the cob and brush along it: the butter goes on where
-##               the brush passes (the butter warmer, gear: all of it in one stroke)
-##   the salt    a shake a click, as many as they asked (none for NO SALT)
-##   napkins     a click wraps it
-##   over the counter (the front of it, or SERVE: Space, Enter): to the picked slip, else
+##   the bowl    (at the husking's end, beside the pot) carry a husked cob into the pot, or
+##               a click on the bowl or the pot; it boils pale, then bright yellow (done),
+##               then grey and soft
+##   a cob       with the tongs out of the pot onto the board, however done it is; a click too
+##   the butter  take the brush and rub it along the cob, or hold the button on the cob: the
+##               butter goes on where the brush passes (the warmer, gear: all in one stroke)
+##   the salt    take the shaker and shake it over the cob, a shake a flick (a click: one),
+##               as many as they asked (none for NO SALT)
+##   napkins     carry one onto the cob (a click wraps it)
+##   over the counter carry the wrapped cob to them (or a click on it, the front of the counter,
+##               SERVE: Space, Enter): to the picked slip, else
 ##               the oldest; the cob flies over to them; they judge it (corn_rules.judge):
 ##               hard, soft, no butter, the salt off and they hand it back
 ##   BIN         (the frame's button) the cob on the board in the bin
@@ -19,7 +22,8 @@ extends "res://scripts/corn/corn_station.gd"
 ##               and the rest aside; buy a tray for three more") a cob taken out while
 ##               the board is busy lies aside on the counter's far edge (two, five with
 ##               the tray), as done as it came out; the board free, the oldest goes on it
-## The cash box opens the books (the stock, the order). The next step is lit (`next_hint`):
+## The books are the frame's button (the cash box took a click meant for the board: the user
+## 9. 11., "the ledger kept opening"). The next step is lit (`next_hint`):
 ## the husking when the bowl is empty, a cob in, a done one out, the butter, the salt,
 ## the napkin, SERVE.
 
@@ -41,6 +45,13 @@ const SIDE_BASE := 2
 const TRAY_AT := Vector2(472, 100)
 const COB_M := 0.2
 const DRAG_FAR := 6.0
+## The bowl the husking fills, as this surface counts (its picture goes on left of this one's).
+const BOWL_HERE := Rect2(-152, 30, 115, 110)
+## Over the cob: where the brush and the salt do anything.
+const OVER_COB := Rect2(BOARD_AT.x - 104.0, BOARD_AT.y - 62.0, 208.0, 124.0)
+## How far the shaker goes between two flicks (design px).
+const SHAKE_PX := 13.0
+const SHAKE_GAP_MS := 110
 
 var _cobs: Dictionary = {}          # cob id -> Sprite3D in the pot
 var _board: Dictionary = {}         # {cook, butter: PackedByteArray, salt, napkin}
@@ -55,6 +66,14 @@ var _brushing := false
 ## The water rolling in the pot (corn/boil_0..2: Grok frames, in steps).
 var _boil: Sprite3D
 var _last := Vector2(-1, -1)
+## In the hand: "" nothing, "bowl", "cob:<id>", "napkin", "wrapped"; its picture.
+var _hand := ""
+var _hand_spr: Sprite3D
+var _shake_y := 0.0
+var _shake_dir := 0
+var _shake_ms := 0
+var _shook := 0
+var _napkin_tex: Texture2D
 var _rng := RandomNumberGenerator.new()
 var _bob := 0.0
 ## Opens the books (set by the stand's view).
@@ -73,6 +92,8 @@ func _build() -> void:
 	_butter_spr.visible = false
 	_napkin_spr = lying("cob_napkin", COB_M + 0.02)
 	_napkin_spr.visible = false
+	_hand_spr = lying("cob_raw", COB_M)
+	_hand_spr.visible = false
 	_tray_spr = csprite("tray", 0.34)
 	_tray_spr.visible = false
 	for i in SIDE_AT.size():
@@ -110,6 +131,7 @@ func _show() -> void:
 		# Bobbing in the boil, in steps.
 		var bob := floorf(fmod(_t * 2.0 + float(slot) * 0.7, 2.0)) * 0.008
 		put(s, POT_SLOTS[slot], 0.03 + bob)
+		s.visible = _hand != "cob:" + id
 	for id in _cobs.keys():
 		if not live.has(id):
 			if is_instance_valid(_cobs[id]):
@@ -129,7 +151,7 @@ func _show() -> void:
 			put(sp, SIDE_AT[i], 0.03 + 0.004 * float(i))
 	var on := not _board.is_empty()
 	_board_spr.visible = on and not bool(_board.get("napkin", false))
-	_napkin_spr.visible = on and bool(_board.get("napkin", false))
+	_napkin_spr.visible = on and bool(_board.get("napkin", false)) and _hand != "wrapped"
 	_butter_spr.visible = _board_spr.visible and _butter_share() > 0.0
 	if on:
 		cretex(_board_spr, _cook_tex(float(_board["cook"])), COB_M)
@@ -245,11 +267,11 @@ func next_hint() -> Dictionary:
 					return {"node": sp, "gesture": "click"}
 	if not _board.is_empty():
 		if _butter_share() < 0.85:
-			return {"node": _board_spr, "gesture": "rub"}
+			return {"rect": BUTTER, "gesture": "drag", "to": BOARD_AT}
 		if not t.is_empty() and int(_board["salt"]) < int(t.get("salt", 0)):
-			return {"rect": SALT, "gesture": "click"}
+			return {"rect": SALT, "gesture": "drag", "to": BOARD_AT}
 		if not bool(_board["napkin"]):
-			return {"rect": NAPKINS, "gesture": "click"}
+			return {"rect": NAPKINS, "gesture": "drag", "to": BOARD_AT}
 		return {"ui": "serve"} if not t.is_empty() else {}
 	var wanted := cob_tickets().size()
 	var pot: Array = stand.pot(building_key)
@@ -257,10 +279,10 @@ func next_hint() -> Dictionary:
 		if CORN.stage(float(c["t"])) >= 1 and wanted > 0:
 			var s: Sprite3D = _cobs.get(str(c["id"]), null)
 			if s != null:
-				return {"node": s, "gesture": "click"}
+				return {"node": s, "gesture": "drag", "to": BOARD_AT}
 	if wanted > pot.size():
 		if int(stand.bowl(building_key)) > 0 and stand.free_slot(building_key) >= 0:
-			return {"rect": POT, "gesture": "click"}
+			return {"rect": BOWL_HERE, "gesture": "drag", "to": POT.get_center()}
 		if int(stand.bowl(building_key)) <= 0:
 			return {"tab": "husk"}
 	if wanted == 0 and not drink_tickets().is_empty() and drinks_on():
@@ -296,16 +318,20 @@ func _spots() -> Array:
 			out.append({"id": "cob:" + str(c["id"]), "node": s, "verb": verb})
 	if stand.free_slot(building_key) >= 0:
 		var n := int(stand.bowl(building_key))
-		out.append({"id": "pot", "rect": POT, "verb": "A husked cob into the pot (%d in the bowl)" % n if n > 0 else "The bowl is empty: husk some"})
+		var verb: String = "A husked cob into the pot (%d in the bowl)" % n if n > 0 else "The bowl is empty: husk some"
+		out.append({"id": "pot", "rect": POT, "verb": verb})
+		out.append({"id": "bowl", "rect": BOWL_HERE, "free": true, "verb": verb})
 	if not _board.is_empty():
 		if not bool(_board["napkin"]):
 			out.append({"id": "board", "node": _board_spr, "verb": "Hold and brush it with butter" if _butter_share() < 0.85 else "Buttered"})
-			out.append({"id": "salt", "rect": SALT, "verb": "A shake of salt (%d on it)" % int(_board["salt"])})
+			out.append({"id": "butter", "rect": BUTTER, "verb": "The brush"})
+			out.append({"id": "salt", "rect": SALT.grow(9.0), "verb": "A shake of salt (%d on it)" % int(_board["salt"])})
 			out.append({"id": "napkin", "rect": NAPKINS, "verb": "Wrap it in a napkin"})
 		var t := current_ticket()
 		if not t.is_empty():
 			out.append({"id": "hand", "rect": HAND, "verb": "Over the counter to %s" % first_name(str(t["name"]))})
-	out.append({"id": "cash", "rect": CASH, "verb": "The books"})
+			if bool(_board["napkin"]):
+				out.append({"id": "wrapped", "node": _napkin_spr, "verb": "Over the counter to %s" % first_name(str(t["name"]))})
 	return out
 
 
@@ -313,60 +339,139 @@ func _spots() -> Array:
 ## salt, the bare glove for the napkin and the counter.
 func hand_tool() -> String:
 	var id := _held if _held != "" else _hover
-	if id.begins_with("cob:") or id == "pot":
+	if id.begins_with("cob:"):
 		return "tongs"
 	match id:
-		"board":
+		"board", "butter":
 			return "brush"
 		"salt":
 			return "salt"
-		"cash":
-			return "press"
 	return "open"
 
 
 func _press(id: String) -> void:
+	down_begin()
 	if id.begins_with("cob:"):
-		_take_out(id.substr(4))
+		var cook := 0.0
+		for c in stand.pot(building_key):
+			if str(c["id"]) == id.substr(4):
+				cook = CORN.cook_of(float(c["t"]))
+		_take_in_hand(id, _cook_tex(cook), BOARD)
 		return
 	match id:
-		"pot":
-			_put_in()
-		"board":
+		"bowl":
+			if int(stand.bowl(building_key)) > 0 and stand.free_slot(building_key) >= 0:
+				_take_in_hand("bowl", "cob_raw", POT)
+			else:
+				_put_in()
+		"board", "butter":
 			_brushing = true
 			_last = _mouse_free
 			if BUSINESS.has_gear(building_key, "butter"):
 				_butter_all()
 		"salt":
-			_board["salt"] = int(_board["salt"]) + 1
-			sfx("salt_shake", -10.0, _rng.randf_range(0.95, 1.15))
-			var want := int(current_ticket().get("salt", -1))
-			if int(_board["salt"]) == want:
-				sfx("tick", -12.0, 1.5)
+			_shake_y = _mouse_free.y
+			_shake_dir = 0
+			_shake_ms = 0
+			_shook = 0
+			mark_target(OVER_COB)
 		"napkin":
-			_board["napkin"] = true
-			sfx("plate_down", -14.0, 1.3)
-			sfx("tick", -12.0, 1.5)
-			hop(_napkin_spr)
-		"hand":
-			_hand_over()
-		"cash":
-			if open_books.is_valid():
-				open_books.call()
+			_take_in_hand("napkin", "", OVER_COB)
+		"wrapped":
+			_take_in_hand("wrapped", "cob_napkin", HAND)
 
 
-func _release(_id: String) -> void:
+## Something off the counter into the hand, where it may go lit.
+func _take_in_hand(what: String, tex: String, target: Rect2) -> void:
+	_hand = what
+	if tex != "":
+		cretex(_hand_spr, tex, COB_M)
+	else:
+		_set_napkin_picture()
+	_hand_spr.position = held_at(CARRY_LIFT)
+	_hand_spr.visible = true
+	mark_target(target)
+
+
+## A napkin off the pile as the counter's picture has it.
+func _set_napkin_picture() -> void:
+	if _napkin_tex == null:
+		var pic: Texture2D = load(CORN_TEX + "st_counter.png")
+		var k := Vector2(pic.get_size()) / DESIGN
+		var a := AtlasTexture.new()
+		a.atlas = pic
+		a.region = Rect2(NAPKINS.position * k, NAPKINS.size * k)
+		_napkin_tex = a
+	_hand_spr.texture = _napkin_tex
+	_hand_spr.pixel_size = 0.13 / float(_napkin_tex.get_width())
+
+
+func _salt_once() -> void:
+	_board["salt"] = int(_board["salt"]) + 1
+	sfx("salt_shake", -10.0, _rng.randf_range(0.95, 1.15))
+	if int(_board["salt"]) == int(current_ticket().get("salt", -1)):
+		sfx("tick", -12.0, 1.5)
+
+
+func _wrap() -> void:
+	_board["napkin"] = true
+	sfx("plate_down", -14.0, 1.3)
+	sfx("tick", -12.0, 1.5)
+	hop(_napkin_spr)
+
+
+func _release(id: String) -> void:
 	_brushing = false
+	mark_target(Rect2())
+	var had := _hand
+	_hand = ""
+	_hand_spr.visible = false
+	var at := _mouse_free
+	var click := was_click()
+	if id == "pot":
+		if click:
+			_put_in()
+		return
+	if id == "hand":
+		if click:
+			_hand_over()
+		return
+	if id == "salt":
+		if click and _shook == 0 and not _board.is_empty():
+			_salt_once()
+		return
+	if had.begins_with("cob:"):
+		# Back in the water it goes on boiling; anywhere else it comes out.
+		if click or not POT.grow(14.0).has_point(at):
+			_take_out(had.substr(4))
+	elif had == "bowl":
+		if click or POT.grow(24.0).has_point(at):
+			_put_in()
+	elif had == "napkin":
+		if (click or OVER_COB.has_point(at)) and not _board.is_empty():
+			_wrap()
+	elif had == "wrapped":
+		if click or at.y < HAND.end.y + 18.0:
+			_hand_over()
 
 
 func _drag(at: Vector2) -> void:
+	down_note(at)
+	if _held == "salt" and not _board.is_empty():
+		_shaking(at)
+		return
 	if not _brushing or _board.is_empty() or at.x < -500.0:
+		return
+	# (The brush away from the cob, on its way to it, does nothing.)
+	if not OVER_COB.has_point(at):
+		_last = at
 		return
 	if BUSINESS.stock_of(building_key, "butter") == 0:
 		say("", "No butter.")
 		_brushing = false
 		return
 	var d := (at - _last).length()
+	var from := _last
 	_last = at
 	if d <= 0.5:
 		return
@@ -376,14 +481,31 @@ func _drag(at: Vector2) -> void:
 	var len_px := COB_M / half
 	var u := clampf((at.x - (BOARD_AT.x - len_px * 0.5)) / len_px, 0.0, 0.999)
 	var k := int(u * mask.size())
+	# All the way along what the brush has gone over since the last frame.
+	var k0 := int(clampf((from.x - (BOARD_AT.x - len_px * 0.5)) / len_px, 0.0, 0.999) * mask.size())
 	var was := _butter_share()
-	for j in range(maxi(0, k - 1), mini(mask.size(), k + 2)):
+	for j in range(maxi(0, mini(k, k0) - 1), mini(mask.size(), maxi(k, k0) + 2)):
 		mask[j] = 1
 	if _rng.randf() < d / 60.0:
 		sfx("butter", -14.0, _rng.randf_range(0.9, 1.1))
 	if was < 0.85 and _butter_share() >= 0.85:
 		# The line ticked off on the big slip.
 		sfx("tick", -12.0, 1.5)
+
+
+## The shaker held over the cob: each flick up and down of the hand, a shake.
+func _shaking(at: Vector2) -> void:
+	var dy := at.y - _shake_y
+	if absf(dy) < SHAKE_PX:
+		return
+	var dir := signi(int(dy))
+	_shake_y = at.y
+	var now := Time.get_ticks_msec()
+	if dir != _shake_dir and _shake_dir != 0 and OVER_COB.has_point(at) and now - _shake_ms >= SHAKE_GAP_MS:
+		_shake_ms = now
+		_shook += 1
+		_salt_once()
+	_shake_dir = dir
 
 
 func _butter_all() -> void:
@@ -474,16 +596,22 @@ func bar_button(id: String) -> void:
 
 func _tick(delta: float) -> void:
 	_bob += delta
+	if _hand != "" and _hand_spr.visible:
+		_hand_spr.position = held_at(CARRY_LIFT)
 
 
 func _closing() -> void:
 	_brushing = false
+	_hand = ""
+	if _hand_spr != null:
+		_hand_spr.visible = false
 
 
 # ── debug (tools/stand_check.gd, tools/stand_shots.gd) ───────────────────────
 
 func debug_click(id: String) -> void:
 	_press(id)
+	_release(id)
 
 
 ## The cob on the board dressed as the picked (or oldest) order wants.

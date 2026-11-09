@@ -15,7 +15,9 @@ extends SceneTree
 ## - the key board: every key gets a hook, labels move and swap, the hooks are saved,
 ##   a demolished lodging's label comes off.
 
-const DESK := preload("res://scripts/reception/checkin_desk.gd")
+## (Loaded at run time: the desk names the autoloads, which a --script run has not got when it
+## compiles what it preloads.)
+var DESK = null
 
 var _failures: Array = []
 var _calls: Array = []
@@ -24,6 +26,7 @@ var _ready_keys := {"9:6": true, "11:6": false, "12:6": true}
 
 
 func _initialize() -> void:
+	DESK = load("res://scripts/reception/checkin_desk.gd")
 	_run.call_deferred()
 
 

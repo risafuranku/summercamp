@@ -33397,3 +33397,7 @@ msgstr "Zapnout zip"
 #. manual
 msgid "Unzip"
 msgstr "Rozepnout zip"
+
+#. manual
+msgid "The brush"
+msgstr "Štětec"
