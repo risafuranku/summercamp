@@ -65,6 +65,7 @@ const DRAWER_PIC := Vector2(0.8, 0.429)
 const DRAWER_EYE := Vector3(0.32, 1.5, 1.0)
 const DRAWER_LOOK_AT := Vector3(0.32, 0.9, 0.44)
 const DRAWER_SEC := 0.42
+const KEY_GIVEN_SEC := 0.7
 const SFX_DRAWER := "res://assets/sfx/jednota/drawer.mp3"
 ## The stamps, standing on the counter (the user 9. 11.: "make the stamps 3D objects, so they
 ## are not so flat on that board"): how far off the paper one is carried, how long the press.
@@ -120,6 +121,9 @@ var _drawer_open := false
 var _drawer_t := 0.0
 var _drawer_rot := Vector3.ZERO
 var _front_hot := false
+## A key was wanted a moment ago; the last one given, the drawer shuts by itself shortly after.
+var _key_wanted := false
+var _shut_after := -1.0
 var _glint = HOVER_GLINT.new()
 ## kind -> {root, home, press (seconds into the press, -1 not), label}
 var _stamps: Dictionary = {}
@@ -379,6 +383,14 @@ func _tick_desk(delta: float) -> void:
 	# The label maker works on the keys' labels: the drawer comes out for it.
 	if desk.labels_mode():
 		_set_drawer(true)
+	var wants: bool = desk.wants_key()
+	if _key_wanted and not wants and _drawer_open and desk.holding_nothing():
+		_shut_after = KEY_GIVEN_SEC
+	_key_wanted = wants
+	if _shut_after >= 0.0:
+		_shut_after -= delta
+		if _shut_after < 0.0 and desk.holding_nothing():
+			_set_drawer(false)
 	var k := _drawer_k()
 	cam.position = DESK_EYE.lerp(DRAWER_EYE, k)
 	cam.rotation = _desk_rot.lerp(_drawer_rot, k) + offset
@@ -389,6 +401,7 @@ func _set_drawer(open: bool) -> void:
 	if open == _drawer_open or _drawer == null:
 		return
 	_drawer_open = open
+	_shut_after = -1.0
 	_play(SFX_DRAWER, -8.0 if open else -11.0)
 
 
@@ -511,6 +524,9 @@ func _point() -> void:
 		_glint.show_on([_stamps[desk.stamp_3d_hover]["root"]])
 	elif desk.holding_nothing() and DESK.DYMO.has_point(px):
 		_glint.show_on([_dymo])
+	elif desk.wants_key() and not _drawer_open:
+		# What the guest is waiting for: the pull shows itself.
+		_glint.show_on(_drawer_pull)
 	else:
 		_glint.clear()
 	# The PC across the room takes a click (input).

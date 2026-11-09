@@ -202,7 +202,7 @@ func _spots() -> Array:
 		out.append({"id": "cut", "rect": BOARD, "verb": LANG.f("Cut a slice of the %s onto the scale", tr(str(RULES.DELI[good]["label"])).to_lower())})
 		if not _on.is_empty():
 			out.append({"id": "off", "rect": SCALE, "verb": LANG.f("A slice back off the scale (%d g)", int(round(grams())))})
-			out.append({"id": "wrap", "rect": PAPER, "verb": "Wrap it in paper"})
+			out.append({"id": "wrap", "rect": PAPER, "verb": "Wrap it in paper", "carry": {"tex": JTEX + "parcel.png", "m": 0.14, "to": SCALE}})
 	else:
 		var who := first_name(str(t.get("name", ""))) if not t.is_empty() else ""
 		out.append({"id": "give", "node": _parcel, "verb": LANG.f("Over the counter to %s (%d g)", [who, int(round(grams()))]) if who != "" else "Nobody asked for it", "carry": {"copy": _parcel, "hide": _parcel, "over": 90.0, "lit": Rect2(120, 6, 400, 74)}})

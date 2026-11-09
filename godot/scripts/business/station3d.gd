@@ -216,8 +216,9 @@ func metres_x(px: float) -> float:
 ## Every place is worked with the hands (the user 9. 11.: "somebody who does not know the
 ## controls has no idea where to click; he wanted to drag everything, the cob into the pot, out
 ## of it, shake the salt"): a thing goes where you carry it and is let go there; press and let
-## go on the spot and it is a click, the thing does the obvious, as it always did.
-const CLICK_MS := 240
+## go on the spot and it is a click, the thing does the obvious, as it always did (however
+## slowly the button goes down and up: a press held still a long while is a change of mind).
+const CLICK_MS := 900
 const CLICK_PX := 9.0
 ## How high over the surface a thing goes in the hand.
 const CARRY_LIFT := 0.1
@@ -903,6 +904,9 @@ func release() -> void:
 		if done:
 			_press(was)
 			_release(was)
+		else:
+			# Let go somewhere it does not go: back where it was.
+			sfx("res://assets/sfx/bistro/tick.mp3", -20.0, 0.75)
 		return
 	_release(was)
 

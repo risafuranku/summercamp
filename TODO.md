@@ -14,7 +14,7 @@
 - [x] J6 (137339e8) „klíče přesunout do šuplíku pod pult, cesta ke klíčům na zdi je dost krkolomná. razítka udělat jako 3D objekty, ať nejsou tak napláclé na té desce"
 - [x] J7 (e1bb6220) „zkontroluj pořádně hover/hitboxy, nezdá se nám dveře od recepce"
 - [x] J8 (e82e66b2) „spaní pořád v coopu nefunguje spolehlivě na první pokus"
-- [x] J9 (137339e8 the corn stand; HANDS the pub, the bistro, the Jednota, the bowling alley) „když vidim hrát někoho kukuřici nebo hospodu nebo cokoliv tak je to absolutní pain. člověk co nezná ovládání absolutně neví co má dělat a kam má klikat. furt se mu otvírala dokola účetní kniha protože klikal na prkno. měl nutkání vše drag n dropovat, dragnout kukuřici do hrnce, pak jí dragnout ven, pak sypat solničkou... udělej to víc přirozený ty úkony, začni remasterem samotný kukuřice."
+- [x] J9 (137339e8 the corn stand; 7de5f4c2 the pub, the bistro, the Jednota, the bowling alley) „když vidim hrát někoho kukuřici nebo hospodu nebo cokoliv tak je to absolutní pain. člověk co nezná ovládání absolutně neví co má dělat a kam má klikat. furt se mu otvírala dokola účetní kniha protože klikal na prkno. měl nutkání vše drag n dropovat, dragnout kukuřici do hrnce, pak jí dragnout ven, pak sypat solničkou... udělej to víc přirozený ty úkony, začni remasterem samotný kukuřice."
 - [x] J10 (e82e66b2) „na recepci nejde stoupnout k bočnímu oknu u krbu"
 - [x] J11 (e82e66b2) „když mám k dispozici kurzor (např obsluhuji), nech mě odkliknout OK na tabuli že máme odemčené nové builder věci"
 - [x] J12 (137339e8) „možnost neprodávat v kukuřičnym stánku kuku. když neprodávám nic, stánek se zavře, nebude svítit, lidé k němu nechodí"

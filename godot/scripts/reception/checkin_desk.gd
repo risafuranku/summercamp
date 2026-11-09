@@ -764,6 +764,11 @@ func labels_mode() -> bool:
 	return _labels_mode
 
 
+## Somebody across the counter still to be given a key (the drawer's pull shows itself).
+func wants_key() -> bool:
+	return not _guest.is_empty() and float(_p.get("slide", 0.0)) >= 1.0 and not bool(_guest.get("stranger", false)) and not _all_keys_given()
+
+
 ## The drawer has come out: the keys in it shift.
 func rattle_keys() -> void:
 	_play("keys", -16.0)

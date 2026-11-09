@@ -282,10 +282,10 @@ func _spots() -> Array:
 			if not rung.has(i) and (_items[i] as Sprite3D).visible:
 				out.append({"id": "item:%d" % i, "node": _items[i], "verb": "Ring up the %s" % item_label(str(items[i])), "carry": {"copy": _items[i], "hide": _items[i], "to": Rect2(BAG_AT - Vector2(90, 34), Vector2(180, 100))}})
 		if _to_fetch(t) > 0:
-			out.append({"id": "cigs", "rect": CIGS, "verb": "A pack of Start off the wall for %s" % first_name(str(t["name"]))})
+			out.append({"id": "cigs", "rect": CIGS, "verb": "A pack of Start off the wall for %s" % first_name(str(t["name"])), "carry": {"tex": JTEX + "goods_cigs.png", "m": float(GOOD_M.get("cigs", 0.08)), "to": Rect2(20, 20, 200, 130)}})
 		return out
 	if not money_taken(t):
-		out.append({"id": "paid", "rect": Rect2(MAT_AT - MAT_R, MAT_R * 2.0), "verb": "Take the money"})
+		out.append({"id": "paid", "rect": Rect2(MAT_AT - MAT_R, MAT_R * 2.0), "verb": "Take the money", "carry": {"copy": _paid[0], "hide": _paid[0], "to": Rect2(418, 240, 180, 96)}})
 		return out
 	for d in DRAWER:
 		out.append({"id": "c:%d" % int(d[0]), "rect": d[1], "verb": "Count out %d" % int(d[0]), "carry": {"tex": JTEX + str(PIECE_TEX.get(int(d[0]), "coin1")) + ".png", "m": float(PIECE_M.get(int(d[0]), 0.04)), "to": Rect2(MAT_AT - MAT_R, MAT_R * 2.0)}})

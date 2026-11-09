@@ -56,7 +56,8 @@ func _ready() -> void:
 			["eval", "debug_send_guests_to('pub', 400)"], ["wait", 3.0],
 			_tag("host", "pub_poured", TR + ".debug_pour_some(" + PUB + ", 4)"),
 			# Past their last round: the bills asked for, and not yet left on the bar.
-			["hours", 0.3], ["until", TR + ".bills(" + PUB + ").size() > 0", 40.0],
+			# (Not with a drink still on order, since 4. 11.: their further rounds poured as they come.)
+			["hours", 0.3], ["until", TR + ".debug_pour_some(" + PUB + ", 4) >= 0 and " + TR + ".bills(" + PUB + ").size() > 0", 80.0],
 			_tag("host", "pub_bills", TR + ".bills(" + PUB + ").size()"),
 			_tag("host", "pub_bill_age", TR + ".bills(" + PUB + ")[0]['age'] if " + TR + ".bills(" + PUB + ").size() > 0 else -1"),
 			_tag("host", "pub_now", TR + ".now_min()"),
