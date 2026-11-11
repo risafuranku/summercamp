@@ -86,11 +86,14 @@ func _ready() -> void:
 			["coop_wait_file", "host_private"], ["wait", 2.0], ["coop_fingerprint", "%s_private" % r], ["coop_signal", "%s_private" % r],
 			["coop_wait_file", "host_shared"], ["wait", 2.0], ["coop_fingerprint", "%s_shared" % r], ["shot", "q5_%s_enemy" % r], ["coop_signal", "%s_shared" % r]])
 		_steps.append_array([["coop_wait_file", "host_in_bed"]])
+		# Lying down where they are, eyes shut (a bed's own way: since 9. 11. the night starts once
+		# everybody's eyes are shut, not when the last lies down; lie_down alone kept them awake
+		# and the night never came).
 		if r == "c3":
 			# The last one up: the night waits for them.
-			_steps.append_array([["coop_wait_file", "host_waiting"], ["eval", "camp_office.lie_down()"], ["coop_signal", "c3_in_bed"]])
+			_steps.append_array([["coop_wait_file", "host_waiting"], ["eval", "camp_office.start_sleep()"], ["coop_signal", "c3_in_bed"]])
 		else:
-			_steps.append_array([["eval", "camp_office.lie_down()"], ["coop_signal", "%s_in_bed" % r]])
+			_steps.append_array([["eval", "camp_office.start_sleep()"], ["coop_signal", "%s_in_bed" % r]])
 		_steps.append_array([
 			["coop_wait", "morning"], ["wait", 1.0], ["coop_fingerprint", "%s_morning" % r], ["coop_signal", "%s_morning" % r]])
 		_steps.append_array(_to_lesna())
