@@ -79,8 +79,9 @@ func _ready() -> void:
 	for i in 40:
 		chase.tick(1.0 / 30.0)
 
-	# ── The whistler: run while he whistles; he rushes. Stand there and he has you (it stops
-	# dead with the string round your neck); walk off and he whistles where you were.
+	# ── The whistler: run while he whistles; he rushes, and the beat stops dead the moment the
+	# string is round your neck. Standing or walking off: since 8. 11. (W1) moving while he
+	# listens is what gives you away, so walking off he has you too.
 	for walk_off in [false, true]:
 		_damage = 0
 		_player.global_position = Vector3.ZERO
@@ -99,18 +100,19 @@ func _ready() -> void:
 					side.y = 0.0
 					side = side.normalized()
 				_player.global_position += side * 3.3 / 30.0
-			var striking := float(w._strike_t) >= 0.0
+			# (His strike is a step-by-step dictionary since 8. 11.: {} while there is none.)
+			var striking := not (w._strike as Dictionary).is_empty()
 			w.tick(1.0 / 30.0)
 			chase.tick(1.0 / 30.0)
 			phw = str(w._phase)
-			if phw == "rush" and float(w._strike_t) < 0.0 and chase.playing() and str(chase._src) == "whistler":
+			if phw == "rush" and (w._strike as Dictionary).is_empty() and chase.playing() and str(chase._src) == "whistler":
 				rush_on = true
-			if rush_on and ((prev == "rush" and phw == "play") or (not striking and float(w._strike_t) >= 0.0)):
+			if rush_on and ((prev == "rush" and phw == "play") or (not striking and not (w._strike as Dictionary).is_empty())):
 				# (He tells it at the start of his next tick.)
 				w.tick(1.0 / 30.0)
 				chase.tick(1.0 / 30.0)
 				stopped = not chase.playing()
-				print("    whistler %s: t %.1f s, phase %s, strike %.2f, chase %s" % ["walking off" if walk_off else "standing", i / 30.0, str(w._phase), float(w._strike_t), chase.playing()])
+				print("    whistler %s: t %.1f s, phase %s, strike %.2f, chase %s" % ["walking off" if walk_off else "standing", i / 30.0, str(w._phase), float((w._strike as Dictionary).get("t", -1.0)), chase.playing()])
 				break
 			prev = phw
 		_expect(rush_on, "whistler: his rush has its beat")
