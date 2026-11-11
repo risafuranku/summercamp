@@ -220,6 +220,9 @@ godot --headless --path godot --script res://tools/night_swell_check.gd   # the 
   a parse error: the game still prints its normal startup lines after a failed script.
 - Harnesses that need autoloads must run as **scenes**, not `--script`.
 - Benign at exit: "N resources still in use" / leaked ObjectDB (audio thread race).
+- Benign headless only: `Parameter "t" is null` (texture_2d_initialize) and `Parameter
+  "material" is null` (material_get_instance_shader_parameters), a handful a run, no script
+  frames: the dummy renderer's; a windowed run has none.
 
 ### Seeing the game: the screenshot driver
 

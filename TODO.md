@@ -901,10 +901,12 @@ finished game, by impact:
   clear and fog): the forest ring has no gaps, the far shore and its houses read across
   the lake, the fog falls off in steps; the only thing cut by distance is the ground
   cover at 70 m (a tuft is a pixel there)
-- [ ] coop4_check on HEAD 14e8dd1 (20. 10.): 23 failures, all the trip to town (in_town,
+- [x] coop4_check on HEAD 14e8dd1 (20. 10.): 23 failures, all the trip to town (in_town,
   the bus, Lesna, the bar of U Jezera, the fingerprints), no SCRIPT ERROR; coop_check
   the same in_town wait plus the derelict cabin and the jobs, on clean HEAD too (town:
-  Cod3x)
+  Cod3x) (11. 11.: coop_check PASS; coop4's 24 failures came from its clients lying down
+  without shutting their eyes, the night never came: 5166958d, coop4_check PASS with the trip
+  to Liblice)
 
 ## BUILDER 98, A GAME IN THE GAME — 2026-10-19 (agreed with the user; handoff)
 
@@ -990,9 +992,11 @@ start, collect good ratings; pay to delete bad reviews".
   same, fixed by a `_draw_page` of its own) - moot if the corn stand's 3D stations
   replace it
 - [x] `Parameter "material" is null` (8x) in the smoke test: gone by 20. 10. morning
-- [ ] It is back: 16x in the headless smoke test on the title screen, at HEAD b267f605 as
+- [x] It is back: 16x in the headless smoke test on the title screen, at HEAD b267f605 as
   well (2. 11., found while checking S25/S27/S9: not from them; the dummy renderer's
-  `material_get_instance_shader_parameters`, no script frames)
+  `material_get_instance_shader_parameters`, no script frames) (11. 11.: the dummy
+  renderer's alone, 4 to 18 a run as far as the boot gets in 400 frames, with "Parameter t is
+  null" for a few textures it cannot make; none in a windowed run: grep SCRIPT ERROR only)
 - [x] coop_check 2. 11. (checking S23): one failure, "terrain differ": four Label3D 0.6 m apart between the machines: not vehicles, every sign's letters are pulled a share of their distance towards each machine's own eye (retro_materials._pull_labels); the check leaves them out (4. 11. evening)
 - [x] Replace the other code-made sounds too? Yes, all of them (the user, 20. 10.): the
   Photographer's camera, the thump, the pager, the station that does not exist, the phone
@@ -1280,7 +1284,8 @@ Tools: Grok Imagine (Cursor CLI) for textures, ElevenLabs for sound (key in
 - [x] Gatehouse sign text spills past the board
 - [x] Cabin level-1 has no bathroom; the bucket outside is decoration only (now a slop bucket in the room: "Empty the slop bucket")
 - [x] The bathroom toilet is a box (part of the interiors visual pass)
-- [ ] GitLab remote auth (needs the user to log in on the dev PC)
+- [x] GitLab remote auth (needs the user to log in on the dev PC) (11. 11.: GitLab and GitHub
+  both answer without a login prompt, `credential.interactive=never`)
 
 ---
 
