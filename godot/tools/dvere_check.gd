@@ -12,6 +12,14 @@ extends "res://tools/shot_driver.gd"
 const C := "get_tree().root.get_node('DvereCheck')"
 ## (The tiers above the first come by upgrading: the harness builds the first.)
 const ALL := ["cabin_1", "caravan_1", "tent_1", "toilet_block", "shower_block", "power_generator", "pub", "restaurant", "vecerka", "staffroom", "bowling"]
+## Where each is built: [origin, [the rects cleared first]].
+const SPOTS := {
+	"cabin_1": [Vector2i(8, 11), [[7, 10, 4, 4]]], "caravan_1": [Vector2i(13, 11), [[12, 10, 4, 3]]],
+	"tent_1": [Vector2i(18, 11), [[17, 10, 3, 3]]], "toilet_block": [Vector2i(23, 11), [[22, 10, 3, 3]]],
+	"shower_block": [Vector2i(8, 16), [[7, 15, 3, 3]]], "pub": [Vector2i(13, 16), [[12, 15, 4, 4]]],
+	"restaurant": [Vector2i(18, 16), [[17, 15, 4, 4]]], "bowling": [Vector2i(23, 16), [[22, 15, 5, 4], [22, 19, 5, 3]]],
+	"vecerka": [Vector2i(8, 21), [[7, 20, 5, 5]]], "staffroom": [Vector2i(14, 22), [[13, 21, 4, 4]]],
+}
 
 var _worst := 0.0
 var _deltas: Array = []
@@ -58,12 +66,12 @@ func interact() -> String:
 	return "interact"
 
 
-## Where the door walk's eye is in the door's frame, and the pane on the way out.
+## Where the door walk's eye is in the door's frame, the room's own leaves and the camp's doors
+## as they stand (every room stands in its building: no panes, no view of its own since 11. 11.).
 func probe(label: String) -> String:
 	var th = _main.get("_interior_manager").get("through")
 	var cam: Camera3D = th.get("_room_cam")
 	var fg: Transform3D = th.get("_frame_g")
-	var pane = th.get("_out_pane")
 	var leaves := []
 	var spec: Dictionary = th.get("_spec")
 	for n in spec.get("leaf", []):
@@ -76,20 +84,12 @@ func probe(label: String) -> String:
 		var d = way.get(k, null)
 		if d != null and is_instance_valid(d):
 			var rec: Dictionary = da._doors.get(d.get_instance_id(), {})
-			doors.append("%s angle=%s until=%.2f clock=%.2f" % [d.name, rec.get("angle", "?"), float(rec.get("open_until", -1.0)), da._clock])
-	var vcam: Camera3D = th.get("_view").get("cam")
-	if _structure != null:
-		var fdc := _structure.find_child("FrontDoor", true, false)
-		var hidden: Array = th.get("_view").get("_hidden")
-		doors.append("camp_frontdoor=%s layers=%s hidden_n=%d mask=%s vpworld_is_camp=%s" % [fdc.get_path() if fdc != null else "none", (fdc as GeometryInstance3D).layers if fdc is GeometryInstance3D else -1, hidden.size(), vcam.cull_mask, (th.get("_view").get("vp") as SubViewport).world_3d == _structure.get_world_3d()])
-	if _out_dir != "":
-		var vimg: Image = (th.get("_view").get("vp") as SubViewport).get_texture().get_image()
-		if vimg != null:
-			vimg.save_png(_out_dir + "/view_" + label + ".png")
+			var hole = rec.get("hole", null)
+			doors.append("%s angle=%s until=%.2f clock=%.2f way_layers=%s" % [d.name, rec.get("angle", "?"), float(rec.get("open_until", -1.0)), da._clock,
+				(hole as GeometryInstance3D).layers if hole is GeometryInstance3D and is_instance_valid(hole) else -1])
 	if way.has("sill"):
-		var tr: Transform3D = th.get("_to_room")
-		doors.append("sill_in_frame=%s normal_in_frame=%s" % [fg.affine_inverse() * (tr * (way["sill"] as Vector3)), fg.basis.inverse() * (tr.basis * (way["normal"] as Vector3))])
-	var line := "DVERE probe %s: state=%s eye=%s pane=%s vis=%s leaves=%s doors=%s viewcam=%s" % [label, th.get("_state"), (fg.affine_inverse() * cam.global_position) if cam != null else Vector3.INF, (fg.affine_inverse() * pane.global_position) if pane != null else Vector3.INF, pane.visible if pane != null else false, leaves, doors, vcam.global_position]
+		doors.append("sill_in_frame=%s normal_in_frame=%s" % [fg.affine_inverse() * (way["sill"] as Vector3), fg.basis.inverse() * (way["normal"] as Vector3)])
+	var line := "DVERE probe %s: state=%s eye=%s leaves=%s doors=%s" % [label, th.get("_state"), (fg.affine_inverse() * cam.global_position) if cam != null else Vector3.INF, leaves, doors]
 	print(line)
 	return line
 
@@ -187,12 +187,18 @@ func _ready() -> void:
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 2.0],
 		["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 1.4],
 		["key", "Escape"], ["wait", 3.2],
-		["money", 200000], ["clear", 6, 10, 20, 14],
+		["money", 200000],
 	]
-	var x := 8
+	# Each on its own spot with the ground cleared round it (a demolition over 5 x 5 is refused;
+	# in one row the later ones fell outside the cleared ground and were never built, 11. 11.).
+	# The generator is the camp's own.
 	for k in kinds:
-		steps.append_array([["build", k, x, 14, 0], ["prep_all"]])
-		x += 6
+		var sp: Array = SPOTS.get(k, [])
+		if sp.is_empty():
+			continue
+		for c in sp[1]:
+			steps.append(["clear", c[0], c[1], c[2], c[3]])
+		steps.append_array([["build", k, sp[0].x, sp[0].y, 0], ["prep_all"]])
 	steps.append(["wait", 1.0])
 	steps.append_array([["eval", C + ".stand_before('%s')" % kinds[0]], ["wait", 2.0], ["eval", C + ".watch()"], ["wait", 5.0], ["eval", C + ".report('baseline', 'standing')"]])
 	for k in kinds:
