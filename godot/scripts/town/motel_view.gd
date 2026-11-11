@@ -1440,6 +1440,19 @@ func _unlock() -> void:
 
 
 ## Esc: off the bed first; the key turned back before you go out into the corridor.
+## Where the room stands in the camp's world (town_room one world): in the block, where its
+## shell is; the shell put away while you are in it.
+func seat() -> Variant:
+	if block == null or not is_instance_valid(block) or not block.is_inside_tree():
+		return null
+	return _xform()
+
+
+func copies() -> Array:
+	var s: Node3D = block.shell(n) if block != null and is_instance_valid(block) and block.has_method("shell") else null
+	return [s] if s != null else []
+
+
 func wants_out() -> bool:
 	if n == 0:
 		return true
@@ -1725,7 +1738,8 @@ func _open_peephole() -> void:
 		_peep_layer.add_child(tr)
 	_peep_vp.world_3d = room._vp.find_world_3d()
 	var dm := PLAN.room_door(n)
-	_peep_cam.global_transform = Transform3D(Basis(Vector3.UP, PI), dm + Vector3(0, 1.55, 0.1))
+	# (Room space, where the room stands: in the block in the camp's world, town_room._space.)
+	_peep_cam.global_transform = room._space.global_transform * Transform3D(Basis(Vector3.UP, PI), dm + Vector3(0, 1.55, 0.1))
 	_peep_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_peep_layer.visible = true
 	_peeping = true
@@ -1822,7 +1836,8 @@ func tape_on(eye: Transform3D) -> void:
 	_cam_make()
 	_cam_vp.world_3d = room._vp.find_world_3d()
 	_cam_cam.fov = 78.0
-	_cam_cam.global_transform = eye
+	# (`eye` in room space: where the room stands, town_room._space.)
+	_cam_cam.global_transform = room._space.global_transform * eye
 	_cam_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_taped = true
 	tv_on = true
@@ -1903,11 +1918,12 @@ func _tick_mirror() -> void:
 		sm.set_shader_parameter("view", _mir_vp.get_texture())
 		mirror.material_override = sm
 		_make_reflection()
+	# Mirrored in room space (the glass's plane x = mx), then where the room stands.
 	var mx: float = mirror.position.x
-	var t: Transform3D = room._cam.global_transform
+	var t: Transform3D = room._cam.transform
 	var p := t.origin
 	var r := func(v: Vector3) -> Vector3: return Vector3(-v.x, v.y, v.z)
-	_mir_cam.global_transform = Transform3D(Basis(-r.call(t.basis.x), r.call(t.basis.y), r.call(t.basis.z)), Vector3(2.0 * mx - p.x, p.y, p.z))
+	_mir_cam.global_transform = room._space.global_transform * Transform3D(Basis(-r.call(t.basis.x), r.call(t.basis.y), r.call(t.basis.z)), Vector3(2.0 * mx - p.x, p.y, p.z))
 	_mir_cam.fov = room._cam.fov
 	if _mir_vp.size != room._vp.size / 2:
 		_mir_vp.size = room._vp.size / 2

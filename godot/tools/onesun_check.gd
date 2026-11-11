@@ -248,6 +248,34 @@ func around(type: String, angle: float, dist: float, h: float) -> void:
 	cam.current = true
 
 
+## A camera out in Liblice before `place`'s door (town_lesna spots: "<place>_door" and the
+## building "<place>"), `dist` m back from it, `h` m over the eye, `side` degrees round, looking
+## at the doorway (--part=townrooms).
+func town_view(place: String, dist: float, h: float, side := 0.0) -> void:
+	var town = _main._interior_manager.town_trip()._town
+	var door = town.spots.get(place + "_door")
+	var b = town.spots.get(place)
+	if not (door is Vector3) or not (b is Node3D):
+		print("ONESUN town: no ", place)
+		return
+	var out: Vector3 = (door as Vector3) - (b as Node3D).global_position
+	out.y = 0.0
+	out = out.normalized().rotated(Vector3.UP, deg_to_rad(side))
+	var c: Vector3 = (door as Vector3) - out * 1.2 + Vector3(0, 1.5, 0)
+	var cam := Camera3D.new()
+	(_main.get("_world_3d") as Node3D).add_child(cam)
+	cam.fov = 62.0
+	cam.far = 400.0
+	cam.cull_mask = (_main.get("_player").get("_camera") as Camera3D).cull_mask
+	cam.global_position = c + out * dist + Vector3(0, h, 0)
+	cam.look_at(c, Vector3.UP)
+	var old = _main.get("debug_camera")
+	if old != null and is_instance_valid(old):
+		old.queue_free()
+	_main.set("debug_camera", cam)
+	cam.current = true
+
+
 ## What each viewport drew last frame: the camp's (main) and the rooms' (draw calls, objects).
 func vp_info(tag: String) -> void:
 	var out := []
@@ -1643,6 +1671,45 @@ func _ready() -> void:
 					st += [["eval", SI + "._look.set('yaw_deg', %s)" % v[0]], ["eval", SI + "._look.set('pitch_deg', %s)" % v[1]], ["wait", 0.7], ["shot", "sewer_4_look_%s" % v[2]]]
 				st += [["eval", "_interior_manager.close_everything(true)"], ["wait", 2.0], ["eval", "set('debug_camera', null)"],
 					["eval", C + ".around('sewer', 30.0, 6.0, 0.3)"], ["wait", 0.8], ["shot", "sewer_8_ext"]]
+			st += [["eval", "set('debug_camera', null)"], ["wait", 1.0], ["eval", "get_tree().quit()"]]
+			_steps = st
+			return
+		if a == "--part=townrooms":
+			# Liblice's places in the camp's one world (W26): each from its door, inside looking
+			# round and out of its windows, from outside again after (the building's copy back);
+			# the motel's reception, number four and the corridor; by day, then at night.
+			var TT := "_interior_manager.town_trip()"
+			var TR := TT + "._room"
+			var st: Array = [
+				["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+				["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
+				["eval", TT + "._ensure_town()"], ["wait", 3.0], ["eval", TT + "._put_player(" + TT + "._town.arrive_spot())"], ["wait", 2.0]]
+			var only := ""
+			for a2 in OS.get_cmdline_user_args():
+				if str(a2).begins_with("--rooms="):
+					only = str(a2).substr(8)
+			for hr in [[1, 13.0, "d"], [1, 21.5, "n"]]:
+				st += [["eval", "debug_jump_to(%d, %s)" % [hr[0], hr[1]]], ["wait", 3.0]]
+				for place in ["jednota", "pub", "kiosk", "motel", "wc", "chapel"]:
+					if only != "" and not place in only.split(","):
+						continue
+					var tag: String = "%s_%s" % [hr[2], place]
+					st += [["eval", C + ".town_view('%s', 6.0, 0.2)" % place], ["wait", 1.0], ["shot", "%s_0_out" % tag],
+						["eval", "set('debug_camera', null)"], ["eval", TT + "._open_room('%s')" % place], ["wait", 2.5], ["mouse", 0.5, 0.5], ["shot", "%s_1_in" % tag]]
+					for v in [[70.0, "l"], [-70.0, "r"], [178.0, "back"]]:
+						st += [["eval", TR + "._look.set('yaw_deg', %s)" % v[0]], ["wait", 0.8], ["shot", "%s_2_look_%s" % [tag, v[1]]]]
+					st += [["eval", TR + "._look.set('yaw_deg', 0.0)"], ["wait", 0.3]]
+					if place == "motel":
+						st += [["eval", TR + ".go_to('motel_hall', 0, 'lobby')"], ["wait", 2.5], ["shot", "%s_3_hall" % tag],
+							["eval", TR + "._look.set('yaw_deg', 90.0)"], ["wait", 0.8], ["shot", "%s_3_hall_l" % tag],
+							["eval", TR + "._look.set('yaw_deg', -90.0)"], ["wait", 0.8], ["shot", "%s_3_hall_r" % tag],
+							["eval", TR + "._look.set('yaw_deg', 0.0)"], ["eval", TR + ".go_to('motel_room', 4)"], ["wait", 2.5], ["shot", "%s_4_room4" % tag],
+							["eval", TR + "._look.set('yaw_deg', 120.0)"], ["wait", 0.8], ["shot", "%s_4_room4_l" % tag],
+							["eval", TR + "._look.set('yaw_deg', -120.0)"], ["wait", 0.8], ["shot", "%s_4_room4_r" % tag],
+							["eval", TR + "._look.set('yaw_deg', 0.0)"]]
+					st += [["eval", TR + ".close()"], ["wait", 1.5],
+						["eval", C + ".town_view('%s', 4.0, -0.3, 15.0)" % place], ["wait", 1.0], ["shot", "%s_5_out_after" % tag],
+						["eval", "set('debug_camera', null)"]]
 			st += [["eval", "set('debug_camera', null)"], ["wait", 1.0], ["eval", "get_tree().quit()"]]
 			_steps = st
 			return

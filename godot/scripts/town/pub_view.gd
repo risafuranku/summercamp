@@ -266,6 +266,21 @@ func click(id: String, _hour: float) -> bool:
 	return false
 
 
+## Where the room stands in the camp's world (town_room one world): in the building, where its
+## copy behind the glass is; the copy put away while you are in it.
+func seat() -> Variant:
+	if anchor == null or not is_instance_valid(anchor) or not anchor.is_inside_tree():
+		return null
+	return anchor.global_transform * Transform3D(Basis(), origin())
+
+
+func copies() -> Array:
+	if anchor == null or not is_instance_valid(anchor):
+		return []
+	var c := anchor.get_node_or_null("Taproom")
+	return [c] if c != null else []
+
+
 func wants_out() -> bool:
 	return true
 

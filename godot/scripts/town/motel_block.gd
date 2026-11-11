@@ -102,8 +102,16 @@ func _walls() -> void:
 	back.set_meta("no_wear", true)
 	var bq := _quad(painted, Vector2(s.x, s.y), Vector3(0, s.y * 0.5, s.z * 0.5 + 0.01), Vector3(0, 0, 1))
 	bq.name = "BackFront"
+	# The ends cut round the corridor's windows on both floors (motel_hall._windows): from the
+	# corridor in the camp's one world they look out (town_room.gd); from outside a dark pane
+	# over them (_doors_and_windows), the corridor unlit behind it.
+	var mid := (PLAN.CORRIDOR_Z.x + PLAN.CORRIDOR_Z.y) * 0.5
+	var holes: Array = []
+	for y0: float in [0.0, PLAN.UPPER_Y]:
+		holes.append([mid - 0.55, mid + 0.55, y0 + 0.95, y0 + 2.05])
 	for sx in [-1.0, 1.0]:
-		K.slab(self, Vector3(0.2, s.y, s.z), Vector3(sx * (s.x * 0.5 - 0.1), s.y * 0.5, 0), _plaster, "WallEnd")
+		for p in K.wall_pieces(s.z * 0.5, s.y, holes):
+			K.slab(self, Vector3(0.2, float(p[3]) - float(p[2]), float(p[1]) - float(p[0])), Vector3(sx * (s.x * 0.5 - 0.1), (float(p[2]) + float(p[3])) * 0.5, (float(p[0]) + float(p[1])) * 0.5), _plaster, "WallEnd")
 	var solid := StaticBody3D.new()
 	solid.name = "Solid"
 	var cs := CollisionShape3D.new()

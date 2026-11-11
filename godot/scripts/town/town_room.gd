@@ -19,6 +19,13 @@ extends CanvasLayer
 ## S, the bottom edge or the door behind you leaves.
 ##
 ## The rooms are Build boxes with Grok faces (assets/textury/camp, tools/artgen/town_rooms.py).
+##
+## One world (W26): a place whose view says where its room stands in the village (`seat()`)
+## is built there in the camp's own world, the building's own copy of it behind its glass
+## (`copies()`) put away while you are in: its windows are the building's glass with the
+## street behind them, its lamps light only the room (one_world_room.gd, as the camp's rooms).
+## Room space is `_space`: the seat, or the origin of the room's own world for a place that
+## has none (the chapel: bigger inside than out, the user's choice of 4. 11.).
 
 signal closed
 ## Paid for at the counter (counter_shop.gd), into the bag (scripts/ui/inventory.gd).
@@ -34,6 +41,7 @@ const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
 const HOVER_GLINT = preload("res://scripts/ui/hover_glint.gd")
 const RETRO_RENDER = preload("res://scripts/retro_render.gd")
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
+const ONE_WORLD_ROOM = preload("res://scripts/one_world_room.gd")
 const NPC := "res://assets/textury/npc/"
 const SFX_PUB := "res://assets/sfx/pub/"
 const SFX_TOWN := "res://assets/sfx/town/"
@@ -103,8 +111,20 @@ var _open := false
 var _vpc: SubViewportContainer
 var _vp: SubViewport
 var _cam: Camera3D
+## The room's light numbers by the hour (its probe's ambient in the camp's world; the
+## environment of its own world otherwise), its haze (the pub's smoke) over the camp's sky.
 var _env: Environment
 var _root: Node3D
+## Room space: the room and its eye in it (see the top).
+var _space: Node3D
+var _own_world: World3D
+## The open place stands in its building in the camp's world.
+var _one := false
+var _copies: Array = []           # [Node3D, was visible]
+var _probe: ReflectionProbe
+var _dry: GPUParticlesCollisionBox3D
+var _lights_t := 0.0
+var _haze_t := 0.0
 var _look = INTERIOR_LOOK.new(180.0, 24.0, 30.0)
 var _base_rot := Vector3.ZERO
 var _hot: Dictionary = {}       # id -> {body, meshes}
@@ -152,22 +172,28 @@ func _ready() -> void:
 	add_child(_vpc)
 	RETRO_RENDER.register(_vpc)
 	_vp = SubViewport.new()
-	_vp.own_world_3d = true
 	_vp.size = RENDER
 	_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	# The camp's world or the room's own, set as it opens (_enter_world); never own_world_3d
+	# switched on a viewport with content, which left the engine without its scenario.
+	ONE_WORLD_ROOM.viewport(_vp)
+	_own_world = World3D.new()
+	_vp.world_3d = _own_world
 	_vpc.add_child(_vp)
 	_env = Environment.new()
 	_env.background_mode = Environment.BG_COLOR
 	_env.background_color = Color(0.05, 0.05, 0.06)
 	_env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	var we := WorldEnvironment.new()
-	we.environment = _env
-	_vp.add_child(we)
+	# (On the world itself: a WorldEnvironment node in the camp's world would be the camp's.)
+	_own_world.environment = _env
+	_space = Node3D.new()
+	_space.name = "RoomSpace"
+	_vp.add_child(_space)
 	_cam = Camera3D.new()
 	_cam.fov = 66.0
 	_cam.near = 0.05
 	_cam.far = 30.0
-	_vp.add_child(_cam)
+	_space.add_child(_cam)
 	_audio = AudioStreamPlayer.new()
 	add_child(_audio)
 	_amb = AudioStreamPlayer.new()
@@ -211,11 +237,12 @@ func is_open() -> bool:
 func open(p_place: String, p_hour: float) -> void:
 	place = p_place
 	hour = p_hour
+	_leave_world()
 	if _root != null:
-		_vp.remove_child(_root)
+		_space.remove_child(_root)
 		_root.queue_free()
 	_root = Node3D.new()
-	_vp.add_child(_root)
+	_space.add_child(_root)
 	_hot.clear()
 	walker = null
 	_tubes.clear()
@@ -274,6 +301,7 @@ func open(p_place: String, p_hour: float) -> void:
 		"wc":
 			_view = WC_VIEW.new(self)
 			_view.build_inside(hour)
+	_enter_world()
 	_look.reset()
 	_cam.rotation = _base_rot
 	# Once used: come in again from outside and it is the room's start (the user 6. 11.: "I
@@ -361,6 +389,7 @@ func coop_mates(ids: Array) -> void:
 func close() -> void:
 	if not _open:
 		return
+	_leave_world()
 	if _view != null:
 		_view.close()
 		_view = null
@@ -425,6 +454,127 @@ func say(who: String, text: String) -> void:
 	_type = 0.0
 
 
+# ── one world ────────────────────────────────────────────────────────────────
+
+## The room just built: in the camp's world where its view says it stands, else in its own.
+func _enter_world() -> void:
+	var seat = _view.seat() if _view != null and _view.has_method("seat") else null
+	_one = seat is Transform3D
+	if not _one:
+		_vp.world_3d = _own_world
+		_vp.audio_listener_enable_3d = false
+		_space.transform = Transform3D()
+		_cam.far = 30.0
+		_cam.cull_mask = 0xFFFFF
+		_cam.attributes = null
+		_cam.environment = null
+		return
+	_vp.world_3d = null
+	_vp.audio_listener_enable_3d = true
+	ONE_WORLD_ROOM.camp_view(get_tree(), false)
+	ONE_WORLD_ROOM.eye(_cam)
+	_space.global_transform = seat
+	_copies.clear()
+	for c in _view.copies():
+		if c is Node3D and is_instance_valid(c):
+			_copies.append([c, (c as Node3D).visible])
+			(c as Node3D).visible = false
+	# Its windows are the building's own glass: the street behind it, no views on them.
+	for w in _view.get("windows") if _view.get("windows") is Array else []:
+		if w != null and w.has_method("set_one_world"):
+			w.set_one_world(null)
+	var box := _room_box()
+	_probe = ONE_WORLD_ROOM.probe(_root, "RoomLight")
+	_dry = ONE_WORLD_ROOM.dry(_root, "Dry")
+	ONE_WORLD_ROOM.fit(_probe, _dry, box.position, box.end)
+	ONE_WORLD_ROOM.own_lights(_root)
+	_lights_t = 1.0
+	_haze_t = 0.0
+	_tick_world(0.0)
+
+
+## Out of the camp's world: the building's copy back (the one it has now: a shop's lit copy
+## swapped for its dark one at closing time stays put away), the camp's own view back.
+func _leave_world() -> void:
+	var now: Array = _view.copies() if _one and _view != null and _view.has_method("copies") else []
+	for h in _copies:
+		if is_instance_valid(h[0]) and now.has(h[0]):
+			(h[0] as Node3D).visible = bool(h[1])
+	_copies.clear()
+	if _one:
+		_one = false
+		ONE_WORLD_ROOM.camp_view(get_tree(), true)
+		_cam.environment = null
+
+
+## Each frame in the camp's world: the room where its building is now (a shop built again at
+## closing time), its probe's ambient the room's, the lamps lit since its own, the haze.
+func _tick_world(delta: float) -> void:
+	if not _one or _view == null:
+		return
+	var seat = _view.seat()
+	if seat is Transform3D and not _space.global_transform.is_equal_approx(seat):
+		_space.global_transform = seat
+	for c in _view.copies():
+		if c is Node3D and is_instance_valid(c) and (c as Node3D).visible:
+			_copies.append([c, true])
+			(c as Node3D).visible = false
+	if _probe != null and is_instance_valid(_probe):
+		_probe.ambient_color = _env.ambient_light_color
+		_probe.ambient_color_energy = _env.ambient_light_energy
+	_lights_t -= delta
+	if _lights_t <= 0.0:
+		_lights_t = 1.0
+		ONE_WORLD_ROOM.own_lights(_root)
+	_haze_t -= delta
+	if _haze_t <= 0.0:
+		_haze_t = 2.0
+		_sync_haze()
+
+
+## The room's haze (the pub's smoke, set on `_env` by its view) over the camp's own sky and
+## light: the eye gets the camp's environment with the room's fog in it (as the Builder's 3D
+## view takes it, map3d._sync_env); none, the camp's as it is.
+func _sync_haze() -> void:
+	if not _env.fog_enabled:
+		_cam.environment = null
+		return
+	var main := get_tree().current_scene if is_inside_tree() else null
+	var we = main.get("world_environment") if main != null else null
+	var src: Environment = (we as WorldEnvironment).environment if we is WorldEnvironment else null
+	if src == null:
+		_cam.environment = null
+		return
+	var env: Environment = src.duplicate()
+	env.fog_enabled = true
+	env.fog_light_color = _env.fog_light_color
+	env.fog_light_energy = _env.fog_light_energy
+	env.fog_density = _env.fog_density
+	env.fog_sky_affect = 0.0
+	env.volumetric_fog_enabled = false
+	_cam.environment = env
+
+
+## The room's extent in room space (what its meshes take up), for its probe and dry box.
+func _room_box() -> AABB:
+	var box := AABB()
+	var first := true
+	var inv := _root.global_transform.affine_inverse()
+	for n in _root.find_children("*", "MeshInstance3D", true, false):
+		var m := n as MeshInstance3D
+		if m.mesh == null:
+			continue
+		var b: AABB = (inv * m.global_transform) * m.get_aabb()
+		if first:
+			box = b
+			first = false
+		else:
+			box = box.merge(b)
+	if first:
+		return AABB(Vector3(-3, 0, -3), Vector3(6, 3, 6))
+	return box
+
+
 # ── every frame ──────────────────────────────────────────────────────────────
 
 func _process(delta: float) -> void:
@@ -454,6 +604,7 @@ func _process(delta: float) -> void:
 	_animate_npc(delta)
 	_animate_tubes()
 	_animate_regulars()
+	_tick_world(delta)
 	if _view != null:
 		_view.tick(delta)
 	if _shown >= 0 and _shown < _text.length():

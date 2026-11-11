@@ -570,6 +570,18 @@ func _try(n: int) -> void:
 
 
 ## Esc or the corridor's way out: back to the reception, on foot.
+## Where the corridor stands in the camp's world (town_room one world): in the block, its space
+## the block's own; the block keeps no copy of it (from outside its end windows are dark).
+func seat() -> Variant:
+	if block == null or not is_instance_valid(block) or not block.is_inside_tree():
+		return null
+	return block.global_transform
+
+
+func copies() -> Array:
+	return []
+
+
 func wants_out() -> bool:
 	if _walker != null:
 		_walker.stop()
