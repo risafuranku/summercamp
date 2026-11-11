@@ -1596,6 +1596,56 @@ func _ready() -> void:
 			st += [["eval", "set('debug_camera', null)"], ["wait", 1.0], ["eval", "get_tree().quit()"]]
 			_steps = st
 			return
+		if a == "--part=svcwalks":
+			# The toilet block (both doors), the shower house and the generator shed in the camp's
+			# one world (W26): from outside, in by the door frame by frame, round the room, the
+			# door from inside, (the switch room behind and back,) out by the door, outside after.
+			var SI := "_interior_manager._service_interior"
+			var st: Array = [
+				["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+				["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
+				["money", 400000], ["clear", 4, 9, 3, 3], ["clear", 9, 9, 3, 3],
+				["build", "toilet_block", 5, 10, _rot()], ["build", "shower_block", 10, 10, _rot()], ["wait", 2.0],
+				["eval", "debug_jump_to(1, 12.0)"], ["wait", 3.0], ["eval", C + ".structures()"]]
+			var only := ""
+			for a2 in OS.get_cmdline_user_args():
+				if str(a2).begins_with("--rooms="):
+					only = str(a2).substr(8)
+			for rr in [["toilet_block", 0, "l"], ["toilet_block", 1, "r"], ["shower_block", 0, "s"], ["power_generator", 0, "g"]]:
+				var ty: String = rr[0]
+				var tag: String = "%s_%s" % [ty, rr[2]]
+				if only != "" and not ty in only.split(","):
+					continue
+				st += [["eval", "set('debug_camera', null)"], ["eval", C + ".around('%s', %s, 6.0, 0.3)" % [ty, 0.0 if int(rr[1]) == 0 else 20.0]], ["wait", 0.8], ["shot", "%s_0_ext" % tag],
+					["eval", "set('debug_camera', null)"], ["door_front", ty, 1.6, rr[1]], ["wait", 0.6], ["shot", "%s_1_at" % tag],
+					["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('%s'))" % ty]]
+				for k in 14:
+					st += [["wait", 0.15], ["shot", "%s_2_in_%02d" % [tag, k]]]
+				st += [["wait", 1.5], ["mouse", 0.5, 0.5], ["shot", "%s_3_inside" % tag]]
+				for v in [[70.0, "l"], [-70.0, "r"], [178.0, "door"]]:
+					st += [["eval", SI + "._look.set('yaw_deg', %s)" % v[0]], ["wait", 0.7], ["shot", "%s_4_look_%s" % [tag, v[1]]]]
+				st += [["eval", SI + "._look.set('yaw_deg', 0.0)"], ["wait", 0.4]]
+				if ty == "power_generator":
+					st += [["eval", SI + "._apply_service_subroom('board', true)"], ["wait", 1.5], ["shot", "%s_5_switch_room" % tag],
+						["eval", SI + "._apply_service_subroom('set', true)"], ["wait", 1.5], ["shot", "%s_6_set_again" % tag]]
+				st += [["eval", SI + "._leave_on_foot()"]]
+				for k in 12:
+					st += [["wait", 0.15], ["shot", "%s_7_out_%02d" % [tag, k]]]
+				st += [["wait", 2.0], ["eval", "set('debug_camera', null)"],
+					["eval", C + ".around('%s', 150.0, 6.0, 0.3)" % ty], ["wait", 0.8], ["shot", "%s_8_ext_back" % tag],
+					["eval", C + ".around('%s', 0.0, 2.2, 0.0)" % ty], ["wait", 0.8], ["shot", "%s_9_ext_door" % tag]]
+			# The sewer's chamber down its hatch (no doorway: the room behind, over the tank).
+			if only == "" or "sewer" in only.split(","):
+				st += [["eval", "set('debug_camera', null)"], ["clear", 13, 9, 3, 3], ["build", "sewer", 14, 10, 0], ["wait", 1.5],
+					["door_front", "sewer", 1.2], ["wait", 0.6], ["shot", "sewer_1_at"],
+					["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('sewer'))"], ["wait", 3.0], ["mouse", 0.5, 0.5], ["shot", "sewer_3_inside"]]
+				for v in [[70.0, 0.0, "l"], [-70.0, 0.0, "r"], [178.0, 30.0, "ladder"]]:
+					st += [["eval", SI + "._look.set('yaw_deg', %s)" % v[0]], ["eval", SI + "._look.set('pitch_deg', %s)" % v[1]], ["wait", 0.7], ["shot", "sewer_4_look_%s" % v[2]]]
+				st += [["eval", "_interior_manager.close_everything(true)"], ["wait", 2.0], ["eval", "set('debug_camera', null)"],
+					["eval", C + ".around('sewer', 30.0, 6.0, 0.3)"], ["wait", 0.8], ["shot", "sewer_8_ext"]]
+			st += [["eval", "set('debug_camera', null)"], ["wait", 1.0], ["eval", "get_tree().quit()"]]
+			_steps = st
+			return
 		if a == "--part=recdiff":
 			var st: Array = [["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
 				["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0], ["eval", "debug_jump_to(1, 12.0)"], ["wait", 2.0]]

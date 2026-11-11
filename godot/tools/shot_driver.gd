@@ -2048,10 +2048,11 @@ func _run_step(step: Array) -> void:
 				player.global_position = gm.grid_to_world(Vector2i(int(step[1]), int(step[2]))) + Vector3(0, 0.2, 0)
 				player.rotation.y = deg_to_rad(float(step[3]))
 		"door_front":
-			# ["door_front", building_type, dist_m]: the player `dist_m` in front of the first
-			# such building's door, looking at it (then "eval" handle_structure_interact).
+			# ["door_front", building_type, dist_m (, door)]: the player `dist_m` in front of the
+			# first such building's door (its `door`-th: the toilet block has two), looking at it
+			# (then "eval" handle_structure_interact).
 			var st: Node3D = _main.debug_structure_of_type(str(step[1]))
-			var way: Dictionary = load("res://scripts/attractions/door_anim.gd").entry_points(st, 0) if st != null else {}
+			var way: Dictionary = load("res://scripts/attractions/door_anim.gd").entry_points(st, int(step[3]) if step.size() > 3 else 0) if st != null else {}
 			if not way.is_empty():
 				var out_dir: Vector3 = (way["outside"] as Vector3) - (way["inside"] as Vector3)
 				out_dir.y = 0.0

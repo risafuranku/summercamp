@@ -352,7 +352,7 @@ func door_spec(structure: Node3D) -> Dictionary:
 	# open as it starts, _walk_in.)
 	var leaf: Array = _door_pivot.get_children() if _door_pivot != null else []
 	return {"root": _root, "at": Vector3(DOOR_X, 0.0, W * 0.5 + 0.026), "out": Vector3(0, 0, 1), "size": Vector2(DOOR_W, DOOR_H),
-		"inner": WALL_T + 0.026, "leaf": leaf, "in_camp": model.global_transform * Transform3D(Basis(), Vector3(0.0, VAN_FLOOR, 0.0)), "one_world": true}
+		"inner": WALL_T + 0.026, "leaf": leaf, "in_camp": model.global_transform * Transform3D(Basis(), Vector3(0.0, VAN_FLOOR, 0.0))}
 
 
 func door_walk_in(from: Transform3D, fov: float) -> void:

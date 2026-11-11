@@ -13,6 +13,8 @@ extends RefCounted
 const CAMP := "res://assets/textury/camp/"
 ## The cabin's plan, shared with the room inside (cabin_interior.gd).
 const CL = preload("res://scripts/cabin_layout.gd")
+## The toilet block's, the shower house's and the generator shed's plan (service_interior.gd).
+const SERVICE_PLAN = preload("res://scripts/service_plan.gd")
 const WORLD_GEN = preload("res://scripts/world_generator.gd")
 const FONT := "res://assets/fonts/w95b.fnt"
 const MODELS := ["toilet_block", "shower_block", "pub", "restaurant", "power_generator", "sewer",
@@ -98,51 +100,56 @@ func build(type: String, root: Node3D, tile: float, footprint: Vector2i) -> Dict
 # ── WC (hajzly.PNG): a plank shack, mossy tin roof, two doors with hearts ──────
 
 func _toilets(r: Node3D, _w: float, _d: float) -> Dictionary:
-	var sx := 2.9
-	var sz := 2.1
-	var h := 2.25
 	var planks := _camp("planks_grey.png", Color(0.92, 0.9, 0.84), Vector3(2.0, 1.0, 1.0))
-	_plinth(r, sx + 0.2, sz + 0.2)
-	_box(r, "Shack", Vector3(sx, h, sz), Vector3(0, h * 0.5 + 0.1, 0), planks)
+	_plinth_ring(r, SERVICE_PLAN.outer(SERVICE_PLAN.TOILET).x + 0.2, SERVICE_PLAN.outer(SERVICE_PLAN.TOILET).z + 0.2)
+	# A skin of boards round the two stalls (service_interior: they stand in it, the camp's one
+	# world), a doorway behind each door.
+	var o := _service_skin(r, "toilet", planks, _wood())
+	var sx := o.x
+	var sz := o.z
+	var top := o.y
 	# Roof: one slope falling to the back, overhanging, with moss.
-	_lean_roof(r, sx + 0.5, sz + 0.7, h + 0.1, 0.45, _camp("corrugated_roof.png", Color(0.62, 0.72, 0.5), Vector3(2.0, 2.0, 1.0)))
+	_lean_roof(r, sx + 0.5, sz + 0.7, top, 0.45, _camp("corrugated_roof.png", Color(0.62, 0.72, 0.5), Vector3(2.0, 2.0, 1.0)))
 	var door := _camp("door_wood.png", Color(0.82, 0.74, 0.62))
+	var leaf_z: float = SERVICE_PLAN.leaf_z(SERVICE_PLAN.TOILET)
+	var ds: Vector2 = SERVICE_PLAN.TOILET_DOOR
+	var y0: float = SERVICE_PLAN.FLOOR
 	for i in 2:
-		var x := -0.62 + i * 1.24
-		_box(r, "Door%d" % i, Vector3(0.78, 1.82, 0.05), Vector3(x, 1.01, sz * 0.5 + 0.03), door)
+		var x := float(SERVICE_PLAN.doors("toilet")[i][0])
+		_box(r, "Door%d" % i, Vector3(ds.x, ds.y, 0.05), Vector3(x, y0 + ds.y * 0.5, leaf_z), door)
 		# The heart cut in the door (the Czech outhouse has a heart).
-		var heart := _box(r, "Heart%d" % i, Vector3(0.14, 0.14, 0.06), Vector3(x, 1.62, sz * 0.5 + 0.035), _flat(Color(0.05, 0.04, 0.03)))
+		var heart := _box(r, "Heart%d" % i, Vector3(0.14, 0.14, 0.06), Vector3(x, y0 + 1.52, leaf_z + 0.005), _flat(Color(0.05, 0.04, 0.03)))
 		heart.rotation.z = PI * 0.25
-		_box(r, "Plaque%d" % i, Vector3(0.2, 0.2, 0.02), Vector3(x, 1.32, sz * 0.5 + 0.065), _flat(Color(0.86, 0.82, 0.62)))
-		_label(r, "M" if i == 0 else "Z", Vector3(x, 1.32, sz * 0.5 + 0.08), 0.15, Color(0.12, 0.1, 0.08))
+		# The men's on the left (inside, its stall says MUZI), the women's on the right.
+		_box(r, "Plaque%d" % i, Vector3(0.2, 0.2, 0.02), Vector3(x, y0 + 1.22, leaf_z + 0.035), _flat(Color(0.86, 0.82, 0.62)))
+		_label(r, "M" if i == 0 else "Z", Vector3(x, y0 + 1.22, leaf_z + 0.05), 0.15, Color(0.12, 0.1, 0.08))
 	# The WC board over the doors.
-	_box(r, "WCBoard", Vector3(0.9, 0.36, 0.04), Vector3(0, h - 0.05, sz * 0.5 + 0.06), _flat(Color(0.18, 0.16, 0.12)))
-	_label(r, "WC", Vector3(0, h - 0.05, sz * 0.5 + 0.09), 0.3, Color(0.95, 0.78, 0.2))
+	_box(r, "WCBoard", Vector3(0.9, 0.36, 0.04), Vector3(0, top - 0.2, sz * 0.5 + 0.03), _flat(Color(0.18, 0.16, 0.12)))
+	_label(r, "WC", Vector3(0, top - 0.2, sz * 0.5 + 0.06), 0.3, Color(0.95, 0.78, 0.2))
 	# A washbasin on the left wall, a bench, a toilet roll on a nail, a bucket.
 	_box(r, "Basin", Vector3(0.18, 0.12, 0.42), Vector3(-sx * 0.5 - 0.1, 0.92, 0.3), _flat(Color(0.86, 0.86, 0.82)))
 	_box(r, "Tap", Vector3(0.12, 0.06, 0.04), Vector3(-sx * 0.5 - 0.06, 1.18, 0.3), _metal())
-	_box(r, "Bench", Vector3(1.1, 0.06, 0.32), Vector3(-0.9, 0.46, sz * 0.5 + 0.55), _wood())
-	for x: float in [-1.35, -0.45]:
-		_box(r, "BenchLeg", Vector3(0.06, 0.42, 0.28), Vector3(x, 0.22, sz * 0.5 + 0.55), _wood())
-	_cyl(r, "Roll", 0.06, 0.1, Vector3(sx * 0.5 + 0.05, 1.3, 0.2), _flat(Color(0.94, 0.94, 0.9)), Vector3(0, 0, PI * 0.5))
-	_cyl(r, "Bucket", 0.16, 0.3, Vector3(sx * 0.5 + 0.3, 0.25, sz * 0.5 + 0.1), _flat(Color(0.32, 0.46, 0.38)))
-	return {"size": Vector3(sx + 0.4, h + 0.6, sz + 0.4), "target": Vector3(0, 1.1, sz * 0.5 + 0.1)}
+	# The bench along the right wall, out of the way of the doors (it stood across the men's).
+	var bench_x := sx * 0.5 + 0.2
+	_box(r, "Bench", Vector3(0.32, 0.06, 1.1), Vector3(bench_x, 0.46, -0.35), _wood())
+	for z: float in [-0.8, 0.1]:
+		_box(r, "BenchLeg", Vector3(0.28, 0.42, 0.06), Vector3(bench_x, 0.22, z), _wood())
+	_cyl(r, "Roll", 0.06, 0.1, Vector3(sx * 0.5 + 0.05, 1.3, 0.45), _flat(Color(0.94, 0.94, 0.9)), Vector3(0, 0, PI * 0.5))
+	_cyl(r, "Bucket", 0.16, 0.3, Vector3(sx * 0.5 + 0.22, 0.25, sz * 0.5 + 0.1), _flat(Color(0.32, 0.46, 0.38)))
+	return {"size": Vector3(sx + 0.4, top + 0.6, sz + 0.4), "target": Vector3(0, 1.1, sz * 0.5 + 0.1)}
 
 
 # ── showers: a concrete shower house (the room inside: service_interior.gd wash) ─
 
-## A low block of grey roughcast concrete under a flat slab roof, built round the room
-## inside (3.6 x 3.2 m): the three cubicles along the back wall lit by a strip of glass
-## blocks under the roof, the boiler on the right wall with its flue up past the roof,
-## the bench on the left. The green steel door in the middle of the front, its enamel
-## plate and a caged bulb over it, a tap with a bucket outside on the left, the hot-water
-## tank on the roof, a downpipe, a vent grille. Build style: boxes and camp textures.
+## A low block of grey roughcast concrete under a flat slab roof, a skin round the room inside
+## (service_plan.gd: the room stands in it, the camp's one world): the three cubicles along the
+## back wall lit by a strip of glass blocks under the roof, the boiler on the right wall with
+## its flue up past the roof, the bench on the left. The green steel door in the middle of the
+## front, its enamel plate and a caged bulb over it, a tap with a bucket outside on the left,
+## the hot-water tank on the roof, a downpipe, a vent grille. Build style: boxes and camp
+## textures.
 func _showers(r: Node3D, _w: float, _d: float) -> Dictionary:
-	var sx := 3.6
-	var sz := 3.2
-	var h := 2.7
-	var front := sz * 0.5
-	var back := -sz * 0.5
+	var room: Vector3 = SERVICE_PLAN.SHOWER
 	var walls: Material = _camp("roughcast_wall.png", Color(0.95, 0.96, 0.98), Vector3(1.0, 1.0, 1.0)) if ResourceLoader.exists(CAMP + "roughcast_wall.png") \
 		else _camp("booth_wall.png", Color(0.86, 0.86, 0.84), Vector3(1.2, 1.2, 1.2))
 	var slab := _camp_or("concrete.png", Color(0.7, 0.7, 0.68), "stone", Vector3(1.5, 1.5, 1.5))
@@ -150,22 +157,40 @@ func _showers(r: Node3D, _w: float, _d: float) -> Dictionary:
 		else _camp("tiles_bathroom.png", Color(0.62, 0.78, 0.8), Vector3(3.0, 3.0, 3.0))
 	var steel := _camp_or("metal_green.png", Color(0.5, 0.66, 0.5), "metal")
 	var galv := _camp_or("galvanized.png", Color(0.72, 0.74, 0.74), "metal", Vector3(0.6, 0.6, 0.6))
-	_plinth(r, sx + 0.3, sz + 0.3)
-	_box(r, "House", Vector3(sx, h, sz), Vector3(0, h * 0.5 + 0.1, 0), walls)
-	# A darker painted base band, splashed and damp.
-	_box(r, "BaseBand", Vector3(sx + 0.03, 0.45, sz + 0.03), Vector3(0, 0.32, 0), _camp_or("concrete.png", Color(0.38, 0.4, 0.38), "stone"))
+	var oo: Vector3 = SERVICE_PLAN.outer(room)
+	_plinth_ring(r, oo.x + 0.1, oo.z + 0.1)
+	var o := _service_skin(r, "wash", walls, slab)
+	var sx := o.x
+	var sz := o.z
+	# (The house's top, less the 10 cm it once stood on.)
+	var h := o.y - 0.1
+	var front := sz * 0.5
+	var back := -sz * 0.5
+	var y0: float = SERVICE_PLAN.FLOOR
+	var ds: Vector2 = SERVICE_PLAN.SHOWER_DOOR
+	var leaf_z: float = SERVICE_PLAN.leaf_z(room)
+	# A darker painted base band, splashed and damp: a skin of its own just out of the walls,
+	# the doorway through it.
+	_skin_walls(r, sx + 0.03, sz + 0.03, 0.095, 0.545, 0.03, {"front": [[-ds.x * 0.5, ds.x * 0.5, y0, y0 + ds.y]]}, _camp_or("concrete.png", Color(0.38, 0.4, 0.38), "stone"), 0.0, "BaseBand")
 	# The flat roof: a concrete slab overhanging all round, tar paper on top.
 	_box(r, "RoofSlab", Vector3(sx + 0.36, 0.18, sz + 0.36), Vector3(0, h + 0.19, 0), slab)
 	_box(r, "TarPaper", Vector3(sx + 0.26, 0.03, sz + 0.26), Vector3(0, h + 0.295, 0), _flat(Color(0.12, 0.12, 0.13)))
-	# Glass blocks: a strip under the roof above the cubicles, a small square each side.
-	_box(r, "GlassBlocksBack", Vector3(sx * 0.78, 0.42, 0.05), Vector3(0, h - 0.3, back - 0.01), glass_blocks)
+	# Glass blocks: a strip under the roof above the cubicles, a small square each side (as high
+	# as the room's own, inside).
+	var glass_y: float = y0 + room.y - 0.3
+	_box(r, "GlassBlocksBack", Vector3(sx * 0.78, 0.42, 0.05), Vector3(0, glass_y, back - 0.01), glass_blocks)
 	for side: float in [-1.0, 1.0]:
-		_box(r, "GlassBlocksSide", Vector3(0.05, 0.42, 0.56), Vector3(side * (sx * 0.5 + 0.01), h - 0.3, back + 0.7), glass_blocks)
-	# The door: a concrete surround, the green steel leaf with a wired-glass slit.
-	_box(r, "DoorSurround", Vector3(1.16, 2.18, 0.06), Vector3(0, 1.19, front + 0.02), slab)
-	_box(r, "Door", Vector3(0.9, 2.0, 0.05), Vector3(0, 1.1, front + 0.05), steel)
-	_box(r, "DoorGlass", Vector3(0.22, 0.5, 0.055), Vector3(0, 1.62, front + 0.055), _flat(Color(0.42, 0.5, 0.5)))
-	_box(r, "DoorHandle", Vector3(0.12, 0.03, 0.05), Vector3(0.32, 1.05, front + 0.1), _metal())
+		_box(r, "GlassBlocksSide", Vector3(0.05, 0.42, 0.56), Vector3(side * (sx * 0.5 + 0.01), glass_y, back + 0.7), glass_blocks)
+	# The door: a concrete surround round the doorway, the green steel leaf with a wired-glass
+	# slit.
+	var jamb := 0.13
+	var lintel := 0.18
+	for side: float in [-1.0, 1.0]:
+		_box(r, "DoorSurround", Vector3(jamb, ds.y + lintel + 0.05, 0.06), Vector3(side * (ds.x + jamb) * 0.5, 0.1 + (ds.y + lintel + 0.05) * 0.5, front + 0.02), slab)
+	_box(r, "DoorSurround", Vector3(ds.x, lintel, 0.06), Vector3(0, y0 + ds.y + lintel * 0.5, front + 0.02), slab)
+	_box(r, "Door", Vector3(ds.x, ds.y, 0.05), Vector3(0, y0 + ds.y * 0.5, leaf_z), steel)
+	_box(r, "DoorGlass", Vector3(0.22, 0.5, 0.055), Vector3(0, y0 + 1.52, leaf_z + 0.005), _flat(Color(0.42, 0.5, 0.5)))
+	_box(r, "DoorHandle", Vector3(0.12, 0.03, 0.05), Vector3(0.32, y0 + 0.95, leaf_z + 0.05), _metal())
 	_box(r, "Step", Vector3(1.3, 0.16, 0.5), Vector3(0, 0.08, front + 0.3), slab)
 	# A bulb in a wire cage over the door, on a little arm.
 	_box(r, "LampArm", Vector3(0.05, 0.05, 0.28), Vector3(0, 2.42, front + 0.14), _metal())
@@ -550,28 +575,39 @@ func _restaurant(r: Node3D, _w: float, _d: float) -> Dictionary:
 
 # ── the substation (gen.PNG): brick block, steel doors, a transformer on top ──
 
+## A brick block round the set room (service_plan.gd: the room stands in it, the camp's one
+## world), the steel pair in its front, the transformer on the roof.
 func _substation(r: Node3D, _w: float, _d: float) -> Dictionary:
-	var s := 2.8
-	var h := 2.6
+	var room: Vector3 = SERVICE_PLAN.SHED
 	var brick := _camp_or("brick_red.png", Color(0.76, 0.5, 0.4), "brick", Vector3(2.0, 2.0, 1.0))
-	_plinth(r, s + 0.3, s + 0.3)
-	_box(r, "Block", Vector3(s, h, s), Vector3(0, h * 0.5 + 0.1, 0), brick)
-	_box(r, "Slab", Vector3(s + 0.3, 0.16, s + 0.3), Vector3(0, h + 0.18, 0), _camp_or("concrete.png", Color(0.62, 0.62, 0.6), "stone"))
+	var concrete := _camp_or("concrete.png", Color(0.6, 0.6, 0.58), "stone")
+	var oo: Vector3 = SERVICE_PLAN.outer(room)
+	_plinth_ring(r, oo.x + 0.1, oo.z + 0.1)
+	var o := _service_skin(r, "generator", brick, concrete)
+	var sx := o.x
+	var sz := o.z
+	var h := o.y - 0.1
+	var front := sz * 0.5
+	var y0: float = SERVICE_PLAN.FLOOR
+	var leaf_z: float = SERVICE_PLAN.leaf_z(room)
+	var half: float = SERVICE_PLAN.SHED_DOOR.x * 0.5
+	_box(r, "Slab", Vector3(sx + 0.3, 0.16, sz + 0.3), Vector3(0, h + 0.18, 0), _camp_or("concrete.png", Color(0.62, 0.62, 0.6), "stone"))
 	var steel := _psx_mat(Color(0.52, 0.56, 0.6), "metal")
 	for i in 2:
-		_box(r, "Door%d" % i, Vector3(0.6, 1.9, 0.05), Vector3(-0.31 + i * 0.62, 1.05, s * 0.5 + 0.03), steel)
-		_triangle(r, Vector3(-0.31 + i * 0.62, 1.4, s * 0.5 + 0.06), 0.3, Color(0.95, 0.8, 0.1))
-	_box(r, "Plate", Vector3(0.9, 0.34, 0.03), Vector3(0, 2.3, s * 0.5 + 0.03), _flat(Color(0.92, 0.92, 0.9)))
-	_label(r, "TP-32", Vector3(0, 2.3, s * 0.5 + 0.05), 0.22, Color(0.7, 0.08, 0.06))
-	_box(r, "Steps", Vector3(1.4, 0.2, 0.5), Vector3(0, 0.1, s * 0.5 + 0.35), _camp_or("concrete.png", Color(0.6, 0.6, 0.58), "stone"))
-	_box(r, "Vent", Vector3(0.05, 0.4, 0.8), Vector3(s * 0.5 + 0.03, 1.7, 0), _flat(Color(0.2, 0.2, 0.2)))
+		var x := -half * 0.5 + i * half
+		_box(r, "Door%d" % i, Vector3(half - 0.01, SERVICE_PLAN.SHED_DOOR.y, 0.05), Vector3(x, y0 + SERVICE_PLAN.SHED_DOOR.y * 0.5, leaf_z), steel)
+		_triangle(r, Vector3(x, y0 + 1.3, leaf_z + 0.03), 0.3, Color(0.95, 0.8, 0.1))
+	_box(r, "Plate", Vector3(0.9, 0.34, 0.03), Vector3(0, y0 + 2.2, front + 0.03), _flat(Color(0.92, 0.92, 0.9)))
+	_label(r, "TP-32", Vector3(0, y0 + 2.2, front + 0.05), 0.22, Color(0.7, 0.08, 0.06))
+	_box(r, "Steps", Vector3(1.4, 0.2, 0.5), Vector3(0, 0.1, front + 0.35), concrete)
+	_box(r, "Vent", Vector3(0.05, 0.4, 0.8), Vector3(sx * 0.5 + 0.03, 1.7, 0), _flat(Color(0.2, 0.2, 0.2)))
 	# The transformer on the roof: tank, fins, three insulators.
 	_box(r, "Transformer", Vector3(1.2, 0.8, 0.8), Vector3(0, h + 0.66, -0.3), steel)
 	for i in 4:
 		_box(r, "Fin%d" % i, Vector3(0.04, 0.6, 0.9), Vector3(-0.45 + i * 0.3, h + 0.6, -0.3), steel)
 	for i in 3:
 		_cyl(r, "Insulator%d" % i, 0.07, 0.5, Vector3(-0.36 + i * 0.36, h + 1.3, -0.3), _flat(Color(0.5, 0.36, 0.26)))
-	return {"size": Vector3(s + 0.3, h + 1.2, s + 0.3), "target": Vector3(0, 1.1, s * 0.5 + 0.1)}
+	return {"size": Vector3(sx + 0.3, h + 1.2, sz + 0.3), "target": Vector3(0, 1.1, front + 0.1)}
 
 
 # ── the sewer (sewer.PNG): a low brick tank with a manhole on top ─────────────
@@ -1115,9 +1151,19 @@ func _cabin_skin(r: Node3D, lv: int, w: float, d: float, wall_h: float, mat: Mat
 	if CL.has_bath(lv):
 		var bz: float = CL.bath_door_z(lv)
 		(holes["right"] as Array).append([bz - CL.BATH_DOOR_W * 0.5, bz + CL.BATH_DOOR_W * 0.5, CL.MODEL_FLOOR, CL.MODEL_FLOOR + CL.BATH_DOOR_H])
+	_skin_walls(r, w, d, y0, y1, t, holes, mat)
+
+
+## A building's walls as a skin `t` thick inside its outer faces (`w` x `d`, from `y0` up to
+## `y1`), a lid `lid` thick over them (none at 0), the openings `holes` cut through it:
+## {"front" | "back" | "left" | "right": [[along0, along1, bottom, top], ...]}, along x for the
+## front and back, along z for the sides. One mesh round the middle: the material's triplanar
+## (in the mesh's own space) runs on across the pieces, the boards' pattern as it ran over the
+## old solid box (W26: the room stands inside, the doorways open into it).
+func _skin_walls(r: Node3D, w: float, d: float, y0: float, y1: float, t: float, holes: Dictionary, mat: Material, lid := 0.02, n := "Walls") -> MeshInstance3D:
 	var slabs: Array = []
-	for wall in holes.keys():
-		var hs: Array = holes[wall]
+	for wall in ["front", "back", "right", "left"]:
+		var hs: Array = (holes.get(wall, []) as Array).duplicate()
 		hs.sort_custom(func(a, b): return float(a[0]) < float(b[0]))
 		var front_back: bool = wall in ["front", "back"]
 		var a0 := -w * 0.5 if front_back else -d * 0.5 + t
@@ -1127,8 +1173,8 @@ func _cabin_skin(r: Node3D, lv: int, w: float, d: float, wall_h: float, mat: Mat
 		for h in hs:
 			if float(h[0]) > u + 0.001:
 				pieces.append([u, float(h[0]), y0, y1])
-			pieces.append([float(h[0]), float(h[1]), y0, float(h[2])])
-			pieces.append([float(h[0]), float(h[1]), float(h[3]), y1])
+			pieces.append([float(h[0]), float(h[1]), y0, maxf(y0, float(h[2]))])
+			pieces.append([float(h[0]), float(h[1]), minf(y1, float(h[3])), y1])
 			u = float(h[1])
 		if u < a1 - 0.001:
 			pieces.append([u, a1, y0, y1])
@@ -1148,9 +1194,8 @@ func _cabin_skin(r: Node3D, lv: int, w: float, d: float, wall_h: float, mat: Mat
 					slabs.append([Vector3(t, hh, len), Vector3(w * 0.5 - t * 0.5, ym, mid)])
 				_:
 					slabs.append([Vector3(t, hh, len), Vector3(-w * 0.5 + t * 0.5, ym, mid)])
-	slabs.append([Vector3(w, 0.02, d), Vector3(0, y1 + 0.01, 0)])
-	# One mesh round the old box's middle: the boards' pattern (the material's triplanar in
-	# the mesh's own space) runs on across the pieces as it ran over the box.
+	if lid > 0.0:
+		slabs.append([Vector3(w, lid, d), Vector3(0, y1 + lid * 0.5, 0)])
 	var origin := Vector3(0, (y0 + y1) * 0.5, 0)
 	var st := SurfaceTool.new()
 	for sl in slabs:
@@ -1158,11 +1203,29 @@ func _cabin_skin(r: Node3D, lv: int, w: float, d: float, wall_h: float, mat: Mat
 		b.size = sl[0]
 		st.append_from(b, 0, Transform3D(Basis(), (sl[1] as Vector3) - origin))
 	var m := MeshInstance3D.new()
-	m.name = "Walls"
+	m.name = n
 	m.mesh = st.commit()
 	m.position = origin
 	m.material_override = mat
 	r.add_child(m)
+	return m
+
+
+## A small service building's walls round its room (service_plan.gd: the toilet block, the
+## shower house, the generator shed): a skin from the ground to the lid, a doorway through the
+## front behind each leaf, a sill under each across the walls' thickness.
+func _service_skin(r: Node3D, kind: String, mat: Material, sill_mat: Material) -> Vector3:
+	var room: Vector3 = SERVICE_PLAN.inside(kind)
+	var o: Vector3 = SERVICE_PLAN.outer(room)
+	var holes := {"front": []}
+	var deep: float = SERVICE_PLAN.WALL + SERVICE_PLAN.SKIN
+	for dr in SERVICE_PLAN.doors(kind):
+		var x := float(dr[0])
+		var size: Vector2 = dr[1]
+		(holes["front"] as Array).append([x - size.x * 0.5, x + size.x * 0.5, SERVICE_PLAN.FLOOR, SERVICE_PLAN.FLOOR + size.y])
+		_box(r, "Sill", Vector3(size.x, SERVICE_PLAN.FLOOR, deep), Vector3(x, SERVICE_PLAN.FLOOR * 0.5, o.z * 0.5 - deep * 0.5), sill_mat)
+	_skin_walls(r, o.x, o.z, 0.0, o.y - SERVICE_PLAN.SKIN, SERVICE_PLAN.SKIN, holes, mat, SERVICE_PLAN.SKIN)
+	return o
 
 
 ## The porch in front of the door: boards on the ground, two posts and a tin roof over the

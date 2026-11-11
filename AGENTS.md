@@ -202,7 +202,9 @@ godot --headless --path godot --script res://tools/night_swell_check.gd   # the 
 #                                    buildings, with their room and without, then python godot/tools/room_diff.py DIR [type_];
 #                                    recwin: into its windows by the hour after walking out; rechis: somebody's own last camp;
 #                                    recrain: the rain on its glass, a held flash; bizday: the businesses' windows by the hour;
-#                                    wedges; unpair (--build=cabin_walk ...: free_lights names the light of the engine's message)
+#                                    wedges; unpair (--build=cabin_walk ...: free_lights names the light of the engine's message);
+#                                    svcwalks (--rooms=toilet_block,shower_block,power_generator,sewer): in and out of both toilet
+#                                    doors, the showers, the generator (and its switch room), down the sewer, frame by frame
 #   res://tools/y_check.tscn         nightlit (--lodge=): a lit lodging from 9 to 70 m; duskpath (--from=18.55): the path at eye
 #                                    height, then python tools/dusk_flicker.py and dusk_frames.py DIR (every frame at 18:48);
 #                                    callrec, feverrec: for --write-movie (--fixed-fps 30), frame marks in the log
@@ -341,7 +343,7 @@ a small animated `<movie>.webp`. The business shot drivers (`jednota_shots`, `pr
 | Stations: the tabs' order, looking about | the tabs and keys 1-9 go in the order of the `STATIONS` dict of each layout (`stand_layout`, `pub_layout`, `bistro_layout`, `jednota_layout`): the order of the work, prep first, serving, side jobs last (corn: husk, counter, drinks); where you come in is `ENTRY`. Looking about from any station: `station3d._tick_look` (`LOOK_BAND`, `LOOK_DWELL`, `LOOK_YAW`, on `interior_look.gd`; the room's camera turned about `cam_pose()`, never while something is held). Shots: `tools/station_look_shots.tscn` |
 | The businesses' shared systems (ratings, lots, gear, the hands, open late) | numbers and people `core/systems/business_rules.gd` (KINDS goods with `life`, GEAR, ROLES, PEOPLE, `applicants`, `score`/`reward`); the books' writes `actions.biz_*` (`biz_spoil`, `biz_bin`, `biz_buy_gear`, `biz_hire(key, person, day)`, `biz_set_job`, `biz_set_late`, `biz_score`, `biz_close_shift`, `biz_order_all`); the running side `scripts/business/business_runtime.gd` (`shift_now`, `crew_now`, attendance, theft, the strange ones, the Z report signal, `price_k`, `debug_hire`); the hands in the rooms `crew_figures.gd`; the night inside a place open late `late_night.gd`; the books on the counter `ledger_closeup.gd` (STOCK, ORDER, STAFF, GEAR, BOOKS), the receipt `zreport_closeup.gd`, the PC's SoftSklad `scripts/os98/apps/business_app.gd`; art `tools/artgen/biz_prompts.py` -> `prompts_biz.tsv` -> `biz_art.py` |
 | Doors opening for guests | `scripts/attractions/door_anim.gd` (finds Door/DoorLeaf boxes, hinges them; two leaves side by side are a double door, the right one hinged on its right edge; a Sprite3D or a leaf-sized quad on a leaf swings with it) |
-| Through any door on foot, in and out (no dissolve, no black doorway) | `scripts/ui/door_through.gd` (the doorway's pane shows the room from your eye carried through the door; the room's eye takes the walk on in the doorway; out, the leaf opens on the camp and the camp takes it on). Each room gives `door_spec(structure)` (+ `door_ready`, `door_walking`, optional `door_tick` / `door_walk_in` / `door_opening`); interior_manager `_walk_up_first(structure, again, room)`, `_step_in`, `leave_on_foot`, `_through_eye()`. A painted door is made a leaf by `building_models._painted_leaf` (its face cut from the front's picture). Tents: `interior_manager.tent_doors` (unzipped for everybody, co-op `Coop.send_tent_door`), `tent_interior._update_inview` (the inside seen from the camp through the open flap, the other warden in it). Check: `tools/dvere_check.tscn` |
+| Through any door on foot, in and out (no dissolve, no black doorway) | `scripts/ui/door_through.gd` (every room stands in its building in the camp's one world: the doorway is a real opening, its dark not drawn while you come through; the room's eye goes with yours to the door and takes the walk on in the doorway; out, the leaf opens on the camp and the camp takes it on). Each room gives `door_spec(structure)` (+ `door_ready`, `door_walking`, optional `door_tick` / `door_walk_in` / `door_opening`); interior_manager `_walk_up_first(structure, again, room)`, `_step_in`, `leave_on_foot`, `_through_eye()`. A painted door is made a leaf by `building_models._painted_leaf` (its face cut from the front's picture). Tents: `interior_manager.tent_doors` (unzipped for everybody, co-op `Coop.send_tent_door`), `tent_interior._update_inview` (the inside seen from the camp through the open flap, the other warden in it). Check: `tools/dvere_check.tscn` |
 | Windows that look out (a real view of the camp from where the building stands, curtains to draw), the flash through them | `scripts/ui/window_portal.gd` (`make`, `room_to_world`: the room laid over the building's box), all of a room's windows reading its one `scripts/ui/window_shared_view.gd`; used by `service_interior._make_windows` (a layout's painted `window_view` picture becomes a real window), `caravan_interior`, the cabins' own portals (curtains added) and the reception's; every room answers `photo_windows()` (InteriorManager collects it), curtains go to the other wardens with `Coop.send_curtains` |
 | People seen from eight sides (guests, the other wardens, the hands, the electrician) | `scripts/figures/doom_figure.gd` (`set_of(name)`: `assets/textury/npc/sets/<name>.png/.json`; `sector_for`, `face`, `turn_toward`, `set_anim`, `advance(metres)`, `show(eye)`; `restore`/`release` when a pose draws its own picture); used by `guest_agents._drive_figure`, `remote_player._walk_doom/_room_doom`, `crew_figures`, `electrician_visit`; poses through `poses.set_pose` (a pose the set has stays in it); the family's people `poses.FAMILY`; the jacket `warden_looks.atlas(model, colour)` (the mask `sets/warden_<x>_mask.png`); art and checks: §7 "People from eight sides"; shots `tools/figure_shots.tscn` |
 | The Photographer | `scripts/enemies/tourist_brain.gd` (poses `npc/tourist_*.png` from `tools/artgen/photographer_prompts.py`, made from `npc/host2.png`; sounds `ph_*` in `tools/audiogen/prompts_photographer.tsv` at -23 LUFS, his hum loops `ph_hum*.ogg`/`ph_breath_broken.ogg` from `tools/audiogen/ambience_loop.py`, his steps `ph_step_*`/`ph_drag_*` cut from `ph_steps.mp3`/`ph_step_drag.mp3`; frames `npc/ph_anim/` from `tools/artgen/photographer_frames.py`; the pictures of you `scripts/enemies/polaroid.gd`; DESIGN §5a.5); shots `tools/photographer_shots.tscn`, `tools/photographer_worse_shots.tscn`, `tools/foto_shots.tscn` (`--part=walk`), co-op `tools/coop_photo.py` |
@@ -547,11 +549,12 @@ every night's sewer, toilets and frozen pipes the moment they broke).
  serves every cabin, tent and van: it stands in the one you are in or look in at
  (`_host_panes`, `_host_way`, `_host_shell_of`); the others keep their cubes and darks.
  **Doors in one world** (the user 5. 11.: "a broken portal into the endless" inside the
- cabin's door, a tent crawled into from across the camp): a room built in its building says
- `"one_world": true` in its `door_spec`; `door_through` then makes no panes, leaves the eye
- where it is (`_to_room` identity), hides the doorway's dark (`<leaf>Way`) and the room's own
- shut leaf while you come through, and `door_ready` binds the room into that building at
- once. The room hides its host's darks while it stands there (`one_world_room.doorways` /
+ cabin's door, a tent crawled into from across the camp): every room stands in its building,
+ so `door_through` has no panes and no portal at all (11. 11.: the last rooms of their own,
+ the toilets, showers, generator shed and sewer, came into the one world and the portal code
+ went): the eye goes on where it is, the doorway's dark (`<leaf>Way`) and the room's own shut
+ leaf are hidden while you come through, and `door_ready` binds the room into that building
+ at once. The room hides its host's darks while it stands there (`one_world_room.doorways` /
  `hide_ways`, given back when it leaves). Every model's doorway must be a real hole: no
  board behind the leaf (the cabin's `DoorFrame` is a ring, `_frame`), a painted front has its
  door cut out (`_door_cut_face`), a solid box is a shell with the doorway through it
@@ -574,9 +577,9 @@ every night's sewer, toilets and frozen pipes the moment they broke).
  the camp light the grass outside its walls: `one_world_room.own_lights` (the room's own
  layer, 13). **The businesses too** (5. 11.: the pub, the bistro, the Jednota, the
  staffroom): `service_interior` switches its viewport to the camp's world for them
- (`_set_one_world`: `world_3d` null = the root's world, the room's WorldEnvironment taken out;
- the toilets, showers, generator and sewer get `_own_world` back) and binds the room where its
- building's own copy stands (`ONE_WORLD_COPY`: PubRoom, BistroRoom, JednotaRoom, the
+ (`world_3d` null = the root's world; `_room_env` only holds the room's light numbers for
+ its probe) and binds the room where it stands (`_bind_one_world`, `_one_seat`): a business's
+ where its building's own copy stands (`ONE_WORLD_COPY`: PubRoom, BistroRoom, JednotaRoom, the
  staffroom's `Inside`), the copy hidden while it does; the front room's walls are opened at
  its windows and its door (`K.open_windows`), the windows glass; a room behind the front one
  (the cellar, the kitchen, the storeroom) stands 60 m over the building (`BACK_ROOM_UP`, a
@@ -584,8 +587,16 @@ every night's sewer, toilets and frozen pipes the moment they broke).
  (`_glass_door_face`), the plinths are rings, the staffroom's under its walls only (its
  block under the floors fought them). By day, as the sun comes in, the front room's fill and
  lamps go down and its eye opens (`service_interior.DAY_*`, less than a lodging's: the
- stations want seeing). Only the toilets, showers, generator and sewer keep a world of their
- own (no windows). Walking up to a business's door brings up its people, stations and marks
+ stations want seeing; a room with no windows keeps its lamps). **The toilet block, the shower
+ house and the generator shed too** (11. 11.): one plan with their buildings,
+ `scripts/service_plan.gd` (the room's inside size, its doors in the front; the building's
+ skin `SKIN` outside the room's walls, the floor `FLOOR` over the ground): the models are
+ skins round their rooms with a doorway and a sill behind each leaf (`building_models
+ ._service_skin`, `_skin_walls`: one mesh, the boards' triplanar runs on), the leaves are the
+ building's own (seen from inside, swung on the way out), the room stands on the building's
+ floor (`_one_seat`); the generator's switch room is its room behind (over the building in
+ the dark, where the set room is, the hidden one's click boxes off: `generator_shed.set_room`)
+ and so is the sewer's chamber down the hatch (`SEWER_ROOM`). Walking up to a business's door brings up its people, stations and marks
  already (`door_ready` calls `set_upkeep_target`, `_started_for` stops the second call): the
  open door shows the room as it is. A shot of a station or a room turned the wrong way in a
  run is the real mouse: the look follows the PC's cursor; run it again before looking for a
@@ -711,8 +722,9 @@ every night's sewer, toilets and frozen pipes the moment they broke).
   the joining one stops answering for tens of seconds while it builds the camp (ENet is
   told to wait a minute, `Coop._patient`). The console binary starts the game as a child:
   end the tree (`taskkill /T`), or a stray copy keeps the port.
-- **Co-op in a room**: an interior is a world of its own (`own_world_3d`), so the other
-  warden there is a second `remote_player.gd` (manual) in the open interior's `_viewport`,
+- **Co-op in a room**: the room you are in is yours (built on your machine where its building
+  stands; Liblice's rooms still a world of their own), so the other warden there is a second
+  `remote_player.gd` (manual) in the open interior's room,
   put there by `InteriorManager.coop_partner` from the room the other machine reports
   (`coop_room()`: key, kind, part, the job in hand). A new kind of room needs
   `_room_part` and `_room_tasks` to answer for it, or the two never meet in it.

@@ -14,6 +14,8 @@ extends RefCounted
 ## not.
 
 const K = preload("res://scripts/interior_kit.gd")
+## The set room's size and its doorway (the building is built round it: building_models).
+const PLAN = preload("res://scripts/service_plan.gd")
 const HOVER_GLINT = preload("res://scripts/ui/hover_glint.gd")
 const SFX_SHOVE := "res://assets/sfx/redneckstructures/"
 const SFX_THUD := "res://assets/sfx/rednecksfx/rrtick.wav"
@@ -46,9 +48,9 @@ func build(host_node, parent: Node3D) -> void:
 	root.add_child(set_root)
 	board_root = Node3D.new()
 	board_root.name = "ShedSwitchRoom"
-	# The switch room is built beside the set room and the camera jumps (with the
-	# interior's own swipe), like the shop's storeroom.
-	board_root.position = Vector3(0.0, 0.0, -9.0)
+	# The switch room is where the set room is, the one shown at a time: in the camp's world
+	# the room behind goes up over the building, in the dark (service_interior.BACK_ROOM_UP),
+	# the camera jumping with the interior's own swipe, like the shop's storeroom.
 	root.add_child(board_root)
 	_build_set_room()
 	_build_switch_room()
@@ -83,22 +85,26 @@ func _hot(id: String, parent: Node3D, pos: Vector3, size: Vector3, meshes: Array
 
 # ── the set room ─────────────────────────────────────────────────────────────
 
+## The set room (service_plan.SHED: 3.6 x 3.4): the set and the drums down the left, the
+## switch room's door in the back wall on the right with the junk before it, the crates and
+## the chair by the front. Where the junk is shoved to stays clear of the walls, the doorway
+## and each other.
 func _build_set_room() -> void:
 	var r := set_root
-	K.room(r, Vector3(4.0, 2.8, 4.0), "concrete", "brick_red", "concrete", 1.0, 1.2, 0.05)
-	K.prop(r, "generator", Vector3(-0.6, 0.05, -0.4))
-	K.prop(r, "oil_drum", Vector3(-1.55, 0.05, -1.5))
-	K.prop(r, "oil_drum", Vector3(-1.5, 0.05, 1.3), 30.0)
-	K.prop(r, "oil_drum", Vector3(-1.6, 0.05, 0.75), 70.0)
-	K.slab(r, Vector3(0.1, 1.4, 0.1), Vector3(-1.5, 2.1, -0.15), K.surface("galvanized", 0.5), "GenPipes")
-	K.prop(r, "beer_crates", Vector3(1.5, 0.05, 1.4), 15.0)
-	K.prop(r, "cardboard_boxes", Vector3(1.55, 0.05, 0.55), -80.0)
-	K.prop(r, "folding_chair", Vector3(0.6, 0.05, 1.2), 140.0)
+	var back: float = -PLAN.SHED.z * 0.5
+	K.room(r, PLAN.SHED, "concrete", "brick_red", "concrete", 1.0, 1.2, 0.05)
+	K.prop(r, "generator", Vector3(-0.5, 0.05, -0.45))
+	K.prop(r, "oil_drum", Vector3(-1.45, 0.05, -1.35))
+	K.prop(r, "oil_drum", Vector3(-1.4, 0.05, 1.2), 30.0)
+	K.prop(r, "oil_drum", Vector3(-1.45, 0.05, 0.55), 70.0)
+	K.slab(r, Vector3(0.1, 1.4, 0.1), Vector3(-1.4, 2.1, -0.2), K.surface("galvanized", 0.5), "GenPipes")
+	K.prop(r, "beer_crates", Vector3(0.85, 0.05, 1.45), 15.0)
+	K.prop(r, "folding_chair", Vector3(0.6, 0.05, 0.9), 140.0)
 	# The steel door in the back wall, right of the set.
 	var door_frame := K.surface("galvanized", 0.6, Color(0.55, 0.55, 0.52))
-	K.slab(r, Vector3(1.0, 2.1, 0.06), Vector3(1.15, 1.1, -1.97), K.surface("planks_dark", 0.6), "SwitchDoorFrame")
+	K.slab(r, Vector3(1.0, 2.1, 0.06), Vector3(1.0, 1.1, back + 0.03), K.surface("planks_dark", 0.6), "SwitchDoorFrame")
 	_door_pivot = Node3D.new()
-	_door_pivot.position = Vector3(0.7, 0.0, -1.93)
+	_door_pivot.position = Vector3(0.57, 0.0, back + 0.07)
 	r.add_child(_door_pivot)
 	var leaf := K.slab(_door_pivot, Vector3(0.86, 2.0, 0.05), Vector3(0.45, 1.05, 0.0), door_frame, "SwitchDoor")
 	var handle := K.slab(_door_pivot, Vector3(0.06, 0.16, 0.06), Vector3(0.78, 1.0, 0.05), K.surface("galvanized", 0.3), "SwitchDoorHandle")
@@ -112,18 +118,20 @@ func _build_set_room() -> void:
 	sign.position = Vector3(0.45, 1.75, 0.03)
 	sign.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	_door_pivot.add_child(sign)
-	_hot("door", r, Vector3(1.15, 1.05, -1.9), Vector3(0.9, 2.0, 0.2), [leaf, handle], "set")
-	# The junk in front of it.
-	var locker := K.prop(r, "locker", Vector3(1.05, 0.05, -1.35), 75.0)
+	_hot("door", r, Vector3(1.0, 1.05, back + 0.1), Vector3(0.9, 2.0, 0.2), [leaf, handle], "set")
+	# The junk in front of it; shoved aside, the locker stands up against the right wall, the
+	# mattress leans by it, the boxes go over by the set (the boxes once landed in the doorway
+	# and the locker half through the wall).
+	var locker := K.prop(r, "locker", Vector3(0.95, 0.05, back + 0.65), 75.0)
 	if locker != null:
 		locker.rotation_degrees.z = 72.0
 		locker.position.y = 0.32
-	_junk_item("locker", locker, Vector3(1.85, 0.05, -0.2), Vector3(0.0, 15.0, 0.0), Vector3(1.0, 0.65, 0.6))
-	var boxes := K.prop(r, "cardboard_boxes", Vector3(1.4, 0.05, -1.55), 20.0)
-	_junk_item("boxes", boxes, Vector3(-0.05, 0.05, 1.55), Vector3(0.0, 120.0, 0.0), Vector3(0.7, 0.8, 0.6))
-	var mattress := K.slab(r, Vector3(0.9, 1.8, 0.14), Vector3(1.15, 0.92, -1.72), K.surface("mattress", 0.9), "OldMattress")
+	_junk_item("locker", locker, Vector3(1.48, 0.05, -0.25), Vector3(0.0, -90.0, 0.0), Vector3(1.0, 0.65, 0.6))
+	var boxes := K.prop(r, "cardboard_boxes", Vector3(0.9, 0.05, back + 0.45), 20.0)
+	_junk_item("boxes", boxes, Vector3(-0.55, 0.05, 1.05), Vector3(0.0, 100.0, 0.0), Vector3(0.7, 0.8, 0.6))
+	var mattress := K.slab(r, Vector3(0.9, 1.8, 0.14), Vector3(1.0, 0.92, back + 0.25), K.surface("mattress", 0.9), "OldMattress")
 	mattress.rotation_degrees.x = 12.0
-	_junk_item("mattress", mattress, Vector3(1.85, 0.92, 0.55), Vector3(10.0, 90.0, 0.0), Vector3(1.0, 1.8, 0.3))
+	_junk_item("mattress", mattress, Vector3(1.62, 0.92, 0.85), Vector3(10.0, 90.0, 0.0), Vector3(1.0, 1.8, 0.3))
 
 
 func _junk_item(id: String, node: Node3D, to: Vector3, to_rot: Vector3, size: Vector3) -> void:
@@ -230,13 +238,17 @@ func set_room(which: String, camera: Camera3D) -> void:
 	room = which
 	set_root.visible = which == "set"
 	board_root.visible = which == "board"
+	# (One room where the other is: the hidden one's click boxes out of the way too.)
+	if host != null and host.has_method("_bodies_live"):
+		host._bodies_live(set_root, which == "set")
+		host._bodies_live(board_root, which == "board")
 	if camera == null:
 		return
 	if which == "board":
 		camera.position = board_root.position + Vector3(0.0, 1.5, 1.0)
 		camera.rotation_degrees = Vector3(-6.0, 0.0, 0.0)
 	else:
-		camera.position = Vector3(0.0, 1.5, 1.8)
+		camera.position = Vector3(0.0, 1.5, PLAN.SHED.z * 0.5 - 0.25)
 		camera.rotation_degrees = Vector3(-12.0, 0.0, 0.0)
 
 

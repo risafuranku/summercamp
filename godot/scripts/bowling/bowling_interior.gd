@@ -310,7 +310,7 @@ func door_ready(structure: Node3D) -> void:
 func door_spec(_structure: Node3D) -> Dictionary:
 	if _root == null:
 		return {}
-	return {"root": _root, "at": Vector3(LAYOUT.DOOR_X, 0.0, LAYOUT.FRONT_Z + 0.03), "out": Vector3(0, 0, 1), "size": Vector2(1.42, 2.6), "inner": 0.03, "leaf": [], "one_world": true}
+	return {"root": _root, "at": Vector3(LAYOUT.DOOR_X, 0.0, LAYOUT.FRONT_Z + 0.03), "out": Vector3(0, 0, 1), "size": Vector2(1.42, 2.6), "inner": 0.03, "leaf": []}
 
 
 ## In from the doorway (door_through: the eye where yours was) to the station the alley opened

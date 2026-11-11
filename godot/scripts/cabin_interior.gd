@@ -2109,7 +2109,7 @@ func door_spec(structure: Node3D) -> Dictionary:
 		if (n as Node3D).is_visible_in_tree():
 			leaf.append(n)
 	return {"root": _cabin_root, "at": Vector3(0.0, CL.ROOM_FLOOR, CL.size(lv).y * 0.5 + 0.03), "out": Vector3(0, 0, 1),
-		"size": Vector2(CL.DOOR_W, CL.DOOR_H), "inner": CL.WALL_T + 0.03, "leaf": leaf, "one_world": true}
+		"size": Vector2(CL.DOOR_W, CL.DOOR_H), "inner": CL.WALL_T + 0.03, "leaf": leaf}
 
 
 ## The way out each tier has: {meshes, body}.
