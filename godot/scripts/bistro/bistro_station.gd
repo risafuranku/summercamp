@@ -138,14 +138,17 @@ const PART_WORD := {"goulash": "GOULASH", "dumpling": "DUMPLINGS", "onion": "ONI
 func ticket_items(t: Dictionary) -> Array:
 	var dish := str(t.get("dish", ""))
 	var parts: Dictionary = t.get("parts", {})
-	var word := str(SHORT.get(dish, dish.to_upper()))
 	match dish:
 		"goulash":
-			word = "x%d" % int(parts.get("dumpling", 4)) + ("+ON" if parts.has("onion") else "")
+			# Its dumplings a number on it, an onion beside it.
+			var out: Array = [{"icon": _icons.get(dish), "n": "%d" % int(parts.get("dumpling", 4))}]
+			if parts.has("onion"):
+				out.append({"icon": _icons.get("onion")})
+			return out
 		"smazak", "fries":
 			if not parts.has("tartar"):
-				word = "NO TART"
-	return [{"icon": _icons.get(dish), "word": word}]
+				return [{"icon": _icons.get(dish)}, {"icon": pic(TEX + "food_tartar.png"), "neg": true}]
+	return [{"icon": _icons.get(dish)}]
 
 
 static func ORDERS_first(full: String) -> String:

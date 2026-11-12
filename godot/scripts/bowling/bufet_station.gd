@@ -155,7 +155,9 @@ func big_ticket() -> Dictionary:
 func ticket_items(t: Dictionary) -> Array:
 	var out: Array = []
 	for item in t.get("items", []):
-		out.append({"icon": _icons.get(str(item)), "word": "x%d" % (t["items"] as Array).size() if (t["items"] as Array).size() > 1 else str(ITEM_WORD.get(str(item), item))})
+		out.append({"icon": _icons.get(str(item))})
+	if out.size() > 1:
+		out[0]["n"] = "%d" % out.size()
 	return out
 
 

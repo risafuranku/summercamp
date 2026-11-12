@@ -270,9 +270,11 @@ func orders_here(kind_of: String) -> Array:
 ## What a mat asks for: the drink's picture and its word; a bill: BILL.
 func ticket_items(t: Dictionary) -> Array:
 	if str(t.get("kind", "")) == "bill":
-		return [{"icon": bill_slip(_bill_marks(t)), "word": "BILL"}]
+		return [{"icon": bill_slip(_bill_marks(t))}]
 	var drink := str(t.get("drink", ""))
-	return [{"icon": _icons.get(str(DRINK_ICONS.get(drink, "mark_mug"))), "word": str(SHORT.get(drink, drink.to_upper()))}]
+	# (A šnyt is a hladinka's mug half foam: its half on the picture; the spirits by their
+	# colour.)
+	return [{"icon": _icons.get(str(DRINK_ICONS.get(drink, "mark_mug"))), "tint": SPIRIT_TINT.get(drink, Color.WHITE), "n": "1/2" if drink == "snyt" else ""}]
 
 
 ## How many drinks a bill has on it (its marks).

@@ -99,7 +99,7 @@ func first() -> Dictionary:
 ## A guest's till slip: their face as their patience goes, their basket and how many
 ## things are in it (station3d.draw_ticket, the same in every place).
 func ticket_items(t: Dictionary) -> Array:
-	return [{"icon": _icons.get("basket"), "word": "x%d" % (t.get("items", []) as Array).size()}]
+	return [{"icon": _icons.get("basket"), "n": "%d" % (t.get("items", []) as Array).size()}]
 
 
 static func first_name(full: String) -> String:

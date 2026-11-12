@@ -1225,32 +1225,43 @@ func draw_ticket(c: Control, t: Dictionary, size: Vector2) -> void:
 	var nm := first_word(str(t.get("name", ""))).to_upper()
 	c.draw_string(f, Vector2(13, 9), nm.substr(0, 4), HORIZONTAL_ALIGNMENT_LEFT, size.x - 14, 8, Color(0.55, 0.1, 0.08))
 	var items := ticket_items(t)
-	var y := 12.0
 	if items.size() == 1:
-		var ic: Texture2D = items[0].get("icon", null)
-		if ic != null:
-			var sc := minf(1.0, 18.0 / maxf(ic.get_width(), ic.get_height()))
-			var isz := (ic.get_size() * sc).floor()
-			c.draw_texture_rect(ic, Rect2(Vector2(floorf((size.x - isz.x) * 0.5), y + floorf((18.0 - isz.y) * 0.5)), isz), false)
+		_ticket_pic(c, items[0], Rect2(Vector2(floorf((size.x - TICKET_PIC) * 0.5), 12.0), Vector2(TICKET_PIC, TICKET_PIC)))
 	else:
 		for i in mini(items.size(), 2):
-			var ic2: Texture2D = items[i].get("icon", null)
-			if ic2 != null:
-				var sc2 := minf(1.0, 13.0 / maxf(ic2.get_width(), ic2.get_height()))
-				var isz2 := (ic2.get_size() * sc2).floor()
-				c.draw_texture_rect(ic2, Rect2(Vector2(2 + i * 15, y + 3), isz2), false)
+			_ticket_pic(c, items[i], Rect2(Vector2(1.0 + i * 15.0, 14.0), Vector2(14, 14)))
 		if items.size() > 2:
-			c.draw_string(f, Vector2(size.x - 7, y + 12), "+", HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(0.2, 0.18, 0.2))
-	if not items.is_empty():
-		var word := tr(str(items[0].get("word", ""))).to_upper()
-		var ww := f.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
-		c.draw_string(f, Vector2(maxf(1.0, floorf((size.x - ww) * 0.5)), 38), word, HORIZONTAL_ALIGNMENT_LEFT, size.x - 2, 8, Color(0.16, 0.12, 0.1))
+			c.draw_string(f, Vector2(size.x - 6, 29), "+", HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(0.2, 0.18, 0.2))
 	var band := int(t.get("band", 0))
 	var col: Color = [RETRO_UI.C_GREEN, RETRO_UI.C_AMBER, RETRO_UI.C_RED][clampi(band, 0, 2)]
-	var bar := Rect2(3, size.y - 5, size.x - 6, 3)
+	var bar := Rect2(3, size.y - 4, size.x - 6, 3)
 	RETRO_UI.draw_segments(c, bar, left if band < 2 or int(_t * 4.0) % 2 == 0 else 0.0, 6, col)
 	if bool(t.get("picked", false)):
 		c.draw_rect(Rect2(Vector2.ZERO, size), Color(0.62, 0.42, 0.08), false, 1.0)
+
+
+## A rail ticket's picture of an item in `box`: its icon (`tint`), struck through in red for
+## a thing not wanted (`neg`), its variant as a number in the corner (`n`: the salt, the
+## dumplings, the lane, the shoe sizes): the order's word used to be a row of its own.
+const TICKET_PIC := 18.0
+
+
+func _ticket_pic(c: Control, item: Dictionary, box: Rect2) -> void:
+	var ic: Texture2D = item.get("icon", null)
+	if ic != null:
+		var sc := minf(1.0, box.size.y / maxf(ic.get_width(), ic.get_height()))
+		var isz := (ic.get_size() * sc).floor()
+		c.draw_texture_rect(ic, Rect2(box.position + ((box.size - isz) * 0.5).floor(), isz), false, item.get("tint", Color.WHITE))
+	if bool(item.get("neg", false)):
+		for k in int(box.size.x) - 2:
+			c.draw_rect(Rect2(box.position + Vector2(1 + k, box.size.y - 2 - k * box.size.y / box.size.x), Vector2(1, 1)), Color(0.75, 0.08, 0.05))
+	var n := str(item.get("n", ""))
+	if n != "":
+		var f: Font = RETRO_UI.FONT_TEXT
+		var w := f.get_string_size(n, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
+		var nb := Rect2(Vector2(minf(box.end.x - w + 3.0, 31.0 - w - 1.0), box.end.y - 7.0), Vector2(w + 2.0, 8.0))
+		c.draw_rect(nb, Color(0.16, 0.12, 0.1, 0.85))
+		c.draw_string(f, Vector2(nb.position.x + 1.0, nb.end.y - 1.0), n, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(0.98, 0.94, 0.8))
 
 
 ## The big ticket in the frame's corner: a checklist of the order (Papa's): the guest's
@@ -1398,7 +1409,8 @@ static func patience(age: float, gone: float, ok: float, late: float) -> Diction
 	return {"left": 1.0 - clampf(age / maxf(1.0, gone), 0.0, 1.0), "band": band}
 
 
-## What an order is, for its ticket: [{icon, word}].
+## What an order is, for its ticket: [{icon, n (its variant, a number on the picture),
+## tint, neg}].
 func ticket_items(_t: Dictionary) -> Array:
 	return []
 

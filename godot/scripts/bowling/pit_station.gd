@@ -104,7 +104,7 @@ func big_ticket() -> Dictionary:
 
 
 func ticket_items(t: Dictionary) -> Array:
-	return [{"icon": _icon_pin, "word": tr("Lane %d") % (int(t.get("lane", 0)) + 1)}]
+	return [{"icon": _icon_pin, "n": "%d" % (int(t.get("lane", 0)) + 1)}]
 
 
 func checklist(t: Dictionary) -> Array:

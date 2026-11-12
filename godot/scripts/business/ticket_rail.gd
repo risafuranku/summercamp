@@ -12,7 +12,10 @@ extends Node3D
 
 const DIST := 0.9
 const TW := 32
-const TH := 46
+## 46 till 12. 11. (a row of the order's word under its picture: "SALT 1", "SAUSAG"): ten
+## of them hung over the guests' faces at the counter. The variant is a number on the
+## picture now (station3d.draw_ticket).
+const TH := 34
 const GAP := 3
 const SLOTS := 10
 const STEP := 1.0 / 12.0

@@ -211,8 +211,8 @@ func big_ticket() -> Dictionary:
 
 func ticket_items(t: Dictionary) -> Array:
 	var sizes: Array = t.get("sizes", [])
-	var word := " ".join(sizes.map(func(s) -> String: return str(s))) if sizes.size() <= 2 else "x%d" % sizes.size()
-	return [{"icon": _icon_shoes, "word": word}]
+	# One pair: its size on the shoes; more: how many pairs (the big ticket has each size).
+	return [{"icon": _icon_shoes, "n": str(sizes[0]) if sizes.size() == 1 else ("x%d" % sizes.size() if sizes.size() > 1 else "")}]
 
 
 ## The pairs on the counter for `t` (a size or -1 each head).

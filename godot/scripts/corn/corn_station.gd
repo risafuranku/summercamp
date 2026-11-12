@@ -103,10 +103,9 @@ static func _with_patience(t: Dictionary) -> Dictionary:
 func ticket_items(t: Dictionary) -> Array:
 	var kind := str(t.get("kind", "cob"))
 	if kind == "cob":
-		var salt := int(t.get("salt", 0))
-		# "SALT 0" fits the slip in both languages (the big ticket says NO SALT).
-		return [{"icon": _icons.get("corn"), "word": "SALT %d" % salt}]
-	return [{"icon": _mark(kind), "word": "TEA" if kind == "tea" else "LIMO"}]
+		# Its salt as a number on the cob (the big ticket has the shaker with the same).
+		return [{"icon": _icons.get("corn"), "n": "%d" % int(t.get("salt", 0))}]
+	return [{"icon": _mark(kind)}]
 
 
 func _mark(kind: String) -> Texture2D:

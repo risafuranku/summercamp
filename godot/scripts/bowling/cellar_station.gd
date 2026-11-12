@@ -203,7 +203,7 @@ func big_ticket() -> Dictionary:
 
 
 func ticket_items(t: Dictionary) -> Array:
-	return [{"icon": _icons.get(str(t.get("jam", "")), _icons.get("gear")), "word": "Jammed"}]
+	return [{"icon": _icons.get(str(t.get("jam", "")), _icons.get("gear"))}]
 
 
 func checklist(_t: Dictionary) -> Array:
@@ -224,16 +224,14 @@ func draw_ticket(c: Control, t: Dictionary, size: Vector2) -> void:
 		c.draw_rect(Rect2(Vector2.ZERO, size), Color(0.92, 0.88, 0.76))
 	var f: Font = RETRO_UI.FONT_TEXT
 	c.draw_string(f, Vector2(3, 9), "S-12", HORIZONTAL_ALIGNMENT_LEFT, size.x - 4, 8, Color(0.55, 0.1, 0.08))
+	# (The rail's tickets are 34 tall since 12. 11.: the gear, the bar; its STOP was a word.)
 	var ic: Texture2D = _icons.get(str(t.get("jam", "")), _icons.get("gear"))
 	if ic != null:
-		var sc := minf(1.0, 20.0 / maxf(ic.get_width(), ic.get_height()))
+		var sc := minf(1.0, 18.0 / maxf(ic.get_width(), ic.get_height()))
 		var isz := (ic.get_size() * sc).floor()
-		c.draw_texture_rect(ic, Rect2(Vector2(floorf((size.x - isz.x) * 0.5), 12 + floorf((20.0 - isz.y) * 0.5)), isz), false)
-	var word := tr("STOP")
-	var ww := f.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
-	c.draw_string(f, Vector2(maxf(1.0, floorf((size.x - ww) * 0.5)), 40), word, HORIZONTAL_ALIGNMENT_LEFT, size.x - 2, 8, Color(0.62, 0.08, 0.05))
+		c.draw_texture_rect(ic, Rect2(Vector2(floorf((size.x - isz.x) * 0.5), 12 + floorf((18.0 - isz.y) * 0.5)), isz), false)
 	var band := int(t.get("band", 0))
-	var bar := Rect2(2, size.y - 5, size.x - 4, 3)
+	var bar := Rect2(2, size.y - 4, size.x - 4, 3)
 	c.draw_rect(bar, Color(0.1, 0.08, 0.06))
 	if band < 2 or int(_t * 4.0) % 2 == 0:
 		c.draw_rect(Rect2(bar.position, Vector2(ceilf(bar.size.x * clampf(float(t.get("left", 1.0)), 0.0, 1.0)), bar.size.y)), [RETRO_UI.C_GREEN, RETRO_UI.C_AMBER, RETRO_UI.C_RED][clampi(band, 0, 2)])
