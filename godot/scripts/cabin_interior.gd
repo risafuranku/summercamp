@@ -1769,14 +1769,13 @@ func _build_prep_props() -> void:
 	var blanket := P.camp_material("blanket_check.png", Color(0.9, 0.86, 0.8))
 	var b := BED_POS
 	var top := BED_TOP
-	var heap_a := P.box(_cabin_root, Vector3(b.x + 0.02, top + 0.09, b.z + 0.35), Vector3(0.72, 0.2, 0.6), blanket, Vector3(0.1, 0.4, -0.12))
-	var heap_b := P.box(_cabin_root, Vector3(b.x - 0.05, top + 0.04, b.z - 0.35), Vector3(0.6, 0.1, 0.5), blanket, Vector3(0.0, -0.3, 0.08))
+	var heap := P.bedding_heap(_cabin_root, "blanket", 0.95, Vector3(b.x, top, b.z + 0.15), 0.35)
 	var pillow_floor := P.box(_cabin_root, Vector3(-0.3, 0.11, -0.15), Vector3(0.6, 0.1, 0.3), INTERIOR_KIT.surface("mattress", 0.5, Color(0.8, 0.78, 0.72)), Vector3(0.0, 0.7, 0.25))
 	var made := P.box(_cabin_root, Vector3(b.x, top + 0.025, b.z + 0.18), Vector3(0.84, 0.05, 1.3), blanket)
 	var made_fold := P.box(_cabin_root, Vector3(b.x, top + 0.04, b.z - 0.42), Vector3(0.84, 0.07, 0.14), INTERIOR_KIT.surface("mattress", 0.5, Color(1.0, 0.98, 0.92)))
 	var pillow_bed := _cabin_root.get_node_or_null("Pillow")
 	var bed_body := P.body(_cabin_root, Vector3(b.x, 0.4, b.z), Vector3(1.0, 0.7, 1.9))
-	_prep.register("bed", bed_body, [heap_a, heap_b, pillow_floor], [made, made_fold, pillow_bed])
+	_prep.register("bed", bed_body, [heap, pillow_floor], [made, made_fold, pillow_bed])
 
 	# Where the mess can be this time (core/systems/mess_rules.gd ROOM_SPOTS, BATH_SPOTS).
 	for spot in [["f1", Vector3(-0.35, 0.04, -1.15)], ["f2", Vector3(0.05, 0.04, -0.5)], ["f3", Vector3(0.4, 0.04, 0.0)],

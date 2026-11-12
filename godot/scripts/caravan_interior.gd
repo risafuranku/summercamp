@@ -1317,8 +1317,8 @@ func _build_prep(dx: float) -> void:
 	K.slab(made, Vector3(0.9, 0.04, W - 0.3), Vector3(dx - 0.02, 0.68, 0.06), K.surface("blanket_check", 0.6), "BedBlanket")
 	for z: float in [-0.45, 0.45]:
 		K.slab(made, Vector3(0.36, 0.08, 0.26), Vector3(dx + 0.26, 0.7, z * 0.9), K.surface("mattress", 0.4, Color(1, 1, 0.96)), "Pillow")
-	var heap_mat := P.camp_material("blanket_check.png", Color(0.75, 0.72, 0.7))
-	var heap := P.box(_root, Vector3(dx - 0.1, 0.56, 0.5), Vector3(0.5, 0.18, 0.4), heap_mat, Vector3(0.15, 0.4, -0.1))
+	# (On the bench's cushion, its top at 0.52.)
+	var heap := P.bedding_heap(_root, "blanket", 0.62, Vector3(dx - 0.08, 0.52, W * 0.5 - 0.32), 1.2)
 	var cushion_off := P.box(_root, Vector3(dx - 0.62, 0.06, -0.35), Vector3(0.6, 0.1, 0.42), P.camp_material("velvet.png", Color(0.92, 0.6, 0.36)), Vector3(0.0, 0.7, 0.12))
 	var table: Node3D = _root.get_node_or_null("DinetteTable")
 	var leg: Node3D = _root.get_node_or_null("DinetteLeg")

@@ -488,6 +488,22 @@ static func decal(parent: Node3D, file: String, width: float, pos: Vector3, yaw 
 	return mi
 
 
+## A bed's bedding as the guests left it, kicked off into a heap (12. 11.: boxes in the
+## blanket's check read as a crate): its picture seen from above, lying on what is at `pos`
+## (its top), `width` metres across. `kind`: "blanket" (the camp's checked wool one) or
+## "sleepingbag" (a tent's); Grok, tools/artgen/prompts_day.tsv bedding_heap_*.
+static func bedding_heap(parent: Node3D, kind: String, width: float, pos: Vector3, yaw := 0.0) -> MeshInstance3D:
+	var mi := decal(parent, "bedding_heap_" + kind, width, pos, yaw)
+	# Its glow under the pointer softer than a small mess's: at a small one's, a heap this
+	# big went all but white in a lit tent.
+	if not _decal_mats.has("soft|" + kind):
+		var hl := (mi.get_meta("hl_material") as StandardMaterial3D).duplicate() as StandardMaterial3D
+		hl.emission_energy_multiplier = 0.1
+		_decal_mats["soft|" + kind] = hl
+	mi.set_meta("hl_material", _decal_mats["soft|" + kind])
+	return mi
+
+
 ## The canvas torn open (materials/tent_tear.gdshader): `width` metres across on a wall
 ## facing +Z. Its two materials (as it is, and its hover look) are the mesh's meta
 ## "tear_mats": the room gives them the camp to show through it (tent_interior).

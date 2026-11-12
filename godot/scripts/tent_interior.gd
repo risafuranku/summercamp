@@ -30,7 +30,7 @@ var _door_tent_ms := -100000
 const SURFACES := {
 	"FloorMat": ["tent_floor", 0.8], "LeftWall": ["tarp_canvas", 0.9], "RightWall": ["tarp_canvas", 0.9],
 	"BackWall": ["tarp_canvas", 0.9], "FrontWall": ["tarp_canvas", 0.9], "CeilingRidge": ["planks_dark", 0.5],
-	"ZipLine": ["tarp_canvas", 0.4], "SleepingBag": ["blanket_check", 0.5], "Pillow": ["mattress", 0.4],
+	"ZipLine": ["tarp_canvas", 0.4], "SleepingBag": ["mattress", 0.5], "Pillow": ["mattress", 0.4],
 	"Rug": ["rug", 1.1], "MiniTable": ["knotty_pine", 0.5], "MiniShelf": ["knotty_pine", 0.5], "DoorRoll": ["tarp_canvas", 0.4], "ZipHandle": ["galvanized", 0.2],
 }
 
@@ -460,7 +460,8 @@ func _build_tent_room() -> void:
 	_add_box("ZipLine", Vector3(0.0, 0.56, 1.10), Vector3(0.02, 0.98, 0.01), Color(0.74, 0.70, 0.52))
 	_add_box("ZipHandle", Vector3(0.0, 0.14, 1.09), Vector3(0.05, 0.06, 0.03), Color(0.84, 0.80, 0.56))
 
-	_add_box("SleepingBag", Vector3(-0.20, 0.06, -0.02), Vector3(0.64, 0.08, 1.34), Color(0.36, 0.58, 0.82))
+	# The foam mat under the sleeping bag (its picture on it: _build_prep_props).
+	_add_box("SleepingBag", Vector3(-0.20, 0.035, -0.02), Vector3(0.66, 0.03, 1.36), Color(0.36, 0.58, 0.82))
 	_add_box("Pillow", Vector3(-0.20, 0.11, -0.68), Vector3(0.40, 0.08, 0.24), Color(0.42, 0.40, 0.36))
 
 	# The upgrade catalog on the groundsheet: its cover (Grok, camp/tent_catalog.png) on
@@ -512,21 +513,20 @@ func _build_tent_room() -> void:
 	_apply_time_profile()
 
 
-## The tent as the last guests left it: the sleeping bag kicked into a heap with the
-## pillow thrown off, and litter by the door. Tidy versions are the normal props.
+## The tent as the last guests left it: the sleeping bag kicked open into a heap with the
+## pillow thrown off, and litter by the door. Made: the bag laid out zipped on its foam mat
+## (SleepingBag), the pillow at its head; both pictures seen from above (Grok,
+## tools/artgen/prompts_day.tsv bedding_heap_sleepingbag, sleeping_bag_made).
 func _build_prep_props() -> void:
 	var P := INTERIOR_PREP
-	var heap_mat := P.camp_material("blanket_check.png", Color(0.75, 0.72, 0.7))
-	var heap_a := P.box(_tent_root, Vector3(-0.24, 0.12, -0.30), Vector3(0.62, 0.22, 0.46), heap_mat, Vector3(0.12, 0.35, -0.08))
-	var heap_b := P.box(_tent_root, Vector3(-0.18, 0.06, -0.75), Vector3(0.5, 0.08, 0.5), heap_mat, Vector3(0.0, -0.4, 0.06))
+	var heap := P.bedding_heap(_tent_root, "sleepingbag", 0.95, Vector3(-0.22, 0.01, -0.32), 0.3)
 	var pillow_off := P.box(_tent_root, Vector3(-0.58, 0.07, 0.05), Vector3(0.36, 0.08, 0.22), INTERIOR_KIT.surface("mattress", 0.4, Color(0.72, 0.7, 0.64)), Vector3(0.0, 0.9, 0.5))
 	var tidy_bag := _tent_root.get_node_or_null("SleepingBag")
+	var made_bag := P.decal(_tent_root, "sleeping_bag_made", 0.62, Vector3(-0.2, 0.05, -0.02))
 	var tidy_pillow := _tent_root.get_node_or_null("Pillow")
-	if tidy_bag is MeshInstance3D:
-		(tidy_bag as MeshInstance3D).material_override = heap_mat
 	# Round the heap (not the whole sleeping bag's place): the litter lies close beside it.
 	var bed_body := P.body(_tent_root, Vector3(-0.26, 0.12, -0.45), Vector3(0.7, 0.24, 1.0))
-	_prep.register("bed", bed_body, [heap_a, heap_b, pillow_off], [tidy_bag, tidy_pillow])
+	_prep.register("bed", bed_body, [heap, pillow_off], [tidy_bag, made_bag, tidy_pillow])
 
 	# Where the mess can be this time (core/systems/mess_rules.gd ROOM_SPOTS).
 	for spot in [["f1", Vector3(0.38, 0.0, -0.85)], ["f2", Vector3(0.3, 0.0, 0.05)], ["f3", Vector3(-0.72, 0.0, -0.2)],
