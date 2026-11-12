@@ -97,11 +97,11 @@ const FACADES := "res://assets/textury/town/lib_facades.json"
 ## panel in the arch; the leaves' top under the loft's floor inside): px. town_lesna hangs
 ## them, you walk through them (door_spec).
 const DOOR_LEAVES := [Rect2(79, 197, 21, 58), Rect2(100, 197, 21, 58)]
-## The door from inside (chapel_door_in.png, under the loft's floor) and the arch the doorway
-## through the nave's wall is cut to behind it, in steps clear inside its stone frame: each
-## [from, to] its height's share over the floor, its width's share.
+## The door from inside (chapel_door_in.png, under the loft's floor) and the round-headed
+## doorway through the nave's wall behind it, clear inside its stone frame (K.cut_arch): its
+## width's share of the picture's, its springing's and its crown's share of the height.
 const DOOR_IN_H := 2.75
-const DOOR_IN_ARCH := [[0.0, 0.713, 0.88], [0.713, 0.785, 0.82], [0.785, 0.857, 0.7], [0.857, 0.909, 0.54]]
+const DOOR_IN_ARCH := Vector3(0.88, 0.713, 0.909)
 const PAINTED_DOOR = preload("res://scripts/painted_door.gd")
 ## How high the damp has climbed the walls.
 const DAMP_H := 2.3
@@ -306,19 +306,17 @@ static func door_rect() -> Rect2:
 	return Rect2(r.position.x, 0.0, r.size.x, r.end.y - FLOOR_Y)
 
 
-## The doorway through the nave's wall behind the door's picture inside: its arch in steps
+## The doorway through the nave's wall `front` behind the door's picture inside: round-headed
 ## (DOOR_IN_ARCH), or the doorway's own size behind the plain door.
-func _door_in_holes() -> Array:
+func _cut_doorway(front: MeshInstance3D) -> void:
 	var dr := door_rect()
 	if not _exists("chapel_door_in"):
-		return [[dr.position.x, dr.end.x, 0.0, dr.end.y]]
+		K.cut_wall(front, [[dr.position.x, dr.end.x, 0.0, dr.end.y]])
+		return
 	var s := _size("chapel_door_in", DOOR_IN_H)
 	var cx := dr.get_center().x
-	var out: Array = []
-	for st in DOOR_IN_ARCH:
-		var hw: float = s.x * float(st[2]) * 0.5
-		out.append([cx - hw, cx + hw, s.y * float(st[0]), s.y * float(st[1])])
-	return out
+	var hw := s.x * DOOR_IN_ARCH.x * 0.5
+	K.cut_arch(front, cx - hw, cx + hw, s.y * DOOR_IN_ARCH.y, s.y * DOOR_IN_ARCH.z)
 
 
 ## The door as door_through wants it (town_room.door_spec): in the plane of the building's
@@ -524,12 +522,10 @@ func _nave(root: Node3D) -> void:
 	var front := K.slab(root, Vector3(W, CROWN + 0.1, 0.1), Vector3(0, (CROWN + 0.1) * 0.5, D * 0.5 + 0.05), lime, "WallDoor")
 	# The doorway through it (walked through: door_spec).
 	var dr := door_rect()
-	K.cut_wall(front, _door_in_holes())
-	# The triumphal arch: the opening in steps to its round top, as thick as a church's.
+	_cut_doorway(front)
+	# The triumphal arch: the opening up to its round head, as thick as a church's.
 	var arch := K.slab(root, Vector3(W, CROWN + 0.1, ARCH_T), Vector3(0, (CROWN + 0.1) * 0.5, -D * 0.5 - ARCH_T * 0.5), lime, "Arch")
-	var hw := ARCH_W * 0.5
-	K.cut_wall(arch, [[-hw, hw, 0.0, 3.7], [-hw + 0.18, hw - 0.18, 3.7, 4.0], [-hw + 0.55, hw - 0.55, 4.0, 4.22],
-		[-hw + 1.0, hw - 1.0, 4.22, 4.36], [-0.45, 0.45, 4.36, 4.44]])
+	K.cut_arch(arch, -ARCH_W * 0.5, ARCH_W * 0.5, 3.7, 4.44)
 	_vault(root, W, WALL_H, CROWN, 0.0, D + 0.1, vault)
 	# The damp up every wall of the nave.
 	_damp(D, Vector3(-W * 0.5, 0, 0), Vector3(1, 0, 0))

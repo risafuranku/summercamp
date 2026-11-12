@@ -325,6 +325,66 @@ static func cut_wall(wall: MeshInstance3D, holes: Array) -> void:
 	wall.free()
 
 
+## A wall as cut_wall takes it with an arched opening `a0`..`a1` across: upright from its foot
+## to `spring`, then a half-ellipse up to its crown at `top` (a doorway, an arch between two
+## rooms); other `holes` as cut_wall's. The two corners over the arch are filled with the wall's
+## own material in `segments` slices a side (both faces and the soffit), smooth to the eye.
+static func cut_arch(wall: MeshInstance3D, a0: float, a1: float, spring: float, top: float, holes: Array = [], segments := 20) -> void:
+	var s: Vector3 = (wall.mesh as BoxMesh).size
+	var along_x := s.x >= s.z
+	var t := (s.z if along_x else s.x) * 0.5
+	var foot := wall.position - Vector3(0, s.y * 0.5, 0)
+	var parent := wall.get_parent()
+	var mat := wall.material_override
+	var n := String(wall.name)
+	cut_wall(wall, holes + [[a0, a1, 0.0, top]])
+	# Across, up, through: the parent's frame.
+	var at := func(u: float, y: float, w: float) -> Vector3:
+		return foot + (Vector3(u, y, w) if along_x else Vector3(w, y, u))
+	var thru := Vector3(0, 0, 1) if along_x else Vector3(1, 0, 0)
+	var mid := (a0 + a1) * 0.5
+	var hw := (a1 - a0) * 0.5
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for side in [-1.0, 1.0]:
+		for i in segments:
+			var k0 := PI * 0.5 * float(i) / float(segments)
+			var k1 := PI * 0.5 * float(i + 1) / float(segments)
+			var p0 := Vector2(mid + side * hw * cos(k0), spring + (top - spring) * sin(k0))
+			var p1 := Vector2(mid + side * hw * cos(k1), spring + (top - spring) * sin(k1))
+			for w in [-t, t]:
+				_quad(st, at.call(p0.x, p0.y, w), at.call(p1.x, p1.y, w), at.call(p1.x, top, w), at.call(p0.x, top, w), thru * signf(w))
+			# The soffit: the arch's underside, facing down into the opening.
+			var edge: Vector3 = at.call(p1.x, p1.y, 0.0) - at.call(p0.x, p0.y, 0.0)
+			var face := edge.cross(thru).normalized()
+			if face.y > 0.0:
+				face = -face
+			_quad(st, at.call(p0.x, p0.y, -t), at.call(p1.x, p1.y, -t), at.call(p1.x, p1.y, t), at.call(p0.x, p0.y, t), face)
+	var mi := MeshInstance3D.new()
+	mi.name = n + "Arch"
+	mi.mesh = st.commit()
+	mi.material_override = mat
+	parent.add_child(mi)
+
+
+## Two triangles a-b-c-d facing `normal` (wound for it, whatever order the corners come in).
+static func _quad(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3, normal: Vector3) -> void:
+	for tri in [[a, b, c], [a, c, d]]:
+		var p: Vector3 = tri[0]
+		var q: Vector3 = tri[1]
+		var r: Vector3 = tri[2]
+		if (q - p).cross(r - p).length_squared() < 1e-12:
+			continue
+		# (Godot's front faces are wound clockwise seen from the front.)
+		if (q - p).cross(r - p).dot(normal) > 0.0:
+			var x := q
+			q = r
+			r = x
+		for v in [p, q, r]:
+			st.set_normal(normal)
+			st.add_vertex(v)
+
+
 ## A room built again in its building (one plan) opened at its windows: [{wall ("front",
 ## "back", "left", "right"), at (the glass's middle, room space), size}]: its walls cut
 ## round them, the painted views and net curtains in them gone (the camp is behind the
