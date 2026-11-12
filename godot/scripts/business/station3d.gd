@@ -150,6 +150,14 @@ var _glint_on = null
 var _hot: MeshInstance3D
 var _audio: Array = []
 var _audio_i := 0
+## Sounds played so far (sfx): a press that played none of its own gets the hand's own
+## sound (12. 11., the day's polish: "the response to a click and the sounds"; a click on
+## a thing that answered with silence felt dead). Taking a thing up, its lift; anything
+## else, a tap of the finger on it. The stations' own sounds always come first.
+var _sfx_n := 0
+const HAND_PICK := "res://assets/sfx/inventory/pick.mp3"
+const HAND_TAP := "res://assets/sfx/bistro/tick.mp3"
+static var _silent_seen: Dictionary = {}
 var _pops: Array = []
 var _rail: Node3D
 ## The tickets on the rail last time (a new one clips on with a ding).
@@ -883,11 +891,17 @@ func press() -> void:
 	if _hands_ui != null and is_instance_valid(_hands_ui):
 		_hands_ui.call("act", true)
 	down_begin()
+	var n0 := _sfx_n
 	var c := _carry_of(_held)
 	if not c.is_empty():
 		_carry_begin(c)
+		if _sfx_n == n0:
+			sfx(HAND_PICK, -14.0, randf_range(0.95, 1.08))
 		return
 	_press(_held)
+	if _sfx_n == n0:
+		_silent(_held)
+		sfx(HAND_TAP, -17.0, randf_range(0.92, 1.05))
 
 
 func release() -> void:
@@ -1063,12 +1077,22 @@ func sfx(path_or_name: String, db := -8.0, pitch := 1.0) -> void:
 		path = path.get_basename() + ".wav"
 		if not ResourceLoader.exists(path):
 			return
+	_sfx_n += 1
 	var a: AudioStreamPlayer = _audio[_audio_i]
 	_audio_i = (_audio_i + 1) % _audio.size()
 	a.stream = load(path)
 	a.volume_db = db
 	a.pitch_scale = pitch
 	a.play()
+
+
+## A press with no sound of its own, once a station and spot in a run of a debug build
+## (the harnesses' logs: "STATION silent press"), so the stations can be given their own.
+func _silent(id: String) -> void:
+	var key := "%s:%s" % [station, id]
+	if OS.is_debug_build() and not _silent_seen.has(key):
+		_silent_seen[key] = true
+		print("STATION silent press %s" % key)
 
 
 ## A word or a number floating up off the surface and fading (+$9, BURNT), in the room's
