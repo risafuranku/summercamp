@@ -528,6 +528,7 @@ func close_service() -> void:
 
 
 func _process(delta: float) -> void:
+	_tick_prepare(delta)
 	if not _is_open or _interior_camera == null:
 		# A room stood in its building for a walk in that did not come (walked away from its
 		# door): the building as it was.
@@ -3381,56 +3382,121 @@ func _station_input(event: InputEvent, open: String) -> void:
 func _make_stations() -> void:
 	if _upkeep_key == "" or not (_current_profile in ["rest", "pub", "vecerka"]):
 		return
+	var k = _station_state()
+	for id in _station_scripts():
+		_make_station(str(id), k)
+
+
+## The place's live state the stations work on (the kitchen, the taproom, the shop).
+func _station_state():
+	return get_tree().get_first_node_in_group("kitchens") if _current_profile == "rest" else (TAPROOM.of(get_tree()) if _current_profile == "pub" else JEDNOTA.of(get_tree()))
+
+
+## Whether station `id` stands made for this business (`_upkeep_key`) in its room.
+func _station_made(id: String) -> bool:
+	var st: Dictionary = _station_layout().STATIONS[id]
+	var have = _stations.get(id, null)
+	return have != null and is_instance_valid(have) and (have as Node).get_parent() == _station_root(str(st["room"])) and str(have.get("building_key")) == _upkeep_key
+
+
+func _make_station(id: String, k) -> void:
 	var layout = _station_layout()
 	var scripts := _station_scripts()
-	var k = get_tree().get_first_node_in_group("kitchens") if _current_profile == "rest" else (TAPROOM.of(get_tree()) if _current_profile == "pub" else JEDNOTA.of(get_tree()))
-	for id in scripts:
-		var st: Dictionary = layout.STATIONS[id]
-		var parent: Node3D = _station_root(str(st["room"]))
-		if parent == null:
+	var st: Dictionary = layout.STATIONS[id]
+	var parent: Node3D = _station_root(str(st["room"]))
+	if parent == null or _station_made(id):
+		return
+	var have = _stations.get(id, null)
+	if have != null and is_instance_valid(have):
+		(have as Node).queue_free()
+	var path := str(scripts[id])
+	if not ResourceLoader.exists(path):
+		return
+	var surf: Dictionary = layout.SURFACES[id]
+	var made = load(path).new()
+	if not (made is Node3D):
+		(made as Node).free()
+		return
+	var v: Node3D = made
+	v.name = "Station3D_" + str(id)
+	v.set("building_key", _upkeep_key)
+	v.set("station", str(id))
+	v.set("room", str(st["room"]))
+	v.set("label", str(st["label"]))
+	v.set("surf_at", surf["at"])
+	v.set("surf_size", surf["size"])
+	v.set("surf_yaw", float(surf["yaw"]))
+	v.set("surf_flat", bool(surf["flat"]))
+	v.set("cam_back", float(surf.get("cam_back", 0.0)))
+	v.set("cam_up", float(surf.get("cam_up", 0.0)))
+	v.set("cam_aim", float(surf.get("cam_aim", 0.0)))
+	v.set("cam_side", float(surf.get("cam_side", 0.0)))
+	v.set("state", k)
+	if "open_books" in v:
+		v.set("open_books", _open_ledger)
+	parent.add_child(v)
+	v.connect("closed", _on_station_closed)
+	v.connect("switch_to", _switch_station)
+	_stations[id] = v
+	# Its counter's top is its Build picture, at the room's pixel.
+	var quad := parent.get_node_or_null("Surface_" + str(id)) as MeshInstance3D
+	var tex_path := str(surf.get("tex", "res://assets/textury/bistro/st_%s.png" % str(id)))
+	var pic: Texture2D = STATION3D.room_tex(tex_path, (surf["size"] as Vector2).x) if quad != null else null
+	if quad != null and pic != null:
+		var m := quad.material_override as StandardMaterial3D
+		m.albedo_texture = pic
+		m.emission_texture = pic
+
+
+## A business's stations made before its first door (12. 11.: made at it, 80-180 ms at its
+## first visit in a session): while the room stands closed it looks, every few seconds, for
+## the business of its kind in the camp (the first, by the plan) and makes the stations it
+## lacks for it, one a frame. At the door they stand: _make_stations finds them.
+const PREPARE_EVERY := 2.0
+var _prepare_t := 0.0
+var _prepare_queue: Array = []
+
+
+func _tick_prepare(delta: float) -> void:
+	if _is_open or not (_current_profile in ["rest", "pub", "vecerka"]) or _one_anchor != null:
+		return
+	if not _prepare_queue.is_empty():
+		var k = _station_state()
+		if k == null:
+			return
+		_make_station(str(_prepare_queue.pop_front()), k)
+		return
+	_prepare_t -= delta
+	if _prepare_t > 0.0:
+		return
+	_prepare_t = PREPARE_EVERY
+	var key := _business_of_my_kind()
+	if key == "" or _station_state() == null:
+		return
+	if key != _upkeep_key:
+		_upkeep_key = key
+	for id in _station_scripts():
+		if not _station_made(str(id)):
+			_prepare_queue.append(str(id))
+
+
+## The key ("x:y") of the first business of this room's kind on the plan, "" none.
+func _business_of_my_kind() -> String:
+	var state = CoreRoot.get_state() if CoreRoot != null else null
+	if state == null or state.grid == null:
+		return ""
+	var best := ""
+	for coord in state.grid.cells:
+		var data: Dictionary = state.grid.cells[coord]
+		var t := str(data.get("type", ""))
+		if t == "" or data.get("root_coord", coord) != coord or profile_for(t) != _current_profile:
 			continue
-		var have = _stations.get(id, null)
-		if have != null and is_instance_valid(have) and (have as Node).get_parent() == parent and str(have.get("building_key")) == _upkeep_key:
+		if not (t in ["restaurant", "pub", "vecerka"]):
 			continue
-		if have != null and is_instance_valid(have):
-			(have as Node).queue_free()
-		var path := str(scripts[id])
-		if not ResourceLoader.exists(path):
-			continue
-		var surf: Dictionary = layout.SURFACES[id]
-		var made = load(path).new()
-		if not (made is Node3D):
-			(made as Node).free()
-			continue
-		var v: Node3D = made
-		v.name = "Station3D_" + str(id)
-		v.set("building_key", _upkeep_key)
-		v.set("station", str(id))
-		v.set("room", str(st["room"]))
-		v.set("label", str(st["label"]))
-		v.set("surf_at", surf["at"])
-		v.set("surf_size", surf["size"])
-		v.set("surf_yaw", float(surf["yaw"]))
-		v.set("surf_flat", bool(surf["flat"]))
-		v.set("cam_back", float(surf.get("cam_back", 0.0)))
-		v.set("cam_up", float(surf.get("cam_up", 0.0)))
-		v.set("cam_aim", float(surf.get("cam_aim", 0.0)))
-		v.set("cam_side", float(surf.get("cam_side", 0.0)))
-		v.set("state", k)
-		if "open_books" in v:
-			v.set("open_books", _open_ledger)
-		parent.add_child(v)
-		v.connect("closed", _on_station_closed)
-		v.connect("switch_to", _switch_station)
-		_stations[id] = v
-		# Its counter's top is its Build picture, at the room's pixel.
-		var quad := parent.get_node_or_null("Surface_" + str(id)) as MeshInstance3D
-		var tex_path := str(surf.get("tex", "res://assets/textury/bistro/st_%s.png" % str(id)))
-		var pic: Texture2D = STATION3D.room_tex(tex_path, (surf["size"] as Vector2).x) if quad != null else null
-		if quad != null and pic != null:
-			var m := quad.material_override as StandardMaterial3D
-			m.albedo_texture = pic
-			m.emission_texture = pic
+		var key := "%d:%d" % [int(coord.x), int(coord.y)]
+		if best == "" or key < best:
+			best = key
+	return best
 
 
 ## Over the waiting guests' heads how their patience goes (scripts/business/guest_mood.gd:
