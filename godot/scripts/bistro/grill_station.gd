@@ -209,6 +209,14 @@ func bar_text() -> String:
 	return "BOX %d  RACK %d" % [maxi(0, BUSINESS.stock_of(building_key, "sausage")), kitchen.prep(building_key, "sausage")]
 
 
+func bar_counts() -> Array:
+	if kitchen == null or building_key == "":
+		return []
+	var box := maxi(0, BUSINESS.stock_of(building_key, "sausage"))
+	return [{"icon": pic(TEX + "sausage_raw.png"), "n": "%d" % box, "warn": box == 0},
+		{"icon": pic(TEX + "sausage_done.png"), "n": "%d" % kitchen.prep(building_key, "sausage")}]
+
+
 # ── debug (tools/bistro_check.gd, tools/bistro_shots.gd) ─────────────────────
 
 func debug_click(id: String) -> void:

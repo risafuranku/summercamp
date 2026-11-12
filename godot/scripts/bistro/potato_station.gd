@@ -215,6 +215,14 @@ func bar_text() -> String:
 	return "RAW CHIPS %d  SACK %d" % [kitchen.prep(building_key, "chips_raw"), maxi(0, BUSINESS.stock_of(building_key, "potatoes"))]
 
 
+func bar_counts() -> Array:
+	if kitchen == null:
+		return []
+	var sack := maxi(0, BUSINESS.stock_of(building_key, "potatoes"))
+	return [{"icon": pic(TEX + "chips_rack.png"), "n": "%d" % kitchen.prep(building_key, "chips_raw")},
+		{"icon": pic(TEX + "potato_raw.png"), "n": "%d" % sack, "warn": sack == 0}]
+
+
 ## A finger on the peeler's switch, the bare glove on the cutter's lever and the rest.
 func hand_tool() -> String:
 	var id := _held if _held != "" else _hover

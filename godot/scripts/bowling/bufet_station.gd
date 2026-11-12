@@ -166,12 +166,12 @@ func checklist(t: Dictionary) -> Array:
 	var on: Array = _tray.map(func(e) -> String: return str(e["item"]))
 	for item in t.get("items", []):
 		var at := on.find(item)
-		out.append({"text": tr(str(ITEM_WORD.get(str(item), item))), "state": "done" if at >= 0 else "todo"})
+		out.append({"text": tr(str(ITEM_WORD.get(str(item), item))), "state": "done" if at >= 0 else "todo", "icon": _icons.get(str(item))})
 		if at >= 0:
 			on.remove_at(at)
 	for extra in on:
-		out.append({"text": tr(str(ITEM_WORD.get(str(extra), extra))), "state": "bad"})
-	out.append({"text": tr("Lane %d") % (int(t.get("lane", 0)) + 1), "state": "todo"})
+		out.append({"text": tr(str(ITEM_WORD.get(str(extra), extra))), "state": "bad", "icon": _icons.get(str(extra))})
+	out.append({"text": tr("Lane %d") % (int(t.get("lane", 0)) + 1), "state": "todo", "icon": pic(BTEX + "pin.png"), "n": "%d" % (int(t.get("lane", 0)) + 1)})
 	return out
 
 
@@ -399,6 +399,11 @@ func alert() -> int:
 func bar_text() -> String:
 	var n := tickets().size()
 	return tr("ORDERS %d") % n if n > 0 else ""
+
+
+func bar_counts() -> Array:
+	var n := tickets().size()
+	return [{"icon": pic(BTEX + "tray.png"), "n": "%d" % n}] if n > 0 else []
 
 
 func _key(e: InputEventKey) -> void:

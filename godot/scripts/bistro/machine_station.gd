@@ -221,6 +221,10 @@ func _closing() -> void:
 		_lift = 0.0
 
 
+func bar_counts() -> Array:
+	return []
+
+
 func bar_text() -> String:
 	return ""
 

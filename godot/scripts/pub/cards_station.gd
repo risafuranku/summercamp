@@ -157,6 +157,11 @@ func bar_button(id: String) -> void:
 		_stand()
 
 
+## (A game's score and stake, not counts: the words.)
+func bar_counts() -> Array:
+	return []
+
+
 func bar_text() -> String:
 	if _game.is_empty():
 		return "OKO BERE  $%d" % FUN.STAKE

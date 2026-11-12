@@ -201,6 +201,14 @@ func bar_text() -> String:
 	return "TRAY %d  CHEESE %d" % [kitchen.prep(building_key, "cheese_raw") + kitchen.prep(building_key, "cheese_bad"), maxi(0, BUSINESS.stock_of(building_key, "cheese"))]
 
 
+func bar_counts() -> Array:
+	if kitchen == null:
+		return []
+	var cheese := maxi(0, BUSINESS.stock_of(building_key, "cheese"))
+	return [{"icon": pic(TEX + "cheese_breaded.png"), "n": "%d" % (kitchen.prep(building_key, "cheese_raw") + kitchen.prep(building_key, "cheese_bad"))},
+		{"icon": pic(TEX + "cheese_plain.png"), "n": "%d" % cheese, "warn": cheese == 0}]
+
+
 func has_rail() -> bool:
 	return true
 

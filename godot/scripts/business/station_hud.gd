@@ -630,9 +630,17 @@ func _draw_serve() -> void:
 	_c.draw_string(RETRO_UI.FONT_LABEL, Vector2(floorf(r.position.x + (r.size.x - w) * 0.5) + 4, r.position.y + 13), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, col)
 
 
-## The station's counts (the crate, the bowl, the butter) under SERVE.
+## The station's counts (the crate, the bowl, the butter) under SERVE: as pictures with
+## their numbers (station3d.bar_counts), else its words.
+const COUNT_PIC := 12.0
+
+
 func _draw_counts() -> void:
 	if station == null:
+		return
+	var cells: Array = station.call("bar_counts") if station.has_method("bar_counts") else []
+	if not cells.is_empty():
+		_draw_count_pictures(cells)
 		return
 	var counts := tr(str(station.call("bar_text")))
 	if counts == "":
@@ -643,6 +651,32 @@ func _draw_counts() -> void:
 	var x := W - 6 - w
 	_c.draw_rect(Rect2(x - 3, y - 8, w + 6, 11), Color(0.03, 0.025, 0.02, 0.7))
 	_c.draw_string(f, Vector2(x, y), counts, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, RETRO_UI.C_BONE_DIM)
+
+
+## Right to left from the frame's edge under SERVE: each picture, its number beside it (red
+## when it wants seeing to: `warn`), on one dark strip.
+func _draw_count_pictures(cells: Array) -> void:
+	var f: Font = RETRO_UI.FONT_TEXT
+	var y := _serve_rect().end.y + 2
+	var parts: Array = []
+	var total := 0.0
+	for cell in cells:
+		var n := str(cell.get("n", ""))
+		var w := COUNT_PIC + 2.0 + f.get_string_size(n, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
+		parts.append([cell, n, w])
+		total += w + 6.0
+	total -= 6.0
+	var x := W - 6 - total
+	_c.draw_rect(Rect2(x - 3, y - 1, total + 6, COUNT_PIC + 2), Color(0.03, 0.025, 0.02, 0.7))
+	for p in parts:
+		var cell: Dictionary = p[0]
+		var ic: Texture2D = cell.get("icon", null)
+		if ic != null:
+			var sc := minf(1.0, COUNT_PIC / maxf(ic.get_width(), ic.get_height()))
+			var isz := (ic.get_size() * sc).floor()
+			_c.draw_texture_rect(ic, Rect2(Vector2(x + floorf((COUNT_PIC - isz.x) * 0.5), y + floorf((COUNT_PIC - isz.y) * 0.5)), isz), false)
+		_c.draw_string(f, Vector2(x + COUNT_PIC + 2.0, y + 9), str(p[1]), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, RETRO_UI.C_RED_LIGHT if bool(cell.get("warn", false)) else RETRO_UI.C_BONE)
+		x += float(p[2]) + 6.0
 
 
 ## The next step: a frame round it that breathes; standing still a while, the see-through

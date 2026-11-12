@@ -39,7 +39,8 @@ extends Node3D
 ##   _tick(delta)          every frame while somebody is at it here
 ##   _opened() / _closing()
 ##   big_ticket() -> Dictionary   the ticket shown big in the frame ({} none)
-##   bar_text() -> String  the counts at the right end of the bar
+##   bar_text() -> String  the counts at the right end of the bar (words)
+##   bar_counts() -> Array  the same as pictures: [{icon, n, warn}] (first, if any)
 ##   rail_tickets() -> Array      the tickets on the rail ([] none: no rail): {id, name,
 ##                         left (patience 0..1), band (0 green, 1 amber, 2 red), sig}
 ##   hand_tool() -> String the tool in your gloved hand now (station_hands.gd TOOLS)
@@ -424,11 +425,11 @@ static func room_tex(path: String, metres: float) -> Texture2D:
 		var k := float(long_px) / float(longest)
 		var w := maxi(1, roundi(img.get_width() * k))
 		var h := maxi(1, roundi(img.get_height() * k))
-		# Premultiplied, so the clear pixels round the edge do not darken it.
-		for y in img.get_height():
-			for x in img.get_width():
-				var c := img.get_pixel(x, y)
-				img.set_pixel(x, y, Color(c.r * c.a, c.g * c.a, c.b * c.a, c.a))
+		# Premultiplied, so the clear pixels round the edge do not darken it (the engine's own:
+		# a loop of get_pixel over the whole picture here was most of a business's first
+		# visit, 130-300 ms for its stations' pictures, 12. 11.; what is left runs over the
+		# small one only).
+		img.premultiply_alpha()
 		img.resize(w, h, Image.INTERPOLATE_TRILINEAR)
 		for y in h:
 			for x in w:
@@ -1372,8 +1373,10 @@ func _draw_checklist_pictures(c: Control, area: Rect2, lines: Array) -> void:
 			c.draw_rect(nb, Color(0.94, 0.9, 0.78, 0.9))
 			c.draw_string(f, Vector2(nb.position.x + 1, nb.end.y - 1), n, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, bad if st == "bad" else Color(0.16, 0.12, 0.1))
 		if st == "done":
+			# (Over the number in the corner it hid it: then at the top.)
+			var tick_at := Vector2(CHECK_CELL - 10, 1) if n != "" else Vector2(CHECK_CELL - 10, CHECK_CELL - 8)
 			for p in TICK_PX:
-				c.draw_rect(Rect2(at + Vector2(CHECK_CELL - 10, CHECK_CELL - 8) + p, Vector2(2, 2)), ok)
+				c.draw_rect(Rect2(at + tick_at + p, Vector2(2, 2)), ok)
 		elif st == "bad" and not bool(line.get("neg", false)):
 			for k in int(CHECK_CELL) - 6:
 				c.draw_rect(Rect2(at + Vector2(3 + k, 3 + k), Vector2(2, 2)), bad)
@@ -1520,6 +1523,13 @@ func _tick_flights(delta: float) -> void:
 func big_ticket() -> Dictionary:
 	return {}
 
+
+
+## The counts under SERVE as pictures with their numbers (12. 11.: "CRATE 18  BOWL 0
+## BUTTER 29" was a line of words): [{icon: Texture2D, n: a number or "a/b", warn: red}].
+## Empty: bar_text's words (a game's score, nothing to count).
+func bar_counts() -> Array:
+	return []
 
 
 func bar_text() -> String:

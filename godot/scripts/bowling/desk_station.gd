@@ -255,9 +255,10 @@ func checklist(t: Dictionary) -> Array:
 			st = "done"
 		elif int(g[k]) >= 0:
 			st = "bad"
-		out.append({"text": tr("Shoes %d") % int(sizes[k]), "state": st})
+		out.append({"text": tr("Shoes %d") % int(sizes[k]), "state": st, "icon": _icon_shoes, "n": "%d" % int(sizes[k])})
 	var li := lane_for()
-	out.append({"text": tr("Lane %d") % (li + 1) if li >= 0 else tr("Wait for a lane"), "state": "done" if li >= 0 else "todo"})
+	# The lane they get: its number on the pin (none free yet: no number, still to do).
+	out.append({"text": tr("Lane %d") % (li + 1) if li >= 0 else tr("Wait for a lane"), "state": "done" if li >= 0 else "todo", "icon": pic(BTEX + "pin.png"), "n": "%d" % (li + 1) if li >= 0 else ""})
 	return out
 
 
@@ -495,6 +496,18 @@ func bar_text() -> String:
 	if back > 0:
 		parts.append(tr("SHOES BACK %d") % back)
 	return "  ".join(parts)
+
+
+## Who waits at the counter; the pairs brought back to be put away.
+func bar_counts() -> Array:
+	var n := tickets().size()
+	var back := (state.returned(building_key) as Array).size() if state != null else 0
+	var out: Array = []
+	if n > 0:
+		out.append({"icon": pic(BTEX + "shoes_red.png"), "n": "%d" % n})
+	if back > 0:
+		out.append({"icon": pic(BTEX + "shoes_blue.png"), "n": "%d" % back})
+	return out
 
 
 func _key(e: InputEventKey) -> void:

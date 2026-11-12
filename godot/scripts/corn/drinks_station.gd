@@ -402,6 +402,15 @@ func bar_text() -> String:
 	return "TEA %d  LEMONADE %d" % [maxi(0, BUSINESS.stock_of(building_key, "tea")), maxi(0, BUSINESS.stock_of(building_key, "limo"))]
 
 
+func bar_counts() -> Array:
+	if building_key == "":
+		return []
+	var tea := maxi(0, BUSINESS.stock_of(building_key, "tea"))
+	var limo := maxi(0, BUSINESS.stock_of(building_key, "limo"))
+	return [{"icon": pic(DRINK_TEX + "cup_tea.png"), "n": "%d" % tea, "warn": tea == 0},
+		{"icon": pic(DRINK_TEX + "bag_limo.png"), "n": "%d" % limo, "warn": limo == 0}]
+
+
 # ── debug (tools/stand_check.gd, tools/stand_shots.gd) ───────────────────────
 
 func debug_click(id: String) -> void:

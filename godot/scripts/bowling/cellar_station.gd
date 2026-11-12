@@ -209,9 +209,9 @@ func ticket_items(t: Dictionary) -> Array:
 func checklist(_t: Dictionary) -> Array:
 	var need := int(TUGS.get(_jam_kind, 3))
 	return [
-		{"text": LANG.f("Pull it out %d/%d", [mini(_tugs, need), need]), "state": "done" if _step in ["crank", "lever"] else "todo"},
-		{"text": LANG.f("Crank it back %d/%d", [mini(int(_turned / TAU), TURNS), TURNS]), "state": "done" if _step == "lever" else "todo"},
-		{"text": tr("Pull the lever"), "state": "todo"},
+		{"text": LANG.f("Pull it out %d/%d", [mini(_tugs, need), need]), "state": "done" if _step in ["crank", "lever"] else "todo", "icon": _icons.get(_jam_kind, _icons.get("gear")), "n": "%d/%d" % [mini(_tugs, need), need]},
+		{"text": LANG.f("Crank it back %d/%d", [mini(int(_turned / TAU), TURNS), TURNS]), "state": "done" if _step == "lever" else "todo", "icon": pic(BTEX + "crank.png"), "n": "%d/%d" % [mini(int(_turned / TAU), TURNS), TURNS]},
+		{"text": tr("Pull the lever"), "state": "todo", "icon": pic(BTEX + "lever.png")},
 	]
 
 
@@ -256,10 +256,14 @@ func draw_big_ticket(c: Control, r: Rect2, t: Dictionary) -> void:
 	c.draw_rect(bar.grow(1.0), Color(0.1, 0.08, 0.06, 0.9))
 	if band < 2 or int(_t * 4.0) % 2 == 0:
 		c.draw_rect(Rect2(bar.position, Vector2(ceilf(bar.size.x * clampf(float(t.get("left", 1.0)), 0.0, 1.0)), bar.size.y)), [RETRO_UI.C_GREEN, RETRO_UI.C_AMBER, RETRO_UI.C_RED][clampi(band, 0, 2)])
+	var lines := checklist(t)
+	if _pictured(lines):
+		_draw_checklist_pictures(c, Rect2(r.position.x + 4, r.position.y + CHECK_TOP, r.size.x - 8, r.end.y - r.position.y - CHECK_TOP - 2), lines)
+		return
 	var ink := Color(0.16, 0.12, 0.1)
 	var ok := Color(0.1, 0.45, 0.12)
 	var y := r.position.y + 50
-	for line in checklist(t):
+	for line in lines:
 		var st := str(line.get("state", "todo"))
 		var box := Rect2(r.position.x + 6, y - 7, 7, 7)
 		var col := ok if st == "done" else ink
@@ -439,6 +443,10 @@ func alert() -> int:
 
 func bar_text() -> String:
 	return tr("LANES STOPPED") if jammed() else ""
+
+
+func bar_counts() -> Array:
+	return [{"icon": pic(BTEX + "pin.png"), "n": "0", "warn": true}] if jammed() else []
 
 
 func hand_tool() -> String:

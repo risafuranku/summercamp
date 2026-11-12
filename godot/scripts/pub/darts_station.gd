@@ -142,6 +142,11 @@ func _land() -> void:
 
 
 ## Your turn and the guest's, for the frame's bar.
+## (A game's score and stake, not counts: the words.)
+func bar_counts() -> Array:
+	return []
+
+
 func bar_text() -> String:
 	var total := 0
 	for s in _scores:

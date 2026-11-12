@@ -216,6 +216,16 @@ func bar_text() -> String:
 	return text
 
 
+func bar_counts() -> Array:
+	if kitchen == null:
+		return []
+	var pl: Dictionary = kitchen.plates(building_key)
+	var out: Array = [{"icon": pic(TEX + "plates_stack.png"), "n": "%d" % int(pl["clean"]), "warn": int(pl["clean"]) == 0}]
+	if int(pl["dirty"]) > 0:
+		out.append({"icon": pic(TEX + "plate_dirty.png"), "n": "%d" % int(pl["dirty"])})
+	return out
+
+
 ## The timers of the stove and the pot for the frame (from another station of the room).
 func mirror() -> Array:
 	var out: Array = []

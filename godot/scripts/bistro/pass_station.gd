@@ -476,6 +476,10 @@ func _closing() -> void:
 	_out_t = -1.0
 
 
+const UI_MARKS := "res://assets/textury/ui/"
+const LANG_S := preload("res://scripts/lang.gd")
+
+
 func bar_text() -> String:
 	var text := super.bar_text()
 	if kitchen != null:
@@ -483,6 +487,18 @@ func bar_text() -> String:
 		if int(d["plates"]) > 0:
 			text = "TODAY %d *%.1f $%d   " % [int(d["plates"]), float(d["stars"]), int(d["money"])] + text
 	return text
+
+
+## The day's plates, their stars, the money, then the plates on the bar.
+func bar_counts() -> Array:
+	var out: Array = []
+	if kitchen != null:
+		var d: Dictionary = kitchen.today(building_key)
+		if int(d["plates"]) > 0:
+			out.append({"icon": pic(TEX + "plate_top.png"), "n": "%d" % int(d["plates"])})
+			out.append({"icon": pic(TEX + "star.png"), "n": "%.1f" % float(d["stars"])})
+			out.append({"icon": pic(UI_MARKS + "mark_till.png"), "n": LANG_S.money("$%d" % int(d["money"]))})
+	return out + super.bar_counts()
 
 
 # ── debug (tools/bistro_coop.gd, tools/bistro_shots.gd) ──────────────────────

@@ -279,6 +279,17 @@ func bar_text() -> String:
 	return "CARTONS %d   TROLLEY %d" % [cartons, boxes]
 
 
+func bar_counts() -> Array:
+	if shop == null or building_key == "":
+		return []
+	var boxes := 0
+	var cartons := 0
+	for g in RULES.all_goods():
+		boxes += int(ceil(float(int(shop.trolley(building_key).get(g, 0))) / float(RULES.BOX)))
+		cartons += int(ceil(float(shop.backroom(building_key, g)) / float(RULES.BOX)))
+	return [{"icon": pic(JTEX + "box_closed.png"), "n": "%d" % cartons}, {"icon": pic(JTEX + "trolley.png"), "n": "%d" % boxes}]
+
+
 ## The knife across a carton's tape, the bare glove for the rest.
 func hand_tool() -> String:
 	var id := _held if _held != "" else _hover

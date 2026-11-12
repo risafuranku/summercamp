@@ -207,6 +207,16 @@ func bar_text() -> String:
 	return "CRATE %d  BOWL %d  BUTTER %d" % [cobs, int(stand.bowl(building_key)), butter]
 
 
+func bar_counts() -> Array:
+	if stand == null or building_key == "":
+		return []
+	var cobs := maxi(0, BUSINESS.stock_of(building_key, "cobs"))
+	var butter := maxi(0, BUSINESS.stock_of(building_key, "butter"))
+	return [{"icon": pic(MARKS + "trouble_crate.png"), "n": "%d" % cobs, "warn": cobs == 0},
+		{"icon": pic(CORN_TEX + "cob_boiled.png"), "n": "%d" % int(stand.bowl(building_key))},
+		{"icon": pic(MARKS + "tk_butter.png"), "n": "%d" % butter, "warn": butter == 0}]
+
+
 ## The pot's cobs for the frame at every station: how done each is, green when it is
 ## (playtest 25. 10.: at the counter and the drinks they were gone, and the cobs went soft).
 func mirror() -> Array:

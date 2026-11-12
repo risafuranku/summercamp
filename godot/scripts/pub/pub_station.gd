@@ -397,6 +397,21 @@ func bar_text() -> String:
 	return text
 
 
+## The mugs (clean, dirty) and the keg's beer in its line (red and 0 when it will not pour:
+## dry, spent, the head off; the tap's own lamp says which).
+func bar_counts() -> Array:
+	if taproom == null or building_key == "":
+		return []
+	var m: Dictionary = taproom.mugs(building_key)
+	var k: Dictionary = taproom.keg(building_key)
+	var trouble: String = taproom.tap_trouble(building_key)
+	var out: Array = [{"icon": _icons.get("mark_mug"), "n": "%d" % int(m["clean"]), "warn": int(m["clean"]) == 0}]
+	if int(m["dirty"]) > 0:
+		out.append({"icon": _icons.get("mark_dirty"), "n": "%d" % int(m["dirty"])})
+	out.append({"icon": _icons.get("mark_keg"), "n": "0" if trouble != "" else "%d" % int(k["line"]), "warn": trouble != ""})
+	return out
+
+
 ## The keg's gas and what is left in it, for the frame (from the bar's stations).
 func mirror() -> Array:
 	var out: Array = []

@@ -457,6 +457,11 @@ func bar_text() -> String:
 	return "QUEUE %d" % n if n > 0 else ""
 
 
+func bar_counts() -> Array:
+	var n := tickets().size()
+	return [{"icon": pic(JTEX + "basket.png"), "n": "%d" % n}] if n > 0 else []
+
+
 func big_ticket() -> Dictionary:
 	return first()
 

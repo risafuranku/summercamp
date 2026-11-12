@@ -114,11 +114,11 @@ func checklist(t: Dictionary) -> Array:
 	var out: Array = []
 	if str(t.get("set", "")) == "sweep":
 		var dead: int = (v.deadwood() as Array).size()
-		out.append({"text": tr("Deadwood off (%d)") % dead, "state": "done" if dead == 0 else "todo"})
+		out.append({"text": tr("Deadwood off (%d)") % dead, "state": "done" if dead == 0 else "todo", "icon": pic(BTEX + "pin.png"), "n": "%d" % dead, "neg": true})
 	else:
 		var up: int = v.standing_count()
-		out.append({"text": tr("Pins up %d/10") % up, "state": "done" if up == 10 else "todo"})
-	out.append({"text": tr("Ball back"), "state": "todo" if v.ball_in_pit() else "done"})
+		out.append({"text": tr("Pins up %d/10") % up, "state": "done" if up == 10 else "todo", "icon": pic(BTEX + "pin.png"), "n": "%d/10" % up})
+	out.append({"text": tr("Ball back"), "state": "todo" if v.ball_in_pit() else "done", "icon": pic(BTEX + "ball.png")})
 	return out
 
 
@@ -314,6 +314,11 @@ func alert() -> int:
 func bar_text() -> String:
 	var n := rail_tickets().size()
 	return tr("LANES WAITING %d") % n if n > 0 else ""
+
+
+func bar_counts() -> Array:
+	var n := rail_tickets().size()
+	return [{"icon": pic(BTEX + "pin.png"), "n": "%d" % n, "warn": true}] if n > 0 else []
 
 
 ## The pin dropped back where it can go when you step away with it in the hand.

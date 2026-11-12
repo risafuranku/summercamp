@@ -212,6 +212,22 @@ func bar_text() -> String:
 	return text
 
 
+## The boxes on the trolley; the places on the rack gone empty (red).
+func bar_counts() -> Array:
+	if shop == null or building_key == "":
+		return []
+	var boxes := 0
+	var empty := 0
+	for g in RULES.all_goods():
+		boxes += int(ceil(float(int(shop.trolley(building_key).get(g, 0))) / float(RULES.BOX)))
+		if int(shop.shelf(building_key).get(g, 0)) <= 0:
+			empty += 1
+	var out: Array = [{"icon": pic(JTEX + "trolley.png"), "n": "%d" % boxes}]
+	if empty > 0:
+		out.append({"icon": pic(JTEX + "box_open.png"), "n": "%d" % empty, "warn": true})
+	return out
+
+
 # ── debug (tools/jednota_check.gd, tools/jednota_shots.gd) ───────────────────
 
 ## A box of `good` off the trolley onto its place, as a warden would: the units moved.

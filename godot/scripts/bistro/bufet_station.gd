@@ -209,6 +209,15 @@ func bar_text() -> String:
 	return "SOUP %d  TINS %d" % [int(kitchen.site(building_key)["soup"]["level"]), maxi(0, BUSINESS.stock_of(building_key, "soup"))]
 
 
+func bar_counts() -> Array:
+	if kitchen == null or building_key == "":
+		return []
+	var level := int(kitchen.site(building_key)["soup"]["level"])
+	var tins := maxi(0, BUSINESS.stock_of(building_key, "soup"))
+	return [{"icon": pic(TEX + "bowl_soup.png"), "n": "%d" % level, "warn": level == 0},
+		{"icon": pic("res://assets/textury/ui/tk_tin.png"), "n": "%d" % tins, "warn": tins == 0}]
+
+
 func _closing() -> void:
 	# A bowl half filled goes back on the stack.
 	if not _bowl.is_empty():

@@ -294,6 +294,16 @@ func bar_text() -> String:
 	return "  ".join(parts)
 
 
+func bar_counts() -> Array:
+	if building_key == "":
+		return []
+	var out: Array = []
+	for g in RULES.DELI:
+		var n := maxi(0, BIZ.stock_of(building_key, str(RULES.DELI[g]["good"])))
+		out.append({"icon": pic(JTEX + "deli_%s.png" % str(g)), "n": "%d" % n, "warn": n == 0})
+	return out
+
+
 func _closing() -> void:
 	_on = {}
 

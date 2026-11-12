@@ -264,6 +264,11 @@ func _pulled() -> void:
 	taproom.slot_play(building_key, _rng.randi(), "you")
 
 
+## (A game's score and stake, not counts: the words.)
+func bar_counts() -> Array:
+	return []
+
+
 func bar_text() -> String:
 	return "LUCKY 7   777 PAYS %d" % int(FUN.PAY_THREE["seven"])
 

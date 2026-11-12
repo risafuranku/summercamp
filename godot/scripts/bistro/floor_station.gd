@@ -386,6 +386,16 @@ func bar_text() -> String:
 	return "HATCH %d  KOFOLA %d  MALINOVKA %d" % [kitchen.hatch(building_key).size(), maxi(0, BUSINESS.stock_of(building_key, "kofola")), maxi(0, BUSINESS.stock_of(building_key, "malinovka"))]
 
 
+func bar_counts() -> Array:
+	if kitchen == null or building_key == "":
+		return []
+	var kof := maxi(0, BUSINESS.stock_of(building_key, "kofola"))
+	var mal := maxi(0, BUSINESS.stock_of(building_key, "malinovka"))
+	return [{"icon": pic(TEX + "plate_top.png"), "n": "%d" % kitchen.hatch(building_key).size()},
+		{"icon": pic(TEX + "bottle_kofola.png"), "n": "%d" % kof, "warn": kof == 0},
+		{"icon": pic(TEX + "bottle_malinovka.png"), "n": "%d" % mal, "warn": mal == 0}]
+
+
 func _closing() -> void:
 	_lift_y = -1.0
 	_bottle = {}

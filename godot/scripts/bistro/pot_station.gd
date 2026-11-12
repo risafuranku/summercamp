@@ -223,6 +223,14 @@ func bar_text() -> String:
 	return "GOULASH %d/%d  DUMPLINGS %d" % [int(pot["level"]), KITCHEN.pot_cap(building_key), kitchen.prep(building_key, "dumpling")]
 
 
+func bar_counts() -> Array:
+	if kitchen == null:
+		return []
+	var pot: Dictionary = kitchen.site(building_key)["pot"]
+	return [{"icon": pic(TEX + "food_goulash.png"), "n": "%d/%d" % [int(pot["level"]), KITCHEN.pot_cap(building_key)], "warn": int(pot["level"]) == 0},
+		{"icon": pic(TEX + "food_dumpling.png"), "n": "%d" % kitchen.prep(building_key, "dumpling")}]
+
+
 ## The ladle in the goulash, the bare glove for the tins, the loaf and the steamer.
 func hand_tool() -> String:
 	var id := _held if _held != "" else _hover
