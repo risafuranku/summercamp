@@ -659,7 +659,9 @@ func _tell_started(ev: Dictionary) -> void:
 	if seen_to(ev):
 		_report(tr(_start_line(ev)), 0)
 		return
-	_report("Pager: %s" % tr(_start_line(ev)), 2)
+	var hud = _hud()
+	if hud != null and hud.has_method("push_pager"):
+		hud.push_pager(tr("Pager: %s") % tr(_start_line(ev)), 2, "day_events")
 	_page()
 
 

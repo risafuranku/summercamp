@@ -70,7 +70,7 @@ full="Use your image generation tool. ${ref_clause}Generate natively in ${aspect
 agent_cli="${CURSOR_AGENT:-$(cygpath -u "${LOCALAPPDATA:-}" 2>/dev/null)/cursor-agent/cursor-agent.cmd}"
 [ -f "$agent_cli" ] || agent_cli=$(command -v cursor-agent.cmd || command -v cursor-agent) || { echo "cursor-agent not found (set CURSOR_AGENT)"; exit 1; }
 for attempt in 1 2; do
-  timeout 900 "$agent_cli" -p --force --trust --model grok-4.7-medium-fast "$full" > gen.log 2>&1
+  timeout 900 "$agent_cli" -p --force --trust --model "${GROK_MODEL:-auto}" "$full" > gen.log 2>&1
   [ -f raw.png ] && break
 done
 echo "$id $( [ -f raw.png ] && echo ok || echo FAILED )"

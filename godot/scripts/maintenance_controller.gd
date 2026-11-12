@@ -469,7 +469,7 @@ func _reset_work() -> void:
 func _on_building_failed(coord: Vector2i, building_type: String) -> void:
 	_sync_t = 0.0
 	if _active and _hud != null:
-		_hud.push_status("The %s broke down." % _label_for(building_type).to_lower(), 2)
+		_hud.push_pager("The %s broke down." % _label_for(building_type).to_lower(), 2)
 
 
 func _on_building_serviced(_coord: Vector2i, building_type: String, was_broken: bool, cost: int) -> void:

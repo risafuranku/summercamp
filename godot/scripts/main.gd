@@ -583,7 +583,7 @@ func _tick_week_ledger() -> void:
 	if _week_ledger == null or _game_over_active or _week_report_screen != null or _sandbox:
 		return
 	if _week_ledger.should_page(_day_index, _time_of_day_hours) and _hud_manager != null:
-		_hud_manager.push_status("Pager: Vera came in on the first bus. The district at eight. Books on the desk.", 2)
+		_hud_manager.push_pager("Pager: Vera came in on the first bus. The district at eight. Books on the desk.", 2)
 	if _week_ledger.is_due(_day_index, _time_of_day_hours):
 		_show_week_report()
 
@@ -957,7 +957,7 @@ func _tick_test_sewer() -> void:
 		CoreRoot.failure_system._trigger_failure(key, "sewer", coord)
 		state.failures[key]["night"] = true
 		if _hud_manager != null:
-			_hud_manager.push_status("Pager: Sewer leaking. The sewer hatch: crawl in.", 2)
+			_hud_manager.push_pager("Pager: Sewer leaking. The sewer hatch: crawl in.", 2)
 		return
 
 
@@ -2204,7 +2204,7 @@ func _on_guest_at_gate(row: Dictionary) -> void:
 	var line := "%s is at reception." % str(row.get("name", "A guest"))
 	if not not_ready.is_empty():
 		line += " %s not ready." % ", ".join(not_ready)
-	_hud_manager.push_status(line, 2 if not not_ready.is_empty() else 0, "arrivals")
+	_hud_manager.push_pager(line, 2 if not not_ready.is_empty() else 0, "arrivals")
 
 
 func _on_guest_checked_in(guest: Dictionary) -> void:
@@ -2214,7 +2214,7 @@ func _on_guest_checked_in(guest: Dictionary) -> void:
 
 func _on_guest_gave_up(row: Dictionary) -> void:
 	if _hud_manager != null:
-		_hud_manager.push_status("%s gave up waiting at reception and drove off." % str(row.get("name", "A guest")), 3, "arrivals")
+		_hud_manager.push_pager("%s gave up waiting at reception and drove off." % str(row.get("name", "A guest")), 3, "arrivals")
 
 
 func _on_room_prepared(key: String) -> void:
@@ -4289,7 +4289,7 @@ func _bind_billing() -> void:
 	_billing.power_cut_changed.connect(func(_cut: bool) -> void:
 		# Out in the camp the lamps go and that is all you know: the clock has started.
 		if _cut and _gameplay_started and _hud_manager != null:
-			_hud_manager.push_status("Pager: CampGrid cut the mains, the bill is overdue. The UPS holds six minutes.", 2)
+			_hud_manager.push_pager("Pager: CampGrid cut the mains, the bill is overdue. The UPS holds six minutes.", 2)
 		_note_grid_power(_is_grid_powered())
 		if GuestManager != null and GuestManager.has_method("set_camp_power_available"):
 			GuestManager.set_camp_power_available(_is_grid_powered())

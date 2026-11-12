@@ -947,11 +947,12 @@ func _log(text: String) -> void:
 	CoreRoot.actions.staff_log(text, int(_now()))
 
 
+## What a hand did away from you: on the belt pager (hud_manager.push_pager).
 func _say(text: String, kind := 1) -> void:
 	var m := _main()
 	var hud = m.get("_hud_manager") if m != null else null
 	if hud != null:
-		hud.push_status(text, kind)
+		hud.push_pager(text, kind)
 
 
 # ── what is drawn (every machine) ────────────────────────────────────────────

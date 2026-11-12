@@ -43,9 +43,11 @@ const STATUS_QUOTE := 4
 
 const BAR_HEIGHT_VP := 40
 const CELL_HEIGHT_VP := 34
-const FEED_MAX_LINES := 4
+## (The pager's lines are its own since 12. 11., scripts/ui/pager.gd: the feed is what is
+## said and done round you.)
+const FEED_MAX_LINES := 3
 const FEED_WIDTH_VP := 200
-const FEED_HOLD_SEC := 6.0
+const FEED_HOLD_SEC := 5.0
 const FEED_FADE_SEC := 0.8
 const CARD_HOLD_SEC := 7.0
 const TRACKER_WIDTH_VP := 150
@@ -128,6 +130,13 @@ var _feed_box: VBoxContainer
 ## pager's lines still come up along the top (playtest 17. 10.: "at the PC I can't see
 ## the messages and I miss them"). Hidden with the rest for the week report, game over.
 var _feed_layer: CanvasLayer
+## The belt pager (scripts/ui/pager.gd) on a layer of its own over the feed's, made once (a
+## new layout keeps what it has to say); the feed in a room is over at the right, the pager
+## with it.
+const PAGER = preload("res://scripts/ui/pager.gd")
+var _pager_layer: CanvasLayer
+var _pager_view: Control
+var _feed_right := false
 var _objective_panel: Control
 var _arrivals_panel: Control
 ## The plates at the right edge: parties on the way or at the desk (scripts/ui/arrival_strip.gd).
@@ -266,9 +275,12 @@ func set_world_hud_visible(visible: bool, side := visible) -> void:
 		_feed_layer.visible = visible or side
 		if _feed_box != null:
 			var room := not visible and side
+			_feed_right = room
 			var w := _feed_box.size.x
 			var screen_w := get_viewport().get_visible_rect().size.x
 			_feed_box.position.x = (screen_w - w - _vp(4)) if room else _vp(4)
+	if _pager_layer != null:
+		_pager_layer.visible = visible or side
 	if _side_layer != null:
 		_side_layer.visible = side and (Input.is_physical_key_pressed(KEY_TAB) or force_side)
 	if _layer != null:
@@ -365,6 +377,51 @@ func push_status(text: String, kind: int = STATUS_INFO, group: String = "") -> v
 	while _feed.size() > FEED_MAX_LINES:
 		_feed.remove_at(0)
 	_rebuild_feed()
+
+
+## What happens away from you (a day's trouble starting, a breakdown, the post, the mains, the
+## hands' news): on the belt pager, one message at a time (scripts/ui/pager.gd), in
+## CampStat's log too. The lines keep their "Pager: " (their Czech has it); the screen does
+## not show it.
+func push_pager(text: String, kind: int = STATUS_INFO, group: String = "") -> void:
+	if text.strip_edges().is_empty():
+		return
+	_ensure_world_hud()
+	if feed_log.is_empty() or str(feed_log[-1]["text"]) != text:
+		feed_log.append({"at": (_day - 1) * 1440 + _parse_time_to_minutes(_time_str), "text": text, "kind": kind})
+		if feed_log.size() > FEED_LOG_MAX:
+			feed_log.pop_front()
+	var shown := text
+	for prefix in [tr("Pager: %s").replace("%s", ""), "Pager: "]:
+		if prefix != "" and shown.begins_with(prefix):
+			shown = shown.substr(prefix.length())
+			break
+	# (Its own sentence on the screen: "new mail at the office" behind "Pager: ".)
+	shown = shown.substr(0, 1).to_upper() + shown.substr(1)
+	_ensure_pager()
+	_pager_view.show_line(shown, kind, group)
+
+
+func _ensure_pager() -> void:
+	if _pager_layer == null:
+		_pager_layer = CanvasLayer.new()
+		_pager_layer.name = "PagerLayer"
+		_pager_layer.layer = HUD_LAYER_INDEX + 2
+		add_child(_pager_layer)
+		_pager_view = PAGER.new()
+		_pager_view.name = "Pager"
+		_pager_layer.add_child(_pager_view)
+	_pager_view.ui_scale = _scale
+
+
+## The pager in its corner (the feed's side) and the feed under it while it is down.
+func _place_pager() -> void:
+	if _pager_view == null or _feed_box == null:
+		return
+	var screen_w := get_viewport().get_visible_rect().size.x
+	_pager_view.position = Vector2((screen_w - _pager_view.size.x - _vp(4)) if _feed_right else _vp(4), _vp(4))
+	var reach: float = _pager_view.reach()
+	_feed_box.position.y = _vp(4) + (reach + _vp(2) if reach > 0.0 else 0.0)
 
 
 ## A guest line in the Duke3D quote feed.
@@ -516,6 +573,7 @@ func _process(delta: float) -> void:
 		_poll_guests = 1.5
 		_poll_guest_state()
 	_update_feed(delta)
+	_place_pager()
 	_update_money_flash(delta)
 	_update_card(delta)
 	_update_banner(delta)
@@ -787,6 +845,7 @@ func _build_feed() -> void:
 		_feed_layer.layer = HUD_LAYER_INDEX + 1
 		add_child(_feed_layer)
 	_feed_layer.add_child(_feed_box)
+	_ensure_pager()
 
 
 ## The feed may not run under the tracker: it gets whatever is left of the top row.
@@ -1758,7 +1817,7 @@ func quiet_pager(seconds: float) -> void:
 ## line in the feed. It does not say what the mail is; you have to go and read it.
 func _page_new_mail() -> void:
 	page()
-	push_status("Pager: new mail at the office", STATUS_INFO, "mail")
+	push_pager("Pager: new mail at the office", STATUS_INFO, "mail")
 
 
 ## Two beeps from the belt pager (mail, night jobs).

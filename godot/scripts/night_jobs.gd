@@ -264,7 +264,7 @@ func coop_take(jobs: Array) -> void:
 		var id := _job_id(j)
 		var st := str(j["state"])
 		if st == "open" and was.get(id, "") != "open":
-			_report("Pager: %s. %s." % [tr(str(j["title"])), tr(str(j["where"]))], 2)
+			_pager_line(tr("Pager: %s. %s.") % [tr(str(j["title"])), tr(str(j["where"]))])
 			_page()
 			any = true
 		elif st == "done" and was.get(id, "") == "open":
@@ -513,7 +513,7 @@ func _start(job: Dictionary) -> void:
 			# Not wear: maintenance_controller._clear_old_wear must leave it broken.
 			state.failures[key]["night"] = true
 	job["state"] = "open"
-	_report("Pager: %s. %s." % [tr(str(job["title"])), tr(str(job["where"]))], 2)
+	_pager_line(tr("Pager: %s. %s.") % [tr(str(job["title"])), tr(str(job["where"]))])
 	_page()
 	changed.emit()
 
@@ -571,6 +571,13 @@ func _report(text: String, kind: int) -> void:
 	var hud = _main.get("_hud_manager") if _main != null else null
 	if hud != null:
 		hud.push_status(tr(text), kind, "night_jobs")
+
+
+## A job on the belt pager (hud_manager.push_pager).
+func _pager_line(text: String) -> void:
+	var hud = _main.get("_hud_manager") if _main != null else null
+	if hud != null and hud.has_method("push_pager"):
+		hud.push_pager(text, 2, "night_jobs")
 
 
 func _page() -> void:
