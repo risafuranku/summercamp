@@ -307,6 +307,80 @@ func town_doors(place: String, tag: String) -> void:
 	print("ONESUN doors %s %s: %s" % [place, tag, out])
 
 
+## The pictures and sounds the motel's inside loads the first time (--part=motelwarm): every
+## place behind its doors made up once in the second room, what was not in the loader's cache
+## before ("ONESUN warm <path>"): the list in scripts/town/land_warmup.gd MOTEL.
+func motel_warm_list() -> void:
+	var trip = _main._interior_manager.town_trip()
+	var a = trip._room
+	var dirs := ["res://assets/textury/camp/", "res://assets/textury/town/", "res://assets/textury/npc/", "res://assets/sfx/"]
+	var cached := func() -> Dictionary:
+		var out := {}
+		var todo: Array = dirs.duplicate()
+		while not todo.is_empty():
+			var d: String = todo.pop_back()
+			for e in ResourceLoader.list_directory(d):
+				if e.ends_with("/"):
+					todo.append(d + e)
+				elif ResourceLoader.has_cached(d + e):
+					out[d + e] = true
+		return out
+	var before: Dictionary = cached.call()
+	var places: Array = [["motel_hall", 0, "lobby"]]
+	for n in load("res://scripts/town/motel_plan.gd").ROOMS:
+		places.append(["motel_room", int(n), ""])
+	for g in places:
+		trip.ready_next(a, g[0], g[1], g[2])
+	trip.drop_next()
+	var after: Dictionary = cached.call()
+	var new_ones: Array = []
+	for k in after:
+		if not before.has(k):
+			new_ones.append(k)
+	new_ones.sort()
+	for k in new_ones:
+		print("ONESUN warm ", k)
+	print("ONESUN warm count %d" % new_ones.size())
+
+
+## Frame times from now till frames_report (the motel's doors, --timed): the worst, those
+## over 50 ms.
+var _fw_on := false
+var _fw: Array = []
+
+
+## A click in the town room, timed: how long it held the frame (a door's next place is made up
+## in it, town_room.ready_next).
+func timed_click(id: String) -> void:
+	var tr = _main._interior_manager.town_trip()._room
+	var warm := 0
+	for m in load("res://scripts/town/land_warmup.gd").MOTEL:
+		if ResourceLoader.has_cached("res://assets/textury/camp/%s.png" % m):
+			warm += 1
+	print("ONESUN warm before %s: %d" % [id, warm])
+	var t0 := Time.get_ticks_usec()
+	tr._clicked(id)
+	print("ONESUN click %s: %.1f ms" % [id, float(Time.get_ticks_usec() - t0) / 1000.0])
+
+
+func frames_watch() -> void:
+	_fw = []
+	_fw_on = true
+
+
+func frames_report(tag: String) -> void:
+	_fw_on = false
+	var worst := 0.0
+	var over := 0
+	for d in _fw:
+		worst = maxf(worst, float(d))
+		if float(d) > 0.05:
+			over += 1
+	var s: Array = _fw.duplicate()
+	s.sort()
+	print("ONESUN frames %s: worst=%d ms over50=%d median=%d ms frames=%d" % [tag, int(worst * 1000.0), over, int(float(s[s.size() / 2]) * 1000.0) if not s.is_empty() else 0, s.size()])
+
+
 ## What each viewport drew last frame: the camp's (main) and the rooms' (draw calls, objects).
 func vp_info(tag: String) -> void:
 	var out := []
@@ -1229,6 +1303,8 @@ func dump_frames(n: int) -> void:
 
 func _process(delta: float) -> void:
 	super._process(delta)
+	if _fw_on:
+		_fw.append(delta)
 	if _main == null:
 		return
 	if _dump > 0:
@@ -1708,7 +1784,8 @@ func _ready() -> void:
 		if a == "--part=moteldoors":
 			# Through the motel's doors inside on foot (12. 11.: the next place made up behind
 			# the door, town_room.through_door): the reception to the corridor, to number four,
-			# back out to the corridor and to the reception, frame by frame.
+			# into its bathroom and out, back out to the corridor and to the reception, frame by
+			# frame.
 			var TT := "_interior_manager.town_trip()"
 			var TR := TT + "._room"
 			var st: Array = [
@@ -1717,13 +1794,29 @@ func _ready() -> void:
 				["eval", TT + "._ensure_town()"], ["wait", 3.0], ["eval", TT + "._put_player(" + TT + "._town.arrive_spot())"], ["wait", 2.0],
 				["eval", "debug_jump_to(1, 19.6)"], ["wait", 3.0], ["eval", TT + "._open_room('motel')"], ["wait", 2.0],
 				["eval", TR + "._clicked('key4')"], ["wait", 3.5], ["eval", TR + "._clicked('key4')"], ["wait", 1.5]]
-			for leg in [["hall", "a_hall", 24], ["door4", "b_room", 48], ["door", "c_out", 36], ["lobby", "d_lobby", 48]]:
-				st += [["eval", TR + "._clicked('%s')" % leg[0]]]
-				for k in int(leg[2]):
-					st += [["wait", 0.2], ["shot", "%s_%02d" % [leg[1], k]]]
+			# (--timed: no pictures, the frame times of each walk: the first one through each door.)
+			var timed := "--timed" in OS.get_cmdline_user_args()
+			for leg in [["hall", "a_hall", 24], ["door4", "b_room", 48], ["bathdoor", "b2_bath_in", 24], ["bathdoor", "b3_bath_out", 20],
+					["door", "c_out", 36], ["lobby", "d_lobby", 48]]:
+				if timed:
+					st += [["eval", C + ".frames_watch()"], ["eval", C + ".timed_click('%s')" % leg[0]], ["wait", 0.4 * float(leg[2])], ["eval", C + ".frames_report('%s')" % leg[1]]]
+				else:
+					st += [["eval", TR + "._clicked('%s')" % leg[0]]]
+					for k in int(leg[2]):
+						st += [["wait", 0.2], ["shot", "%s_%02d" % [leg[1], k]]]
 				st += [["eval", TR + ".place"], ["wait", 1.0]]
 			st += [["eval", "get_tree().quit()"]]
 			_steps = st
+			return
+		if a == "--part=motelwarm":
+			# The motel's inside's first loads, for land_warmup's MOTEL list (motel_warm_list).
+			var TT := "_interior_manager.town_trip()"
+			_steps = [
+				["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+				["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
+				["eval", TT + "._ensure_town()"], ["wait", 3.0], ["eval", TT + "._put_player(" + TT + "._town.arrive_spot())"], ["wait", 2.0],
+				["eval", "debug_jump_to(1, 19.6)"], ["wait", 3.0], ["eval", TT + "._open_room('motel')"], ["wait", 2.0],
+				["eval", C + ".motel_warm_list()"], ["wait", 1.0], ["eval", "get_tree().quit()"]]
 			return
 		if a == "--part=towndoors":
 			# Into Liblice's places on foot through their doors and out again (W26: as at the

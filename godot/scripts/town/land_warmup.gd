@@ -15,8 +15,21 @@ const ROOTS := ["res://assets/sfx/pub/", "res://assets/sfx/bistro/", "res://asse
 	"res://scripts/jednota/", "res://scripts/pub/", "res://scripts/bistro/",
 	"res://assets/textury/town/", "res://assets/sfx/bus/", "res://assets/sfx/town/",
 	# The skies, each read the first time the clock needs it: a hitch at 16:00, 17:45, 18:27...
-	"res://assets/textury/skybox/"]
+	"res://assets/textury/skybox/",
+	# The motel's inside, its sounds (12. 11.: the corridor's long loops took 57 ms the first
+	# time it was made up behind its door; the doors' and the steps' with them).
+	"res://assets/sfx/motel/", "res://assets/sfx/backroom/", "res://assets/sfx/rooms/"]
 const FILES := ["res://assets/textury/npc/town_pumpar.png", "res://assets/fonts/jersey10.fnt"]
+## The motel's inside (the camp's pictures only it uses; its sounds are in ROOTS): since 12. 11.
+## the corridor and a room are made up behind their doors as you click them
+## (town_room.ready_next), and the first of each froze longer than the rest reading these. The
+## list from
+## `tools/onesun_check.tscn -- --part=motelwarm` (every place behind the motel's doors made up
+## once, what the loader did not have yet); run it again when the motel's inside changes.
+const MOTEL := ["bath_basin", "chain_loose", "cleaning_cart", "corridor_carpet", "cuckoo_bird", "hair_clump",
+	"hall_phone", "hall_plant", "hall_rubbish", "hall_shoes", "hall_tray", "mirror_cabinet", "mirror_crack",
+	"motel_bath_door", "motel_bath_tiles", "motel_door_in", "motel_toilet", "mould_grout", "razor", "roach_0",
+	"roach_1", "shower_curtain", "soap_hair", "stove_fire_0", "tiles_brown"]
 ## How many asked for at once (the loader queues the rest; the boot goes on drawing).
 const BATCH := 16
 
@@ -28,6 +41,10 @@ var _pending: Array = []
 func _ready() -> void:
 	name = "LandWarmup"
 	for f in FILES:
+		if ResourceLoader.exists(f):
+			_todo.append(f)
+	for m in MOTEL:
+		var f := "res://assets/textury/camp/%s.png" % m
 		if ResourceLoader.exists(f):
 			_todo.append(f)
 	for r in ROOTS:

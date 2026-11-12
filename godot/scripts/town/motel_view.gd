@@ -1319,12 +1319,12 @@ func _do(id: String) -> void:
 				if _night(h) and (h >= 23.0 or h < 4.0) and _rng.randf() < p and _knock_back <= 0.0:
 					_knock_back = 2.2)
 		"bathdoor":
-			_walker.go("bathdoor", func():
-				bath_open = not bath_open
-				_play("backroom/room_door_open.mp3" if bath_open else "backroom/room_door_close.mp3", -9.0)
-				if bath_open:
-					_went_in = true
-				_apply_bath())
+			# Through it on foot (12. 11.: it used to only open and shut): in, to the basin under
+			# the mirror; from inside, out, and it shuts behind you.
+			if str(_walker.here) in ["bath", "bathin"]:
+				_out_of_bath()
+			else:
+				_to_bath(Callable())
 		"bathswitch":
 			_walker.go("bathdoor", func():
 				bath_on = not bath_on
@@ -1377,6 +1377,15 @@ func _do(id: String) -> void:
 			if id.begins_with("curtain"):
 				var i := int(id.substr(7))
 				_walker.go("window", func(): _curtain(i))
+
+
+## Out of the bathroom through its door, turned to the room, the door shut behind you.
+func _out_of_bath() -> void:
+	_walker.go("bathdoor", func():
+		if bath_open:
+			bath_open = false
+			_play("backroom/room_door_close.mp3", -9.0)
+			_apply_bath(), _walker.at_rot("entry"))
 
 
 ## Into the bathroom: its door opened first if it is shut, the light as it is.
