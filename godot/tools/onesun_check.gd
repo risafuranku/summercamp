@@ -1710,6 +1710,13 @@ func _ready() -> void:
 					st += [["eval", TR + ".close()"], ["wait", 1.5],
 						["eval", C + ".town_view('%s', 4.0, -0.3, 15.0)" % place], ["wait", 1.0], ["shot", "%s_5_out_after" % tag],
 						["eval", "set('debug_camera', null)"]]
+					if place == "chapel":
+						# The building round its room from all sides (built to its size on 11. 11.).
+						for side in [40.0, 90.0, 140.0, 220.0, 300.0]:
+							st += [["eval", C + ".town_view('chapel', 13.0, 2.5, %s)" % side], ["wait", 0.8], ["shot", "%s_6_round_%03d" % [tag, int(side)]]]
+						# From behind: past the presbytery's back (the yard's back wall).
+						st += [["eval", C + ".town_view('chapel', -26.0, 3.0, 0.0)"], ["wait", 0.8], ["shot", "%s_6_round_back" % tag]]
+						st += [["eval", "set('debug_camera', null)"]]
 			st += [["eval", "set('debug_camera', null)"], ["wait", 1.0], ["eval", "get_tree().quit()"]]
 			_steps = st
 			return

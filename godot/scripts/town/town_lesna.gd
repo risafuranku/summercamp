@@ -79,7 +79,7 @@ func _make() -> void:
 		_road_posts()
 	for job: Callable in [_roads, _green,
 			_jednota.bind(Vector3(-6.0, 0, -15.0)), _pub.bind(Vector3(16.0, 0, -15.5)),
-			_chapel.bind(Vector3(-28.0, 0, -22.0)), _motel.bind(Vector3(-24.0, 0, 15.0)),
+			_chapel.bind(CHAPEL_VIEW.VILLAGE), _motel.bind(Vector3(-24.0, 0, 15.0)),
 			_station.bind(Vector3(48.0, 0, 13.0)), _houses, _side_street, _chapel_yard, _south_end,
 			_stop_north, _stop_south, _lamps]:
 		await job.call()
@@ -755,17 +755,79 @@ func _update_pub(h: float) -> void:
 		_pub_street.set_on(_station_night and lit == 1)
 
 
-## The chapel of the Virgin Mary, set back from the street: its baroque front from the
-## picture when there is one. Its sides bare of the house kit (no chimney, aerial, porch or
-## house windows: "bare"), two oval windows in each, where they are inside
-## (chapel_view.gd: the nave and its windows share the building's middle).
+## The chapel of the Virgin Mary, set back from the street in its walled yard: its baroque
+## front (lib_chapel.png) on a church built round the room inside (chapel_view.gd, one plan:
+## the nave under its vault, the arch, the lower presbytery behind it), its walls as thick as
+## a church's and clear of the room's own, a steep tiled roof over the nave and a lower one
+## over the presbytery, the oval windows' dirty glass on the sides where they are inside (lit
+## by the candles at night; from inside the room has its own), the lamp over the door. The
+## room stands in it in the camp's one world (town_room). Till 11. 11. it was a small house,
+## bigger inside than out; Richard had it built as big as it is inside.
 const CHAPEL_VIEW = preload("res://scripts/town/chapel_view.gd")
 
 
 func _chapel(at: Vector3) -> void:
+	var V = CHAPEL_VIEW
 	var wall := _mat(_first([TEX + "village_plaster.png", TEX_CAMP + "plaster_stone.png"]), Color(0.95, 0.92, 0.84), Vector2(2.0, 1.0))
-	var house := _gable_house("lib_chapel", at.x, at.z + 3.5, 1.0, 7.0, wall, {"max_rise": 3.2, "bare": true})
-	if not house.is_empty() and ResourceLoader.exists(TEX_CAMP + "chapel_oval.png"):
+	var side := _side_mat("lib_chapel", wall)
+	var root := Node3D.new()
+	root.name = "Chapel"
+	root.position = at
+	add_child(root)
+	var fy: float = V.FLOOR_Y
+	# The outer walls stand this far clear of the room's own (no two faces in one plane).
+	var gap := 0.11
+	var hw: float = V.W * 0.5
+	var ow: float = V.W + V.WALL_T * 2.0
+	var fz: float = V.FRONT_Z
+	var bz: float = V.BACK_Z
+	var nave_back: float = -V.D * 0.5 - V.ARCH_T
+	var pw: float = V.PRES_W * 0.5 + V.WALL_T
+	# The front picture as wide as the nave's walls, its own eave the walls' top.
+	var meta := _front_meta("lib_chapel")
+	var pic := Vector2(ow, ow * 1.31)
+	var eave := 5.0
+	if not meta.is_empty():
+		pic.x = ow / (float(meta["wall_r"]) - float(meta["wall_l"]))
+		pic.y = pic.x * float(meta["m"][1]) / float(meta["m"][0])
+		eave = (1.0 - float(meta["eave"])) * pic.y
+	var s: float = pic.x / 6.2
+	# The nave: its sides, the front wall behind the picture, its back either side of the
+	# presbytery (the arch's wall inside is its gable's foot).
+	var nave_len := fz - nave_back + 0.4
+	var nave_mid := (fz + nave_back - 0.4) * 0.5
+	for sx in [-1.0, 1.0]:
+		var sz := Vector3(V.WALL_T - gap, eave, nave_len)
+		_box(root, Vector3(float(sx) * (hw + gap + sz.x * 0.5), eave * 0.5, nave_mid), sz, _tiled(side, sz), true)
+		var bk := Vector3(ow * 0.5 - pw, eave, 0.8)
+		_box(root, Vector3(float(sx) * (pw + bk.x * 0.5), eave * 0.5, nave_back), bk, _tiled(side, bk), true)
+	var fw := Vector3(ow, eave, V.WALL_T - gap)
+	_box(root, Vector3(0, eave * 0.5, fz - fw.z * 0.5), fw, _tiled(side, fw), true)
+	# Its roof: steep, tiled, the gable at the back inside the arch's wall.
+	var rise := 3.8
+	# (Its gable inside the arch's wall, clear of the nave's room; its front end behind the picture.)
+	_church_roof(root, side, ow, eave, rise, nave_back - 0.15, fz - 0.05, nave_back + 0.3)
+	# The presbytery behind it: lower, narrower, its own roof.
+	var pe: float = fy + V.PRES_Y + V.PRES_WALL + 0.25
+	var plen := nave_back - bz
+	for sx in [-1.0, 1.0]:
+		var ps := Vector3(V.WALL_T - gap, pe, plen)
+		_box(root, Vector3(float(sx) * (V.PRES_W * 0.5 + gap + ps.x * 0.5), pe * 0.5, (nave_back + bz) * 0.5), ps, _tiled(side, ps), true)
+	var pb := Vector3(pw * 2.0, pe, V.WALL_T - gap)
+	_box(root, Vector3(0, pe * 0.5, bz + pb.z * 0.5), pb, _tiled(side, pb), true)
+	_church_roof(root, side, pw * 2.0, pe, 1.65, bz - 0.3, nave_back + 0.1, bz + 0.15)
+	# A stone band round its foot.
+	var band: Material = _house_mats()["sill"]
+	for sx in [-1.0, 1.0]:
+		_box(root, Vector3(float(sx) * (ow * 0.5 + 0.03), 0.2, nave_mid), Vector3(0.06, 0.4, nave_len), band)
+		_box(root, Vector3(float(sx) * (pw + 0.03), 0.2, (nave_back + bz) * 0.5), Vector3(0.06, 0.4, plen), band)
+	_box(root, Vector3(0, 0.2, bz - 0.03), Vector3(pw * 2.0, 0.4, 0.06), band)
+	# The front: the picture, the step up to the door.
+	_front_quad(root, "lib_chapel", Vector3(0, pic.y * 0.5, fz), 1.0, pic)
+	_box(root, Vector3(0, fy * 0.5, fz + 0.35), Vector3(1.9 * s, fy, 0.7), band)
+	# The oval windows' dirty glass where the room has them (chapel_view._windows): seen from
+	# outside only (from inside the room's own windows are there).
+	if ResourceLoader.exists(TEX_CAMP + "chapel_oval.png"):
 		var oval := StandardMaterial3D.new()
 		oval.albedo_texture = load(TEX_CAMP + "chapel_oval.png")
 		oval.albedo_color = Color(0.62, 0.6, 0.58)
@@ -780,35 +842,53 @@ func _chapel(at: Vector3) -> void:
 		oval.emission = Color(1.0, 0.6, 0.3)
 		oval.emission_energy_multiplier = 0.0
 		_chapel_oval = oval
-		var t: Texture2D = oval.albedo_texture
-		var size := Vector2(1.1 * float(t.get_width()) / float(t.get_height()), 1.1)
-		var half: float = (house["size"] as Vector3).x * 0.5
-		for side in [-1.0, 1.0]:
-			for wz in CHAPEL_VIEW.WINDOWS_Z:
-				_face(house["root"], Vector3(float(side) * half, CHAPEL_VIEW.WINDOW_Y, float(wz)), size, Vector3(float(side), 0, 0), oval)
-	if house.is_empty():
-		var root := _block(at, Vector3(5.0, 5.0, 7.0), wall)
-		_box(root, Vector3(0, 7.0, -2.5), Vector3(1.6, 3.6, 1.6), wall, false)
-		_box(root, Vector3(0, 9.2, -2.5), Vector3(0.12, 0.9, 0.12), _mat("", Color(0.3, 0.3, 0.3)))
-		_box(root, Vector3(0, 9.4, -2.5), Vector3(0.5, 0.1, 0.1), _mat("", Color(0.3, 0.3, 0.3)))
-		_face(root, Vector3(0, 1.3, 3.5), Vector2(1.4, 2.6), Vector3(0, 0, 1), _mat(_first([TEX + "house_door.png", TEX_CAMP + "door_wood.png"]), Color(0.4, 0.3, 0.2)))
-	spots["chapel"] = w(at + Vector3(0, 0, 4.5))
+		var tex: Texture2D = oval.albedo_texture
+		var size := Vector2(1.35 * float(tex.get_width()) / float(tex.get_height()), 1.35)
+		for sx in [-1.0, 1.0]:
+			for wz in V.NAVE_WINDOWS_Z:
+				_face(root, Vector3(float(sx) * (ow * 0.5 + 0.012), fy + V.NAVE_WINDOW_Y, float(wz)), size, Vector3(float(sx), 0, 0), oval)
+			_face(root, Vector3(float(sx) * (pw + 0.012), fy + V.PRES_Y + 2.7, nave_back - V.PRES_D * 0.5), size, Vector3(float(sx), 0, 0), oval)
+	spots["chapel"] = root
+	spots["chapel_door"] = w(V.DOOR_STEP)
 	# A lamp in its bracket over the door, on at night, not always steadily.
 	if ResourceLoader.exists(TEX_CAMP + "wall_lamp.png"):
-		var door := at + Vector3(0, 0, 3.62)
+		var door := at + Vector3(0, 0, fz + 0.12)
 		var lm := _cut_mat(TEX_CAMP + "wall_lamp.png")
 		var lt: Texture2D = lm.albedo_texture
 		var lw := 0.42 * float(lt.get_width()) / float(lt.get_height())
-		_face(self, door + Vector3(0, 2.92, 0.03), Vector2(lw, 0.42), Vector3(0, 0, 1), lm)
+		_face(self, door + Vector3(0, 2.92 * s, 0.03), Vector2(lw, 0.42), Vector3(0, 0, 1), lm)
 		var l := OmniLight3D.new()
 		l.light_color = Color(1.0, 0.78, 0.5)
 		l.light_energy = 1.2
 		l.omni_range = 6.0
-		l.position = door + Vector3(0, 2.75, 0.5)
+		l.position = door + Vector3(0, 2.92 * s - 0.17, 0.5)
 		l.visible = false
 		add_child(l)
-		var g := _glow(door + Vector3(0, 2.86, 0.12), 0.5)
+		var g := _glow(door + Vector3(0, 2.92 * s - 0.06, 0.12), 0.5)
 		_chapel_bulb = [l, g]
+
+
+## A church's gable roof over a block `width` across from `eave` up `rise` to its ridge, the
+## ridge along z from `z0` to `z1` (the overhangs in them), tiled, with its gable at `gable_z`.
+func _church_roof(root: Node3D, side: Material, width: float, eave: float, rise: float, z0: float, z1: float, gable_z: float) -> void:
+	var length := z1 - z0
+	var mid := (z0 + z1) * 0.5
+	var ang := atan2(rise, width * 0.5)
+	var half := width * 0.5 + 0.35
+	var tiles := _roof_mat(false, Vector3(half / cos(ang), 3.0, length))
+	for s in [-1.0, 1.0]:
+		var r := _box(root, Vector3(float(s) * half * 0.5, eave + rise - half * tan(ang) * 0.5 + 0.08, mid), Vector3(half / cos(ang), 0.14, length), tiles)
+		r.rotation.z = -float(s) * ang
+	_box(root, Vector3(0, eave + rise + 0.15, mid), Vector3(0.26, 0.12, length), _house_mats()["ridge"])
+	var g := MeshInstance3D.new()
+	var pm := PrismMesh.new()
+	pm.size = Vector3(width, rise - 0.06, 0.3)
+	g.mesh = pm
+	g.material_override = side
+	g.position = Vector3(0, eave + (rise - 0.06) * 0.5, gable_z)
+	root.add_child(g)
+
+
 
 
 ## The motel: tube letters MOTEL standing on its roof on their brackets over the
@@ -1446,21 +1526,25 @@ func _chapel_yard() -> void:
 	var zf := -7.2
 	var zb := -27.8
 	var gap := 0.95
-	var runs := [[Vector3(x0, 0, zf), Vector3(-28.0 - gap, 0, zf)], [Vector3(-28.0 + gap, 0, zf), Vector3(x1, 0, zf)],
+	# The gate before the chapel's door; the west wall whole (the small chapel's side was a
+	# piece of it till 11. 11.).
+	var cx: float = CHAPEL_VIEW.VILLAGE.x
+	var runs := [[Vector3(x0, 0, zf), Vector3(cx - gap, 0, zf)], [Vector3(cx + gap, 0, zf), Vector3(x1, 0, zf)],
 		[Vector3(x1, 0, zf), Vector3(x1, 0, zb)], [Vector3(x1, 0, zb), Vector3(x0, 0, zb)],
-		[Vector3(x0, 0, zf), Vector3(x0, 0, -18.3)], [Vector3(x0, 0, -25.7), Vector3(x0, 0, zb)]]
+		[Vector3(x0, 0, zf), Vector3(x0, 0, zb)]]
 	for r in runs:
 		_low_wall(r[0], r[1], plaster)
 	# The gate's two pillars.
 	for sx in [-1.0, 1.0]:
-		var p := Vector3(-28.0 + sx * (gap + 0.22), 0, zf)
+		var p := Vector3(cx + sx * (gap + 0.22), 0, zf)
 		_box(self, p + Vector3(0, 0.6, 0), Vector3(0.44, 1.2, 0.44), _tiled(plaster, Vector3(0.44, 1.2, 0.44)), true)
 		_box(self, p + Vector3(0, 1.26, 0), Vector3(0.54, 0.12, 0.54), _house_mats()["sill"])
 	# The path from the pavement to the door.
 	var dirt := _mat(_first([TEX + "dirt_path.png", TEX_CAMP + "gravel_road.png"]), TRODDEN.TINT)
-	TRODDEN.lay(self, Vector3(-28.0, 0.035, -5.3), Vector3(-28.0, 0.035, -18.5), 1.5, dirt, TRODDEN.dice(9), 0.07)
+	TRODDEN.lay(self, Vector3(cx, 0.035, -5.3), Vector3(cx, 0.035, CHAPEL_VIEW.VILLAGE.z + CHAPEL_VIEW.FRONT_Z + 0.4), 1.5, dirt, TRODDEN.dice(9), 0.07)
 	if worldgen != null and worldgen.has_method("_tree_mesh"):
-		for t in [[Vector3(-22.3, 0, -10.6), 0.8], [Vector3(-22.0, 0, -24.4), 0.9]]:
+		# (Along the east wall, clear of the chapel built to its size, 11. 11.)
+		for t in [[Vector3(-20.6, 0, -10.6), 0.8], [Vector3(-20.6, 0, -24.4), 0.9]]:
 			_linden(self, t[0], float(t[1]), _rng.randf() * TAU)
 			_solid(self, (t[0] as Vector3) + Vector3(0, 1.5, 0), Vector3(0.7, 3.0, 0.7))
 
@@ -2182,7 +2266,7 @@ func _hotspots() -> void:
 	_click(Vector3(46.4, 1.1, 18.9), Vector3(1.6, 2.2, 0.4), "town_door", "kiosk")
 	if ResourceLoader.exists(TEX_CAMP + "wc_door_out.png"):
 		_click(Vector3(48.0, 0, 22.0) + WC_DOOR + Vector3(0.1, 0, 0), Vector3(0.4, 2.2, 1.2), "town_door", "wc")
-	_click(Vector3(-28.0, 1.3, -18.4), Vector3(1.6, 2.6, 0.4), "town_door", "chapel")
+	_click(CHAPEL_VIEW.VILLAGE + Vector3(0, 1.75, CHAPEL_VIEW.FRONT_Z + 0.1), Vector3(2.1, 3.5, 0.4), "town_door", "chapel")
 	_click(Vector3(26.0, 1.4, 12.6), Vector3(1.2, 2.2, 0.8), "town_read", "memorial")
 	var pumps: Array = spots.get("pumps", [])
 	for i in pumps.size():

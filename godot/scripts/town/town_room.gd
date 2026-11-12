@@ -25,7 +25,7 @@ extends CanvasLayer
 ## (`copies()`) put away while you are in: its windows are the building's glass with the
 ## street behind them, its lamps light only the room (one_world_room.gd, as the camp's rooms).
 ## Room space is `_space`: the seat, or the origin of the room's own world for a place that
-## has none (the chapel: bigger inside than out, the user's choice of 4. 11.).
+## has none (the Benzina's WC, and any place whose building is missing).
 
 signal closed
 ## Paid for at the counter (counter_shop.gd), into the bag (scripts/ui/inventory.gd).
@@ -279,6 +279,7 @@ func open(p_place: String, p_hour: float) -> void:
 				_build_pub()
 		"chapel":
 			_view = CHAPEL_VIEW.new(self)
+			_view.anchor = place_anchor
 			_view.build(hour, _candles)
 		"kiosk":
 			if place_anchor != null and is_instance_valid(place_anchor) and place_anchor.get_node_or_null("Shop") != null:
@@ -505,6 +506,10 @@ func _leave_world() -> void:
 		_one = false
 		ONE_WORLD_ROOM.camp_view(get_tree(), true)
 		_cam.environment = null
+		# The room out of the camp's world (it stood on in its building over the copy, lit,
+		# after you had gone): back in its own till the next place is built.
+		_vp.world_3d = _own_world
+		_space.transform = Transform3D()
 
 
 ## Each frame in the camp's world: the room where its building is now (a shop built again at

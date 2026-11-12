@@ -15,6 +15,8 @@ const PIXEL := 0.0145
 const HEIGHTS := {"hruba": 1.55, "pepik": 1.35}
 const BALANCE = preload("res://core/balance/balance_config.gd")
 const FIGURE = preload("res://scripts/figures/doom_figure.gd")
+## The chapel's plan: where it stands in the village, its door, its front.
+const CHAPEL_VIEW = preload("res://scripts/town/chapel_view.gd")
 ## Drawn from eight sides with a walk (npc/sets/, tools/artgen/figures.py): by the name of their
 ## sprite, or by this one. Whoever is not keeps their one picture, mirrored the way they go.
 const SETS := {"vavra": "vavra"}
@@ -28,7 +30,7 @@ const SPOTS := {
 	"jednota_side": Vector3(-11.5, 0, -8.8),
 	"bench": Vector3(9.5, 0, 13.9),
 	"memorial": Vector3(24.4, 0, 11.4),
-	"chapel": Vector3(-28.0, 0, -17.2),
+	"chapel": CHAPEL_VIEW.DOOR_STEP + Vector3(0, 0, 0.3),
 	"pub": Vector3(19.2, 0, -9.4),
 	"station": Vector3(44.2, 0, 9.4),
 	"motel": Vector3(-29.0, 0, 9.6),
@@ -274,7 +276,7 @@ func _look_along(p: Dictionary, to: Vector3) -> void:
 
 ## The chapel's yard has its low wall (town_lesna._chapel_yard, L18): in and out by its
 ## gate on the pavement, not over the wall.
-const CHAPEL_GATE := Vector3(-28.0, 0, -5.9)
+const CHAPEL_GATE := Vector3(CHAPEL_VIEW.VILLAGE.x, 0, -5.9)
 
 
 func _route_to(place: String, from := "") -> Array:

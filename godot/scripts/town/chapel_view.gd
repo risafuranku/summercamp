@@ -1,9 +1,10 @@
 extends RefCounted
 
 ## Inside the chapel of the Virgin Mary in Liblice (town_room.gd's place "chapel"). Behind
-## its small baroque front (town_lesna._chapel: 6 m across, 7 m deep) it is bigger inside
-## than it is outside (the user, 4. 11.: "dustier, damp, bigger, musty, eerie", and bigger
-## inside than out his choice): the long nave under its barrel vault, the choir loft over
+## its baroque front (town_lesna._chapel builds the building round this room: one plan, the
+## room stands in it in the camp's one world; till 11. 11. it was bigger inside than out, then
+## Richard had the building made as big as it is inside; 4. 11.: "dustier, damp, bigger,
+## musty, eerie"): the long nave under its barrel vault, the choir loft over
 ## the door on its two posts with the stair up to it, seven rows of pews either side of
 ## the aisle, the triumphal arch and two steps up to the presbytery beyond it with the
 ## altar, St Prokop and the harmonium. The damp climbs the walls in brown tide lines and
@@ -52,10 +53,6 @@ const CANDLE_CLOSEUP = preload("res://scripts/town/candle_closeup.gd")
 const GESTURE = preload("res://scripts/ui/gesture.gd")
 const SFX := "res://assets/sfx/"
 const CAMP := "res://assets/textury/camp/"
-## The building in the village (town_lesna._chapel): its oval windows outside along its
-## sides, their height.
-const WINDOWS_Z := [-0.9, 1.4]
-const WINDOW_Y := 2.45
 ## The nave: x across, z from the triumphal arch (-) to the door (+); its barrel vault from
 ## the walls' top to its crown.
 const W := 6.4
@@ -83,6 +80,16 @@ const PEW_L := 2.1
 ## The nave's oval windows (along z) and their middle's height.
 const NAVE_WINDOWS_Z := [-3.5, -0.4, 2.5]
 const NAVE_WINDOW_Y := 3.6
+## The building in the village (town_lesna._chapel), built round this room: where its ground
+## is in the village (room space is the building's, the nave's floor FLOOR_Y over the ground),
+## how thick its walls are outside the room's (as a church's), its front's face and its back,
+## the step before its door (village space).
+const VILLAGE := Vector3(-26.4, 0.0, -15.4)
+const FLOOR_Y := 0.15
+const WALL_T := 0.9
+const FRONT_Z := D * 0.5 + WALL_T
+const BACK_Z := -D * 0.5 - ARCH_T - PRES_D - WALL_T
+const DOOR_STEP := VILLAGE + Vector3(0.0, 0.0, FRONT_Z + 1.0)
 ## How high the damp has climbed the walls.
 const DAMP_H := 2.3
 ## The bucket in the aisle under the leak in the vault.
@@ -236,8 +243,25 @@ var _stand_glow: MeshInstance3D
 static var _moon_tex: ImageTexture
 
 
+## The building in the village (town_lesna's spot "chapel"), set by town_room.
+var anchor: Node3D
+
+
 func _init(p_room) -> void:
 	room = p_room
+
+
+## Where the room stands in the camp's world (town_room one world): in its building. The
+## building keeps no copy of it: from outside its oval windows are the dirty glass, lit by the
+## candles at night.
+func seat() -> Variant:
+	if anchor == null or not is_instance_valid(anchor) or not anchor.is_inside_tree():
+		return null
+	return anchor.global_transform * Transform3D(Basis(), Vector3(0.0, FLOOR_Y, 0.0))
+
+
+func copies() -> Array:
+	return []
 
 
 func _exists(tex: String) -> bool:

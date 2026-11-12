@@ -20,6 +20,8 @@ extends Node
 ## aside. Created and owned by InteriorManager.
 
 const TIMES = preload("res://scripts/town/bus_timetable.gd")
+## The chapel's plan: where it stands in the village, its door, its front.
+const CHAPEL_VIEW = preload("res://scripts/town/chapel_view.gd")
 const TIMETABLE_CLOSEUP = preload("res://scripts/town/timetable_closeup.gd")
 const BUS_MODEL = preload("res://scripts/town/bus_model.gd")
 const BUS_RIDE = preload("res://scripts/town/bus_ride.gd")
@@ -1114,7 +1116,7 @@ func _update_village_sound(h: float) -> void:
 			_bell.unit_size = 30.0
 			_bell.max_distance = 300.0
 			_town.add_child(_bell)
-			_bell.position = Vector3(-28.0, 9.0, -24.5)
+			_bell.position = CHAPEL_VIEW.VILLAGE + Vector3(0.0, 9.5, CHAPEL_VIEW.FRONT_Z - 0.5)
 		_bell.play()
 
 
@@ -1215,7 +1217,7 @@ func _ring_bell_now() -> void:
 		_bell.unit_size = 30.0
 		_bell.max_distance = 300.0
 		_town.add_child(_bell)
-		_bell.position = Vector3(-28.0, 9.0, -24.5)
+		_bell.position = CHAPEL_VIEW.VILLAGE + Vector3(0.0, 9.5, CHAPEL_VIEW.FRONT_Z - 0.5)
 	_bell.play()
 
 
