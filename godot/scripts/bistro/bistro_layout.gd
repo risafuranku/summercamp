@@ -127,14 +127,33 @@ static func surface(parent: Node3D, id: String) -> MeshInstance3D:
 
 
 ## A counter under a flat surface: a steel (or wooden) body to the floor, its top just
-## under the picture.
-static func _counter(parent: Node3D, id: String, mat: Material, top := 0.95) -> void:
+## under the picture. Its face to the cook a picture of the unit (`front`, a camp texture:
+## the steel units' doors and drawers, the range's ovens, the table's shelf; 12. 11.: the
+## kitchen's counters were bare grey boxes), repeated along it at its own shape; an island
+## (`both`) has it on its back too.
+const FRONT_ASPECT := 256.0 / 144.0
+
+
+static func _counter(parent: Node3D, id: String, mat: Material, top := 0.95, front := "", both := false) -> void:
 	var d: Dictionary = SURFACES[id]
 	var sz: Vector2 = d["size"]
 	var c: Vector3 = d["at"]
 	var along_x := absf(float(d["yaw"])) < 1.0
 	var size := Vector3(sz.x + 0.06, top - 0.05, sz.y + 0.06) if along_x else Vector3(sz.y + 0.06, top - 0.05, sz.x + 0.06)
-	K.slab(parent, size, Vector3(c.x, 0.05 + (top - 0.05) * 0.5 - 0.002, c.z), mat, "Counter_" + id)
+	var mid := Vector3(c.x, 0.05 + (top - 0.05) * 0.5 - 0.002, c.z)
+	K.slab(parent, size, mid, mat, "Counter_" + id)
+	if front == "" or not ResourceLoader.exists(K.TEX + front + ".png"):
+		return
+	var yaw := float(d["yaw"])
+	var out := Vector3(sin(deg_to_rad(yaw)), 0.0, cos(deg_to_rad(yaw)))
+	var length := sz.x + 0.06
+	var depth := sz.y + 0.06
+	var h := top - 0.05
+	for side: float in ([1.0, -1.0] if both else [1.0]):
+		var pic := K.picture(parent, front, Vector2(length, h), mid + out * side * (depth * 0.5 + 0.003), yaw + (0.0 if side > 0.0 else 180.0), "CounterFront_" + id)
+		var m := (pic.material_override as StandardMaterial3D).duplicate() as StandardMaterial3D
+		m.uv1_scale = Vector3(maxf(1.0, roundf(length / (h * FRONT_ASPECT))), 1.0, 1.0)
+		pic.material_override = m
 
 
 static func has_tex(n: String) -> bool:
@@ -376,9 +395,9 @@ static func kitchen(parent: Node3D, si) -> void:
 	K.slab(parent, Vector3(1.8, 0.5, 0.8), Vector3(-1.15, 2.45, -1.98), steel, "Hood")
 	# The stove and the pot: counters along the back, their tops the stations' live
 	# surfaces (the pan, the fryer; the pot, the board, the steamer).
-	_counter(parent, "stove", steel)
+	_counter(parent, "stove", steel, 0.95, "counter_stove")
 	surface(parent, "stove")
-	_counter(parent, "pot", steel)
+	_counter(parent, "pot", steel, 0.95, "counter_steel")
 	surface(parent, "pot")
 	K.prop(parent, "steel_counter", Vector3(-2.45, 0.05, -2.06), 0.0, 0.85)
 	_cut(parent, "bistro_ladles", Vector2(1.0, 0.5), Vector3(1.4, 1.55, -2.36), 0.0, false, "Ladles")
@@ -389,7 +408,7 @@ static func kitchen(parent: Node3D, si) -> void:
 	var wash_sign: Node3D = si._sign(parent, "MYJTE SI RUCE\nwash your hands", Vector3(2.45, 1.85, 2.37), 14, "enamel")
 	wash_sign.rotation_degrees.y = 180.0
 	# The pass along the left wall, under the hatch to the dining room: heat lamps, bell.
-	_counter(parent, "pass", steel)
+	_counter(parent, "pass", steel, 0.95, "counter_steel")
 	surface(parent, "pass")
 	hatch(parent, Vector3(-3.1, 1.35, -0.45), 90.0)
 	# The heat shelf over the pass: a steel shelf on brackets, two lamp hoods under it
@@ -410,14 +429,14 @@ static func kitchen(parent: Node3D, si) -> void:
 		parent.add_child(l)
 	_cut(parent, "bistro_bell", Vector2(0.14, 0.12), Vector3(-2.95, 1.07, -0.05), 90.0, false, "Bell")
 	# The sink and the plate rack on the right, the fridge in the corner.
-	_counter(parent, "sink", steel)
+	_counter(parent, "sink", steel, 0.95, "counter_steel")
 	surface(parent, "sink")
 	K.prop(parent, "fridge_tall", Vector3(2.72, 0.05, -1.75), -90.0)
 	# The island: the grill set into it and the soup of the day beside it (stations), the
 	# flour sack by them.
-	_counter(parent, "grill", steel)
+	_counter(parent, "grill", steel, 0.95, "counter_steel", true)
 	surface(parent, "grill")
-	_counter(parent, "bufet", steel)
+	_counter(parent, "bufet", steel, 0.95, "counter_steel", true)
 	surface(parent, "bufet")
 	_cut(parent, "bistro_flour", Vector2(0.45, 0.55), Vector3(1.05, 0.05, 0.85), 0.0, true, "FlourSack")
 	_tube(parent, Vector3(-1.0, 2.88, 0.0))
@@ -454,7 +473,7 @@ static func cellar(parent: Node3D, si) -> Node3D:
 	# the bucket: st_potatoes), the breading table its top by the stairs.
 	surface(parent, "potatoes")
 	var wood := K.surface("planks_dark", 0.8)
-	_counter(parent, "breading", wood, 0.8)
+	_counter(parent, "breading", wood, 0.8, "counter_table")
 	surface(parent, "breading")
 	# The shelves of stock at the back left (the books' goods stood on them each visit).
 	K.prop(parent, "wall_shelf", Vector3(-1.4, 1.4, -2.3), 0.0, 1.6)

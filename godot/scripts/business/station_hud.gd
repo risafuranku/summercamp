@@ -44,6 +44,13 @@ const BIG := Vector2(92, 118)
 const CARD_SEC := 2.4
 const CARD := Vector2(112, 86)
 const POP_SEC := 1.7
+## How far a pop rises, and the bottom of the order rail over the view (the rail is the
+## room's own: 52 of its 240 lines, ticket_rail.gd): a pop over a guest near the top rose
+## into the tickets and was read through them (12. 11.). Its whole block, risen, stays
+## under the rail: the stars and a line (`_draw_pops`).
+const POP_RISE := 26.0
+const RAIL_CLEAR := 82.0
+const POP_BLOCK := 12.0 + 14.0
 const IDLE_GHOST := 3.5
 
 ## The station open now (station3d), set by the room.
@@ -171,8 +178,8 @@ func serve_pop(v: Dictionary, at: Vector2, _tid := "") -> void:
 	var ui := Vector2(W * 0.5 - 60, 110)
 	if at.x >= 0.0:
 		ui = to_ui(_view_to_screen(at))
-	# Kept on the view, under the rail and clear of the big ticket.
-	ui = Vector2(clampf(ui.x, 50.0, W - BIG.x - 60.0), clampf(ui.y, 92.0, H - BAR_H - 40.0))
+	# Kept on the view, under the rail all the way up its rise, and clear of the big ticket.
+	ui = Vector2(clampf(ui.x, 50.0, W - BIG.x - 60.0), clampf(ui.y, RAIL_CLEAR + POP_RISE + POP_BLOCK, H - BAR_H - 40.0))
 	_pops.append({"v": v.duplicate(), "at": ui, "t": 0.0})
 
 
@@ -730,14 +737,16 @@ static func _word(v: Dictionary) -> String:
 	return load("res://scripts/lang.gd").t(word)
 
 
-## Over the guest: the stars, the score, the money and the tip, the run, rising and
-## fading (smooth), nothing to click away.
+## Over the guest: the stars, the run (or SENT BACK), rising and fading (smooth),
+## nothing to click away. The money is where it lands, the station's own pop at its till
+## or hand; the word, the score and the tip apart are the served card's (`_draw_card`):
+## told two and three times over, it was clutter (12. 11.).
 func _draw_pops() -> void:
 	for p in _pops:
 		var v: Dictionary = p["v"]
 		var t := float(p["t"])
 		var k := t / POP_SEC
-		var rise := (1.0 - pow(1.0 - minf(1.0, t / 0.9), 2.0)) * 26.0
+		var rise := (1.0 - pow(1.0 - minf(1.0, t / 0.9), 2.0)) * POP_RISE
 		var a := 1.0 if k < 0.7 else 1.0 - (k - 0.7) / 0.3
 		var at: Vector2 = (p["at"] as Vector2) - Vector2(0, rise)
 		var ok := bool(v.get("ok", true))
@@ -745,12 +754,6 @@ func _draw_pops() -> void:
 		if not ok:
 			lines.append([tr("SENT BACK"), RETRO_UI.C_RED, RETRO_UI.FONT_LABEL])
 		else:
-			lines.append([_word(v) + "  %d%%" % int(v.get("score", 0)), RETRO_UI.C_AMBER_LIGHT if int(v.get("stars", 0)) >= 3 else RETRO_UI.C_BONE, RETRO_UI.FONT_LABEL])
-			var money := LANG.money("+$%d" % int(v.get("amount", 0)))
-			var tip := int(v.get("tip", 0)) + int(v.get("bonus", 0))
-			if tip > 0:
-				money += "  " + LANG.f("TIP $%d", tip)
-			lines.append([money, RETRO_UI.C_GREEN, RETRO_UI.FONT_TEXT])
 			var run := int(v.get("combo", 0))
 			if run >= RULES.COMBO_FROM:
 				lines.append([LANG.f("x%d IN A ROW", run), Color(1.0, 0.86, 0.36), RETRO_UI.FONT_LABEL])

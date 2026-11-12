@@ -11,6 +11,10 @@
 - [x] An unmade bed's bedding as a picture, not boxes (533c2493); the caravan's bed made by holding (c8068db9)
 - [x] The picture of a hand's job over their head (83043a4a)
 - [x] No click at a station answered with silence (cead88ab)
+- [x] The minigames played through (12. 11., „bod 4 bylo jen přidat zvuk? to je tvůj polish?“): the bistro kitchen's counters were bare grey boxes, now faced with steel units, the range, the prep table; a served guest's stars rose into the order rail and were read through the tickets, and the money was told three times (over the guest, on the card, at the till): over the guest only the stars, under the rail
+- [ ] The order rail: up to ten tickets 46 of the view's 240 lines tall over the guests' faces at the stand and the bar; shorter tickets (the word row is the item's short name, "SAUSAG", "KOF": a count badge on the picture instead), or overlapped when many
+- [ ] The big ticket's checklist as pictures with ticks (as the room's card), not "A CLEAN MUG / BEER TO THE LINE ..." lines
+- [ ] The counts under SERVE as pictures with numbers ("CRATE 18 BOWL 0 BUTTER 29", "MUGS 15 KEG 39", "PLATES 10"): 24 stations' `bar_text`, each its own
 - [x] The businesses' rooms rebuilt at every switch between them (pub, bistro, Jednota, staffroom: 100-350 ms, the bistro's first up to 1 s): one room a kind, all built behind the loading bar (Richard: „tak to pojď nakódovat čistě“). The walk in now 55-92 ms worst on a loaded PC (was 330-540)
 - [ ] A business's first visit in a session still makes its stations for it, 130-300 ms at the door (`trhnuti_check --part=bizrooms` "round 1"; reading their scripts ahead did not help: it is making them). Made with the business (when it is built or loaded) behind a step, or the stations a room's own and only bound to a business at the door
 - [ ] `podniky_coop`: the bufet's check waits for a soup nobody ordered (0 -> 0 twice on 12. 11.; the rooms are not opened in it): order one for it as the deli's check does
