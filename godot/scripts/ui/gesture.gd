@@ -26,7 +26,7 @@ const BY_VERB := {
 	"Hammering": "hammer",
 	"Plunging": "pull", "Pulling": "pull", "Emptying": "pull",
 	"Clearing up": "pick", "Bagging": "pick", "Throwing out": "pick", "Picking up": "pick",
-	"Making the bed": "pick", "Rolling out": "pick", "Refilling": "pick",
+	"Making the bed": "pick", "Making up": "pick", "Rolling out": "pick", "Refilling": "pick",
 }
 
 var kind := "sweep"
