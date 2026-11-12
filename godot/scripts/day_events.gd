@@ -771,7 +771,23 @@ func _close(ev: Dictionary, state: String, text: String) -> void:
 		_clear_work()
 	if not text.is_empty():
 		_report(text, 1 if state == "done" else 3)
+	# Sorted: the same sound as a room's job done (interior_tasks), on every machine.
+	if state == "done":
+		_done_sound()
 	changed.emit()
+
+
+var _done_player: AudioStreamPlayer
+
+
+func _done_sound() -> void:
+	if _done_player == null:
+		_done_player = AudioStreamPlayer.new()
+		_done_player.stream = load("res://assets/sfx/rooms/task_done.mp3") if ResourceLoader.exists("res://assets/sfx/rooms/task_done.mp3") else null
+		_done_player.volume_db = -5.0
+		add_child(_done_player)
+	if _done_player.stream != null:
+		_done_player.play()
 
 
 # ── the player at it ──────────────────────────────────────────────────────────

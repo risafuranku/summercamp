@@ -1781,6 +1781,18 @@ func _ready() -> void:
 			st += [["eval", "set('debug_camera', null)"], ["wait", 1.0], ["eval", "get_tree().quit()"]]
 			_steps = st
 			return
+		if a == "--part=dayleave":
+			# A day's trouble sorted (12. 11.): its plate lit green with the tick, out to the right,
+			# the rest sliding up; every frame for a second (dNNN.png).
+			_steps = [
+				["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+				["eval", "_interior_manager._building_interior.close_interior()"],
+				["money", 20000], ["clear", 6, 6, 5, 5], ["build", "restaurant", 7, 7, 0], ["clear", 12, 6, 5, 5], ["build", "cabin_1", 13, 7, 0], ["build", "tent_1", 15, 7, 0],
+				["clear", 6, 12, 5, 4], ["build", "path", 7, 13, 0], ["build", "path", 8, 13, 0], ["build", "path", 9, 13, 0],
+				["prep_all"], ["book", "Novak family", "family", 3, 3, 0], ["hours", 0.05], ["checkin"], ["hours", 1.0], ["wait", 1.0],
+				["eval", "_day_events.debug_start('tree')"], ["eval", "_day_events.debug_start('raccoons')"], ["eval", "_day_events.debug_goto(2.4)"], ["wait", 1.5],
+				["shot", "dl0_before"], ["key", "E"], ["eval", C + ".dump_frames(40)"], ["wait", 1.6], ["shot", "dl1_after"], ["wait", 1.0], ["eval", "get_tree().quit()"]]
+			return
 		if a == "--part=moteldoors":
 			# Through the motel's doors inside on foot (12. 11.: the next place made up behind
 			# the door, town_room.through_door): the reception to the corridor, to number four,

@@ -63,6 +63,16 @@ var _rows: Array = []
 var _seen: Dictionary = {}    # row id -> when it first showed (s)
 var _icons: Dictionary = {}
 var _t := 0.0
+## A plate that is over goes out to the right (12. 11.: it was simply gone and the rest jumped
+## up): sorted in time (time left on it, or none to run out) with the tick on its picture and
+## its frame lit green, run out without; the rest slide up into its place.
+## [{row, slot (where it stood), t, done}]
+var _gone: Array = []
+## Where each plate stands now in slots (it eases to its place in the column).
+var _slot: Dictionary = {}
+const GONE_SEC := 0.5
+const SLIDE_SLOTS_SEC := 7.0
+const TICK_TEX := "res://assets/textury/hud/job_tick.png"
 
 
 func _init() -> void:
@@ -73,7 +83,21 @@ func _init() -> void:
 
 ## [{id, kind, word, cat: day|night|biz|work|stock, left: 0..1 or -1, n}]
 func set_rows(rows: Array) -> void:
+	var new_ids := {}
+	for r in rows:
+		new_ids[str(r.get("id", ""))] = true
+	for i in mini(_rows.size(), MAX_ROWS):
+		var old: Dictionary = _rows[i]
+		var oid := str(old.get("id", ""))
+		if not new_ids.has(oid):
+			var left := float(old.get("left", -1.0))
+			_gone.append({"row": old, "slot": float(_slot.get(oid, float(i))), "t": 0.0, "done": left < 0.0 or left > 0.02})
+			_slot.erase(oid)
 	_rows = rows.duplicate(true)
+	for i in _rows.size():
+		var id := str(_rows[i].get("id", ""))
+		if not _slot.has(id):
+			_slot[id] = float(i)
 	var now := {}
 	for r in _rows:
 		var id := str(r.get("id", ""))
@@ -88,13 +112,19 @@ func set_rows(rows: Array) -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
-	if not _rows.is_empty():
+	for i in _rows.size():
+		var id := str(_rows[i].get("id", ""))
+		_slot[id] = move_toward(float(_slot.get(id, float(i))), float(i), delta * SLIDE_SLOTS_SEC)
+	for g in _gone:
+		g["t"] = float(g["t"]) + delta
+	_gone = _gone.filter(func(g): return float(g["t"]) < GONE_SEC)
+	if not _rows.is_empty() or not _gone.is_empty():
 		queue_redraw()
 
 
 ## Where the plates go now: {u, n, step, x, y0}, or {} when none are shown.
 func _layout() -> Dictionary:
-	if _rows.is_empty() or not is_visible_in_tree():
+	if (_rows.is_empty() and _gone.is_empty()) or not is_visible_in_tree():
 		return {}
 	# At a business's station its own frame says what waits (the plates sat over its
 	# ticket and SERVE).
@@ -104,6 +134,8 @@ func _layout() -> Dictionary:
 	var u := float(maxi(1, ui_scale))
 	var n := mini(_rows.size(), MAX_ROWS)
 	var step := (PLATE.y + GAP) * u
+	if _rows.is_empty():
+		n = 0
 	var x := floorf(size.x - (PLATE.x + 4.0) * u)
 	# Under the arrivals' plates (they stand round 42 % of the height), or a little higher.
 	var y0 := floorf(size.y * 0.42 + step * float(arrivals) * 0.5 + 6.0 * u) if arrivals > 0 else floorf(size.y * 0.3)
@@ -138,7 +170,17 @@ func _draw() -> void:
 	var f: Font = font if font != null else get_theme_default_font()
 	var fs := int(8.0 * u)
 	for i in n:
-		_plate(_rows[i], Vector2(x, y0 + step * float(i)), u, f, fs)
+		var id := str(_rows[i].get("id", ""))
+		_plate(_rows[i], Vector2(x, y0 + step * float(_slot.get(id, float(i)))), u, f, fs)
+	# The ones that are over, going out to the right.
+	for g in _gone:
+		var k := clampf(float(g["t"]) / GONE_SEC, 0.0, 1.0)
+		var out := k * k
+		var at := Vector2(x + (PLATE.x + 6.0) * u * out, y0 + step * float(g["slot"]))
+		var row: Dictionary = (g["row"] as Dictionary).duplicate()
+		row["who"] = ""
+		row["left"] = -1.0
+		_gone_plate(at, row, bool(g["done"]), u, f, fs)
 	if _rows.size() > n:
 		var more := "+%d" % (_rows.size() - n)
 		var at := Vector2(x + (PLATE.x - 1.0) * u - f.get_string_size(more, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x, y0 + step * float(n) + 7.0 * u)
@@ -192,6 +234,20 @@ func _plate(row: Dictionary, at: Vector2, u: float, f: Font, fs: int) -> void:
 		draw_rect(bar.grow(u * 0.5), SLOT)
 		if not (left <= 0.15 and int(_t * 3.0) % 2 == 1):
 			draw_rect(Rect2(bar.position, Vector2(floorf(bar.size.x * clampf(left, 0.0, 1.0) / u) * u, bar.size.y)), col)
+
+
+## A plate on its way out off the screen's edge: drawn as it was, sorted with its frame green
+## and the tick over its picture.
+func _gone_plate(at: Vector2, row: Dictionary, done: bool, u: float, f: Font, fs: int) -> void:
+	_plate(row, at, u, f, fs)
+	var box := Rect2(at, PLATE * u)
+	if done:
+		var g := Color(GREEN, 0.9)
+		draw_rect(Rect2(box.position, Vector2(box.size.x, u)), g)
+		draw_rect(Rect2(box.position, Vector2(u, box.size.y)), g)
+		draw_rect(Rect2(box.position + Vector2(0, box.size.y - u), Vector2(box.size.x, u)), g)
+		draw_rect(Rect2(box.position + Vector2(box.size.x - u, 0), Vector2(u, box.size.y)), g)
+		_icon(TICK_TEX, at + (ICON_AT + Vector2(1, 0)) * u, u)
 
 
 ## The picture at its own pixels (u screen pixels each), in the middle of its box.
