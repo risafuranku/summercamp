@@ -60,6 +60,67 @@ static func _quad(root: Node3D, tex: String, size: Vector2, pos: Vector3, facing
 	return K.picture(root, tex, size, pos, yaw, name)
 
 
+## A door between two of the motel's places seen from one side (the reception's to the passage,
+## a room's to the corridor; each place builds its own side and the walk through hands over
+## to the place behind it, town_room.through_door): a pivot `name` on the hinge at `hinge`
+## (room space, on the floor), the leaf `width` along `along` from it (+-X or +-Z), its
+## picture `tex` to this side (`facing`), `back_tex` to the other (seen as it swings open).
+## It opens with its free edge going `swings` (meta "open_deg", swing()). What hangs on the
+## leaf goes under the pivot too.
+const LEAF_OPEN_DEG := 82.0
+
+
+static func hinged_leaf(root: Node3D, hinge: Vector3, width: float, height: float, along: Vector3, facing: Vector3, swings: Vector3, body: Material, tex: String, name: String, back_tex := "", thick := 0.05) -> Node3D:
+	var pv := Node3D.new()
+	pv.name = name
+	pv.position = hinge
+	root.add_child(pv)
+	pv.set_meta("open_deg", LEAF_OPEN_DEG * signf(along.cross(swings).y))
+	var mid := along * (width * 0.5) + Vector3(0, height * 0.5, 0)
+	var size := Vector3(width, height, thick) if absf(along.x) > 0.5 else Vector3(thick, height, width)
+	K.slab(pv, size, mid, body, name + "Leaf")
+	_leaf_face(pv, tex, Vector2(width, height), mid + facing * (thick * 0.5 + 0.003), facing, name + "Face")
+	_leaf_face(pv, back_tex, Vector2(width, height), mid - facing * (thick * 0.5 + 0.003), -facing, name + "Back")
+	return pv
+
+
+## A door's picture on its leaf: a camp texture by name, or a picture by its path (the
+## corridor's numbered doors, town/motel_door_N.png, lit as the corridor shows them).
+static func _leaf_face(pv: Node3D, tex: String, size: Vector2, pos: Vector3, facing: Vector3, name: String) -> void:
+	if tex == "":
+		return
+	if not tex.begins_with("res://"):
+		if _exists(tex):
+			_quad(pv, tex, size, pos, facing, name)
+		return
+	if not ResourceLoader.exists(tex):
+		return
+	var q := MeshInstance3D.new()
+	var qm := QuadMesh.new()
+	qm.size = size
+	q.mesh = qm
+	var m := K._base(Color(0.82, 0.78, 0.72))
+	m.albedo_texture = load(tex)
+	q.material_override = m
+	q.position = pos
+	q.rotation.y = atan2(facing.x, facing.z)
+	q.name = name
+	pv.add_child(q)
+
+
+## Swing a hinged_leaf open or shut on `host`'s tween; `sec` 0: at once.
+static func swing(host: Node, pv: Node3D, open: bool, sec := 0.5) -> Tween:
+	if pv == null or not is_instance_valid(pv):
+		return null
+	var to := deg_to_rad(float(pv.get_meta("open_deg", LEAF_OPEN_DEG))) if open else 0.0
+	if sec <= 0.0:
+		pv.rotation.y = to
+		return null
+	var tw := host.create_tween()
+	tw.tween_property(pv, "rotation:y", to, sec).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT if open else Tween.EASE_IN_OUT)
+	return tw
+
+
 ## The room's light inside the shell outside: a lit room's surfaces glow a little (the
 ## Build way: the sector brighter), no light of its own in the village.
 static func _shell_mat(m: Material, lit: bool) -> Material:
@@ -154,7 +215,7 @@ static func build_room(root: Node3D, n: int, inside: bool, state: Dictionary = {
 		return out
 	# Inside: behind the back wall the little hall and the bathroom, the room's door from
 	# the corridor at the end of the hall; the corridor outside it, for the peephole.
-	_back(root, out, wall, carpet)
+	_back(root, out, wall, carpet, n)
 	return out
 
 
@@ -283,7 +344,7 @@ static func _twin(root: Node3D, n: int, lit: bool, state: Dictionary, out: Dicti
 ## Behind the bedroom (inside only): the little hall from the corridor's door to the
 ## opening in the back wall, its coat hooks, the switches; the door with its key, chain
 ## and peephole; the stretch of the corridor the peephole looks out on.
-static func _back(root: Node3D, out: Dictionary, wall: Material, carpet: Material) -> void:
+static func _back(root: Node3D, out: Dictionary, wall: Material, carpet: Material, n: int) -> void:
 	var z0 := PLAN.BACK_Z
 	var z1 := z0 + PLAN.BACK_D
 	var x0 := PLAN.HALL_X.x
@@ -304,19 +365,30 @@ static func _back(root: Node3D, out: Dictionary, wall: Material, carpet: Materia
 	var ex0 := PLAN.ENTRY_X.x
 	var ex1 := PLAN.ENTRY_X.y
 	var w := PLAN.ROOM_W
-	var south := K.slab(root, Vector3(w, h, 0.1), Vector3(0, h * 0.5, z1 + 0.05), wall, "South")
+	# (Its half of the wall's thickness: the corridor's side of it is the corridor's
+	# (motel_hall), the two stand at once while you walk through and must not share a face.)
+	var south := K.slab(root, Vector3(w, h, PLAN.WALL_HALF), Vector3(0, h * 0.5, z1 + PLAN.WALL_HALF * 0.5), wall, "South")
 	K.cut_wall(south, [[ex0, ex1, 0.0, PLAN.DOOR_H]])
+	K.slab(root, Vector3(ex1 - ex0, 0.1, PLAN.WALL_HALF), Vector3((ex0 + ex1) * 0.5, -0.05, z1 + PLAN.WALL_HALF * 0.5), carpet, "Threshold")
 	var door := PLAN.room_door(1)
-	var leaf := K.slab(root, Vector3(ex1 - ex0, PLAN.DOOR_H, 0.05), Vector3(door.x, PLAN.DOOR_H * 0.5, z1 + 0.05), K.surface("veneer_dark", 0.6), "DoorLeaf")
-	out["door"] = leaf
-	if _exists("motel_door_in"):
-		_quad(root, "motel_door_in", Vector2(ex1 - ex0, PLAN.DOOR_H), Vector3(door.x, PLAN.DOOR_H * 0.5, z1 + 0.018), Vector3(0, 0, -1), "DoorInside")
+	# The door to the corridor on its hinge at the east jamb, opening out into the corridor as
+	# the corridor's side of it does (motel_hall._room_doors), the key, the chain and the
+	# peephole on it. Room space at rest: the pivot unturned.
+	var hinge := Vector3(ex1, 0.0, z1 + PLAN.WALL_HALF * 0.5)
+	# (Its other side the corridor's, with the room's number: motel_hall._room_doors.)
+	var outside := "res://assets/textury/town/motel_door_%d.png" % n
+	if not ResourceLoader.exists(outside):
+		outside = "res://assets/textury/town/motel_door_out.png"
+	var pv := hinged_leaf(root, hinge, ex1 - ex0, PLAN.DOOR_H, Vector3(-1, 0, 0), Vector3(0, 0, -1), Vector3(0, 0, 1), K.surface("veneer_dark", 0.6), "motel_door_in", "DoorHinge", outside)
+	out["door"] = pv
+	# (The leaf's face to the room, then what hangs on it a little in front of that.)
+	var face_z := hinge.z - 0.028
 	if _exists("motel_key"):
-		out["key"] = K.cutout(root, "motel_key", Vector2(0.075, 0.2), Vector3(door.x + 0.24, 0.72, z1 + 0.01), 180.0, false, "KeyInLock")
+		out["key"] = K.cutout(pv, "motel_key", Vector2(0.075, 0.2), Vector3(door.x + 0.24, 0.72, face_z - 0.008) - hinge, 180.0, false, "KeyInLock")
 	if _exists("chain_loose"):
-		out["chain"] = K.cutout(root, "chain_loose", _sprite_size("chain_loose", 0.2), Vector3(door.x + 0.22, 1.34, z1 + 0.01), 180.0, false, "Chain")
+		out["chain"] = K.cutout(pv, "chain_loose", _sprite_size("chain_loose", 0.2), Vector3(door.x + 0.22, 1.34, face_z - 0.008) - hinge, 180.0, false, "Chain")
 	var brass := K.surface("galvanized", 0.3, Color(0.62, 0.52, 0.3))
-	out["peephole"] = K.slab(root, Vector3(0.035, 0.035, 0.02), Vector3(door.x, 1.55, z1 + 0.012), brass, "Peephole")
+	out["peephole"] = K.slab(pv, Vector3(0.035, 0.035, 0.02), Vector3(door.x, 1.55, face_z - 0.006) - hinge, brass, "Peephole")
 	var plastic := K.surface("plastic", 0.3, Color(0.86, 0.82, 0.72))
 	out["switch"] = K.slab(root, Vector3(0.02, 0.12, 0.08), Vector3(x1 - 0.01, 1.1, z1 - 0.3), plastic, "Switch")
 	out["bath_switch"] = K.slab(root, Vector3(0.02, 0.12, 0.08), Vector3(x0 + 0.01, 1.1, dz1 + 0.14), plastic, "BathSwitch")
@@ -329,8 +401,13 @@ static func _back(root: Node3D, out: Dictionary, wall: Material, carpet: Materia
 	_corridor_stub(root, door, z1)
 
 
-## The stretch of the corridor outside the room's door: only the peephole sees it.
-static func _corridor_stub(root: Node3D, door: Vector3, z1: float) -> void:
+## The stretch of the corridor outside the room's door: only the peephole sees it. Under its
+## own node "CorridorStub" (out of the way while the corridor itself stands there: the walk out
+## to it, motel_view).
+static func _corridor_stub(parent: Node3D, door: Vector3, z1: float) -> void:
+	var root := Node3D.new()
+	root.name = "CorridorStub"
+	parent.add_child(root)
 	var zc := z1 + 0.1
 	var depth := PLAN.CORRIDOR_Z.y - PLAN.CORRIDOR_Z.x
 	var runner := K.surface(_pick("corridor_carpet", "motel_carpet_dirty"), 1.6)
@@ -528,7 +605,8 @@ static func build_lobby(root: Node3D, inside: bool, keys: Array, state: Dictiona
 	var wall := K.surface(_pick("motel_wall_dirty", "motel_wall"), 1.4, Color(0.88, 0.8, 0.66))
 	K.slab(root, Vector3(w, 0.1, d), Vector3(0, -0.05, 0), _shell_mat(K.surface(_pick("motel_carpet_dirty", "motel_carpet"), 1.6), lit), "Floor")
 	K.slab(root, Vector3(w, 0.1, d), Vector3(0, h + 0.05, 0), _shell_mat(K.surface("ceiling_board", 1.0, Color(0.88, 0.84, 0.74)), lit), "Ceiling")
-	K.slab(root, Vector3(w, h, 0.1), Vector3(0, h * 0.5, d * 0.5 + 0.05), _shell_mat(wall, lit), "WallBack")
+	# (Its half of the wall to the passage: the passage's is the corridor's, motel_hall.)
+	var back_wall := K.slab(root, Vector3(w, h, PLAN.WALL_HALF), Vector3(0, h * 0.5, d * 0.5 + PLAN.WALL_HALF * 0.5), _shell_mat(wall, lit), "WallBack")
 	K.slab(root, Vector3(0.1, h, d), Vector3(-w * 0.5 - 0.05, h * 0.5, 0), _shell_mat(wall, lit), "WallWest")
 	K.slab(root, Vector3(0.1, h, d), Vector3(w * 0.5 + 0.05, h * 0.5, 0), _shell_mat(wall, lit), "WallEast")
 	var door := PLAN.room_door(0)
@@ -620,7 +698,15 @@ static func build_lobby(root: Node3D, inside: bool, keys: Array, state: Dictiona
 	# The door to his room at the back, west of the board; the door to the corridor past the
 	# counter's east end.
 	_quad(root, "door_interior", Vector2(0.85, 2.0), Vector3(cx - 1.3, 1.0, d * 0.5 - 0.006), Vector3(0, 0, -1), "BackDoor")
-	out["hall_door"] = _quad(root, "door_interior", Vector2(0.9, 2.05), Vector3(PLAN.LOBBY_HALL_X, 1.025, d * 0.5 - 0.006), Vector3(0, 0, -1), "HallDoor")
+	if inside:
+		# The door to the passage and the corridor: a hole in the back wall and its leaf on the
+		# west jamb, opening into the passage as the passage's side of it does
+		# (motel_hall._passage); the walk through it hands over to the corridor.
+		var hx := PLAN.LOBBY_HALL_X
+		K.cut_wall(back_wall, [[hx - 0.45, hx + 0.45, 0.0, PLAN.DOOR_H]])
+		out["hall_door"] = hinged_leaf(root, Vector3(hx - 0.45, 0.0, d * 0.5 + PLAN.WALL_HALF * 0.5), 0.9, PLAN.DOOR_H, Vector3(1, 0, 0), Vector3(0, 0, -1), Vector3(0, 0, 1), K.surface("veneer_dark", 0.6), "door_interior", "HallDoor", "door_interior")
+	else:
+		out["hall_door"] = _quad(root, "door_interior", Vector2(0.9, 2.05), Vector3(PLAN.LOBBY_HALL_X, 1.025, d * 0.5 - 0.006), Vector3(0, 0, -1), "HallDoor")
 	if inside:
 		var leaf := K.slab(root, Vector3(0.9, PLAN.DOOR_H, 0.05), Vector3(door.x, PLAN.DOOR_H * 0.5, -d * 0.5 - 0.02), K.surface("galvanized", 0.5, Color(0.7, 0.72, 0.7)), "DoorLeaf")
 		out["door"] = leaf

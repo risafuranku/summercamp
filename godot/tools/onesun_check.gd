@@ -1705,6 +1705,26 @@ func _ready() -> void:
 			st += [["eval", "set('debug_camera', null)"], ["wait", 1.0], ["eval", "get_tree().quit()"]]
 			_steps = st
 			return
+		if a == "--part=moteldoors":
+			# Through the motel's doors inside on foot (12. 11.: the next place made up behind
+			# the door, town_room.through_door): the reception to the corridor, to number four,
+			# back out to the corridor and to the reception, frame by frame.
+			var TT := "_interior_manager.town_trip()"
+			var TR := TT + "._room"
+			var st: Array = [
+				["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+				["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
+				["eval", TT + "._ensure_town()"], ["wait", 3.0], ["eval", TT + "._put_player(" + TT + "._town.arrive_spot())"], ["wait", 2.0],
+				["eval", "debug_jump_to(1, 19.6)"], ["wait", 3.0], ["eval", TT + "._open_room('motel')"], ["wait", 2.0],
+				["eval", TR + "._clicked('key4')"], ["wait", 3.5], ["eval", TR + "._clicked('key4')"], ["wait", 1.5]]
+			for leg in [["hall", "a_hall", 24], ["door4", "b_room", 48], ["door", "c_out", 36], ["lobby", "d_lobby", 48]]:
+				st += [["eval", TR + "._clicked('%s')" % leg[0]]]
+				for k in int(leg[2]):
+					st += [["wait", 0.2], ["shot", "%s_%02d" % [leg[1], k]]]
+				st += [["eval", TR + ".place"], ["wait", 1.0]]
+			st += [["eval", "get_tree().quit()"]]
+			_steps = st
+			return
 		if a == "--part=towndoors":
 			# Into Liblice's places on foot through their doors and out again (W26: as at the
 			# camp's buildings), frame by frame, by day.

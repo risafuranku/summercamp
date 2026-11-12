@@ -42,6 +42,7 @@ const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
 const HOVER_GLINT = preload("res://scripts/ui/hover_glint.gd")
 const RETRO_RENDER = preload("res://scripts/retro_render.gd")
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
+const WALK_PATH = preload("res://scripts/ui/walk_path.gd")
 const ONE_WORLD_ROOM = preload("res://scripts/one_world_room.gd")
 const NPC := "res://assets/textury/npc/"
 const SFX_PUB := "res://assets/sfx/pub/"
@@ -254,10 +255,20 @@ func open(p_place: String, p_hour: float) -> void:
 		ONE_WORLD_ROOM.camp_view(get_tree(), false)
 		_vp.audio_listener_enable_3d = true
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	# (Walked through from the place before: its arrive() once the walk in is over.)
+	if not _stepping:
+		_arrive()
 	if _through:
 		_through = false
 		return
 	_greet()
+
+
+## The place has you where its build put you: what it does as you come in (the door you
+## came through shutting behind you, on along the corridor: motel_hall / motel_view arrive()).
+func _arrive() -> void:
+	if _view != null and _view.has_method("arrive"):
+		_view.arrive()
 
 
 ## The place's room built and standing where it stands, not shown yet (`open` shows it).
@@ -451,6 +462,121 @@ func leave() -> void:
 	if walked_from != null and is_instance_valid(walked_from) and trip != null and trip.has_method("leave_on_foot") and bool(trip.leave_on_foot(self)):
 		return
 	close()
+
+
+# ── through a door to the next place inside the building (the motel's) ───────────
+#
+# town_trip keeps two rooms: while you walk up to a door inside the motel (the reception's
+# to the corridor, the corridor's to a room) the next place is made up in the other one,
+# standing behind the door in the camp's one world (staged: not shown, its walls on that side
+# its own half of the wall); this one's eye walks into the doorway (through_door) and there
+# the other is shown with its eye at that very spot and walks on in (step_through). No
+# transition: the place behind the door was there all the way.
+
+## Made up behind its door for the walk through (town_trip.ready_next), not shown.
+var _staged := false
+## Where the staged place has the eye once through its door (its build put it there):
+## [position, rotation, fov].
+var _stand: Array = []
+## Walked through from the place before: its arrive() comes after the walk in.
+var _stepping := false
+## This one's eye walking into the doorway of the next place made up behind it.
+var _through_next := false
+
+
+func is_staged() -> bool:
+	return _staged
+
+
+## The next place made up behind its door (town_trip.ready_next).
+func stage(p_place: String, p_hour: float) -> void:
+	_staged = true
+	_make_up(p_place, p_hour)
+	_stand = [_cam.position, _base_rot, _cam.fov]
+
+
+## Not walked through after all: put away.
+func unstage() -> void:
+	if not _staged:
+		return
+	_staged = false
+	_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	_leave_world()
+	_made_for = ""
+
+
+## The eye of the place before as it comes through the door (this one drawn already).
+func follow_eye(eye: Transform3D, fov: float) -> void:
+	_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	_cam.global_transform = eye
+	_cam.fov = fov
+
+
+## Going through a door to `p_place` (the motel's "motel", "motel_hall", "motel_room" `n`),
+## coming out at `spot`: the next place made up behind it now, while you walk up to the door.
+## false: no second room (the door goes as it did, go_to).
+func ready_next(p_place: String, n := 0, spot := "") -> bool:
+	var trip = get_parent()
+	return trip != null and trip.has_method("ready_next") and bool(trip.ready_next(self, p_place, n, spot))
+
+
+## Through the door: the eye walks from where it is into the doorway at `door` (room space, on
+## the floor) going `into`, and the place made up behind it (ready_next) takes it on there.
+## false: nothing made up behind it (the caller goes as it did).
+func through_door(door: Vector3, into: Vector3) -> bool:
+	var trip = get_parent()
+	if trip == null or not trip.has_method("next_of") or trip.next_of(self) == null:
+		return false
+	var f := Vector3(into.x, 0.0, into.z).normalized()
+	var to := Vector3(door.x, _cam.position.y, door.z) + f * 0.3
+	var keys: Array = [{"pos": _cam.position, "rot": _cam.rotation}, {"pos": to, "rot": Vector3(-0.03, atan2(-f.x, -f.z), 0.0)}]
+	var dur := clampf(_cam.position.distance_to(to) / 1.5, 0.35, 0.9)
+	door_walking = true
+	_through_next = true
+	_glint.clear()
+	var tw := WALK_PATH.play(self, _cam, keys, dur)
+	tw.tween_callback(func():
+		_through_next = false
+		if trip != null and is_instance_valid(trip):
+			trip.step_to_next(self))
+	return true
+
+
+## Through the door from the place before (town_trip.step_to_next): shown now with its eye
+## where that one's was, it walks on in to where its build has you, then arrive().
+func step_through(eye: Transform3D, fov: float) -> void:
+	_staged = false
+	_through = true
+	_stepping = true
+	var stand := _stand
+	open(place, hour)
+	_stepping = false
+	_cam.global_transform = eye
+	_cam.fov = fov
+	if stand.is_empty():
+		_arrive()
+		return
+	var to_pos: Vector3 = stand[0]
+	var to_rot: Vector3 = stand[1]
+	var keys: Array = [{"pos": _cam.position, "rot": _cam.rotation}]
+	# A step on through the doorway first when the place is further in.
+	var fwd := -_cam.transform.basis.z
+	fwd.y = 0.0
+	if _cam.position.distance_to(to_pos) > 0.9 and fwd.length() > 0.01:
+		var on := _cam.position + fwd.normalized() * 0.45
+		on.y = lerpf(_cam.position.y, to_pos.y, 0.5)
+		keys.append({"pos": on, "rot": _cam.rotation.lerp(to_rot, 0.3)})
+	keys.append({"pos": to_pos, "rot": to_rot})
+	var turn := absf(wrapf(to_rot.y - _cam.rotation.y, -PI, PI))
+	var dur := clampf(_cam.position.distance_to(to_pos) / 1.5 + turn / PI * 0.75, 0.4, 1.8)
+	door_walking = true
+	var tw := WALK_PATH.play(self, _cam, keys, dur)
+	tw.parallel().tween_property(_cam, "fov", float(stand[2]), dur * 0.7)
+	tw.tween_callback(func():
+		door_walking = false
+		_base_rot = to_rot
+		_look.reset()
+		_arrive())
 
 
 # ── through the door on foot (scripts/ui/door_through.gd, as the camp's rooms) ──────
@@ -687,13 +813,20 @@ func _room_box() -> AABB:
 func _process(delta: float) -> void:
 	if not _open:
 		# Made up for a walk in that did not come (walked away from the door): put away.
-		if _made_for != "" and not _coming_in():
+		if _made_for != "" and not _staged and not _coming_in():
 			_leave_world()
 			_made_for = ""
 			walked_from = null
 		return
 	if door_walking:
 		_tick_world(delta)
+		# The place behind the door you walk through has its eye with yours (drawn already: the
+		# first frame it is on the screen is ready).
+		if _through_next:
+			var trip = get_parent()
+			var b = trip.next_of(self) if trip != null and trip.has_method("next_of") else null
+			if b != null:
+				b.follow_eye(_cam.global_transform, _cam.fov)
 		return
 	_t += delta
 	var modal: bool = _is_modal()

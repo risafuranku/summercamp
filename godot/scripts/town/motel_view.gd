@@ -253,6 +253,45 @@ func build(hour: float, keys: Array) -> void:
 	Coop.send_place("town", "motel", "walk", [str(_walker.here)])
 
 
+## The door you came in by from the next place in the building (the reception's to the
+## passage, a room's to the corridor), out of the way till you are through it.
+var _door_behind: Node3D
+## The room's door swinging open as you go out (no other click till you are through).
+var _busy_door := false
+
+
+## Come in (town_room, once you stand where build put you: walked through the door, or
+## opened): the door behind you is this side's again, open, and swings shut; then on into
+## the reception, or through the little hall into the room.
+func arrive() -> void:
+	if _door_behind != null and is_instance_valid(_door_behind):
+		var pv := _door_behind
+		_door_behind = null
+		pv.visible = true
+		ROOMS.swing(room, pv, true, 0.0)
+		var tw := ROOMS.swing(room, pv, false, 0.6)
+		if tw != null:
+			tw.tween_callback(func(): _play("backroom/room_door_close.mp3", -9.0))
+	var stub: Node = room._root.get_node_or_null("CorridorStub") if room._root != null else null
+	if stub != null:
+		(stub as Node3D).visible = true
+	if n == 0:
+		if str(_walker.here) == "hall":
+			room.get_tree().create_timer(0.25).timeout.connect(func():
+				if _alive() and str(_walker.here) == "hall":
+					_walker.go("end", Callable(), Vector3(deg_to_rad(-4.0), deg_to_rad(82.0), 0.0)))
+		return
+	# Through the little hall and into the room as you come in.
+	room.get_tree().create_timer(0.35).timeout.connect(func():
+		if _alive() and str(_walker.here) == "door":
+			_walker.go("room"))
+
+
+## Where `node` (on the room's door, under its hinge) is in room space.
+func _in_room(node: Node3D) -> Vector3:
+	return room._root.to_local(node.global_position) if node.is_inside_tree() else node.position
+
+
 func _marks() -> Dictionary:
 	if not marks.has(n):
 		marks[n] = {"painting": 0, "stain": 0}
@@ -288,19 +327,25 @@ func _lobby_things(hour: float) -> void:
 		var kn: Node3D = keys[k]
 		room._hot_box("key%d" % int(k), kn.position + Vector3(0, 0.07, -0.04), Vector3(0.13, 0.2, 0.08), [kn])
 	var hd = parts.get("hall_door")
-	room._hot_box("hall", Vector3(PLAN.LOBBY_HALL_X, 1.0, PLAN.lobby_size().z * 0.5 - 0.06), Vector3(0.95, 2.05, 0.1), [hd] if hd != null else [])
+	var hall_glint: Array = []
+	if hd is MeshInstance3D:
+		hall_glint = [hd]
+	elif hd is Node3D:
+		hall_glint = (hd as Node3D).find_children("*", "MeshInstance3D", true, false)
+	room._hot_box("hall", Vector3(PLAN.LOBBY_HALL_X, 1.0, PLAN.lobby_size().z * 0.5 - 0.06), Vector3(0.95, 2.05, 0.1), hall_glint)
 	# You stand inside the door, the counter before you; or you came back from the corridor.
 	var sp := _lobby_spots()
 	_walker = WALK.new(room, sp, WAYS_LOBBY, "door", SFX + "rooms/steps_wood.mp3", -17.0)
 	_walker.on_go = func(to: String): _went(to)
 	var from_hall := str(room.arrive_spot) == "hall" and sp.has("hall")
 	# Back through from the corridor you are still going the way you were going: into the
-	# reception, the door behind you (the spot's own look is for walking up to that door).
+	# reception, the door behind you (the spot's own look is for walking up to that door);
+	# that door is the passage's till you are through it (arrive()).
 	_walker.put("hall" if from_hall else "door", Vector3(deg_to_rad(-4.0), 0.0, 0.0) if from_hall else null)
 	if from_hall:
-		room.get_tree().create_timer(0.25).timeout.connect(func():
-			if _alive() and str(_walker.here) == "hall":
-				_walker.go("end", Callable(), Vector3(deg_to_rad(-4.0), deg_to_rad(82.0), 0.0)))
+		_door_behind = hd as Node3D
+		if _door_behind != null:
+			_door_behind.visible = false
 	# The counter lit on the floor; the doors take you through by their own click.
 	_walker.floor_spots(["desk"], Vector2(0.8, 0.8))
 	_crew = MATES.new(room, sp, WAYS_LOBBY, "door")
@@ -371,9 +416,9 @@ func _room_things(hour: float) -> void:
 	var z1 := PLAN.BACK_Z + PLAN.BACK_D
 	room._hot_box("door", Vector3(d.x, 1.0, z1 + 0.02), Vector3(0.7, 2.05, 0.06), [])
 	if parts.get("key") != null:
-		room._hot_box("lock", (parts["key"] as Node3D).position + Vector3(0, 0.1, -0.04), Vector3(0.22, 0.26, 0.08), [parts["key"]])
+		room._hot_box("lock", _in_room(parts["key"]) + Vector3(0, 0.1, -0.04), Vector3(0.22, 0.26, 0.08), [parts["key"]])
 	if parts.get("chain") != null:
-		room._hot_box("chain", (parts["chain"] as Node3D).position + Vector3(0, 0.1, -0.04), Vector3(0.2, 0.22, 0.08), [parts["chain"]])
+		room._hot_box("chain", _in_room(parts["chain"]) + Vector3(0, 0.1, -0.04), Vector3(0.2, 0.22, 0.08), [parts["chain"]])
 	room._hot_box("peephole", Vector3(d.x, 1.55, z1 - 0.02), Vector3(0.14, 0.14, 0.08), [parts.get("peephole")] if parts.get("peephole") != null else [])
 	if parts.get("switch") != null:
 		room._hot_box("switch", (parts["switch"] as Node3D).position + Vector3(-0.04, 0, 0), Vector3(0.1, 0.2, 0.16), [parts["switch"]])
@@ -439,10 +484,15 @@ func _room_things(hour: float) -> void:
 	if parts.has("drip_at"):
 		_make_leak()
 	_make_roach()
-	# Through the little hall and into the room as you come in.
-	room.get_tree().create_timer(0.35).timeout.connect(func():
-		if _alive() and str(_walker.here) == "door":
-			_walker.go("room"))
+	# You come in through its door from the corridor: the corridor's side of it till you are
+	# through (arrive()); the stretch of corridor the peephole sees out of the way while the
+	# corridor itself stands there.
+	_door_behind = parts.get("door") as Node3D
+	if _door_behind != null:
+		_door_behind.visible = false
+	var stub: Node = room._root.get_node_or_null("CorridorStub")
+	if stub != null and room.is_staged():
+		(stub as Node3D).visible = false
 
 
 ## A picture for the TV's screen, laid over the screen of its sprite (which turns to you):
@@ -1150,9 +1200,18 @@ func _lobby_click(id: String, hour: float) -> bool:
 		"tv":
 			_toggle_tv(hour)
 		"hall":
+			# The corridor made up behind the door while you walk to it; there the door opens
+			# and you go through.
+			room.ready_next("motel_hall", 0, "lobby")
 			_walker.go("hall", func():
 				_play("backroom/room_door_open.mp3", -9.0)
-				room.go_to("motel_hall", 0, "lobby"))
+				var tw := ROOMS.swing(room, parts.get("hall_door") as Node3D, true, 0.5) if parts.get("hall_door") is Node3D and parts.get("hall_door").has_meta("open_deg") else null
+				if tw == null:
+					room.go_to("motel_hall", 0, "lobby")
+					return
+				tw.tween_callback(func():
+					if not room.through_door(Vector3(PLAN.LOBBY_HALL_X, 0.0, PLAN.lobby_size().z * 0.5 + PLAN.WALL_HALF * 0.5), Vector3(0, 0, 1)):
+						room.go_to("motel_hall", 0, "lobby")))
 		_:
 			if id.begins_with("key"):
 				var k := int(id.substr(3))
@@ -1482,9 +1541,17 @@ func wants_out() -> bool:
 	if lying:
 		get_up()
 		return false
+	if _busy_door:
+		return false
 	if _walker != null:
 		_walker.stop()
-	_into_hall()
+	# On foot to the door and through it (as the door's click: walk_out).
+	_ready_hall()
+	_walker.go("door", func():
+		var wait := 0.7 if turns > 0 else 0.3
+		room.get_tree().create_timer(wait).timeout.connect(func():
+			if _alive():
+				_into_hall()))
 	return false
 
 
@@ -1497,12 +1564,32 @@ func _out_sounds() -> void:
 	_play("backroom/room_door_open.mp3", -8.0)
 
 
+## The corridor made up behind the room's door while you walk to it (town_room.ready_next):
+## the stretch of it the peephole sees out of the way.
+func _ready_hall() -> void:
+	if room.ready_next("motel_hall", 0, "r%d" % n):
+		var stub: Node = room._root.get_node_or_null("CorridorStub") if room._root != null else null
+		if stub != null:
+			(stub as Node3D).visible = false
+
+
+## At the door: the key back, the chain off, the door open, and through it into the corridor.
 func _into_hall() -> void:
 	_out_sounds()
 	var trip = room.get_parent()
 	if trip != null and trip.has_method("left_motel_room"):
 		trip.left_motel_room()
-	room.go_to("motel_hall", 0, "r%d" % n)
+	var pv: Node3D = parts.get("door") as Node3D
+	var tw := ROOMS.swing(room, pv, true, 0.5) if pv != null else null
+	if tw == null:
+		room.go_to("motel_hall", 0, "r%d" % n)
+		return
+	_busy_door = true
+	tw.tween_callback(func():
+		_busy_door = false
+		var d := PLAN.room_door(n)
+		if not room.through_door(Vector3(d.x, 0.0, PLAN.BACK_Z + PLAN.BACK_D + PLAN.WALL_HALF * 0.5), Vector3(0, 0, 1)):
+			room.go_to("motel_hall", 0, "r%d" % n))
 
 
 ## The door clicked: to it on foot (off the bed first), then out.
@@ -1526,6 +1613,9 @@ func walk_out() -> void:
 	if lying:
 		get_up(func(): walk_out())
 		return
+	if _busy_door:
+		return
+	_ready_hall()
 	_walker.go("door", func():
 		var wait := 0.7 if turns > 0 else 0.3
 		room.get_tree().create_timer(wait).timeout.connect(func():

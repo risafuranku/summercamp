@@ -31,6 +31,9 @@ const ROOM_D := 4.3
 const WIN := Vector2(1.65, 2.85)
 const WIN_Y := Vector2(0.9, 2.15)
 const DOOR_H := 2.05
+## A wall between two of the inside's places (a room and the corridor, the reception and the
+## passage) is two halves of this, one each: they stand at once while you walk through.
+const WALL_HALF := 0.05
 ## The reception's street door in its bay, from its west edge.
 const DOOR := Vector2(0.4, 1.3)
 ## The corridor (motel space): its north and south walls; the stairs up along its south

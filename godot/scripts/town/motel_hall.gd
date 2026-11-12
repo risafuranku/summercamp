@@ -48,6 +48,11 @@ var _walker
 var _rng := RandomNumberGenerator.new()
 var _t := 0.0
 var _doors: Dictionary = {}          # n -> pivot
+var _darks: Dictionary = {}          # n -> the dark of its little hall behind the door
+## The passage's door to the reception (motel_rooms.hinged_leaf).
+var _lobby_door: Node3D
+## Where you came in (build's `arrive`): the door behind you shuts as you come (arrive()).
+var _arrive_at := "lobby"
 var _lamps: Array = []               # {"light", "mesh", "dying", "phase"}
 var _six_gap: MeshInstance3D
 var _six_light: OmniLight3D
@@ -93,7 +98,8 @@ static func spot_of(n: int) -> String:
 static func spots() -> Dictionary:
 	var r := func(p: float, y: float) -> Vector3: return Vector3(deg_to_rad(p), deg_to_rad(y), 0.0)
 	var out := {
-		"lobby": {"at": Vector3(PLAN.passage_x(), EYE, 0.75), "rot": r.call(-2.0, 180.0)},
+		# (Clear of its door as it swings into the passage: the leaf is 0.9 m wide.)
+		"lobby": {"at": Vector3(PLAN.passage_x(), EYE, 1.08), "rot": r.call(-2.0, 180.0)},
 		"junction": {"at": Vector3(PLAN.passage_x(), EYE, LINE_Z + 0.1), "rot": r.call(-2.0, -90.0)},
 		"west": {"at": Vector3(-HALF + 1.2, EYE, LINE_Z + 0.2), "rot": r.call(-2.0, 90.0)},
 		"s0": {"at": Vector3(PLAN.STAIRS_X.y + 0.1, EYE, 3.25), "rot": r.call(10.0, 90.0)},
@@ -149,19 +155,23 @@ func build(hour: float, arrive: String) -> void:
 	_walker.on_go = func(to: String): Coop.send_place("town", "motel", "walk", [to])
 	_crew = MATES.new(room, spots(), ways(), "lobby")
 	var at := arrive if spots().has(arrive) else "lobby"
+	_arrive_at = at
 	_walker.put(at)
 	# Out of a room you come through its door still going that way and turn along the corridor
 	# (the spot's own look is at the door behind you: the user 9. 11., "all at once facing
-	# backwards").
+	# backwards"); arrive() turns you along it.
 	if at != "lobby":
 		var d := PLAN.hall_door(int(at.substr(1)))
-		var along: float = spots()["top" if bool(PLAN.ROOMS[int(at.substr(1))]["up"]) else "junction"]["at"].x - d.x
 		room._cam.position = Vector3(d.x, d.y + EYE, NORTH + 0.22)
 		room._base_rot = Vector3(deg_to_rad(-4.0), PI, 0.0)
 		_walker.here = "out"
-		room.get_tree().create_timer(0.12).timeout.connect(func():
-			if _walker != null and room.is_open() and str(_walker.here) == "out":
-				_walker.go(at, Callable(), Vector3(deg_to_rad(-2.0), deg_to_rad(-90.0 if along >= 0.0 else 90.0), 0.0)))
+	# The door you come through is the place's you came from till you are through it (its
+	# leaf swings, the room stands behind it): this side of it out of the way till arrive().
+	var behind := _door_behind()
+	if behind != null:
+		behind.visible = false
+	if _darks.has(_room_of(at)):
+		(_darks[_room_of(at)] as Node3D).visible = false
 	# The corridor's ends and the stairs lit on the floor under the pointer; the stair's foot takes
 	# you up, its top down (the user 6. 11.: "I could only get about by knocking on doors, upstairs
 	# only by clicking a door through the ceiling"); a room's door walks you to it by its own click
@@ -172,11 +182,45 @@ func build(hour: float, arrive: String) -> void:
 	room._look.pitch_up_deg = 34.0
 	room._look.pitch_down_deg = 40.0
 	room._hot_box("lobby", Vector3(PLAN.passage_x(), 1.0, 0.16), Vector3(1.0, 2.1, 0.14), [])
-	# Down the passage and out into the corridor as you come through from the reception.
+
+
+## The room `spot` is at ("r4" -> 4), 0 for none.
+static func _room_of(spot: String) -> int:
+	return int(spot.substr(1)) if spot.begins_with("r") else 0
+
+
+## This side of the door you came in by: the passage's to the reception, or a room's.
+func _door_behind() -> Node3D:
+	if _arrive_at == "lobby":
+		return _lobby_door
+	return _doors.get(_room_of(_arrive_at)) as Node3D
+
+
+## Come in (town_room, once you stand where build put you: walked through the door, or
+## opened): the door behind you is this side's again, open, and swings shut; then on, down
+## the passage into the corridor or along it from the room's door.
+func arrive() -> void:
+	var at := _arrive_at
+	var behind := _door_behind()
+	if behind != null:
+		behind.visible = true
+		ROOMS.swing(room, behind, true, 0.0)
+		var tw := ROOMS.swing(room, behind, false, 0.6)
+		if tw != null:
+			tw.tween_callback(func():
+				if _darks.has(_room_of(at)):
+					(_darks[_room_of(at)] as Node3D).visible = true
+				_fx_play("backroom/room_door_close.mp3", -11.0))
 	if at == "lobby":
 		room.get_tree().create_timer(0.3).timeout.connect(func():
 			if _walker != null and room.is_open() and str(_walker.here) == "lobby":
 				_walker.go("junction"))
+		return
+	var d := PLAN.hall_door(_room_of(at))
+	var along: float = spots()["top" if bool(PLAN.ROOMS[_room_of(at)]["up"]) else "junction"]["at"].x - d.x
+	room.get_tree().create_timer(0.12).timeout.connect(func():
+		if _walker != null and room.is_open() and str(_walker.here) == "out":
+			_walker.go(at, Callable(), Vector3(deg_to_rad(-2.0), deg_to_rad(-90.0 if along >= 0.0 else 90.0), 0.0)))
 
 
 func _wall() -> StandardMaterial3D:
@@ -213,7 +257,9 @@ func _floors(root: Node3D) -> void:
 				holes.append([d.x - DOOR_W * 0.5, d.x + DOOR_W * 0.5, 0.0, PLAN.DOOR_H])
 		if not up:
 			holes.append([PLAN.passage_x() - 0.5, PLAN.passage_x() + 0.5, 0.0, 2.2])
-		var north := K.slab(root, Vector3(len, H, 0.1), Vector3(0, y + H * 0.5, NORTH - 0.05), wall, "WallNorth")
+		# (Its half of the wall: the rooms' side of it is theirs, motel_rooms._back; the two
+		# stand at once while you walk through a door.)
+		var north := K.slab(root, Vector3(len, H, PLAN.WALL_HALF), Vector3(0, y + H * 0.5, NORTH - PLAN.WALL_HALF * 0.5), wall, "WallNorth")
 		K.cut_wall(north, holes)
 		K.slab(root, Vector3(len, H, 0.1), Vector3(0, y + H * 0.5, SOUTH + 0.05), wall, "WallSouth")
 		# The ends, each with its window cut.
@@ -248,8 +294,12 @@ func _passage(root: Node3D) -> void:
 	K.slab(root, Vector3(1.0, 0.1, z1 - z0 + 0.2), Vector3(x, 2.25, zm), K.surface("ceiling_board", 1.0, Color(0.74, 0.7, 0.6)), "PassageCeiling")
 	for sx in [-1.0, 1.0]:
 		K.slab(root, Vector3(0.1, 2.3, z1 - z0 + 0.2), Vector3(x + float(sx) * 0.55, 1.15, zm), wall, "PassageWall")
-	K.slab(root, Vector3(1.2, 2.3, 0.1), Vector3(x, 1.15, z0 - 0.05), wall, "PassageEnd")
-	K.picture(root, "door_interior", Vector2(0.9, 2.05), Vector3(x, 1.025, z0 + 0.006), 0.0, "ToLobby")
+	# Its end: its half of the wall to the reception (the reception's is its own,
+	# motel_rooms.build_lobby), the door in it on the west jamb, opening into the passage as the
+	# reception's side of it does.
+	var end := K.slab(root, Vector3(1.2, 2.3, PLAN.WALL_HALF), Vector3(x, 1.15, z0 - PLAN.WALL_HALF * 0.5), wall, "PassageEnd")
+	K.cut_wall(end, [[-0.45, 0.45, 0.0, PLAN.DOOR_H]])
+	_lobby_door = ROOMS.hinged_leaf(root, Vector3(x - 0.45, 0.0, z0 - PLAN.WALL_HALF * 0.5), 0.9, PLAN.DOOR_H, Vector3(1, 0, 0), Vector3(0, 0, 1), Vector3(0, 0, 1), K.surface("veneer_dark", 0.6), "door_interior", "ToLobby", "door_interior")
 
 
 ## The stairs up along the south wall: the foot at the east end, rising west.
@@ -304,9 +354,14 @@ func _room_doors(root: Node3D) -> void:
 		var d := PLAN.hall_door(i)
 		var dark := K.slab(root, Vector3(DOOR_W + 0.1, PLAN.DOOR_H, 0.05), Vector3(d.x, d.y + PLAN.DOOR_H * 0.5, NORTH - 0.32), K.surface("veneer_dark", 0.6, Color(0.1, 0.09, 0.08)), "Dark")
 		dark.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_darks[i] = dark
+		# The threshold under the leaf (its half: the room has the other, motel_rooms._back).
+		K.slab(root, Vector3(DOOR_W, 0.1, PLAN.WALL_HALF), Vector3(d.x, d.y - 0.05, NORTH - PLAN.WALL_HALF * 0.5), K.surface("planks_dark", 0.6), "Threshold")
 		var pivot := Node3D.new()
 		pivot.name = "Door%d" % i
 		pivot.position = Vector3(d.x + DOOR_W * 0.5, d.y, NORTH - 0.03)
+		# (Swung by motel_rooms.swing, as the room's side of it.)
+		pivot.set_meta("open_deg", ROOMS.LEAF_OPEN_DEG)
 		root.add_child(pivot)
 		K.slab(pivot, Vector3(DOOR_W, PLAN.DOOR_H, 0.04), Vector3(-DOOR_W * 0.5, PLAN.DOOR_H * 0.5, 0.0), K.surface("veneer_dark", 0.6), "Leaf")
 		var path := TOWN + "motel_door_%d.png" % i
@@ -323,6 +378,19 @@ func _room_doors(root: Node3D) -> void:
 			face.position = Vector3(-DOOR_W * 0.5, PLAN.DOOR_H * 0.5, 0.023)
 			face.name = "Face"
 			pivot.add_child(face)
+		# Its other side, the room's (seen as it swings open into the corridor).
+		if ResourceLoader.exists(CAMP + "motel_door_in.png"):
+			var back := MeshInstance3D.new()
+			var bq := QuadMesh.new()
+			bq.size = Vector2(DOOR_W, PLAN.DOOR_H)
+			back.mesh = bq
+			var bm := K._base(Color(0.82, 0.78, 0.72))
+			bm.albedo_texture = load(CAMP + "motel_door_in.png")
+			back.material_override = bm
+			back.position = Vector3(-DOOR_W * 0.5, PLAN.DOOR_H * 0.5, -0.023)
+			back.rotation.y = PI
+			back.name = "Back"
+			pivot.add_child(back)
 		_doors[i] = pivot
 		room._hot_box("door%d" % i, Vector3(d.x, d.y + 1.0, NORTH + 0.04), Vector3(DOOR_W + 0.1, 2.05, 0.1), [])
 
@@ -530,21 +598,42 @@ func click(id: String, _hour: float) -> bool:
 	if _walker.busy or _busy_door:
 		return true
 	if id == "lobby":
-		_walker.go("lobby", func(): _to_lobby(), TO_LOBBY)
+		_go_lobby()
 		return true
 	if id == "housephone":
 		_walker.go("junction", func(): _fx_play("phone/dead.mp3", -13.0), Vector3(deg_to_rad(-8.0), deg_to_rad(-140.0), 0.0))
 		return true
 	if id.begins_with("door"):
 		var n := int(id.substr(4))
+		# Yours: the room made up behind its door now, while you walk to it (town_room.ready_next).
+		var trip = room.get_parent()
+		if trip != null and trip.has_method("may_enter") and bool(trip.may_enter(n)) and room.ready_next("motel_room", n, ""):
+			if _darks.has(n):
+				(_darks[n] as Node3D).visible = false
 		_walker.go(spot_of(n), func(): _try(n))
 		return true
 	return false
 
 
+## Back to the reception on foot: made up behind the passage's door while you walk there.
+func _go_lobby() -> void:
+	room.ready_next("motel", 0, "hall")
+	_walker.go("lobby", func(): _to_lobby(), TO_LOBBY)
+
+
+## At the passage's door: it opens and you go through into the reception.
 func _to_lobby() -> void:
 	_fx_play("backroom/room_door_open.mp3", -8.0)
-	room.go_to("motel", 0, "hall")
+	_busy_door = true
+	var tw := ROOMS.swing(room, _lobby_door, true, 0.5)
+	if tw == null:
+		_busy_door = false
+		room.go_to("motel", 0, "hall")
+		return
+	tw.tween_callback(func():
+		_busy_door = false
+		if not room.through_door(Vector3(PLAN.passage_x(), 0.0, 0.1 - PLAN.WALL_HALF * 0.5), Vector3(0, 0, -1)):
+			room.go_to("motel", 0, "hall"))
 
 
 ## At door `n`: yours opens; the others do not.
@@ -556,10 +645,13 @@ func _try(n: int) -> void:
 		var pv: Node3D = _doors[n]
 		var tw: Tween = room.create_tween()
 		tw.tween_interval(0.25)
-		tw.tween_property(pv, "rotation:y", deg_to_rad(82.0), 0.5).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		tw.tween_property(pv, "rotation:y", deg_to_rad(ROOMS.LEAF_OPEN_DEG), 0.5).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		# Through it into the room standing behind it (made up as you walked here).
 		tw.tween_callback(func():
 			_busy_door = false
-			room.go_to("motel_room", n, ""))
+			var d := PLAN.hall_door(n)
+			if not room.through_door(Vector3(d.x, d.y, NORTH - 0.03), Vector3(0, 0, -1)):
+				room.go_to("motel_room", n, ""))
 		return
 	_fx_play("director/knock_wrong.mp3", -9.0)
 	if n == PLAN.NEVER and block != null and is_instance_valid(block):
@@ -583,16 +675,16 @@ func copies() -> Array:
 
 
 func wants_out() -> bool:
-	if _walker != null:
+	if _walker != null and not _busy_door:
 		_walker.stop()
-	_to_lobby()
+		_go_lobby()
 	return false
 
 
 func walk_out() -> void:
-	if _walker == null or _walker.busy:
+	if _walker == null or _walker.busy or _busy_door:
 		return
-	_walker.go("lobby", func(): _to_lobby(), TO_LOBBY)
+	_go_lobby()
 
 
 # ── co-op ────────────────────────────────────────────────────────────────────

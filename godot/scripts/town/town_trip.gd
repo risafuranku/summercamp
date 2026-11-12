@@ -515,20 +515,84 @@ func _shut(which: String) -> bool:
 
 ## The room for Liblice's places (scripts/town/town_room.gd), made the first time.
 func _ensure_room() -> void:
-	if _room != null:
-		return
-	_room = TOWN_ROOM.new()
-	add_child(_room)
-	_room.set_modal_check(func(): return (_shop != null and _shop.visible) or (_pub != null and _pub.visible))
-	_room.can_buy = func(item: String) -> bool: return inventory == null or inventory.room_for(item)
-	_room.bought.connect(func(item: String):
+	if _room == null:
+		_room = _make_room()
+
+
+## A room for Liblice's places, wired: there are two of them, the one you are in (`_room`)
+## and the one the next place inside the motel is made up in behind its door
+## (`_next_room`, ready_next); they change places as you walk through (step_to_next).
+func _make_room() -> Node:
+	var r = TOWN_ROOM.new()
+	add_child(r)
+	r.set_modal_check(func(): return (_shop != null and _shop.visible) or (_pub != null and _pub.visible))
+	r.can_buy = func(item: String) -> bool: return inventory == null or inventory.room_for(item)
+	r.bought.connect(func(item: String):
 		if inventory != null:
 			inventory.add_item(item)
 	)
-	_room.drank.connect(func(): pockets.drunk += 1.0)
-	_room.wants_closeup.connect(_room_closeup)
-	_room.candle_lit.connect(func(count: int): Coop.send_place("town", "chapel", "candles", [count]))
-	_room.closed.connect(_room_closed)
+	r.drank.connect(func(): pockets.drunk += 1.0)
+	r.wants_closeup.connect(_room_closeup)
+	r.candle_lit.connect(func(count: int): Coop.send_place("town", "chapel", "candles", [count]))
+	# (The one left behind in a doorway closes too: not the room you are in any more.)
+	r.closed.connect(func():
+		if r == _room:
+			_room_closed()
+	)
+	return r
+
+
+# ── through a door inside the motel (town_room.ready_next / through_door) ──────
+
+## The other room: the next place made up in it behind the door you walk up to.
+var _next_room
+
+
+## `a`'s next place made up and waiting behind its door, or null.
+func next_of(a: Object) -> Object:
+	if a != _room or _next_room == null or not is_instance_valid(_next_room) or not _next_room.is_staged():
+		return null
+	return _next_room
+
+
+## The next place `p_place` (`n`: the motel's room) made up in the other room behind the door
+## the room you are in, `a`, is walking you up to; you come out at `spot` there. It has what
+## `a` has of the motel and of the way you came into the building.
+func ready_next(a: Object, p_place: String, n: int, spot: String) -> bool:
+	if a != _room:
+		return false
+	if _next_room == null or not is_instance_valid(_next_room):
+		_next_room = _make_room()
+	var b = _next_room
+	b.unstage()
+	for k in ["place_anchor", "place_shell", "motel_block", "motel_keys", "walked_from", "door_place", "_candles"]:
+		b.set(k, a.get(k))
+	if n > 0:
+		b.motel_n = n
+	b.arrive_spot = spot
+	b.stage(p_place, hour())
+	return true
+
+
+## In the doorway: the next place is the room you are in now, with your eye where it was; the
+## one you came from closes behind you and is the spare.
+func step_to_next(a: Object) -> void:
+	var b = next_of(a)
+	if b == null:
+		return
+	var cam: Camera3D = a.get("_cam")
+	var eye := cam.global_transform
+	var fov := cam.fov
+	_room = b
+	_next_room = a
+	a.close()
+	b.step_through(eye, fov)
+
+
+## Nothing made up behind a door any more (you left the building, or went another way).
+func drop_next() -> void:
+	if _next_room != null and is_instance_valid(_next_room):
+		_next_room.unstage()
 
 
 ## The room's building and the copy in it, the motel's block and its keys, for `which`.
@@ -607,6 +671,7 @@ func _open_room(which: String) -> void:
 ## The room shut: out of its doorway on foot when you came in by it (the walk out's last eye,
 ## interior_manager._step_out_of), else the room breaking up into the village.
 func _room_closed() -> void:
+	drop_next()
 	var building = _room.walked_from
 	_room.walked_from = null
 	_room.door_place = ""
