@@ -391,7 +391,9 @@ func push_pager(text: String, kind: int = STATUS_INFO, group: String = "") -> vo
 		feed_log.append({"at": (_day - 1) * 1440 + _parse_time_to_minutes(_time_str), "text": text, "kind": kind})
 		if feed_log.size() > FEED_LOG_MAX:
 			feed_log.pop_front()
-	var shown := text
+	# Looked up whole as the feed's labels are (lang.gd finds a filled-in line by its pattern:
+	# "Novak family is at reception." stayed English on the screen, 12. 11.).
+	var shown := tr(text)
 	for prefix in [tr("Pager: %s").replace("%s", ""), "Pager: "]:
 		if prefix != "" and shown.begins_with(prefix):
 			shown = shown.substr(prefix.length())

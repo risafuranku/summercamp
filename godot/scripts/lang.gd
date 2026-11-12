@@ -238,6 +238,13 @@ func _read(path: String) -> void:
 		field = line.substr(0, sp)
 		cur[field] = _unquote(line.substr(sp + 1).strip_edges())
 	_take(cur)
+	# The template with more words of its own first: "%s is at reception." before "%s is at
+	# %s" (12. 11.: "Novak family is at reception." came out as the other one's "Obsazeno: ...",
+	# the catalogue's order deciding). Same words, the one with fewer blanks first.
+	_templates.sort_custom(func(a, b) -> bool:
+		if int(a["letters"]) != int(b["letters"]):
+			return int(a["letters"]) > int(b["letters"])
+		return (a["specs"] as Array).size() < (b["specs"] as Array).size())
 
 
 func _unquote(q: String) -> String:
@@ -308,13 +315,13 @@ func _add_template(id: String, to: String) -> void:
 	var re := RegEx.create_from_string(pattern)
 	if not re.is_valid():
 		return
-	var entry := {"re": re, "lit": lit, "to": to, "specs": specs, "upper": false}
+	var entry := {"re": re, "lit": lit, "to": to, "specs": specs, "upper": false, "letters": letters}
 	_templates.append(entry)
 	var up := id.to_upper()
 	if up != id:
 		var re_up := RegEx.create_from_string(_upper_pattern(pattern))
 		if re_up.is_valid():
-			_templates.append({"re": re_up, "lit": lit.to_upper(), "to": _to_upper(to), "specs": specs, "upper": true})
+			_templates.append({"re": re_up, "lit": lit.to_upper(), "to": _to_upper(to), "specs": specs, "upper": true, "letters": letters})
 
 
 func _upper_pattern(pattern: String) -> String:
@@ -475,6 +482,12 @@ func _find(s: String, deep: bool) -> String:
 	# Wrapped in what is not a word.
 	var m := _re_wrap.search(s)
 	if m != null and (m.get_string(1) != "" or m.get_string(3) != "") and m.get_string(2) != "":
+		# A template written with that very ending first ("%s is at reception." for "Novak
+		# family is at reception.": cut off, the line went to "%s is at %s", 12. 11.).
+		if deep and m.get_string(3).strip_edges() != "":
+			var whole := _from_template(s, m.get_string(3).strip_edges())
+			if whole != "":
+				return whole
 		var core := _find(m.get_string(2), deep)
 		if core != "":
 			return m.get_string(1) + core + m.get_string(3)
@@ -532,13 +545,16 @@ func _by_sentences(s: String) -> String:
 	return " ".join(out)
 
 
-func _from_template(s: String) -> String:
+## `tail`: only a template whose own words end with it (the full stop the line ends with).
+func _from_template(s: String, tail := "") -> String:
 	var is_upper := s == s.to_upper()
 	for e in _templates:
 		if bool(e["upper"]) and not is_upper:
 			continue
 		var lit: String = e["lit"]
 		if lit != "" and not s.contains(lit):
+			continue
+		if tail != "" and not lit.ends_with(tail):
 			continue
 		var m: RegExMatch = (e["re"] as RegEx).search(s)
 		if m == null:
