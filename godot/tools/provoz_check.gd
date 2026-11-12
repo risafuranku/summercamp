@@ -729,8 +729,72 @@ func plates_state() -> void:
 	print("PROVOZ plates ", _plates())
 
 
+## --part=badges: a hand out at a job seen from a few steps off, the picture of the job
+## over their head (scripts/staff/job_badge.gd); "PROVOZ badge" says whose and which.
+func badges_state() -> void:
+	var a = CoreRoot.actions
+	var day: int = CoreRoot.get_day()
+	a.staff_add_gear("locker")
+	a.staff_add_gear("locker")
+	for slug in ["mirek", "zdenka", "hanka"]:
+		var p := BRT.person(slug, "staff", 0)
+		p["jobs"] = STAFF.default_jobs()
+		a.staff_hire(p, day - 1)
+	var st = CoreRoot.get_state()
+	for coord in st.grid.lamp_coords():
+		CoreRoot.failure_system._trigger_failure("%d:%d" % [coord.x, coord.y], "lamp_post", coord)
+		break
+	for k in st.accommodation_states.keys():
+		st.accommodation_states[k]["status"] = "dirty"
+	var de = _main.get("_day_events")
+	if de != null:
+		de.debug_start("litter")
+		de.debug_start("raccoons")
+
+
+func badge_view(n: int) -> String:
+	var rt = get_tree().get_first_node_in_group("staff_runtime")
+	if rt == null:
+		return "no staff runtime"
+	var figs: Dictionary = rt.get("_figs")
+	var found: Array = []
+	for slug in figs:
+		var spr: Sprite3D = figs[slug]
+		var b := spr.get_node_or_null("JobBadge") as Sprite3D if is_instance_valid(spr) else null
+		if b != null and b.visible and spr.visible:
+			found.append(slug)
+	print("PROVOZ badge hands with a picture: ", found, " all: ", figs.keys(), " acts: ", rt.call("_acts"))
+	if found.is_empty():
+		return "none"
+	var slug = found[n % found.size()]
+	var spr: Sprite3D = figs[slug]
+	var at: Vector3 = spr.global_position
+	var feet := at.y - float(spr.texture.get_height()) * spr.pixel_size * 0.5
+	var from := at + Vector3(2.6, 0.0, 2.0)
+	var player = _main.get("_player")
+	_main.set("debug_camera", null)
+	player.global_position = Vector3(from.x, feet + 0.2, from.z)
+	var d := at - from
+	player.rotation.y = atan2(-d.x, -d.z)
+	return "%s at %s" % [str(slug), str(at)]
+
+
 func _ready() -> void:
 	super._ready()
+	if OS.get_cmdline_user_args().has("--part=badges"):
+		_steps = [
+			["wait_menu"], ["call", "_on_menu_new_camp", ["Provoz", 4242, false, true, {"threats": false, "weather": false, "events": false, "wear": false, "money": 100000}]], ["wait_gameplay"], ["wait", 2.0],
+			["auto_checkin", false], ["auto_accept", false],
+			["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
+			["eval", C + ".plates_camp()"], ["wait", 6.0],
+			["eval", C + ".badges_state()"], ["wait", 1.0],
+			["eval", "Engine.set('time_scale', 12.0)"], ["wait", 40.0], ["eval", "Engine.set('time_scale', 1.0)"], ["wait", 0.5],
+			["eval", C + ".badge_view(0)"], ["wait", 0.6], ["shot", "b1_badge"],
+			["eval", C + ".badge_view(1)"], ["wait", 0.6], ["shot", "b2_badge"],
+			["eval", C + ".badge_view(2)"], ["wait", 0.6], ["shot", "b3_badge"],
+			["eval", "get_tree().quit()"],
+		]
+		return
 	if OS.get_cmdline_user_args().has("--part=plates"):
 		_steps = [
 			["wait_menu"], ["call", "_on_menu_new_camp", ["Provoz", 4242, false, true, {"threats": false, "weather": false, "events": false, "wear": false, "money": 100000}]], ["wait_gameplay"], ["wait", 2.0],

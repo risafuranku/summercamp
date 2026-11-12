@@ -29,6 +29,7 @@ const PLAN = preload("res://scripts/staff/staffroom_plan.gd")
 const ROOM = preload("res://scripts/staff/staffroom.gd")
 const ROOM_RULES = preload("res://core/systems/room_rules.gd")
 const COOP_FIGURE = preload("res://scripts/coop/remote_player.gd")
+const JOB_BADGE = preload("res://scripts/staff/job_badge.gd")
 const LANG = preload("res://scripts/lang.gd")
 const PERSON_M := 1.74
 const STEP := 0.5
@@ -1013,6 +1014,8 @@ func _draw() -> void:
 	var acts := _acts()
 	var seen := {}
 	var room := staffroom()
+	var state = CoreRoot.get_state() if CoreRoot != null else null
+	var failures: Dictionary = state.failures if state != null else {}
 	for p in _crew():
 		var slug := str(p.get("slug", ""))
 		var act: Dictionary = acts.get(slug, {})
@@ -1077,6 +1080,8 @@ func _draw() -> void:
 				spr.flip_h = dir.dot(cam.global_basis.x) < 0.0
 		elif pose == "sweep":
 			spr.flip_h = int(_t * 2.0) % 2 == 0
+		# What they are out to see to, over their head (scripts/staff/job_badge.gd).
+		JOB_BADGE.set_over(spr, JOB_BADGE.kind_of(act, failures) if pose in ["stand", "sweep"] else "")
 	for slug in _figs.keys():
 		if not seen.has(slug):
 			(_figs[slug] as Node).queue_free()
