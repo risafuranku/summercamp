@@ -15,6 +15,13 @@ extends Control
 signal task_completed(task_id: String)
 
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
+const PREP = preload("res://scripts/interior_prep.gd")
+## The room's card (12. 11.: it was a list of sentences, "[ ] Sweep up the cigarette ends" ten
+## times over): the room, how it stands, then what is left as pictures of it (the mess's own
+## sprite; a count when there is more than one of a kind), the done ones dark with a tick. What
+## a picture is, the prompt under the pointer says when you look at the thing.
+const ICON_VP := 18
+const TICK_PATH := "res://assets/textury/hud/job_tick.png"
 const WORK_HAND = preload("res://scripts/ui/work_hand.gd")
 const GESTURE = preload("res://scripts/ui/gesture.gd")
 ## Mess that gets smaller stroke by stroke (a made bed does not).
@@ -594,19 +601,68 @@ func _refresh_checklist(room: Dictionary) -> void:
 	if ready or occupied:
 		return
 	var done: Array = room.get("done", [])
-	# A block's list by its parts, each under its own heading (the toilets' cubicles, the
-	# showers: playtest 25. 10., "split the toilets' list for each cubicle").
-	var group := ""
+	# A block's jobs by its parts, each its own row under its heading (the toilets' cubicles,
+	# the showers: playtest 25. 10., "split the toilets' list for each cubicle"); in a row one
+	# picture a kind of job, its count.
+	var rows: Array = []      # [[heading, {kind: [left, all, label]}, [kinds in order]]]
 	for t in room.get("tasks", []):
 		var g := str((t as Dictionary).get("group", ""))
-		if g != "" and g != group:
-			group = g
-			_checklist.add_child(RETRO_UI.label(g, RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_TEXT, RETRO_UI.C_AMBER_LIGHT, _scale))
-		var is_done := done.has(str(t["id"]))
-		# The task translated before the box goes in front ("[X] Scrub the toilet" was never
-		# found in Czech: the X is a letter, so the line was not taken as wrapped).
-		var text := "%s %s" % ["[X]" if is_done else "[ ]", tr(str(t["label"]))]
-		_checklist.add_child(RETRO_UI.label(text, RETRO_UI.FONT_TEXT, RETRO_UI.SIZE_TEXT, RETRO_UI.C_BONE_DIM if is_done else RETRO_UI.C_BONE, _scale))
+		if rows.is_empty() or str(rows[-1][0]) != g:
+			rows.append([g, {}, []])
+		var kind := str((t as Dictionary).get("mess", t.get("id", "")))
+		var row: Array = rows[-1]
+		if not (row[1] as Dictionary).has(kind):
+			row[1][kind] = [0, 0, str(t.get("label", ""))]
+			(row[2] as Array).append(kind)
+		row[1][kind][1] += 1
+		if not done.has(str(t["id"])):
+			row[1][kind][0] += 1
+	for row in rows:
+		if str(row[0]) != "":
+			_checklist.add_child(RETRO_UI.label(str(row[0]), RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_TEXT, RETRO_UI.C_AMBER_LIGHT, _scale))
+		var line := HBoxContainer.new()
+		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		line.add_theme_constant_override("separation", 2 * _scale)
+		_checklist.add_child(line)
+		for kind in row[2]:
+			var c: Array = row[1][kind]
+			line.add_child(_job_cell(str(kind), int(c[0]), int(c[1]), str(c[2])))
+
+
+## One kind of job on the card: its picture (`left` of `all` still to do: the count when more
+## than one is left; none left, dark with a tick). Without a picture, its line as before.
+func _job_cell(kind: String, left: int, all: int, label: String) -> Control:
+	var tex := PREP.job_icon(kind)
+	if tex == null:
+		return RETRO_UI.label("%s %s" % ["[X]" if left == 0 else "[ ]", tr(label)], RETRO_UI.FONT_TEXT, RETRO_UI.SIZE_TEXT, RETRO_UI.C_BONE_DIM if left == 0 else RETRO_UI.C_BONE, _scale)
+	var cell := Control.new()
+	cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cell.custom_minimum_size = Vector2(ICON_VP, ICON_VP) * float(_scale)
+	var pic := TextureRect.new()
+	pic.texture = tex
+	pic.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	pic.set_anchors_preset(Control.PRESET_FULL_RECT)
+	pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pic.modulate = Color(0.3, 0.3, 0.3) if left == 0 else Color(1, 1, 1)
+	cell.add_child(pic)
+	if left == 0 and ResourceLoader.exists(TICK_PATH):
+		var tick := TextureRect.new()
+		tick.texture = load(TICK_PATH)
+		tick.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		tick.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tick.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		tick.set_anchors_preset(Control.PRESET_FULL_RECT)
+		tick.offset_left = float(ICON_VP) * 0.35 * float(_scale)
+		tick.offset_top = float(ICON_VP) * 0.35 * float(_scale)
+		tick.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		cell.add_child(tick)
+	elif left > 1:
+		var n := RETRO_UI.label(str(left), RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_AMBER_LIGHT, _scale)
+		n.position = Vector2(float(ICON_VP) - 5.0, float(ICON_VP) - 7.0) * float(_scale)
+		cell.add_child(n)
+	return cell
 
 
 ## Shot driver: what a task's registered body is ([path, visible, instance id, done]).

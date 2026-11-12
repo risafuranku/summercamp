@@ -2646,13 +2646,33 @@ func set_upkeep_target(coord: Vector2i, building_type: String) -> void:
 		_finish_upkeep()
 
 
+## The block's name on its card: "Toilets", "Showers", a number when the camp has more than
+## one of the kind (in the order they stand on the plan, row by row). It was its coordinates:
+## "Toilets 17:4".
+func _block_label() -> String:
+	var label := tr("Toilets") if _upkeep_type == "toilet_block" else tr("Showers")
+	var state = CoreRoot.get_state()
+	var grid = state.grid if state != null else null
+	if grid == null:
+		return label
+	var roots: Array = []
+	for c in grid.cells:
+		var cell: Dictionary = grid.cells[c]
+		if str(cell.get("type", "")) == _upkeep_type and cell.get("root_coord", c) == c:
+			roots.append(c)
+	if roots.size() < 2:
+		return label
+	roots.sort_custom(func(a, b) -> bool: return a.y < b.y or (a.y == b.y and a.x < b.x))
+	var mine := Vector2i(int(_upkeep_key.get_slice(":", 0)), int(_upkeep_key.get_slice(":", 1)))
+	return "%s %d" % [label, roots.find(mine) + 1]
+
+
 func _upkeep_room_dict() -> Dictionary:
 	var entry: Dictionary = _upkeep_cache.get(_upkeep_key, {})
 	var tasks: Array = _grouped_block_tasks(entry.get("tasks", []))
 	var clean := tasks.is_empty() or bool(entry.get("spent", false))
-	var label := "Toilets" if _upkeep_type == "toilet_block" else "Showers"
 	return {
-		"label": "%s %s" % [label, _upkeep_key],
+		"label": _block_label(),
 		"status": "ready" if clean else "dirty",
 		"ready_text": "CLEAN",
 		"dirty_text": "BROKEN DOWN" if bool(entry.get("broken", false)) else "NEEDS CLEANING",

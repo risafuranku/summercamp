@@ -416,6 +416,31 @@ static func build_mess(parent: Node3D, pos: Vector3, kind: String, rng: RandomNu
 const MESS_TEX := "res://assets/textury/mess/"
 static var _decal_mats: Dictionary = {}
 
+## The picture that stands for a job on the room's card (interior_tasks): a kind of mess by its
+## main sprite here (as `_spot` lays it), the bed and the fixings by theirs in
+## assets/textury/hud (tools/artgen prompts_day.tsv hud_job_icons).
+const MESS_ICON := {"bottles": "litter_bottles", "cans": "litter_cans", "papers": "litter_wrappers",
+	"butts": "litter_butts", "food": "litter_food", "clothes": "litter_clothes", "mud": "dirt_footprints",
+	"sand": "litter_sand", "vomit": "dirt_vomit", "piss": "dirt_piss", "poop": "dirt_poop",
+	"wads": "litter_toiletpaper", "mushrooms": "litter_mushrooms", "toys": "litter_toys", "ash": "litter_ash",
+	"sawdust": "litter_sawdust", "toilet_grime": "dirt_grime", "bowl_dirty": "dirt_grime", "sink_grime": "dirt_grime",
+	"hair": "litter_hair", "puddle": "dirt_puddle", "paper_out": "litter_toiletroll", "shower_mould": "dirt_mould",
+	"cobwebs": "cobweb_corner", "blood": "carnage_blood", "remains": "carnage_remains", "spawn": "litter_mushrooms",
+	"graffiti": "decal_scratches", "handprints": "decal_handprint", "smashed": "carnage_glass", "slit": "carnage_tear",
+	"blocked": "dirt_poop"}
+const JOB_ICON := {"bed": "job_bed", "showerhead": "job_showerhead", "slop": "job_slop", "bedding": "job_bedding"}
+const HUD_TEX := "res://assets/textury/hud/"
+
+
+## The picture for a job (`kind`: the task's mess, or "bed"), null when there is none.
+static func job_icon(kind: String) -> Texture2D:
+	var path := ""
+	if JOB_ICON.has(kind):
+		path = HUD_TEX + str(JOB_ICON[kind]) + ".png"
+	elif MESS_ICON.has(kind):
+		path = MESS_TEX + str(MESS_ICON[kind]) + ".png"
+	return load(path) if path != "" and ResourceLoader.exists(path) else null
+
 
 ## `file` in assets/textury/mess when it is drawn, else `fallback`.
 static func _mess_or(file: String, fallback: String) -> String:
