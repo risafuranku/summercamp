@@ -90,6 +90,19 @@ const WALL_T := 0.9
 const FRONT_Z := D * 0.5 + WALL_T
 const BACK_Z := -D * 0.5 - ARCH_T - PRES_D - WALL_T
 const DOOR_STEP := VILLAGE + Vector3(0.0, 0.0, FRONT_Z + 1.0)
+## The front's picture and its measures (how wide its walls are in it: town_lesna's fronts).
+const FRONT := "res://assets/textury/town/lib_chapel.png"
+const FACADES := "res://assets/textury/town/lib_facades.json"
+## The portal's two wooden leaves in the picture, below its round top (that stays, a fixed
+## panel in the arch; the leaves' top under the loft's floor inside): px. town_lesna hangs
+## them, you walk through them (door_spec).
+const DOOR_LEAVES := [Rect2(79, 197, 21, 58), Rect2(100, 197, 21, 58)]
+## The door from inside (chapel_door_in.png, under the loft's floor) and the arch the doorway
+## through the nave's wall is cut to behind it, in steps clear inside its stone frame: each
+## [from, to] its height's share over the floor, its width's share.
+const DOOR_IN_H := 2.75
+const DOOR_IN_ARCH := [[0.0, 0.713, 0.88], [0.713, 0.785, 0.82], [0.785, 0.857, 0.7], [0.857, 0.909, 0.54]]
+const PAINTED_DOOR = preload("res://scripts/painted_door.gd")
 ## How high the damp has climbed the walls.
 const DAMP_H := 2.3
 ## The bucket in the aisle under the leak in the vault.
@@ -262,6 +275,64 @@ func seat() -> Variant:
 
 func copies() -> Array:
 	return []
+
+
+## The front's measures (lib_facades.json), {} without them.
+static func front_meta() -> Dictionary:
+	if not ResourceLoader.exists(FACADES):
+		return {}
+	var j = load(FACADES)
+	if not (j is JSON) or not (j.data is Dictionary):
+		return {}
+	return (j.data as Dictionary).get("lib_chapel", {})
+
+
+## The front's picture as big as it stands on the church: as wide as the nave's outer walls
+## between the corners painted in it.
+static func front_size() -> Vector2:
+	var ow := W + WALL_T * 2.0
+	var meta := front_meta()
+	if meta.is_empty():
+		return Vector2(ow, ow * 1.31)
+	var x := ow / (float(meta["wall_r"]) - float(meta["wall_l"]))
+	return Vector2(x, x * float(meta["m"][1]) / float(meta["m"][0]))
+
+
+## The doorway under the leaves, room space: x across, y from the nave's floor to its top.
+static func door_rect() -> Rect2:
+	var pic := front_size()
+	var px := Vector2((load(FRONT) as Texture2D).get_size())
+	var r := PAINTED_DOOR.rect(px, (DOOR_LEAVES[0] as Rect2).merge(DOOR_LEAVES[1]), Vector3(0.0, pic.y * 0.5, 0.0), pic)
+	return Rect2(r.position.x, 0.0, r.size.x, r.end.y - FLOOR_Y)
+
+
+## The doorway through the nave's wall behind the door's picture inside: its arch in steps
+## (DOOR_IN_ARCH), or the doorway's own size behind the plain door.
+func _door_in_holes() -> Array:
+	var dr := door_rect()
+	if not _exists("chapel_door_in"):
+		return [[dr.position.x, dr.end.x, 0.0, dr.end.y]]
+	var s := _size("chapel_door_in", DOOR_IN_H)
+	var cx := dr.get_center().x
+	var out: Array = []
+	for st in DOOR_IN_ARCH:
+		var hw: float = s.x * float(st[2]) * 0.5
+		out.append([cx - hw, cx + hw, s.y * float(st[0]), s.y * float(st[1])])
+	return out
+
+
+## The door as door_through wants it (town_room.door_spec): in the plane of the building's
+## leaves (the front's picture 3 cm out of the wall, the leaves 2.2 cm out of it), the doorway,
+## the church's wall from there to the nave's inside face, the door's picture inside out of the
+## way while you come through.
+func door_spec() -> Dictionary:
+	var r := door_rect()
+	var leaf_z := FRONT_Z + 0.052
+	var leaf: Array = []
+	var d: Node = room._root.get_node_or_null("Door") if room != null and room._root != null else null
+	if d != null:
+		leaf.append(d)
+	return {"at": Vector3(r.get_center().x, 0.0, leaf_z), "size": r.size, "inner": leaf_z - D * 0.5, "leaf": leaf}
 
 
 func _exists(tex: String) -> bool:
@@ -450,7 +521,10 @@ func _nave(root: Node3D) -> void:
 	K.slab(root, Vector3(W, 0.1, D), Vector3(0, -0.05, 0), stone, "Floor")
 	K.slab(root, Vector3(0.1, WALL_H, D), Vector3(-W * 0.5 - 0.05, WALL_H * 0.5, 0), lime, "WallWest")
 	K.slab(root, Vector3(0.1, WALL_H, D), Vector3(W * 0.5 + 0.05, WALL_H * 0.5, 0), lime, "WallEast")
-	K.slab(root, Vector3(W, CROWN + 0.1, 0.1), Vector3(0, (CROWN + 0.1) * 0.5, D * 0.5 + 0.05), lime, "WallDoor")
+	var front := K.slab(root, Vector3(W, CROWN + 0.1, 0.1), Vector3(0, (CROWN + 0.1) * 0.5, D * 0.5 + 0.05), lime, "WallDoor")
+	# The doorway through it (walked through: door_spec).
+	var dr := door_rect()
+	K.cut_wall(front, _door_in_holes())
 	# The triumphal arch: the opening in steps to its round top, as thick as a church's.
 	var arch := K.slab(root, Vector3(W, CROWN + 0.1, ARCH_T), Vector3(0, (CROWN + 0.1) * 0.5, -D * 0.5 - ARCH_T * 0.5), lime, "Arch")
 	var hw := ARCH_W * 0.5
@@ -460,7 +534,9 @@ func _nave(root: Node3D) -> void:
 	# The damp up every wall of the nave.
 	_damp(D, Vector3(-W * 0.5, 0, 0), Vector3(1, 0, 0))
 	_damp(D, Vector3(W * 0.5, 0, 0), Vector3(-1, 0, 0))
-	_damp(W, Vector3(0, 0, D * 0.5), Vector3(0, 0, -1))
+	# (On the door's wall either side of the doorway, clear of it.)
+	_damp(dr.position.x + W * 0.5, Vector3((dr.position.x - W * 0.5) * 0.5, 0, D * 0.5), Vector3(0, 0, -1))
+	_damp(W * 0.5 - dr.end.x, Vector3((dr.end.x + W * 0.5) * 0.5, 0, D * 0.5), Vector3(0, 0, -1))
 	_damp((W - ARCH_W) * 0.5, Vector3(-(W + ARCH_W) * 0.25, 0, -D * 0.5), Vector3(0, 0, 1))
 	_damp((W - ARCH_W) * 0.5, Vector3((W + ARCH_W) * 0.25, 0, -D * 0.5), Vector3(0, 0, 1))
 
@@ -758,12 +834,14 @@ func _face_shaft(s: Dictionary) -> void:
 ## down through the loft's floor.
 func _by_the_door(root: Node3D) -> void:
 	var dz := D * 0.5 - 0.01
+	# (Over the doorway, door_rect.)
+	var dr := door_rect()
 	if _exists("chapel_door_in"):
-		K.cutout(root, "chapel_door_in", _size("chapel_door_in", 2.75), Vector3(0, 0.0, dz), 180.0, false, "Door")
+		K.cutout(root, "chapel_door_in", _size("chapel_door_in", DOOR_IN_H), Vector3(dr.get_center().x, 0.0, dz), 180.0, false, "Door")
 	else:
-		K.picture(root, "door_interior", Vector2(1.2, 2.2), Vector3(0, 1.1, dz), 180.0, "Door")
+		K.picture(root, "door_interior", dr.size, Vector3(dr.get_center().x, dr.get_center().y, dz), 180.0, "Door")
 	if _exists("holy_water"):
-		K.cutout(root, "holy_water", _size("holy_water", 0.4), Vector3(1.05, 0.9, dz - 0.02), 180.0, false, "Stoup")
+		K.cutout(root, "holy_water", _size("holy_water", 0.4), Vector3(1.2, 0.9, dz - 0.02), 180.0, false, "Stoup")
 	if _exists("collection_box"):
 		var box := K.cutout(root, "collection_box", _size("collection_box", 1.0), Vector3(-1.45, 0.0, 5.0), 0.0, true, "OfferBox")
 		room._hot_box("box", Vector3(-1.45, 0.8, 5.0), Vector3(0.4, 0.5, 0.4), [box])
@@ -2120,7 +2198,9 @@ func wants_out() -> bool:
 		return false
 	if _walker != null:
 		_walker.stop()
-	_play("chapel/door.mp3", -10.0)
+	# (On foot the leaves' own creak is the door: door_anim.)
+	if not room.on_foot():
+		_play("chapel/door.mp3", -10.0)
 	return true
 
 
@@ -2133,13 +2213,11 @@ func walk_out() -> void:
 		return
 	_sitting = false
 	room._look.pitch_down_deg = 34.0
+	# (The door's sound is wants_out's, room.leave asks it.)
 	if _walker.here == "door":
-		_play("chapel/door.mp3", -10.0)
-		room.close()
+		room.leave()
 		return
-	_walker.go("door", func():
-		_play("chapel/door.mp3", -10.0)
-		room.close(), Vector3(deg_to_rad(-3.0), PI, 0.0))
+	_walker.go("door", func(): room.leave(), Vector3(deg_to_rad(-3.0), PI, 0.0))
 
 
 ## The other wardens: in the aisle under the loft, a little ahead of the door.

@@ -29,6 +29,9 @@ const BOX := Vector3(10.0, 3.2, 6.0)
 ## The holes (px: x0, y0, x1, y1): the shop window, the door's glass.
 const PANES := [[22, 42, 154, 103]]
 const DOOR_GLASS := [[183, 47, 218, 133]]
+## The glazed door's leaf in the picture, its frame and all (town_lesna makes it a leaf you walk
+## through, door_spec): px.
+const DOOR_LEAF := Rect2(180, 45, 41, 91)
 const FLOOR_Y := 0.2
 const ROOM := Vector3(5.4, 2.7, 4.0)
 const STAND := Vector3(1.45, 1.58, 1.15)
@@ -107,11 +110,14 @@ static func build(root: Node3D, room = null, lit := false) -> Dictionary:
 	if inside:
 		var front := K.slab(root, Vector3(w, h, 0.1), Vector3(0, h * 0.5, d * 0.5 + 0.05), oil, "WallFront")
 		var holes: Array = []
-		for r in PANES + DOOR_GLASS:
+		for r in PANES:
 			var p := pane(r)
 			var at: Vector3 = p["at"]
 			var sz: Vector2 = p["size"]
 			holes.append([at.x - sz.x * 0.5, at.x + sz.x * 0.5, at.y - sz.y * 0.5, at.y + sz.y * 0.5])
+		# The whole door open (walked through, door_spec).
+		var dh := door_rect()
+		holes.append([dh.position.x, dh.end.x, 0.0, dh.end.y])
 		K.cut_wall(front, holes)
 		K.skirting(root, ROOM, "planks_dark")
 	# The window display behind the shop window: oil cans, maps, cigarettes on a low stand.
@@ -218,6 +224,24 @@ func _init(p_room = null, p_anchor: Node3D = null, p_shell: Node3D = null) -> vo
 	room = p_room
 	anchor = p_anchor
 	shell = p_shell
+
+
+## The door's opening in the front wall, room space (the picture's x from its left is the room's
+## x from -W/2: pane()): x across, y from the floor to its top.
+static func door_rect() -> Rect2:
+	var x0 := DOOR_LEAF.position.x / PX_M - W * 0.5
+	var x1 := DOOR_LEAF.end.x / PX_M - W * 0.5
+	var top := H - DOOR_LEAF.position.y / PX_M - FLOOR_Y
+	return Rect2(x0, 0.0, x1 - x0, top)
+
+
+## The door as door_through wants it (town_room.door_spec): in the plane of the building's leaf
+## (the front's picture 2 cm out of the box, the leaf 2.2 cm out of it), the doorway, the wall's
+## depth to the room's inside face.
+func door_spec() -> Dictionary:
+	var r := door_rect()
+	var leaf_z: float = BOX.z * 0.5 + 0.042 + origin().z
+	return {"at": Vector3(r.get_center().x, 0.0, leaf_z), "size": r.size, "inner": leaf_z - ROOM.z * 0.5}
 
 
 func build_inside(hour: float) -> void:

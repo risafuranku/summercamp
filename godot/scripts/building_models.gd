@@ -15,6 +15,8 @@ const CAMP := "res://assets/textury/camp/"
 const CL = preload("res://scripts/cabin_layout.gd")
 ## The toilet block's, the shower house's and the generator shed's plan (service_interior.gd).
 const SERVICE_PLAN = preload("res://scripts/service_plan.gd")
+## A painted door made a leaf, the picture cut round it (shared with Liblice's fronts).
+const PAINTED_DOOR = preload("res://scripts/painted_door.gd")
 const WORLD_GEN = preload("res://scripts/world_generator.gd")
 const FONT := "res://assets/fonts/w95b.fnt"
 const MODELS := ["toilet_block", "shower_block", "pub", "restaurant", "power_generator", "sewer",
@@ -372,55 +374,27 @@ func _room_inside(r: Node3D, at: Vector3, room_name: String, build: Callable, la
 	return room
 
 
-## A door painted on a front picture made a real one (the user 4. 11.: a smooth way in at
-## every building; scripts/ui/door_through.gd): a leaf the size of the painted door, its face
-## cut from the same picture (`px`, the door's pixels), hung and swung by door_anim.gd.
-## `quad_at` and `quad_size`: the front's quad the picture is on.
+## A door painted on a front picture made a real one (scripts/painted_door.gd): a leaf the size
+## of the painted door, its face cut from the same picture (`px`, the door's pixels), hung and
+## swung by door_anim.gd. `quad_at` and `quad_size`: the front's quad the picture is on.
 func _painted_leaf(r: Node3D, n: String, file: String, px: Rect2, quad_at: Vector3, quad_size: Vector2) -> MeshInstance3D:
 	if not ResourceLoader.exists(CAMP + file):
 		return null
-	var tex: Texture2D = load(CAMP + file)
-	var pic := Vector2(tex.get_size())
-	var at := _painted_rect(file, px, quad_at, quad_size)
-	var size := at.size
-	var centre := Vector3(at.get_center().x, at.get_center().y, quad_at.z + 0.022)
-	var leaf := _box(r, n, Vector3(size.x, size.y, 0.04), centre, _wood())
-	var face := _face_mat(file)
-	face.uv1_offset = Vector3(px.position.x / pic.x, px.position.y / pic.y, 0.0)
-	face.uv1_scale = Vector3(px.size.x / pic.x, px.size.y / pic.y, 1.0)
-	_painted(_quad(r, n + "Face", size, centre + Vector3(0, 0, 0.021), 0.0, face))
-	return leaf
+	return PAINTED_DOOR.leaf(r, n, load(CAMP + file), px, quad_at, quad_size, 1.0, _wood(), _face_mat(file))
 
 
 ## Where the door painted at `px` on the picture `file` (on the front's quad at `quad_at`,
 ## `quad_size`) is on the model's front: x from its left jamb, y from its sill.
 func _painted_rect(file: String, px: Rect2, quad_at: Vector3, quad_size: Vector2) -> Rect2:
-	var pic := Vector2((load(CAMP + file) as Texture2D).get_size())
-	var x0 := quad_at.x - quad_size.x * 0.5 + px.position.x / pic.x * quad_size.x
-	var x1 := quad_at.x - quad_size.x * 0.5 + px.end.x / pic.x * quad_size.x
-	var y_top := quad_at.y + quad_size.y * 0.5 - px.position.y / pic.y * quad_size.y
-	var y_bot := quad_at.y + quad_size.y * 0.5 - px.end.y / pic.y * quad_size.y
-	return Rect2(x0, y_bot, x1 - x0, y_top - y_bot)
+	return PAINTED_DOOR.rect(Vector2((load(CAMP + file) as Texture2D).get_size()), px, quad_at, quad_size)
 
 
-## A front picture with the door painted on it (`px`, its pixels) cut out: the doorway
-## open behind the leaf, the room standing in it in the camp's one world (W26).
+## The front's picture with its painted door cut out (the room behind the doorway).
 func _door_cut_face(file: String, px: Rect2) -> StandardMaterial3D:
 	var m := _face_mat(file)
-	var key := "door_cut|%s|%s" % [file, str(px)]
-	var tex: Texture2D = _cache.get(key)
-	if tex == null:
-		var img: Image = (m.albedo_texture as Texture2D).get_image() if m.albedo_texture != null else null
-		if img == null:
-			return m
-		img = img.duplicate() as Image
-		if img.is_compressed():
-			img.decompress()
-		img.convert(Image.FORMAT_RGBA8)
-		img.fill_rect(Rect2i(px), Color(0, 0, 0, 0))
-		tex = ImageTexture.create_from_image(img)
-		_cache[key] = tex
-	m.albedo_texture = tex
+	if m.albedo_texture == null:
+		return m
+	m.albedo_texture = PAINTED_DOOR.cut_texture(m.albedo_texture, [px])
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 	m.alpha_scissor_threshold = 0.5
 	return m

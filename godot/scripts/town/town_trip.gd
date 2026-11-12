@@ -20,6 +20,8 @@ extends Node
 ## aside. Created and owned by InteriorManager.
 
 const TIMES = preload("res://scripts/town/bus_timetable.gd")
+## The leaves of the places' doors, walked through (interior_manager._walk_up_first).
+const DOOR_ANIM = preload("res://scripts/attractions/door_anim.gd")
 ## The chapel's plan: where it stands in the village, its door, its front.
 const CHAPEL_VIEW = preload("res://scripts/town/chapel_view.gd")
 const TIMETABLE_CLOSEUP = preload("res://scripts/town/timetable_closeup.gd")
@@ -477,6 +479,8 @@ func _tick_closing() -> void:
 
 
 func _door(which: String) -> void:
+	if not _shut(which) and _walk_in(which):
+		return
 	match which:
 		"jednota":
 			if not _open("jednota"):
@@ -504,32 +508,115 @@ func _door(which: String) -> void:
 			_open_room("wc")
 
 
-## In through the door: the room in 3D (scripts/town/town_room.gd), the frame of the
-## village breaking up into it.
-func _open_room(which: String) -> void:
-	if _room == null:
-		_room = TOWN_ROOM.new()
-		add_child(_room)
-		_room.set_modal_check(func(): return (_shop != null and _shop.visible) or (_pub != null and _pub.visible))
-		_room.can_buy = func(item: String) -> bool: return inventory == null or inventory.room_for(item)
-		_room.bought.connect(func(item: String):
-			if inventory != null:
-				inventory.add_item(item)
-		)
-		_room.drank.connect(func(): pockets.drunk += 1.0)
-		_room.wants_closeup.connect(_room_closeup)
-		_room.candle_lit.connect(func(count: int): Coop.send_place("town", "chapel", "candles", [count]))
-		_room.closed.connect(func():
-			_door_fx(false)
-			_after_room(str(_room.place))
-			_on_closeup_closed())
-	_door_fx(true)
-	_set_player_controls(false)
+## A shop shut at this hour (the card on the glass, the landlord's word): no walking in.
+func _shut(which: String) -> bool:
+	return which in ["jednota", "pub", "kiosk"] and not _open(which)
+
+
+## The room for Liblice's places (scripts/town/town_room.gd), made the first time.
+func _ensure_room() -> void:
+	if _room != null:
+		return
+	_room = TOWN_ROOM.new()
+	add_child(_room)
+	_room.set_modal_check(func(): return (_shop != null and _shop.visible) or (_pub != null and _pub.visible))
+	_room.can_buy = func(item: String) -> bool: return inventory == null or inventory.room_for(item)
+	_room.bought.connect(func(item: String):
+		if inventory != null:
+			inventory.add_item(item)
+	)
+	_room.drank.connect(func(): pockets.drunk += 1.0)
+	_room.wants_closeup.connect(_room_closeup)
+	_room.candle_lit.connect(func(count: int): Coop.send_place("town", "chapel", "candles", [count]))
+	_room.closed.connect(_room_closed)
+
+
+## The room's building and the copy in it, the motel's block and its keys, for `which`.
+func _place_room(which: String) -> void:
 	_room.motel_block = _town.spots.get("motel_block") if _town != null else null
 	_room.place_anchor = _town.spots.get(which) as Node3D if _town != null and _town.spots.get(which) is Node3D else null
 	_room.place_shell = _town.spots.get(which + "_shell") as Node3D if _town != null and _town.spots.get(which + "_shell") is Node3D else null
 	_room.motel_keys = _keys_on_board(_night_index(hour()))
+
+
+## In through the door on foot, as at the camp's buildings (interior_manager._walk_up_first,
+## scripts/ui/door_through.gd): the hand on the handle, the leaf swings, the room is there
+## behind the doorway, standing in its building. false: this one has no leaf to walk through
+## (it opens as it did).
+func _walk_in(which: String) -> bool:
+	var im := get_parent()
+	var building := door_node(which)
+	if im == null or not im.has_method("_walk_up_first") or building == null:
+		return false
+	if DOOR_ANIM.find_doors(building).is_empty():
+		return false
+	_ensure_room()
+	_place_room(which)
+	_room.door_place = which
+	return bool(im.call("_walk_up_first", building, _door.bind(which), _room))
+
+
+## The node whose leaves are `which`'s door: the building, or its own "<which>_entry" where the
+## building has other leaves in it (the motel's rooms in their shells); keyed for the other
+## wardens, who see it open (interior_manager._room_key_for, main._coop_swing_door).
+func door_node(which: String) -> Node3D:
+	if _town == null:
+		return null
+	var n = _town.spots.get(which + "_entry", _town.spots.get(which))
+	if not (n is Node3D) or not is_instance_valid(n):
+		return null
+	(n as Node3D).set_meta("door_key", "town_" + which)
+	return n
+
+
+## The walk up to `room`'s door is going on (town_room puts a room away for a walk that did
+## not come).
+func walking_in(room: Object) -> bool:
+	var im := get_parent()
+	var th = im.get("through") if im != null else null
+	return th != null and is_instance_valid(th) and bool(th.call("coming_to", room))
+
+
+## Out through the door you came in by: the room's eye to the doorway, the leaf open on the
+## street, the room shut on the step (`_room_closed` walks you out of the doorway).
+func leave_on_foot(room: Object) -> bool:
+	var im := get_parent()
+	var building = room.get("walked_from")
+	if im == null or not im.has_method("leave_on_foot") or not (building is Node3D) or not is_instance_valid(building):
+		return false
+	return bool(im.call("leave_on_foot", room, building, Callable(room, "close")))
+
+
+## In through the door: the room in 3D (scripts/town/town_room.gd); on foot through the doorway
+## when it has a leaf, else the frame of the village breaking up into it.
+func _open_room(which: String) -> void:
+	_ensure_room()
+	_door_fx(true)
+	_set_player_controls(false)
+	_place_room(which)
+	# (Not through a door: no way out on foot either.)
+	if _room.get("_made_for") != which:
+		_room.walked_from = null
+	var on_foot := walking_in(_room)
 	_room.open(which, hour())
+	var im := get_parent()
+	if on_foot and im != null and im.has_method("_step_in"):
+		im.call("_step_in", _room)
+
+
+## The room shut: out of its doorway on foot when you came in by it (the walk out's last eye,
+## interior_manager._step_out_of), else the room breaking up into the village.
+func _room_closed() -> void:
+	var building = _room.walked_from
+	_room.walked_from = null
+	_room.door_place = ""
+	_after_room(str(_room.place))
+	_on_closeup_closed()
+	var im := get_parent()
+	if building is Node3D and is_instance_valid(building) and im != null and im.has_method("_step_out_of"):
+		im.call("_step_out_of", building, im.call("_through_eye"))
+	else:
+		_door_fx(false)
 
 
 func _room_closeup(kind: String) -> void:

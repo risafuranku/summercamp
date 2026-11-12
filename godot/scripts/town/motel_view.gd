@@ -1453,6 +1453,23 @@ func copies() -> Array:
 	return [s] if s != null else []
 
 
+## The street door as door_through wants it (town_room.door_spec; the reception's only): in the
+## plane of the block's leaf (in the front wall's hole, 12 cm in from its face: motel_block's
+## entry), the way out to the car park (-z), the wall from there to the reception's inside
+## face; the reception's own leaf in the doorway and its picture (motel_rooms.build_lobby) out
+## of the way while you come through.
+func door_spec() -> Dictionary:
+	if n != 0:
+		return {}
+	var door := PLAN.room_door(0)
+	var leaf_z := door.z + 0.12
+	var leaf: Array = []
+	for nd in [parts.get("door"), room._root.get_node_or_null("DoorInside") if room._root != null else null]:
+		if nd is Node3D and is_instance_valid(nd):
+			leaf.append(nd)
+	return {"at": Vector3(door.x, 0.0, leaf_z), "size": Vector2(0.9, PLAN.DOOR_H), "out": Vector3(0, 0, -1), "inner": -PLAN.lobby_size().z * 0.5 - leaf_z, "leaf": leaf}
+
+
 func wants_out() -> bool:
 	if n == 0:
 		return true
@@ -1495,8 +1512,10 @@ func walk_out() -> void:
 	if n == 0:
 		# Facing the door you are going out of (the spot's own look is into the room).
 		_walker.go("door", func():
-			_play("dvereotevrit.mp3", -8.0)
-			room.close(), Vector3(deg_to_rad(-5.0), 0.0, 0.0))
+			# (On foot the leaf's own creak is the door: door_anim.)
+			if not room.on_foot():
+				_play("dvereotevrit.mp3", -8.0)
+			room.leave(), Vector3(deg_to_rad(-5.0), 0.0, 0.0))
 		return
 	if _peeping:
 		_close_peephole()

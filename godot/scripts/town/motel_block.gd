@@ -30,8 +30,10 @@ const FRAME_GLASS_MID := 0.4715
 var town
 ## n (0 the reception) -> {"root": Node3D, "key": the state it was built for}.
 var shells: Dictionary = {}
-## n -> the door's leaf (Node3D), opened when you go in.
-var leaves: Dictionary = {}
+## The reception's street door: its own node (the shells' leaves are not the way in; door_anim
+## takes every leaf under the node it is given), its leaf "Door" hung and swung by door_anim
+## (town_trip walks you in through it: its spot "motel_entry").
+var entry: Node3D
 var neon: StandardMaterial3D
 var _plaster: StandardMaterial3D
 var _lobby_light: OmniLight3D
@@ -233,36 +235,28 @@ func _doors_and_windows() -> void:
 			var ef := _quad(frame_mat, end_frame, at + Vector3(sx * 0.012, -(0.5 - FRAME_GLASS_MID) * end_frame.y, 0), Vector3(sx, 0, 0))
 			ef.name = "WindowFrame"
 	# The one door on the front: the reception's glass one.
-	leaves[0] = _leaf(PLAN.door_at(PLAN.LOBBY_DOOR_BAY, false), TEX_TOWN + "motel_lobby_door.png")
+	entry = _leaf(PLAN.door_at(PLAN.LOBBY_DOOR_BAY, false), TEX_TOWN + "motel_lobby_door.png")
 
 
-## A door's leaf in its hole, hinged on its west side (a pivot node at the hinge): its
-## picture to the car park, plain veneer inside.
+## The street door's node with its leaf "Door" in the hole, as door_anim hangs leaves: turned to
+## the car park (its +z out), on its west edge (hinge_right, seen from outside), its picture to
+## the car park, plain veneer inside.
 func _leaf(at: Vector3, tex: String) -> Node3D:
-	var hinge := Node3D.new()
-	hinge.name = "DoorHinge"
-	hinge.position = Vector3(at.x - 0.45, at.y, PLAN.FRONT_Z + 0.12)
-	add_child(hinge)
-	K.slab(hinge, Vector3(0.9, PLAN.DOOR_H, 0.04), Vector3(0.45, PLAN.DOOR_H * 0.5, 0.0), K.surface("veneer_dark", 0.6), "Leaf")
+	var way := Node3D.new()
+	way.name = "Entry"
+	add_child(way)
+	var leaf := K.slab(way, Vector3(0.9, PLAN.DOOR_H, 0.04), Vector3(at.x, at.y + PLAN.DOOR_H * 0.5, PLAN.FRONT_Z + 0.12), K.surface("veneer_dark", 0.6), "Door")
+	leaf.rotation.y = PI
+	leaf.set_meta("hinge_right", true)
 	var face := MeshInstance3D.new()
 	var q := QuadMesh.new()
 	q.size = Vector2(0.9, PLAN.DOOR_H)
 	face.mesh = q
 	face.material_override = _flat(tex)
-	face.position = Vector3(0.45, PLAN.DOOR_H * 0.5, -0.025)
-	face.rotation.y = PI
+	face.position = Vector3(0.0, 0.0, 0.025)
 	face.name = "Face"
-	hinge.add_child(face)
-	return hinge
-
-
-## Swing door `n`'s leaf open (inwards) or shut, in the camp's twelve steps a second.
-func swing(n: int, open: bool) -> void:
-	var h: Node3D = leaves.get(n)
-	if h == null:
-		return
-	var tw := create_tween()
-	tw.tween_property(h, "rotation:y", -1.35 if open else 0.0, 0.5).set_trans(Tween.TRANS_SINE)
+	leaf.add_child(face)
+	return way
 
 
 # ── light ───────────────────────────────────────────────────────────────────

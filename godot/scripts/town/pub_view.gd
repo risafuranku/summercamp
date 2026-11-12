@@ -21,6 +21,9 @@ const PX_M := 32.0
 const DEPTH := 10.0
 ## The four windows in the picture (px: x0, y0, x1, y1; lib_facades.json's own rectangles).
 const PANES := [[22, 83, 58, 127], [93, 83, 129, 127], [237, 83, 273, 127], [308, 83, 344, 127]]
+## The wooden double door's two leaves in the picture (town_lesna makes them leaves you walk
+## through, door_spec): px rectangles.
+const DOOR_LEAVES := [Rect2(157, 85, 28, 84), Rect2(185, 85, 27, 84)]
 ## The taproom's floor over the street, the room inside.
 const FLOOR_Y := 0.25
 const ROOM := Vector3(11.1, 3.2, 6.4)
@@ -92,11 +95,15 @@ static func build(root: Node3D, room = null, lit := false) -> Dictionary:
 			var at: Vector3 = p["at"]
 			var sz: Vector2 = p["size"]
 			holes.append([at.x - sz.x * 0.5, at.x + sz.x * 0.5, at.y - sz.y * 0.5, at.y + sz.y * 0.5])
+		# The doorway open too (walked through, door_spec).
+		var dh := door_rect()
+		holes.append([dh.position.x, dh.end.x, 0.0, dh.end.y])
 		K.cut_wall(front, holes)
 		# The wainscot along the front, under the windows.
 		# (In two, the door between them: in one it ran across the door from the waist down.)
+		var half_door := maxf(absf(dh.position.x), absf(dh.end.x)) + 0.04
 		for sx in [-1.0, 1.0]:
-			K.slab(root, Vector3(w * 0.5 - 0.82, 1.1, 0.04), Vector3(sx * (w * 0.25 + 0.41), 0.55, d * 0.5 - 0.02), wain, "WainFront")
+			K.slab(root, Vector3(w * 0.5 - half_door, 1.1, 0.04), Vector3(sx * (w * 0.5 + half_door) * 0.5, 0.55, d * 0.5 - 0.02), wain, "WainFront")
 	# The bar across the back, the taps, the back bar, Mr Kubat.
 	var bar := Vector3(4.0, 1.05, 0.6)
 	var bpos := Vector3(0.5, 0.525, -1.4)
@@ -145,7 +152,9 @@ static func build(root: Node3D, room = null, lit := false) -> Dictionary:
 		out["clock"] = clock
 	else:
 		_cut(root, "wall_clock", Vector2(0.32, 0.32), Vector3(-1.9, 2.1, -d * 0.5 + 0.02), 0.0, false, l, "Clock")
-	var door := _quad(root, "door_interior", Vector2(1.6, 2.2), Vector3(0.0, 1.1, d * 0.5 - 0.005), 180.0, false, "Door")
+	# The door from inside, as big as the doorway (out of the way while you walk through it).
+	var dr := door_rect()
+	var door := _quad(root, "door_interior", dr.size, Vector3(dr.get_center().x, dr.get_center().y, d * 0.5 - 0.005), 180.0, false, "Door")
 	# By the door the coat stand and a jacket and cap on a hook; fly paper over a table.
 	_cut(root, "bistro_coatstand", Vector2(0.65, 1.7), Vector3(1.25, 0.0, d * 0.5 - 0.35), 180.0, true, l, "CoatStand")
 	_cut(root, "coat_hook", Vector2(0.45, 0.67), Vector3(-1.25, 1.0, d * 0.5 - 0.03), 180.0, false, l, "Coat")
@@ -220,6 +229,27 @@ func _init(p_room = null, p_anchor: Node3D = null, p_shell: Node3D = null) -> vo
 	room = p_room
 	anchor = p_anchor
 	shell = p_shell
+
+
+## The door's opening in the front wall, room space: x across, y from the floor to its top.
+static func door_rect() -> Rect2:
+	var x0: float = (DOOR_LEAVES[0] as Rect2).position.x / PX_M - W * 0.5
+	var x1: float = (DOOR_LEAVES[1] as Rect2).end.x / PX_M - W * 0.5
+	var top: float = H - (DOOR_LEAVES[0] as Rect2).position.y / PX_M - FLOOR_Y
+	return Rect2(x0, 0.0, x1 - x0, top)
+
+
+## The door as door_through wants it (town_room.door_spec): in the plane of the building's
+## leaves, the doorway, the wall's depth to the room's inside face, the room's own door
+## picture out of the way while you come through.
+func door_spec() -> Dictionary:
+	var r := door_rect()
+	var leaf_z: float = DEPTH * 0.5 + 0.052 - origin().z
+	var leaf: Array = []
+	var d: Node = room._root.get_node_or_null("Door") if room != null and room._root != null else null
+	if d != null:
+		leaf.append(d)
+	return {"at": Vector3(r.get_center().x, 0.0, leaf_z), "size": r.size, "inner": leaf_z - ROOM.z * 0.5, "leaf": leaf}
 
 
 func build_inside(hour: float) -> void:

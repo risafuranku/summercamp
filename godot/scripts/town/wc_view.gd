@@ -32,13 +32,21 @@ const QUIP := "Not my job, this one."
 ## How long the remark stays under the room.
 const QUIP_SEC := 3.5
 
-## Its place in the Benzina's kiosk (town_lesna._station, WC_DOOR): the room turned so its door
-## (+z) is the kiosk's east side, its door wall against the kiosk's own, its floor over the
-## ground.
+## Its place in the Benzina's kiosk (town_lesna._station): the room turned so its door (+z) is
+## the kiosk's east side, its door wall against the kiosk's own, its floor over the ground.
 const IN_KIOSK := Vector3(4.8 - 0.11 - ROOM.z * 0.5, 0.12, 1.5)
+## Its door on the kiosk's east side (the kiosk's frame: x east, z to the back): the middle of
+## the picture wc_door_out.png on the wall (3 cm out of it), its size, the leaf in it (px).
+## town_lesna hangs the leaf, you walk through it (door_spec).
+const KIOSK_DOOR := Vector3(5.0, 1.15, 1.5)
+const DOOR_PIC := Vector2(1.29, 2.3)
+const DOOR_LEAF := Rect2(17, 17, 63, 147)
+## wc_door_out.png's own size (DOOR_LEAF is in its pixels).
+const DOOR_OUT_PX := Vector2(96, 171)
+const PAINTED_DOOR = preload("res://scripts/painted_door.gd")
 
 var room
-## The kiosk in the village (town_lesna's spot "wc"), set by town_room.
+## The toilet's own node in the kiosk's east end (town_lesna's spot "wc"), set by town_room.
 var anchor: Node3D
 var parts: Dictionary = {}
 var _t := 0.0
@@ -119,12 +127,51 @@ func _decal(tex: String, size: Vector2, pos: Vector3, normal: Vector3, spin := 0
 
 # ── building ─────────────────────────────────────────────────────────────────
 
-## Where the room stands in the camp's world (town_room one world): in the kiosk's east end. The
-## kiosk keeps no copy of it (no window looks into it).
+## Where the room stands in the camp's world (town_room one world): in the kiosk's east end, on
+## its own node there (town_lesna's spot "wc", in_kiosk). The kiosk keeps no copy of it (no
+## window looks into it).
 func seat() -> Variant:
 	if anchor == null or not is_instance_valid(anchor) or not anchor.is_inside_tree():
 		return null
-	return anchor.global_transform * Transform3D(Basis(Vector3.UP, PI * 0.5), IN_KIOSK)
+	return anchor.global_transform * Transform3D(Basis(), Vector3(0.0, IN_KIOSK.y, 0.0))
+
+
+## The toilet's own node in the kiosk's frame: on the ground under the room's middle, turned as
+## the room is (its door +z to the east). Its door hangs in it, not in the kiosk (whose own door
+## is the only one in the kiosk's node: door_anim takes a building's leaves).
+static func in_kiosk() -> Transform3D:
+	return Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(IN_KIOSK.x, 0.0, IN_KIOSK.z))
+
+
+## The door's picture on the kiosk's east side in that node's frame: its middle, 3 cm out.
+static func door_pic_at() -> Vector3:
+	return in_kiosk().affine_inverse() * (KIOSK_DOOR + Vector3(0.03, 0.0, 0.0))
+
+
+## The doorway under the leaf, room space: x across, y from the floor to its top.
+static func door_rect() -> Rect2:
+	var r := PAINTED_DOOR.rect(DOOR_OUT_PX, DOOR_LEAF, door_pic_at() - Vector3(0.0, IN_KIOSK.y, 0.0), DOOR_PIC)
+	return Rect2(r.position.x, 0.0, r.size.x, r.end.y)
+
+
+## The doorway through the kiosk's east wall, along it (the kiosk's z) and up from the ground.
+static func kiosk_hole() -> Array:
+	var r := door_rect()
+	return [IN_KIOSK.z - r.end.x, IN_KIOSK.z - r.position.x, IN_KIOSK.y, IN_KIOSK.y + r.end.y]
+
+
+## The door as door_through wants it (town_room.door_spec): in the plane of the leaf (the
+## picture 1 cm off the kiosk's wall, the leaf 2.2 cm off the picture's plane), the doorway, the
+## two walls from there to the room's inside face, the room's own door picture out of the way
+## while you come through.
+func door_spec() -> Dictionary:
+	var r := door_rect()
+	var leaf_z := door_pic_at().z + 0.01 + 0.022
+	var leaf: Array = []
+	var d = parts.get("door")
+	if d is Node3D and is_instance_valid(d):
+		leaf.append(d)
+	return {"at": Vector3(r.get_center().x, 0.0, leaf_z), "size": r.size, "inner": leaf_z - ROOM.z * 0.5, "leaf": leaf}
 
 
 func copies() -> Array:
@@ -147,7 +194,6 @@ func build_inside(hour: float) -> void:
 	room._look.yaw_limit_deg = 180.0
 	room._look.pitch_up_deg = 52.0
 	room._look.pitch_down_deg = 50.0
-	_play("town/wc_door.mp3", -7.0)
 
 
 func _shell(root: Node3D) -> void:
@@ -159,12 +205,19 @@ func _shell(root: Node3D) -> void:
 	K.slab(root, Vector3(w, 0.1, d), Vector3(0, -0.05, 0), K.surface("wc_floor", 1.0), "Floor")
 	K.slab(root, Vector3(w, 0.1, d), Vector3(0, h + 0.05, 0), K.surface("wc_ceiling", 1.2), "Ceiling")
 	var up := h - TILE_H
+	var dr := door_rect()
 	for wall in [[Vector3(w, 1.0, 0.1), Vector3(0, 0, -d * 0.5 - 0.05)], [Vector3(w, 1.0, 0.1), Vector3(0, 0, d * 0.5 + 0.05)],
 			[Vector3(0.1, 1.0, d), Vector3(-w * 0.5 - 0.05, 0, 0)], [Vector3(0.1, 1.0, d), Vector3(w * 0.5 + 0.05, 0, 0)]]:
 		var size: Vector3 = wall[0]
 		var at: Vector3 = wall[1]
-		K.slab(root, Vector3(size.x, TILE_H, size.z), at + Vector3(0, TILE_H * 0.5, 0), tiles, "Tiles")
-		K.slab(root, Vector3(size.x, up, size.z), at + Vector3(0, TILE_H + up * 0.5, 0), paint, "Paint")
+		var t := K.slab(root, Vector3(size.x, TILE_H, size.z), at + Vector3(0, TILE_H * 0.5, 0), tiles, "Tiles")
+		var p := K.slab(root, Vector3(size.x, up, size.z), at + Vector3(0, TILE_H + up * 0.5, 0), paint, "Paint")
+		# The door's wall: the doorway through it (walked through, door_spec; a hole's height
+		# from its slab's foot).
+		if at.z > 0.0:
+			K.cut_wall(t, [[dr.position.x, dr.end.x, 0.0, minf(dr.end.y, TILE_H)]])
+			if dr.end.y > TILE_H:
+				K.cut_wall(p, [[dr.position.x, dr.end.x, 0.0, dr.end.y - TILE_H]])
 	# The top row of tiles' edge, a pipe along the wall from the cistern to the corner.
 	var rust := K.surface("galvanized", 0.35, Color(0.62, 0.42, 0.3))
 	var pipe_from := CISTERN.x + 0.26
@@ -586,7 +639,9 @@ func _quip() -> void:
 
 
 func wants_out() -> bool:
-	_play("town/wc_door.mp3", -9.0)
+	# (On foot the leaf's own creak is the door: door_anim.)
+	if not room.on_foot():
+		_play("town/wc_door.mp3", -9.0)
 	return true
 
 

@@ -465,6 +465,8 @@ func _block(at: Vector3, size: Vector3, wall: Material, roof: String = "pitched"
 ## front, the sales room built in it, lit while it is open (`_update_jednota`).
 const JEDNOTA_VIEW = preload("res://scripts/town/jednota_view.gd")
 const KIT = preload("res://scripts/interior_kit.gd")
+## The places' painted doors made leaves (shared with the camp's buildings).
+const PAINTED_DOOR = preload("res://scripts/painted_door.gd")
 var _jednota_lit := -1
 var _shells := {}
 
@@ -515,14 +517,19 @@ func _jednota_hollow(at: Vector3, wall: Material) -> Node3D:
 	for sx in [-1.0, 1.0]:
 		_box(root, Vector3(float(sx) * (ww * 0.5 - 0.1), hh * 0.5, 0), Vector3(0.2, hh, dd), _tiled(wall, Vector3(0.2, hh, dd)))
 	_box(root, Vector3(0, hh + 0.06, 0), Vector3(ww + 0.2, 0.12, dd + 0.2), _mat("", Color(0.36, 0.36, 0.36)))
-	# The front wall behind the picture, cut round the glass (the holes' reveals).
+	# The front wall behind the picture, cut round the shop windows' glass (the holes' reveals)
+	# and the whole door (its two glazed leaves walked through: V.DOOR_LEAVES).
 	var holes: Array = []
-	for r in V.PANES + V.DOOR_GLASS:
+	for r in V.PANES:
 		holes.append([float(r[0]) / V.PX_M - ww * 0.5, float(r[2]) / V.PX_M - ww * 0.5, hh - float(r[3]) / V.PX_M, hh - float(r[1]) / V.PX_M])
+	var dl: Rect2 = V.DOOR_LEAVES[0]
+	var dr: Rect2 = V.DOOR_LEAVES[1]
+	var door_hole := [dl.position.x / V.PX_M - ww * 0.5, dr.end.x / V.PX_M - ww * 0.5, hh - dl.end.y / V.PX_M, hh - dl.position.y / V.PX_M]
 	var plaster := _mat(TEX_CAMP + "concrete.png", Color(0.8, 0.78, 0.74))
-	for p in KIT.wall_pieces(ww * 0.5, hh, holes):
+	for p in KIT.wall_pieces(ww * 0.5, hh, holes + [door_hole]):
 		_box(root, Vector3((float(p[0]) + float(p[1])) * 0.5, (float(p[2]) + float(p[3])) * 0.5, dd * 0.5 - 0.08), Vector3(float(p[1]) - float(p[0]), float(p[3]) - float(p[2]), 0.16), plaster)
-	_front_quad(root, "lib_jednota_front_glass", Vector3(0, hh * 0.5, dd * 0.5), 1.0, Vector2(ww, hh))
+	_front_quad(root, "lib_jednota_front_glass", Vector3(0, hh * 0.5, dd * 0.5), 1.0, Vector2(ww, hh), V.DOOR_LEAVES)
+	_picture_leaves(root, TEX + "lib_jednota_front_glass.png", V.DOOR_LEAVES, Vector3(0, hh * 0.5, dd * 0.5 + 0.03), Vector2(ww, hh), 1.0, _leaf_glass())
 	var glass := StandardMaterial3D.new()
 	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	glass.albedo_color = Color(0.24, 0.29, 0.32, 0.16)
@@ -708,9 +715,14 @@ func _pub_hollow(at: Vector3, wall: Material) -> Node3D:
 	var holes: Array = []
 	for r2 in V.PANES:
 		holes.append([float(r2[0]) / V.PX_M - ww * 0.5, float(r2[2]) / V.PX_M - ww * 0.5, hh - float(r2[3]) / V.PX_M, hh - float(r2[1]) / V.PX_M])
-	for p in KIT.wall_pieces(ww * 0.5, wh, holes):
+	# And round the double door (its leaves walked through: V.DOOR_LEAVES).
+	var pl: Rect2 = V.DOOR_LEAVES[0]
+	var pr: Rect2 = V.DOOR_LEAVES[1]
+	var door_hole := [pl.position.x / V.PX_M - ww * 0.5, pr.end.x / V.PX_M - ww * 0.5, hh - pl.end.y / V.PX_M, hh - pl.position.y / V.PX_M]
+	for p in KIT.wall_pieces(ww * 0.5, wh, holes + [door_hole]):
 		_box(root, Vector3((float(p[0]) + float(p[1])) * 0.5, (float(p[2]) + float(p[3])) * 0.5, dd * 0.5 - 0.08), Vector3(float(p[1]) - float(p[0]), float(p[3]) - float(p[2]), 0.16), side)
-	_front_quad(root, "lib_pub_front_glass", Vector3(0, hh * 0.5, dd * 0.5), 1.0, Vector2(ww, hh))
+	_front_quad(root, "lib_pub_front_glass", Vector3(0, hh * 0.5, dd * 0.5), 1.0, Vector2(ww, hh), V.DOOR_LEAVES)
+	_picture_leaves(root, TEX + "lib_pub_front_glass.png", V.DOOR_LEAVES, Vector3(0, hh * 0.5, dd * 0.5 + 0.03), Vector2(ww, hh), 1.0, _mat(TEX_CAMP + "door_wood.png", Color(0.42, 0.3, 0.2)))
 	var glass := StandardMaterial3D.new()
 	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	glass.albedo_color = Color(0.24, 0.29, 0.32, 0.16)
@@ -785,11 +797,9 @@ func _chapel(at: Vector3) -> void:
 	var pw: float = V.PRES_W * 0.5 + V.WALL_T
 	# The front picture as wide as the nave's walls, its own eave the walls' top.
 	var meta := _front_meta("lib_chapel")
-	var pic := Vector2(ow, ow * 1.31)
+	var pic: Vector2 = V.front_size()
 	var eave := 5.0
 	if not meta.is_empty():
-		pic.x = ow / (float(meta["wall_r"]) - float(meta["wall_l"]))
-		pic.y = pic.x * float(meta["m"][1]) / float(meta["m"][0])
 		eave = (1.0 - float(meta["eave"])) * pic.y
 	var s: float = pic.x / 6.2
 	# The nave: its sides, the front wall behind the picture, its back either side of the
@@ -801,8 +811,12 @@ func _chapel(at: Vector3) -> void:
 		_box(root, Vector3(float(sx) * (hw + gap + sz.x * 0.5), eave * 0.5, nave_mid), sz, _tiled(side, sz), true)
 		var bk := Vector3(ow * 0.5 - pw, eave, 0.8)
 		_box(root, Vector3(float(sx) * (pw + bk.x * 0.5), eave * 0.5, nave_back), bk, _tiled(side, bk), true)
+	# The front wall, the doorway through it from the nave's floor (V.door_rect).
 	var fw := Vector3(ow, eave, V.WALL_T - gap)
-	_box(root, Vector3(0, eave * 0.5, fz - fw.z * 0.5), fw, _tiled(side, fw), true)
+	var dr: Rect2 = V.door_rect()
+	for p in KIT.wall_pieces(ow * 0.5, eave, [[dr.position.x, dr.end.x, fy, fy + dr.end.y]]):
+		var ps := Vector3(float(p[1]) - float(p[0]), float(p[3]) - float(p[2]), fw.z)
+		_box(root, Vector3((float(p[0]) + float(p[1])) * 0.5, (float(p[2]) + float(p[3])) * 0.5, fz - fw.z * 0.5), ps, _tiled(side, ps), true)
 	# Its roof: steep, tiled, the gable at the back inside the arch's wall.
 	var rise := 3.8
 	# (Its gable inside the arch's wall, clear of the nave's room; its front end behind the picture.)
@@ -823,7 +837,9 @@ func _chapel(at: Vector3) -> void:
 		_box(root, Vector3(float(sx) * (pw + 0.03), 0.2, (nave_back + bz) * 0.5), Vector3(0.06, 0.4, plen), band)
 	_box(root, Vector3(0, 0.2, bz - 0.03), Vector3(pw * 2.0, 0.4, 0.06), band)
 	# The front: the picture, the step up to the door.
-	_front_quad(root, "lib_chapel", Vector3(0, pic.y * 0.5, fz), 1.0, pic)
+	# (Its portal's two leaves hung where they are painted, walked through: V.DOOR_LEAVES.)
+	_front_quad(root, "lib_chapel", Vector3(0, pic.y * 0.5, fz), 1.0, pic, V.DOOR_LEAVES)
+	_picture_leaves(root, TEX + "lib_chapel.png", V.DOOR_LEAVES, Vector3(0, pic.y * 0.5, fz + 0.03), pic, 1.0, _mat(TEX_CAMP + "door_wood.png", Color(0.36, 0.27, 0.19)))
 	_box(root, Vector3(0, fy * 0.5, fz + 0.35), Vector3(1.9 * s, fy, 0.7), band)
 	# The oval windows' dirty glass where the room has them (chapel_view._windows): seen from
 	# outside only (from inside the room's own windows are there).
@@ -906,6 +922,9 @@ func _motel(at: Vector3) -> void:
 		await block.build(self)
 		spots["motel"] = block
 		spots["motel_block"] = block
+		# Its street door, walked through (town_trip.door_node).
+		if block.entry != null:
+			spots["motel_entry"] = block.entry
 		if block.neon != null:
 			spots["motel_neon"] = block.neon
 		spots["motel_door"] = w(block.door_spot(0))
@@ -1014,13 +1033,18 @@ func _station(at: Vector3) -> void:
 		_box(kiosk, Vector3(0, 1.6, 0), Vector3(10.0, 3.2, 6.0), kwall, true)
 		_face(kiosk, Vector3(0, 1.6, -3.0), Vector2(5.7, 3.2), Vector3(0, 0, -1), _mat(_first([TEX + "kiosk_front.png"]), Color(0.7, 0.72, 0.74)))
 	_box(kiosk, Vector3(0, 3.3, 0), Vector3(10.4, 0.2, 6.4), _mat("", Color(0.3, 0.3, 0.3)))
-	# The toilet's door round the east side (wc_view.gd): its click in _hotspots.
-	if ResourceLoader.exists(TEX_CAMP + "wc_door_out.png"):
-		_face(kiosk, WC_DOOR + Vector3(0.03, 0, 0), Vector2(1.29, 2.3), Vector3(1, 0, 0), _mat(TEX_CAMP + "wc_door_out.png", Color(0.9, 0.9, 0.9)))
 	spots["kiosk"] = kiosk
 	spots["kiosk_door"] = w(at + Vector3(0, 0, 9.0 - 4.2))
-	# The toilet stands in the kiosk's east end behind its door (wc_view.IN_KIOSK).
-	spots["wc"] = kiosk
+	# The toilet in the kiosk's east end (wc_view.gd): its own node where it stands, its door on
+	# the kiosk's east side hung in it (the kiosk's node keeps only its own door). Its click in
+	# _hotspots.
+	var wc := Node3D.new()
+	wc.name = "KioskWc"
+	wc.transform = kiosk.transform * WC_VIEW.in_kiosk()
+	root.add_child(wc)
+	if ResourceLoader.exists(TEX_CAMP + "wc_door_out.png"):
+		_wc_door(wc)
+	spots["wc"] = wc
 	spots["wc_door"] = w(at + Vector3(0, 0, 9.0) + Vector3(WC_DOOR.x + 1.2, 0, WC_DOOR.z))
 	spots["station"] = root
 
@@ -1047,23 +1071,53 @@ func _station_prop(root: Node3D, tex: String, height: float, at: Vector3) -> voi
 ## box hollow, the front wall cut round the glass behind the picture with its holes, the
 ## little shop built in it, lit while it is open (`_update_kiosk`).
 const KIOSK_VIEW = preload("res://scripts/town/kiosk_view.gd")
-## The toilet's door on the kiosk's east wall (the kiosk's own frame: x east, z to the back).
-const WC_DOOR := Vector3(5.0, 1.15, 1.5)
+## The toilet in the kiosk's east end, its door on the kiosk's east wall (wc_view.KIOSK_DOOR:
+## the kiosk's own frame, x east, z to the back).
+const WC_VIEW = preload("res://scripts/town/wc_view.gd")
+const WC_DOOR: Vector3 = WC_VIEW.KIOSK_DOOR
 var _kiosk_lit := -1
+
+
+## The toilet's steel door in its node (wc_view.in_kiosk): the picture with its leaf cut out, the
+## leaf hung where it is painted (on its right edge, the handle on its left), walked through.
+func _wc_door(wc: Node3D) -> void:
+	var V = WC_VIEW
+	var path := TEX_CAMP + "wc_door_out.png"
+	var at: Vector3 = V.door_pic_at()
+	var m := _cut_mat(path)
+	m.albedo_color = Color(0.9, 0.9, 0.9)
+	m.albedo_texture = PAINTED_DOOR.cut_texture(m.albedo_texture, [V.DOOR_LEAF])
+	_face(wc, at, V.DOOR_PIC, Vector3(0, 0, 1), m)
+	# (_face stands its quad a centimetre out: the leaf's plane is from there.)
+	var leaves := _picture_leaves(wc, path, [V.DOOR_LEAF], at + Vector3(0, 0, 0.01), V.DOOR_PIC, 1.0, _mat(TEX_CAMP + "galvanized.png", Color(0.5, 0.5, 0.48)), m.albedo_color)
+	for l in leaves:
+		(l as Node).set_meta("hinge_right", true)
 
 
 func _kiosk_hollow(kiosk: Node3D, kwall: Material) -> void:
 	var V = KIOSK_VIEW
 	var b: Vector3 = V.BOX
 	_box(kiosk, Vector3(0, b.y * 0.5, b.z * 0.5 - 0.1), Vector3(b.x, b.y, 0.2), _tiled(kwall, Vector3(b.x, b.y, 0.2)))
-	for sx in [-1.0, 1.0]:
-		_box(kiosk, Vector3(float(sx) * (b.x * 0.5 - 0.1), b.y * 0.5, 0), Vector3(0.2, b.y, b.z), _tiled(kwall, Vector3(0.2, b.y, b.z)))
+	_box(kiosk, Vector3(-(b.x * 0.5 - 0.1), b.y * 0.5, 0), Vector3(0.2, b.y, b.z), _tiled(kwall, Vector3(0.2, b.y, b.z)))
+	# The east wall round the toilet's door (walked through: wc_view.kiosk_hole, along the wall;
+	# _wc_door hangs it when its picture is there).
+	var wc_holes: Array = [WC_VIEW.kiosk_hole()] if ResourceLoader.exists(TEX_CAMP + "wc_door_out.png") else []
+	for p in KIT.wall_pieces(b.z * 0.5, b.y, wc_holes):
+		var ps := Vector3(0.2, float(p[3]) - float(p[2]), float(p[1]) - float(p[0]))
+		_box(kiosk, Vector3(b.x * 0.5 - 0.1, (float(p[2]) + float(p[3])) * 0.5, (float(p[0]) + float(p[1])) * 0.5), ps, _tiled(kwall, ps))
 	var holes: Array = []
-	for r in V.PANES + V.DOOR_GLASS:
+	for r in V.PANES:
 		holes.append([V.W * 0.5 - float(r[2]) / V.PX_M, V.W * 0.5 - float(r[0]) / V.PX_M, V.H - float(r[3]) / V.PX_M, V.H - float(r[1]) / V.PX_M])
-	for p in KIT.wall_pieces(b.x * 0.5, b.y, holes):
+	# And round the whole door (its glazed leaf walked through: V.DOOR_LEAF).
+	var dl: Rect2 = V.DOOR_LEAF
+	var door_hole := [V.W * 0.5 - dl.end.x / V.PX_M, V.W * 0.5 - dl.position.x / V.PX_M, V.H - dl.end.y / V.PX_M, V.H - dl.position.y / V.PX_M]
+	for p in KIT.wall_pieces(b.x * 0.5, b.y, holes + [door_hole]):
 		_box(kiosk, Vector3((float(p[0]) + float(p[1])) * 0.5, (float(p[2]) + float(p[3])) * 0.5, -b.z * 0.5 + 0.08), Vector3(float(p[1]) - float(p[0]), float(p[3]) - float(p[2]), 0.16), kwall)
-	_face(kiosk, Vector3(0, 1.6, -b.z * 0.5 - 0.02), Vector2(V.W, V.H), Vector3(0, 0, -1), _cut_mat(TEX + "kiosk_front_glass.png"))
+	var face_mat := _cut_mat(TEX + "kiosk_front_glass.png")
+	face_mat.albedo_texture = PAINTED_DOOR.cut_texture(face_mat.albedo_texture, [V.DOOR_LEAF])
+	var face_at := Vector3(0, 1.6, -b.z * 0.5 - 0.02)
+	_face(kiosk, face_at, Vector2(V.W, V.H), Vector3(0, 0, -1), face_mat)
+	_picture_leaves(kiosk, TEX + "kiosk_front_glass.png", [V.DOOR_LEAF], face_at + Vector3(0, 0, -0.01), Vector2(V.W, V.H), -1.0, _leaf_glass(), face_mat.albedo_color)
 	var glass := StandardMaterial3D.new()
 	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	glass.albedo_color = Color(0.24, 0.29, 0.32, 0.16)
@@ -1690,9 +1744,11 @@ func _front_meta(fid: String) -> Dictionary:
 
 ## The picture on a quad in front of the wall, cut out by its alpha; its windows lit
 ## from the _win picture of an evening. Returns [mesh, dark, lit or null].
-func _front_quad(parent: Node3D, fid: String, pos: Vector3, facing: float, size: Vector2) -> Array:
+func _front_quad(parent: Node3D, fid: String, pos: Vector3, facing: float, size: Vector2, cut: Array = []) -> Array:
 	var dark := StandardMaterial3D.new()
-	dark.albedo_texture = load(TEX + fid + ".png")
+	# (A painted door made leaves is cut out before the quad is in the tree: the retro look takes
+	# a material's picture as it meets it, a later one was never seen.)
+	dark.albedo_texture = PAINTED_DOOR.cut_texture(load(TEX + fid + ".png"), cut) if not cut.is_empty() else load(TEX + fid + ".png")
 	dark.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	dark.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 	dark.alpha_scissor_threshold = 0.5
@@ -1715,6 +1771,40 @@ func _front_quad(parent: Node3D, fid: String, pos: Vector3, facing: float, size:
 	mi.material_override = dark
 	parent.add_child(mi)
 	return [mi, dark, lit]
+
+
+## A place's painted door made leaves you walk through (scripts/painted_door.gd; the room behind
+## stands in the building, town_room): its picture `path` (the front made with the door cut out
+## already: _front_quad's `cut`, or PAINTED_DOOR.cut_texture), the leaves' pixels `leaves` (two
+## side by side a double door, door_anim pairs them), the front quad's middle `quad_at` in its
+## plane and `size`, `facing` +1 / -1, `tint` the front's colour. Each leaf "Door1", "Door2"...
+## is a box of `body` with the door's own pixels on it, both sides (a glass leaf: `body` glass,
+## the picture's clear glass in its face).
+func _picture_leaves(parent: Node3D, path: String, leaves: Array, quad_at: Vector3, size: Vector2, facing: float, body: Material, tint := Color(1, 1, 1)) -> Array:
+	var tex: Texture2D = load(path)
+	var face := StandardMaterial3D.new()
+	face.albedo_texture = tex
+	face.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	face.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	face.alpha_scissor_threshold = 0.5
+	face.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	face.roughness = 1.0
+	face.cull_mode = BaseMaterial3D.CULL_DISABLED
+	face.albedo_color = tint
+	var out: Array = []
+	for i in leaves.size():
+		out.append(PAINTED_DOOR.leaf(parent, "Door%d" % (i + 1), tex, leaves[i], quad_at, size, facing, body, face))
+	return out
+
+
+## A glass leaf's body: thin tinted glass, both sides.
+func _leaf_glass() -> StandardMaterial3D:
+	var glass := StandardMaterial3D.new()
+	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	glass.albedo_color = Color(0.24, 0.29, 0.32, 0.16)
+	glass.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	glass.cull_mode = BaseMaterial3D.CULL_DISABLED
+	return glass
 
 
 ## Lettering (tools/artgen/lettering.py) on a wall: a cut-out quad its own size

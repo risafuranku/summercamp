@@ -6223,6 +6223,10 @@ func _coop_swing_door(key: String, pick := 0, seconds := 1.4) -> void:
 	var st: Node3D = null
 	if key == "office":
 		st = debug_structure_of_type("main_building")
+	elif key.begins_with("town_"):
+		# Liblice's doors (town_trip.door_node), there on this machine too when its warden is.
+		var trip = _interior_manager.town_trip() if _interior_manager != null and _interior_manager.has_method("town_trip") else null
+		st = trip.door_node(key.substr(5)) if trip != null and trip.has_method("door_node") else null
 	elif key.contains(":"):
 		var parts := key.split(":")
 		st = COOP_DOOR_ANIM.structure_at(Vector2i(int(parts[0]), int(parts[1])))

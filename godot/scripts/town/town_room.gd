@@ -16,7 +16,8 @@ extends CanvasLayer
 ##   - the kiosk at the Benzina: the same counter, Mrs Lojzova, a petrol station's prices;
 ##   - the motel: motel_view.gd (its reception, Mr Simek and the key board; number four),
 ##     built from motel_plan.gd with the block in the village.
-## S, the bottom edge or the door behind you leaves.
+## S, the bottom edge or the door behind you leaves: back out through the door on foot when you
+## came in by it (scripts/ui/door_through.gd, as at the camp's buildings: the view's door_spec).
 ##
 ## The rooms are Build boxes with Grok faces (assets/textury/camp, tools/artgen/town_rooms.py).
 ##
@@ -235,8 +236,35 @@ func is_open() -> bool:
 
 
 func open(p_place: String, p_hour: float) -> void:
+	# (Made up already on the way in through its door: door_ready.)
+	if _made_for != p_place or _root == null:
+		_make_up(p_place, p_hour)
+	_made_for = ""
+	# Once used: come in again from outside and it is the room's start (the user 6. 11.: "I
+	# went out from the corridor's door and every time I came back I was at that door").
+	arrive_spot = ""
+	_open = true
+	visible = true
+	RETRO_RENDER.apply_to(_vpc)
+	_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	# Shown now: the camp's own view stops (two views of one world cost a third of the frame),
+	# the room's eye is the ear. Not as it was made up at the door: the walk up to it is the
+	# camp's view, the leaf swinging in it.
+	if _one:
+		ONE_WORLD_ROOM.camp_view(get_tree(), false)
+		_vp.audio_listener_enable_3d = true
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	if _through:
+		_through = false
+		return
+	_greet()
+
+
+## The place's room built and standing where it stands, not shown yet (`open` shows it).
+func _make_up(p_place: String, p_hour: float) -> void:
 	place = p_place
 	hour = p_hour
+	_made_for = p_place
 	_leave_world()
 	if _root != null:
 		_space.remove_child(_root)
@@ -250,10 +278,13 @@ func open(p_place: String, p_hour: float) -> void:
 	_npc = null
 	_mug = 0
 	_mug_node = null
-	# What was said in the last room is not said in this one.
+	# What was said in the last room is not said in this one (its strip put away now: while
+	# you walk in through the door _process does not lay it out, it hung on from the last place).
 	_text = ""
 	_who = ""
 	_shown = -1
+	_layout_strip()
+	_strip_canvas.queue_redraw()
 	_look.yaw_limit_deg = 180.0
 	_look.pitch_up_deg = 24.0
 	_look.pitch_down_deg = 30.0
@@ -306,17 +337,16 @@ func open(p_place: String, p_hour: float) -> void:
 	_enter_world()
 	_look.reset()
 	_cam.rotation = _base_rot
-	# Once used: come in again from outside and it is the room's start (the user 6. 11.: "I
-	# went out from the corridor's door and every time I came back I was at that door").
-	arrive_spot = ""
-	_open = true
-	visible = true
-	RETRO_RENDER.apply_to(_vpc)
-	_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
-	if _through:
-		_through = false
-		return
+
+
+## Come in on foot through the building's leaves (door_through): the leaf creaked as the door
+## (door_anim), the room's own door sound is not wanted then.
+func on_foot() -> bool:
+	return walked_from != null and is_instance_valid(walked_from)
+
+
+## What the place says and sounds as you come in from outside.
+func _greet() -> void:
 	match place:
 		"jednota":
 			_play(SFX_TOWN + "shop_bell.mp3", -8.0)
@@ -325,7 +355,11 @@ func open(p_place: String, p_hour: float) -> void:
 			say("Mr Kubat", "Sit where you like. Beer's a dollar.")
 			_loop(SFX_PUB + "pub_room.mp3", -16.0)
 		"chapel":
-			_play("res://assets/sfx/chapel/door.mp3", -8.0)
+			if not on_foot():
+				_play("res://assets/sfx/chapel/door.mp3", -8.0)
+		"wc":
+			if not on_foot():
+				_play(SFX_TOWN + "wc_door.mp3", -7.0)
 		"kiosk":
 			_play(SFX_TOWN + "shop_bell.mp3", -10.0)
 			say("Mrs Lojzova", "Yes?")
@@ -391,6 +425,7 @@ func coop_mates(ids: Array) -> void:
 func close() -> void:
 	if not _open:
 		return
+	door_walking = false
 	_leave_world()
 	if _view != null:
 		_view.close()
@@ -405,6 +440,67 @@ func close() -> void:
 	if _exit_hint != null:
 		_exit_hint.modulate.a = 0.0
 	closed.emit()
+
+
+## Out: back through the door on foot when you came in by it (town_trip.leave_on_foot: the walk
+## to the doorway, the leaf opening on the street, the step out), else as it always did.
+func leave() -> void:
+	if _view != null and not _view.wants_out():
+		return
+	var trip = get_parent()
+	if walked_from != null and is_instance_valid(walked_from) and trip != null and trip.has_method("leave_on_foot") and bool(trip.leave_on_foot(self)):
+		return
+	close()
+
+
+# ── through the door on foot (scripts/ui/door_through.gd, as the camp's rooms) ──────
+
+## The place whose building's door is being walked up to (town_trip._walk_in).
+var door_place := ""
+## The building you came in by on foot (its leaves): out through it again; null came in
+## otherwise.
+var walked_from: Node3D
+## door_through's: the eye is the walk's (no look, no clicks).
+var door_walking := false
+## The place made up and standing in its building before it was opened (door_ready).
+var _made_for := ""
+## door_through's names for the room's eye, its picture and the look it rests at.
+var _interior_camera: Camera3D:
+	get:
+		return _cam
+var _viewport: SubViewport:
+	get:
+		return _vp
+var _cam_base_rot: Vector3:
+	get:
+		return _base_rot
+	set(v):
+		_base_rot = v
+
+
+## The room of the place at whose door you are, standing in `structure` as its leaf opens.
+func door_ready(structure: Node3D) -> void:
+	if door_place == "":
+		return
+	var trip = get_parent()
+	_make_up(door_place, float(trip.hour()) if trip != null and trip.has_method("hour") else hour)
+	walked_from = structure
+
+
+## The door as door_through wants it (the view's door_spec, room space), or {}: no way in on
+## foot (it opens as it did).
+func door_spec(_structure: Node3D) -> Dictionary:
+	if _view == null or not _view.has_method("door_spec") or _root == null or not _one:
+		return {}
+	var s: Dictionary = _view.door_spec()
+	if s.is_empty():
+		return {}
+	s["root"] = _root
+	if not s.has("out"):
+		s["out"] = Vector3(0, 0, 1)
+	if not s.has("leaf"):
+		s["leaf"] = []
+	return s
 
 
 ## Through a door to the next place in the same building (the motel's reception, corridor
@@ -472,8 +568,6 @@ func _enter_world() -> void:
 		_cam.environment = null
 		return
 	_vp.world_3d = null
-	_vp.audio_listener_enable_3d = true
-	ONE_WORLD_ROOM.camp_view(get_tree(), false)
 	ONE_WORLD_ROOM.eye(_cam)
 	_space.global_transform = seat
 	_copies.clear()
@@ -495,6 +589,12 @@ func _enter_world() -> void:
 	_tick_world(0.0)
 
 
+## On the way in by a door (door_through's approach to this room).
+func _coming_in() -> bool:
+	var trip = get_parent()
+	return trip != null and trip.has_method("walking_in") and bool(trip.walking_in(self))
+
+
 ## Out of the camp's world: the building's copy back (the one it has now: a shop's lit copy
 ## swapped for its dark one at closing time stays put away), the camp's own view back.
 func _leave_world() -> void:
@@ -506,6 +606,7 @@ func _leave_world() -> void:
 	if _one:
 		_one = false
 		ONE_WORLD_ROOM.camp_view(get_tree(), true)
+		_vp.audio_listener_enable_3d = false
 		_cam.environment = null
 		# The room out of the camp's world (it stood on in its building over the copy, lit,
 		# after you had gone): back in its own till the next place is built.
@@ -585,6 +686,14 @@ func _room_box() -> AABB:
 
 func _process(delta: float) -> void:
 	if not _open:
+		# Made up for a walk in that did not come (walked away from the door): put away.
+		if _made_for != "" and not _coming_in():
+			_leave_world()
+			_made_for = ""
+			walked_from = null
+		return
+	if door_walking:
+		_tick_world(delta)
 		return
 	_t += delta
 	var modal: bool = _is_modal()
@@ -662,14 +771,12 @@ func _animate_tubes() -> void:
 # ── input ────────────────────────────────────────────────────────────────────
 
 func _input(event: InputEvent) -> void:
-	if not _open or _is_modal():
+	if not _open or _is_modal() or door_walking:
 		return
 	if INTERIOR_LOOK.is_exit_event(event, get_viewport()):
 		get_viewport().set_input_as_handled()
 		# The motel's room: off the bed first, the key turned back before you go.
-		if _view != null and not _view.wants_out():
-			return
-		close()
+		leave()
 		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		get_viewport().set_input_as_handled()
@@ -741,14 +848,13 @@ func _clicked(id: String) -> void:
 			# A place you walk about in (room_walk.gd): you go to the door first.
 			if _view.has_method("walk_out"):
 				_view.walk_out()
-			elif _view.wants_out():
-				close()
+			else:
+				leave()
 			return
 		if _view.click(id, hour):
 			return
 	if id == "door":
-		_play("res://assets/sfx/dvereotevrit.mp3", -8.0)
-		close()
+		leave()
 		return
 	match place:
 		"jednota":

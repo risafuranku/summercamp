@@ -1342,7 +1342,13 @@ func _on_cabin_closed() -> void:
 func _room_key_for(structure: Node3D) -> String:
 	if structure == null or not is_instance_valid(structure):
 		return ""
-	var origin_any = structure.get_meta("grid_origin", null)
+	# (A door out of the camp: Liblice's, town_trip.door_node.)
+	if structure.has_meta("door_key"):
+		return str(structure.get_meta("door_key"))
+	# (get_meta with a default still complains when the key is missing.)
+	if not structure.has_meta("grid_origin"):
+		return ""
+	var origin_any = structure.get_meta("grid_origin")
 	if not (origin_any is Vector2i):
 		return ""
 	return "%d:%d" % [(origin_any as Vector2i).x, (origin_any as Vector2i).y]

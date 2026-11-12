@@ -276,6 +276,37 @@ func town_view(place: String, dist: float, h: float, side := 0.0) -> void:
 	cam.current = true
 
 
+## The warden (not a camera) on Liblice's `place`'s door step, `dist` m out, looking at its door
+## (--part=towndoors: the walk in starts from there).
+func town_stand(place: String, dist: float) -> void:
+	var town = _main._interior_manager.town_trip()._town
+	var door = town.spots.get(place + "_door")
+	var b = _main._interior_manager.town_trip().door_node(place)
+	if not (door is Vector3) or not (b is Node3D):
+		print("ONESUN town: no ", place)
+		return
+	var da = load("res://scripts/attractions/door_anim.gd")
+	var way: Dictionary = da.entry_points(b as Node3D, 0)
+	var at: Vector3 = way.get("outside", door)
+	var normal: Vector3 = way.get("normal", Vector3(0, 0, 1))
+	_main.set("debug_camera", null)
+	var pl: Node3D = _main._player
+	pl.global_position = Vector3(at.x, pl.global_position.y, at.z) + normal * (dist - 0.7)
+	pl.look_at(Vector3(at.x, pl.global_position.y, at.z) - normal, Vector3.UP)
+
+
+## Liblice's `place`'s leaves as door_anim has them (hung or not, the angle, open till when).
+func town_doors(place: String, tag: String) -> void:
+	var b = _main._interior_manager.town_trip().door_node(place)
+	var da = load("res://scripts/attractions/door_anim.gd")
+	var out := []
+	if b is Node3D:
+		for d in da.find_doors(b as Node3D):
+			var rec: Dictionary = da._doors.get((d as Node).get_instance_id(), {})
+			out.append("%s hung=%s angle=%s until=%.2f clock=%.2f vis=%s" % [(d as Node).name, not rec.is_empty(), rec.get("angle", "-"), float(rec.get("open_until", -1.0)), da._clock, (d as Node3D).is_visible_in_tree()])
+	print("ONESUN doors %s %s: %s" % [place, tag, out])
+
+
 ## What each viewport drew last frame: the camp's (main) and the rooms' (draw calls, objects).
 func vp_info(tag: String) -> void:
 	var out := []
@@ -1671,6 +1702,38 @@ func _ready() -> void:
 					st += [["eval", SI + "._look.set('yaw_deg', %s)" % v[0]], ["eval", SI + "._look.set('pitch_deg', %s)" % v[1]], ["wait", 0.7], ["shot", "sewer_4_look_%s" % v[2]]]
 				st += [["eval", "_interior_manager.close_everything(true)"], ["wait", 2.0], ["eval", "set('debug_camera', null)"],
 					["eval", C + ".around('sewer', 30.0, 6.0, 0.3)"], ["wait", 0.8], ["shot", "sewer_8_ext"]]
+			st += [["eval", "set('debug_camera', null)"], ["wait", 1.0], ["eval", "get_tree().quit()"]]
+			_steps = st
+			return
+		if a == "--part=towndoors":
+			# Into Liblice's places on foot through their doors and out again (W26: as at the
+			# camp's buildings), frame by frame, by day.
+			var TT := "_interior_manager.town_trip()"
+			var TR := TT + "._room"
+			var st: Array = [
+				["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+				["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
+				["eval", TT + "._ensure_town()"], ["wait", 3.0], ["eval", TT + "._put_player(" + TT + "._town.arrive_spot())"], ["wait", 2.0],
+				["eval", "debug_jump_to(1, 11.0)"], ["wait", 3.0]]
+			var only := ""
+			for a2 in OS.get_cmdline_user_args():
+				if str(a2).begins_with("--rooms="):
+					only = str(a2).substr(8)
+			for place in ["jednota", "pub", "kiosk", "chapel", "wc", "motel"]:
+				if only != "" and not place in only.split(","):
+					continue
+				st += [["eval", C + ".town_stand('%s', 1.8)" % place], ["wait", 1.0], ["shot", "%s_0_at" % place],
+					["eval", TT + "._door('%s')" % place]]
+				for k in 16:
+					st += [["wait", 0.15], ["shot", "%s_1_in_%02d" % [place, k]]]
+					if k == 2 or k == 5:
+						st += [["eval", C + ".town_doors('%s', 'in%d')" % [place, k]]]
+				st += [["wait", 1.5], ["mouse", 0.5, 0.5], ["shot", "%s_2_inside" % place],
+					["eval", TR + "._look.set('yaw_deg', 178.0)"], ["wait", 0.8], ["shot", "%s_3_door_from_inside" % place],
+					["eval", TR + "._look.set('yaw_deg', 0.0)"], ["wait", 0.4], ["eval", TR + ".leave()"]]
+				for k in 14:
+					st += [["wait", 0.15], ["shot", "%s_4_out_%02d" % [place, k]]]
+				st += [["wait", 2.0], ["shot", "%s_5_out_after" % place]]
 			st += [["eval", "set('debug_camera', null)"], ["wait", 1.0], ["eval", "get_tree().quit()"]]
 			_steps = st
 			return

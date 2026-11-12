@@ -30,6 +30,9 @@ const DEPTH := 10.0
 ## the two glazed leaves of the door. mesto_art.py cuts the same.
 const PANES := [[38, 58, 93, 120], [98, 58, 150, 120], [232, 58, 288, 120], [293, 58, 346, 120]]
 const DOOR_GLASS := [[159, 59, 190, 134], [193, 59, 224, 134]]
+## The door's two leaves in the picture, frames and all (town_lesna makes them leaves you walk
+## through, door_spec): px rectangles.
+const DOOR_LEAVES := [Rect2(157, 57, 34, 80), Rect2(191, 57, 35, 80)]
 ## The shop's floor over the street (the front's plinth); the sales room inside.
 const FLOOR_Y := 0.66
 const ROOM := Vector3(11.6, 3.1, 6.0)
@@ -128,12 +131,14 @@ static func build(root: Node3D, room = null, lit := false) -> Dictionary:
 			var at: Vector3 = p["at"]
 			var sz: Vector2 = p["size"]
 			holes.append([at.x - sz.x * 0.5, at.x + sz.x * 0.5, at.y - sz.y * 0.5, at.y + sz.y * 0.5])
-		# The door's leaves reach down to the floor: their glass, and the panel under it.
+		# The door's leaves reach down to the floor: their glass, and the panel under it; the
+		# wall open round the whole door (walked through, door_spec).
 		var dl: Dictionary = pane(DOOR_GLASS[0])
 		var dr: Dictionary = pane(DOOR_GLASS[1])
 		var door_x0: float = (dl["at"] as Vector3).x - (dl["size"] as Vector2).x * 0.5
 		var door_x1: float = (dr["at"] as Vector3).x + (dr["size"] as Vector2).x * 0.5
-		holes.append([door_x0, door_x1, 0.0, (dl["at"] as Vector3).y - (dl["size"] as Vector2).y * 0.5])
+		var dh := door_rect()
+		holes.append([dh.position.x, dh.end.x, 0.0, dh.end.y])
 		K.cut_wall(front, holes)
 		K.skirting(root, ROOM, "planks_dark")
 		# The door's kick panel under its glass (aluminium).
@@ -277,6 +282,12 @@ func _init(p_room = null, p_anchor: Node3D = null, p_shell: Node3D = null) -> vo
 
 func build_inside(hour: float) -> void:
 	var built := build(room._root, room, false)
+	# The building's leaves are the door (one world): the room's own kick panel would stand in
+	# the doorway.
+	if anchor != null and is_instance_valid(anchor) and anchor.get_node_or_null("Door1") != null:
+		var kick := room._root.get_node_or_null("DoorKick") as Node3D
+		if kick != null:
+			kick.visible = false
 	room.counter().begin("jednota", {"slots": SLOTS, "mate_slots": MATE_SLOTS, "till": built["till"], "window": TILL_WINDOW})
 	room._light_profile(false)
 	for r in PANES + DOOR_GLASS:
@@ -299,6 +310,24 @@ func tick(delta: float) -> void:
 	shell = anchor.get_node_or_null("SalesRoom") as Node3D
 	for w in windows:
 		w.update(room._root, room._cam, xf, true, world, delta, shell)
+
+
+## The door's opening in the front wall, room space: x across, y from the floor to its top.
+static func door_rect() -> Rect2:
+	var x0: float = (DOOR_LEAVES[0] as Rect2).position.x / PX_M - W * 0.5
+	var x1: float = (DOOR_LEAVES[1] as Rect2).end.x / PX_M - W * 0.5
+	var top: float = H - (DOOR_LEAVES[0] as Rect2).position.y / PX_M - FLOOR_Y
+	return Rect2(x0, 0.0, x1 - x0, top)
+
+
+## The door as door_through wants it (town_room.door_spec): in the plane of the building's
+## leaves (the front's picture 3 cm out, the leaves 2.2 cm out of it), the doorway's size,
+## how deep the wall is from there to the room's inside face. The room's own kick panel is not
+## drawn while the building's leaves are there (they are the door).
+func door_spec() -> Dictionary:
+	var r := door_rect()
+	var leaf_z: float = DEPTH * 0.5 + 0.052 - origin().z
+	return {"at": Vector3(r.get_center().x, 0.0, leaf_z), "size": r.size, "inner": leaf_z - ROOM.z * 0.5}
 
 
 ## The shop's own clicks are town_room's (_shop_click, the counter): nothing here.

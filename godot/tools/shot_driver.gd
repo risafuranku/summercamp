@@ -1871,7 +1871,26 @@ var _wait_left := 0.0
 var _waiting_for := ""
 
 
+## Out of the way of whoever sits at this PC while a check runs in a window (the user 12. 11.:
+## "every test comes up in a window and I have to alt-tab to free my mouse"): the window cannot
+## take the focus (a click on it gives it none), it goes down and comes up again without it, so
+## the focus it took as it opened goes back where it was and the game's caught mouse is not
+## the PC's; it sits in the screen's bottom right corner. --keep-focus for a check you watch.
+func _stay_out_of_the_way() -> void:
+	if DisplayServer.get_name() == "headless" or "--keep-focus" in OS.get_cmdline_user_args():
+		return
+	var w := get_window()
+	w.unfocusable = true
+	w.mode = Window.MODE_MINIMIZED
+	for i in 3:
+		await get_tree().process_frame
+	w.mode = Window.MODE_WINDOWED
+	var usable := DisplayServer.screen_get_usable_rect(w.current_screen)
+	w.position = usable.end - w.size - Vector2i(8, 8)
+
+
 func _ready() -> void:
+	_stay_out_of_the_way()
 	var scenario := "boot"
 	var steps_file := ""
 	for arg in OS.get_cmdline_user_args():
