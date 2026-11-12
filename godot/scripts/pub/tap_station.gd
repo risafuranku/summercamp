@@ -171,11 +171,12 @@ func checklist(t: Dictionary) -> Array:
 	var top := _beer + _foam
 	var pour_word: String = {"hladinka": "BEER TO THE LINE", "snyt": "HALF BEER, HALF FOAM", "mliko": "ALL FOAM"}.get(drink, "BEER")
 	var near := absf(_beer - want) <= 0.065
+	var pour_pic: String = {"snyt": "mark_foam", "mliko": "mark_foam"}.get(drink, "tk_line")
 	return [
-		{"text": "A CLEAN MUG", "state": "done" if _mug else "todo"},
-		{"text": pour_word, "state": ("done" if near else ("bad" if _beer > want + 0.065 else "todo")) if _mug and top > 0.05 else "todo"},
-		{"text": "UP TO THE RIM", "state": "done" if _mug and top >= 0.92 else "todo"},
-		{"text": "NOTHING SPILT", "state": "bad" if _spilled > 0.05 else ("done" if _mug and top >= 0.92 else "todo")},
+		{"text": "A CLEAN MUG", "state": "done" if _mug else "todo", "icon": pic(MARKS + "mark_mug.png")},
+		{"text": pour_word, "state": ("done" if near else ("bad" if _beer > want + 0.065 else "todo")) if _mug and top > 0.05 else "todo", "icon": pic(MARKS + pour_pic + ".png")},
+		{"text": "UP TO THE RIM", "state": "done" if _mug and top >= 0.92 else "todo", "icon": pic(MARKS + "mark_tap.png")},
+		{"text": "NOTHING SPILT", "state": "bad" if _spilled > 0.05 else ("done" if _mug and top >= 0.92 else "todo"), "icon": pic(MARKS + "tk_spill.png"), "neg": true},
 	]
 
 

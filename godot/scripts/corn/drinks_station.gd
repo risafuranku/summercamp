@@ -120,11 +120,11 @@ func checklist(t: Dictionary) -> Array:
 	var kind := str(t.get("kind", "tea"))
 	var on := not _drink.is_empty()
 	var mine := on and str(_drink["kind"]) == kind
-	var out: Array = [{"text": "ICED TEA" if kind == "tea" else "LEMONADE", "state": "done" if mine else ("bad" if on else "todo")}]
+	var out: Array = [{"text": "ICED TEA" if kind == "tea" else "LEMONADE", "state": "done" if mine else ("bad" if on else "todo"), "icon": pic(DRINK_TEX + ("cup_tea.png" if kind == "tea" else "bag_limo.png"))}]
 	var fill := float(_drink.get("fill", 0.0)) if mine else 0.0
-	out.append({"text": "TO THE LINE", "state": "done" if mine and fill >= CORN.FILL_OK.x and fill <= CORN.FILL_OK.y else ("bad" if mine and fill > CORN.FILL_OK.y else "todo")})
+	out.append({"text": "TO THE LINE", "state": "done" if mine and fill >= CORN.FILL_OK.x and fill <= CORN.FILL_OK.y else ("bad" if mine and fill > CORN.FILL_OK.y else "todo"), "icon": pic(MARKS + "tk_line.png")})
 	if kind == "limo":
-		out.append({"text": "STRAW, TIED", "state": "done" if mine and bool(_drink["tied"]) else "todo"})
+		out.append({"text": "STRAW, TIED", "state": "done" if mine and bool(_drink["tied"]) else "todo", "icon": pic(MARKS + "tk_straw.png")})
 	return out
 
 

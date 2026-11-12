@@ -1276,12 +1276,16 @@ func draw_big_ticket(c: Control, r: Rect2, t: Dictionary) -> void:
 	var band := int(t.get("band", 0))
 	var bar := Rect2(r.position.x + 27, r.position.y + 19, r.size.x - 58, 4)
 	RETRO_UI.draw_segments(c, bar, left if band < 2 or int(_t * 4.0) % 2 == 0 else 0.0, 8, [RETRO_UI.C_GREEN, RETRO_UI.C_AMBER, RETRO_UI.C_RED][clampi(band, 0, 2)])
+	var lines := checklist(t)
+	if _pictured(lines):
+		_draw_checklist_pictures(c, Rect2(r.position.x + 4, r.position.y + CHECK_TOP, r.size.x - 8, r.end.y - r.position.y - CHECK_TOP - 2), lines)
+		return
 	var ink := Color(0.16, 0.12, 0.1)
 	var ok := Color(0.1, 0.45, 0.12)
 	var bad := Color(0.62, 0.08, 0.05)
 	var y := r.position.y + 44
 	var f: Font = RETRO_UI.FONT_TEXT
-	for line in checklist(t):
+	for line in lines:
 		if y > r.end.y - 6:
 			break
 		var st := str(line.get("state", "todo"))
@@ -1299,6 +1303,79 @@ func draw_big_ticket(c: Control, r: Rect2, t: Dictionary) -> void:
 				c.draw_rect(Rect2(box.position + Vector2(5 - i, 1 + i), Vector2.ONE), bad)
 		c.draw_string(f, Vector2(r.position.x + 17, y), tr(str(line.get("text", ""))).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 20, 8, col)
 		y += 12
+
+
+## The order's checklist as pictures (12. 11.: "A CLEAN MUG / BEER TO THE LINE / UP TO
+## THE RIM" was a set of instructions on the paper; the room's card went to pictures the same
+## day): a picture a thing wanted, four a row; done, it greys and gets the tick; wrong, a red
+## cross over it; a count in its corner (n); a thing that must not be (neg: nothing spilt)
+## struck through in red, its cell red when it happened.
+const CHECK_CELL := 19.0
+const CHECK_GAP := 2.0
+## Under the face, the patience and the order's own picture at the top right.
+const CHECK_TOP := 44.0
+
+
+static func _pictured(lines: Array) -> bool:
+	return not lines.is_empty() and lines.all(func(l) -> bool: return l.get("icon", null) is Texture2D)
+
+
+## How tall the big ticket wants to be (`width` wide, `full` its height with lines of
+## words): pictured, as tall as its rows (the paper hung half empty over the view).
+func big_ticket_height(t: Dictionary, width: float, full: float) -> float:
+	var lines := checklist(t) if not t.is_empty() else []
+	if not _pictured(lines):
+		return full
+	var per_row := maxi(1, int((width - 8.0 + CHECK_GAP) / (CHECK_CELL + CHECK_GAP)))
+	var rows := int(ceil(float(lines.size()) / float(per_row)))
+	return minf(full, CHECK_TOP + rows * (CHECK_CELL + CHECK_GAP) + 2.0)
+const TICK_PX := [Vector2(0, 3), Vector2(1, 4), Vector2(2, 5), Vector2(3, 4), Vector2(4, 3), Vector2(5, 2), Vector2(6, 1), Vector2(7, 0)]
+
+
+func _draw_checklist_pictures(c: Control, area: Rect2, lines: Array) -> void:
+	var ok := Color(0.1, 0.5, 0.12)
+	var bad := Color(0.7, 0.08, 0.05)
+	var per_row := maxi(1, int((area.size.x + CHECK_GAP) / (CHECK_CELL + CHECK_GAP)))
+	var row_w := per_row * CHECK_CELL + (per_row - 1) * CHECK_GAP
+	for i in lines.size():
+		var line: Dictionary = lines[i]
+		var at := area.position + Vector2(floorf((area.size.x - row_w) * 0.5) + (i % per_row) * (CHECK_CELL + CHECK_GAP), (i / per_row) * (CHECK_CELL + CHECK_GAP))
+		if at.y + CHECK_CELL > area.end.y:
+			break
+		var cell := Rect2(at, Vector2(CHECK_CELL, CHECK_CELL))
+		var st := str(line.get("state", "todo"))
+		c.draw_rect(cell, Color(0.7, 0.1, 0.05, 0.25) if st == "bad" else Color(0, 0, 0, 0.07))
+		var ic: Texture2D = line["icon"]
+		var sc := minf(1.0, (CHECK_CELL - 2.0) / maxf(ic.get_width(), ic.get_height()))
+		var isz := (ic.get_size() * sc).floor()
+		c.draw_texture_rect(ic, Rect2(at + ((cell.size - isz) * 0.5).floor(), isz), false, Color(0.45, 0.45, 0.45) if st == "done" else Color.WHITE)
+		if bool(line.get("neg", false)):
+			for k in int(CHECK_CELL) - 4:
+				c.draw_rect(Rect2(at + Vector2(2 + k, CHECK_CELL - 3 - k), Vector2(2, 1)), bad)
+		var n := str(line.get("n", ""))
+		if n != "":
+			var f: Font = RETRO_UI.FONT_TEXT
+			var w := f.get_string_size(n, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
+			var nb := Rect2(cell.end - Vector2(w + 2, 8), Vector2(w + 2, 8))
+			c.draw_rect(nb, Color(0.94, 0.9, 0.78, 0.9))
+			c.draw_string(f, Vector2(nb.position.x + 1, nb.end.y - 1), n, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, bad if st == "bad" else Color(0.16, 0.12, 0.1))
+		if st == "done":
+			for p in TICK_PX:
+				c.draw_rect(Rect2(at + Vector2(CHECK_CELL - 10, CHECK_CELL - 8) + p, Vector2(2, 2)), ok)
+		elif st == "bad" and not bool(line.get("neg", false)):
+			for k in int(CHECK_CELL) - 6:
+				c.draw_rect(Rect2(at + Vector2(3 + k, 3 + k), Vector2(2, 2)), bad)
+				c.draw_rect(Rect2(at + Vector2(CHECK_CELL - 5 - k, 3 + k), Vector2(2, 2)), bad)
+
+
+## A picture for a checklist (or anything a station draws on the paper), read once.
+static var _pics: Dictionary = {}
+
+
+static func pic(path: String) -> Texture2D:
+	if not _pics.has(path):
+		_pics[path] = load(path) if ResourceLoader.exists(path) else null
+	return _pics[path]
 
 
 func _paper_tex() -> Texture2D:
@@ -1325,7 +1402,8 @@ func ticket_items(_t: Dictionary) -> Array:
 	return []
 
 
-## The big ticket's lines: [{text, state}].
+## The big ticket's lines: [{text, state}] (+ icon: a Texture2D, n: a count, neg: a thing
+## that must not be): with an icon on every line it is drawn as pictures.
 func checklist(_t: Dictionary) -> Array:
 	return []
 

@@ -186,16 +186,16 @@ func checklist(t: Dictionary) -> Array:
 	var have := cob_counts()
 	var out: Array = []
 	var cook := float(have.get("cook", -1.0))
-	out.append({"text": "COOKED", "state": "todo" if cook < 0.0 else ("done" if cook >= 1.0 and cook <= 1.25 else ("bad" if cook > 1.25 or cook < 0.75 else "todo"))})
+	out.append({"text": "COOKED", "state": "todo" if cook < 0.0 else ("done" if cook >= 1.0 and cook <= 1.25 else ("bad" if cook > 1.25 or cook < 0.75 else "todo")), "icon": pic(CORN_TEX + "cob_boiled.png")})
 	var butter := float(have.get("butter", -1.0))
-	out.append({"text": "BUTTER", "state": "done" if butter >= 0.85 else "todo"})
+	out.append({"text": "BUTTER", "state": "done" if butter >= 0.85 else "todo", "icon": pic(CORN_TEX + "cob_buttered.png")})
 	var want := int(t.get("salt", 0))
 	var got := int(have.get("salt", -1))
 	var sstate := "todo"
 	if got >= 0:
 		sstate = "done" if got == want else ("bad" if got > want else "todo")
-	out.append({"text": "NO SALT" if want == 0 else "SALT x%d" % want, "state": sstate})
-	out.append({"text": "NAPKIN", "state": "done" if bool(have.get("napkin", false)) else "todo"})
+	out.append({"text": "NO SALT" if want == 0 else "SALT x%d" % want, "state": sstate, "icon": pic(MARKS + "tk_salt.png"), "n": "%d" % want})
+	out.append({"text": "NAPKIN", "state": "done" if bool(have.get("napkin", false)) else "todo", "icon": pic(CORN_TEX + "cob_napkin.png")})
 	return out
 
 

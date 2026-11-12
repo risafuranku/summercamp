@@ -126,6 +126,9 @@ func current_ticket() -> Dictionary:
 ## The dish in short, for a ticket (six letters fit).
 const SHORT := {"goulash": "GOULASH", "smazak": "CHEESE", "fries": "CHIPS", "sausage": "SAUSAGE", "soup": "SOUP", "kofola": "KOFOLA", "malinovka": "MALIN."}
 ## The parts by name, for the checklist.
+## A part's picture on the big ticket (bistro textures).
+const PART_PIC := {"goulash": "food_goulash", "dumpling": "food_dumpling", "onion": "food_onion", "cheese": "food_cheese",
+	"fries": "food_fries", "tartar": "food_tartar", "sausage": "sausage_done", "mustard": "food_mustard", "bread": "food_bread", "soup": "bowl_soup"}
 const PART_WORD := {"goulash": "GOULASH", "dumpling": "DUMPLINGS", "onion": "ONION", "cheese": "FRIED CHEESE", "fries": "CHIPS", "tartar": "TARTAR",
 	"sausage": "SAUSAGE", "mustard": "MUSTARD", "bread": "BREAD", "soup": "SOUP"}
 
@@ -169,8 +172,8 @@ func building_plate() -> bool:
 func checklist(t: Dictionary) -> Array:
 	var out: Array = []
 	if bool(t.get("hatched", false)):
-		out.append({"text": "PLATED", "state": "done"})
-		out.append({"text": "SERVE AT THE FLOOR", "state": "todo"})
+		out.append({"text": "PLATED", "state": "done", "icon": pic(TEX + "plate_top.png")})
+		out.append({"text": "SERVE AT THE FLOOR", "state": "todo", "icon": pic("res://assets/textury/ui/mark_bell.png")})
 		return out
 	var want: Dictionary = t.get("parts", {})
 	var have := plate_counts()
@@ -184,11 +187,13 @@ func checklist(t: Dictionary) -> Array:
 		if plating:
 			state = "done" if h == w else ("bad" if h > w else "todo")
 		var text := str(PART_WORD.get(p, str(p).to_upper()))
+		var n := ""
 		if w > 1 or (plating and h != w):
 			text = ("%d/%d " % [h, w] if plating else "%d " % w) + text
+			n = "%d/%d" % [h, w] if plating else "%d" % w
 		elif w == 0:
 			text = "NO " + text
-		out.append({"text": text, "state": state})
+		out.append({"text": text, "state": state, "icon": pic(TEX + str(PART_PIC.get(p, "plate_top")) + ".png"), "n": n, "neg": w == 0})
 	return out
 
 

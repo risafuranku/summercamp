@@ -460,13 +460,22 @@ func _btn_rect(i: int, n: int) -> Rect2:
 	return Rect2(W - 6 - BIG.x, _serve_rect().end.y + 14 + i * 20, BIG.x, 17)
 
 
-## The picked ticket hangs at the right end of the rail, big.
+## The picked ticket hangs at the right end of the rail, big: as tall as what it shows
+## (station3d.big_ticket_height: a pictured one is its rows), SERVE and the counts under it.
+## With no ticket picked it keeps the last height (SERVE does not jump).
+var _big_h := BIG.y
+
+
 func _big_rect() -> Rect2:
-	return Rect2(W - BIG.x - 6, 8, BIG.x, BIG.y)
+	if station != null and station.has_method("big_ticket_height"):
+		var t: Dictionary = station.call("big_ticket")
+		if not t.is_empty():
+			_big_h = float(station.call("big_ticket_height", t, BIG.x, BIG.y))
+	return Rect2(W - BIG.x - 6, 8, BIG.x, _big_h)
 
 
 func _serve_rect() -> Rect2:
-	return Rect2(W - BIG.x - 6, 8 + BIG.y + 3, BIG.x, 20)
+	return Rect2(W - BIG.x - 6, 8 + _big_h + 3, BIG.x, 20)
 
 
 func _icon(path: String) -> Texture2D:
