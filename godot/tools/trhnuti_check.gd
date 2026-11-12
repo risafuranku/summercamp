@@ -103,7 +103,10 @@ func guests() -> void:
 
 ## What getting a business's room ready at its door costs.
 func make_up(ty: String, round: int) -> void:
-	var si = _main.get("_interior_manager").get("_service_interior")
+	# (One room a kind of place since 12. 11.: the building's own, as its door does.)
+	var im = _main.get("_interior_manager")
+	im.call("_use_service_room", ty)
+	var si = im.get("_service_interior")
 	var st: Node3D = _main.call("debug_structure_of_type", ty)
 	var o0 := int(Performance.get_monitor(Performance.OBJECT_COUNT))
 	var v0 := Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED)

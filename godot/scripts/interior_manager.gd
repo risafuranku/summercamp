@@ -10,7 +10,7 @@ const BUILDING_INTERIOR_SCRIPT = preload("res://scripts/building_interior.gd")
 const CABIN_INTERIOR_SCRIPT = preload("res://scripts/cabin_interior.gd")
 const TENT_INTERIOR_SCRIPT = preload("res://scripts/tent_interior.gd")
 const CARAVAN_INTERIOR_SCRIPT = preload("res://scripts/caravan_interior.gd")
-const SERVICE_INTERIOR_SCRIPT = preload("res://scripts/service_interior_generator.gd")
+const SERVICE_INTERIOR_SCRIPT = preload("res://scripts/service_interior.gd")
 const BUILDING_UPGRADE_MENU_SCRIPT = preload("res://scripts/building_upgrade_menu.gd")
 const LANG := preload("res://scripts/lang.gd")
 const GUEST_DIALOG_SCRIPT = preload("res://scripts/guest_dialog.gd")
@@ -133,7 +133,10 @@ var _building_interior
 var _cabin_interior
 var _tent_interior
 var _caravan_interior
+## The business or service room in use: the last one gone into (or walked up to). One room
+## a kind of place stays built, `_service_rooms` (kind -> room, service_interior.KINDS).
 var _service_interior
+var _service_rooms: Dictionary = {}
 var _bowling_interior
 var _active_bowling_node: Node3D
 var _building_upgrade_menu
@@ -187,7 +190,7 @@ func _tick_eyes(delta: float) -> void:
 		_eyes_t = 0.5
 		return
 	_eyes_t = -1.0
-	for it in [_cabin_interior, _tent_interior, _caravan_interior, _service_interior]:
+	for it in [_cabin_interior, _tent_interior, _caravan_interior] + _service_rooms.values():
 		if it == null or not is_instance_valid(it) or it.is_open():
 			continue
 		var vp := it.get("_viewport") as SubViewport
@@ -412,6 +415,12 @@ func room_jobs() -> Array:
 				_cabin_levels_later = true
 				jobs.append(func() -> void: _cabin_interior.build_level(2))
 				jobs.append(func() -> void: _cabin_interior.build_level(3))
+	# A room for every kind of business and service, one a step: built here behind the bar,
+	# not at its first door.
+	for k in SERVICE_INTERIOR_SCRIPT.KINDS:
+		var room = _service_rooms.get(k)
+		if room == null or not is_instance_valid(room):
+			jobs.append(_service_room.bind(k))
 	return jobs
 
 
@@ -1405,24 +1414,52 @@ func _setup_service_interior() -> void:
 	if _service_interior != null and is_instance_valid(_service_interior):
 		_apply_grid_power_to_interior(_service_interior)
 		return
-	_service_interior = SERVICE_INTERIOR_SCRIPT.new()
-	_service_interior.name = "ServiceInterior"
+	_service_interior = _service_room(SERVICE_INTERIOR_SCRIPT.KINDS[0])
+
+
+## The room of `kind` (service_interior.KINDS), built the first time it is wanted and kept.
+func _service_room(kind: String) -> Node:
+	var room = _service_rooms.get(kind)
+	if room != null and is_instance_valid(room):
+		return room
+	room = SERVICE_INTERIOR_SCRIPT.new()
+	room.kind = kind
+	room.name = "ServiceInterior_" + kind
 	# Here, not in the world: the world is drawn small and scaled up (render style),
 	# and so was everything 2D in a room (its prompts, lists, close-ups) with it
 	# (playtest 2026-10-17: "render scale makes the HUD huge"). Rooms have their own 3D.
-	add_child(_service_interior)
-	_register_interior_instance(INTERIOR_MODULE_SERVICE, _service_interior)
-	if _service_interior.has_signal("request_close"):
-		_service_interior.request_close.connect(_on_service_closed)
-	if _service_interior.has_signal("request_repair"):
-		_service_interior.request_repair.connect(_on_service_repair_requested)
-	_apply_grid_power_to_interior(_service_interior)
+	add_child(room)
+	_service_rooms[kind] = room
+	_register_interior_instance(INTERIOR_MODULE_SERVICE + ":" + kind, room)
+	if room.has_signal("request_close"):
+		room.request_close.connect(_on_service_closed)
+	if room.has_signal("request_repair"):
+		room.request_repair.connect(_on_service_repair_requested)
+	_apply_grid_power_to_interior(room)
+	_apply_time_to_interior(room)
+	# Its eye shut till it opens (the first one's stays open the game's first seconds, as
+	# every room's did: _tick_eyes).
+	var vp := room.get("_viewport") as SubViewport
+	if vp != null and _service_rooms.size() > 1:
+		vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	return room
+
+
+## The room you are in or going into, the building's kind's.
+func _use_service_room(building_type: String) -> void:
+	_service_interior = _service_room(SERVICE_INTERIOR_SCRIPT.profile_for(building_type))
+
+
+## A business or service room open now (null none).
+func _open_service_room():
+	for room in _service_rooms.values():
+		if room != null and is_instance_valid(room) and room.is_open():
+			return room
+	return null
 
 
 func _on_service_interact(service_node: Node) -> void:
-	if _service_interior == null:
-		return
-	if _service_interior.is_open():
+	if _open_service_room() != null:
 		return
 	var structure = _resolve_service_structure(service_node)
 	if structure == null:
@@ -1430,6 +1467,7 @@ func _on_service_interact(service_node: Node) -> void:
 	var building_type = str(structure.get_meta("building_type", ""))
 	if not _is_supported_service_building_type(building_type):
 		return
+	_use_service_room(building_type)
 	if _walk_up_first(structure as Node3D, _on_service_interact.bind(service_node), _service_interior):
 		return
 	_active_service_node = structure

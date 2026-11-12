@@ -811,6 +811,17 @@ every night's sewer, toilets and frozen pipes the moment they broke).
   `mate_place()` (remote_player.gd, state "att"). The ball games are the host's in
   co-op: `_launch` sends each flight (`Coop.send_play` "shot"), the other machine only
   follows (`coop_take_shot`) and sends its swings ("press").
+- **One room a kind of place** (12. 11.): `interior_manager` keeps a `service_interior` for
+  every kind (`service_interior.KINDS`: rest, pub, vecerka, staff, toilet, wash, generator,
+  sewer; `profile_for(building type)`), each built once behind the loading bar, one a step
+  (`room_jobs`, `_service_room(kind)`), registered as "service:<kind>" so the time, the
+  weather and the power reach them all; `_service_interior` is the one in use, chosen at
+  the door (`_use_service_room(type)`, before the walk up). One room for every kind was
+  built anew at each switch between them (100-350 ms at the door; the walk in up to half a
+  second). A tool that opens a business room directly selects it first
+  (`_interior_manager._use_service_room('pub')`). Still at a business's first visit in a
+  session: its stations made for it, 130-300 ms (`trhnuti_check --part=bizrooms`, "make up
+  ..., round 1"); they are kept after.
 - **Business rooms** (`service_interior.gd`): the pub, the bistro and the Jednota change
   rooms only by their doors (`scripts/food/business_doors.gd`; `_build_business_doors`
   puts them in walls the layouts keep free: move a prop off a wall and check the door

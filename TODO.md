@@ -4,6 +4,19 @@
 
 ---
 
+## DAY POLISH 2026-11-12 — „Potřebujeme totálně zpříjemnit polishnout denní gameplay, správu kempu, menší eventy a úkoly, minihry, až po postupnou automatizaci přes zaměstnance. noc necháme na jindy zatím“
+
+- [x] The belt pager for what happens away from you, the feed for what is round you (09d6b6d1); slim, off the status bar's edge in the bottom left (1e86a6b6: „pager i nová UI tabule zabírá hrozně moc výhledu“)
+- [x] The room's card as pictures, smaller, gone when the room is ready (478b2759, 1e86a6b6); a sorted trouble's plate leaves with a tick (1be0fdc9)
+- [x] An unmade bed's bedding as a picture, not boxes (533c2493); the caravan's bed made by holding (c8068db9)
+- [x] The picture of a hand's job over their head (83043a4a)
+- [x] No click at a station answered with silence (cead88ab)
+- [x] The businesses' rooms rebuilt at every switch between them (pub, bistro, Jednota, staffroom: 100-350 ms, the bistro's first up to 1 s): one room a kind, all built behind the loading bar (Richard: „tak to pojď nakódovat čistě“). The walk in now 55-92 ms worst on a loaded PC (was 330-540)
+- [ ] A business's first visit in a session still makes its stations for it, 130-300 ms at the door (`trhnuti_check --part=bizrooms` "round 1"; reading their scripts ahead did not help: it is making them). Made with the business (when it is built or loaded) behind a step, or the stations a room's own and only bound to a business at the door
+- [ ] `podniky_coop`: the bufet's check waits for a soup nobody ordered (0 -> 0 twice on 12. 11.; the rooms are not opened in it): order one for it as the deli's check does
+- [ ] The tent's canvas inside: two Grok tries failed (folds that tile into stripes; then bare); a source with the weave and a seam, no folds
+- [ ] Their own sounds for the three silent presses found (the counter's board, a cob in the pot, the husking table's cob); the hand's tap covers them now
+
 ## PLAYTEST 2026-11-09 — Richard's notes (his words, then the note in brackets; tick with the commit)
 
 - [x] J1 (e82e66b2) „fixnout movement v motelu po vzoru kaple. je to fakt hrozné hrozné, projdu zpět na recepci a najednou jsem čelem vzad a další věci."

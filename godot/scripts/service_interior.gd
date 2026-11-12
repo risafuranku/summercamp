@@ -225,6 +225,35 @@ var _life: Node3D
 var _upkeep_coord := Vector2i(-999, -999)
 var _upkeep_type := ""
 static var _upkeep_cache: Dictionary = {}   # key -> {tasks, done, broken}
+## The kinds of place, one room each (12. 11.: one room for them all was built anew at every
+## switch from one to another, 100-350 ms at the door, the bistro's first up to a second).
+## interior_manager keeps one of these rooms a kind (`_service_room`), built behind the
+## loading bar, and goes into the one the building is.
+const KINDS := ["rest", "pub", "vecerka", "staff", "toilet", "wash", "generator", "sewer"]
+## This room's kind, given before it is in the tree: its room is built then, once.
+var kind := "rest"
+
+
+## The kind of room a building type has.
+static func profile_for(service_type: String) -> String:
+	match service_type:
+		"restaurant":
+			return "rest"
+		"pub":
+			return "pub"
+		"shower_block":
+			return "wash"
+		"toilet_block":
+			return "toilet"
+		"sewer":
+			return "sewer"
+		"vecerka":
+			return "vecerka"
+		"power_generator":
+			return "generator"
+		"staffroom":
+			return "staff"
+	return "rest"
 
 
 func _ready() -> void:
@@ -236,7 +265,7 @@ func _ready() -> void:
 	_build_viewport()
 	_sync_viewport_to_window()
 	_setup_sewer_ambience_player()
-	# (The bistro's room made ready at the start.)
+	_current_profile = kind
 	_build_service_room(_current_profile)
 
 
@@ -424,13 +453,14 @@ func open_service(service_type: String) -> void:
 	_update_sewer_ambience_state()
 
 
-## The room as `service_type`'s: built if it is another kind, else put back as you find it.
+## The room as `service_type`'s, put back as you find it (each room is of one kind and
+## interior_manager goes into the building's own: built anew only if it were another kind).
 func _make_up(service_type: String) -> void:
 	# Registered before it was in the tree (size 0, shrink 1): the low resolution now.
 	if _viewport_container != null:
 		RETRO_RENDER.apply_to(_viewport_container)
 	_service_type = service_type
-	var wanted_profile = _profile_for_service(service_type)
+	var wanted_profile = profile_for(service_type)
 	if wanted_profile == "rest":
 		_restaurant_room = "dining"
 	if wanted_profile != _current_profile:
@@ -4279,26 +4309,6 @@ func coop_show_laptop(frame: PackedByteArray) -> void:
 		return
 	_ensure_laptop_view()
 	_laptop_view.call("partner_frame", frame)
-
-
-func _profile_for_service(service_type: String) -> String:
-	if service_type == "restaurant":
-		return "rest"
-	if service_type == "pub":
-		return "pub"
-	if service_type == "shower_block":
-		return "wash"
-	if service_type == "toilet_block":
-		return "toilet"
-	if service_type == "sewer":
-		return "sewer"
-	if service_type == "vecerka":
-		return "vecerka"
-	if service_type == "power_generator":
-		return "generator"
-	if service_type == "staffroom":
-		return "staff"
-	return "rest"
 
 
 func _try_request_service_repair() -> void:

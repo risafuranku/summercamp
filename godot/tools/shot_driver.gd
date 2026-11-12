@@ -527,7 +527,7 @@ const SCENARIOS := {
 		["eval", "_interior_manager._cabin_interior._look.set('yaw_deg', 0)"], ["eval", "_interior_manager._cabin_interior._look.set('pitch_deg', -30)"], ["wait", 0.8], ["shot", "cabin_interior_4_down"],
 		["eval", "_interior_manager._cabin_interior._look.set('yaw_deg', 72)"], ["eval", "_interior_manager._cabin_interior._look.set('pitch_deg', -30)"], ["wait", 0.8], ["shot", "cabin_interior_5_left_down"],
 		["eval", "_interior_manager._cabin_interior.close_cabin()"], ["wait", 0.5],
-		["eval", "_interior_manager._service_interior.open_service('toilet_block')"], ["wait", 1.2], ["shot", "service_interior_0_center"],
+		["eval", "_interior_manager._use_service_room('toilet_block')"], ["eval", "_interior_manager._service_interior.open_service('toilet_block')"], ["wait", 1.2], ["shot", "service_interior_0_center"],
 		["eval", "_interior_manager._service_interior._look.set('yaw_deg', 65)"], ["eval", "_interior_manager._service_interior._look.set('pitch_deg', 0)"], ["wait", 0.8], ["shot", "service_interior_1_left"],
 		["eval", "_interior_manager._service_interior._look.set('yaw_deg', -65)"], ["eval", "_interior_manager._service_interior._look.set('pitch_deg', 0)"], ["wait", 0.8], ["shot", "service_interior_2_right"],
 		["eval", "_interior_manager._service_interior._look.set('yaw_deg', 0)"], ["eval", "_interior_manager._service_interior._look.set('pitch_deg', 20)"], ["wait", 0.8], ["shot", "service_interior_3_up"],
