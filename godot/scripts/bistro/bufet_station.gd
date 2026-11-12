@@ -177,8 +177,8 @@ func checklist(t: Dictionary) -> Array:
 		return super.checklist(t)
 	var ladles := int(_bowl.get("ladles", 0))
 	return [
-		{"text": "A CLEAN BOWL", "state": "done" if not _bowl.is_empty() else "todo"},
-		{"text": "TWO LADLES", "state": "done" if ladles == RULES.SOUP_LADLES else ("bad" if ladles > RULES.SOUP_LADLES else "todo")},
+		{"text": "A CLEAN BOWL", "state": "done" if not _bowl.is_empty() else "todo", "icon": pic(TEX + "bowl_empty.png")},
+		{"text": "TWO LADLES", "state": "done" if ladles == RULES.SOUP_LADLES else ("bad" if ladles > RULES.SOUP_LADLES else "todo"), "icon": pic(TEX + "bowl_soup.png"), "n": "%d/%d" % [ladles, RULES.SOUP_LADLES]},
 	]
 
 

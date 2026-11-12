@@ -1348,7 +1348,8 @@ func _draw_checklist_pictures(c: Control, area: Rect2, lines: Array) -> void:
 		var ic: Texture2D = line["icon"]
 		var sc := minf(1.0, (CHECK_CELL - 2.0) / maxf(ic.get_width(), ic.get_height()))
 		var isz := (ic.get_size() * sc).floor()
-		c.draw_texture_rect(ic, Rect2(at + ((cell.size - isz) * 0.5).floor(), isz), false, Color(0.45, 0.45, 0.45) if st == "done" else Color.WHITE)
+		var tint: Color = line.get("tint", Color.WHITE)
+		c.draw_texture_rect(ic, Rect2(at + ((cell.size - isz) * 0.5).floor(), isz), false, tint * (Color(0.45, 0.45, 0.45) if st == "done" else Color.WHITE))
 		if bool(line.get("neg", false)):
 			for k in int(CHECK_CELL) - 4:
 				c.draw_rect(Rect2(at + Vector2(2 + k, CHECK_CELL - 3 - k), Vector2(2, 1)), bad)
@@ -1403,7 +1404,8 @@ func ticket_items(_t: Dictionary) -> Array:
 
 
 ## The big ticket's lines: [{text, state}] (+ icon: a Texture2D, n: a count, neg: a thing
-## that must not be): with an icon on every line it is drawn as pictures.
+## that must not be, tint: the icon's colour): with an icon on every line it is drawn as
+## pictures.
 func checklist(_t: Dictionary) -> Array:
 	return []
 

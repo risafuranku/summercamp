@@ -82,9 +82,9 @@ func checklist(t: Dictionary) -> Array:
 	var line := _line_of(drink)
 	var mine := _bottle == drink
 	return [
-		{"text": PUB.label(drink), "state": "done" if mine else ("bad" if _bottle != "" else "todo")},
-		{"text": "TO THE LINE", "state": "done" if mine and _fill >= line - 0.08 else "todo"},
-		{"text": "NOTHING SPILT", "state": "bad" if _spill > 0.03 else ("done" if mine and _fill >= line - 0.08 else "todo")},
+		{"text": PUB.label(drink), "state": "done" if mine else ("bad" if _bottle != "" else "todo"), "icon": _icons.get(str(DRINK_ICONS.get(drink, "mark_shot"))), "tint": SPIRIT_TINT.get(drink, Color.WHITE)},
+		{"text": "TO THE LINE", "state": "done" if mine and _fill >= line - 0.08 else "todo", "icon": pic(MARKS + "tk_line.png")},
+		{"text": "NOTHING SPILT", "state": "bad" if _spill > 0.03 else ("done" if mine and _fill >= line - 0.08 else "todo"), "icon": pic(MARKS + "tk_spill.png"), "neg": true},
 	]
 
 

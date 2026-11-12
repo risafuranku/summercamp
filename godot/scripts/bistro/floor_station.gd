@@ -340,8 +340,8 @@ func checklist(t: Dictionary) -> Array:
 		return super.checklist(t)
 	var mine := not _bottle.is_empty() and str(_bottle["kind"]) == dish
 	return [
-		{"text": str(SHORT.get(dish, dish.to_upper())), "state": "done" if mine else ("bad" if not _bottle.is_empty() else "todo")},
-		{"text": "OPENED", "state": "done" if mine and bool(_bottle["open"]) else "todo"},
+		{"text": str(SHORT.get(dish, dish.to_upper())), "state": "done" if mine else ("bad" if not _bottle.is_empty() else "todo"), "icon": pic(TEX + "bottle_%s.png" % dish)},
+		{"text": "OPENED", "state": "done" if mine and bool(_bottle["open"]) else "todo", "icon": pic(TEX + "bottle_%s_open.png" % dish)},
 	]
 
 

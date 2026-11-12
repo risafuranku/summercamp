@@ -14,6 +14,7 @@ const TAPROOM := preload("res://scripts/pub/taproom.gd")
 const ORDERS_S := preload("res://scripts/food/orders.gd")
 const PUB_TEX := "res://assets/textury/pub/"
 const MARKS := "res://assets/textury/ui/"
+const LANG := preload("res://scripts/lang.gd")
 ## The little pictures on the mats (assets/textury/ui/mark_*.png, Grok).
 const DRINK_ICONS := {"hladinka": "mark_mug", "snyt": "mark_mug", "mliko": "mark_foam", "rum": "mark_shot",
 	"zelena": "mark_shot", "slivovice": "mark_shot", "kofola": "mark_kofola"}
@@ -341,8 +342,9 @@ static func bill_slip(marks: int) -> Texture2D:
 ## A bill's checklist: what it comes to, and the click that settles it.
 func checklist(t: Dictionary) -> Array:
 	if str(t.get("kind", "")) == "bill":
-		return [{"text": "TAB $%d" % PUB.to_pay(t), "state": "todo"}, {"text": "CLICK THE BILL", "state": "todo"}]
-	return [{"text": PUB.label(str(t.get("drink", ""))), "state": "todo"}]
+		return [{"text": "TAB $%d" % PUB.to_pay(t), "state": "todo", "icon": bill_slip(_bill_marks(t)), "n": LANG.money("$%d" % PUB.to_pay(t))}]
+	var drink := str(t.get("drink", ""))
+	return [{"text": PUB.label(drink), "state": "todo", "icon": _icons.get(str(DRINK_ICONS.get(drink, "mark_mug"))), "tint": SPIRIT_TINT.get(drink, Color.WHITE)}]
 
 
 static func ORDERS_first(full: String) -> String:
