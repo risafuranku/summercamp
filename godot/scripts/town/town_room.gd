@@ -24,8 +24,8 @@ extends CanvasLayer
 ## is built there in the camp's own world, the building's own copy of it behind its glass
 ## (`copies()`) put away while you are in: its windows are the building's glass with the
 ## street behind them, its lamps light only the room (one_world_room.gd, as the camp's rooms).
-## Room space is `_space`: the seat, or the origin of the room's own world for a place that
-## has none (the Benzina's WC, and any place whose building is missing).
+## Room space is `_space`: the seat, or the origin of the room's own world for a place whose
+## building is missing (the old painted village).
 
 signal closed
 ## Paid for at the counter (counter_shop.gd), into the bag (scripts/ui/inventory.gd).
@@ -301,6 +301,7 @@ func open(p_place: String, p_hour: float) -> void:
 			_view.build(hour, arrive_spot)
 		"wc":
 			_view = WC_VIEW.new(self)
+			_view.anchor = place_anchor
 			_view.build_inside(hour)
 	_enter_world()
 	_look.reset()

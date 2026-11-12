@@ -12,25 +12,34 @@ extends RefCounted
 ## rattles and chokes; the tap squeaks and gives two drops; the dryer coughs; the holder
 ## rattles; the switch is the bulb's and nothing else's (the window's light stays). Now
 ## and then, the worse you are (the hidden sanity), somebody outside tries the handle, once.
-## Room space: the middle of the floor, the door at +z behind you, the bowl at -z.
+## Room space: the middle of the floor, the door at +z behind you, the bowl at -z. It stands in
+## the kiosk's east end behind its door (IN_KIOSK; the camp's one world, town_room), as deep as
+## the room the shop leaves there (1.75 m since 11. 11.: it was 2.7, through the shop's wall).
 
 const K = preload("res://scripts/interior_kit.gd")
 const SFX := "res://assets/sfx/"
 const CAMP := "res://assets/textury/camp/"
-const ROOM := Vector3(2.0, 2.45, 2.7)
+const ROOM := Vector3(2.0, 2.45, 1.75)
 ## How high the tiles go; the paint over them.
 const TILE_H := 1.8
-const STAND := Vector3(0.05, 1.58, 0.72)
-const BULB := Vector3(0.0, 2.03, -0.2)
-const BOWL := Vector3(-0.1, 0.0, -0.98)
-const CISTERN := Vector3(-0.1, 1.8, -1.3)
-const MATE_SPOTS := [Vector3(0.48, 0.0, 1.0), Vector3(-0.5, 0.0, 0.95)]
+const STAND := Vector3(0.05, 1.58, 0.47)
+const BULB := Vector3(0.0, 2.03, -0.13)
+const BOWL := Vector3(-0.1, 0.0, -0.6)
+const CISTERN := Vector3(-0.1, 1.8, -0.82)
+const MATE_SPOTS := [Vector3(0.48, 0.0, 0.62), Vector3(-0.5, 0.0, 0.58)]
 const BULB_ON := 0.95
 const QUIP := "Not my job, this one."
 ## How long the remark stays under the room.
 const QUIP_SEC := 3.5
 
+## Its place in the Benzina's kiosk (town_lesna._station, WC_DOOR): the room turned so its door
+## (+z) is the kiosk's east side, its door wall against the kiosk's own, its floor over the
+## ground.
+const IN_KIOSK := Vector3(4.8 - 0.11 - ROOM.z * 0.5, 0.12, 1.5)
+
 var room
+## The kiosk in the village (town_lesna's spot "wc"), set by town_room.
+var anchor: Node3D
 var parts: Dictionary = {}
 var _t := 0.0
 var _rng := RandomNumberGenerator.new()
@@ -109,6 +118,18 @@ func _decal(tex: String, size: Vector2, pos: Vector3, normal: Vector3, spin := 0
 
 
 # ── building ─────────────────────────────────────────────────────────────────
+
+## Where the room stands in the camp's world (town_room one world): in the kiosk's east end. The
+## kiosk keeps no copy of it (no window looks into it).
+func seat() -> Variant:
+	if anchor == null or not is_instance_valid(anchor) or not anchor.is_inside_tree():
+		return null
+	return anchor.global_transform * Transform3D(Basis(Vector3.UP, PI * 0.5), IN_KIOSK)
+
+
+func copies() -> Array:
+	return []
+
 
 func build_inside(hour: float) -> void:
 	var root: Node3D = room._root
@@ -190,19 +211,19 @@ func _things(root: Node3D) -> void:
 func _wall_things(root: Node3D) -> void:
 	var ex := ROOM.x * 0.5
 	var wx := -ROOM.x * 0.5
-	var basin := K.cutout(root, "wc_basin", _size("wc_basin", 0.5), Vector3(ex - 0.06, 0.68, -0.3), -90.0, false, "Basin")
-	room._hot_box("basin", Vector3(ex - 0.1, 0.92, -0.3), Vector3(0.3, 0.5, 0.56), [basin])
-	K.cutout(root, "wc_mirror", _size("wc_mirror", 0.46), Vector3(ex - 0.02, 1.26, -0.3), -90.0, false, "Mirror")
+	var basin := K.cutout(root, "wc_basin", _size("wc_basin", 0.5), Vector3(ex - 0.06, 0.68, -0.2), -90.0, false, "Basin")
+	room._hot_box("basin", Vector3(ex - 0.1, 0.92, -0.2), Vector3(0.3, 0.5, 0.56), [basin])
+	K.cutout(root, "wc_mirror", _size("wc_mirror", 0.46), Vector3(ex - 0.02, 1.26, -0.2), -90.0, false, "Mirror")
 	var ds := _size("wc_dryer", 0.34)
-	var dryer := K.cutout(root, "wc_dryer", ds, Vector3(ex - 0.02, 1.16, 0.46), -90.0, false, "Dryer")
+	var dryer := K.cutout(root, "wc_dryer", ds, Vector3(ex - 0.02, 1.16, 0.3), -90.0, false, "Dryer")
 	parts["dryer"] = dryer
-	room._hot_box("dryer", Vector3(ex - 0.05, 1.33, 0.46), Vector3(0.14, 0.36, 0.4), [dryer])
-	var holder := K.cutout(root, "wc_roll", _size("wc_roll", 0.13), Vector3(wx + 0.02, 0.74, -0.72), 90.0, false, "Holder")
-	room._hot_box("roll", Vector3(wx + 0.05, 0.8, -0.72), Vector3(0.12, 0.2, 0.34), [holder])
+	room._hot_box("dryer", Vector3(ex - 0.05, 1.33, 0.3), Vector3(0.14, 0.36, 0.4), [dryer])
+	var holder := K.cutout(root, "wc_roll", _size("wc_roll", 0.13), Vector3(wx + 0.02, 0.74, -0.47), 90.0, false, "Holder")
+	room._hot_box("roll", Vector3(wx + 0.05, 0.8, -0.47), Vector3(0.12, 0.2, 0.34), [holder])
 	var ss := _size("wc_switch_off", 0.1)
-	_switch = K.cutout(root, "wc_switch_off", ss, Vector3(wx + 0.02, 1.3, 0.34), 90.0, false, "Switch")
-	room._hot_box("switch", Vector3(wx + 0.05, 1.35, 0.34), Vector3(0.1, 0.18, 0.18), [_switch])
-	var win := K.picture(root, "wc_window", Vector2(0.56, 0.56), Vector3(wx + 0.015, 2.04, -0.4), 90.0, "Window")
+	_switch = K.cutout(root, "wc_switch_off", ss, Vector3(wx + 0.02, 1.3, 0.22), 90.0, false, "Switch")
+	room._hot_box("switch", Vector3(wx + 0.05, 1.35, 0.22), Vector3(0.1, 0.18, 0.18), [_switch])
+	var win := K.picture(root, "wc_window", Vector2(0.56, 0.56), Vector3(wx + 0.015, 2.04, -0.26), 90.0, "Window")
 	parts["window"] = win
 
 
@@ -213,28 +234,28 @@ func _grime() -> void:
 	var back := -ROOM.z * 0.5
 	var cut := Color(0.34, 0.3, 0.26)
 	var mould := Color(0.7, 0.72, 0.66)
-	_decal("wc_scratch_0", Vector2(0.34, 0.4), Vector3(wx, 1.34, -0.12), Vector3(1, 0, 0), 0.0, cut)
-	_decal("wc_scratch_1", Vector2(0.3, 0.3), Vector3(wx, 0.98, 0.1), Vector3(1, 0, 0), 0.0, cut)
-	_decal("wc_scratch_2", Vector2(0.28, 0.28), Vector3(ex, 1.02, 0.82), Vector3(-1, 0, 0), 0.0, cut)
+	_decal("wc_scratch_0", Vector2(0.34, 0.4), Vector3(wx, 1.34, -0.08), Vector3(1, 0, 0), 0.0, cut)
+	_decal("wc_scratch_1", Vector2(0.3, 0.3), Vector3(wx, 0.98, 0.06), Vector3(1, 0, 0), 0.0, cut)
+	_decal("wc_scratch_2", Vector2(0.28, 0.28), Vector3(ex, 1.02, 0.53), Vector3(-1, 0, 0), 0.0, cut)
 	_decal("wc_scratch_3", Vector2(0.4, 0.4), Vector3(0.5, 1.34, back), Vector3(0, 0, 1), 0.0, cut)
 	_decal("wc_scratch_1", Vector2(0.26, 0.26), Vector3(-0.62, 1.4, back), Vector3(0, 0, 1), 0.3, cut)
 	_decal("decay_stain", Vector2(0.74, 0.58), Vector3(0.66, 2.22, back), Vector3(0, 0, 1), 0.4, Color(0.62, 0.6, 0.54))
-	_decal("decay_mould", Vector2(0.5, 0.42), Vector3(ex, 2.1, -0.95), Vector3(-1, 0, 0), 0.8, mould)
-	_decal("decay_mould", Vector2(0.42, 0.36), Vector3(wx, 2.12, 0.72), Vector3(1, 0, 0), 2.1, mould)
+	_decal("decay_mould", Vector2(0.5, 0.42), Vector3(ex, 2.1, -0.62), Vector3(-1, 0, 0), 0.8, mould)
+	_decal("decay_mould", Vector2(0.42, 0.36), Vector3(wx, 2.12, 0.47), Vector3(1, 0, 0), 2.1, mould)
 	_decal("decay_mould", Vector2(0.7, 0.5), Vector3(-0.66, 0.26, back), Vector3(0, 0, 1), 0.3, mould)
-	_decal("decay_mould", Vector2(0.62, 0.46), Vector3(wx, 0.24, 0.46), Vector3(1, 0, 0), 1.2, mould)
-	_decal("decay_mould", Vector2(0.56, 0.42), Vector3(ex, 0.22, -1.02), Vector3(-1, 0, 0), 2.4, mould)
+	_decal("decay_mould", Vector2(0.62, 0.46), Vector3(wx, 0.24, 0.3), Vector3(1, 0, 0), 1.2, mould)
+	_decal("decay_mould", Vector2(0.56, 0.42), Vector3(ex, 0.22, -0.66), Vector3(-1, 0, 0), 2.4, mould)
 	_decal("decay_crack", Vector2(0.4, 0.8), Vector3(0.74, 0.7, back), Vector3(0, 0, 1), 0.2, Color(0.5, 0.46, 0.4))
-	_decal("ceiling_stain_1", Vector2(1.1, 0.9), Vector3(-0.3, ROOM.y, -0.7), Vector3(0, -1, 0), 0.6)
-	_decal("ceiling_stain_0", Vector2(0.7, 0.6), Vector3(0.5, ROOM.y, 0.6), Vector3(0, -1, 0), 2.2)
+	_decal("ceiling_stain_1", Vector2(1.1, 0.9), Vector3(-0.3, ROOM.y, -0.45), Vector3(0, -1, 0), 0.6)
+	_decal("ceiling_stain_0", Vector2(0.7, 0.6), Vector3(0.5, ROOM.y, 0.39), Vector3(0, -1, 0), 2.2)
 	var up := Vector3.UP
-	_decal("floor_puddle", Vector2(0.95, 0.66), Vector3(-0.06, 0.002, -0.72), up, 0.3, Color(0.72, 0.66, 0.5))
-	_decal("floor_puddle", Vector2(0.5, 0.36), Vector3(0.56, 0.002, -0.2), up, 1.9, Color(0.6, 0.6, 0.56))
-	_decal("tissue", Vector2(0.16, 0.14), Vector3(-0.6, 0.004, -0.6), up, 0.7)
-	_decal("tissue", Vector2(0.12, 0.1), Vector3(0.28, 0.004, -0.4), up, 2.3)
-	_decal("roach_dead", Vector2(0.07, 0.07), Vector3(-0.72, 0.004, 0.32), up, 1.2)
-	_decal("hair_clump", Vector2(0.12, 0.1), Vector3(0.74, 0.004, 0.34), up, 0.4)
-	_decal("wet_footprints", Vector2(0.4, 0.3), Vector3(0.1, 0.003, 0.16), up, 0.1)
+	_decal("floor_puddle", Vector2(0.95, 0.66), Vector3(-0.06, 0.002, -0.47), up, 0.3, Color(0.72, 0.66, 0.5))
+	_decal("floor_puddle", Vector2(0.5, 0.36), Vector3(0.56, 0.002, -0.13), up, 1.9, Color(0.6, 0.6, 0.56))
+	_decal("tissue", Vector2(0.16, 0.14), Vector3(-0.6, 0.004, -0.39), up, 0.7)
+	_decal("tissue", Vector2(0.12, 0.1), Vector3(0.28, 0.004, -0.26), up, 2.3)
+	_decal("roach_dead", Vector2(0.07, 0.07), Vector3(-0.72, 0.004, 0.21), up, 1.2)
+	_decal("hair_clump", Vector2(0.12, 0.1), Vector3(0.74, 0.004, 0.22), up, 0.4)
+	_decal("wet_footprints", Vector2(0.4, 0.3), Vector3(0.1, 0.003, 0.1), up, 0.1)
 
 
 ## Four or five flies, round the bulb, stepping about; their wings in two pictures.
@@ -298,7 +319,7 @@ func _light(root: Node3D, hour: float) -> void:
 		m.emission = col
 		m.emission_energy_multiplier = 1.25 if day else (0.9 if dusk else 1.0)
 	# By night the window's grey is all there is till you find the switch.
-	room._omni(Vector3(-ROOM.x * 0.5 + 0.6, 1.9, -0.4), col, 0.5 if day else (0.3 if dusk else 0.3), 4.0)
+	room._omni(Vector3(-ROOM.x * 0.5 + 0.6, 1.9, -0.26), col, 0.5 if day else (0.3 if dusk else 0.3), 4.0)
 	# The bulb on its cord.
 	var bs := _size("wc_bulb_off", 0.42)
 	_bulb = K.cutout(root, "wc_bulb_off", bs, Vector3(BULB.x, ROOM.y - bs.y, BULB.z), 0.0, true, "Bulb")

@@ -1019,6 +1019,9 @@ func _station(at: Vector3) -> void:
 		_face(kiosk, WC_DOOR + Vector3(0.03, 0, 0), Vector2(1.29, 2.3), Vector3(1, 0, 0), _mat(TEX_CAMP + "wc_door_out.png", Color(0.9, 0.9, 0.9)))
 	spots["kiosk"] = kiosk
 	spots["kiosk_door"] = w(at + Vector3(0, 0, 9.0 - 4.2))
+	# The toilet stands in the kiosk's east end behind its door (wc_view.IN_KIOSK).
+	spots["wc"] = kiosk
+	spots["wc_door"] = w(at + Vector3(0, 0, 9.0) + Vector3(WC_DOOR.x + 1.2, 0, WC_DOOR.z))
 	spots["station"] = root
 
 
