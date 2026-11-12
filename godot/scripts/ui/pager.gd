@@ -2,18 +2,20 @@ extends Control
 
 ## The belt pager (hud_manager.push_pager): whatever happens away from you comes through it,
 ## one message at a time (12. 11.: it was a stack of lines in the top corner, the pager's
-## among the guests' talk and your own doings). It comes down into the corner as it beeps,
-## its screen lit, three lines of the message at a time (a long one goes on a page at a time),
-## then the next message; with nothing left it goes back up. A message of the same group as
-## one waiting takes its place (the post's "new mail" once, however many letters came).
-## Nothing moves while it is away (set_process off).
+## among the guests' talk and your own doings). It comes up off the belt, out of the status
+## bar's top edge in the bottom left corner (out of the screen's bottom edge in a room), as
+## it beeps, its screen lit, two lines of the message at a time (a long one goes on a page at
+## a time), then the next message; with nothing left it goes back down. A message of the same
+## group as one waiting takes its place (the post's "new mail" once, however many letters
+## came). Nothing moves while it is away (set_process off).
 
-const BODY_PATH := "res://assets/textury/hud/pager.png"
-## The screen in the picture's pixels (tools/artgen prompts_day.tsv hud_pager, 121 x 70), and
-## where the LED is (lit while it shows a message); three lines of the HUD's small font.
-const LCD := Rect2(16, 16, 89, 26)
-const LED := Rect2(102, 4, 4, 4)
-const LINES := 3
+## The slim pager (tools/artgen/pager_slim.py out of prompts_day.tsv hud_pager: 12. 11., the
+## whole one with its buttons took a quarter of the view), 98 x 37: its screen, two lines of
+## the HUD's small font, and its LED (lit while it shows a message).
+const BODY_PATH := "res://assets/textury/hud/pager_slim.png"
+const LCD := Rect2(10, 10, 78, 18)
+const LED := Rect2(82, 1, 4, 4)
+const LINES := 2
 ## Seconds a page stays, the least a whole message stays, the slide in or out.
 const PAGE_SEC := 2.4
 const MESSAGE_MIN_SEC := 3.8
@@ -26,6 +28,8 @@ const LED_WARN := Color(1.0, 0.25, 0.15)
 const LED_INFO := Color(0.55, 1.0, 0.35)
 
 var ui_scale := 3
+## Screen pixels left clear under the pager down to the edge it comes out of.
+var gap_px := 0.0
 var _body: Texture2D
 var _queue: Array = []
 var _current: Dictionary = {}
@@ -40,6 +44,8 @@ var _going := 0.0
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# (Out of its rect's bottom edge: what is below it is not drawn.)
+	clip_contents = true
 	if ResourceLoader.exists(BODY_PATH):
 		_body = load(BODY_PATH)
 	set_process(false)
@@ -62,11 +68,6 @@ func show_line(text: String, kind: int, group := "") -> void:
 	if _current.is_empty():
 		_next()
 	set_process(true)
-
-
-## How far down it reaches now (screen pixels): what is under it in the corner moves down.
-func reach() -> float:
-	return size.y * _ease(_down)
 
 
 func _body_size() -> Vector2:
@@ -124,7 +125,7 @@ func _wrap(text: String, width: float) -> Array:
 
 
 func _process(delta: float) -> void:
-	size = _body_size()
+	size = _body_size() + Vector2(0, gap_px)
 	var was := _down
 	_down = move_toward(_down, _going, delta / SLIDE_SEC)
 	if not _current.is_empty() and _down >= 1.0:
@@ -151,20 +152,24 @@ func _draw() -> void:
 	if _body == null or _down <= 0.0:
 		return
 	var s := float(ui_scale)
-	var top := -size.y * (1.0 - _ease(_down))
+	var top := size.y * (1.0 - _ease(_down))
 	draw_texture_rect(_body, Rect2(Vector2(0, top), _body_size()), false)
 	if _current.is_empty():
 		return
 	var lcd := Rect2(Vector2(LCD.position.x * s, top + LCD.position.y * s), LCD.size * s)
 	draw_rect(lcd, LIT)
+	# (The LED is round: a cross of two bars over its four by four.)
 	var led_c := LED_WARN if int(_current.get("kind", 0)) >= 2 else LED_INFO
-	draw_rect(Rect2(Vector2(LED.position.x * s, top + LED.position.y * s), LED.size * s), led_c)
+	var led := Vector2(LED.position.x * s, top + LED.position.y * s)
+	draw_rect(Rect2(led + Vector2(s, 0), Vector2(LED.size.x - 2.0, LED.size.y) * s), led_c)
+	draw_rect(Rect2(led + Vector2(0, s), Vector2(LED.size.x, LED.size.y - 2.0) * s), led_c)
 	var font: Font = RETRO_UI.FONT_TEXT
 	var fs := RETRO_UI.SIZE_TEXT * ui_scale
 	var line_h := lcd.size.y / float(LINES)
 	var lines: Array = _pages[_page] if _page < _pages.size() else []
 	for i in lines.size():
-		var base := lcd.position + Vector2(2.0 * s, line_h * float(i) + line_h * 0.5 + RETRO_UI.cap_height_px(font, RETRO_UI.SIZE_TEXT, ui_scale) * 0.5)
+		# (A pixel under the middle: a capital's háček stays off the screen's top edge.)
+		var base := lcd.position + Vector2(2.0 * s, line_h * float(i) + line_h * 0.5 + s + RETRO_UI.cap_height_px(font, RETRO_UI.SIZE_TEXT, ui_scale) * 0.5)
 		draw_string(font, base, str(lines[i]), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, INK)
 	# More to come: a little arrow in the corner of the screen.
 	if _page < _pages.size() - 1:

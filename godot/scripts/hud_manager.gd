@@ -131,12 +131,10 @@ var _feed_box: VBoxContainer
 ## the messages and I miss them"). Hidden with the rest for the week report, game over.
 var _feed_layer: CanvasLayer
 ## The belt pager (scripts/ui/pager.gd) on a layer of its own over the feed's, made once (a
-## new layout keeps what it has to say); the feed in a room is over at the right, the pager
-## with it.
+## new layout keeps what it has to say), in the bottom left corner (`_place_pager`).
 const PAGER = preload("res://scripts/ui/pager.gd")
 var _pager_layer: CanvasLayer
 var _pager_view: Control
-var _feed_right := false
 var _objective_panel: Control
 var _arrivals_panel: Control
 ## The plates at the right edge: parties on the way or at the desk (scripts/ui/arrival_strip.gd).
@@ -275,7 +273,6 @@ func set_world_hud_visible(visible: bool, side := visible) -> void:
 		_feed_layer.visible = visible or side
 		if _feed_box != null:
 			var room := not visible and side
-			_feed_right = room
 			var w := _feed_box.size.x
 			var screen_w := get_viewport().get_visible_rect().size.x
 			_feed_box.position.x = (screen_w - w - _vp(4)) if room else _vp(4)
@@ -416,14 +413,16 @@ func _ensure_pager() -> void:
 	_pager_view.ui_scale = _scale
 
 
-## The pager in its corner (the feed's side) and the feed under it while it is down.
+## The pager in the bottom left corner, off the status bar's top edge (the screen's bottom
+## edge in a room, with no bar): it comes up out of it.
 func _place_pager() -> void:
-	if _pager_view == null or _feed_box == null:
+	if _pager_view == null:
 		return
-	var screen_w := get_viewport().get_visible_rect().size.x
-	_pager_view.position = Vector2((screen_w - _pager_view.size.x - _vp(4)) if _feed_right else _vp(4), _vp(4))
-	var reach: float = _pager_view.reach()
-	_feed_box.position.y = _vp(4) + (reach + _vp(2) if reach > 0.0 else 0.0)
+	var bottom := get_viewport().get_visible_rect().size.y
+	if _layer != null and _layer.visible:
+		bottom -= get_bar_height_px()
+	_pager_view.gap_px = _vp(3)
+	_pager_view.position = Vector2(_vp(4), bottom - _pager_view.size.y)
 
 
 ## A guest line in the Duke3D quote feed.

@@ -20,7 +20,13 @@ const PREP = preload("res://scripts/interior_prep.gd")
 ## times over): the room, how it stands, then what is left as pictures of it (the mess's own
 ## sprite; a count when there is more than one of a kind), the done ones dark with a tick. What
 ## a picture is, the prompt under the pointer says when you look at the thing.
-const ICON_VP := 18
+## (12 HUD pixels: at 18 the card took half the view's width, 12. 11.)
+const ICON_VP := 12
+## Pictures a row at most: more go on under (the card no wider than its heading, about).
+const ICONS_A_ROW := 6
+## A room that is ready or taken has nothing on its card to do: it goes after this long.
+const CARD_DONE_HOLD_SEC := 2.5
+const CARD_FADE_SEC := 0.4
 const TICK_PATH := "res://assets/textury/hud/job_tick.png"
 const WORK_HAND = preload("res://scripts/ui/work_hand.gd")
 const GESTURE = preload("res://scripts/ui/gesture.gd")
@@ -593,9 +599,15 @@ func _refresh_checklist(room: Dictionary) -> void:
 	plate.visible = true
 	var occupied := bool(room.get("occupied", false))
 	var ready := _room_status == "ready"
+	_fade_card(plate, ready or occupied)
 	var state := "OCCUPIED" if occupied else (str(room.get("ready_text", "READY FOR GUESTS")) if ready else (str(room.get("dirty_text", "NEEDS CLEANING")) if _room_status == "dirty" else "NOT MADE UP"))
-	_checklist.add_child(RETRO_UI.label(_room_label.to_upper(), RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_AMBER, _scale))
-	_checklist.add_child(RETRO_UI.label(state, RETRO_UI.FONT_TEXT, RETRO_UI.SIZE_TEXT, RETRO_UI.C_GREEN if (ready or occupied) else RETRO_UI.C_RED_LIGHT, _scale))
+	# The room and how it stands on one line.
+	var head := HBoxContainer.new()
+	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	head.add_theme_constant_override("separation", 4 * _scale)
+	head.add_child(RETRO_UI.label(_room_label.to_upper(), RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_AMBER, _scale))
+	head.add_child(RETRO_UI.label(state, RETRO_UI.FONT_TEXT, RETRO_UI.SIZE_TEXT, RETRO_UI.C_GREEN if (ready or occupied) else RETRO_UI.C_RED_LIGHT, _scale))
+	_checklist.add_child(head)
 	if not str(room.get("note", "")).is_empty():
 		_checklist.add_child(RETRO_UI.label(str(room["note"]), RETRO_UI.FONT_TEXT, RETRO_UI.SIZE_TEXT, RETRO_UI.C_RED_LIGHT, _scale))
 	if ready or occupied:
@@ -618,15 +630,38 @@ func _refresh_checklist(room: Dictionary) -> void:
 		if not done.has(str(t["id"])):
 			row[1][kind][0] += 1
 	for row in rows:
-		if str(row[0]) != "":
-			_checklist.add_child(RETRO_UI.label(str(row[0]), RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_TEXT, RETRO_UI.C_AMBER_LIGHT, _scale))
-		var line := HBoxContainer.new()
-		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		line.add_theme_constant_override("separation", 2 * _scale)
-		_checklist.add_child(line)
+		var line: HBoxContainer = null
+		var n := 0
 		for kind in row[2]:
+			if n % ICONS_A_ROW == 0:
+				line = HBoxContainer.new()
+				line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				line.add_theme_constant_override("separation", 2 * _scale)
+				_checklist.add_child(line)
+				# (A part's name at the head of its row, not on a line over it.)
+				if n == 0 and str(row[0]) != "":
+					var g := RETRO_UI.label(str(row[0]), RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_TEXT, RETRO_UI.C_AMBER_LIGHT, _scale)
+					g.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+					line.add_child(g)
 			var c: Array = row[1][kind]
 			line.add_child(_job_cell(str(kind), int(c[0]), int(c[1]), str(c[2])))
+			n += 1
+
+
+## The card stays while there is work in the room; ready or taken, it goes after a moment
+## (and comes back when the room's state does).
+var _card_tween: Tween
+
+
+func _fade_card(plate: Control, done: bool) -> void:
+	if _card_tween != null:
+		_card_tween.kill()
+		_card_tween = null
+	plate.modulate.a = 1.0
+	if done:
+		_card_tween = create_tween()
+		_card_tween.tween_interval(CARD_DONE_HOLD_SEC)
+		_card_tween.tween_property(plate, "modulate:a", 0.0, CARD_FADE_SEC)
 
 
 ## One kind of job on the card: its picture (`left` of `all` still to do: the count when more
