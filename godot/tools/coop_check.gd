@@ -461,7 +461,7 @@ func _run_step(step: Array) -> void:
 			# you build from a clean camp) and a new room is only unmade, but the room's
 			# jobs both ways want a room with a mess in it: the host puts the campaign's old
 			# cabin by the office (at ROOM) before anyone joins, so it comes over with the camp.
-			_main.call("_place_ruined_cabin")
+			_main._ruin.place()
 			print("COOP CHECK %s old cabin at %s (the rooms open %d:%d)" % [_role, _main.call("ruined_cabin_key"), ROOM.x, ROOM.y])
 		"coop_pick_task":
 			# A job in the open cabin: `step[1]` if given, else the longest mess job not

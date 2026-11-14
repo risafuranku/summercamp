@@ -1795,7 +1795,7 @@ func set_room(room: Dictionary) -> void:
 	_prep.set_room(room)
 
 
-## The old cabin at the start (main._place_ruined_cabin) until it is patched up outside:
+## The old cabin at the start (scripts/camp/ruined_cabin.gd) until it is patched up outside:
 ## the window boarded up from inside as well, and the bulb dead (the torch comes on).
 var _derelict := false
 

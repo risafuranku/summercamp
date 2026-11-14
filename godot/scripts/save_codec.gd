@@ -141,7 +141,7 @@ static func serialize_failures(value: Variant) -> Dictionary:
 			"since_day": max(1, int(entry.get("since_day", 1))),
 			"repair_progress": clampf(float(entry.get("repair_progress", 0.0)), 0.0, 1.0)
 		}
-		# The old cabin of a new camp (main._place_ruined_cabin): no bookings, dark inside.
+		# The old cabin of a new camp (scripts/camp/ruined_cabin.gd): no bookings, dark inside.
 		if bool(entry.get("derelict", false)):
 			out[key]["derelict"] = true
 		# Broken by the night (night_jobs.gd), not by wear.

@@ -1054,7 +1054,7 @@ func shaken_leave(guest_id: int, review_text: String, thought: String) -> void:
 		return
 
 
-## The camp's old cabin at the start (main._place_ruined_cabin): shut since last summer, every
+## The camp's old cabin at the start (scripts/camp/ruined_cabin.gd): shut since last summer, every
 ## mess at its worst; the bed has to be made up like any room.
 func make_room_derelict(key: String) -> void:
 	_sync_accommodation_states_from_guests()
@@ -1483,7 +1483,7 @@ func get_bed_metrics() -> Dictionary:
 			continue
 		var root_any = data.get("root_coord", coord)
 		var root_coord = root_any if root_any is Vector2i else coord
-		# The old cabin at the start (main._place_ruined_cabin) is not let until it is
+		# The old cabin at the start (scripts/camp/ruined_cabin.gd) is not let until it is
 		# patched up: nobody books a camp that has been shut since last summer.
 		if bool((state.failures.get(_coord_key(root_coord), {}) as Dictionary).get("derelict", false)):
 			continue

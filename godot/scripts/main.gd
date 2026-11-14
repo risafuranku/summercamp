@@ -4056,202 +4056,24 @@ var _torch_hand: CanvasLayer
 var _lodging_signs: Node
 
 
-## The camp you inherit is not new: the old cabin by the office, shut since last summer, rotten
-## (its condition at the bottom, broken until it is patched up with R) and filthy inside
-## (GuestManager.make_room_derelict). It is the first job and the lesson in how a room
-## works (quest steps fix_cabin, clean_cabin). The key of its room, "" if there is none.
-var _ruined_cabin_key := ""
-const RUINED_CABIN_CONDITION := 0.06
+## The old cabin a story camp starts with (scripts/camp/ruined_cabin.gd).
+const RUINED_CABIN = preload("res://scripts/camp/ruined_cabin.gd")
+var _ruin: RefCounted = RUINED_CABIN.new(self)
 
 
+## Its room's key, "" when there is none or it was bulldozed (the checklist asks).
 func ruined_cabin_key() -> String:
-	# Bulldozed (Builder is yours from the first mail): nothing left to mend or clean, the
-	# checklist's steps about it are done, not waiting for good.
-	if not _ruined_cabin_key.is_empty():
-		var parts := _ruined_cabin_key.split(":")
-		var state = CoreRoot.get_state()
-		if state != null and state.grid != null and state.grid.is_cell_free(Vector2i(int(parts[0]), int(parts[1]))):
-			return ""
-	return _ruined_cabin_key
+	return _ruin.key_now()
 
 
 ## Shot driver: patch the old cabin up as hold R would (no charge).
 func debug_repair_ruined() -> bool:
-	if _ruined_cabin_key.is_empty():
-		return false
-	var parts := _ruined_cabin_key.split(":")
-	return CoreRoot.actions.service_building(Vector2i(int(parts[0]), int(parts[1])), 0)
-
-
-func _place_ruined_cabin() -> void:
-	_ruined_cabin_key = ""
-	if grid_manager == null or CoreRoot == null or CoreRoot.get_state() == null:
-		return
-	var office := Vector2i(-1, -1)
-	var structures_root := building_manager.get_node_or_null("Structures") if building_manager != null else null
-	if structures_root != null:
-		for c in structures_root.get_children():
-			if str(c.get_meta("building_type", "")) == "main_building":
-				office = c.get_meta("grid_origin", Vector2i(-1, -1))
-	if office.x < 0:
-		return
-	var fp := Vector2i(2, 2)
-	var state = CoreRoot.get_state()
-	for off in [Vector2i(-3, 1), Vector2i(3, 1), Vector2i(-3, 3), Vector2i(3, 3), Vector2i(-4, 0), Vector2i(4, 0), Vector2i(-3, 5), Vector2i(3, 5)]:
-		var at: Vector2i = office + off
-		if not _clear_trees_for(at, fp):
-			continue
-		if not state.grid.can_place_footprint(at, fp):
-			continue
-		var money_before: int = CoreRoot.get_money()
-		EventBus.RequestBuild.emit("cabin_1", at, 0)
-		if str((state.grid.cells.get(at, {}) as Dictionary).get("type", "")) != "cabin_1":
-			continue
-		# It was already here: what the build charged goes back.
-		CoreRoot.actions.add_money(money_before - CoreRoot.get_money())
-		var inst := str((state.grid.cells[at] as Dictionary).get("id", ""))
-		for c2 in state.grid.cells.keys():
-			var cell: Dictionary = state.grid.cells[c2]
-			if str(cell.get("id", "")) == inst:
-				cell["maintenance"] = RUINED_CABIN_CONDITION
-				state.grid.cells[c2] = cell
-		var key := "%d:%d" % [at.x, at.y]
-		state.failures[key] = {"type": "cabin_1", "coord": at, "since_day": 1, "repair_progress": 0.0, "derelict": true}
-		if structures_root != null and building_manager.has_method("set_structure_condition"):
-			for c3 in structures_root.get_children():
-				if c3.get_meta("grid_origin", Vector2i(-99, -99)) == at:
-					building_manager.set_structure_condition(c3, RUINED_CABIN_CONDITION)
-		if GuestManager != null and GuestManager.has_method("make_room_derelict"):
-			GuestManager.make_room_derelict(key)
-		_ruined_cabin_key = key
-		_dress_ruined_cabin()
-		return
-
-
-func _ruined_structure() -> Node3D:
-	if _ruined_cabin_key.is_empty() or building_manager == null:
-		return null
-	var parts := _ruined_cabin_key.split(":")
-	var at := Vector2i(int(parts[0]), int(parts[1]))
-	var root := building_manager.get_node_or_null("Structures")
-	if root == null:
-		return null
-	for c in root.get_children():
-		if c.get_meta("grid_origin", Vector2i(-99, -99)) == at:
-			return c as Node3D
-	return null
-
-
-## While it is still broken: boards nailed over the windows and across the door, weeds
-## up the walls, sheets off the roof lying in the grass. Gone when it is patched up.
-func _dress_ruined_cabin() -> void:
-	var cabin := _ruined_structure()
-	if cabin == null or cabin.get_node_or_null("Ruin") != null:
-		return
-	if not CoreRoot.get_state().failures.has(_ruined_cabin_key):
-		return
-	var ws: Vector3 = cabin.get_meta("wall_size", Vector3(6.24, 2.8, 6.24))
-	var front := ws.z * 0.5
-	var ruin := Node3D.new()
-	ruin.name = "Ruin"
-	cabin.add_child(ruin)
-	var plank := StandardMaterial3D.new()
-	plank.albedo_texture = load("res://assets/textury/camp/planks_dark.png")
-	plank.albedo_color = Color(0.7, 0.62, 0.52)
-	plank.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	plank.uv1_triplanar = true
-	var weed := StandardMaterial3D.new()
-	weed.albedo_color = Color(0.26, 0.36, 0.16)
-	var sheet := StandardMaterial3D.new()
-	sheet.albedo_texture = load("res://assets/textury/camp/corrugated_roof.png")
-	sheet.albedo_color = Color(0.6, 0.5, 0.42)
-	sheet.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	sheet.uv1_triplanar = true
-	var boards: Array = []
-	# Over the front windows where the cabin's plan has them (scripts/cabin_layout.gd).
-	var CL = load("res://scripts/cabin_layout.gd")
-	var win_y: float = CL.MODEL_FLOOR + CL.SILL_MID
-	for x: float in [-CL.FRONT_WIN_X, CL.FRONT_WIN_X]:
-		boards.append([Vector3(0.9, 0.12, 0.04), Vector3(x, win_y + 0.1, front + 0.07), 0.32])
-		boards.append([Vector3(0.9, 0.12, 0.04), Vector3(x, win_y - 0.12, front + 0.08), -0.28])
-	boards.append([Vector3(1.15, 0.15, 0.05), Vector3(0, 1.25, front + 0.09), 0.18])
-	boards.append([Vector3(1.15, 0.15, 0.05), Vector3(0, 0.7, front + 0.1), -0.22])
-	for b in boards:
-		var m := MeshInstance3D.new()
-		var bm := BoxMesh.new()
-		bm.size = b[0]
-		m.mesh = bm
-		m.material_override = plank
-		m.position = b[1]
-		m.rotation.z = float(b[2])
-		ruin.add_child(m)
-	var rng := RandomNumberGenerator.new()
-	rng.seed = _ruined_cabin_key.hash()
-	for i in 26:
-		var side := rng.randi_range(0, 3)
-		var t := rng.randf_range(-0.5, 0.5)
-		var at := Vector3(t * ws.x, 0, front + 0.12) if side == 0 else (Vector3(t * ws.x, 0, -front - 0.12) if side == 1 else Vector3((ws.x * 0.5 + 0.12) * (1.0 if side == 2 else -1.0), 0, t * ws.z))
-		var h := rng.randf_range(0.25, 0.7)
-		var w := MeshInstance3D.new()
-		var wm := BoxMesh.new()
-		wm.size = Vector3(0.07, h, 0.07)
-		w.mesh = wm
-		w.material_override = weed
-		w.position = at + Vector3(0, h * 0.5, 0)
-		w.rotation.z = rng.randf_range(-0.3, 0.3)
-		ruin.add_child(w)
-	for i in 2:
-		var sm := MeshInstance3D.new()
-		var sb := BoxMesh.new()
-		sb.size = Vector3(1.4, 0.03, 0.8)
-		sm.mesh = sb
-		sm.material_override = sheet
-		sm.position = Vector3(-1.2 + i * 2.6, 0.04 + i * 0.03, front + 1.1 + i * 0.3)
-		sm.rotation = Vector3(0.05, 0.6 - i * 1.1, 0.08)
-		ruin.add_child(sm)
-
-
-## Patched up (hold R): the boards come off, the weeds are pulled, the sheets go back.
-func _on_building_serviced_for_ruin(root: Vector2i, _type: String, _was_broken: bool, _cost: int) -> void:
-	if _ruined_cabin_key.is_empty() or "%d:%d" % [root.x, root.y] != _ruined_cabin_key:
-		return
-	var cabin := _ruined_structure()
-	var ruin := cabin.get_node_or_null("Ruin") if cabin != null else null
-	if ruin != null:
-		ruin.queue_free()
-
-
-## The trees (and corn) standing where the old cabin goes: grown in round it since the
-## camp shut. False when something else is in the way (a building, the path, the lake).
-func _clear_trees_for(origin: Vector2i, fp: Vector2i) -> bool:
-	for y in fp.y:
-		for x in fp.x:
-			var c := origin + Vector2i(x, y)
-			if not grid_manager.is_in_bounds(c):
-				return false
-			var tile = grid_manager.get_tile(c)
-			if tile == null or tile.tile_type != grid_manager.TILE_GRASS:
-				return false
-			var occ = tile.occupant
-			if occ != null and is_instance_valid(occ):
-				var n: Node = occ
-				while n != null and not n.has_meta("grid_origin"):
-					n = n.get_parent()
-				if n != null:
-					return false
-	for y in fp.y:
-		for x in fp.x:
-			var c2 := origin + Vector2i(x, y)
-			var tile2 = grid_manager.get_tile(c2)
-			if tile2 != null and tile2.occupant != null and is_instance_valid(tile2.occupant):
-				(tile2.occupant as Node).queue_free()
-			grid_manager.set_tile_occupied(c2, false, null)
-	return true
+	return _ruin.debug_repair()
 
 
 func _update_torch_hand() -> void:
-	if not EventBus.building_serviced.is_connected(_on_building_serviced_for_ruin):
-		EventBus.building_serviced.connect(_on_building_serviced_for_ruin)
+	if not EventBus.building_serviced.is_connected(_ruin.on_serviced):
+		EventBus.building_serviced.connect(_ruin.on_serviced)
 	if _lodging_signs == null or not is_instance_valid(_lodging_signs):
 		_lodging_signs = load("res://scripts/lodging_signs.gd").new()
 		_lodging_signs.name = "LodgingSigns"
@@ -4939,9 +4761,9 @@ func _start_new_camp(sandbox: bool, test_enemy: String = "", camp_name: String =
 	# The camp's old cabin, shut since last summer: the campaign's start, not a sandbox's
 	# (there you build from a clean camp: the user 20. 10.).
 	if sandbox:
-		_ruined_cabin_key = ""
+		_ruin.key = ""
 	else:
-		_place_ruined_cabin()
+		_ruin.place()
 	if time_system != null and time_system.has_method("set_time_hours"):
 		time_system.set_time_hours(9.0)
 	if weather_system != null and weather_system.has_method("set_weather"):
@@ -6561,7 +6383,7 @@ func _build_save_snapshot(slot_name: String, kind: String) -> Dictionary:
 		"bazaar": _bazaar.export_state(),
 		"goggle": _goggle.export_state(),
 		"graph": _day_graph.export_state(),
-		"ruined_cabin": _ruined_cabin_key,
+		"ruined_cabin": _ruin.key,
 		"camp_office": camp_office.export_state() if camp_office != null else {},
 		"town_trip": _interior_manager.town_trip().export_state() if _interior_manager != null and _interior_manager.has_method("town_trip") and _interior_manager.town_trip() != null else {},
 	}
@@ -6873,8 +6695,8 @@ func _apply_save_snapshot(snapshot: Dictionary, preview_only: bool) -> bool:
 		if _director != null and _gameplay_started:
 			_director.import_state(_pending_director)
 			_pending_director.clear()
-		_ruined_cabin_key = str(snapshot.get("ruined_cabin", ""))
-		call_deferred("_dress_ruined_cabin")
+		_ruin.key = str(snapshot.get("ruined_cabin", ""))
+		_ruin.call_deferred("dress")
 		var gog_any = snapshot.get("goggle", {})
 		_pending_goggle = (gog_any as Dictionary).duplicate(true) if gog_any is Dictionary else {}
 		var graph_any = snapshot.get("graph", {})
