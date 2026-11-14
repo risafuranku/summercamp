@@ -10,7 +10,7 @@
 - [x] P2 „ikonka másla na objednávacim lístku vypadá jako druhá kukuřice“ (the BUTTER check on the cob's paper is cob_buttered: a butter picture, tk_butter)
 - [x] P3 „animace vlézání do stanu a vylézání ze stanu je hrozně stiff“ (the walk into and out of the tent: a crouch, a sway, eased) (d8f3523d: on your knees both ways, the head shuffling and looking down under the flap, beside the door pole and its rope, up off the knees outside; shot frame by frame)
 - [x] P4 „při usínání v recepci a zavírání očí zavři dveře, ať to navazuje na ranní zavřené“ (going to sleep in the reception: its door shut as the eyes close)
-- [ ] P5 „tak štípání polen tam je, ale chtěl jsem to interaktivní, jako obsluhování“ (splitting logs at the campfire as a station-like minigame: a log on the block, aim, swing, the halves fly, a stack for the fire)
+- [x] P5 „tak štípání polen tam je, ale chtěl jsem to interaktivní, jako obsluhování“ (splitting logs at the campfire as a station-like minigame: a log on the block, aim, swing, the halves fly, a stack for the fire) (ddab7092: over the block, hold to raise, let go to swing where you look: square and hard splits (a log on the pile), soft sticks and the next swing slams it, off the middle glances; own ElevenLabs sounds; the axe in hand is boxes of the game's wood and steel till Grok is back on 16. 11.)
 - [ ] P6 „ve hře stále chybí sklad“ (a storeroom: look up what was asked before, then build it)
 - [x] P7 „když má závoz přijet zítra, na progress baru napiš ZÍTRA/TOMORROW, a spusť ho až v ten den“ (the van's plate: TOMORROW while it is tomorrow, the bar runs on its day only)
 - [x] P8 „když jdu z recepce a držím W, ať rovnou pokračuju v chůzi a nezastavuju“ (out of the reception's door with W held: walking on)
@@ -18,7 +18,7 @@
 - [x] P10 „recepci clippuje uvnitř rámu dveří“ (the reception's door frame inside: z-fighting) (d8f3523d: in the doorway the frame, a line of the wall, the building's red boards and its grey frame in turn, two faces in one plane; one lining through both walls now, the open leaf no longer into the jamb)
 - [x] P11 „odstranit vypínač co je u dveří, nechat na recepci jen ten vlevo u okna“
 - [ ] P12 „absolutně polishnout ingame internet. reálnej web 1.0, každá stránka jiná, víc interaktivity, víc následků v reálném světě z klikání, eerie uncanny morbidní, občas nightmare fuel. messenger, kde si fakt můžeš s někym psát pár dní, a pak zmizí… polishnout ty hry co tam jsou a vydělávání peněz na počítači“
-- [ ] P13 „polishnout a propracovat drhnutí záchodové mísy“ (the scrub close-up)
+- [x] P13 „polishnout a propracovat drhnutí záchodové mísy“ (the scrub close-up) (ddab7092: a scale ring at the water line that only short strokes to and fro bite, gritting; murky water with what comes off; the flush swirls it clear; the gauge over the picture, from 0 %)
 - [x] P14 „silent guy… projdu jim, nic se nestane. zblízka musí na hráče absolutně vystartovat, ale aby měl hráč šanci uskočit. dá vystartování a zmizí tím svým efektem“ (d8f3523d: seen within 2.6 m he flares and draws breath (0.45 s), lunges at where you stood and past it; still there, bitten (100 to 89), a step aside, missed (100); then he comes apart)
 - [x] P15 „rádio udělej trošičku muffled když jsem v pokojíčku a zavřu dveře“
 - [x] P16 „přidej do pokojíčku velký grandfather clock tikající, co dělá zvuk zvonu když je ráno“
