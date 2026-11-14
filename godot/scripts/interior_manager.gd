@@ -933,9 +933,16 @@ func _through_eye() -> Vector3:
 	return eye
 
 
+## How fast that walk went at the door (walk_path Hand), once; null for none.
+func _through_hand():
+	var h = through.handoff
+	through.handoff = null
+	return h
+
+
 ## `from_eye`: where the room's own walk out left the eye in the camp (the caravan's
 ## doorway): the body starts under it, so the camp's view goes on from the same point.
-func _step_out_of(structure: Node3D, from_eye := Vector3.INF, crawl := false) -> void:
+func _step_out_of(structure: Node3D, from_eye := Vector3.INF, crawl := false, hand = null) -> void:
 	var body := _player as CharacterBody3D
 	if _no_step_out or body == null or structure == null or not is_instance_valid(structure) \
 			or str(structure.get_meta("building_type", "")) in NO_STEP_OUT:
@@ -972,7 +979,7 @@ func _step_out_of(structure: Node3D, from_eye := Vector3.INF, crawl := false) ->
 	var head := body.get_node_or_null("Head") as Node3D
 	if from_eye.is_finite() and head != null:
 		from = from_eye - Vector3(0.0, head.position.y, 0.0)
-	_walk_body(body, from, sill + out * STEP_OUT_TO, out, crawl)
+	_walk_body(body, from, sill + out * STEP_OUT_TO, out, crawl, hand)
 
 
 ## On hands and knees (a tent's low door): metres a second, how long the crawl out of it
@@ -982,16 +989,19 @@ const CRAWL_OUT_SEC := 1.05
 const CRAWL_RISE_AT := 0.5
 
 
-## The body `u` (0-1) of the way from `a` to `b` on its knees: there, its head going with
-## the shuffles (walk_path.CRAWL, as the tent's own eye goes through its door).
-func _crawl_at(body: Node3D, a: Vector3, b: Vector3, u: float) -> void:
+## The body `u` (0-1) of the way from `a` to `b`, its head going with the steps of `gait`
+## (walk_path's WALK or CRAWL, as the room's eye went through its door). Handed on from a
+## room's walk: the steps go on from where the room's were (`phase0`) and die away by the
+## end; else they fade in and out.
+func _walk_at(body: Node3D, a: Vector3, b: Vector3, u: float, gait: Dictionary, phase0: float, handed: bool) -> void:
 	if not is_instance_valid(body):
 		return
 	body.global_position = a.lerp(b, u)
-	var env := sin(clampf(u, 0.0, 1.0) * PI)
-	var off: Array = WALK_PATH.gait_offset(WALK_PATH.CRAWL, a.distance_to(b) * u, env)
+	var k := clampf(u, 0.0, 1.0)
+	var env := cos(k * PI * 0.5) if handed else sin(k * PI)
+	var off: Array = WALK_PATH.gait_offset(gait, phase0 + a.distance_to(b) * u, env)
 	body.set("gait_pos", off[0])
-	body.set("gait_rot", (off[1] as Vector3) - Vector3(float(WALK_PATH.CRAWL["dip"]) * 0.6 * env, 0.0, 0.0))
+	body.set("gait_rot", (off[1] as Vector3) - Vector3(float(gait.get("dip", 0.0)) * env, 0.0, 0.0))
 
 
 func _gait_still(body: Node3D) -> void:
@@ -1002,8 +1012,9 @@ func _gait_still(body: Node3D) -> void:
 
 ## The warden's body from `from` to `to` facing `dir`, no collisions on the way (through
 ## the door body, over the porch); the keys are his when he is down. `crawl`: out on his knees
-## and up off them on the way (a tent).
-func _walk_body(body: CharacterBody3D, from: Vector3, to: Vector3, dir: Vector3, crawl := false) -> void:
+## and up off them on the way (a tent). `hand` (walk_path Hand): the room's walk out was still
+## going at the door; this goes on at its pace and in its stride and eases to a stand.
+func _walk_body(body: CharacterBody3D, from: Vector3, to: Vector3, dir: Vector3, crawl := false, hand = null) -> void:
 	var mask := body.collision_mask
 	if stepping_out():
 		_stepping_out.kill()
@@ -1020,21 +1031,35 @@ func _walk_body(body: CharacterBody3D, from: Vector3, to: Vector3, dir: Vector3,
 	var tw := create_tween()
 	_stepping_out = tw
 	# In a power cut as slow as the room's part of it was (reception_extras.DARK_WALK_K).
-	var sec := WALK_OUT_SEC * (1.0 if _grid_power_available else 1.35)
+	var dark := 1.0 if _grid_power_available else 1.35
+	var sec := (CRAWL_OUT_SEC if crawl else WALK_OUT_SEC) * dark
 	# W held through the way out: on at a walk, no stop at the porch's foot (playtest 13. 11.:
 	# "keep walking, do not stop"); else easing to a stand as before.
-	var walking_on := Input.is_action_pressed("move_forward")
+	var walking_on := Input.is_action_pressed("move_forward") and not crawl
+	var gait: Dictionary = WALK_PATH.CRAWL if crawl else WALK_PATH.WALK
+	var v0: float = float(hand.speed) if hand != null else 0.0
+	var phase0: float = float(hand.phase) if hand != null else 0.0
+	var handed := v0 > 0.05
+	if handed:
+		# At the room's pace from the first frame: a sine easing out sets off at PI/2 times
+		# its mean speed (on at a walk with W, its mean is the pace).
+		var dist := from.distance_to(to)
+		sec = clampf((dist / v0) if walking_on else (PI * 0.5 * dist / v0), 0.25, 1.8)
+	# The first frame already in its stride (the head's look down in the doorway went level
+	# for a frame).
+	_walk_at(body, from, to, 0.0, gait, phase0, handed)
+	if body.has_method("refresh_head"):
+		body.call("refresh_head")
+	var m := tw.tween_method(func(u: float) -> void: _walk_at(body, from, to, u, gait, phase0, handed), 0.0, 1.0, sec)
+	if not walking_on:
+		m.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT if handed or not crawl else Tween.EASE_IN_OUT)
 	if crawl:
-		sec = CRAWL_OUT_SEC * (1.0 if _grid_power_available else 1.35)
-		tw.tween_method(func(u: float) -> void: _crawl_at(body, from, to, u), 0.0, 1.0, sec).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-		# Up off the knees as the head clears the flap, still going.
+		# Up off the knees as the head clears the flap, still going: the head comes up on a
+		# curve over the rest of the way (it sprang up in a few frames, playtest 14. 11.).
+		var rise := maxf(sec * (1.0 - CRAWL_RISE_AT), 0.55)
 		tw.parallel().tween_callback(func() -> void:
 			if is_instance_valid(body) and body.has_method("set_stance"):
-				body.call("set_stance", 0)).set_delay(sec * CRAWL_RISE_AT)
-	elif walking_on:
-		tw.tween_property(body, "global_position", to, sec)
-	else:
-		tw.tween_property(body, "global_position", to, sec).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+				body.call("set_stance", 0, rise)).set_delay(sec * CRAWL_RISE_AT)
 	tw.tween_callback(func() -> void:
 		_gait_still(body)
 		if is_instance_valid(body):
@@ -1065,7 +1090,7 @@ func _walk_on_out_of_office() -> void:
 	var leaf := DOOR_ANIM.find_door(office) if office != null else null
 	if leaf != null:
 		DOOR_ANIM.open_now(leaf, WALK_OUT_SEC + 0.6)
-	_walk_body(body, way["from"], way["to"], way["dir"])
+	_walk_body(body, way["from"], way["to"], way["dir"], false, way.get("hand"))
 
 
 ## The last steps up to a building's door outside, the door opening as you come, before
@@ -1148,7 +1173,7 @@ func _walk_up_first(structure: Node3D, again: Callable, room: Object = null) -> 
 		# Down on the knees and up to the flap on them, the head going with it.
 		dur = clampf(d / CRAWL_PACE, 0.6, 1.8)
 		var from_p := body.global_position
-		tw.tween_method(func(u: float) -> void: _crawl_at(body, from_p, to, u), 0.0, 1.0, dur).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		tw.tween_method(func(u: float) -> void: _walk_at(body, from_p, to, u, WALK_PATH.CRAWL, 0.0, false), 0.0, 1.0, dur).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	else:
 		tw.tween_property(body, "global_position", to, dur).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	tw.parallel().tween_property(body, "rotation:y", yaw, dur * 0.8).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
@@ -1277,7 +1302,9 @@ func _on_caravan_closed() -> void:
 	_play_door_close()
 	var eye: Vector3 = _caravan_interior.handoff_eye
 	_caravan_interior.handoff_eye = Vector3.INF
-	_step_out_of(was, eye)
+	var hand = _caravan_interior.get("handoff")
+	_caravan_interior.set("handoff", null)
+	_step_out_of(was, eye, false, hand)
 
 
 func _on_caravan_upgrade_requested() -> void:
@@ -1336,7 +1363,7 @@ func _on_bowling_closed() -> void:
 	var was: Node3D = _active_bowling_node
 	_active_bowling_node = null
 	_play_door_close()
-	_step_out_of(was, _through_eye())
+	_step_out_of(was, _through_eye(), false, _through_hand())
 
 
 func _on_tent_closed() -> void:
@@ -1345,7 +1372,7 @@ func _on_tent_closed() -> void:
 	var was: Node3D = _active_tent_node
 	_active_tent_node = null
 	# Out on your knees and up off them outside (_walk_body).
-	_step_out_of(was, _through_eye(), true)
+	_step_out_of(was, _through_eye(), true, _through_hand())
 
 
 func _setup_cabin_interior() -> void:
@@ -1412,7 +1439,7 @@ func _on_cabin_closed() -> void:
 	var was: Node3D = _active_cabin_node
 	_active_cabin_node = null
 	_play_door_close()
-	_step_out_of(was, _through_eye())
+	_step_out_of(was, _through_eye(), false, _through_hand())
 
 
 ## Room preparation: the interior shows the mess for what is not done yet.
@@ -1625,7 +1652,7 @@ func _on_service_closed() -> void:
 	var was: Node3D = _active_service_node as Node3D
 	_active_service_node = null
 	_play_door_close()
-	_step_out_of(was, _through_eye())
+	_step_out_of(was, _through_eye(), false, _through_hand())
 
 
 func _on_service_repair_requested() -> void:

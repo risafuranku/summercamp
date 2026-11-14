@@ -202,6 +202,8 @@ var _spring_v := 0.0
 ## (frames are capped at 50, physics runs at 60: without it a double step every fifth
 ## frame, a judder whenever you move).
 var _phys_prev := Vector3.INF
+## The body was put somewhere outside physics since the last physics step.
+var _moved_outside := false
 var _phys_cur := Vector3.INF
 var _yaw_last := INF
 var _yaw_rate := 0.0
@@ -455,6 +457,10 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	# Put somewhere since the last step (a door walk's tween moves it between them): nothing
+	# drawn between the two (_after_physics).
+	if _phys_cur != Vector3.INF and global_position.distance_squared_to(_phys_cur) > 1e-10:
+		_moved_outside = true
 	if seated:
 		velocity = Vector3.ZERO
 		_update_flashlight_battery(delta)
@@ -615,8 +621,9 @@ func _hold_off_branches(delta: float) -> void:
 ## After every physics step: where the body is now (the head is drawn between this and
 ## the last), the steps it took on the ground, the landing.
 func _after_physics(delta: float) -> void:
-	_phys_prev = _phys_cur if _phys_cur != Vector3.INF else global_position
+	_phys_prev = _phys_cur if _phys_cur != Vector3.INF and not _moved_outside else global_position
 	_phys_cur = global_position
+	_moved_outside = false
 	_step_prev = _step_cur
 	var moved := Vector2(_phys_cur.x - _phys_prev.x, _phys_cur.z - _phys_prev.z).length()
 	if moved > 1.5:
@@ -776,9 +783,28 @@ func _crouch_key(pressed: bool) -> void:
 			_set_stance(0)
 
 
-## To a stance, if there is room for it (getting up under a table you stay down).
-func set_stance(s: int) -> void:
+## To a stance, if there is room for it (getting up under a table you stay down). `sec` > 0:
+## the head goes there in that time on an S-curve (up off the knees on the way out of a tent),
+## not as a key press puts it.
+func set_stance(s: int, sec := 0.0) -> void:
+	var was := stance
+	var drop := _stance_drop
+	var kick := _spring_v
 	_set_stance(s)
+	if sec > 0.0 and stance != was:
+		_spring_v = kick
+		_drop_ease = [drop, sec, 0.0]
+
+
+## The head drawn now from where the body and its steps are (a walk handed on from a room:
+## its first frame in the camp is this one, already drawn before the walk began).
+func refresh_head() -> void:
+	if not _death_fall_active:
+		_update_head_motion(0.0)
+
+
+## A stance change on a curve: [drop at the start, seconds, seconds gone]; [] none.
+var _drop_ease: Array = []
 
 
 func _set_stance(s: int) -> void:
@@ -1107,13 +1133,16 @@ func _update_head_motion(delta: float) -> void:
 	var frac := clampf(Engine.get_physics_interpolation_fraction(), 0.0, 1.0)
 	var interp := Vector3.ZERO
 	var phase := _step_cur
-	if _phys_cur != Vector3.INF and global_position.distance_squared_to(_phys_cur) < 0.0001:
+	if _phys_cur != Vector3.INF and global_position.distance_squared_to(_phys_cur) < 1e-10:
 		interp = _phys_prev.lerp(_phys_cur, frac) - _phys_cur
 		phase = lerpf(_step_prev, _step_cur, frac)
 	else:
-		# Moved outside physics (a door walk's tween, a seat): that is where it is.
+		# Moved outside physics (a door walk's tween, a seat): that is where it is, and the
+		# next physics step draws nothing between (the walk out of a tent shook: every frame
+		# after a physics step was drawn a part of a frame behind, playtest 14. 11.).
 		_phys_prev = global_position
 		_phys_cur = global_position
+		_moved_outside = true
 
 	var speed := Vector2(velocity.x, velocity.z).length()
 	var grounded := is_on_floor()
@@ -1171,7 +1200,14 @@ func _update_head_motion(delta: float) -> void:
 
 	_mouse_impact = _mouse_impact.move_toward(Vector2.ZERO, handheld_return * delta)
 	_bob_offset = Vector3(bob_x, bob_y, 0.0)
-	_stance_drop = lerpf(_stance_drop, float(STANCE_DROP[stance]), 1.0 - exp(-7.0 * delta))
+	if not _drop_ease.is_empty():
+		_drop_ease[2] = float(_drop_ease[2]) + delta
+		var k := clampf(float(_drop_ease[2]) / maxf(0.01, float(_drop_ease[1])), 0.0, 1.0)
+		_stance_drop = lerpf(float(_drop_ease[0]), float(STANCE_DROP[stance]), k * k * (3.0 - 2.0 * k))
+		if k >= 1.0:
+			_drop_ease = []
+	else:
+		_stance_drop = lerpf(_stance_drop, float(STANCE_DROP[stance]), 1.0 - exp(-7.0 * delta))
 	var damage_pos_jitter := Vector3.ZERO
 	var damage_rot_jitter := Vector2.ZERO
 	if _damage_shake_intensity > 0.0001:

@@ -941,6 +941,10 @@ func go_store() -> void:
 ## Out by the front door: round the end of the counter, the door swings in, and the
 ## dither takes you outside as you step into the doorway, still walking (playtest
 ## 18. 10.: a click closed the room on the spot, "standing there").
+## How fast the walk out of the front door went as it crossed the doorway (walk_path Hand).
+var out_hand = null
+
+
 func go_out_front() -> void:
 	if _walking() or where not in ["office", "bench", "side"]:
 		return
@@ -975,7 +979,9 @@ func go_out_front() -> void:
 		{"pos": Vector3(1.72, lerpf(1.47, eye, 0.6), -1.9), "rot": Vector3.ZERO},
 		{"pos": Vector3(FRONT_STEP_OUT.x, eye, FRONT_STEP_OUT.z), "rot": Vector3.ZERO},
 	])
-	_walk = WALK_PATH.play(host, camera, keys, dur)
+	# Still going through the doorway: the camp's walk goes on at its pace (walk_path Hand).
+	out_hand = WALK_PATH.Hand.new()
+	_walk = WALK_PATH.play(host, camera, keys, dur, WALK_PATH.WALK, true, out_hand)
 	_walk.parallel().tween_callback(Coop.send_door.bind("office", 0, 3.0)).set_delay(dur * 0.38)
 	if door != null:
 		_walk.parallel().tween_callback(_play.bind(SFX_FRONT_DOOR, -8.0)).set_delay(dur * 0.38)

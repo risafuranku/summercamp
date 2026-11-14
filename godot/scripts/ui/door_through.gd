@@ -33,9 +33,11 @@ const WALK_PATH := preload("res://scripts/ui/walk_path.gd")
 
 ## No eye's layer (one_world_room.NO_EYE).
 const NO_EYE := 1 << 20
-## Metres a second through a door, and seconds for turning right round.
+## Metres a second through a door, and seconds for turning right round (both ways; out of a
+## room the turn goes with the steps over to the door's front).
 const PACE := 1.5
 const TURN_SEC := 0.75
+const TURN_OUT_SEC := 0.45
 ## Where the walks hand over: this far out of the leaf's plane (interior_manager's walk up
 ## stops there; the doorway fills the view).
 const STEP_M := 0.175
@@ -194,21 +196,24 @@ func leave(room: Object, structure: Node3D, way: Dictionary, camp: Node3D, done:
 	var from_f: Vector3 = _frame_g.affine_inverse() * _room_cam.global_position
 	var front_f := Vector3(end_f.x, end_f.y, minf(from_f.z, -(inner + 0.62)))
 	if from_f.z < -(inner + 0.2) and Vector2(from_f.x - front_f.x, from_f.z - front_f.z).length() > 0.25:
-		var front := _in_cam_space(front_f)
-		var to := front - from_pos
-		keys.append({"pos": from_pos, "rot": Vector3(-0.04, atan2(-to.x, -to.z), 0.0)})
-		keys.append({"pos": front, "rot": out_rot})
+		# Turning to the door on the way over to it (turned first on the spot, the walk out
+		# of a tent stood half a second and the showers' slowed to a stand: playtest 14. 11.).
+		keys.append({"pos": _in_cam_space(front_f), "rot": out_rot})
 	keys.append({"pos": end_pos, "rot": out_rot})
-	var dur := clampf(_length(keys) / _pace() + _turn(keys) / PI * TURN_SEC, 0.8, 2.8)
+	var dur := clampf(_length(keys) / _pace() + _turn(keys) / PI * TURN_OUT_SEC, 0.7, 2.2)
 	room.set("door_walking", true)
-	_walk = WALK_PATH.play(room as Node, _room_cam, keys, dur, _gait())
+	# Still going at the door: the camp's walk goes on from it at the same pace (handoff).
+	handoff = WALK_PATH.Hand.new()
+	_walk = WALK_PATH.play(room as Node, _room_cam, keys, dur, _gait(), true, handoff)
 	_walk.parallel().tween_property(_room_cam, "fov", _eye.fov, dur)
 	_walk.tween_callback(_walked_out)
 	return true
 
 
-## Where the camp's eye was in the walk out's last frame, for the camp to take it on from.
+## Where the camp's eye was in the walk out's last frame, for the camp to take it on from,
+## and how fast it went (`handoff`, a walk_path Hand).
 var handoff_eye := Vector3.INF
+var handoff = null
 
 
 func _walked_out() -> void:

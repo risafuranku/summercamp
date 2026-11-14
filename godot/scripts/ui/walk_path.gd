@@ -42,7 +42,31 @@ static func gait_offset(gait: Dictionary, dist: float, env: float) -> Array:
 	return [pos, rot]
 
 
-static func play(host: Node, camera: Camera3D, keys: Array, duration: float, gait: Dictionary = WALK) -> Tween:
+## What a walk out of a room hands the camp's walk (interior_manager._walk_body): the eye's
+## speed in its last frame and how far its steps had got, so the camp goes on in the same
+## stride with no stop in the doorway (playtest 14. 11.: "part inside and part outside":
+## the room's walk slowed to a stand at the door and the camp's set off again from one).
+class Hand extends RefCounted:
+	var speed := 0.0
+	var phase := 0.0
+	var _last := Vector3.INF
+	var _was := 0.0
+
+	func note(at: Vector3, dist: float, delta: float) -> void:
+		if _last.is_finite() and delta > 0.0:
+			# The last frame of a walk is only a part of one (it ends inside it): the higher
+			# of the last two (the walk was still speeding up).
+			var v := Vector2(at.x - _last.x, at.z - _last.z).length() / delta
+			speed = maxf(v, _was)
+			_was = v
+		_last = at
+		phase = dist
+
+
+## `into`: the walk goes on into another one (a room's walk out, the camp's after it): it sets
+## off easing in and ends still under way, at its pace, its steps still going; `hand` (a
+## Hand) is told every frame how fast it goes and how far its steps are.
+static func play(host: Node, camera: Camera3D, keys: Array, duration: float, gait: Dictionary = WALK, into := false, hand: Hand = null) -> Tween:
 	var pos: Array[Vector3] = []
 	var rot: Array[Vector3] = []
 	for k in keys:
@@ -72,19 +96,28 @@ static func play(host: Node, camera: Camera3D, keys: Array, duration: float, gai
 		var t := clampf((s - cum[i]) / span, 0.0, 1.0)
 		var a := maxi(i - 1, 0)
 		var d := mini(i + 2, pos.size() - 1)
-		var p := _cr(pos[a], pos[i], pos[i + 1], pos[d], t)
-		var r := _cr(rot[a], rot[i], rot[i + 1], rot[d], t)
-		# The steps: fade in after the first and out before the last.
+		var p1: Vector3 = pos[d]
+		var r1: Vector3 = rot[d]
+		if into and i + 2 > pos.size() - 1:
+			# Going on past the last key: the curve leaves it at the last leg's pace.
+			p1 = pos[i + 1] * 2.0 - pos[i]
+			r1 = rot[i + 1] * 2.0 - rot[i]
+		var p := _cr(pos[a], pos[i], pos[i + 1], p1, t)
+		var r := _cr(rot[a], rot[i], rot[i + 1], r1, t)
+		# The steps: fade in after the first and out before the last (on into the next walk:
+		# still going at the end).
 		var dist := lerpf(walked[i], walked[i + 1], t)
-		var env := sin(clampf(u, 0.0, 1.0) * PI)
+		var env := sin(clampf(u, 0.0, 0.5 if into else 1.0) * PI)
 		var off := gait_offset(gait, dist, env)
 		p += off[0]
 		r += off[1]
 		r.x -= float(gait.get("dip", 0.0)) * env
 		camera.position = p
 		camera.rotation = r
+		if hand != null:
+			hand.note(camera.global_position, dist, host.get_process_delta_time())
 	var tw := host.create_tween()
-	tw.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN if into else Tween.EASE_IN_OUT)
 	tw.tween_method(apply, 0.0, 1.0, duration)
 	# The room on the other side is often built this frame: walk from a steady one.
 	CAM_MOVE.hold(host, tw)

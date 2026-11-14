@@ -2371,7 +2371,10 @@ func walk_out_handoff() -> Dictionary:
 		return {}
 	var b := walk_out_pose(Vector3(WALK_OUT_LAND.x, walk_out_eye_y(WALK_OUT_LAND, eye.y), WALK_OUT_LAND.z))
 	var lift := Vector3(0.0, head.position.y, 0.0)
-	return {"from": (a["pos"] as Vector3) - lift, "to": (b["pos"] as Vector3) - lift, "dir": a["dir"]}
+	var hand = _extras.get("out_hand") if _extras != null else null
+	if _extras != null:
+		_extras.set("out_hand", null)
+	return {"from": (a["pos"] as Vector3) - lift, "to": (b["pos"] as Vector3) - lift, "dir": a["dir"], "hand": hand}
 
 
 ## How high (room y) the camp's eye is with the warden standing at a room point out

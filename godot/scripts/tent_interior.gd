@@ -925,7 +925,7 @@ func door_spec(_structure: Node3D) -> Dictionary:
 		return {}
 	return {"root": _tent_root, "at": Vector3(0.0, 0.0, DOOR_PLANE_Z), "out": Vector3(0, 0, 1),
 		"size": Vector2(TENT_HALF_WIDTH * 2.0, TENT_RIDGE_HEIGHT), "inner": 0.05, "leaf": [],
-		"gait": "crawl", "pace": 0.62}
+		"gait": "crawl", "pace": 0.9}
 
 
 ## On the way out: the door unzips as you come to it (and stays so).

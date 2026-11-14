@@ -812,6 +812,33 @@ const SCENARIOS := {
 		["eval", "[_interior_manager._building_interior._desk_room._front.visible, _interior_manager._building_interior._desk_room._queue.size(), GuestManager.get_desk_queue().size()]"],
 	],
 	# Playtest 13. 11. P3: into a tent and out again, frame by frame.
+	# The way out of a tent (and other doors) measured frame by frame (playtest 14. 11.: "part
+	# inside, part outside, a bit long").
+	"tentout": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["eval", "_interior_manager._building_interior.close_interior()"], ["money", 9000], ["hours", 2.0],
+		["clear", 8, 5, 6, 5], ["build", "tent_1", 10, 7, 0], ["prep_all"], ["wait", 2.0],
+		["door_front", "tent_1", 2.2], ["wait", 0.6],
+		["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('tent_1'))"], ["wait", 4.0],
+		["eye_trace", 5.0, "_tent_interior"], ["key", "Escape"], ["wait", 5.2],
+	],
+	# The ways out of the other rooms measured the same (playtest 14. 11.: "the same for the
+	# cabin, toilets, caravan, shower, reception").
+	"doorsout": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 1.5],
+		["eye_trace", 4.0, "_building_interior", "reception"], ["eval", "_interior_manager._building_interior._extras.go_out_front()"], ["wait", 4.2],
+		["money", 20000], ["hours", 2.0], ["clear", 8, 5, 12, 8],
+		["build", "cabin_1", 9, 6, 0], ["build", "toilet_block", 13, 6, 0], ["build", "caravan_1", 9, 10, 0], ["build", "shower_block", 14, 10, 0], ["prep_all"], ["wait", 2.0],
+		["door_front", "cabin_1", 2.2], ["wait", 0.6], ["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('cabin_1'))"], ["wait", 4.0],
+		["eye_trace", 4.0, "_cabin_interior", "cabin"], ["key", "Escape"], ["wait", 4.2],
+		["door_front", "toilet_block", 2.2], ["wait", 0.6], ["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('toilet_block'))"], ["wait", 4.0],
+		["eye_trace", 4.0, "_service_interior", "toilets"], ["key", "Escape"], ["wait", 4.2],
+		["door_front", "caravan_1", 2.2], ["wait", 0.6], ["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('caravan_1'))"], ["wait", 4.0],
+		["eye_trace", 4.0, "_caravan_interior", "caravan"], ["key", "Escape"], ["wait", 4.2],
+		["door_front", "shower_block", 2.2], ["wait", 0.6], ["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('shower_block'))"], ["wait", 4.0],
+		["eye_trace", 4.0, "_service_interior", "showers"], ["key", "Escape"], ["wait", 4.2],
+	],
 	"tentcrawl": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
 		["eval", "_interior_manager._building_interior.close_interior()"], ["money", 9000], ["hours", 2.0],
@@ -2269,7 +2296,38 @@ var _checkin_timer := 0.0
 var _auto_accept := false
 
 
+## ["eye_trace", seconds, room]: every frame the eye on the screen (the room's, interior_manager's
+## `room`, while it is open, else the camp's) printed "EYETRACE t which x y z yaw pitch" (a walk
+## through a door measured: where it stops, where the two walks hand over).
+var _trace_left := 0.0
+var _trace_t := 0.0
+var _trace_room := ""
+var _trace_tag := ""
+
+
+func _eye_trace(delta: float) -> void:
+	_trace_left -= delta
+	_trace_t += delta
+	var room = _main._interior_manager.get(_trace_room) if _main != null else null
+	var cam: Camera3D = null
+	var which := "camp"
+	if room != null and room.has_method("is_open") and bool(room.call("is_open")):
+		cam = room.get("_interior_camera") as Camera3D
+		which = "room"
+	if cam == null and _main.get("_player") != null:
+		var cams: Array = (_main.get("_player") as Node).find_children("*", "Camera3D", true, false)
+		cam = cams[0] as Camera3D if not cams.is_empty() else null
+	if cam == null:
+		return
+	var p := cam.global_position
+	var r := cam.global_rotation
+	var bp: Vector3 = (_main.get("_player") as Node3D).global_position if _main.get("_player") != null else Vector3.ZERO
+	print("EYETRACE %.4f %s %.4f %.4f %.4f %.4f %.4f %s %.4f %.4f %d %s" % [_trace_t, which, p.x, p.y, p.z, r.y, r.x, cam.name, bp.x, bp.z, Engine.get_physics_frames(), _trace_tag])
+
+
 func _process(delta: float) -> void:
+	if _trace_left > 0.0:
+		_eye_trace(delta)
 	_checkin_timer -= delta
 	if _checkin_timer <= 0.0 and _main != null and (_auto_checkin or _auto_accept):
 		_checkin_timer = 1.0
@@ -2337,6 +2395,11 @@ func _run_step(step: Array) -> void:
 			_wait_left = float(step[1])
 		"wait_menu":
 			_waiting_for = "menu"
+		"eye_trace":
+			_trace_left = float(step[1])
+			_trace_t = 0.0
+			_trace_room = str(step[2])
+			_trace_tag = str(step[3]) if step.size() > 3 else ""
 		"wait_gameplay":
 			_waiting_for = "gameplay"
 		"shot":

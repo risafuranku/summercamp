@@ -994,12 +994,14 @@ func walk_out() -> void:
 	_walking = true
 	_leaving = true
 	_play_steps()
+	# Still going on the step: the camp's walk goes on at its pace (walk_path Hand).
+	handoff = WALK_PATH.Hand.new()
 	_walk = WALK_PATH.play(self, _interior_camera, [
 		{"pos": _interior_camera.position, "rot": _interior_camera.rotation},
 		{"pos": Vector3(DOOR_X + 0.06, 1.48, W * 0.5 - 0.52), "rot": Vector3(-0.05, PI, 0.0)},
 		{"pos": Vector3(DOOR_X + 0.04, 1.36, W * 0.5 - 0.1), "rot": Vector3(-0.08, PI, 0.0)},
 		{"pos": STEP_EYE + Vector3(0.0, 0.02, -0.02), "rot": Vector3(0.0, PI, 0.0)},
-	], 1.3)
+	], 1.3, WALK_PATH.WALK, true, handoff)
 	_walk.parallel().tween_callback(_play.bind(SFX_DOOR_OPEN, -4.0)).set_delay(0.32)
 	_walk.parallel().tween_property(_door_pivot, "rotation_degrees:y", DOOR_OPEN_DEG, 0.55).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT).set_delay(0.34)
 	# The van's own leaf with it: the room stands in the van, the camp is right out there.
@@ -1018,6 +1020,8 @@ func walk_out() -> void:
 ## _on_caravan_closed); INF when it could not tell. (The camp started half a metre off
 ## it: the near grass jumped as the doorway's picture gave way, playtest 25. 10.)
 var handoff_eye := Vector3.INF
+## How fast that walk went on the step and how far its steps had got (walk_path Hand).
+var handoff = null
 
 
 func _doorway_eye() -> Vector3:
