@@ -27,7 +27,7 @@
   - [x] P12c Rádio Hlubočany, listeners' requests: a song asked for on its page is played next on the reception's radio
   - [x] P12d the camp's guest book signable: your entry stays; later entries answer you by name
   - [x] P12e the Courier's missing persons and deaths from the camp's own record (guests who vanished or died)
-  - [ ] P12f every page its own look (fonts, tiles, colours, tables, counters, a jingle here and there)
+  - [x] P12f every page its own look (fonts, tiles, colours, tables, counters, a jingle here and there)
   - [ ] P12g the games (Komár, Výlet, Had, Pexeso, Miny): title, sounds, high scores with names that should not be there
   - [ ] P12h earning on the PC: the jobs tied to the camp (DataPunch cards with your guests' names, KlikBanka adverts that know you, SečtiTo photos of your own camp)
 - [x] P13 „polishnout a propracovat drhnutí záchodové mísy“ (the scrub close-up) (ddab7092: a scale ring at the water line that only short strokes to and fro bite, gritting; murky water with what comes off; the flush swirls it clear; the gauge over the picture, from 0 %)

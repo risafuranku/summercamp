@@ -946,6 +946,20 @@ const SCENARIOS := {
 		["eval", "_interior_manager._building_interior._crt_ui.app_of('browser').navigate('cerne-jezero.cz/guestbook')"], ["wait", 6.0], ["crt_screen", "gb1_answered"],
 		["eval", "CoreRoot"],
 	],
+	# P12f: the sites each in its own letters and colours.
+	"weblooks": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["call_on", "_interior_manager", "open_startup_crt_view", []], ["wait", 7.0],
+		["eval", "_interior_manager._building_interior._crt_ui.open_app('browser') != null"], ["wait", 6.0],
+		["eval", "_interior_manager._building_interior._crt_ui.app_of('browser').navigate('bohemia-online.cz/prace')"], ["wait", 7.0], ["crt_screen", "lk0"],
+		["eval", "_interior_manager._building_interior._crt_ui.app_of('browser').navigate('bohemia-online.cz/chat')"], ["wait", 7.0], ["crt_screen", "lk1"],
+		["eval", "_interior_manager._building_interior._crt_ui.app_of('browser').navigate('kuryr-hlubocany.cz/dnes')"], ["wait", 7.0], ["crt_screen", "lk2"],
+		["eval", "_interior_manager._building_interior._crt_ui.app_of('browser').navigate('tv.bohemia-online.cz')"], ["wait", 7.0], ["crt_screen", "lk3"],
+		["eval", "_interior_manager._building_interior._crt_ui.app_of('browser').navigate('volny.cz/~strasidla')"], ["wait", 7.0], ["crt_screen", "lk4"],
+		["eval", "_interior_manager._building_interior._crt_ui.app_of('browser').navigate('volny.cz/~infravrany')"], ["wait", 7.0], ["crt_screen", "lk5"],
+		["eval", "_interior_manager._building_interior._crt_ui.app_of('browser').navigate('csad-jihlava.cz/380')"], ["wait", 7.0], ["crt_screen", "lk6"],
+		["eval", "_interior_manager._building_interior._crt_ui.app_of('browser').navigate('jednota-liblice.cz')"], ["wait", 7.0], ["crt_screen", "lk7"],
+	],
 	# Out of the office's front door with W held (playtest 13. 11.): walking on, no stop.
 	"walkout_w": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 2.0],

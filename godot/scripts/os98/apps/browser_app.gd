@@ -128,6 +128,8 @@ func reopen(args: Dictionary) -> void:
 
 
 func closing() -> void:
+	if _bgsound != null:
+		_bgsound.stop()
 	# (The line stays up: it was dialled once as the machine started, os_shell._enter_desktop.)
 	_shell.pointer_hand = false
 	if _loading > 0.0 or _dial_t >= 0.0:
@@ -1027,6 +1029,14 @@ func _show(key: String) -> void:
 		sb = st
 	_page.add_theme_stylebox_override("normal", sb)
 	_page.add_theme_color_override("default_color", Color.html(str(page.get("fg", "#000000"))))
+	# Each site its own letters (web_pages: "font", one of the game's bitmap faces) and, on a few,
+	# its tune the way a page played its MIDI ("bgsound": on while it is shown).
+	var face := str(page.get("font", ""))
+	if face != "" and ResourceLoader.exists(FONT_DIR + face + ".fnt"):
+		_page.add_theme_font_override("normal_font", load(FONT_DIR + face + ".fnt"))
+	else:
+		_page.remove_theme_font_override("normal_font")
+	_set_bgsound(str(page.get("bgsound", "")))
 	# The page in the warden's language before its links are made ({site|Label} kept by
 	# the lookup: lang._forms).
 	_set_page(_expand(_page_in_language(str(page.get("body", ""))), str(page.get("link", "#0000ee")), key))
@@ -1047,6 +1057,27 @@ func _show(key: String) -> void:
 		_visited[key] = true
 		if _shell.has_method("store"):
 			_shell.store("web_visited", _visited.duplicate())
+
+
+const FONT_DIR := "res://assets/fonts/"
+var _bgsound: AudioStreamPlayer
+
+
+## A page's tune (its file under res://, "" none): looped quietly while the page is up.
+func _set_bgsound(path: String) -> void:
+	if _bgsound == null:
+		_bgsound = AudioStreamPlayer.new()
+		add_child(_bgsound)
+	if path == "" or not ResourceLoader.exists(path):
+		_bgsound.stop()
+		return
+	if _bgsound.playing and _bgsound.stream != null and _bgsound.stream.resource_path == path:
+		return
+	_bgsound.stream = load(path)
+	_bgsound.volume_db = -20.0 + (float(_shell.call("_distance_db")) if _shell.has_method("_distance_db") else 0.0)
+	_bgsound.play()
+	if not _bgsound.finished.is_connected(_bgsound.play):
+		_bgsound.finished.connect(_bgsound.play)
 
 
 func _page_for(key: String) -> Dictionary:

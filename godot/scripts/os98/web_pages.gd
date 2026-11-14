@@ -142,7 +142,7 @@ const PAGES := {
 	},
 	"bohemia-online.cz/weather": {
 		"title": "Bohemia Online - Weather",
-		"bg": "#ffffff", "fg": "#000000", "link": "#0000ee",
+		"bg": "#dcefff", "fg": "#000000", "link": "#0000ee",
 		"body": """[center]{{banner:beer:jednota-liblice.cz}}[/center]
 [b][font_size=18]WEATHER - SOUTH BOHEMIA[/font_size][/b]   [color=#666666]{{date}}, {{time}}[/color]
 """ + HR + """
@@ -186,7 +186,7 @@ The memory game. Twelve pairs. Pictures licensed from Stavitel software (Builder
 	},
 	"bohemia-online.cz/prace": {
 		"title": "Bohemia Online - Work from home",
-		"bg": "#ffffff", "fg": "#000000", "link": "#006600",
+		"bg": "#ffffb8", "font": "silkscreen", "fg": "#000000", "link": "#006600",
 		"body": """[bgcolor=#006600][color=#ffffff][b][font_size=20] WORK FROM HOME [/font_size][/b] your PC can pay for itself [/color][/bgcolor]
 [color=#666666]Classifieds checked by Bohemia Online. Mostly.[/color]
 """ + HR + """
@@ -212,7 +212,7 @@ Type the old register into the computer, card by card, in the evening and at nig
 	},
 	"bohemia-online.cz/chat": {
 		"title": "Bohemia Online - Chat",
-		"bg": "#000000", "fg": "#c0c0c0", "link": "#ffff00",
+		"bg": "#000000", "font": "pomono", "fg": "#c0c0c0", "link": "#ffff00",
 		"body": """[bgcolor=#000080][color=#ffffff][b] BOHEMIA CHAT [/b]  room: #jih  (South Bohemia)   {{chatcount}} [/color][/bgcolor]
 [color=#808080]Be nice. No swearing. The operator reads everything.[/color]
 """ + HR + """
@@ -237,7 +237,7 @@ Type the old register into the computer, card by card, in the evening and at nig
 	"kuryr-hlubocany.cz/dnes": {
 		"title": "Hlubocany Courier - this week",
 		"tile": "tile_paper",
-		"bg": "#f4f0e6", "fg": "#1a1a1a", "link": "#7a0000",
+		"bg": "#f4f0e6", "font": "pomono", "fg": "#1a1a1a", "link": "#7a0000",
 		"body": """[font_size=22][b]HLUBOCANY COURIER[/b][/font_size]   [color=#666666]{{date}}[/color]
 [i]weekly for the Hlubocany district[/i]
 """ + HR + """
@@ -246,7 +246,7 @@ Type the old register into the computer, card by card, in the evening and at nig
 	},
 	"tv.bohemia-online.cz": {
 		"title": "Bohemia Online - TV tonight",
-		"bg": "#000033", "fg": "#e0e0ff", "link": "#ffff66",
+		"bg": "#000033", "font": "jersey10", "fg": "#e0e0ff", "link": "#ffff66",
 		"body": """[center][font_size=22][b][color=#66ccff]TV TONIGHT[/color][/b][/font_size]
 [color=#9999cc]{{date}}  -  all channels, the Cervena hora transmitter[/color][/center]
 """ + HR + """
@@ -257,7 +257,7 @@ Type the old register into the computer, card by card, in the evening and at nig
 	},
 	"obec-liblice.cz": {
 		"title": "Obec Liblice - official notice board",
-		"bg": "#ffffff", "fg": "#000000", "link": "#006600",
+		"bg": "#eef8e8", "fg": "#000000", "link": "#006600",
 		"body": """[bgcolor=#336600][color=#ffffff][b][font_size=18] OBEC LESNA [/font_size][/b]  the village by the reservoir, 412 inhabitants [/color][/bgcolor]
 [center]{{img:web_shop:200}}[/center]
 [b]NOTICE BOARD[/b]  [color=#666666](the mayor's office, open Monday 16:00-18:00)[/color]
@@ -366,7 +366,7 @@ Stavitel software, Brnenska 14, Jihlava  |  {bohemia-online.cz|Bohemia Online}  
 	},
 	"campgrid.cz": {
 		"title": "CampGrid - CampStat 98",
-		"bg": "#ffffff", "fg": "#000000", "link": "#006633",
+		"bg": "#ecfaec", "fg": "#000000", "link": "#006633",
 		"body": """[bgcolor=#006633][color=#ffffff][b][font_size=20] CampGrid [/font_size][/b] for customers of Hlubocany District Power [/color][/bgcolor]
 
 [b]CampStat 98[/b] - your electricity at a glance
@@ -449,7 +449,7 @@ Please note:
 	# ── local life ─────────────────────────────────────────────────────────────
 	"jednota-liblice.cz": {
 		"title": "Jednota u Marku, Liblice",
-		"bg": "#ffffff", "fg": "#000000", "link": "#cc0000",
+		"bg": "#fff2f0", "font": "w95b", "fg": "#000000", "link": "#cc0000",
 		"body": """[center][bgcolor=#cc0000][color=#ffffff][b][font_size=20] JEDNOTA [/font_size][/b][/color][/bgcolor]
 [b]Liblice 42[/b] - your shop by the reservoir
 {{img:web_shop:224}}
@@ -558,7 +558,7 @@ The cellar is not open to guests.
 	},
 	"csad-jihlava.cz/380": {
 		"title": "CSAD Jihlava - line 380",
-		"bg": "#ffffff", "fg": "#000000", "link": "#0000ee",
+		"bg": "#ffffe2", "font": "pomono", "fg": "#000000", "link": "#0000ee",
 		"body": """[b]CSAD Jihlava a.s. - TIMETABLE[/b]
 [b]Line 380   Lstibor - Liblice - Pristoupim - Cerne jezero, camp[/b]   valid from 31.5.1998
 [center]{{img:web_bus:224}}[/center]
@@ -619,7 +619,7 @@ The last bus from the camp to Liblice leaves at 19:10.
 	# Radio Hlubocany: a wish here is the next song on the reception's set (browser "radio://").
 	"radio-hlubocany.cz": {
 		"title": "Radio Hlubocany 96.4 FM",
-		"bg": "#000080", "fg": "#ffff00", "link": "#00ffff",
+		"bg": "#000080", "font": "w95b", "fg": "#ffff00", "link": "#00ffff",
 		"body": RADIO_PAGE,
 	},
 	# The camera on the reception's corner (camp_webcam.gd): the camp as it is now.
@@ -664,7 +664,7 @@ Mr Hruby looks after the boats and the jetty. He lives in the boathouse across t
 	"kuryr-hlubocany.cz": {
 		"title": "Hlubocany Courier - archive",
 		"tile": "tile_paper",
-		"bg": "#f4f0e6", "fg": "#1a1a1a", "link": "#7a0000",
+		"bg": "#f4f0e6", "font": "pomono", "fg": "#1a1a1a", "link": "#7a0000",
 		"body": """[table=1][cell bg=#ffffe0][b]WORK AT HOME ON YOUR COMPUTER[/b]
 The District Office pays $4 for every register card you type in at home, in the evening, at night.
 {download://DATAPNCH.EXE|DATAPNCH.EXE} (40 KB) - Okresni urad Hlubocany[/cell][/table]
@@ -689,7 +689,7 @@ The District Office pays $4 for every register card you type in at home, in the 
 	"kuryr-hlubocany.cz/1987": {
 		"title": "Courier 1987 - Search goes on",
 		"tile": "tile_paper",
-		"bg": "#f4f0e6", "fg": "#1a1a1a", "link": "#7a0000",
+		"bg": "#f4f0e6", "font": "pomono", "fg": "#1a1a1a", "link": "#7a0000",
 		"body": """[color=#666666]Hlubocany Courier, 14 August 1987[/color]
 [font_size=18][b]Search for girl from summer camp goes on[/b][/font_size]
 [center]{{img:news_1987:240}}
@@ -708,7 +708,7 @@ Jana was wearing a blue tracksuit and [b]red sandals[/b]. Anyone who has seen he
 	"kuryr-hlubocany.cz/1991": {
 		"title": "Courier 1991 - Photographer missing",
 		"tile": "tile_paper",
-		"bg": "#f4f0e6", "fg": "#1a1a1a", "link": "#7a0000",
+		"bg": "#f4f0e6", "font": "pomono", "fg": "#1a1a1a", "link": "#7a0000",
 		"body": """[color=#666666]Hlubocany Courier, 3 October 1991[/color]
 [font_size=18][b]Photographer missing in the reservoir woods[/b][/font_size]
 [center]{{img:news_1991:240}}
@@ -727,7 +727,7 @@ The camera has not been claimed and is kept at the District Office.
 	"kuryr-hlubocany.cz/1984": {
 		"title": "Courier 1984 - The stranger in cabin 3",
 		"tile": "tile_paper",
-		"bg": "#f4f0e6", "fg": "#1a1a1a", "link": "#7a0000",
+		"bg": "#f4f0e6", "font": "pomono", "fg": "#1a1a1a", "link": "#7a0000",
 		"body": """[color=#666666]Hlubocany Courier, 21 July 1984[/color]
 [font_size=18][b]The stranger in cabin 3[/b][/font_size]
 [center]{{img:news_1984:240}}
@@ -744,7 +744,7 @@ He was taken to the hospital in Jihlava. Nobody of his description had been repo
 	"kuryr-hlubocany.cz/1993": {
 		"title": "Courier 1993 - Sewer works finished",
 		"tile": "tile_paper",
-		"bg": "#f4f0e6", "fg": "#1a1a1a", "link": "#7a0000",
+		"bg": "#f4f0e6", "font": "pomono", "fg": "#1a1a1a", "link": "#7a0000",
 		"body": """[color=#666666]Hlubocany Courier, 9 June 1993[/color]
 [font_size=18][b]Works on the camp sewer finished[/b][/font_size]
 [center]{{img:news_1993:240}}
@@ -763,7 +763,7 @@ The camp will open as usual on 1 July.
 	"kuryr-hlubocany.cz/1996": {
 		"title": "Courier 1996 - The Antlered Man",
 		"tile": "tile_paper",
-		"bg": "#f4f0e6", "fg": "#1a1a1a", "link": "#7a0000",
+		"bg": "#f4f0e6", "font": "pomono", "fg": "#1a1a1a", "link": "#7a0000",
 		"body": """[color=#666666]Hlubocany Courier, 30 October 1996 - From our history[/color]
 [font_size=18][b]The Antlered Man[/b][/font_size]
 [center]{{img:news_1996:240}}
@@ -780,7 +780,7 @@ The gamekeeper's book ends a few weeks later. The fence was built to keep people
 	"kuryr-hlubocany.cz/1998": {
 		"title": "Courier 1998 - District inspects camp",
 		"tile": "tile_paper",
-		"bg": "#f4f0e6", "fg": "#1a1a1a", "link": "#7a0000",
+		"bg": "#f4f0e6", "font": "pomono", "fg": "#1a1a1a", "link": "#7a0000",
 		"body": """[color=#666666]Hlubocany Courier, 2 September 1998[/color]
 [font_size=18][b]District inspects Cerne jezero camp[/b][/font_size]
 [center]{{img:news_1998:240}}
@@ -798,7 +798,7 @@ The former leader, Karel H., could not be reached.
 	# ── the webring ───────────────────────────────────────────────────────────
 	"volny.cz/~strasidla": {
 		"title": "GHOSTS OF SOUTH BOHEMIA",
-		"bg": "#000000", "fg": "#c0c0c0", "link": "#ff3333",
+		"bg": "#000000", "font": "jersey10", "bgsound": "res://assets/sfx/radio/vodadoma_eerie.mp3", "fg": "#c0c0c0", "link": "#ff3333",
 		"body": """[center]{{img:web_spooky:420}}
 [font_size=24][b][color=#ff0000]GHOSTS[/color] OF SOUTH BOHEMIA[/b][/font_size]
 [color=#808080]by Kuba (14). all TRUE stories. if you dont believe it go there at night[/color][/center]
@@ -835,7 +835,7 @@ my cousin plays in a band, check them out: {volny.cz/~infravrany|INFRAVRANY}
 	"volny.cz/~infravrany": {
 		"title": "..:: INFRAVRANY ::.. official page",
 		"tile": "tile_stars",
-		"bg": "#000000", "fg": "#d0d0d0", "link": "#ff9900",
+		"bg": "#000000", "font": "silkscreen", "bgsound": "res://assets/sfx/radio/song_infravrany.mp3", "fg": "#d0d0d0", "link": "#ff9900",
 		"body": """[center][font_size=26][b][color=#cc0000]..:: INFRAVRANY ::..[/color][/b][/font_size]
 [color=#888888]heavy rock from Hlubocany since 1995[/color]
 {{img:web_band:240}}
@@ -869,7 +869,7 @@ somebody knocking[/i]
 	},
 	"povodi-hlubocany.cz": {
 		"title": "Hlubocany Water Board - Cerne jezero reservoir",
-		"bg": "#ffffff", "fg": "#000000", "link": "#005599",
+		"bg": "#e6f2fb", "fg": "#000000", "link": "#005599",
 		"body": """[bgcolor=#005599][color=#ffffff][b][font_size=18] HLUBOCANY WATER BOARD [/font_size][/b][/color][/bgcolor]
 [b]CERNE JEZERO RESERVOIR[/b]
 [center]{{img:web_lake_photo:280}}
