@@ -245,7 +245,28 @@ func focus_map() -> void:
 
 
 func set_day_mode(_is_day: bool) -> void:
-	pass   # the shell closes Builder at nightfall
+	pass   # (the night is CoreRoot's: _tick_night)
+
+
+## At night Builder looks at the camp and builds nothing (playtest 13. 11.: "at night the
+## Builder open, not to build or edit, but to look at the camp"): the tool in hand put away,
+## the tools and the catalogue greyed and taking no click, a building's card without its
+## upgrade, lamp, crew and demolish.
+var _night_view := false
+
+
+func _tick_night() -> void:
+	var n: bool = CoreRoot != null and CoreRoot.is_night()
+	if n == _night_view:
+		return
+	_night_view = n
+	if n and _selected != "":
+		_select("")
+	for k in _tool_buttons:
+		(_tool_buttons[k] as Button).disabled = n
+	if _cards != null:
+		_cards.modulate = Color(0.55, 0.56, 0.62) if n else Color.WHITE
+	_refresh_inspector()
 
 
 # ── layout ───────────────────────────────────────────────────────────────────
@@ -775,6 +796,9 @@ func _locked(type: String) -> Dictionary:
 
 
 func _select(tool: String) -> void:
+	if tool != "" and _night_view:
+		_ui("button", -16.0)
+		return
 	var lock := _locked(tool)
 	if lock.is_empty() and _fresh_has(tool):
 		# Picked once: it is not new any more.
@@ -1197,10 +1221,14 @@ func _refresh_inspector() -> void:
 	db.disabled = int(sum.get("count", 0)) <= 0 or bool(root.get_meta("permanent", false))
 	var rb: Button = _insp_btns["rack"]
 	rb.visible = lodging
+	if _night_view:
+		for id in ["upgrade", "crew", "demolish"]:
+			(_insp_btns[id] as Button).visible = false
 	var lb: Button = _insp_btns["lamp"]
 	lb.visible = t == "path" and not bool(_insp.get("lamp", false))
 	lb.text = "Put a lamp here  $%d" % _cost("lamp_post")
 	lb.disabled = CoreRoot.get_money() < _cost("lamp_post")
+	lb.visible = lb.visible and not _night_view
 	# The buttons that are there, two to a row from the bottom up, no gaps.
 	var shown: Array = []
 	for id in ["upgrade", "lamp", "crew", "rack", "demolish"]:
@@ -1255,7 +1283,7 @@ func _guests_in(key: String) -> Array:
 
 
 func _insp_action(id: String) -> void:
-	if _insp.is_empty():
+	if _insp.is_empty() or (_night_view and id in ["upgrade", "crew", "demolish", "lamp"]):
 		return
 	var t := str(_insp["type"])
 	var o: Vector2i = _insp["origin"]
@@ -1552,6 +1580,7 @@ var _card_t := 0.0
 
 func _process(delta: float) -> void:
 	_deny_cd -= delta
+	_tick_night()
 	if _inspect != null and _inspect.visible:
 		_card_t += delta
 		if _card_t >= 1.4:

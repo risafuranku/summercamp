@@ -341,6 +341,19 @@ const SCENARIOS := {
 		["eval", "_interior_manager._building_interior._crt_ui._open_email_app()"], ["wait", 1.5],
 		["crt_screen", "u1_mail"],
 	],
+	# Builder at night: open, looking only (playtest 13. 11.).
+	"buildernight": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["money", 3000], ["clear", 7, 3, 5, 5], ["build", "tent_1", 8, 5, 0], ["build", "path", 9, 4, 0],
+		["eval", "debug_jump_to(1, 22.0)"], ["wait", 1.5],
+		["call_on", "_interior_manager", "open_startup_crt_view", []], ["wait", 7.0],
+		["signal", "program_installed", "builder"], ["wait", 0.5],
+		["eval", "_interior_manager._building_interior._crt_ui.open_app('builder') != null"], ["wait", 2.0],
+		["wait", 6.0], ["crt_screen", "bn0_builder_night"],
+		["eval", "_interior_manager._building_interior._crt_ui.app_of('builder')._module._select('demolish')"],
+		["eval", "[_interior_manager._building_interior._crt_ui.app_of('builder')._module._selected, _interior_manager._building_interior._crt_ui.app_of('builder')._module._night_view]"],
+		["crt_screen", "bn1_tool_refused"],
+	],
 	"builder98": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
 		["money", 3000], ["clear", 7, 3, 5, 5], ["clear", 12, 8, 4, 4],
@@ -738,6 +751,18 @@ const SCENARIOS := {
 		["eval", "_interior_manager._building_interior._extras._swing_back_door(true)"], ["wait", 1.0], ["shot", "bd3_open"],
 		["eval", "_interior_manager._building_interior._extras.look_back.set('yaw_deg', 70.0)"], ["wait", 0.6], ["shot", "bd4_room_open"],
 		["eval", "_interior_manager._building_interior._extras.go_office()"], ["wait", 0.6], ["shot", "bd5_back_0"], ["wait", 0.9], ["shot", "bd6_back_1"], ["wait", 0.9], ["shot", "bd7_back_2"], ["wait", 1.4], ["shot", "bd8_office"],
+	],
+	# Out of the office's front door with W held (playtest 13. 11.): walking on, no stop.
+	"walkout_w": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 2.0],
+		["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 1.0],
+		["press", "move_forward"],
+		["eval", "_interior_manager._building_interior._extras.go_out_front()"], ["wait", 1.0],
+		["eval", "[_player.velocity.length(), _player.controls_enabled, _player.global_position, _player.collision_mask, _interior_manager._building_interior.visible]"], ["wait", 1.0],
+		["eval", "[_player.velocity.length(), _player.controls_enabled, _player.global_position, _player.collision_mask, _interior_manager._building_interior.visible]"], ["wait", 0.5],
+		["eval", "[_player.velocity.length(), _player.controls_enabled, _player.global_position, _player.collision_mask, _interior_manager._building_interior.visible]"], ["wait", 0.5],
+		["eval", "[_player.velocity.length(), _player.controls_enabled, _player.global_position, _player.collision_mask, _interior_manager._building_interior.visible]"], ["shot", "ww0_out"],
+		["release", "move_forward"],
 	],
 	"shed": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.6],

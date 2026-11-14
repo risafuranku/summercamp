@@ -1218,10 +1218,10 @@ func _refresh_cover(id: String) -> void:
 	if page == null:
 		return
 	var want := ""
+	# (Builder at night looks at the camp and builds nothing, builder_module._tick_night: no
+	# cover over it, the playtest of 13. 11.)
 	if id in INSTALL_TABS and not _is_program_unlocked(id):
 		want = "install"
-	elif id == "builder" and not _is_day:
-		want = "licence"
 	var has: String = str(page.cover.get_meta("kind", "")) if page.cover != null and is_instance_valid(page.cover) else ""
 	if want != has:
 		page.set_cover(_make_cover(id, want) if want != "" else null)
@@ -2037,8 +2037,6 @@ func _tab_tip(id: String) -> String:
 func _tab_available(id: String) -> bool:
 	if id in INSTALL_TABS and not _is_program_unlocked(id):
 		return false
-	if id == "builder" and not _is_day:
-		return false
 	return true
 
 
@@ -2076,7 +2074,7 @@ func _draw_tab(c: Control, i: int, tex: Texture2D) -> void:
 	c.draw_rect(Rect2(cap.position + Vector2(1, 1), cap.size - Vector2(2, 2)), T.FACE if avail else T.LIGHT)
 	_pixel_text(c, str((i + 1) % 10), cap.position + Vector2(2, 2), T.TEXT if avail else T.SHADOW, Color(0, 0, 0, 0))
 	if id == "builder" and not _is_day and _is_program_unlocked("builder"):
-		# The moon: closed for the night.
+		# The moon: looking only, for the night.
 		var m := Vector2(r.size.x - 9, 7) + o
 		c.draw_circle(m, 4.0, Color8(250, 220, 90))
 		c.draw_circle(m + Vector2(2, -1), 3.5, T.FACE if not on else Color8(232, 232, 232))

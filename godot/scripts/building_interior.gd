@@ -3245,6 +3245,39 @@ var _coop_radio_n := -1
 func _radio_on_air(kind: String, id) -> void:
 	_radio_now_n += 1
 	_radio_now = {"k": kind, "id": id}
+	if kind == "song":
+		var fam := song_family(str(id))
+		_radio_recent.erase(fam)
+		_radio_recent.append(fam)
+		while _radio_recent.size() > RADIO_RECENT_MAX:
+			_radio_recent.pop_front()
+
+
+## The songs played last, by their family (playtest 13. 11.: the same songs came round again
+## and again, and at night the day's song's caretaker version after it): none of these is
+## drawn again while a song not among them can be.
+const RADIO_RECENT_MAX := 6
+var _radio_recent: Array[String] = []
+
+
+## A song's family: its versions are one song (plestango_song, night_care_tango,
+## teror_care_tango, peklo_care_tango: "tango"; vodadoma_song, vodadoma_eerie: "vodadoma").
+static func song_family(path: String) -> String:
+	var n := path.get_file().get_basename().to_lower()
+	for pre in ["night_", "teror_", "peklo_", "care_", "song_", "ples"]:
+		if n.begins_with(pre):
+			n = n.substr(pre.length())
+	for pre in ["care_"]:
+		if n.begins_with(pre):
+			n = n.substr(pre.length())
+	for suf in ["_song", "_eerie", "_jingle", "zena", "2"]:
+		if n.ends_with(suf):
+			n = n.substr(0, n.length() - suf.length())
+	return n.replace("cursed", "")
+
+
+func _radio_recently(path: String) -> bool:
+	return not path.is_empty() and _radio_recent.has(song_family(path))
 
 
 ## For the other machine (main._coop_sync_things "radio", the host only): the switch, the
@@ -3687,7 +3720,7 @@ func _play_radio_next() -> void:
 		return
 	# The night's worst has its own songs (radio_tiers.gd), drawn instead of the playlist's.
 	var tier_path: String = _radio_tiers.pick(_dread.context(), float(_dread.dread), _radio_rng) if _dread != null else ""
-	if tier_path != "" and _radio_play_path(tier_path, 0.0):
+	if tier_path != "" and not _radio_recently(tier_path) and _radio_play_path(tier_path, 0.0):
 		return
 	if _radio_tracks.is_empty():
 		_rebuild_radio_tracks_for_time(false)
@@ -3871,14 +3904,19 @@ func _select_radio_track_index(start_index: int) -> int:
 	if track_count <= 1:
 		return 0
 	var start = start_index % track_count
-	if _radio_last_played_path.is_empty():
-		return start
+	# The first from here whose family was not heard lately; else the one heard longest ago.
+	var oldest := -1
+	var oldest_at := 1 << 30
 	for offset in range(track_count):
 		var idx = (start + offset) % track_count
 		var path = _radio_tracks_paths[idx] if idx < _radio_tracks_paths.size() else ""
-		if path.is_empty() or path != _radio_last_played_path:
+		if path.is_empty() or not _radio_recently(path):
 			return idx
-	return start
+		var at := _radio_recent.find(song_family(path))
+		if path != _radio_last_played_path and at < oldest_at:
+			oldest_at = at
+			oldest = idx
+	return oldest if oldest >= 0 else start
 
 
 func _resolve_radio_playback_track(base_stream: AudioStream, base_path: String, base_is_night: bool) -> Dictionary:

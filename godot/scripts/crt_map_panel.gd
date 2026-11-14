@@ -1282,6 +1282,9 @@ func _send_demolish_request(rect: Rect2i) -> void:
 
 ## Takes back the last thing built today (all of a path drag), paying the price back.
 func undo_last() -> bool:
+	# (At night Builder only looks: builder_module._tick_night.)
+	if CoreRoot != null and CoreRoot.is_night():
+		return false
 	var st = CoreRoot.get_state()
 	var today := int(st.day) if st != null else 1
 	_undo = _undo.filter(func(u): return int(u["day"]) == today)

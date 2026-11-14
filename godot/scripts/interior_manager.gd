@@ -979,11 +979,18 @@ func _walk_body(body: CharacterBody3D, from: Vector3, to: Vector3, dir: Vector3)
 	_stepping_out = tw
 	# In a power cut as slow as the room's part of it was (reception_extras.DARK_WALK_K).
 	var sec := WALK_OUT_SEC * (1.0 if _grid_power_available else 1.35)
-	tw.tween_property(body, "global_position", to, sec).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	# W held through the way out: on at a walk, no stop at the porch's foot (playtest 13. 11.:
+	# "keep walking, do not stop"); else easing to a stand as before.
+	var walking_on := Input.is_action_pressed("move_forward")
+	if walking_on:
+		tw.tween_property(body, "global_position", to, sec)
+	else:
+		tw.tween_property(body, "global_position", to, sec).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	tw.tween_callback(func() -> void:
 		if is_instance_valid(body):
 			body.collision_mask = mask
-			body.velocity = Vector3.ZERO
+			var flat := Vector3(dir.x, 0.0, dir.z).normalized()
+			body.velocity = flat * float(body.get("move_speed")) if walking_on and Input.is_action_pressed("move_forward") and flat != Vector3.ZERO else Vector3.ZERO
 		_set_player_controls_enabled(true)
 	)
 
