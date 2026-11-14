@@ -932,6 +932,7 @@ const SCENARIOS := {
 		["view", 10, 5, 2, 2, 4.0, 0, 1.0], ["wait", 0.6], ["shot", "wh1_full"],
 		["view", 10, 5, 2, 2, 3.0, 20, 1.0], ["wait", 0.6], ["shot", "wh2_close"],
 		["eval", "[debug_structure_of_type('warehouse').get_node('Warehouse').key, debug_structure_of_type('warehouse').get_node('Warehouse')._shown]"],
+		["eval", "debug_jump_to(1, 22.5)"], ["wait", 3.0], ["view", 10, 5, 2, 2, 4.0, 0, 1.0], ["wait", 0.6], ["shot", "wh3_night"],
 	],
 	# Out of the office's front door with W held (playtest 13. 11.): walking on, no stop.
 	"walkout_w": [

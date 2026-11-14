@@ -25,6 +25,10 @@ var _tags: Array = []
 var _boxes: Array = []        # per rack: [MeshInstance3D] in use
 var _t := 0.0
 var _shown := ""
+## The bare bulb on its cord over the racks: lit with the camp's lamps (building_manager.lamps_on).
+var _bulb: MeshInstance3D
+var _bulb_mat: StandardMaterial3D
+var _light: OmniLight3D
 
 
 func _ready() -> void:
@@ -45,7 +49,50 @@ func _ready() -> void:
 		add_child(tag)
 		_tags.append(tag)
 		_boxes.append([])
+	_make_bulb()
 	add_to_group("warehouse")
+
+
+func _make_bulb() -> void:
+	if rack_at.is_empty():
+		return
+	var mid := Vector3.ZERO
+	for a in rack_at:
+		mid += a as Vector3
+	mid /= float(rack_at.size())
+	var at := Vector3(mid.x, 2.55, mid.z + 0.9)
+	var cord := K.slab(self, Vector3(0.012, 0.5, 0.012), at + Vector3(0, 0.3, 0), K.surface("veneer_dark", 0.2, Color(0.1, 0.1, 0.1)), "Cord")
+	cord.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_bulb = MeshInstance3D.new()
+	var s := SphereMesh.new()
+	s.radius = 0.045
+	s.height = 0.11
+	s.radial_segments = 8
+	s.rings = 4
+	_bulb.mesh = s
+	_bulb.position = at
+	_bulb_mat = StandardMaterial3D.new()
+	_bulb_mat.albedo_color = Color(0.85, 0.82, 0.7)
+	_bulb_mat.emission = Color(1.0, 0.84, 0.52)
+	_bulb.material_override = _bulb_mat
+	_bulb.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(_bulb)
+	_light = OmniLight3D.new()
+	_light.position = at + Vector3(0, -0.08, 0)
+	_light.light_color = Color(1.0, 0.84, 0.56)
+	_light.omni_range = 5.5
+	_light.omni_attenuation = 1.3
+	_light.light_energy = 0.0
+	_light.visible = false
+	add_child(_light)
+
+
+func _set_bulb(on: bool) -> void:
+	if _light == null or _light.visible == on:
+		return
+	_light.visible = on
+	_light.light_energy = 1.6 if on else 0.0
+	_bulb_mat.emission_enabled = on
 
 
 func _process(delta: float) -> void:
@@ -61,6 +108,8 @@ func _look() -> void:
 	var state = CoreRoot.get_state() if CoreRoot != null else null
 	if state == null or key == "":
 		return
+	var bm = get_tree().current_scene.get("building_manager") if get_tree().current_scene != null else null
+	_set_bulb(bm != null and bm.has_method("lamps_on") and bool(bm.lamps_on()))
 	var racks: Array = CoreRoot.actions.biz_store_racks(key)
 	var sites: Dictionary = (state.biz as Dictionary).get("sites", {}) if state.biz is Dictionary else {}
 	# Each place's goods beyond its own shelf, shared out over its racks in turn.

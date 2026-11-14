@@ -247,6 +247,11 @@ func _is_lamp_entry_broken(entry: Dictionary) -> bool:
 	return _broken_lamps.has("%d:%d" % [(origin as Vector2i).x, (origin as Vector2i).y])
 
 
+## The camp's lamps lit now (dusk to dawn with power): the warehouse's bulb follows them.
+func lamps_on() -> bool:
+	return _lamps_active
+
+
 func set_lamps_active(active: bool) -> void:
 	_lamps_active = active
 	_lamp_flicker_roll_timer = _lamp_rng.randf_range(54.0, 68.0)
