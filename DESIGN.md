@@ -1872,6 +1872,16 @@ see the others sitting at the laptop".
   **Personal 98** (`os98/apps/staff_app.gd`): SoftSklad's fifth program, licensed at
   softsklad.cz, the same from the PC or the laptop with 98 check boxes. Wages are paid with
   the businesses' at the day's close; two days unpaid and they leave.
+- **Firewood** (playtest 14. 11.: "the guests put the logs on the fire themselves, the player
+  sees to it there is always enough split... automate it within what is there, a job for
+  the staffroom's hands; without staff, splitting once a day should do"): the bonfire's
+  woodpile no longer fills by itself; in the evening the guests at the fire put a piece on
+  when it burns low and light a cold one with one; nothing split, the fire stays out and
+  they get little of it (and say so). A full pile (eight split halves) lasts an evening:
+  the warden splits at the block, or a hand with Firewood (Dříví) ticked in the books
+  splits a pile run down by three back to full. Low, the pile has its plate on the right
+  (FIREWOOD, what is left). The pieces on the pile, on the fire and flying in are the
+  block's own split halves.
 - **The camp running without you** (Richard 8. 11.: from being there alone, keys at the
   desk, toilets, tents and the corn, through cabins, hands at the stand, the bistro, the
   pub and the staffroom to "when I have plenty of staff the whole camp should run by

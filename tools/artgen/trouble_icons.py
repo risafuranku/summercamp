@@ -3,7 +3,7 @@
 12 x 10 pixels (the tallest that fits both ways), snapped to the palette, and ringed with
 one pixel of bone (a black bag or a dark van was lost on the dark plate): 14 x 12 at most.
 
-    python tools/artgen/trouble_icons.py
+    python tools/artgen/trouble_icons.py [kind ...]   (only those kinds; all without)
 
 Writes godot/assets/textury/ui/trouble_<kind>.png. A render not there yet is skipped.
 """
@@ -24,7 +24,10 @@ KINDS = ["litter", "raccoons", "delivery", "lost_kid", "noise", "tree", "someone
          # A business's goods running out (the user 5. 11.).
          "crate",
          # The office (8. 11.): booking letters waiting, a bill, the wages owed.
-         "mail", "bill", "wages"]
+         "mail", "bill", "wages",
+         # The woodpile run low (14. 11.): the game's own split pieces rendered on the key
+         # colour (godot/tools/wood_icon.gd) till Grok draws one.
+         "wood"]
 DEST = os.path.join(process.GODOT, "assets", "textury", "ui")
 
 
@@ -48,7 +51,10 @@ def ring(img):
 
 
 def main():
+    only = sys.argv[1:]
     for k in KINDS:
+        if only and k not in only:
+            continue
         src = os.path.join(HERE, "out", "spr_hud_tr_" + k, "raw.png")
         if not os.path.exists(src):
             print("skip", k)

@@ -13,7 +13,7 @@ const TEX := "res://assets/textury/ui/trouble_%s.png"
 ## A job (the staff act's "what", core/systems/staff_rules.gd JOBS and the day's events) ->
 ## its picture.
 const KIND := {"litter": "litter", "raccoons": "raccoons", "delivery": "delivery", "tree": "tree",
-	"rooms": "clean", "blocks": "toilet", "lost_kid": "lost_kid", "noise": "noise"}
+	"rooms": "clean", "blocks": "toilet", "lost_kid": "lost_kid", "noise": "noise", "wood": "wood"}
 ## A repair by what is broken (state.failures' "type"); a lamp only worn has no failure.
 const MEND_KIND := {"lamp_post": "lamp", "toilet_block": "toilet", "shower_block": "shower", "water_pump": "shower"}
 ## Its size in the world (the picture's 12 px and its ring), and how far over the head.

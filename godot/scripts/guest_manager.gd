@@ -267,6 +267,7 @@ func _advance_guest_life(now_abs: int) -> bool:
 	if state == null:
 		return false
 	_life.refresh_world(state, CoreRoot.registry)
+	_life.set_dull(_dull_places())
 	var weirdness := clampf(float(state.hrotfaktor), 0.0, 1.0)
 	var changed: bool = _life.advance_all(state, now_abs, Callable(self, "_is_night_abs"), weirdness)
 	for event in _life.take_events():
@@ -319,6 +320,20 @@ func _process_storm_off(guest_id: int) -> void:
 		_ensure_guest_lodging_assignments()
 		_sync_accommodation_states_from_guests()
 		return
+
+
+## The places open but not what they should be now (guest_life.set_dull): the bonfires out
+## in the evening with nothing split to light them (playtest 14. 11.).
+func _dull_places() -> Dictionary:
+	var out := {}
+	if not is_inside_tree():
+		return out
+	for f in get_tree().get_nodes_in_group("campfire"):
+		if f.has_method("cold_evening") and bool(f.call("cold_evening")):
+			var key := str(f.call("site_key"))
+			if key != "":
+				out[key] = true
+	return out
 
 
 ## Main tells us when the grid power is cut (unpaid bill) so powered facilities close.

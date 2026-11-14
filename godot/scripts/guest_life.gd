@@ -77,6 +77,17 @@ func set_power_available(available: bool) -> void:
 	_power_available = available
 
 
+## The places open but not what they should be now, by key ("x:y": true): a bonfire out in
+## the evening with nothing split to light it (campfire.cold_evening). Their fun is DULL_FUN
+## of what it would be.
+var _dull: Dictionary = {}
+const DULL_FUN := 0.3
+
+
+func set_dull(keys: Dictionary) -> void:
+	_dull = keys
+
+
 func set_weather(weather_state: int) -> void:
 	_weather = weather_state
 
@@ -624,6 +635,10 @@ func _on_complete(guest: Dictionary, act: Dictionary, t: int) -> void:
 			elif NEEDS.STASH_FROM.has(str(f.get("type", ""))):
 				# A basket to take home: it keeps them going for days.
 				guest["stash"] = NEEDS.add_stash(guest.get("stash", {}) if guest.get("stash", {}) is Dictionary else {}, str(f.get("type", "")))
+			var dull := _dull.has(str(f.get("key", "")))
+			if dull and services.has("fun"):
+				services = services.duplicate()
+				services["fun"] = float(services["fun"]) * DULL_FUN
 			guest["needs"] = NEEDS.apply_facility(guest["needs"], services, str(guest.get("archetype", "")), str(f.get("type", "")))
 			guest["visits"] = int(guest.get("visits", 0)) + 1
 			# "key": GuestManager has the toilets and showers soiled by it (soil_building).
@@ -633,6 +648,8 @@ func _on_complete(guest: Dictionary, act: Dictionary, t: int) -> void:
 				guest["complaints"] = int(guest.get("complaints", 0)) + 1
 				guest["mood"] = clampf(float(guest.get("mood", 50.0)) - FILTHY_MOOD, 0.0, 100.0)
 				_say(guest, _thought_filthy(str(f.get("type", ""))), t)
+			elif dull and _rng.randf() < 0.4:
+				_say(guest, _thought_dull(str(f.get("type", ""))), t)
 			elif fed and _rng.randf() < 0.3:
 				_say(guest, _thought_after_visit(str(f.get("type", "")), guest), t)
 		"bushes":
@@ -935,6 +952,12 @@ func _thought_filthy(type: String) -> String:
 	if type == "shower_block":
 		return ["The shower floor is slimy. I came out dirtier.", "Somebody's hair in the drain. A lot of it.", "The showers stink. Does anyone ever clean them?"][_rng.randi_range(0, 2)]
 	return ["The toilets stink. You can smell them from the path.", "Nobody has cleaned that toilet in days.", "I held my breath the whole time in there."][_rng.randi_range(0, 2)]
+
+
+func _thought_dull(type: String) -> String:
+	if type == "bonfire":
+		return "Sat at a cold fire. Not one log split."
+	return ""
 
 
 func _thought_after_visit(type: String, guest: Dictionary) -> String:

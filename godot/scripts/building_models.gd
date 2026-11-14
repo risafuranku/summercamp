@@ -17,6 +17,7 @@ const CL = preload("res://scripts/cabin_layout.gd")
 const SERVICE_PLAN = preload("res://scripts/service_plan.gd")
 ## A painted door made a leaf, the picture cut round it (shared with Liblice's fronts).
 const PAINTED_DOOR = preload("res://scripts/painted_door.gd")
+const SPLIT_WOOD = preload("res://scripts/attractions/split_wood.gd")
 const WORLD_GEN = preload("res://scripts/world_generator.gd")
 const FONT := "res://assets/fonts/w95b.fnt"
 const MODELS := ["toilet_block", "shower_block", "pub", "restaurant", "power_generator", "sewer",
@@ -637,15 +638,22 @@ func _bonfire(r: Node3D, _w: float, _d: float) -> Dictionary:
 		var rad := 0.78 + rng.randf_range(-0.04, 0.05)
 		var st := _box(r, "Stone%d" % i, sz, Vector3(cos(a) * rad, sz.y * 0.5 - 0.02, sin(a) * rad), stone if i % 3 != 0 else sooty)
 		st.rotation = Vector3(rng.randf_range(-0.15, 0.15), -a + rng.randf_range(-0.4, 0.4), rng.randf_range(-0.12, 0.12))
-	# The teepee: five split logs leaning in, black where the fire has had them.
+	# The teepee: five split pieces leaning in (the block's own halves, scripts/attractions/
+	# split_wood.gd), black where the fire has had them; two more in the coals.
 	for i in 5:
 		var a := TAU * float(i) / 5.0 + 0.3
-		var lg := _box(r, "FireLog%d" % i, Vector3(0.1, 0.78, 0.12), Vector3(cos(a) * 0.2, 0.33, sin(a) * 0.2), charred if i % 2 == 0 else bark)
+		var lg := SPLIT_WOOD.half(0.11, 0.62, 1.0 if i % 2 == 0 else -1.0, charred if i % 2 == 0 else bark, charred)
+		lg.name = "FireLog%d" % i
+		r.add_child(lg)
+		lg.position = Vector3(cos(a) * 0.17, 0.27, sin(a) * 0.17)
 		# Tip in toward the middle (round the horizontal axis across the log's direction).
-		lg.basis = Basis(Vector3(-sin(a), 0, cos(a)), 0.42) * Basis(Vector3.UP, rng.randf() * TAU)
+		lg.basis = Basis(Vector3(-sin(a), 0, cos(a)), 0.42) * Basis(Vector3.UP, a + PI * 0.5)
 	for i in 2:
-		var lg2 := _cyl(r, "FireLog%d" % (5 + i), 0.075, 0.8, Vector3(0, 0.09, 0), charred, Vector3(0, 0.9 + float(i) * 1.6, PI * 0.5))
-		lg2.position = Vector3(0.05 - 0.1 * i, 0.09 + 0.05 * i, 0.04 * i)
+		var lg2 := SPLIT_WOOD.half(0.11, 0.34, 1.0, charred, charred)
+		lg2.name = "FireLog%d" % (5 + i)
+		r.add_child(lg2)
+		lg2.basis = Basis(Vector3.UP, 0.9 + float(i) * 1.6) * SPLIT_WOOD.lying_basis(i == 0)
+		lg2.position = Vector3(0.05 - 0.1 * i, 0.06 + 0.05 * i, 0.04 * i)
 	# The flames: three fixed-Y quads, the big one behind, a core, a lick to one side.
 	var fk := 0
 	for f in [[Vector2(1.0, 1.3), Vector3(0, 0.66, 0)], [Vector2(0.72, 1.0), Vector3(0.08, 0.52, 0.06)], [Vector2(0.5, 0.78), Vector3(-0.14, 0.42, -0.05)]]:
@@ -689,7 +697,8 @@ func _bonfire(r: Node3D, _w: float, _d: float) -> Dictionary:
 			_cyl(bench, "Stump", 0.13, 0.36, Vector3(x, 0.18, 0), bark)
 			_cyl(bench, "StumpEnd", 0.125, 0.012, Vector3(x, 0.362, 0), ends)
 		bench.set_meta("seat", [Vector3(-0.4, 0.47, 0), Vector3(0.4, 0.47, 0)])
-	# The woodpile: eight logs in a stack (the ones you throw on), ends out.
+	# The woodpile: eight split pieces in a stack, bark up (the ones thrown on, the ones the
+	# block splits: split_wood.gd), ends out.
 	var pile := Node3D.new()
 	pile.name = "Woodpile"
 	pile.position = Vector3(1.7, 0, -1.25)
@@ -702,11 +711,11 @@ func _bonfire(r: Node3D, _w: float, _d: float) -> Dictionary:
 				break
 			var lg3 := Node3D.new()
 			lg3.name = "PileLog%d" % n
-			lg3.position = Vector3(-0.3 + float(k) * 0.2 + float(row) * 0.1, 0.09 + float(row) * 0.16, 0)
+			lg3.position = Vector3(-0.36 + float(k) * 0.24 + float(row) * 0.12, 0.004 + float(row) * 0.118, rng.randf_range(-0.03, 0.03))
 			pile.add_child(lg3)
-			_cyl(lg3, "Log", 0.085, 0.62, Vector3.ZERO, bark, Vector3(PI * 0.5, 0, 0))
-			for z: float in [-0.311, 0.311]:
-				_cyl(lg3, "End", 0.083, 0.004, Vector3(0, 0, z), ends, Vector3(PI * 0.5, 0, 0))
+			var piece := SPLIT_WOOD.half(0.12, 0.34, 1.0, bark, ends)
+			piece.basis = Basis(Vector3.UP, rng.randf_range(-0.08, 0.08)) * SPLIT_WOOD.lying_basis(false)
+			lg3.add_child(piece)
 			n += 1
 	# Woodpile logs are the campfire's: it finds them as its parent's children.
 	for c in pile.get_children():

@@ -128,8 +128,10 @@ func _rbutton(i: int) -> Rect2:
 	return Rect2(RIGHT.position.x, 160 - i * 18, 68, 14)
 
 
+## A job's row on the right page: as many rows as there are jobs, down to the page's foot.
 func _job_rect(i: int) -> Rect2:
-	return Rect2(RIGHT.position.x, 62 + i * 11, RIGHT.size.x, 11)
+	var step := minf(11.0, floorf((RIGHT.end.y - 60.0) / float(RULES.JOBS.size())))
+	return Rect2(RIGHT.position.x, 60 + i * step, RIGHT.size.x, step)
 
 
 ## Let go: on the left page under the names (the jobs fill the right one since 8. 11.).
@@ -382,7 +384,7 @@ func _paint_staff(c: Control) -> void:
 		var on := RULES.does(who, id)
 		if hovered() == "job:" + id:
 			c.draw_rect(r, Color(1, 0.9, 0.5, 0.18))
-		var box := Rect2(r.position + Vector2(0, 2), Vector2(9, 9))
+		var box := Rect2(r.position + Vector2(0, 2 if r.size.y >= 11.0 else 1), Vector2(9, 9))
 		_pencil_box(c, box, PENCIL)
 		if on:
 			_tick_mark(c, box, GREEN)

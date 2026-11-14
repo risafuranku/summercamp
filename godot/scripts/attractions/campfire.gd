@@ -2,11 +2,17 @@ extends Node3D
 
 ## The camp's bonfire, alive (a child of the bonfire structure, built by
 ## building_models._bonfire). It burns on `fuel`:
-##   - the evening (18:00-01:00): when guests sit at it and it is cold, one of them gets a
-##     small fire going; you can put logs on from the woodpile (E: main -> attraction_play),
-##     each one flies in, the fire flares, sparks burst out and it burns bigger for a while;
-##   - it burns down by itself (a log lasts about two game hours), to embers, and by
-##     morning there is a grey bed of ash with a thread of smoke; the woodpile is full again.
+##   - the evening (18:00-01:00): the guests sitting at it feed it from the woodpile, a
+##     piece when it burns low, and light a cold one with one (playtest 14. 11.: "the guests
+##     put the logs on themselves, the player sees to it there is always enough split");
+##     you can put pieces on too (E: main -> attraction_play); each flies in, the fire
+##     flares, sparks burst out and it burns bigger for a while;
+##   - it burns down by itself (a piece lasts over an hour), to embers, and by morning there
+##     is a grey bed of ash with a thread of smoke;
+##   - the woodpile fills only by splitting: yours at the block (log_split.gd), or a hand's
+##     with Firewood ticked in the staffroom (staff_runtime "wood"). A full pile lasts an
+##     evening; nothing split, the fire stays out and the guests at it get little of it
+##     (cold_evening -> guest_life's dull facility).
 ## Everything is stepped (flames 12 frames a second, the light 10, sparks and smoke in
 ## steps), like a 1996 sprite fire. The flame is materials/pixel_fire.gdshader on three
 ## fixed-Y quads, the bed materials/fire_embers.gdshader, the smoke Grok puffs
@@ -26,9 +32,10 @@ const STEP := 0.1
 const BURN_PER_HOUR := 0.32
 const LOG_FUEL := 0.42
 const MAX_FUEL := 1.45
-## What the guests light when they come to a cold fire in the evening.
-const GUEST_FIRE := 0.55
+## The guests put a piece on when the fire is down to this (a cold one too).
+const GUEST_FEED_AT := 0.2
 const WOODPILE_LOGS := 8
+const SPLIT_WOOD = preload("res://scripts/attractions/split_wood.gd")
 ## A round split at the block (scripts/attractions/log_split.gd plays your own; this is the
 ## other warden's, heard from where you are).
 const SFX_SPLIT := "res://assets/sfx/life/split_crack.mp3"
@@ -47,7 +54,9 @@ var _bed: MeshInstance3D
 var _bed_mat: ShaderMaterial
 var _light: OmniLight3D
 var _pile: Array[Node3D] = []
-var _burning: Array[MeshInstance3D] = []
+var _burning: Array[Node3D] = []
+## A piece on its way into the fire (the guests wait for it to land).
+var _feeding := false
 var _crackle: AudioStreamPlayer3D
 var _pops: AudioStreamPlayer3D
 var _sparks: Array = []           # {node, v, life, max}
@@ -58,7 +67,6 @@ var _flare := 0.0
 var _acc := 0.0
 var _hour := 12.0
 var _last_hour := -1.0
-var _day := -1
 var _rng := RandomNumberGenerator.new()
 ## The wind on the fire, in its own space (`_air`).
 ## How far the wind takes the flames, a share of its strength.
@@ -101,7 +109,7 @@ func _setup() -> void:
 			_light = c
 		elif c is Node3D and str(c.name).begins_with("PileLog"):
 			_pile.append(c)
-		elif c is MeshInstance3D and str(c.name).begins_with("FireLog"):
+		elif c is Node3D and str(c.name).begins_with("FireLog"):
 			_burning.append(c)
 	# The sparks' three ages: Grok embers (camp/embers.png, young, older, nearly out side by
 	# side), added to the scene like light (they were flat-coloured squares).
@@ -161,15 +169,6 @@ func _on_time_tick(hour: int, minute: int) -> void:
 			_burn(minf(dh, 24.0), dh < 3.0)
 	_last_hour = h
 	_hour = h
-	# Morning: the pile is stacked again (the ash is still there).
-	var st = CoreRoot.get_state() if CoreRoot != null else null
-	var day := int(st.day) if st != null else 0
-	if day != _day:
-		if _day >= 0 and h >= 6.0:
-			logs_left = WOODPILE_LOGS
-			for p in _pile:
-				p.visible = true
-		_day = day
 
 
 func _burn(hours: float, live := true) -> void:
@@ -179,9 +178,11 @@ func _burn(hours: float, live := true) -> void:
 		embers = clampf(embers + hours * 0.08, 0.0, 0.45)
 	else:
 		embers = maxf(0.0, embers - hours * 0.035)
-	# Guests at a cold fire in the evening light one.
-	if live and guests_here > 0 and fuel < 0.12 and is_evening():
-		fuel = GUEST_FIRE
+	# Guests at it in the evening feed it from the woodpile (the host's: its state goes to the
+	# other machine, which sees the piece fly: coop_take_state).
+	if live and guests_here > 0 and fuel < GUEST_FEED_AT and is_evening() and logs_left > 0 and not _feeding and Coop.sim_here():
+		logs_left -= 1
+		_throw_log()
 
 
 func is_evening() -> bool:
@@ -190,6 +191,21 @@ func is_evening() -> bool:
 
 func is_lit() -> bool:
 	return fuel > 0.06
+
+
+## Out in the evening (nothing on the pile to light it with): the guests at it get little
+## of it (GuestManager -> guest_life's dull facilities).
+func cold_evening() -> bool:
+	return is_evening() and not is_lit()
+
+
+## The bonfire's square on the plan ("x:y", as the guests' facilities have it); "" unknown.
+func site_key() -> String:
+	var r := get_parent()
+	if r == null or not r.has_meta("grid_origin"):
+		return ""
+	var o: Vector2i = r.get_meta("grid_origin")
+	return "%d:%d" % [o.x, o.y]
 
 
 ## E with the woodpile in reach: a log on the fire. False when the pile is empty.
@@ -201,20 +217,24 @@ func add_log() -> bool:
 	return true
 
 
-func _throw_log() -> void:
+## The pile's top piece flies into the fire. `burn`: it feeds it here (the other machine's
+## only shows it: its fire is the host's).
+func _throw_log(burn := true) -> void:
 	var idx := clampi(logs_left, 0, _pile.size() - 1)
 	var from: Vector3 = _pile[idx].global_position if not _pile.is_empty() else global_position + Vector3(1.4, 0.3, 0)
 	if idx < _pile.size():
 		_pile[idx].visible = false
-	var log := MeshInstance3D.new()
-	var c := CylinderMesh.new()
-	c.top_radius = 0.07
-	c.bottom_radius = 0.07
-	c.height = 0.62
-	c.radial_segments = 6
-	log.mesh = c
-	log.material_override = (_pile[idx].get_child(0) as MeshInstance3D).material_override if not _pile.is_empty() and _pile[idx].get_child_count() > 0 else null
+	var bark: Material = null
+	var wood: Material = null
+	if not _pile.is_empty():
+		var b := _pile[idx].find_child("Log", true, false) as MeshInstance3D
+		var w := _pile[idx].find_child("End", true, false) as MeshInstance3D
+		bark = b.material_override if b != null else null
+		wood = w.material_override if w != null else null
+	var log := SPLIT_WOOD.half(0.12, 0.34, 1.0, bark, wood)
 	get_parent().add_child(log)
+	if burn:
+		_feeding = true
 	log.global_position = from
 	var to := global_position + Vector3(_rng.randf_range(-0.12, 0.12), 0.32, _rng.randf_range(-0.12, 0.12))
 	var mid := from.lerp(to, 0.5) + Vector3(0, 0.9, 0)
@@ -226,7 +246,9 @@ func _throw_log() -> void:
 		log.rotation = Vector3(t * 5.0, t * 2.0, PI * 0.5 + t * 3.0), 0.0, 1.0, 0.55)
 	tw.tween_callback(func():
 		log.queue_free()
-		fuel = minf(MAX_FUEL, fuel + LOG_FUEL)
+		if burn:
+			_feeding = false
+			fuel = minf(MAX_FUEL, fuel + LOG_FUEL)
 		_flare = 1.0
 		_burst(26)
 		_puff(4, 1.4)
@@ -683,6 +705,11 @@ func coop_take_state(d: Dictionary) -> void:
 	fuel = clampf(float(d.get("fuel", fuel)), 0.0, MAX_FUEL)
 	embers = clampf(float(d.get("embers", embers)), 0.0, 1.0)
 	var logs := clampi(int(d.get("logs", logs_left)), 0, WOODPILE_LOGS)
+	# One or two gone at once: put on the fire there (a guest's, the other warden's), seen here.
+	if logs < logs_left and logs_left - logs <= 2:
+		while logs_left > logs:
+			logs_left -= 1
+			_throw_log(false)
 	if logs != logs_left:
 		logs_left = logs
 		for i in _pile.size():

@@ -19,6 +19,7 @@ extends Node
 ## through the host (warden_play: "chop").
 
 const K = preload("res://scripts/interior_kit.gd")
+const SPLIT_WOOD = preload("res://scripts/attractions/split_wood.gd")
 const SFX := "res://assets/sfx/life/"
 ## The round: its radius and height on the block.
 const ROUND_R := 0.12
@@ -362,60 +363,10 @@ func _set_round() -> void:
 	_play("split_set.mp3", -8.0, _rng.randf_range(0.95, 1.05))
 
 
-## Half a round, its flat face toward -X / +X (`s`): the bark's half-cylinder, the split face,
-## the two half ends.
+## Half a round, its flat face toward -X / +X (`s`): the woodpile's own piece (split_wood.gd).
 func _half_mesh(s: float) -> Node3D:
-	var n := Node3D.new()
-	n.name = "SplitHalf"
+	var n := SPLIT_WOOD.half(ROUND_R, ROUND_H, s, _round_mats[0], _round_mats[1])
 	_world().add_child(n)
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var seg := 6
-	var r := ROUND_R
-	var h := ROUND_H
-	for i in seg:
-		var a0 := -PI * 0.5 + PI * float(i) / float(seg)
-		var a1 := -PI * 0.5 + PI * float(i + 1) / float(seg)
-		var p0 := Vector3(cos(a0) * r * s, 0, sin(a0) * r)
-		var p1 := Vector3(cos(a1) * r * s, 0, sin(a1) * r)
-		var up := Vector3(0, h, 0)
-		var nm := ((p0 + p1) * 0.5).normalized()
-		for v in ([p0, p1 + up, p1, p0, p0 + up, p1 + up] if s > 0.0 else [p0, p1, p1 + up, p0, p1 + up, p0 + up]):
-			st.set_normal(nm)
-			st.set_uv(Vector2(float(i) / float(seg), (v as Vector3).y / h))
-			st.add_vertex(v - Vector3(0, h * 0.5, 0))
-	var bark := MeshInstance3D.new()
-	bark.mesh = st.commit()
-	bark.material_override = _round_mats[0]
-	n.add_child(bark)
-	# Its two half ends, the wood's rings.
-	var ends := SurfaceTool.new()
-	ends.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for y: float in [h * 0.5, -h * 0.5]:
-		var top := y > 0.0
-		for i in seg:
-			var a0 := -PI * 0.5 + PI * float(i) / float(seg)
-			var a1 := -PI * 0.5 + PI * float(i + 1) / float(seg)
-			var c := Vector3(0, y, 0)
-			var p0 := Vector3(cos(a0) * r * s, y, sin(a0) * r)
-			var p1 := Vector3(cos(a1) * r * s, y, sin(a1) * r)
-			var tri: Array = [c, p0, p1] if (top == (s > 0.0)) else [c, p1, p0]
-			for v in tri:
-				ends.set_normal(Vector3(0, 1 if top else -1, 0))
-				ends.set_uv(Vector2((v as Vector3).x / (r * 2.0) + 0.5, (v as Vector3).z / (r * 2.0) + 0.5))
-				ends.add_vertex(v)
-	var ring := MeshInstance3D.new()
-	ring.mesh = ends.commit()
-	ring.material_override = _round_mats[1]
-	n.add_child(ring)
-	# The split face and the ends: the wood's own picture.
-	var face := MeshInstance3D.new()
-	var q := QuadMesh.new()
-	q.size = Vector2(r * 2.0, h)
-	face.mesh = q
-	face.rotation.y = -PI * 0.5 * s
-	face.material_override = _round_mats[1]
-	n.add_child(face)
 	return n
 
 
@@ -539,8 +490,8 @@ func _wood_mats() -> Array:
 	var root := _att.get_parent()
 	for c in root.get_children():
 		if str(c.name).begins_with("PileLog"):
-			var lg := c.get_node_or_null("Log") as MeshInstance3D
-			var en := c.get_node_or_null("End") as MeshInstance3D
+			var lg := c.find_child("Log", true, false) as MeshInstance3D
+			var en := c.find_child("End", true, false) as MeshInstance3D
 			if lg != null:
 				bark = lg.material_override
 			if en != null:

@@ -369,6 +369,11 @@ func _arrive(slug: String, p: Dictionary, act: Dictionary, now: float) -> void:
 				var left := _room_left(str(next.get("room", "")))
 				minutes *= maxf(1.0, float(left))
 				next["each"] = RULES.work_minutes("rooms", int(p.get("speed", 1)))
+			if str(next.get("what", "")) == "wood":
+				var fire = _campfire(str(next.get("room", "")))
+				var short: int = int(fire.WOODPILE_LOGS) - int(fire.logs_left) if fire != null else 0
+				minutes *= maxf(1.0, float(short))
+				next["each"] = RULES.work_minutes("wood", int(p.get("speed", 1)))
 			if str(next.get("what", "")) == "desk":
 				# Behind the counter till home time, a guest every DESK_EACH_MIN or so.
 				minutes = 9999.0
@@ -493,6 +498,15 @@ func _find_work(slug: String, p: Dictionary, act: Dictionary, now: float, streak
 			if d3 < best_d:
 				best_d = d3
 				best = b2
+	# A bonfire's woodpile run down (playtest 14. 11.): split at its block till it is full.
+	if RULES.does(p, "wood") and best_d >= 0.0:
+		for w in _woodpiles():
+			if taken_room.has(str(w["room"])):
+				continue
+			var d4 := from.distance_to(w["pos"]) + 30.0
+			if d4 < best_d:
+				best_d = d4
+				best = w
 	if bool(jobs.get("rooms", true)) and best_d >= 0.0:
 		var state = CoreRoot.get_state()
 		var wanted := _lodgings_wanted()
@@ -569,6 +583,20 @@ func _work(slug: String, p: Dictionary, act: Dictionary, now: float, on: bool) -
 				_log(tr("%s: the %s cleaned.") % [name, tr(_block_label(c)).to_lower()])
 			_job_done(slug, p, act, now, on)
 		return
+	if what == "wood":
+		# A piece every `each` minutes onto the pile, the axe heard from the block.
+		var fire = _campfire(str(act.get("room", "")))
+		var each_w := maxf(1.0, float(act.get("each", 4.0)))
+		var due_w := int((now - float(act.get("t0", now))) / each_w)
+		var done_w := int(act.get("done", 0))
+		while done_w < due_w and fire != null and bool(fire.split_one(true)):
+			done_w += 1
+		act["done"] = done_w
+		if fire == null or int(fire.logs_left) >= int(fire.WOODPILE_LOGS) or not on:
+			if done_w > 0:
+				_log(tr("%s split the firewood.") % name)
+			_job_done(slug, p, act, now, on)
+		return
 	if what == "rooms":
 		var key := str(act.get("room", ""))
 		var acc_ok := _room_free(key)
@@ -596,6 +624,29 @@ func _work(slug: String, p: Dictionary, act: Dictionary, now: float, on: bool) -
 		if de != null and ev >= 0 and on and de.staff_done(ev, name):
 			_log("%s: %s" % [name, tr(RULES.job_label(what)).to_lower()])
 		_job_done(slug, p, act, now, on)
+
+
+## The bonfires' woodpiles run down by WOOD_LOW or more: [{what, room "wood:x:y", pos}],
+## pos by the chopping block.
+func _woodpiles() -> Array:
+	var out: Array = []
+	for f in get_tree().get_nodes_in_group("campfire"):
+		if not f.has_method("site_key") or int(f.WOODPILE_LOGS) - int(f.logs_left) < RULES.WOOD_LOW:
+			continue
+		var key := str(f.site_key())
+		if key == "":
+			continue
+		out.append({"what": "wood", "room": "wood:" + key, "pos": f.axe_position() + Vector3(0.0, 0.0, 0.7)})
+	return out
+
+
+## The bonfire whose woodpile `room` ("wood:x:y") is, or null.
+func _campfire(room: String):
+	var key := room.trim_prefix("wood:")
+	for f in get_tree().get_nodes_in_group("campfire"):
+		if f.has_method("site_key") and str(f.site_key()) == key:
+			return f
+	return null
 
 
 ## The reception's door, a step out of it (INF without the reception).

@@ -5910,7 +5910,7 @@ msgstr "Shutter"
 
 #: scripts/building_models.gd:1069
 msgid "Firewood"
-msgstr "Firewood"
+msgstr "Dříví"
 
 #: scripts/building_models.gd:1091 scripts/bowling/bowling_layout.gd:192
 #. uses 2
@@ -33789,3 +33789,9 @@ msgstr "SPRÁVCE!"
 #: scripts/os98/apps/job_census.gd
 msgid "the camp at Cerne jezero"
 msgstr "kemp u Černého jezera"
+
+msgid "%s split the firewood."
+msgstr "%s naštípal(a) dříví."
+
+msgid "Sat at a cold fire. Not one log split."
+msgstr "Seděli jsme u studenýho ohně. Ani poleno naštípaný."

@@ -46,6 +46,10 @@ const JOBS := [
 	# The lost boy, the noise: yours first; a hand goes when you have not got to it by the
 	# half of its time (LATE_KINDS).
 	["guests", "Guests"],
+	# The bonfire's woodpile split at its block till it is full again (playtest 14. 11.: the
+	# guests feed the fire from it; "the splitting automated, as a job for the staffroom's
+	# hands"). Without one a pile split once a day lasts the evening.
+	["wood", "Firewood"],
 	# At the reception all day, checking in whoever waits there with their room made up
 	# (the user 4. 11.: "the staffroom's: they clean, or take the guests in at the
 	# reception"). Off unless ticked: one at the desk is one fewer at the brooms. Whoever
@@ -82,7 +86,9 @@ const REST_MIN := 18.0
 ## In the morning, the coffee on the sofa before the first job.
 const COFFEE_MIN := 25.0
 ## One piece of work at the steady speed (game minutes); the quick do it in less.
-const WORK_MIN := {"litter": 14.0, "raccoons": 10.0, "delivery": 16.0, "tree": 30.0, "rooms": 9.0, "blocks": 16.0, "repairs": 18.0, "lost_kid": 20.0, "noise": 8.0}
+const WORK_MIN := {"litter": 14.0, "raccoons": 10.0, "delivery": 16.0, "tree": 30.0, "rooms": 9.0, "blocks": 16.0, "repairs": 18.0, "lost_kid": 20.0, "noise": 8.0, "wood": 4.0}
+## A woodpile is worth a hand's walk once it is down by this many pieces.
+const WOOD_LOW := 3
 ## At the desk: a guest who has waited this long (game minutes) is checked in, one every
 ## DESK_EACH_MIN at the steady speed.
 const DESK_WAIT_MIN := 4.0

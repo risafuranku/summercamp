@@ -2157,6 +2157,12 @@ func _work_rows() -> Array:
 		if str(f.get("type", "")) != "lamp_post" or bool(f.get("night", false)):
 			continue
 		rows.append({"id": "l%s" % str(fkey), "kind": "lamp", "word": "Lamp", "cat": "day", "left": -1.0, "job": "repairs", "fix": str(fkey)})
+	# A bonfire's woodpile run low (playtest 14. 11.: the guests feed the fire from it): what is
+	# left of it on the plate, split at the block or by a hand with Firewood.
+	for f in get_tree().get_nodes_in_group("campfire"):
+		if int(f.WOODPILE_LOGS) - int(f.logs_left) < STAFF_RULES_M.WOOD_LOW:
+			continue
+		rows.append({"id": "f%s" % str(f.site_key()), "kind": "wood", "word": tr("Firewood"), "cat": "work", "left": float(f.logs_left) / float(f.WOODPILE_LOGS), "job": "wood"})
 	return rows
 
 

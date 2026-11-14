@@ -902,6 +902,32 @@ const SCENARIOS := {
 	],
 	# Playtest 13. 11. P5: splitting logs at the fire's block: a square hard swing splits, a soft
 	# one sticks and the next lifts the round and slams it, one off the middle glances.
+	# The firewood (playtest 14. 11.): the guests feed the fire from the pile, the pile does not
+	# fill by itself, a fire out in the evening is dull for them, a hand with Firewood splits.
+	"firewood": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["eval", "_interior_manager._building_interior.close_interior()"], ["money", 20000], ["hours", 3.0],
+		["clear", 8, 3, 9, 8], ["build", "bonfire", 10, 7, 0], ["build", "staffroom", 14, 8, 0], ["wait", 1.5], ["eval", "[_day_index, _time_of_day_hours, get_tree().get_nodes_in_group('campfire')[0].logs_left, snappedf(get_tree().get_nodes_in_group('campfire')[0].fuel, 0.01), get_tree().get_nodes_in_group('campfire')[0].cold_evening(), get_node('/root/GuestManager')._dull_places()]"],
+		["eval", "get_tree().get_nodes_in_group('campfire')[0].global_position"],
+		["eval", "_player.set('global_position', get_tree().get_nodes_in_group('campfire')[0].pile_position() * Vector3(1, 0, 1) + Vector3(0.0, get_tree().get_nodes_in_group('campfire')[0].global_position.y + 0.05, 1.5))"], ["eval", "_player.set('rotation', Vector3(0, 0.0, 0))"], ["eval", "_player.set('_pitch', -0.55)"], ["eval", "_player.set('_pitch_target', -0.55)"], ["wait", 4.0], ["shot", "fw0_pile"],
+		["eval", "_player.set('global_position', get_tree().get_nodes_in_group('campfire')[0].pile_position() * Vector3(1, 0, 1) + Vector3(0.0, get_tree().get_nodes_in_group('campfire')[0].global_position.y - 0.4, 1.3))"], ["eval", "_player.set('_pitch', -0.6)"], ["eval", "_player.set('_pitch_target', -0.6)"], ["wait", 1.0], ["shot", "fw0b_pile_near"],
+		["eval", "debug_structure_of_type('bonfire').get_node('PileLog0').global_transform"],
+		["eval", "debug_structure_of_type('bonfire').get_node('PileLog0').get_child(0).global_transform"],
+		["eval", "debug_structure_of_type('bonfire').get_node('PileLog0').find_child('Log', true, false).get_aabb()"],
+		["eval", "[debug_structure_of_type('bonfire').global_position, debug_structure_of_type('bonfire').scale]"],
+		["eval", "debug_jump_to(1, 19.0)"], ["wait", 0.5], ["eval", "get_tree().get_nodes_in_group('campfire')[0].import_state({'fuel': 0.1, 'embers': 0.0, 'logs': 8})"],
+		["evals", ["get_tree().get_nodes_in_group('campfire')[0].set('guests_here', 2)", "get_tree().get_nodes_in_group('campfire')[0]._burn(0.02, true)"]], ["wait", 1.0], ["eval", "_player.set('global_position', get_tree().get_nodes_in_group('campfire')[0].global_position * Vector3(1, 0, 1) + Vector3(0.0, get_tree().get_nodes_in_group('campfire')[0].global_position.y + 0.05, 2.2))"], ["eval", "_player.set('_pitch', -0.35)"], ["eval", "_player.set('_pitch_target', -0.35)"], ["wait", 0.6], ["eval", "[_day_index, _time_of_day_hours, get_tree().get_nodes_in_group('campfire')[0].logs_left, snappedf(get_tree().get_nodes_in_group('campfire')[0].fuel, 0.01), get_tree().get_nodes_in_group('campfire')[0].cold_evening(), get_node('/root/GuestManager')._dull_places()]"], ["shot", "fw1_guest_feeds"],
+		["evals", ["get_tree().get_nodes_in_group('campfire')[0].set('guests_here', 2)", "get_tree().get_nodes_in_group('campfire')[0].set('fuel', 0.15)", "get_tree().get_nodes_in_group('campfire')[0]._burn(0.02, true)"]], ["wait", 1.0], ["eval", "[_day_index, _time_of_day_hours, get_tree().get_nodes_in_group('campfire')[0].logs_left, snappedf(get_tree().get_nodes_in_group('campfire')[0].fuel, 0.01), get_tree().get_nodes_in_group('campfire')[0].cold_evening(), get_node('/root/GuestManager')._dull_places()]"],
+		["eval", "debug_jump_to(2, 8.0)"], ["wait", 1.0], ["eval", "[_day_index, _time_of_day_hours, get_tree().get_nodes_in_group('campfire')[0].logs_left, snappedf(get_tree().get_nodes_in_group('campfire')[0].fuel, 0.01), get_tree().get_nodes_in_group('campfire')[0].cold_evening(), get_node('/root/GuestManager')._dull_places()]"],
+		["eval", "get_tree().get_nodes_in_group('campfire')[0].import_state({'fuel': 0.0, 'embers': 0.0, 'logs': 0})"], ["eval", "debug_jump_to(2, 19.5)"], ["evals", ["get_tree().get_nodes_in_group('campfire')[0].set('guests_here', 2)", "get_tree().get_nodes_in_group('campfire')[0]._burn(0.02, true)"]], ["wait", 1.0], ["eval", "[_day_index, _time_of_day_hours, get_tree().get_nodes_in_group('campfire')[0].logs_left, snappedf(get_tree().get_nodes_in_group('campfire')[0].fuel, 0.01), get_tree().get_nodes_in_group('campfire')[0].cold_evening(), get_node('/root/GuestManager')._dull_places()]"],
+		["wait", 1.5], ["shot", "fw2_plate"], ["eval", "debug_jump_to(3, 7.5)"], ["eval", "get_tree().get_nodes_in_group('campfire')[0].import_state({'fuel': 0.0, 'embers': 0.0, 'logs': 3})"],
+		["staff_hire", "hanka"],
+		["eval", "time_system.set('game_hours_per_real_second', 0.25)"], ["wait", 10.0], ["eval", "[_day_index, _time_of_day_hours, get_tree().get_nodes_in_group('campfire')[0].logs_left, snappedf(get_tree().get_nodes_in_group('campfire')[0].fuel, 0.01), get_tree().get_nodes_in_group('campfire')[0].cold_evening(), get_node('/root/GuestManager')._dull_places()]"], ["wait", 10.0], ["eval", "[_day_index, _time_of_day_hours, get_tree().get_nodes_in_group('campfire')[0].logs_left, snappedf(get_tree().get_nodes_in_group('campfire')[0].fuel, 0.01), get_tree().get_nodes_in_group('campfire')[0].cold_evening(), get_node('/root/GuestManager')._dull_places()]"], ["wait", 10.0], ["eval", "[_day_index, _time_of_day_hours, get_tree().get_nodes_in_group('campfire')[0].logs_left, snappedf(get_tree().get_nodes_in_group('campfire')[0].fuel, 0.01), get_tree().get_nodes_in_group('campfire')[0].cold_evening(), get_node('/root/GuestManager')._dull_places()]"],
+		["eval", "get_node('/root/CoreRoot').get_state().biz.get('staff', {}).get('acts', {})"],
+		["eval", "[get_tree().get_nodes_in_group('staffroom').size(), debug_structure_of_type('staffroom') != null]"],
+		["eval", "get_tree().get_first_node_in_group('staff_runtime')._woodpiles()"],
+		["eval", "get_node('/root/CoreRoot').get_state().biz.get('staff', {}).get('crew', [])"],
+	],
 	"logsplit": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
 		["eval", "_interior_manager._building_interior.close_interior()"], ["money", 9000], ["hours", 3.0],
@@ -2746,15 +2772,28 @@ func _run_step(step: Array) -> void:
 				ts.step_time_hours(float(step[1]))
 				_main.call("_sync_runtime_state_from_systems", true)
 		"eval":
-			var expr := Expression.new()
-			if expr.parse(str(step[1])) == OK:
-				var result = expr.execute([], _main)
-				if expr.has_execute_failed():
-					push_warning("SHOT DRIVER: eval failed: %s" % step[1])
-				else:
-					print("SHOT DRIVER eval: %s -> %s" % [step[1], str(result)])
-			else:
-				push_warning("SHOT DRIVER: eval parse error: %s" % expr.get_error_text())
+			_eval(str(step[1]))
+		"evals":
+			# Several in the same frame (what a node's own frame would undo in between).
+			for e in step[1]:
+				_eval(str(e))
+		"staff_hire":
+			# A camp hand (the staffroom's), every job ticked, hired yesterday.
+			var hand: Dictionary = load("res://core/systems/business_rules.gd").person(str(step[1]), "staff", 0)
+			hand["jobs"] = load("res://core/systems/staff_rules.gd").default_jobs()
+			print("SHOT DRIVER hired %s: %s" % [step[1], str(CoreRoot.actions.staff_hire(hand, CoreRoot.get_day() - 1))])
+
+
+func _eval(text: String) -> void:
+	var expr := Expression.new()
+	if expr.parse(text) == OK:
+		var result = expr.execute([], _main)
+		if expr.has_execute_failed():
+			push_warning("SHOT DRIVER: eval failed: %s" % text)
+		else:
+			print("SHOT DRIVER eval: %s -> %s" % [text, str(result)])
+	else:
+		push_warning("SHOT DRIVER: eval parse error: %s" % expr.get_error_text())
 
 
 func _save_shot(shot_name: String) -> void:

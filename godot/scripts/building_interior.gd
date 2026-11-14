@@ -2448,11 +2448,11 @@ func _reception_shell() -> Node3D:
 func _hide_painted_views() -> void:
 	var back_quad = _extras.back.window_quad if _extras != null and _extras.back != null else null
 	for n in [_window_quad, _side_quad, back_quad]:
-		if n is MeshInstance3D and is_instance_valid(n):
+		if is_instance_valid(n) and n is MeshInstance3D:
 			(n as MeshInstance3D).material_override = ONE_WORLD_ROOM.clear_glass()
 			_hide_from_camp(n)
 	for n in [_window_outdoor_sky, _door_quad]:
-		if n is Node3D and is_instance_valid(n):
+		if is_instance_valid(n) and n is Node3D:
 			(n as Node3D).visible = false
 
 
@@ -2515,7 +2515,8 @@ func _one_world_from_camp(delta: float) -> void:
 		# open, door_anim shows it) is never drawn: the office itself is behind it.
 		for k in PANES:
 			var g = _glass_cache.get(k)
-			if g is MeshInstance3D and is_instance_valid(g):
+			# (Alive first: a pane freed with the camp rebuilt is not even asked what it is.)
+			if is_instance_valid(g) and g is MeshInstance3D:
 				if k == "door_way":
 					(g as MeshInstance3D).layers = ONE_WORLD_ROOM.NO_EYE
 				else:
