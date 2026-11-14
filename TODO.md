@@ -20,7 +20,7 @@
 - [ ] P12 „absolutně polishnout ingame internet. reálnej web 1.0, každá stránka jiná, víc interaktivity, víc následků v reálném světě z klikání, eerie uncanny morbidní, občas nightmare fuel. messenger, kde si fakt můžeš s někym psát pár dní, a pak zmizí… polishnout ty hry co tam jsou a vydělávání peněz na počítači“
   - [x] P12a ICU (a messenger in the tray, an eye that blinks when somebody writes): one contact over several evenings, your replies picked from two or three, she gets nearer the camp each night, then is gone (the account does not exist); now and then a stranger or a spammer
   - [x] P12b the camp's webcam on the web (a camera on the reception's pole): a low picture of the real camp every few seconds, at night what is really out there
-  - [ ] P12c Rádio Hlubočany, listeners' requests: a song asked for on its page is played next on the reception's radio
+  - [x] P12c Rádio Hlubočany, listeners' requests: a song asked for on its page is played next on the reception's radio
   - [ ] P12d the camp's guest book signable: your entry stays; later entries answer you by name
   - [ ] P12e the Courier's missing persons and deaths from the camp's own record (guests who vanished or died)
   - [ ] P12f every page its own look (fonts, tiles, colours, tables, counters, a jingle here and there)

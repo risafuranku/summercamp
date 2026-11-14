@@ -20,6 +20,19 @@ const HOME := "bohemia-online.cz"
 const UNDER := "[bgcolor=#ffd800][color=#000000] [b]/!\\ UNDER CONSTRUCTION /!\\[/b] [/color][/bgcolor]"
 const HR := "[color=#808080]________________________________________________________________[/color]"
 ## The camp's camera (the camp's own page links it; browser_app fills {{img:webcam}}).
+## Radio Hlubocany's page (its wishes: browser_app "radio://", building_interior.request_radio_mood).
+const RADIO_PAGE := """[center][font_size=26][b][color=#ff3333]RADIO[/color] HLUBOCANY[/b][/font_size]
+[font_size=16]96.4 FM - the voice of the reservoir[/font_size]
+[marquee w=520 speed=40]+++ wishes and greetings every night from half past midnight +++ call 0366/42 96 4 +++[/marquee]
+
+[b]LISTENERS' WISHES[/b]
+pick what you want to hear, we play it next:
+
+{radio://cheerful|>> something cheerful <<}
+{radio://dance|>> something to dance to <<}
+{radio://night|>> something for the night <<}
+
+[color=#aaaaaa]the studio is in the old water board house by the dam. please do not come by after dark[/color][/center]"""
 const CAM_LINK := "[center][blink][color=#ff3333]LIVE![/color][/blink] {cerne-jezero.cz/kamera|>> OUR CAMP LIVE ON CAMERA <<}[/center]"
 const CAM_PAGE := """[center][font_size=18][b]KEMP CERNE JEZERO - LIVE CAMERA[/b][/font_size]
 [color=#888888]the camera on the reception, the picture comes again every few seconds[/color]
@@ -31,7 +44,7 @@ const CAM_PAGE := """[center][font_size=18][b]KEMP CERNE JEZERO - LIVE CAMERA[/b
 {cerne-jezero.cz|back to the camp}[/center]"""
 
 ## The browser's Favorites menu.
-const FAVORITES := ["bohemia-online.cz", "cerne-jezero.cz/kamera", "bohemia-online.cz/weather", "kuryr-hlubocany.cz/dnes", "tv.bohemia-online.cz", "kuryr-hlubocany.cz", "cerne-jezero.cz", "povodi-hlubocany.cz", "volny.cz/~strasidla", "volny.cz/~infravrany"]
+const FAVORITES := ["bohemia-online.cz", "cerne-jezero.cz/kamera", "radio-hlubocany.cz", "bohemia-online.cz/weather", "kuryr-hlubocany.cz/dnes", "tv.bohemia-online.cz", "kuryr-hlubocany.cz", "cerne-jezero.cz", "povodi-hlubocany.cz", "volny.cz/~strasidla", "volny.cz/~infravrany"]
 
 ## The search engine's masthead, on its front page and over the results.
 const SEARCH_HEAD := """[center][font_size=26][b][color=#003399]Bohemia[/color][color=#cc0000]Search[/color][/b][/font_size]
@@ -47,6 +60,7 @@ const INDEX := {
 	"cerne-jezero.cz": "camp cerne jezero black lake vera karel guestbook kemp tabor cerne jezero vera karel kniha navstev",
 	"cerne-jezero.cz/guestbook": "guestbook guests camp kniha navstev hoste kemp",
 	"cerne-jezero.cz/kamera": "webcam camera live picture camp kamera zive obraz kemp",
+	"radio-hlubocany.cz": "radio music song wish wishes greetings fm station radio hudba pisnicka prani pozdravy stanice",
 	"hostinec-u-jezera.cz": "pub hostinec beer food karbanatky meatballs hospoda hostinec pivo jidlo karbanatky",
 	"jednota-liblice.cz": "shop jednota batteries bulbs fuses paraffin bread obchod jednota baterky zarovky pojistky petrolej chleba",
 	"bazar-hlubocany.cz": "bazaar bazar classifieds ads sell buy second hand lost found bazar inzerce inzeraty prodam koupim ztraty nalezy",
@@ -601,6 +615,12 @@ The last bus from the camp to Liblice leaves at 19:10.
 
 [center][color=#888888]you are visitor no.[/color] {{counter}}
 [color=#888888]made by Vera in Notepad. best viewed in Beeternet Explorer at 640x480[/color][/center]""" + HR + CAM_LINK,
+	},
+	# Radio Hlubocany: a wish here is the next song on the reception's set (browser "radio://").
+	"radio-hlubocany.cz": {
+		"title": "Radio Hlubocany 96.4 FM",
+		"bg": "#000080", "fg": "#ffff00", "link": "#00ffff",
+		"body": RADIO_PAGE,
 	},
 	# The camera on the reception's corner (camp_webcam.gd): the camp as it is now.
 	"cerne-jezero.cz/kamera": {

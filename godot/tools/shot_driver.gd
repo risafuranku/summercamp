@@ -909,6 +909,17 @@ const SCENARIOS := {
 		["eval", "_interior_manager._building_interior._crt_ui.app_of('browser').navigate('cerne-jezero.cz/kamera')"], ["wait", 14.0], ["crt_screen", "wc0_day"],
 		["eval", "debug_jump_to(1, 23.0)"], ["wait", 2.0], ["call", "debug_spawn_enemy", ["silent_man", 3]], ["wait", 16.0], ["crt_screen", "wc1_night"],
 	],
+	# P12c: a wish on Radio Hlubocany's page is the next song on the reception's set.
+	"radiowish": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["call_on", "_interior_manager", "open_startup_crt_view", []], ["wait", 7.0],
+		["eval", "_interior_manager._building_interior._crt_ui.open_app('browser') != null"], ["wait", 6.0],
+		["eval", "_interior_manager._building_interior._crt_ui.app_of('browser').navigate('radio-hlubocany.cz')"], ["wait", 6.0], ["crt_screen", "rw0_page"],
+		["eval", "_interior_manager._building_interior._crt_ui.app_of('browser')._on_link('radio://dance')"], ["wait", 1.0], ["crt_screen", "rw1_thanks"],
+		["eval", "_interior_manager._building_interior._radio_request"],
+		["eval", "_interior_manager._building_interior._play_radio_next()"], ["wait", 0.5],
+		["eval", "_interior_manager._building_interior._radio_last_played_path"],
+	],
 	# Out of the office's front door with W held (playtest 13. 11.): walking on, no stop.
 	"walkout_w": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 2.0],

@@ -33655,3 +33655,65 @@ msgstr ""
 #: scripts/os98/web_pages.gd
 msgid "KEMP CERNE JEZERO - live camera"
 msgstr "KEMP ČERNÉ JEZERO - kamera živě"
+
+#: scripts/os98/web_pages.gd
+msgid ""
+"[center][font_size=26][b][color=#ff3333]RADIO[/color] HLUBOCANY[/b][/font_size]
+"
+"[font_size=16]96.4 FM - the voice of the reservoir[/font_size]
+"
+"[marquee w=520 speed=40]+++ wishes and greetings every night from half past midnight +++ call 0366/42 96 4 +++[/marquee]
+"
+"
+"
+"[b]LISTENERS' WISHES[/b]
+"
+"pick what you want to hear, we play it next:
+"
+"
+"
+"{radio://cheerful|>> something cheerful <<}
+"
+"{radio://dance|>> something to dance to <<}
+"
+"{radio://night|>> something for the night <<}
+"
+"
+"
+"[color=#aaaaaa]the studio is in the old water board house by the dam. please do not come by after dark[/color][/center]"
+msgstr ""
+"[center][font_size=26][b][color=#ff3333]RÁDIO[/color] HLUBOČANY[/b][/font_size]
+"
+"[font_size=16]96,4 FM - hlas přehrady[/font_size]
+"
+"[marquee w=520 speed=40]+++ přání a pozdravy každou noc od půl jedné +++ volejte 0366/42 96 4 +++[/marquee]
+"
+"
+"
+"[b]PŘÁNÍ POSLUCHAČŮ[/b]
+"
+"vyberte si, co chcete slyšet, zahrajeme to hned potom:
+"
+"
+"
+"{radio://cheerful|>> něco veselého <<}
+"
+"{radio://dance|>> něco k tanci <<}
+"
+"{radio://night|>> něco na noc <<}
+"
+"
+"
+"[color=#aaaaaa]studio je ve staré budově povodí u hráze. po setmění prosím nechoďte[/color][/center]"
+
+#: scripts/os98/web_pages.gd
+msgid "Radio Hlubocany 96.4 FM"
+msgstr "Rádio Hlubočany 96,4 FM"
+
+#: scripts/os98/web_pages.gd
+msgid "Thank you! Your wish is next on 96.4 FM."
+msgstr "Děkujeme! Vaše přání hrajeme hned potom na 96,4 FM."
+
+#: scripts/os98/web_pages.gd
+msgid "The line is busy. Try again later."
+msgstr "Linka je obsazená. Zkuste to později."

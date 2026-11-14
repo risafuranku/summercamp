@@ -1117,6 +1117,14 @@ func _on_link(target: String) -> void:
 				_shell.message_box("SoftSklad", "The payment was refused.\n\nThe camp has $%d." % CoreRoot.get_money(), "error")
 		)
 		return
+	# Radio Hlubocany's listeners' wishes (radio://cheerful|dance|night): the next song on the
+	# reception's set is one of them.
+	if target.begins_with("radio://"):
+		var bi = _shell.reception() if _shell.has_method("reception") else null
+		var ok: bool = bi != null and bool(bi.request_radio_mood(target.trim_prefix("radio://")))
+		_shell.play("click", -8.0)
+		_shell.message_box("Radio Hlubocany", tr("Thank you! Your wish is next on 96.4 FM.") if ok else tr("The line is busy. Try again later."), "info")
+		return
 	# The bazaar's "put it up" (bazaar://list/ID): the ad goes up, the page comes again.
 	if target.begins_with("bazaar://list/"):
 		var m: Node = _shell.main_node()

@@ -2219,11 +2219,16 @@ func _tick_icu_tray(delta: float) -> void:
 
 ## A tap at the office's front window from outside (ICU's last evening).
 func knock_glass() -> void:
-	var m := main_node()
-	var im = m.get("_interior_manager") if m != null else null
-	var bi = im.get("_building_interior") if im != null else null
+	var bi = reception()
 	if bi != null and bi.has_method("knock_office_glass"):
 		bi.knock_office_glass()
+
+
+## The office this PC stands in (building_interior.gd), or null.
+func reception() -> Node:
+	var m := main_node()
+	var im = m.get("_interior_manager") if m != null else null
+	return im.get("_building_interior") if im != null else null
 
 
 func _refresh_tray() -> void:

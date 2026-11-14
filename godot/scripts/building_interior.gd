@@ -3712,6 +3712,11 @@ func _play_radio_next() -> void:
 			_radio_last_played_path = RADIO_FIRST_TRACK
 			_radio_on_air("song", RADIO_FIRST_TRACK)
 			return
+	if _radio_request != "":
+		var wish := _radio_request
+		_radio_request = ""
+		if _radio_play_path(wish, 0.0):
+			return
 	if _try_play_station():
 		return
 	var interlude: AudioStream = _dread.take_interlude() if _dread != null else null
@@ -3750,6 +3755,32 @@ func _play_radio_next() -> void:
 	_radio_on_air("song", resolved_path)
 	_radio_tiers.played(resolved_path)
 	_radio_index = (selected_index + 1) % track_count
+
+
+## A listener's wish (the web's Radio Hlubocany: the PC's browser, "radio://"): the next song
+## on the set is one of `mood`'s, not one played lately (cheerful: the day's songs; dance: the
+## ball's; night: the night's). False: none to play.
+var _radio_request := ""
+
+
+func request_radio_mood(mood: String) -> bool:
+	var pool: Array = []
+	for path in _radio_stream_by_path.keys():
+		var f := str(path).get_file()
+		var ok := false
+		match mood:
+			"dance":
+				ok = f.begins_with("ples")
+			"night":
+				ok = f.begins_with("night_") and str(path) != RADIO_GREETINGS_PATH
+			_:
+				ok = (f.ends_with("_song.mp3") or f.begins_with("song_")) and not (f.begins_with("night") or f.begins_with("teror") or f.begins_with("peklo") or f.begins_with("ples"))
+		if ok and not _radio_recently(str(path)):
+			pool.append(str(path))
+	if pool.is_empty():
+		return false
+	_radio_request = pool[_radio_rng.randi() % pool.size()]
+	return true
 
 
 ## A song by its file now (the dread tiers'), from `at` seconds into it.
