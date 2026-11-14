@@ -33785,3 +33785,7 @@ Vidíme to až sem."
 #: scripts/os98/apps/job_adclick.gd
 msgid "WARDEN!"
 msgstr "SPRÁVCE!"
+
+#: scripts/os98/apps/job_census.gd
+msgid "the camp at Cerne jezero"
+msgstr "kemp u Černého jezera"

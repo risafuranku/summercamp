@@ -14,6 +14,11 @@ const LOOK := Vector3(-3.0, 0.4, 24.0)
 var image: Image
 ## A new picture is in `image` (the browser takes it and clears this).
 var fresh := false
+## The district's aerial photograph of the camp (SectiTo, job_census.gd): straight down over
+## the whole plan, a photograph's colours, grainy. Its own picture and flag.
+var aerial: Image
+var aerial_fresh := false
+var _mode := "pole"
 var _main: Node
 var _vp: SubViewport
 var _cam: Camera3D
@@ -38,7 +43,48 @@ static func of(main: Node) -> Node:
 func request() -> void:
 	if not _ready_cam():
 		return
+	_mode = "pole"
+	_vp.size = SIZE
+	_cam.projection = Camera3D.PROJECTION_PERSPECTIVE
+	_cam.far = 400.0
 	_place()
+	_vp.render_target_update_mode = SubViewport.UPDATE_ONCE
+	_wait = 2
+
+
+## The aerial photograph, `px` big: in `aerial` two frames on.
+func request_aerial(px: Vector2i) -> void:
+	if not _ready_cam():
+		return
+	var gm = _main.get("grid_manager")
+	if gm == null:
+		return
+	_mode = "aerial"
+	_vp.size = px
+	# Over the tents' pitches, with a margin: there they can be told and counted.
+	var lo := Vector2i(gm.grid_width, gm.grid_height)
+	var hi := Vector2i(-1, -1)
+	var st = CoreRoot.get_state() if CoreRoot != null else null
+	if st != null and st.grid != null:
+		for coord in st.grid.cells:
+			var tp := str((st.grid.cells[coord] as Dictionary).get("type", ""))
+			if not tp.begins_with("tent"):
+				continue
+			lo = Vector2i(mini(lo.x, coord.x), mini(lo.y, coord.y))
+			hi = Vector2i(maxi(hi.x, coord.x), maxi(hi.y, coord.y))
+	if hi.x < 0:
+		lo = Vector2i.ZERO
+		hi = Vector2i(gm.grid_width - 1, gm.grid_height - 1)
+	var a3: Vector3 = gm.grid_to_world(lo)
+	var b3: Vector3 = gm.grid_to_world(hi)
+	var mid: Vector3 = (a3 + b3) * 0.5
+	var w := absf(b3.x - a3.x) + float(gm.tile_size) * 3.0
+	var h := absf(b3.z - a3.z) + float(gm.tile_size) * 3.0
+	_cam.projection = Camera3D.PROJECTION_ORTHOGONAL
+	_cam.size = maxf(h, w * float(px.y) / float(px.x))
+	# Under the clouds (the sky's own layer hangs higher): nothing between it and the ground.
+	_cam.far = 60.0
+	_cam.global_transform = Transform3D(Basis.from_euler(Vector3(-PI * 0.5, 0.0, 0.0)), mid + Vector3(0, 32.0, 0))
 	_vp.render_target_update_mode = SubViewport.UPDATE_ONCE
 	_wait = 2
 
@@ -49,7 +95,10 @@ func _process(_delta: float) -> void:
 	_wait -= 1
 	if _wait == 0:
 		var img := _vp.get_texture().get_image()
-		if img != null:
+		if img != null and _mode == "aerial":
+			aerial = _treat_aerial(img)
+			aerial_fresh = true
+		elif img != null:
 			image = _treat(img)
 			fresh = true
 
@@ -85,6 +134,21 @@ func _place() -> void:
 		return
 	var xf := b.global_transform
 	_cam.global_transform = Transform3D(Basis(), xf * AT).looking_at(xf * LOOK, Vector3.UP)
+
+
+## An aerial photograph's print: its colours a little faded, grain.
+func _treat_aerial(src: Image) -> Image:
+	var img := src.duplicate() as Image
+	if img.is_compressed():
+		img.decompress()
+	img.convert(Image.FORMAT_RGB8)
+	for y in img.get_height():
+		for x in img.get_width():
+			var c := img.get_pixel(x, y)
+			var g := c.get_luminance()
+			var n := _rng.randf_range(-0.03, 0.03)
+			img.set_pixel(x, y, Color(clampf(lerpf(g, c.r, 0.7) + n + 0.03, 0, 1), clampf(lerpf(g, c.g, 0.7) + n + 0.02, 0, 1), clampf(lerpf(g, c.b, 0.65) + n, 0, 1)))
+	return img
 
 
 ## A cheap camera's picture: mostly grey, grainy, every other line darker.

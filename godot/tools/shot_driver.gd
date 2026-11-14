@@ -960,6 +960,18 @@ const SCENARIOS := {
 		["eval", "_interior_manager._building_interior._crt_ui.app_of('browser').navigate('csad-jihlava.cz/380')"], ["wait", 7.0], ["crt_screen", "lk6"],
 		["eval", "_interior_manager._building_interior._crt_ui.app_of('browser').navigate('jednota-liblice.cz')"], ["wait", 7.0], ["crt_screen", "lk7"],
 	],
+	# P12h: SectiTo's photograph of your own camp from the air, your tents to count.
+	"census_own": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["money", 9000], ["clear", 6, 4, 9, 6], ["build", "tent_1", 7, 5, 0], ["build", "tent_1", 9, 5, 0], ["build", "tent_2", 11, 5, 0], ["wait", 1.0],
+		["call_on", "_interior_manager", "open_startup_crt_view", []], ["wait", 7.0],
+		["signal", "program_installed", "census"], ["wait", 0.5],
+		["eval", "_interior_manager._building_interior._crt_ui.job_add('census', 3)"],
+		["eval", "_interior_manager._building_interior._crt_ui.open_app('census') != null"], ["wait", 2.0],
+		["eval", "_interior_manager._building_interior._crt_ui.app_of('jobs').current_app()._new_photo()"], ["wait", 2.0], ["crt_screen", "co0_own"],
+		["eval", "[_interior_manager._building_interior._crt_ui.app_of('jobs').current_app()._own, _interior_manager._building_interior._crt_ui.app_of('jobs').current_app()._answer]"],
+		["eval", "[get_node_or_null('CampWebcam') != null, get_node('CampWebcam').aerial != null, get_node('CampWebcam').aerial_fresh, get_node('CampWebcam')._mode, get_node('CampWebcam')._wait, _interior_manager._building_interior._crt_ui.app_of('jobs').current_app()._own_tex != null]"],
+	],
 	# Out of the office's front door with W held (playtest 13. 11.): walking on, no stop.
 	"walkout_w": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 2.0],

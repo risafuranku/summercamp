@@ -33,7 +33,7 @@
     - [ ] each game's own title card (name, its table) and more of its own sounds
   - [ ] P12h earning on the PC: the jobs tied to the camp (DataPunch cards with your guests' names, KlikBanka adverts that know you, SečtiTo photos of your own camp)
     - [x] DataPunch's card that did not leave carries a lost guest's name; KlikBanka's MISSING notice is the camp's own lost guest, and at night an advert that sees your light
-    - [ ] SečtiTo: an aerial photo of your own camp (a camera over it), your tents to count
+    - [x] SečtiTo: an aerial photo of your own camp (a camera over its tents), your tents to count (every fourth photograph with two tents or more)
 - [x] P13 „polishnout a propracovat drhnutí záchodové mísy“ (the scrub close-up) (ddab7092: a scale ring at the water line that only short strokes to and fro bite, gritting; murky water with what comes off; the flush swirls it clear; the gauge over the picture, from 0 %)
 - [x] P14 „silent guy… projdu jim, nic se nestane. zblízka musí na hráče absolutně vystartovat, ale aby měl hráč šanci uskočit. dá vystartování a zmizí tím svým efektem“ (d8f3523d: seen within 2.6 m he flares and draws breath (0.45 s), lunges at where you stood and past it; still there, bitten (100 to 89), a step aside, missed (100); then he comes apart)
 - [x] P15 „rádio udělej trošičku muffled když jsem v pokojíčku a zavřu dveře“

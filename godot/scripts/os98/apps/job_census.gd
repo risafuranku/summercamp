@@ -114,19 +114,37 @@ func _set_state(s: String) -> void:
 	queue_redraw()
 
 
+## Now and then the district's photograph is of your own camp (playtest 14. 11.: the jobs tied
+## to the camp): the plan from straight above (camp_webcam.request_aerial), its tents to count.
+const OWN_EVERY := 4
+const WEBCAM = preload("res://scripts/os98/camp_webcam.gd")
+var _own := false
+var _own_tex: ImageTexture
+
+
 func _new_photo() -> void:
 	_shell.play("hdd", -14.0)
 	_photo_no = 400 + _shell.job_done("census") * 7 + (CoreRoot.get_day() if CoreRoot != null else 1) * 31
 	_rng.seed = hash("census%d" % _photo_no)
 	_subject = ["tents", "cows", "boats"][_rng.randi_range(0, 2)]
 	_build_photo()
+	_own = false
+	var tents := _camp_tents()
+	if tents >= 2 and _shell.job_done("census") % OWN_EVERY == OWN_EVERY - 1:
+		var cam = WEBCAM.of(_shell.main_node())
+		if cam != null:
+			_own = true
+			_own_tex = null
+			_subject = "tents"
+			_answer = tents
+			cam.request_aerial(Vector2i(int(PHOTO.x) / 2, int(PHOTO.y) / 2))
 	_said = -1
 	_time = 0.0
 	_limit = 14.0 + _answer * 0.6
 	_input.text = ""
 	_set_state("ask")
 	_input.grab_focus.call_deferred()
-	_msg.text = "Photograph %04d, %s." % [_photo_no, SUBJECTS[_subject]["where"]]
+	_msg.text = "Photograph %04d, %s." % [_photo_no, tr("the camp at Cerne jezero") if _own else SUBJECTS[_subject]["where"]]
 
 
 func _submit() -> void:
@@ -151,7 +169,28 @@ func _finish() -> void:
 	_next.text = "Next photograph"
 
 
+## The tents on the camp's plan now (the answer when the photograph is the camp's own).
+func _camp_tents() -> int:
+	var st = CoreRoot.get_state() if CoreRoot != null else null
+	if st == null or st.grid == null:
+		return 0
+	var n := 0
+	for coord in st.grid.cells:
+		var d: Dictionary = st.grid.cells[coord]
+		if str(d.get("type", "")).begins_with("tent") and d.get("root_coord", coord) == coord:
+			n += 1
+	return n
+
+
 func _process(delta: float) -> void:
+	if _own and _own_tex == null:
+		var cam = WEBCAM.of(_shell.main_node())
+		if cam != null and bool(cam.aerial_fresh):
+			cam.aerial_fresh = false
+			var img := (cam.aerial as Image).duplicate() as Image
+			img.resize(int(PHOTO.x), int(PHOTO.y), Image.INTERPOLATE_NEAREST)
+			_own_tex = ImageTexture.create_from_image(img)
+			_photo.queue_redraw()
 	if _state != "ask":
 		return
 	_time += delta
@@ -245,6 +284,13 @@ func _draw_photo() -> void:
 	if _state == "idle":
 		c.draw_rect(pr, Color8(40, 40, 40))
 		c.draw_string(T.FONT, o + Vector2(PHOTO.x * 0.5 - 90, PHOTO.y * 0.5), tr("No photograph on the light box."), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, Color8(170, 170, 170))
+		return
+	if _own:
+		# The camp's own, from the air (grey while it comes).
+		if _own_tex != null:
+			c.draw_texture_rect(_own_tex, pr, false)
+		else:
+			c.draw_rect(pr, Color8(60, 60, 60))
 		return
 	c.draw_rect(pr, Color8(84, 110, 52))
 	var rng := RandomNumberGenerator.new()
