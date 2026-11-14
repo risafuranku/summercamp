@@ -660,18 +660,30 @@ func job_add(job: String, n: int) -> void:
 		a.refresh()
 
 
-## A game's best results: [[name, value]], best first.
+## A game's best results: [[name, value]], best first. The camp's last lost guest is on top
+## of every table with a result nobody could have played (playtest 14. 11.: "high scores with
+## names that should not be there"): shown, never kept.
 func scores(game: String) -> Array:
 	var s = _store.get("scores_" + game, null)
-	if s is Array and not (s as Array).is_empty():
-		return s
-	return (SCORE_SEEDS.get(game, []) as Array).duplicate(true)
+	var rows: Array = (s as Array).duplicate(true) if s is Array and not (s as Array).is_empty() else (SCORE_SEEDS.get(game, []) as Array).duplicate(true)
+	var state = CoreRoot.get_state() if CoreRoot != null else null
+	var lost: Array = state.lost_guests if state != null else []
+	if not lost.is_empty() and IMPOSSIBLE.has(game):
+		var who := str((lost[lost.size() - 1] as Dictionary).get("name", ""))
+		if who != "":
+			rows.insert(0, [who, int(IMPOSSIBLE[game])])
+			rows = rows.slice(0, SCORE_ROWS)
+	return rows
+
+
+## Results that cannot be played (the lost guest's on the tables).
+const IMPOSSIBLE := {"mines": 1, "pexeso": 6, "mosquito": 999, "hike": 999}
 
 
 ## A result in: on the table under the player's name if it is good enough. Returns its
 ## place (0 = the best) or -1.
 func add_score(game: String, value: int) -> int:
-	var rows := scores(game)
+	var rows: Array = (_store.get("scores_" + game, null) as Array).duplicate(true) if _store.get("scores_" + game, null) is Array and not (_store.get("scores_" + game) as Array).is_empty() else (SCORE_SEEDS.get(game, []) as Array).duplicate(true)
 	var low := game in LOWER_IS_BETTER
 	var at := rows.size()
 	for i in rows.size():

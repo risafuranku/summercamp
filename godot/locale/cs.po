@@ -33431,8 +33431,8 @@ msgid "Who is this?"
 msgstr "Kdo jsi?"
 
 #: scripts/os98/icu_story.gd
-msgid "jana. 14"
-msgstr "jana. 14"
+msgid "jana. 11"
+msgstr "jana. 11"
 
 #: scripts/os98/icu_story.gd
 msgid "you have the camp now right? the man before you was nice"
@@ -33769,3 +33769,19 @@ msgstr "proc jsi psal %s. ted vedi ze jsi tady"
 #: scripts/os98/apps/browser_app.gd
 msgid "%s? there is nobody called that at the camp. there never was"
 msgstr "%s? nikdo takovy v kempu neni. nikdy nebyl"
+
+#: scripts/os98/apps/job_adclick.gd
+msgid "%s. Last seen at the
+Cerne jezero camp, September 1998."
+msgstr "%s. Naposledy viděn v
+kempu Černé jezero, září 1998."
+
+#: scripts/os98/apps/job_adclick.gd
+msgid "Your light at the reception
+is on. We can see it from here."
+msgstr "Na recepci se ti svítí.
+Vidíme to až sem."
+
+#: scripts/os98/apps/job_adclick.gd
+msgid "WARDEN!"
+msgstr "SPRÁVCE!"

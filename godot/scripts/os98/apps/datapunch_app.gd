@@ -135,6 +135,17 @@ func _refresh_pay() -> void:
 	queue_redraw()
 
 
+## A name as the register's typewriter had it: no accents (the cards are typed in plain letters).
+static func _plain(s: String) -> String:
+	var from := "áčďéěíňóřšťúůýžÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ"
+	var to := "acdeeinorstuuyzACDEEINORSTUUYZ"
+	var out := ""
+	for ch in s:
+		var i := from.find(ch)
+		out += to[i] if i >= 0 else ch
+	return out
+
+
 func _new_card() -> void:
 	var n := _done_tonight()
 	var wrong := n > 6 and _rng.randf() < 0.07
@@ -157,6 +168,14 @@ func _new_card() -> void:
 				_cur["year"] = 1998
 				_cur["Stayed at"] = "KEMP CERNE JEZERO"
 				_cur["note"] = "DID NOT LEAVE"
+				# One of yours, when the night has taken one (GameState.lost_guests).
+				var st = CoreRoot.get_state() if CoreRoot != null else null
+				if st != null and not st.lost_guests.is_empty():
+					var g: Dictionary = st.lost_guests[_rng.randi_range(0, st.lost_guests.size() - 1)]
+					var parts := _plain(str(g.get("name", ""))).to_upper().split(" ", false)
+					if not parts.is_empty():
+						_cur["First name"] = parts[0]
+						_cur["Surname"] = parts[parts.size() - 1] if parts.size() > 1 else "?"
 			1:
 				_cur["Surname"] = "HRUBY"
 				_cur["First name"] = "?"

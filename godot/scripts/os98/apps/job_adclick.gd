@@ -152,7 +152,15 @@ func _add_pop() -> void:
 	var roll := _rng.randf()
 	if not _missing_shown and _t > 12.0 and roll < 0.05:
 		_missing_shown = true
-		p.merge({"kind": "missing", "title": "Notice", "head": "MISSING", "body": "Jana K. (11). Last seen at the\nCerne jezero camp, August 1987.", "btn": "OK", "life": 9.0})
+		var lost := _last_lost()
+		if lost != "":
+			# The camp's own (GameState.lost_guests): this year's notice.
+			p.merge({"kind": "missing", "title": "Notice", "head": "MISSING", "body": LANG.f("%s. Last seen at the\nCerne jezero camp, September 1998.", [lost]), "btn": "OK", "life": 9.0})
+		else:
+			p.merge({"kind": "missing", "title": "Notice", "head": "MISSING", "body": "Jana K. (11). Last seen at the\nCerne jezero camp, August 1987.", "btn": "OK", "life": 9.0})
+	elif roll > 0.97 and not _shell.is_day():
+		# One that knows where you are: not an advert, close it.
+		p.merge({"kind": "scam", "title": "Bohemia Online", "head": "WARDEN!", "body": "Your light at the reception\nis on. We can see it from here.", "btn": "OK", "life": 5.0})
 	elif roll < 0.42:
 		var s: Array = SCAMS[_rng.randi_range(0, SCAMS.size() - 1)]
 		p.merge({"kind": "scam", "title": s[0], "head": s[1], "body": s[2], "btn": s[3], "life": 5.0})
@@ -166,6 +174,14 @@ func _add_pop() -> void:
 	_pops.append(p)
 	_restack()
 	_shell.play("ding", -22.0)
+
+
+## The camp's last lost guest's name ("" none).
+func _last_lost() -> String:
+	var st = CoreRoot.get_state() if CoreRoot != null else null
+	if st == null or st.lost_guests.is_empty():
+		return ""
+	return str((st.lost_guests[st.lost_guests.size() - 1] as Dictionary).get("name", ""))
 
 
 ## The adverts over everything else, each kind keeping its own order (the last is on top:

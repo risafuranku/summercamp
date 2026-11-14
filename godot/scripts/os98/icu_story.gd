@@ -2,7 +2,7 @@ extends RefCounted
 
 ## ICU on the office PC (playtest 14. 11.: "simulate an internet messenger where you can really
 ## write with somebody regularly for a few days, and then they disappear"). The warden before
-## you left it in the tray, the eye. From the second evening a girl writes, jana_k, fourteen,
+## you left it in the tray, the eye. From the second evening a girl writes, jana_k, eleven (the Jana K. of 1987),
 ## at a summer camp by a black lake like yours: five evenings, a few lines each, your replies
 ## picked from two. Each evening she is nearer: she lost her red shoe in the night game, she
 ## knows who sleeps in your tents, she likes your light on, nobody looks in the water. On the
@@ -40,7 +40,7 @@ const EVENINGS := [
 		["say", "hi!! found you in the ICU directory"],
 		["say", "you are the camp by the black lake? i am at a summer camp too. its sooo boring lol"],
 		["ask", ["Hi! Which camp?", ["cerne jezero", "like you. funny :)"]],
-			["Who is this?", ["jana. 14", "you have the camp now right? the man before you was nice"]]],
+			["Who is this?", ["jana. 11", "you have the camp now right? the man before you was nice"]]],
 		["say", "they are calling us for the night game. bye!!"],
 		["off"],
 	],
