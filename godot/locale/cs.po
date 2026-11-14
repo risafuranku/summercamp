@@ -12170,6 +12170,10 @@ msgstr "[LMB] Sníst"
 msgid "[LMB] A sausage   [Q] Guitar"
 msgstr "[LMB] Opéct buřta   [Q] Kytara"
 
+#: scripts/attractions/log_split.gd
+msgid "[LMB] Swing"
+msgstr "[LMB] Seknout"
+
 #: scripts/attractions/door_anim.gd:52
 msgid "Door?"
 msgstr "Door?"

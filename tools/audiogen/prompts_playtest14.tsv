@@ -1,2 +1,8 @@
 gclock_tock	1	assets/sfx/backroom/gclock_tock.mp3	One single tock of a large old wooden grandfather clock in a small quiet bedroom, a deep hollow wooden knock of its escapement, close, dry, then silence, no music
 gclock_gong	5	assets/sfx/backroom/gclock_gong.mp3	One single deep strike of an old grandfather clock hour bell in a small wooden room, a resonant slightly out of tune gong with a long fading ring, no music, nothing else
+split_crack	1	assets/sfx/life/split_crack.mp3	An axe splitting a dry pine log on a chopping block outdoors, one sharp loud crack of the wood bursting in two, the halves knocking down onto grass, close, dry, nothing else
+split_stick	1	assets/sfx/life/split_stick.mp3	An axe blade biting deep into a dense log and sticking fast, one dull heavy wooden thunk with a short metal ring, close, outdoors, nothing else
+split_whoosh	1	assets/sfx/life/split_whoosh.mp3	A heavy wood axe swung hard downward past the ear, one short low whoosh of air, close, outdoors, no impact, nothing else
+split_set	1	assets/sfx/life/split_set.mp3	A round of firewood set down upright on a wooden chopping block, one solid hollow wooden knock, outdoors, close, nothing else
+split_land	1	assets/sfx/life/split_land.mp3	Two halves of a split firewood log falling onto short dry grass, two soft woody thuds one after the other, outdoors, close, nothing else
+split_pull	1	assets/sfx/life/split_pull.mp3	An axe wrenched out of a log it was stuck in, a creaking squeak of wood fibres then a soft pop as it comes free, close, outdoors, nothing else

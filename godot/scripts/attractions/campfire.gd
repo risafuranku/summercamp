@@ -29,11 +29,10 @@ const MAX_FUEL := 1.45
 ## What the guests light when they come to a cold fire in the evening.
 const GUEST_FIRE := 0.55
 const WOODPILE_LOGS := 8
-const SFX_AXE := "res://assets/sfx/life/axe.mp3"
-const LOGS_A_CHOP := 2
-const CHOP_MS := 900
+## A round split at the block (scripts/attractions/log_split.gd plays your own; this is the
+## other warden's, heard from where you are).
+const SFX_SPLIT := "res://assets/sfx/life/split_crack.mp3"
 var _axe_snd: AudioStreamPlayer3D
-var _chop_ready := 0
 
 var fuel := 0.0
 ## Last night's heat left in the ashes (glows a little, smokes).
@@ -126,7 +125,7 @@ func _setup() -> void:
 	_pops = _sound(SFX_POP, -8.0, 22.0)
 	_sizzle = _sound(SFX_SIZZLE, -14.0, 9.0)
 	_loop(_sizzle)
-	_axe_snd = _sound(SFX_AXE, -6.0, 24.0)
+	_axe_snd = _sound(SFX_SPLIT, -6.0, 24.0)
 	_seats = seats()
 	_stick_mat = StandardMaterial3D.new()
 	_stick_mat.albedo_color = Color(0.46, 0.34, 0.22)
@@ -648,16 +647,21 @@ func axe_position() -> Vector3:
 	return n.global_position if n != null else pile_position()
 
 
-## Two more split for the pile, the blows heard. False while the last ones are still being split.
-func chop() -> bool:
-	var now := Time.get_ticks_msec()
-	if logs_left >= WOODPILE_LOGS or now < _chop_ready:
+## The top of the chopping block (log_split stands a round on it): global.
+func block_top() -> Vector3:
+	var n := get_parent().get_node_or_null("BlockTop") as Node3D
+	return n.global_position + Vector3(0, 0.006, 0) if n != null else axe_position()
+
+
+## A round split at the block: one more log on the pile (false when it is full). `heard`:
+## the other warden's split, its crack from the block.
+func split_one(heard := false) -> bool:
+	if logs_left >= WOODPILE_LOGS:
 		return false
-	_chop_ready = now + CHOP_MS
-	logs_left = mini(logs_left + LOGS_A_CHOP, WOODPILE_LOGS)
+	logs_left += 1
 	for i in _pile.size():
 		_pile[i].visible = i < logs_left
-	if _axe_snd != null:
+	if heard and _axe_snd != null:
 		_axe_snd.pitch_scale = _rng.randf_range(0.94, 1.06)
 		_axe_snd.play()
 	return true

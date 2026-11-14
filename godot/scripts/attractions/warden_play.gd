@@ -20,6 +20,7 @@ extends Node
 ## go on through the host (Coop.send_play).
 
 const POSES = preload("res://scripts/attractions/poses.gd")
+const LOG_SPLIT = preload("res://scripts/attractions/log_split.gd")
 const LOOKS = preload("res://scripts/coop/warden_looks.gd")
 const HOST_KEY := -11
 const OTHER_KEY := -12
@@ -50,13 +51,21 @@ var _guitar: AudioStreamPlayer3D
 var _mates: Dictionary = {}
 
 
+## At the fire's chopping block, the axe in your hands (log_split.gd).
+var _split: Node
+
+
 func setup(main_node: Node) -> void:
 	main = main_node
 	add_to_group("warden_play")
+	_split = LOG_SPLIT.new()
+	_split.name = "LogSplit"
+	_split.warden = self
+	add_child(_split)
 
 
 func is_active() -> bool:
-	return _att != null
+	return _att != null or (_split != null and _split.is_open())
 
 
 ## Your key in the attractions: the host -11, the joining wardens -12, -13, -14.
@@ -87,6 +96,8 @@ func _offer() -> Dictionary:
 
 
 func hint() -> String:
+	if _split != null and _split.is_open():
+		return str(_split.hint())
 	if is_active():
 		return str(_att.warden_hint(_key)) if _att.has_method("warden_hint") else ""
 	var o := _offer()
@@ -97,6 +108,8 @@ func hint() -> String:
 
 ## E: into the attraction at hand (or a log on the fire); true when it was for us.
 func try_interact() -> bool:
+	if _split != null and _split.is_open():
+		return true
 	if is_active():
 		if _att.has_method("add_log"):
 			_put_log(_att)
@@ -146,6 +159,8 @@ func _join(att: Node3D) -> void:
 
 
 func leave() -> void:
+	if _split != null and _split.is_open():
+		_split.close()
 	if _att == null:
 		return
 	var p := _player()
@@ -340,12 +355,11 @@ func _press() -> void:
 
 # ── the fire's logs ──────────────────────────────────────────────────────────
 
+## To the block: the axe in your hands, a round up (log_split.gd: each split one log, through
+## the host in co-op).
 func _chop(att: Node) -> void:
-	if Coop.is_client():
-		Coop.send_play("chop", [att_id(att)])
-		return
-	if att.chop() and Coop.has_partner():
-		Coop.send_play("chop", [att_id(att)])
+	if att.has_method("block_top"):
+		_split.open(att as Node3D)
 
 
 func _put_log(att: Node) -> void:
@@ -432,7 +446,8 @@ func coop_play(kind: String, data: Array) -> void:
 			else:
 				att.add_log()
 		"chop":
-			if att.chop() and Coop.is_host():
+			# (Your own split come back from the host: heard already, as you made it.)
+			if att.split_one(not (_split.is_open() and _split.get("_att") == att)) and Coop.is_host():
 				Coop.send_play("chop", [att_id(att)])
 
 
