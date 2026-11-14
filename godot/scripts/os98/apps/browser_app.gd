@@ -1125,6 +1125,11 @@ func _on_link(target: String) -> void:
 		_shell.play("click", -8.0)
 		_shell.message_box("Radio Hlubocany", tr("Thank you! Your wish is next on 96.4 FM.") if ok else tr("The line is busy. Try again later."), "info")
 		return
+	# The camp's guest book: the form to write in it (gbook_app.gd).
+	if target == "guestbook://sign":
+		if _shell.has_method("open_dialog"):
+			_shell.open_dialog("gbook", tr("Guest book - Beeternet Explorer"), Vector2(300, 182))
+		return
 	# The bazaar's "put it up" (bazaar://list/ID): the ad goes up, the page comes again.
 	if target.begins_with("bazaar://list/"):
 		var m: Node = _shell.main_node()
@@ -1514,13 +1519,23 @@ func _guestbook() -> String:
 		rows.append(["Vera", _date(day - 1) + "  21:15", "I am at my sister's. Please do not write here any more. The district reads it."])
 	if night and guests > 0:
 		rows.append(["(no name)", _date(day) + "  " + _time(), LANG.f("you have %d in the camp tonight. we counted %d", [guests, guests + 1])])
+	# Yours (gbook_app.gd: the PC's store), and from the night after each, an answer by name.
+	var mine: Array = _shell.stored("guestbook_mine", []) if _shell.has_method("stored") else []
+	for i in mine.size():
+		var e: Dictionary = mine[i]
+		var at_day := int(e.get("day", day))
+		rows.append([str(e.get("name", "")), _date(at_day) + "  " + str(e.get("time", "")), str(e.get("text", "")), true])
+		if day > at_day:
+			rows.append(["(no name)", _date(at_day + 1) + "  03:33", LANG.f(str(GB_ANSWERS[i % GB_ANSWERS.size()]), [str(e.get("name", ""))])])
 	# The entries and their names through the catalogue (S6: English on a Czech page).
 	var t := ""
 	for i in range(rows.size() - 1, -1, -1):
 		var r: Array = rows[i]
+		var own: bool = r.size() > 3 and bool(r[3])
 		t += "[color=#808080]________________________________________[/color]\n"
-		t += "[b][color=#66ff66]%s[/color][/b]  [color=#aaaaaa]%s[/color]\n%s\n" % [tr(str(r[0])), r[1], tr(str(r[2]))]
-	return t + "[color=#808080]________________________________________[/color]\n[color=#aaaaaa]%s[/color]\n" % tr("The guest book is full. New entries cannot be added.")
+		# Your own words as you wrote them (not looked up), the others' through the catalogue.
+		t += "[b][color=#66ff66]%s[/color][/b]  [color=#aaaaaa]%s[/color]\n%s\n" % [str(r[0]) if own else tr(str(r[0])), r[1], str(r[2]) if own else tr(str(r[2]))]
+	return t + "[color=#808080]________________________________________[/color]\n{guestbook://sign|%s}\n" % tr(">>> WRITE IN THE GUEST BOOK <<<")
 
 
 ## The chat room #jih, as far as it has got today: who said what, by the clock. After
@@ -1560,6 +1575,15 @@ const CHAT_NIGHT := [
 	["00:20", "kemp_cj", "one more"],
 	["02:10", "kemp_cj", "has anyone seen my shoe"],
 	["03:33", "*", "kemp_cj has left #jih (Connection reset by peer)"],
+]
+
+
+## The answers to your entries in the camp's guest book, one an entry ({name}: yours).
+const GB_ANSWERS := [
+	"%s. we read it. come down to the water and write it there",
+	"%s you left the light on again",
+	"why did you write %s. now they know you are here",
+	"%s? there is nobody called that at the camp. there never was",
 ]
 
 
@@ -1670,9 +1694,21 @@ func _news_items() -> Array:
 			k = (k + 1) % pool.size()
 		used[k] = true
 		items.append(pool[k])
+	# The camp's own lost (actions.note_lost_guest): the paper asks after them, the newest first.
+	var lost: Array = _lost_guests()
+	for i in range(lost.size() - 1, maxi(-1, lost.size() - 4), -1):
+		var g: Dictionary = lost[i]
+		var nm := str(g.get("name", "")) if str(g.get("name", "")) != "" else tr("A guest")
+		items.insert(1, [LANG.f("MISSING: %s", [nm]), LANG.f("%s, a guest at the Cerne jezero camp, has not been seen since the night of %s. The bed was not slept in; the things were left in the room. Anyone who has seen them is asked to ring the police in Hlubocany. The camp's warden says the guest must have left early.", [nm, _date(int(g.get("day", day)) - 1)])])
 	var wx: String = WX_NAMES[clampi(_weather_state(), 0, 6)]
 	items.append(["Weather", LANG.f("Today %s, %d degrees; tonight %d. %s", [tr(wx, "weather"), Season.temp_high(day), Season.temp_low(day), tr("Frost in the valleys." if Season.hard_frost(day) else "Fog by the water after dark.")])])
 	return items
+
+
+## The camp's lost guests, as the district knows them (GameState.lost_guests).
+func _lost_guests() -> Array:
+	var state = CoreRoot.get_state() if CoreRoot != null else null
+	return state.lost_guests if state != null else []
 
 
 func _news() -> String:

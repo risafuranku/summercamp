@@ -25,8 +25,8 @@
   - [x] P12a ICU (a messenger in the tray, an eye that blinks when somebody writes): one contact over several evenings, your replies picked from two or three, she gets nearer the camp each night, then is gone (the account does not exist); now and then a stranger or a spammer
   - [x] P12b the camp's webcam on the web (a camera on the reception's pole): a low picture of the real camp every few seconds, at night what is really out there
   - [x] P12c Rádio Hlubočany, listeners' requests: a song asked for on its page is played next on the reception's radio
-  - [ ] P12d the camp's guest book signable: your entry stays; later entries answer you by name
-  - [ ] P12e the Courier's missing persons and deaths from the camp's own record (guests who vanished or died)
+  - [x] P12d the camp's guest book signable: your entry stays; later entries answer you by name
+  - [x] P12e the Courier's missing persons and deaths from the camp's own record (guests who vanished or died)
   - [ ] P12f every page its own look (fonts, tiles, colours, tables, counters, a jingle here and there)
   - [ ] P12g the games (Komár, Výlet, Had, Pexeso, Miny): title, sounds, high scores with names that should not be there
   - [ ] P12h earning on the PC: the jobs tied to the camp (DataPunch cards with your guests' names, KlikBanka adverts that know you, SečtiTo photos of your own camp)

@@ -1281,6 +1281,7 @@ func vanish_guest(guest_id: int) -> bool:
 	for i in state.guests.size():
 		var g = state.guests[i]
 		if g is Dictionary and int((g as Dictionary).get("id", -1)) == guest_id:
+			CoreRoot.actions.note_lost_guest(g, int(state.day))
 			if EventBus.has_signal("guest_state_changed"):
 				EventBus.guest_state_changed.emit(guest_id, str(g.get("status", STATUS_ACTIVE)), "departed")
 			state.guests.remove_at(i)

@@ -934,6 +934,18 @@ const SCENARIOS := {
 		["eval", "[debug_structure_of_type('warehouse').get_node('Warehouse').key, debug_structure_of_type('warehouse').get_node('Warehouse')._shown]"],
 		["eval", "debug_jump_to(1, 22.5)"], ["wait", 3.0], ["view", 10, 5, 2, 2, 4.0, 0, 1.0], ["wait", 0.6], ["shot", "wh3_night"],
 	],
+	# P12d/e: the guest book signed and answered the next night; the Courier asks after a lost guest.
+	"gbook": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["call_on", "_interior_manager", "open_startup_crt_view", []], ["wait", 7.0],
+		["eval", "_interior_manager._building_interior._crt_ui.open_app('browser') != null"], ["wait", 6.0],
+		["eval", "_interior_manager._building_interior._crt_ui.app_of('browser').navigate('cerne-jezero.cz/guestbook')"], ["wait", 5.0],
+		["eval", "_interior_manager._building_interior._crt_ui.app_of('browser')._on_link('guestbook://sign')"], ["wait", 1.0], ["crt_screen", "gb0_form"],
+		["eval", "_interior_manager._building_interior._crt_ui.store('guestbook_mine', [{'name': 'Pepa', 'text': 'very nice camp, quiet nights', 'day': 1, 'time': '10:15'}])"],
+		["eval", "debug_jump_to(2, 10.0)"], ["wait", 1.0],
+		["eval", "_interior_manager._building_interior._crt_ui.app_of('browser').navigate('cerne-jezero.cz/guestbook')"], ["wait", 6.0], ["crt_screen", "gb1_answered"],
+		["eval", "CoreRoot"],
+	],
 	# Out of the office's front door with W held (playtest 13. 11.): walking on, no stop.
 	"walkout_w": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 2.0],

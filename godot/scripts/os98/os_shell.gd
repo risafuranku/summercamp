@@ -2198,6 +2198,13 @@ func _refresh_badges() -> void:
 		_redraw_tabs()
 
 
+## A small window of its own over the desktop (apps/<id>_app.gd): a form, a dialog.
+func open_dialog(id: String, p_title: String, sz: Vector2) -> Control:
+	if _state != Boot.DESKTOP:
+		return null
+	return _open_dialog_app(id, p_title, sz)
+
+
 ## ICU's window (the tray's eye).
 func open_icu() -> Control:
 	if _state != Boot.DESKTOP:

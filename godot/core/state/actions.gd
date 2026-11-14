@@ -326,6 +326,13 @@ func _count_store_racks() -> void:
 				sites[str(k)]["store_racks"] = int(sites[str(k)].get("store_racks", 0)) + 1
 
 
+## A guest the night took (main._claim_turned_guests -> guest_manager.vanish_guest): kept on the
+## camp's record for whoever asks after them.
+func note_lost_guest(guest: Dictionary, day: int) -> void:
+	_state.lost_guests.append({"name": str(guest.get("name", "")), "day": day, "archetype": str(guest.get("archetype", "")), "party": int(guest.get("party_size", 1))})
+	EventBus.state_changed.emit({"lost_guests": _state.lost_guests.size()})
+
+
 func biz_prune(live_keys: Array) -> void:
 	var b := _biz()
 	for key in (b["sites"] as Dictionary).keys():

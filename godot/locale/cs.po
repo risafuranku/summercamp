@@ -33729,3 +33729,43 @@ msgstr "Sklad (2x2)"
 #: scripts/business/warehouse.gd
 msgid "Give the rack to a place"
 msgstr "Dát regál podniku"
+
+#: scripts/os98/apps/browser_app.gd
+msgid "MISSING: %s"
+msgstr "PÁTRÁNÍ: %s"
+
+#: scripts/os98/apps/browser_app.gd
+msgid "%s, a guest at the Cerne jezero camp, has not been seen since the night of %s. The bed was not slept in; the things were left in the room. Anyone who has seen them is asked to ring the police in Hlubocany. The camp's warden says the guest must have left early."
+msgstr "%s, host kempu Černé jezero, nebyl viděn od noci %s. Postel zůstala neustlaná, věci zůstaly v pokoji. Kdo ho viděl, ať zavolá policii v Hlubočanech. Správce kempu tvrdí, že host musel odjet brzy ráno."
+
+#: scripts/os98/apps/browser_app.gd
+msgid "Your name:"
+msgstr "Vaše jméno:"
+
+#: scripts/os98/apps/browser_app.gd
+msgid "Your message:"
+msgstr "Váš vzkaz:"
+
+#: scripts/os98/apps/browser_app.gd
+msgid ">>> WRITE IN THE GUEST BOOK <<<"
+msgstr ">>> NAPIŠTE DO KNIHY NÁVŠTĚV <<<"
+
+#: scripts/os98/apps/browser_app.gd
+msgid "Guest book - Beeternet Explorer"
+msgstr "Kniha návštěv - Beeternet Explorer"
+
+#: scripts/os98/apps/browser_app.gd
+msgid "%s. we read it. come down to the water and write it there"
+msgstr "%s. cetli jsme to. prijd dolu k vode a napis to tam"
+
+#: scripts/os98/apps/browser_app.gd
+msgid "%s you left the light on again"
+msgstr "%s, zase jsi nechal rozsviceno"
+
+#: scripts/os98/apps/browser_app.gd
+msgid "why did you write %s. now they know you are here"
+msgstr "proc jsi psal %s. ted vedi ze jsi tady"
+
+#: scripts/os98/apps/browser_app.gd
+msgid "%s? there is nobody called that at the camp. there never was"
+msgstr "%s? nikdo takovy v kempu neni. nikdy nebyl"

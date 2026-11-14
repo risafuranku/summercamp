@@ -5939,7 +5939,7 @@ func coop_camp_pulse() -> Dictionary:
 	# lost and found.
 	var books := {"rev": state.guest_reviews, "tx": state.guest_transactions, "sat": float(state.satisfaction), "karma": float(state.karma),
 		"hrot": float(state.hrotfaktor), "elec": _billing.export_state(), "baz": _bazaar.export_state(), "gog": _goggle.export_state()}
-	return {"guests": state.guests, "failures": state.failures, "maint": maint, "maint_lr": halves, "rooms": state.accommodation_states, "mail": mail, "shed_key": key, "day": day, "nj": nj, "biz": state.biz, "books": books}
+	return {"guests": state.guests, "failures": state.failures, "maint": maint, "maint_lr": halves, "rooms": state.accommodation_states, "mail": mail, "shed_key": key, "day": day, "nj": nj, "biz": state.biz, "books": books, "lost": state.lost_guests}
 
 
 var _coop_day_hash := 0
@@ -5982,6 +5982,8 @@ func coop_apply_pulse(p: Dictionary) -> void:
 		if g is Dictionary:
 			was[int(g.get("id", -1))] = g
 	state.guests = (p.get("guests", []) as Array).duplicate(true)
+	if p.get("lost", null) is Array:
+		state.lost_guests.assign((p["lost"] as Array).duplicate(true))
 	_coop_tell_arrivals(was)
 	state.failures = (p.get("failures", {}) as Dictionary).duplicate(true)
 	var rooms: Dictionary = p.get("rooms", {})
@@ -7032,6 +7034,7 @@ func _build_save_snapshot(slot_name: String, kind: String) -> Dictionary:
 			"guest_transactions": SAVE_CODEC.duplicate_dict_array(state.guest_transactions),
 			"next_guest_id": max(1, int(state.next_guest_id)),
 			"biz": (state.biz as Dictionary).duplicate(true),
+			"lost_guests": SAVE_CODEC.duplicate_dict_array(state.lost_guests),
 			"electricity": _billing.export_state()
 		},
 		"runtime": {
@@ -7311,6 +7314,7 @@ func _apply_save_snapshot(snapshot: Dictionary, preview_only: bool) -> bool:
 			"failures": SAVE_CODEC.deserialize_failures(state_data.get("failures", {})),
 			"guest_reviews": SAVE_CODEC.duplicate_dict_array(state_data.get("guest_reviews", [])),
 			"guest_transactions": SAVE_CODEC.duplicate_dict_array(state_data.get("guest_transactions", [])),
+			"lost_guests": SAVE_CODEC.duplicate_dict_array(state_data.get("lost_guests", [])),
 			"next_guest_id": max(1, int(state_data.get("next_guest_id", 1))),
 			"biz": (state_data.get("biz", {}) as Dictionary).duplicate(true) if state_data.get("biz", {}) is Dictionary else {}
 		})
