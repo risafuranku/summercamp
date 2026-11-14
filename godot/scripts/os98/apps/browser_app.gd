@@ -19,6 +19,10 @@ const T = preload("res://scripts/os98/os_theme.gd")
 const LANG = preload("res://scripts/lang.gd")
 const OS_KEYS = preload("res://scripts/os98/os_keys.gd")
 const WEB = preload("res://scripts/os98/web_pages.gd")
+const WEBCAM = preload("res://scripts/os98/camp_webcam.gd")
+## {{img:webcam:w}}: the camp's camera (camp_webcam.gd), its picture down the line again
+## every WEBCAM_SEC while the page is shown.
+const WEBCAM_SEC := 6.0
 const ICONS = preload("res://scripts/os98/apps/browser_icons.gd")
 const NBSP := " "
 const LINK_RE := "\\{([^{}|]+)\\|([^{}]+)\\}"
@@ -798,6 +802,53 @@ func _process(delta: float) -> void:
 	if _pic_i < _pictures.size() and _loading <= 0.0 and _reveal < 0.0:
 		_tick_pictures(delta)
 	_tick_banners(delta)
+	_tick_webcam(delta)
+
+
+## The camera's last picture at `width` (grey static before it has sent one).
+func _webcam_frame(width: int) -> Image:
+	var cam = WEBCAM.of(_shell.main_node())
+	var h := int(round(float(width) * 0.75))
+	var img: Image
+	if cam != null and cam.image != null:
+		img = (cam.image as Image).duplicate()
+	else:
+		img = Image.create(WEBCAM.SIZE.x, WEBCAM.SIZE.y, false, Image.FORMAT_RGB8)
+		var rng := RandomNumberGenerator.new()
+		for y in img.get_height():
+			for x in img.get_width():
+				var v := rng.randf_range(0.1, 0.3)
+				img.set_pixel(x, y, Color(v, v, v))
+		if cam != null:
+			cam.request()
+	img.resize(width, h, Image.INTERPOLATE_NEAREST)
+	return img
+
+
+## While the camera's page is up: a new picture every WEBCAM_SEC, sent down interlaced.
+func _tick_webcam(delta: float) -> void:
+	if _webcam_pic < 0 or _webcam_pic >= _pictures.size():
+		return
+	var cam = WEBCAM.of(_shell.main_node())
+	if cam == null:
+		return
+	if bool(cam.fresh):
+		cam.fresh = false
+		var p: Dictionary = _pictures[_webcam_pic]
+		var img := (cam.image as Image).duplicate() as Image
+		img.resize(_webcam_w, int(round(float(_webcam_w) * 0.75)), Image.INTERPOLATE_NEAREST)
+		p["src"] = img
+		p["pass"] = -1
+		p["t"] = 0.0
+		_pic_i = mini(_pic_i, _webcam_pic)
+		_set_tool_enabled("stop", true)
+		return
+	if _pic_i <= _webcam_pic:
+		return
+	_webcam_t -= delta
+	if _webcam_t <= 0.0:
+		_webcam_t = WEBCAM_SEC
+		cam.request()
 
 
 ## A page in the warden's language piece by piece between its rules: web_pages joins its
@@ -828,11 +879,17 @@ func _piece_in_language(piece: String) -> String:
 
 
 ## The page's text at once, the pictures as grey boxes that fill in one by one.
+var _webcam_pic := -1
+var _webcam_w := 0
+var _webcam_t := 0.0
+
+
 func _set_page(bbcode: String) -> void:
 	_page.clear()
 	_pictures.clear()
 	_banners.clear()
 	_pic_i = 0
+	_webcam_pic = -1
 	var pos := 0
 	for m in _img_re.search_all(bbcode):
 		_page.append_text(bbcode.substr(pos, m.get_start() - pos))
@@ -857,6 +914,11 @@ func _load_image(file: String) -> Image:
 
 func _add_picture(file: String, width: int) -> ImageTexture:
 	var src := _load_image(file)
+	if file == "webcam":
+		src = _webcam_frame(width)
+		_webcam_pic = _pictures.size()
+		_webcam_w = width
+		_webcam_t = WEBCAM_SEC
 	if src == null:
 		return null
 	var w := width

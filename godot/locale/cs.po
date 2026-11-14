@@ -33613,3 +33613,45 @@ msgstr "někdo"
 #: scripts/os98/icu_story.gd
 msgid "jana_k: user not found."
 msgstr "jana_k: uživatel nenalezen."
+
+#: scripts/os98/web_pages.gd
+msgid "[center][blink][color=#ff3333]LIVE![/color][/blink] {cerne-jezero.cz/kamera|>> OUR CAMP LIVE ON CAMERA <<}[/center]"
+msgstr "[center][blink][color=#ff3333]ŽIVĚ![/color][/blink] {cerne-jezero.cz/kamera|>> NÁŠ KEMP ŽIVĚ NA KAMEŘE <<}[/center]"
+
+#: scripts/os98/web_pages.gd
+msgid ""
+"[center][font_size=18][b]KEMP CERNE JEZERO - LIVE CAMERA[/b][/font_size]
+"
+"[color=#888888]the camera on the reception, the picture comes again every few seconds[/color]
+"
+"
+"
+"{{img:webcam:320}}
+"
+"[color=#33ff33]CAM 1   {{date}}[/color]
+"
+"
+"
+"[color=#888888]if you see anything strange please ring the reception[/color]
+"
+"{cerne-jezero.cz|back to the camp}[/center]"
+msgstr ""
+"[center][font_size=18][b]KEMP ČERNÉ JEZERO - KAMERA ŽIVĚ[/b][/font_size]
+"
+"[color=#888888]kamera na recepci, obrázek se obnoví každých pár vteřin[/color]
+"
+"
+"
+"{{img:webcam:320}}
+"
+"[color=#33ff33]KAMERA 1   {{date}}[/color]
+"
+"
+"
+"[color=#888888]když uvidíte něco divného, zavolejte prosím na recepci[/color]
+"
+"{cerne-jezero.cz|zpět do kempu}[/center]"
+
+#: scripts/os98/web_pages.gd
+msgid "KEMP CERNE JEZERO - live camera"
+msgstr "KEMP ČERNÉ JEZERO - kamera živě"

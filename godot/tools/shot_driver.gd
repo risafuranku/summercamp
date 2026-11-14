@@ -901,6 +901,14 @@ const SCENARIOS := {
 		["until", "_interior_manager._building_interior._crt_ui.icu.is_gone()", 60.0], ["wait", 0.8], ["crt_screen", "icu5_gone"],
 		["eval", "[_interior_manager._building_interior._crt_ui.icu.is_gone(), _interior_manager._building_interior._crt_ui.icu.log_lines().size()]"],
 	],
+	# P12b: the camp's camera on its web page, by day and at night with a guest out by the lamps.
+	"webcam": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["call_on", "_interior_manager", "open_startup_crt_view", []], ["wait", 7.0],
+		["eval", "_interior_manager._building_interior._crt_ui.open_app('browser') != null"], ["wait", 6.0],
+		["eval", "_interior_manager._building_interior._crt_ui.app_of('browser').navigate('cerne-jezero.cz/kamera')"], ["wait", 14.0], ["crt_screen", "wc0_day"],
+		["eval", "debug_jump_to(1, 23.0)"], ["wait", 2.0], ["call", "debug_spawn_enemy", ["silent_man", 3]], ["wait", 16.0], ["crt_screen", "wc1_night"],
+	],
 	# Out of the office's front door with W held (playtest 13. 11.): walking on, no stop.
 	"walkout_w": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 2.0],

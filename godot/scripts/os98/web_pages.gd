@@ -19,9 +19,19 @@ const HOME := "bohemia-online.cz"
 
 const UNDER := "[bgcolor=#ffd800][color=#000000] [b]/!\\ UNDER CONSTRUCTION /!\\[/b] [/color][/bgcolor]"
 const HR := "[color=#808080]________________________________________________________________[/color]"
+## The camp's camera (the camp's own page links it; browser_app fills {{img:webcam}}).
+const CAM_LINK := "[center][blink][color=#ff3333]LIVE![/color][/blink] {cerne-jezero.cz/kamera|>> OUR CAMP LIVE ON CAMERA <<}[/center]"
+const CAM_PAGE := """[center][font_size=18][b]KEMP CERNE JEZERO - LIVE CAMERA[/b][/font_size]
+[color=#888888]the camera on the reception, the picture comes again every few seconds[/color]
+
+{{img:webcam:320}}
+[color=#33ff33]CAM 1   {{date}}[/color]
+
+[color=#888888]if you see anything strange please ring the reception[/color]
+{cerne-jezero.cz|back to the camp}[/center]"""
 
 ## The browser's Favorites menu.
-const FAVORITES := ["bohemia-online.cz", "bohemia-online.cz/weather", "kuryr-hlubocany.cz/dnes", "tv.bohemia-online.cz", "kuryr-hlubocany.cz", "cerne-jezero.cz", "povodi-hlubocany.cz", "volny.cz/~strasidla", "volny.cz/~infravrany"]
+const FAVORITES := ["bohemia-online.cz", "cerne-jezero.cz/kamera", "bohemia-online.cz/weather", "kuryr-hlubocany.cz/dnes", "tv.bohemia-online.cz", "kuryr-hlubocany.cz", "cerne-jezero.cz", "povodi-hlubocany.cz", "volny.cz/~strasidla", "volny.cz/~infravrany"]
 
 ## The search engine's masthead, on its front page and over the results.
 const SEARCH_HEAD := """[center][font_size=26][b][color=#003399]Bohemia[/color][color=#cc0000]Search[/color][/b][/font_size]
@@ -36,6 +46,7 @@ const INDEX := {
 	"okres-hlubocany.cz/register": "guestrack register guests download act registr hostu evidence hoste stahnout zakon",
 	"cerne-jezero.cz": "camp cerne jezero black lake vera karel guestbook kemp tabor cerne jezero vera karel kniha navstev",
 	"cerne-jezero.cz/guestbook": "guestbook guests camp kniha navstev hoste kemp",
+	"cerne-jezero.cz/kamera": "webcam camera live picture camp kamera zive obraz kemp",
 	"hostinec-u-jezera.cz": "pub hostinec beer food karbanatky meatballs hospoda hostinec pivo jidlo karbanatky",
 	"jednota-liblice.cz": "shop jednota batteries bulbs fuses paraffin bread obchod jednota baterky zarovky pojistky petrolej chleba",
 	"bazar-hlubocany.cz": "bazaar bazar classifieds ads sell buy second hand lost found bazar inzerce inzeraty prodam koupim ztraty nalezy",
@@ -589,7 +600,13 @@ The last bus from the camp to Liblice leaves at 19:10.
 {cerne-jezero.cz/guestbook|>>> SIGN OUR GUEST BOOK <<<}
 
 [center][color=#888888]you are visitor no.[/color] {{counter}}
-[color=#888888]made by Vera in Notepad. best viewed in Beeternet Explorer at 640x480[/color][/center]""",
+[color=#888888]made by Vera in Notepad. best viewed in Beeternet Explorer at 640x480[/color][/center]""" + HR + CAM_LINK,
+	},
+	# The camera on the reception's corner (camp_webcam.gd): the camp as it is now.
+	"cerne-jezero.cz/kamera": {
+		"title": "KEMP CERNE JEZERO - live camera",
+		"bg": "#000000", "fg": "#33ff33", "link": "#66ccff",
+		"body": CAM_PAGE,
 	},
 	"cerne-jezero.cz/guestbook": {
 		"title": "KEMP CERNE JEZERO - guest book",
