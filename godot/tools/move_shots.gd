@@ -21,7 +21,7 @@ func _ready() -> void:
 		if arg.begins_with("--part="):
 			_part = arg.get_slice("=", 1)
 	var s: Array = [
-		["wait_menu"], ["call", "_start_test_businesses", []], ["wait_gameplay"], ["wait", 3.0],
+		["wait_menu"], ["eval", "_test_camps.start_businesses()"], ["wait_gameplay"], ["wait", 3.0],
 		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
 		["eval", "debug_jump_to(1, 11.0)"], ["wait", 2.0],
 	]

@@ -62,7 +62,7 @@ const TEST_NIGHTS: Array[Dictionary] = [
 	{"id": "stalker", "text": "Antlered Man", "sub": "Mixed camp"},
 	# Not a thing: the sewer breaks again as soon as it is mended (main.TEST_SEWER).
 	{"id": "sewer", "text": "Sewer", "sub": "Pipes minigame"},
-	# Not a night: the camp's bus stop as the 380 comes up the road (main._start_test_bus).
+	# Not a night: the camp's bus stop as the 380 comes up the road (scripts/debug/test_camps.gd start_bus).
 	{"id": "bus", "text": "Bus to Liblice", "sub": "Day, camp stop"},
 	# Not a night: every business and a full camp, to try the work (main._start_test_businesses).
 	{"id": "podniky", "text": "Businesses", "sub": "Day, a full camp"},

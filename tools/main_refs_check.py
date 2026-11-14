@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""After code moves out of godot/scripts/main.gd: every `main.<name>` (and main.call /
-main.get / main.set / has_method with a literal name) in the scripts and tools must be
+"""After code moves out of godot/scripts/main.gd: every `main.<name>` or `_main.<name>` (and
+main.call / main.get / main.set / has_method with a literal name) in the scripts and tools must be
 something main.gd still declares (var, func, const, signal) or a Node's own member.
 GDScript checks an untyped `main` only when that line runs, so a function moved into a
 module and still called on main breaks only in play; this finds it before.
@@ -34,8 +34,8 @@ create_tween add_to_group is_in_group remove_from_group get_path print_tree
 IGNORE = {"light_color", "light_energy", "omni_range", "position", "tscn"}
 
 DECL = re.compile(r"^(?:@\w+(?:\([^)]*\))?\s+)*(?:static\s+)?(?:var|func|const|signal|enum)\s+(\w+)", re.M)
-USE = re.compile(r"\bmain\.(\w+)")
-LIT = re.compile(r"\bmain\.(?:call|call_deferred|get|set|has_method|has_signal)\(\s*\"(\w+)\"")
+USE = re.compile(r"(?<![\w.])_?main\.(\w+)")
+LIT = re.compile(r"(?<![\w.])_?main\.(?:call|call_deferred|get|set|has_method|has_signal)\(\s*\"(\w+)\"")
 # Names the screenshot driver's eval strings call on main (they run with main as base).
 EVAL = re.compile(r"\[\s*\"eval[s]?\"\s*,\s*\"([^\"]*)\"")
 CALL_STEP = re.compile(r"\[\s*\"call\"\s*,\s*\"(\w+)\"")

@@ -3,7 +3,7 @@ extends CanvasLayer
 ## The title screen's L page, "Content reel" (the user 21. 10.: "a few dense scenes one
 ## after another, switched with L, to film as gameplay for the socials: the camp, the
 ## minigames, the enemies, the NPCs, the vibe, a bit of the town"). One full camp (the
-## businesses' test camp, main._start_test_businesses) through one day, a scene at a time;
+## businesses' test camp, scripts/debug/test_camps.gd start_businesses) through one day, a scene at a time;
 ## L cuts to the next (a short fade through black in steps), Shift+L takes the scene again
 ## from its start. After the last the next day begins with the first. Nothing is saved.
 ##

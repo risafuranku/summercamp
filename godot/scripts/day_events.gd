@@ -590,7 +590,6 @@ func _available_kinds(guests: Array) -> Array:
 
 
 func _lodging_of(g: Dictionary) -> Vector2i:
-	var gm = _main.get("GuestManager") if _main != null else null
 	for slot_any in (g.get("lodging_slots", []) if g.get("lodging_slots", []) is Array else []):
 		if slot_any is Dictionary:
 			var c = (slot_any as Dictionary).get("coord", null)

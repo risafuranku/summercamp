@@ -1245,7 +1245,7 @@ func _process_income_minutes(elapsed_minutes: int) -> bool:
 	return any_change
 
 
-## Test nights (main._build_test_camp): a party booked and let in at once, rooms and the
+## Test nights (scripts/debug/test_camps.gd build_camp): a party booked and let in at once, rooms and the
 ## barrier skipped. Returns the guest id (-1 when there is no bed for them).
 func debug_check_in_party(guest_name: String, archetype: String, count: int, nights: int) -> int:
 	var state = CoreRoot.get_state()
@@ -1267,7 +1267,7 @@ func debug_check_in_party(guest_name: String, archetype: String, count: int, nig
 	return before
 
 
-## Test camps (main._start_test_businesses): every guest in the camp hungry and thirsty
+## Test camps (scripts/debug/test_camps.gd start_businesses): every guest in the camp hungry and thirsty
 ## somewhere between `lo` and `hi` (SEEK_THRESHOLD is 62), so the businesses fill up.
 func debug_want_food(lo: float, hi: float) -> void:
 	var state = CoreRoot.get_state()
