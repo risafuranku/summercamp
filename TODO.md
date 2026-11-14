@@ -8,10 +8,10 @@
 
 Q&A: concept „Recepce za soumraku“ (the menu in the game itself: the counter, items in the guest book, camps as keys with Dymo labels, co-op the phone, settings the radio, the camp behind the window); behind the window always a showcase camp; the logo now from the game's textures, Grok's after 16. 11. (2 samples first).
 
-- [ ] M1 Stage: the live office at dusk as the title's background (the building interior's room, its eye placed by the title, no office play: tube off, desk lamp on, radio silent), a slow drift; the CRT shows the game's title; replaces the flythrough
-- [ ] M2 Showcase camp for the menu world (fixed seed, built camp in view of the windows, lamps lit, the bonfire burning), never the player's save
-- [ ] M3 Main page = the guest book (desk/register.png) open on the counter: the items handwritten on its lines, CONTINUE as the last entry (camp, day, till); the logo
-- [ ] M4 Pages as the counter's close-ups: camps = the key board (key_board/key_rack/key_fob, a Dymo label each) → a camp's saves; new camp = a booking form stamped (booking/stamp); warden = the ID card with the figure as its photo; co-op = the phone; settings = a sheet on the clipboard; quit = the desk lamp. One size and type for all, no explanatory texts
+- [x] M1 Stage: the live office at dusk as the title's background (the building interior's room, its eye placed by the title, no office play: tube off, desk lamp on, radio silent), a slow drift; the CRT shows the game's title; replaces the flythrough
+- [x] M2 Showcase camp for the menu world (fixed seed, built camp in view of the windows, lamps lit, the bonfire burning), never the player's save
+- [x] M3 Main page = the guest book (desk/register.png) open on the counter: the items handwritten on its lines, CONTINUE as the last entry (camp, day, till); the logo
+- [ ] M4 (camps = key board and new camp = the form with the stamp done: title_desk.gd, page_keys.gd, page_form.gd; left: warden, co-op, settings, a camp's saves, controls) Pages as the counter's close-ups: camps = the key board (key_board/key_rack/key_fob, a Dymo label each) → a camp's saves; new camp = a booking form stamped (booking/stamp); warden = the ID card with the figure as its photo; co-op = the phone; settings = a sheet on the clipboard; quit = the desk lamp. One size and type for all, no explanatory texts
 - [ ] M5 Hotspots in the 3D office matching the book's lines (hover glints both), a camera move to the object for its page, the counter's sounds (page, keys, phone, stamp, radio click)
 - [ ] M6 Loading screen of its own (nothing of the menu showing through), the way into the game from the office
 - [ ] M7 Grok logo after 16. 11.

@@ -843,9 +843,9 @@ const SCENARIOS := {
 	# copy of a warden's profile in the scratch APPDATA for the CONTINUE card.
 	"menulook": [
 		["wait_menu"], ["wait", 6.0], ["shot", "m0_main"], ["wait", 7.0], ["shot", "m0b_main"],
-		["eval", "_main_menu.show_page('camps')"], ["wait", 1.0], ["shot", "m1_camps"],
+		["eval", "_main_menu.show_page('camps')"], ["wait", 1.0], ["shot", "m1_camps"], ["eval", "_main_menu._desk.close()"],
 		["eval", "_main_menu._open_camp()"], ["wait", 1.0], ["shot", "m2_load"],
-		["eval", "_main_menu.show_page('newcamp')"], ["wait", 1.0], ["shot", "m3_newcamp"],
+		["eval", "_main_menu.show_page('newcamp')"], ["wait", 1.0], ["shot", "m3_newcamp"], ["eval", "_main_menu._set_nc_mode(true)"], ["eval", "_main_menu._desk.redraw()"], ["wait", 0.5], ["shot", "m3b_newcamp_sandbox"],
 		["eval", "_main_menu.show_page('coop')"], ["wait", 1.0], ["shot", "m4_coop"],
 		["eval", "_main_menu.show_page('profiles')"], ["wait", 1.0], ["shot", "m5_profiles"],
 		["eval", "_main_menu.show_page('options')"], ["wait", 1.0], ["shot", "m6_options"],

@@ -33804,3 +33804,21 @@ msgstr "KNIHA HOSTŮ"
 
 msgid "Warden %s"
 msgstr "Správce %s"
+
+msgid "Host"
+msgstr "Hostovat"
+
+msgid "Saves"
+msgstr "Uložené hry"
+
+msgid "APPLICATION FOR A CAMP"
+msgstr "PŘIHLÁŠKA KEMPU"
+
+msgid "Seed"
+msgstr "Semínko"
+
+msgid "Mode"
+msgstr "Režim"
+
+msgid "APPROVED"
+msgstr "SCHVÁLENO"

@@ -57,6 +57,10 @@ const BALANCE_CONFIG = preload("res://core/balance/balance_config.gd")
 const BOOT_SCREEN = preload("res://scripts/ui/boot_screen.gd")
 ## The main page: the guest book on the counter of the office at dusk (14. 11.).
 const TITLE_BOOK = preload("res://scripts/ui/title/title_book.gd")
+## The sub-pages as the counter's things close up (title_desk.gd and its pages).
+const TITLE_DESK = preload("res://scripts/ui/title/title_desk.gd")
+const PAGE_KEYS = preload("res://scripts/ui/title/page_keys.gd")
+const PAGE_FORM = preload("res://scripts/ui/title/page_form.gd")
 const TILE_COLS := 3
 const TILE_ROWS := 2
 
@@ -141,6 +145,9 @@ var _flicker_t := -1.0
 var _card: Control
 ## The guest book (the main page) and the camp CONTINUE goes back to, as its last entry.
 var _book
+var _desk
+var _keys_page
+var _form_page
 var _continue_camp: Dictionary = {}
 var _continue_save: Dictionary = {}
 var _card_pic: TextureRect
@@ -196,6 +203,12 @@ func _init() -> void:
 
 
 func _ready() -> void:
+	_desk = TITLE_DESK.new()
+	_desk.name = "TitleDesk"
+	add_child(_desk)
+	_desk.back.connect(func() -> void: show_page("coop" if _for_coop and _page == "camps" else "main"))
+	_keys_page = PAGE_KEYS.new(self)
+	_form_page = PAGE_FORM.new(self)
 	_root = Control.new()
 	_root.name = "Root"
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -234,6 +247,13 @@ func show_page(page: String) -> void:
 		_card.visible = false
 	_save_delete_armed = false
 	_camp_delete_armed = false
+	if _desk != null:
+		if page == "camps":
+			_desk.open_page(_keys_page)
+		elif page == "newcamp":
+			_desk.open_page(_form_page)
+		else:
+			_desk.close()
 	_profile_delete_armed = ""
 	if _connect_box != null:
 		_connect_box.visible = false
@@ -249,10 +269,11 @@ func show_page(page: String) -> void:
 		_look_page.visible = true
 		_refresh_look()
 	elif page == "newcamp" and _newcamp_page != null:
-		_newcamp_page.visible = true
-		_open_newcamp()
+		# The form on the counter (page_form.gd opens it), not the old plate.
+		_newcamp_page.visible = false
 	elif page == "camps" and _camps_page != null:
-		_camps_page.visible = true
+		# The key board, not the old plate (title_desk.gd, page_keys.gd).
+		_camps_page.visible = false
 		_refresh_camps()
 	if _main_list == null:
 		return
@@ -1376,6 +1397,32 @@ func _refresh_camp_page() -> void:
 	if _btn_del != null:
 		_btn_del.text = "Really delete?" if _camp_delete_armed else "Delete camp"
 	refresh_saves()
+
+
+## The key board's (page_keys.gd): the camp picked there opened at its last save, copied,
+## thrown away.
+func _camp_picked() -> String:
+	return str(_camps[_camp_sel]["id"]) if _camp_sel >= 0 and _camp_sel < _camps.size() else ""
+
+
+func open_camp_latest() -> void:
+	_camp_id = _camp_picked()
+	if _camp_id == "":
+		return
+	_save_entries = SaveManager.list_saves(PROFILES.camp_dir(_camp_id).path_join("saves"))
+	_save_selected = 0
+	_load_selected()
+
+
+func duplicate_selected_camp() -> void:
+	_camp_id = _camp_picked()
+	_duplicate_camp()
+
+
+func delete_selected_camp() -> void:
+	_camp_id = _camp_picked()
+	_camp_delete_armed = true
+	_delete_camp()
 
 
 func _duplicate_camp() -> void:
