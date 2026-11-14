@@ -76,6 +76,7 @@ const CORN_HUNT_SCRIPT = preload("res://scripts/corn_hunt.gd")
 const WEEK_REPORT_SCREEN_SCRIPT = preload("res://scripts/ui/week_report_screen.gd")
 const BREAKER_PANEL_SCRIPT = preload("res://scripts/breaker_panel.gd")
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
+const LIMINAL_WINDOW = preload("res://scripts/debug/liminal_window.gd")
 const MAIN_MENU_SCRIPT = preload("res://scripts/ui/main_menu.gd")
 const PAUSE_MENU_SCRIPT = preload("res://scripts/ui/pause_menu.gd")
 const GAME_OVER_SCREEN_SCRIPT = preload("res://scripts/ui/game_over_screen.gd")
@@ -198,11 +199,8 @@ var _liminal_virtual_enemy_count: int = 0
 var _liminal_last_despawn_day: int = 0
 var _liminal_last_despawn_count: int = 0
 var _liminal_last_rolled_night_id: int = -99999
-var _liminal_debug_layer: CanvasLayer
-var _liminal_debug_panel: PanelContainer
-var _liminal_debug_text: RichTextLabel
-var _liminal_debug_visible: bool = false
-var _liminal_debug_refresh_accum: float = 0.0
+## The night forecast's debug window (scripts/debug/liminal_window.gd), made when asked for.
+var _liminal_window: CanvasLayer
 var _active_enemy_brain: RefCounted
 var _active_enemy_brain_id: String = ""
 var _enemy_brains: Array = []
@@ -1419,11 +1417,8 @@ func _process(delta: float) -> void:
 	if sim:
 		_process_electricity_runtime(delta)
 
-	if _liminal_debug_visible:
-		_liminal_debug_refresh_accum += maxf(delta, 0.0)
-		if _liminal_debug_refresh_accum >= 0.35:
-			_liminal_debug_refresh_accum = 0.0
-			_refresh_liminal_debug_window()
+	if _liminal_window != null:
+		_liminal_window.tick(delta)
 
 	if _hud_manager != null:
 		_hud_manager.set_world_hud_visible(not _is_any_interior_open(), true)
@@ -1835,7 +1830,7 @@ func _poll_arrivals(delta: float) -> void:
 		GuestManager._on_time_tick(int(_time_of_day_hours), int(fposmod(_time_of_day_hours, 1.0) * 60.0))
 	var arrivals: Array = GuestManager.get_arrivals()
 	# Who is at the desk has the guests at the counter (the same mark as the jobs' plates).
-	var at_desk := str(_jobs_taken().get("room:desk", ""))
+	var at_desk := str(_troubles.taken().get("room:desk", ""))
 	if at_desk != "":
 		for r in arrivals:
 			if bool((r as Dictionary).get("at_gate", false)):
@@ -1851,7 +1846,7 @@ func _poll_arrivals(delta: float) -> void:
 		var abs_now := (maxi(1, _day_index) - 1) * 1440 + _clock_minutes_from_hours(_time_of_day_hours)
 		var van_row: Dictionary = _day_events.van_hud_row(abs_now) if _day_events != null and camp_rule("events") else {}
 		if van_row.has("ev"):
-			van_row["who"] = str(_jobs_taken().get("ev:%d" % int(van_row["ev"]), ""))
+			van_row["who"] = str(_troubles.taken().get("ev:%d" % int(van_row["ev"]), ""))
 		_hud_manager.set_van(van_row)
 	var state_now = CoreRoot.get_state()
 	if _hud_manager.has_method("set_shift_bands") and state_now != null and state_now.biz is Dictionary:
@@ -1869,346 +1864,14 @@ func _poll_arrivals(delta: float) -> void:
 	elif _night_jobs != null:
 		_hud_manager.set_jobs(serve_rows + _night_jobs.hud_rows())
 	if _hud_manager.has_method("set_troubles"):
-		_hud_manager.set_troubles(_mark_taken(_trouble_rows(biz)))
+		_hud_manager.set_troubles(_troubles.mark_taken(_troubles.rows(biz)))
 
 
 const STAFF_RULES_M = preload("res://core/systems/staff_rules.gd")
-const CREW_PLACES_M = preload("res://scripts/business/crew_places.gd")
-
-
-func _jobs_taken() -> Dictionary:
-	var state = CoreRoot.get_state() if CoreRoot != null else null
-	if state == null or not (state.biz is Dictionary):
-		return {}
-	var staff = (state.biz as Dictionary).get("staff", {})
-	return STAFF_RULES_M.taken(staff) if staff is Dictionary else {}
-
-
-## What is seen to: who has it on the row ("who": a hand's slug; "@" another warden at the
-## counter; "~" no one yet but somebody on shift is set to it: Richard's P30, "which will be
-## seen to and which I can go to"), those plates after the ones still waiting for somebody,
-## and the ones only to know about (a face: somebody away, gone, owed) between the two.
-func _mark_taken(rows: Array) -> Array:
-	var taken := _jobs_taken()
-	var state = CoreRoot.get_state() if CoreRoot != null else null
-	var staff = (state.biz as Dictionary).get("staff", {}) if state != null and state.biz is Dictionary else {}
-	var free: Array = []
-	var told: Array = []
-	var coming: Array = []
-	var seen_to: Array = []
-	for row_any in rows:
-		var r: Dictionary = row_any
-		var id := str(r.get("id", ""))
-		var who := ""
-		match str(r.get("cat", "")):
-			"day":
-				who = str(taken.get("ev:" + id.substr(1), ""))
-			"work":
-				var key := id.substr(1)
-				who = str(taken.get("room:" + key, ""))
-				if who == "":
-					# A block's ("x:y", its halves "x:yl"): the hand cleans it all.
-					var block := key.rstrip("lr")
-					who = str(taken.get("room:block:" + block, ""))
-			"biz":
-				var site_key := id.substr(1)
-				var t := "corn" if str(r.get("kind", "")) == "corn" else "service"
-				if not CREW_PLACES_M.wardens_at(get_tree(), site_key, t).is_empty():
-					who = "@"
-		if who == "" and str(r.get("fix", "")) != "":
-			who = str(taken.get("room:fix:" + str(r["fix"]), ""))
-		if who == "" and str(r.get("job", "")) != "" and staff is Dictionary and STAFF_RULES_M.covered(staff, str(r["job"]), _time_of_day_hours, _day_index):
-			who = "~"
-		if who == "~":
-			r["who"] = who
-			coming.append(r)
-		elif who != "":
-			r["who"] = who
-			seen_to.append(r)
-		elif r.has("face"):
-			told.append(r)
-		else:
-			free.append(r)
-	return free + told + coming + seen_to
-
-
-## The camp's troubles for the HUD's plates (scripts/ui/trouble_strip.gd): the day's open
-## events with their time running out, the night's open jobs, the businesses with guests
-## waiting and how many. The same on every co-op machine (all three are the host's).
-const TROUBLE_KIND := {"rest": "rest", "pub": "pub", "vecerka": "vecerka", "corn": "stand"}
-const TROUBLE_WORD := {"rest": "Bistro", "pub": "Pub", "vecerka": "Jednota", "corn": "Corn"}
-
-
-func _trouble_rows(biz) -> Array:
-	var rows: Array = []
-	var abs_minute := (maxi(1, _day_index) - 1) * 1440 + _clock_minutes_from_hours(_time_of_day_hours)
-	# A lodging somebody is on the way to before anything else.
-	var work := _work_rows()
-	for r in work:
-		if (r as Dictionary).has("wanted"):
-			rows.append(r)
-	if _day_events != null and camp_rule("events"):
-		for ev in _day_events.open_events():
-			# (The van has its own plate over these: set_van.)
-			if str(ev.get("kind", "")) == "delivery":
-				continue
-			var span := float(int(ev.get("deadline", 0)) - int(ev.get("at", 0)))
-			var left := clampf(float(int(ev.get("deadline", 0)) - abs_minute) / span, 0.0, 1.0) if span > 0.0 else -1.0
-			var day_row := {"id": "d%s" % str(ev.get("id", "")), "kind": str(ev.get("kind", "")), "word": str(ev.get("short", "")), "cat": "day", "left": left}
-			if not STAFF_RULES_M.LATE_KINDS.has(str(ev.get("kind", ""))):
-				day_row["job"] = str(ev.get("kind", ""))
-			rows.append(day_row)
-	if _night_jobs != null:
-		for job in _night_jobs.open_jobs():
-			if str(job.get("kind", "")) == "toilet":
-				# The bowl by the name its plates have.
-				var jc: Array = job.get("coord", [0, 0])
-				var wcs: Array = _wc_blocks()
-				job["short"] = _wc_word("r", _wc_no(wcs, Vector2i(int(jc[0]), int(jc[1]))))
-			var night_row := {"id": "n%s@%d" % [str(job.get("kind", "")), int(job.get("at", 0))], "kind": str(job.get("kind", "")), "word": str(job.get("short", "")), "cat": "night", "left": -1.0}
-			# What a hand can put right in the morning (the sewer and the board are not).
-			if str(job.get("kind", "")) in ["lamp", "toilet", "frozen"] and job.get("coord", []) is Array and (job["coord"] as Array).size() == 2:
-				night_row["job"] = "repairs"
-				night_row["fix"] = "%d:%d" % [int(job["coord"][0]), int(job["coord"][1])]
-			elif str(job.get("kind", "")) == "breaker":
-				night_row["job"] = "repairs"
-				night_row["fix"] = "breaker"
-			rows.append(night_row)
-	if biz != null and biz.has_method("waiting_sites"):
-		for site in biz.waiting_sites():
-			var kind := str(biz.site(str(site["key"])).get("kind", ""))
-			rows.append({"id": "b%s" % str(site["key"]), "kind": str(TROUBLE_KIND.get(kind, "pub")), "word": str(TROUBLE_WORD.get(kind, "Guests")), "cat": "biz", "left": -1.0, "n": int(site["n"])})
-	rows.append_array(_office_rows())
-	rows.append_array(_people_rows())
-	for r in work:
-		if not (r as Dictionary).has("wanted"):
-			rows.append(r)
-	if biz != null and biz.has_method("_live_sites"):
-		rows.append_array(_stock_rows(biz))
-	return rows
-
-
-## The office's own (Richard 8. 11.: "I must be told about everything"): the booking letters
-## nobody has answered, the electricity coming due. Neither with somebody at the desk to
-## see to them: it is the letters' plate that goes, not the letters.
-func _office_rows() -> Array:
-	var rows: Array = []
-	var state = CoreRoot.get_state() if CoreRoot != null else null
-	if state == null or not (state.biz is Dictionary):
-		return rows
-	var crew: Array = ((state.biz as Dictionary).get("staff", {}) as Dictionary).get("crew", [])
-	var desk := false
-	var letters := false
-	for p in crew:
-		if STAFF_RULES_M.does(p, "desk") and int((p as Dictionary).get("since", 0)) <= _day_index:
-			desk = true
-			letters = letters or STAFF_RULES_M.does(p, "letters")
-	if not letters and EmailManager != null:
-		var n := 0
-		for m in EmailManager.inbox:
-			if m is Dictionary and EmailManager._is_customer_mail(m) and not bool(m.get("_actioned", false)):
-				n += 1
-		if n > 0:
-			rows.append({"id": "mletters", "kind": "mail", "word": "Bookings", "cat": "desk", "left": -1.0, "n": n})
-	if not desk and _billing != null:
-		var soonest := 99
-		var due := 0
-		for b in _billing.bills:
-			if b is Dictionary and str((b as Dictionary).get("status", "unpaid")).to_lower() != "paid":
-				due += 1
-				soonest = mini(soonest, int(_billing.days_left_until_due(int((b as Dictionary).get("due_day", _day_index)))))
-		if due > 0 and soonest <= 1:
-			rows.append({"id": "ebill", "kind": "bill", "word": "Electricity", "cat": "desk", "left": 0.0 if soonest < 0 else clampf(float(soonest + 1) / 3.0, 0.0, 1.0), "n": due})
-	return rows
-
-
-## The people, only to know about: their face and a word. Away today, walked out over
-## their pay (today), owed. Neutral words: they come out the same for anybody.
-func _people_rows() -> Array:
-	var rows: Array = []
-	var state = CoreRoot.get_state() if CoreRoot != null else null
-	if state == null or not (state.biz is Dictionary):
-		return rows
-	var biz: Dictionary = state.biz
-	var people: Array = []
-	for key in biz.get("sites", {}):
-		people.append_array(((biz["sites"] as Dictionary)[key] as Dictionary).get("crew", []))
-	people.append_array((biz.get("staff", {}) as Dictionary).get("crew", []))
-	for p_any in people:
-		var p: Dictionary = p_any
-		var slug := str(p.get("slug", ""))
-		if int(p.get("absent", -1)) == _day_index:
-			rows.append({"id": "a" + slug, "kind": "someone", "face": slug, "word": "Away", "cat": "people", "left": -1.0})
-		elif int(p.get("owed", 0)) > 0:
-			rows.append({"id": "o" + slug, "kind": "wages", "face": slug, "word": "Owed", "cat": "people", "left": -1.0})
-	for g_any in biz.get("gone", []):
-		var g: Dictionary = g_any
-		if int(g.get("day", -1)) == _day_index:
-			rows.append({"id": "g" + str(g.get("slug", "")), "kind": "someone", "face": str(g.get("slug", "")), "word": "Resigned", "cat": "people", "left": -1.0})
-	return rows
-
-
-## What is running out at the businesses (the user 4. 11.: "the game does not tell me in
-## any way that the goods at the businesses are running out or gone. What about a
-## notification on the right?"): a plate for each place with something low on its shelves
-## (BusinessRules.is_low: red on its desk and in its program) and not on the van: the
-## place's picture, the worst of it named, the bar what is left of it (empty and blinking:
-## none).
 const BIZ_RULES_M = preload("res://core/systems/business_rules.gd")
-const BIZ_RUNTIME_M = preload("res://scripts/business/business_runtime.gd")
-
-
-func _stock_rows(biz) -> Array:
-	var rows: Array = []
-	var state = CoreRoot.get_state() if CoreRoot != null else null
-	if state == null or not (state.biz is Dictionary):
-		return rows
-	var sites: Dictionary = (state.biz as Dictionary).get("sites", {})
-	var live: Dictionary = biz._live_sites()
-	for key in live:
-		var s: Dictionary = sites.get(key, {})
-		if s.is_empty():
-			continue
-		var kind := str(s.get("kind", ""))
-		var gd: Dictionary = BIZ_RULES_M.goods(kind)
-		var worst := ""
-		var worst_k := 2.0
-		for g in gd:
-			# (The ready-made extras nobody has to keep: none on the shelf to start with.)
-			if int((gd[g] as Dictionary).get("start", 0)) <= 0:
-				continue
-			var n := int((s.get("stock", {}) as Dictionary).get(g, 0))
-			if not BIZ_RULES_M.is_low(kind, g, n) or BIZ_RUNTIME_M.on_order(str(key), g) > 0:
-				continue
-			var k := float(n) / maxf(1.0, float(int((gd[g] as Dictionary).get("pack", 1)) / 2))
-			if k < worst_k:
-				worst_k = k
-				worst = g
-		if worst != "":
-			rows.append({"id": "s%s" % str(key), "kind": str(TROUBLE_KIND.get(kind, "pub")), "word": str((gd[worst] as Dictionary).get("label", "")), "cat": "stock", "left": clampf(worst_k, 0.0, 1.0)})
-	return rows
-
-
-## The camp's housework as plates too (playtest 25. 10.: "an unswept or unmade tent, cabin
-## and so on as a notification with an icon on the right; the showers have no notice they
-## want cleaning"): each empty lodging that is dirty (the broom) or not made up (the
-## linen), each toilet and shower block worn into wanting a clean (as its own room's list
-## has it: mess_rules.block_tasks) or broken.
-const WORK_RULES = preload("res://core/systems/maintenance_rules.gd")
-const WORK_BLOCK_DIRTY: float = WORK_RULES.DIRTY_AT
-
-
-func _work_rows() -> Array:
-	var rows: Array = []
-	var state = CoreRoot.get_state() if CoreRoot != null else null
-	if state == null or GuestManager == null:
-		return rows
-	# Who is coming for which lodging (key -> minutes till they are here, 0 at the desk): its
-	# plate has their time under its word and goes to the top (Richard 8. 11.).
-	var wanted := {}
-	for row_any in GuestManager.get_arrivals():
-		var row: Dictionary = row_any
-		var mins := 0 if bool(row.get("at_gate", false)) else int(row.get("minutes", 0))
-		for room_any in row.get("rooms", []):
-			var room_key := str((room_any as Dictionary).get("key", ""))
-			if mins < int(wanted.get(room_key, 1 << 20)):
-				wanted[room_key] = mins
-	var keys: Array = state.accommodation_states.keys()
-	keys.sort_custom(func(a, b): return int(wanted.get(str(a), 1 << 20)) < int(wanted.get(str(b), 1 << 20)))
-	for key in keys:
-		var rs: Dictionary = GuestManager.get_room_state(str(key))
-		if rs.is_empty() or bool(rs.get("occupied", false)):
-			continue
-		var st := str(rs.get("status", ""))
-		if st != "dirty" and st != "unprepared":
-			continue
-		var kind := GuestManager.lodging_kind(str(rs.get("building_type", "")))
-		var no: int = GuestManager.room_number(str(key))
-		var word := tr(kind.capitalize()) + (" %d" % no if no > 0 else "")
-		var r2 := {"id": "w%s" % str(key), "kind": "clean" if st == "dirty" else "bed", "word": word, "cat": "work", "left": -1.0, "job": "rooms"}
-		if wanted.has(str(key)):
-			r2["wanted"] = true
-			r2["left"] = clampf(float(int(wanted[str(key)])) / float(STAFF_RULES_M.WANTED_WITHIN_MIN), 0.0, 1.0)
-		rows.append(r2)
-	var wcs: Array = _wc_blocks()
-	for coord in state.grid.cells.keys():
-		var cell: Dictionary = state.grid.cells[coord]
-		var t := str(cell.get("type", ""))
-		if (t != "toilet_block" and t != "shower_block") or cell.get("root_coord", coord) != coord:
-			continue
-		var bkey := "%d:%d" % [coord.x, coord.y]
-		var broken: bool = state.failures.has(bkey)
-		if t == "toilet_block":
-			# A plate for each toilet, the one that is dirty (the user 5. 11.: "both toilets
-			# dirty", and only the one was); the one a breakdown is in (the right-hand bowl:
-			# mess_rules.BLOCK_BREAKDOWN) has one too, and only the one: the night's own when
-			# it is a night's job (7. 11.: "as if there were two kinds of toilet plate").
-			var paged := _job_on(coord)
-			for side in WORK_RULES.SIDES:
-				var blocked: bool = broken and side == "r"
-				if paged and side == "r":
-					continue
-				if blocked or WORK_RULES.side_condition(cell, side) < WORK_BLOCK_DIRTY:
-					var wc_row := {"id": "w%s%s" % [bkey, side], "kind": "toilet", "word": _wc_word(side, _wc_no(wcs, coord)), "cat": "work", "left": -1.0, "job": "repairs" if blocked else "blocks"}
-					if blocked:
-						wc_row["fix"] = bkey
-					rows.append(wc_row)
-			continue
-		elif float(cell.get("maintenance", 1.0)) >= WORK_BLOCK_DIRTY and not broken:
-			continue
-		var sh_row := {"id": "w%s" % bkey, "kind": "shower", "word": tr("Showers"), "cat": "work", "left": -1.0, "job": "repairs" if broken else "blocks"}
-		if broken:
-			sh_row["fix"] = bkey
-		rows.append(sh_row)
-	# A lamp gone out by itself (its bulb spent; the night's own have their night plate).
-	for fkey in state.failures.keys():
-		var f: Dictionary = state.failures[fkey]
-		if str(f.get("type", "")) != "lamp_post" or bool(f.get("night", false)):
-			continue
-		rows.append({"id": "l%s" % str(fkey), "kind": "lamp", "word": "Lamp", "cat": "day", "left": -1.0, "job": "repairs", "fix": str(fkey)})
-	# A bonfire's woodpile run low (playtest 14. 11.: the guests feed the fire from it): what is
-	# left of it on the plate, split at the block or by a hand with Firewood.
-	for f in get_tree().get_nodes_in_group("campfire"):
-		if int(f.WOODPILE_LOGS) - int(f.logs_left) < STAFF_RULES_M.WOOD_LOW:
-			continue
-		rows.append({"id": "f%s" % str(f.site_key()), "kind": "wood", "word": tr("Firewood"), "cat": "work", "left": float(f.logs_left) / float(f.WOODPILE_LOGS), "job": "wood"})
-	return rows
-
-
-## Tonight's job open on this block?
-func _job_on(coord: Vector2i) -> bool:
-	if _night_jobs == null:
-		return false
-	for job in _night_jobs.open_jobs():
-		var c = job.get("coord", [])
-		if c is Array and (c as Array).size() == 2 and Vector2i(int(c[0]), int(c[1])) == coord:
-			return true
-	return false
-
-
-## The block's number on its plates, 0 with only the one.
-func _wc_no(wcs: Array, coord: Vector2i) -> int:
-	return wcs.find(coord) + 1 if wcs.size() > 1 else 0
-
-
-func _wc_blocks() -> Array:
-	var state = CoreRoot.get_state() if CoreRoot != null else null
-	var out: Array = []
-	if state == null:
-		return out
-	for coord in state.grid.cells.keys():
-		var cell: Dictionary = state.grid.cells[coord]
-		if str(cell.get("type", "")) == "toilet_block" and cell.get("root_coord", coord) == coord:
-			out.append(coord)
-	out.sort()
-	return out
-
-
-## A toilet's name on its plate: its side, with `no` the block's number when there are more.
-func _wc_word(side: String, no: int) -> String:
-	if no > 0:
-		return tr("WC %d left" if side == "l" else "WC %d right") % no
-	return tr("WC left" if side == "l" else "WC right")
+## What the HUD's plates on the right list (scripts/ui/trouble_board.gd).
+const TROUBLE_BOARD = preload("res://scripts/ui/trouble_board.gd")
+var _troubles: RefCounted = TROUBLE_BOARD.new(self)
 
 
 func _on_guest_at_gate(row: Dictionary) -> void:
@@ -3387,197 +3050,20 @@ func _despawn_all_runtime_enemies() -> int:
 
 
 func _toggle_liminal_debug_window() -> void:
-	_set_liminal_debug_window_visible(not _liminal_debug_visible)
-
-
-func _set_liminal_debug_window_visible(visible: bool) -> void:
-	_liminal_debug_visible = visible
-	_liminal_debug_refresh_accum = 0.0
-	if not _liminal_debug_visible:
-		if _liminal_debug_layer != null:
-			_liminal_debug_layer.visible = false
-		return
-	_ensure_liminal_debug_window()
-	if _liminal_debug_layer != null:
-		_liminal_debug_layer.visible = true
-	_refresh_liminal_debug_window()
-
-
-func _ensure_liminal_debug_window() -> void:
-	if _liminal_debug_layer != null:
-		return
-	_liminal_debug_layer = CanvasLayer.new()
-	_liminal_debug_layer.name = "LiminalDebugLayer"
-	_liminal_debug_layer.layer = 90
-	add_child(_liminal_debug_layer)
-
-	var root := Control.new()
-	root.name = "Root"
-	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_liminal_debug_layer.add_child(root)
-
-	_liminal_debug_panel = PanelContainer.new()
-	_liminal_debug_panel.name = "LiminalDebugPanel"
-	_liminal_debug_panel.anchor_left = 0.0
-	_liminal_debug_panel.anchor_top = 0.0
-	_liminal_debug_panel.anchor_right = 0.0
-	_liminal_debug_panel.anchor_bottom = 0.0
-	_liminal_debug_panel.offset_left = 14.0
-	_liminal_debug_panel.offset_top = 14.0
-	_liminal_debug_panel.offset_right = 640.0
-	_liminal_debug_panel.offset_bottom = 420.0
-	_liminal_debug_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_liminal_debug_panel.add_theme_stylebox_override("panel", RETRO_UI.flat_box(Color(0.05, 0.05, 0.05, 0.84), Color(0.52, 0.10, 0.10, 0.95), 2, 1, 3))
-	root.add_child(_liminal_debug_panel)
-
-	var margin := MarginContainer.new()
-	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	margin.add_theme_constant_override("margin_left", 10)
-	margin.add_theme_constant_override("margin_right", 10)
-	margin.add_theme_constant_override("margin_top", 8)
-	margin.add_theme_constant_override("margin_bottom", 8)
-	_liminal_debug_panel.add_child(margin)
-
-	_liminal_debug_text = RichTextLabel.new()
-	_liminal_debug_text.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_liminal_debug_text.bbcode_enabled = false
-	_liminal_debug_text.scroll_active = true
-	_liminal_debug_text.fit_content = false
-	_liminal_debug_text.selection_enabled = false
-	_liminal_debug_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_liminal_debug_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_liminal_debug_text.add_theme_font_size_override("normal_font_size", 14)
-	_liminal_debug_text.add_theme_color_override("default_color", Color(0.94, 0.94, 0.94, 1.0))
-	margin.add_child(_liminal_debug_text)
-
-	_liminal_debug_layer.visible = _liminal_debug_visible
+	if _liminal_window == null:
+		_liminal_window = LIMINAL_WINDOW.new(self)
+		add_child(_liminal_window)
+	_liminal_window.toggle()
 
 
 func _refresh_liminal_debug_window() -> void:
-	if _liminal_debug_text == null:
-		return
-	var lines: Array[String] = []
-	var state_name := "day"
-	match _time_state:
-		TIME_EVENING:
-			state_name = "evening"
-		TIME_NIGHT:
-			state_name = "night"
-		_:
-			state_name = "day"
-	lines.append("Liminal Forecast Debug [L]")
-	lines.append("Day %d | %s | phase=%s" % [_day_index, _time_of_day_string(), state_name])
+	if _liminal_window != null:
+		_liminal_window.refresh()
 
-	var forecast: Dictionary = _liminal_forecast_snapshot
-	if forecast.is_empty():
-		lines.append("")
-		lines.append("Forecast: unavailable")
-	else:
-		var totals_any = forecast.get("totals", {})
-		var totals: Dictionary = totals_any if totals_any is Dictionary else {}
-		lines.append("")
-		lines.append("Forecast Summary:")
-		lines.append("Guests=%d | expected transforms=%.2f | guaranteed=%d | pressure archetypes=%d | HUD=%d/4" % [
-			int(totals.get("guests", 0)),
-			float(totals.get("expected_spawns", 0.0)),
-			int(totals.get("guaranteed_spawns", 0)),
-			int(totals.get("pressure_archetypes", 0)),
-			_liminal_forecast_hud_level,
-		])
-		lines.append("Archetypes:")
-		var entries_any = forecast.get("archetypes", [])
-		var entries: Array = entries_any if entries_any is Array else []
-		for entry_any in entries:
-			if not (entry_any is Dictionary):
-				continue
-			var entry: Dictionary = entry_any
-			var label = str(entry.get("label", "Unknown"))
-			var count = int(entry.get("count", 0))
-			var over_safe = int(entry.get("over_safe", 0))
-			var expected = float(entry.get("expected_spawns", 0.0))
-			var guaranteed = int(entry.get("guaranteed_spawns", 0))
-			var chance_probability = clampf(float(entry.get("chance_probability", 0.0)), 0.0, 1.0)
-			var chance_tier = str(entry.get("chance_tier", "none"))
-			lines.append("- %s | guests=%d (+%d over safe) | should transform=%.2f | guaranteed=%d | chance=%d%% (%s)" % [
-				label,
-				count,
-				over_safe,
-				expected,
-				guaranteed,
-				int(round(chance_probability * 100.0)),
-				chance_tier,
-			])
 
-	lines.append("")
-	lines.append("Night Roll:")
-	if _liminal_night_roll_snapshot.is_empty():
-		lines.append("No night roll yet.")
-	else:
-		lines.append("Night #%d at %s | spawned=%d (guaranteed=%d + chance=%d/%d) | expected=%.2f" % [
-			int(_liminal_night_roll_snapshot.get("night_id", 0)),
-			str(_liminal_night_roll_snapshot.get("rolled_time", "--:--")),
-			int(_liminal_night_roll_snapshot.get("spawned_total", 0)),
-			int(_liminal_night_roll_snapshot.get("spawned_guaranteed", 0)),
-			int(_liminal_night_roll_snapshot.get("spawned_from_chance", 0)),
-			int(_liminal_night_roll_snapshot.get("chance_checks", 0)),
-			float(_liminal_night_roll_snapshot.get("expected_total", 0.0)),
-		])
-		var rolled_entries_any = _liminal_night_roll_snapshot.get("entries", [])
-		var rolled_entries: Array = rolled_entries_any if rolled_entries_any is Array else []
-		for rolled_any in rolled_entries:
-			if not (rolled_any is Dictionary):
-				continue
-			var rolled: Dictionary = rolled_any
-			var roll_value = float(rolled.get("chance_roll", -1.0))
-			var roll_text = "-" if roll_value < 0.0 else "%.3f" % roll_value
-			lines.append("- %s | spawned=%d | guaranteed=%d | chance=%d%% | roll=%s" % [
-				str(rolled.get("label", "Unknown")),
-				int(rolled.get("spawned", 0)),
-				int(rolled.get("guaranteed_spawns", 0)),
-				int(round(clampf(float(rolled.get("chance_probability", 0.0)), 0.0, 1.0) * 100.0)),
-				roll_text,
-			])
-		if not _liminal_spawn_history.is_empty():
-			lines.append("Recent nights:")
-			for i in range(_liminal_spawn_history.size() - 1, maxi(_liminal_spawn_history.size() - 4, -1), -1):
-				var hist = _liminal_spawn_history[i]
-				lines.append("- night #%d: spawned %d (expected %.2f)" % [
-					int(hist.get("night_id", 0)),
-					int(hist.get("spawned_total", 0)),
-					float(hist.get("expected_total", 0.0)),
-				])
-
-	var active_enemy_count := 0
-	if get_tree() != null:
-		active_enemy_count = get_tree().get_nodes_in_group("enemies").size()
-	lines.append("")
-	lines.append("Runtime Enemies Active=%d (virtual=%d, scene=%d)" % [
-		_liminal_virtual_enemy_count + active_enemy_count,
-		_liminal_virtual_enemy_count,
-		active_enemy_count,
-	])
-	lines.append("Runtime target this night (quiet guy): %d" % _active_enemy_spawned_this_night)
-	if _active_enemy_brain != null and is_instance_valid(_active_enemy_brain) and _active_enemy_brain.has_method("get_debug_snapshot"):
-		var snap_any = _active_enemy_brain.get_debug_snapshot()
-		var snap: Dictionary = snap_any if snap_any is Dictionary else {}
-		var state_label = str(snap.get("state", "unknown"))
-		lines.append("Active brain: %s | state=%s" % [_active_enemy_brain_id, state_label])
-		lines.append("- scares=%d (recent=%d) | peeks=%d | attack_hits=%d" % [
-			int(snap.get("successful_scares", 0)),
-			int(snap.get("recent_successes", 0)),
-			int(snap.get("close_peeks", 0)),
-			int(snap.get("damage_hits", 0)),
-		])
-		lines.append("- footsteps=%d | visual_spawns=%d | entity_visible=%s" % [
-			int(snap.get("footstep_bursts", 0)),
-			int(snap.get("visual_spawns", 0)),
-			str(bool(snap.get("entity_visible", false))),
-		])
-	if _liminal_last_despawn_day > 0:
-		lines.append("Last day-start despawn: day %d -> removed %d enemies" % [_liminal_last_despawn_day, _liminal_last_despawn_count])
-
-	_liminal_debug_text.text = "\n".join(lines)
+func _hide_liminal_debug_window() -> void:
+	if _liminal_window != null:
+		_liminal_window.show_window(false)
 
 
 func _set_player_health(value: int, allow_game_over: bool = true) -> void:
@@ -3696,7 +3182,7 @@ func _trigger_game_over(reason: String = GAME_OVER_REASON_DEATH) -> void:
 	_stop_active_enemy_brain()
 	_game_over_active = true
 	_game_over_reason = reason
-	_set_liminal_debug_window_visible(false)
+	_hide_liminal_debug_window()
 	var delay_sec := GAME_OVER_FALL_DELAY_FALLBACK_SEC
 	if _player != null and _player.has_method("set_controls_enabled"):
 		_player.set_controls_enabled(false)
@@ -5069,7 +4555,7 @@ func _enter_main_menu() -> void:
 	_clear_blood_fx()
 	_reset_player_damage_feedback()
 	_set_player_health(PLAYER_MAX_HEALTH, false)
-	_set_liminal_debug_window_visible(false)
+	_hide_liminal_debug_window()
 	_liminal_forecast_snapshot.clear()
 	_liminal_forecast_hud_level = 0
 	_liminal_night_roll_snapshot.clear()

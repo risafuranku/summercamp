@@ -83,13 +83,18 @@ godot/
   data/buildings/*.tres       # building definitions
   data/pools/                 # email + guest content
   scripts/
-    main.gd                   # orchestration (~7.9k lines; the biggest file, to be split: TODO D0)
+    main.gd                   # orchestration (~7.4k lines; the biggest file, being split by
+                              # responsibility: TODO D0; after moving code out run
+                              # `python tools/main_refs_check.py`: every main.<name> left
+                              # in the scripts and tools must still be main's)
+    debug/                    # liminal_window (the night forecast's debug window)
     os98/                     # the camp computer "Okna 98" at 640x480: os_shell (the panel:
                               # tabs, pages, taskbar, boot, installs), os_page, os_theme,
                               # os_window (dialogs), os_files (the disk), web_pages (the
                               # 1998 web), apps/<app>_app.gd, apps/job_*, apps/game_*
     ui/                       # retro_ui (kit), retro_menu (menu parts), settings_rows
-                              # (the configuration's rows), main_menu, pause_menu,
+                              # (the configuration's rows), trouble_board (what the HUD's
+                              # plates on the right list), main_menu, pause_menu,
                               # game_over_screen, boot_screen
     ui/title/                 # the title: the office at dusk (title_stage), the showcase
                               # camp (title_camp), the guest book (title_book), the

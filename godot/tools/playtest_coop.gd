@@ -43,7 +43,7 @@ func sign_row() -> void:
 
 
 func plates() -> void:
-	var rows: Array = _main._work_rows()
+	var rows: Array = _main._troubles.work_rows()
 	var wc: Array = []
 	for r in rows:
 		if str(r.get("kind", "")) == "toilet":

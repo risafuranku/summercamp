@@ -282,13 +282,13 @@ func _wc() -> Array:
 		["build", "toilet_block", 5, 10, 0], ["build", "corn_stand", 9, 10, 0], ["build", "pub", 5, 13, 0], ["wait", 1.5],
 		["eval", cell + ".set('maint_r', 1.0)"], ["eval", cell + ".set('maint_l', 0.4)"], ["eval", cell + ".set('maintenance', 0.4)"],
 		["eval", st + ".biz['sites'].values()[0]['stock'].set('cobs', 2)"], ["eval", st + ".biz['sites'].values()[1]['stock'].set('beer', 0)"], ["wait", 2.5],
-		["eval", "_trouble_rows(_interior_manager.business)"],
+		["eval", "_troubles.rows(_interior_manager.business)"],
 		["eval", "['Y widths', _hud_manager._trouble_strip.font.get_string_size('KUKUŘIČNÉ KLASY', 0, -1, 8).x, _hud_manager._trouble_strip.font.get_string_size('OVOCE A ZELENINA', 0, -1, 8).x, _hud_manager._trouble_strip.font.get_string_size('KONZERVY POLÉVKY', 0, -1, 8).x, _hud_manager._trouble_strip.font.get_string_size('WC 2 PRAVÝ', 0, -1, 8).x]"],
 		["eval", "set('debug_camera', null)"], ["door_front", "toilet_block", 1.4], ["wait", 0.5],
 		["eval", "_player.look_at(" + wc + ".find_child('Door0', true, false).global_position, Vector3(0, 1, 0))"], ["wait", 0.4], ["eval", hint], ["shot", "wc_door0"],
 		["eval", "_player.look_at(" + wc + ".find_child('Door1', true, false).global_position, Vector3(0, 1, 0))"], ["wait", 0.4], ["eval", hint], ["shot", "wc_door1"],
 		["eval", cell + ".set('maint_r', 0.2)"], ["eval", cell + ".set('maintenance', 0.2)"], ["wait", 1.0], ["eval", hint],
-		["eval", cell + ".set('maint_l', 1.0)"], ["eval", cell + ".set('maintenance', 0.2)"], ["wait", 2.5], ["eval", "_trouble_rows(_interior_manager.business)"], ["eval", hint], ["shot", "wc_right_only"],
+		["eval", cell + ".set('maint_l', 1.0)"], ["eval", cell + ".set('maintenance', 0.2)"], ["wait", 2.5], ["eval", "_troubles.rows(_interior_manager.business)"], ["eval", hint], ["shot", "wc_right_only"],
 		["eval", "get_tree().quit()"]]
 	return s
 

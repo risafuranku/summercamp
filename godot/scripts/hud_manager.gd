@@ -991,7 +991,7 @@ func _refresh_jobs() -> void:
 	_jobs_panel.size = Vector2(_vp(TRACKER_WIDTH_VP), 0)
 
 
-## The camp's troubles as plates (main._trouble_rows: the day's events, the night's jobs,
+## The camp's troubles as plates (scripts/ui/trouble_board.gd: the day's events, the night's jobs,
 ## the businesses' queues).
 func set_troubles(rows: Array) -> void:
 	if rows == _troubles:

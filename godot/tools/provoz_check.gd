@@ -146,7 +146,7 @@ func go() -> void:
 
 func _plates() -> Array:
 	var biz = _main.get("_interior_manager").get("business")
-	var rows: Array = _main.call("_mark_taken", _main.call("_trouble_rows", biz))
+	var rows: Array = _main._troubles.mark_taken(_main._troubles.rows(biz))
 	return rows.map(func(r): return "%s%s" % [str(r.get("word", "")), "(%s)" % str(r["who"]) if r.has("who") else ""])
 
 

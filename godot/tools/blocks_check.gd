@@ -28,7 +28,7 @@ func report(what: String) -> String:
 	var b := _block()
 	var at: Vector2i = b.get_meta("grid_origin")
 	var cell: Dictionary = CoreRoot.get_state().grid.cells[at]
-	var rows: Array = _main.call("_work_rows")
+	var rows: Array = _main._troubles.work_rows()
 	var line := "BLOCKS %s: l=%.2f r=%.2f whole=%.2f hint='%s' plate=%s" % [what, float(cell.get("maint_l", -1)), float(cell.get("maint_r", -1)), float(cell.get("maintenance", 1)),
 		_main.get("_interior_manager").get_hint_for_structure(b), str(rows.size())]
 	print(line)
