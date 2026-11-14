@@ -1901,48 +1901,40 @@ func _staffroom(r: Node3D, _w: float, _d: float) -> Dictionary:
 	return {"size": Vector3(sx, plan.FLOOR + plan.L_H + 0.3, sz), "target": Vector3(plan.DOOR_X, 1.2, plan.L_MAX.y + plan.WALL + 0.1)}
 
 
-## The camp's warehouse (playtest 14. 11.): an open shed of grey boards under a tin lean-to
-## roof on a concrete floor, its steel racks along the back, a painted SKLAD over the front.
-## The racks' boxes and tags are scripts/business/warehouse.gd's (given to the camp's places).
-func _warehouse(r: Node3D, w: float, d: float) -> Dictionary:
-	var sx := w - 0.4
-	var sz := d - 0.6
-	var h := 3.1
+## The camp's warehouse (playtest 14. 11.: "an indoor building like the staffroom"): a shed of
+## grey boards round its store room (service_plan.STORE: the room stands in it in the camp's
+## world, scripts/business/store_room.gd its racks), a tin lean-to roof, the plank door in the
+## middle of the front in a frame of boards, a painted SKLAD over it, a concrete step.
+func _warehouse(r: Node3D, _w: float, _d: float) -> Dictionary:
+	var room: Vector3 = SERVICE_PLAN.STORE
 	var boards := _camp_or("planks_grey.png", Color(0.62, 0.6, 0.56), "wood", Vector3(1.2, 1.2, 1.0))
+	var dark := _camp_or("planks_dark.png", Color(0.5, 0.44, 0.38), "wood", Vector3(1.0, 1.0, 1.0))
 	var tin := _camp("corrugated_roof.png", Color(0.74, 0.7, 0.66), Vector3(1.6, 1.6, 1.0))
-	# (Light: in the shade of the roof grey steel was lost against the boards.)
-	var steel := _camp_or("galvanized.png", Color(0.92, 0.94, 0.95), "metal", Vector3(0.6, 0.6, 0.6))
 	var concrete := _camp_or("concrete.png", Color(0.6, 0.6, 0.58), "stone", Vector3(1.5, 1.5, 1.5))
-	_plinth_ring(r, sx + 0.2, sz + 0.2)
-	_box(r, "Floor", Vector3(sx, 0.12, sz), Vector3(0, 0.06, 0), concrete)
-	# The back and the two ends; the front open.
-	_box(r, "WallBack", Vector3(sx, h, 0.08), Vector3(0, h * 0.5 + 0.1, -sz * 0.5 + 0.04), boards)
-	for s: float in [-1.0, 1.0]:
-		_box(r, "WallEnd", Vector3(0.08, h, sz), Vector3(s * (sx * 0.5 - 0.04), h * 0.5 + 0.1, 0), boards)
-	for s: float in [-1.0, 1.0]:
-		_box(r, "Post", Vector3(0.12, h + 0.25, 0.12), Vector3(s * (sx * 0.5 - 0.06), (h + 0.25) * 0.5 + 0.1, sz * 0.5 - 0.06), _wood())
-	_lean_roof(r, sx + 0.5, sz + 0.6, h + 0.1, 0.6, tin)
-	_box(r, "Fascia", Vector3(sx + 0.3, 0.32, 0.06), Vector3(0, h + 0.3, sz * 0.5 + 0.02), boards)
-	_label(r, "SKLAD", Vector3(0, h + 0.3, sz * 0.5 + 0.06), 0.22, Color(0.14, 0.12, 0.1))
-	# The racks: steel uprights and three shelves each, along the back.
-	var runtime := Node3D.new()
-	runtime.name = "Warehouse"
-	runtime.set_script(load("res://scripts/business/warehouse.gd"))
-	var racks: Array = []
-	var n := 4
-	var span := sx - 0.5
-	for i in n:
-		var x := -span * 0.5 + span * (float(i) + 0.5) / float(n)
-		var at := Vector3(x, 0.12, -sz * 0.5 + 0.45)
-		racks.append(at)
-		for s: float in [-1.0, 1.0]:
-			for f: float in [-1.0, 1.0]:
-				_box(r, "RackPost", Vector3(0.06, 1.8, 0.06), at + Vector3(s * 0.5, 0.9, f * 0.2), steel)
-		for y: float in [0.32, 0.86, 1.4]:
-			_box(r, "RackShelf", Vector3(1.06, 0.05, 0.46), at + Vector3(0, y, 0), steel)
-	runtime.set("rack_at", racks)
-	r.add_child(runtime)
-	return {"size": Vector3(sx + 0.5, h + 0.6, sz + 0.6), "target": Vector3(0, 1.0, sz * 0.5 + 0.4)}
+	var oo: Vector3 = SERVICE_PLAN.outer(room)
+	_plinth_ring(r, oo.x + 0.1, oo.z + 0.1)
+	var o := _service_skin(r, "store", boards, concrete)
+	var sx := o.x
+	var sz := o.z
+	var h := o.y
+	var front := sz * 0.5
+	var y0: float = SERVICE_PLAN.FLOOR
+	var ds: Vector2 = SERVICE_PLAN.STORE_DOOR
+	_lean_roof(r, sx + 0.5, sz + 0.6, h, 0.5, tin)
+	# The door: a frame of boards round the doorway, the plank leaf with its strap hinges.
+	var jamb := 0.12
+	for side: float in [-1.0, 1.0]:
+		_box(r, "DoorSurround", Vector3(jamb, ds.y + jamb + 0.05, 0.06), Vector3(side * (ds.x + jamb) * 0.5, 0.1 + (ds.y + jamb + 0.05) * 0.5, front + 0.02), dark)
+	_box(r, "DoorSurround", Vector3(ds.x + jamb * 2.0, jamb, 0.06), Vector3(0, y0 + ds.y + jamb * 0.5, front + 0.02), dark)
+	var leaf := _box(r, "Door", Vector3(ds.x, ds.y, 0.05), Vector3(0, y0 + ds.y * 0.5, SERVICE_PLAN.leaf_z(room)), dark)
+	for y: float in [0.35, ds.y - 0.35]:
+		var strap := _box(r, "DoorStrap", Vector3(ds.x * 0.7, 0.05, 0.012), Vector3(-ds.x * 0.15, y - ds.y * 0.5, 0.03), _psx_mat(Color(0.22, 0.2, 0.18), "metal"))
+		strap.reparent(leaf, false)
+	_box(r, "Step", Vector3(ds.x + 0.5, 0.12, 0.45), Vector3(0, 0.06, front + 0.26), concrete)
+	# SKLAD painted on a board over the door.
+	_box(r, "SignBoard", Vector3(1.3, 0.34, 0.04), Vector3(0, y0 + ds.y + 0.42, front + 0.03), boards)
+	_label(r, "SKLAD", Vector3(0, y0 + ds.y + 0.42, front + 0.06), 0.22, Color(0.14, 0.12, 0.1))
+	return {"size": Vector3(sx + 0.5, h + 0.6, sz + 0.6), "target": Vector3(0, 1.1, front + 0.3)}
 
 
 func _use_script(r: Node3D, path: String) -> void:

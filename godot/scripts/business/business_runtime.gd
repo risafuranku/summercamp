@@ -83,7 +83,7 @@ func _process(delta: float) -> void:
 	if not Coop.sim_here():
 		return
 	CoreRoot.actions.biz_prune(sites.keys())
-	# The warehouses standing (scripts/business/warehouse.gd): a demolished one's racks go.
+	# The warehouses standing (their racks: scripts/business/store_room.gd): a demolished one's racks go.
 	CoreRoot.actions.biz_store_prune(_live_stores())
 	for key in sites:
 		CoreRoot.actions.biz_site(key, sites[key])

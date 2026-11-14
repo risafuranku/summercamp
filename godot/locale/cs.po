@@ -33795,3 +33795,6 @@ msgstr "%s naštípal(a) dříví."
 
 msgid "Sat at a cold fire. Not one log split."
 msgstr "Seděli jsme u studenýho ohně. Ani poleno naštípaný."
+
+msgid "Go into the warehouse"
+msgstr "Jít do skladu"

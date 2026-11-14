@@ -65,8 +65,6 @@ const INTERIOR_MODULE_STAND := "stand"
 const INTERIOR_MODULE_BOWLING := "bowling"
 ## The board by the gate: its name painted anew (main.open_camp_sign).
 const INTERIOR_MODULE_SIGN := "sign"
-## The warehouse: E at a rack gives it to the next place (scripts/business/warehouse.gd).
-const INTERIOR_MODULE_STORE := "store"
 const BOWLING_INTERIOR_SCRIPT = preload("res://scripts/bowling/bowling_interior.gd")
 const STAND_VIEW = preload("res://scripts/corn/stand_view.gd")
 var _corn_stand: CanvasLayer
@@ -93,7 +91,7 @@ const INTERIOR_ASSIGNMENTS := [
 	},
 	{
 		"module_id": INTERIOR_MODULE_SERVICE,
-		"building_types": ["restaurant", "pub", "toilet_block", "shower_block", "sewer", "power_generator", "vecerka", "staffroom"],
+		"building_types": ["restaurant", "pub", "toilet_block", "shower_block", "sewer", "power_generator", "vecerka", "staffroom", "warehouse"],
 		"hint": "Enter",
 		"hints": {
 			"restaurant": "Enter bistro",
@@ -104,6 +102,7 @@ const INTERIOR_ASSIGNMENTS := [
 			"sewer": "Open sewer hatch",
 			"power_generator": "Enter generator shed",
 			"staffroom": "Go into the staffroom",
+			"warehouse": "Go into the warehouse",
 		},
 	},
 	{
@@ -120,11 +119,6 @@ const INTERIOR_ASSIGNMENTS := [
 		"module_id": INTERIOR_MODULE_SIGN,
 		"building_types": ["camp_sign"],
 		"hint": "Paint a new name",
-	},
-	{
-		"module_id": INTERIOR_MODULE_STORE,
-		"building_types": ["warehouse"],
-		"hint": "Give the rack to a place",
 	},
 ]
 
@@ -638,10 +632,6 @@ func handle_structure_interact(structure: Node3D) -> void:
 			var main_n := get_tree().current_scene
 			if main_n != null and main_n.has_method("open_camp_sign"):
 				main_n.call("open_camp_sign")
-		INTERIOR_MODULE_STORE:
-			var wh := structure.get_node_or_null("Warehouse")
-			if wh != null and _player != null:
-				wh.call("next_place", (_player as Node3D).global_position)
 		_:
 			return
 

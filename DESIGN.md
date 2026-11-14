@@ -1809,6 +1809,22 @@ One program in the place of SoftSklad's five (`scripts/os98/apps/boss_app.gd`, Å
 - **The staffroom**: what the hands did today, the lockers and the armchair.
 - **One licence** ($180, `biz.licences` "boss"), bought in the program or on softsklad.cz. A licence or an install of the five old programs counts, so an old save has it.
 
+### The warehouse
+
+Playtest 14. 11.: "every place has its own stock you order to, the corn stand only ever one
+box; a warehouse of racks, each rack picks which place it stocks, and filled you see the
+goods there" and then: "SKLAD an indoor building like the staffroom, the inside like the
+whole game, the vibe of the reception's store room or the staffroom's boiler room".
+
+- A shed of grey boards (Washrooms & staff, 2 x 2), a plank door in a frame, SKLAD painted
+  over it. You walk in like into the toilets or the generator shed: a plank-walled store
+  room under one bare bulb, four steel racks (three along the back, one by the left wall)
+  and the junk of years by the right one: crates, boxes, a chair, a bucket, the coats.
+- A click on a rack gives it to the next of the camp's places (then none); its chalked
+  board says which. Each rack holds three more packs of every good of its place, kept
+  full by the orders; what is over the place's own shelf stands on its racks as boxes
+  with the good's name on them.
+
 ## 7c. The staffroom and the camp's own staff
 
 The user, 21. 10.: "a fifth tab in SoftSklad where you hire staff who clean; a staffroom

@@ -10,6 +10,7 @@ const INTERIOR_TORCH = preload("res://scripts/ui/interior_torch.gd")
 var _torch: Node
 const INTERIOR_PREP = preload("res://scripts/interior_prep.gd")
 const GENERATOR_SHED = preload("res://scripts/shed/generator_shed.gd")
+const STORE_ROOM = preload("res://scripts/business/store_room.gd")
 ## The staffroom's two rooms (scripts/staff/staffroom.gd), its laptop and its books.
 const STAFFROOM = preload("res://scripts/staff/staffroom.gd")
 const STAFF_PLAN = preload("res://scripts/staff/staffroom_plan.gd")
@@ -178,6 +179,8 @@ var _look = INTERIOR_LOOK.new(180.0, 28.0, 38.0)
 var _side_hints: Control
 ## The generator shed's two rooms, the junk and the board (scripts/shed/generator_shed.gd).
 var _shed
+## The warehouse's store room, its racks (scripts/business/store_room.gd).
+var _store_room
 var _exit_hint: Control
 var _texture_style
 var _restaurant_dining_root: Node3D
@@ -229,7 +232,7 @@ static var _upkeep_cache: Dictionary = {}   # key -> {tasks, done, broken}
 ## switch from one to another, 100-350 ms at the door, the bistro's first up to a second).
 ## interior_manager keeps one of these rooms a kind (`_service_room`), built behind the
 ## loading bar, and goes into the one the building is.
-const KINDS := ["rest", "pub", "vecerka", "staff", "toilet", "wash", "generator", "sewer"]
+const KINDS := ["rest", "pub", "vecerka", "staff", "toilet", "wash", "generator", "sewer", "store"]
 ## This room's kind, given before it is in the tree: its room is built then, once.
 var kind := "rest"
 
@@ -253,6 +256,8 @@ static func profile_for(service_type: String) -> String:
 			return "generator"
 		"staffroom":
 			return "staff"
+		"warehouse":
+			return "store"
 	return "rest"
 
 
@@ -353,7 +358,7 @@ func door_spec(structure: Node3D) -> Dictionary:
 		return {}
 	var out := Vector3(0, 0, 1)
 	match _current_profile:
-		"toilet", "wash", "generator":
+		"toilet", "wash", "generator", "store":
 			var room: Vector3 = SERVICE_PLAN.inside(_current_profile)
 			var doors: Array = SERVICE_PLAN.doors(_current_profile)
 			var dr: Array = doors[1] if _current_profile == "toilet" and toilet_entry == "right" else doors[0]
@@ -413,7 +418,7 @@ func _at_front_door() -> bool:
 			return _staff_room != null and str(_staff_room.get("room")) == "lounge"
 		"generator":
 			return _shed != null and str(_shed.get("room")) == "set"
-		"toilet":
+		"toilet", "store":
 			return true
 		"wash":
 			return _active_subroom == "center"
@@ -447,6 +452,8 @@ func open_service(service_type: String) -> void:
 		_shed.on_open(_time_state == TIME_NIGHT, _nights_visited())
 	if _current_profile == "staff" and _staff_room != null:
 		_staff_room.on_open()
+	if _current_profile == "store" and _store_room != null:
+		_store_room.on_open(_anchor_key())
 	_cam_base_rot = _interior_camera.rotation
 	_look.reset()
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
@@ -479,6 +486,9 @@ func _make_up(service_type: String) -> void:
 			_set_hygiene_room(toilet_entry)
 		elif _current_profile == "wash" and not _is_open:
 			_set_hygiene_room("center")
+		elif _current_profile == "store" and not _is_open and _store_room != null:
+			# In by the door again, looking at the racks.
+			_store_room.stand(_interior_camera)
 		_apply_time_profile()
 
 
@@ -538,6 +548,8 @@ func _process(delta: float) -> void:
 			_stop_life()
 		return
 	_bind_one_world()
+	if _current_profile == "store" and _store_room != null:
+		_store_room.tick(delta)
 	# The lamps lit since (the stations', the night's) the room's own too, once a second.
 	_one_lights_t -= delta
 	if _one_lights_t <= 0.0:
@@ -603,6 +615,8 @@ func _process(delta: float) -> void:
 		return
 	if _current_profile == "generator" and _shed != null:
 		_shed.update_hover(get_viewport().get_mouse_position())
+	elif _current_profile == "store" and _store_room != null and not INTERIOR_LOOK.in_exit_zone(get_viewport()) 			and _store_room.update_hover(get_viewport().get_mouse_position()) >= 0:
+		_hover_things(null)
 	elif _current_profile == "staff" and _staff_room != null and not INTERIOR_LOOK.in_exit_zone(get_viewport()) \
 			and _staff_room.update_hover(get_viewport().get_mouse_position()) != "":
 		_hover_things(null)
@@ -734,6 +748,8 @@ func _try_click_world(event: InputEventMouseButton) -> bool:
 	if collider == null:
 		return false
 	if _current_profile == "generator" and _shed != null and _shed.click():
+		return true
+	if _current_profile == "store" and _store_room != null and _store_room.click():
 		return true
 	if _current_profile == "staff" and _staff_room != null and _staff_room.click():
 		return true
@@ -1095,7 +1111,7 @@ func _build_service_light_switch(profile: String) -> void:
 	var switch_pos = Vector3(2.74, 1.22, 1.78)
 	if profile == "pub" or profile == "rest":
 		switch_pos = Vector3(2.70, 1.26, 2.04)
-	elif profile in ["wash", "toilet", "generator"]:
+	elif profile in ["wash", "toilet", "generator", "store"]:
 		switch_pos = _switch_by_door(profile, toilet_entry)
 	elif profile == "staff":
 		switch_pos = Vector3(STAFF_PLAN.DOOR_X - 0.68, STAFF_PLAN.FLOOR + 1.25, STAFF_PLAN.L_MAX.y - 0.04)
@@ -1403,6 +1419,14 @@ func _build_service_room(profile: String) -> void:
 		bl.shadow_enabled = true
 		bl.position = Vector3(2.5, STAFF_PLAN.FLOOR + STAFF_PLAN.B_H - 0.45, 0.0)
 		_room_root.add_child(bl)
+	elif profile == "store":
+		# The store room: racks, the junk, the bare bulb (scripts/business/store_room.gd); the
+		# room's light hangs at the bulb, warm and weak.
+		_store_room = STORE_ROOM.new()
+		_store_room.build(self, _room_root)
+		_main_light.position = _store_room.bulb_at()
+		_main_light.light_color = Color(1.0, 0.85, 0.6)
+		_store_room.stand(_interior_camera)
 	elif profile == "generator":
 		_build_generator_layout()
 		_active_subroom = "set"
@@ -1460,7 +1484,7 @@ func _one_plan() -> Dictionary:
 		"staff":
 			# Both its rooms where the building has them, their walls open already.
 			return {"lo": Vector3(STAFF_PLAN.L_MIN.x, STAFF_PLAN.FLOOR, STAFF_PLAN.L_MIN.y), "hi": Vector3(STAFF_PLAN.B_MAX.x, STAFF_PLAN.FLOOR + STAFF_PLAN.L_H + 0.15, STAFF_PLAN.L_MAX.y)}
-		"toilet", "wash":
+		"toilet", "wash", "store":
 			return {"size": SERVICE_PLAN.inside(_current_profile), "doors": SERVICE_PLAN.doors(_current_profile), "windows": [], "root": _room_root}
 		"generator":
 			return {"size": SERVICE_PLAN.SHED, "doors": SERVICE_PLAN.doors("generator"), "windows": [], "root": _shed.set_root if _shed != null else null}
@@ -4035,6 +4059,13 @@ func _camp_weather() -> int:
 
 
 ## The building outside (InteriorManager's open structure).
+## The building you are in on the plan ("x:y" of its origin), "" none.
+func _anchor_key() -> String:
+	var a := _service_anchor()
+	var o = a.get_meta("grid_origin", null) if a != null else null
+	return "%d:%d" % [o.x, o.y] if o is Vector2i else ""
+
+
 func _service_anchor() -> Node3D:
 	var im := get_parent()
 	var n = im.get("_active_service_node") if im != null else null

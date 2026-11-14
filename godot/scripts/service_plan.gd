@@ -1,7 +1,7 @@
 extends RefCounted
 
-## One plan for the three small service buildings: the toilet block, the shower house and the
-## generator shed (W26, one world). The building outside (building_models: _toilets,
+## One plan for the small service buildings: the toilet block, the shower house, the generator
+## shed and the warehouse (W26, one world). The building outside (building_models: _toilets,
 ## _showers, _substation) is a skin round its room; the room inside (service_interior.gd,
 ## shed/generator_shed.gd) stands in it in the camp's own world, its doorways the building's
 ## own, the leaves the building's own leaves.
@@ -32,8 +32,13 @@ const SHOWER_DOOR := Vector2(0.9, 2.0)
 const SHED := Vector3(3.6, 2.8, 3.4)
 const SHED_DOOR := Vector2(1.22, 1.9)
 
+## The warehouse's store room (scripts/business/store_room.gd): racks along the back and the
+## left wall, its plank door in the middle of the front (playtest 14. 11.: an indoor building).
+const STORE := Vector3(5.2, 2.7, 4.0)
+const STORE_DOOR := Vector2(1.0, 1.95)
 
-## The room's inside size for a service profile ("toilet", "wash", "generator").
+
+## The room's inside size for a service profile ("toilet", "wash", "generator", "store").
 static func inside(kind: String) -> Vector3:
 	match kind:
 		"toilet":
@@ -42,6 +47,8 @@ static func inside(kind: String) -> Vector3:
 			return SHOWER
 		"generator":
 			return SHED
+		"store":
+			return STORE
 	return Vector3.ZERO
 
 
@@ -54,6 +61,8 @@ static func doors(kind: String) -> Array:
 			return [[0.0, SHOWER_DOOR]]
 		"generator":
 			return [[0.0, SHED_DOOR]]
+		"store":
+			return [[0.0, STORE_DOOR]]
 	return []
 
 
