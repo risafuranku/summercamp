@@ -396,6 +396,9 @@ static func packs_to_fill(kind: String, good: String, site: Dictionary, coming: 
 	var pack := maxi(1, int(d.get("pack", 1)))
 	var have := int((site.get("stock", {}) as Dictionary).get(good, 0)) + coming
 	var want := maxi(pack, int(ceil(use_per_day(site, good) * COVER_DAYS)))
+	# Racks of its own in the warehouse: kept full, that is what they are for.
+	if store_racks(site) > 0:
+		want = cap_of(kind, good, site)
 	var room := (cap_of(kind, good, site) - have) / pack
 	return clampi(int(ceil(float(want - have) / float(pack))), 0, maxi(0, room))
 
@@ -538,12 +541,34 @@ static func gear_needs(kind: String, id: String) -> String:
 	return str((gear_list(kind).get(id, {}) as Dictionary).get("needs", ""))
 
 
-## Shelf space with the gear in (the Jednota's extra shelves).
+## The camp's warehouse (playtest 14. 11.: "every place has its own stock, the corn stand only
+## ever one box; a warehouse of racks, each given to a place, its goods seen there"): its racks
+## (STORE_RACKS a building) each hold RACK_PACKS more packs of every good of the place it is
+## given to (the place's "store_racks", actions.biz_set_rack).
+const STORE_RACKS := 4
+const RACK_PACKS := 3
+
+
+## Shelf space with the gear in (the Jednota's extra shelves) and the warehouse's racks given
+## to the place.
 static func cap_of(kind: String, good: String, site: Dictionary) -> int:
-	var cap := int((goods(kind).get(good, {}) as Dictionary).get("cap", 0))
+	var d: Dictionary = goods(kind).get(good, {})
+	var cap := int(d.get("cap", 0))
 	if kind == "vecerka" and has_gear(site, "racks"):
 		cap = int(cap * 1.34)
+	cap += store_racks(site) * RACK_PACKS * maxi(1, int(d.get("pack", 1)))
 	return cap
+
+
+## The place's shelf alone (cap_of less the warehouse's racks): what stands at the place; more
+## than this waits on its racks in the warehouse.
+static func own_cap(kind: String, good: String, site: Dictionary) -> int:
+	var d: Dictionary = goods(kind).get(good, {})
+	return cap_of(kind, good, site) - store_racks(site) * RACK_PACKS * maxi(1, int(d.get("pack", 1)))
+
+
+static func store_racks(site: Dictionary) -> int:
+	return int(site.get("store_racks", 0))
 
 
 # ── the hands ────────────────────────────────────────────────────────────────

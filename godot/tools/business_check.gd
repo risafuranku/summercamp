@@ -187,6 +187,23 @@ func _ready() -> void:
 	ms["stock"]["beer"] = RULES.cap_of("pub", "beer", ms)
 	_expect(not RULES.fill_order("pub", ms, {}).has("beer"), "a full shelf is left alone")
 
+	# The warehouse (P6, 14. 11.): a rack given to the corn stand holds three more boxes of each
+	# of its goods; "fill up" fills them; the warehouse gone, the stand's shelf as it was.
+	CoreRoot.get_state().grid.occupy_cell(Vector2i(20, 20), "corn_stand", "corn_20_20", Vector2i(20, 20))
+	var corn: Dictionary = a.biz_site("20:20", "corn_stand")
+	var base_cap := RULES.cap_of("corn", "cobs", corn)
+	a.biz_set_rack("30:30", 0, "20:20")
+	var pack := int(RULES.goods("corn")["cobs"]["pack"])
+	_expect(int(corn.get("store_racks", 0)) == 1, "a rack given to the stand is counted on its books")
+	_expect(RULES.cap_of("corn", "cobs", corn) == base_cap + RULES.RACK_PACKS * pack, "a rack holds three more boxes of cobs")
+	_expect(RULES.own_cap("corn", "cobs", corn) == base_cap, "the stand's own shelf stays its size")
+	corn["stock"]["cobs"] = base_cap
+	_expect(int(RULES.fill_order("corn", corn, {}).get("cobs", 0)) == RULES.RACK_PACKS, "fill up fills the rack too")
+	a.biz_set_rack("30:30", 1, "20:20")
+	_expect(int(corn.get("store_racks", 0)) == 2 and a.biz_store_racks("30:30")[1] == "20:20", "two racks for one place")
+	a.biz_store_prune([])
+	_expect(int(corn.get("store_racks", 0)) == 0 and RULES.cap_of("corn", "cobs", corn) == base_cap, "the warehouse gone, the racks go")
+
 	print("")
 	if _failures.is_empty():
 		print("BUSINESS CHECK: PASS")

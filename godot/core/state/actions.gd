@@ -271,11 +271,66 @@ func _biz_upgrade(site: Dictionary) -> void:
 
 
 ## Sites whose building is gone go with it (their orders too, refunded).
+## The warehouses' racks (biz["stores"]: the building's key -> {"racks": [a place's key or ""]}):
+## rack `i` of `store` given to the place `site_key` ("" to none). Every place's racks counted
+## again ("store_racks": business_rules.cap_of).
+func biz_set_rack(store: String, i: int, site_key: String) -> void:
+	var b := _biz()
+	var stores: Dictionary = b.get("stores", {})
+	var st: Dictionary = stores.get(store, {})
+	var racks: Array = st.get("racks", [])
+	while racks.size() < BIZ_RULES.STORE_RACKS:
+		racks.append("")
+	if i < 0 or i >= racks.size():
+		return
+	racks[i] = site_key
+	st["racks"] = racks
+	stores[store] = st
+	b["stores"] = stores
+	_count_store_racks()
+	EventBus.state_changed.emit({"biz": "racks"})
+
+
+## The warehouses standing now (their keys): the others' racks go.
+func biz_store_prune(live: Array) -> void:
+	var b := _biz()
+	var stores: Dictionary = b.get("stores", {})
+	var gone := false
+	for k in stores.keys():
+		if not live.has(k):
+			stores.erase(k)
+			gone = true
+	b["stores"] = stores
+	if gone:
+		_count_store_racks()
+
+
+## The racks of a warehouse ([a place's key or ""], STORE_RACKS of them).
+func biz_store_racks(store: String) -> Array:
+	var st: Dictionary = (_biz().get("stores", {}) as Dictionary).get(store, {})
+	var racks: Array = (st.get("racks", []) as Array).duplicate()
+	while racks.size() < BIZ_RULES.STORE_RACKS:
+		racks.append("")
+	return racks
+
+
+func _count_store_racks() -> void:
+	var b := _biz()
+	var sites: Dictionary = b["sites"]
+	for k in sites:
+		(sites[k] as Dictionary)["store_racks"] = 0
+	for s in (b.get("stores", {}) as Dictionary).values():
+		for k in (s as Dictionary).get("racks", []):
+			if sites.has(str(k)):
+				sites[str(k)]["store_racks"] = int(sites[str(k)].get("store_racks", 0)) + 1
+
+
 func biz_prune(live_keys: Array) -> void:
 	var b := _biz()
 	for key in (b["sites"] as Dictionary).keys():
 		if not live_keys.has(key):
 			b["sites"].erase(key)
+	_count_store_racks()
 	var keep: Array = []
 	for o in b["orders"]:
 		if live_keys.has(str(o.get("key", ""))):
