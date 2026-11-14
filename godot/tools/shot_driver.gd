@@ -717,6 +717,28 @@ const SCENARIOS := {
 		["eval", "_interior_manager._building_interior._extras.sleep._enter(6)"], ["wait", 0.7], ["shot", "b17_waking"], ["wait", 2.0], ["shot", "b18_awake"],
 		["eval", "[_time_of_day_string(), _day_index]"],
 	],
+	# The back room in the dark, the door to the lit office shut then open (playtest 13. 11.:
+	# the office's light lay on the wall through the shut door), then the walk back.
+	"backdark": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 2.0],
+		["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 1.0],
+		["eval", "debug_jump_to(1, 23.0)"], ["wait", 1.5],
+		["eval", "_interior_manager._building_interior._extras.go_back_room()"], ["wait", 2.6],
+		["eval", "_interior_manager._building_interior._extras.set('back_base_rot', Vector3(-0.08, 1.32, 0.0))"], ["wait", 0.8], ["shot", "bdc0_clock"],
+		["eval", "_interior_manager._building_interior._interior_camera.set('position', Vector3(-4.6, 1.6, 0.75))"], ["eval", "_interior_manager._building_interior._extras.set('back_base_rot', Vector3(-0.1, 1.5708, 0.0))"], ["wait", 0.8], ["shot", "bdc1_clock_close"],
+		["eval", "_interior_manager._building_interior._interior_camera.set('position', Vector3(-3.15, 1.48, 1.32))"],
+		["eval", "_interior_manager._building_interior._extras.back.set_lamp(false)"], ["eval", "_interior_manager._building_interior._extras.back._set_tv(false, false)"],
+		["eval", "_interior_manager._building_interior._extras._swing_back_door(false)"], ["wait", 1.0],
+		# Back from the door into the room a step, facing the door and the wall beside it.
+		["eval", "_interior_manager._building_interior._interior_camera.set('position', Vector3(-4.2, 1.48, 0.6))"],
+		["eval", "_interior_manager._building_interior._extras.set('back_base_rot', Vector3(-0.12, -1.05, 0.0))"],
+		["eval", "_interior_manager._building_interior._extras.look_back.set('yaw_deg', 0.0)"], ["wait", 0.8], ["shot", "bd0_shut"],
+		["eval", "_interior_manager._building_interior._extras.look_back.set('pitch_deg', -22.0)"], ["wait", 0.6], ["shot", "bd1_shut_floor"],
+		["eval", "_interior_manager._building_interior._extras.look_back.set('pitch_deg', 0.0)"],
+		["eval", "_interior_manager._building_interior._extras._swing_back_door(true)"], ["wait", 1.0], ["shot", "bd3_open"],
+		["eval", "_interior_manager._building_interior._extras.look_back.set('yaw_deg', 70.0)"], ["wait", 0.6], ["shot", "bd4_room_open"],
+		["eval", "_interior_manager._building_interior._extras.go_office()"], ["wait", 0.6], ["shot", "bd5_back_0"], ["wait", 0.9], ["shot", "bd6_back_1"], ["wait", 0.9], ["shot", "bd7_back_2"], ["wait", 1.4], ["shot", "bd8_office"],
+	],
 	"shed": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.6],
 		["eval", "debug_jump_to(2, 22.0)"], ["wait", 1.0],

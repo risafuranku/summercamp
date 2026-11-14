@@ -124,8 +124,7 @@ func reopen(args: Dictionary) -> void:
 
 
 func closing() -> void:
-	# Hang up when the browser closes: the call costs money by the minute.
-	_shell.set_online(false)
+	# (The line stays up: it was dialled once as the machine started, os_shell._enter_desktop.)
 	_shell.pointer_hand = false
 	if _loading > 0.0 or _dial_t >= 0.0:
 		_shell.set_busy(false)

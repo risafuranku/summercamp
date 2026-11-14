@@ -50,6 +50,9 @@ var night_begun: Callable
 var woke_early: Callable
 ## Co-op: your eyes open again in bed (the other got up before the night began).
 var eyes_opened: Callable
+## The door out shut as the eyes begin to close (playtest 13. 11.: shut in the morning, it
+## was open as you fell asleep; the shutting is heard).
+var door_shut: Callable
 ## Awake and kept awake: the next thing on your mind ("" for nothing) and how it is said. You turn
 ## over with it: the bed will not have you, the game has not stopped.
 var awake_line: Callable
@@ -167,6 +170,9 @@ func _enter(p: int) -> void:
 	_phase = p
 	_t = 0.0
 	match p:
+		LIDS:
+			if door_shut.is_valid():
+				door_shut.call()
 		WATCH:
 			if lamp.is_valid():
 				lamp.call(false)

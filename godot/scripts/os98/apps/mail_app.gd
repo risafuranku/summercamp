@@ -838,7 +838,7 @@ func _send() -> void:
 	var time := str(m.call("_time_of_day_string")) if m != null and m.has_method("_time_of_day_string") else "--:--"
 	EmailManager.send_mail(_c_to.text.strip_edges(), _c_subject.text.strip_edges(), _c_body.text, day, time)
 	_compose.visible = false
-	_shell.play("modem", -14.0)
+	_shell.play("hdd", -14.0)
 	_status.text = "Message sent."
 	_refresh_folders()
 

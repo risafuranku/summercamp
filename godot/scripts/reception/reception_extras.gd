@@ -389,7 +389,8 @@ func _build_doorway() -> void:
 		_door_pivot.add_child(part)
 		part.position = p - DOOR_HINGE
 		meshes.append(part)
-	meshes.append_array(_door_faces(_door_pivot, Vector3(-2.43, 1.05, 1.28) - DOOR_HINGE, Vector2(0.98, 2.02), 0.032, 90.0))
+	var faces := _door_faces(_door_pivot, Vector3(-2.43, 1.05, 1.28) - DOOR_HINGE, Vector2(0.98, 2.02), 0.032, 90.0)
+	meshes.append_array(faces)
 	_hot_body("door", _door_pivot, Vector3(0.0, 1.05, -0.49), Vector3(0.12, 2.04, 0.98), meshes)
 	# The open doorway, seen from the back room: the way back to the office (the leaf
 	# has swung out of it).
@@ -399,6 +400,24 @@ func _build_doorway() -> void:
 		if j != null:
 			jambs.append(j)
 	_hot_body("doorway", room_root, Vector3(-2.55, 1.05, 1.28), Vector3(0.3, 2.04, 0.96), jambs)
+	# The leaf and its frame lit from both rooms (the back room's lamps light only its own
+	# layer: back_room._own_light); the leaf's face to the back room is the back room's
+	# alone (the office's light and its probe's ambient lit it in the dark room).
+	for m in meshes + jambs:
+		for g in ([m] + (m as Node).find_children("*", "GeometryInstance3D", true, false)):
+			if not (g is GeometryInstance3D):
+				continue
+			if faces.has(g) and (g as Node3D).position.x < 0.0:
+				(g as GeometryInstance3D).layers = BACK_ROOM.OWN_LAYER
+				# Nor the office's ambient (its probe reaches the leaf): lit as the room's walls.
+				var fm := ((g as MeshInstance3D).material_override as StandardMaterial3D).duplicate() as StandardMaterial3D
+				fm.disable_ambient_light = true
+				(g as MeshInstance3D).material_override = fm
+			else:
+				(g as GeometryInstance3D).layers |= BACK_ROOM.OWN_LAYER
+	var probe = host.get("_room_probe")
+	if probe is ReflectionProbe and "reflection_mask" in probe:
+		(probe as ReflectionProbe).reflection_mask = 0xFFFFF & ~BACK_ROOM.OWN_LAYER
 
 
 ## The door in the back wall to the store: the wall opened round it, a frame, the leaf
@@ -577,6 +596,7 @@ func _note_walk(to: String, seconds: float) -> void:
 ## Returns true when this owns the camera this frame (walking, sleeping, the back room).
 func process(delta: float, hour: float) -> bool:
 	back.update(delta, hour, bool(host.get("_grid_power_available")))
+	_light_back_room(delta)
 	store.update(delta, float(host.get("_daylight_factor")), bool(host.get("_grid_power_available")))
 	var moved := false
 	if office_curtain != null and office_curtain.update(delta):
@@ -615,6 +635,30 @@ func process(delta: float, hour: float) -> bool:
 			HandCursor.want(HandCursor.WALK)
 		return true
 	return false
+
+
+## The office's light into the back room (back_room.OWN_LAYER) only through the open door:
+## its ceiling light (with its shadows) reaches in while the door stands open; the window's,
+## the desk lamp's and the screen's glow never. Shut, the strip under it.
+var _office_lights: Array = []
+var _office_lights_t := 0.0
+
+
+func _light_back_room(delta: float) -> void:
+	var open := back_door_open()
+	var lit := bool(host.get("_office_lights_on")) and bool(host.get("_grid_power_available"))
+	var mask := 0xFFFFF & ~BACK_ROOM.OWN_LAYER
+	# Every light of the building's but the back room's own (the office's lamps, the screen,
+	# the porch bulb, the store's): looked for again now and then (some come later).
+	_office_lights_t -= delta
+	if _office_lights_t <= 0.0 or _office_lights.is_empty():
+		_office_lights_t = 1.0
+		_office_lights = room_root.find_children("*", "Light3D", true, false).filter(func(l) -> bool: return not back.root.is_ancestor_of(l))
+	var ceiling = host.get("_ceiling_light")
+	for l in _office_lights:
+		if is_instance_valid(l):
+			(l as Light3D).light_cull_mask = mask | (BACK_ROOM.OWN_LAYER if open and l == ceiling else 0)
+	back.set_under_door(lit and not open)
 
 
 ## While you are not in the office and it is seen from the camp (building_interior
@@ -1069,7 +1113,9 @@ func go_office() -> void:
 		pivot = _store_pivot
 		store.set_bulb(false)
 	keys.append({"pos": to_pos, "rot": to_rot})
-	var dur := BENCH_WALK_SEC if where == "bench" else (SIDE_WALK_SEC if where == "side" else 1.9)
+	# From the back room: round to the door, through it, across the office at a walk (1.9 s
+	# was "crazy fast and flustered": playtest 13. 11.).
+	var dur := BENCH_WALK_SEC if where == "bench" else (SIDE_WALK_SEC if where == "side" else (BACK_RETURN_SEC if where == "back" else 1.9))
 	_note_walk("office", dur)
 	_walk = WALK_PATH.play(host, camera, keys, dur)
 	if opens_first:
@@ -1086,6 +1132,7 @@ func go_office() -> void:
 
 
 var _door_swing: Tween
+const BACK_RETURN_SEC := 3.4
 
 
 func back_door_open() -> bool:
@@ -1183,6 +1230,9 @@ func _try_sleep() -> void:
 	sleep.night_begun = func(): return bool(_office_call("night_begun", [], true))
 	sleep.woke_early = func(): _office_call("get_up", [], null)
 	sleep.eyes_opened = func(): _office_call("eyes_opened", [], null)
+	sleep.door_shut = func():
+		if back_door_open():
+			_swing_back_door(false)
 	_office_call("lie_down", [], null)
 	glint.clear()
 	sleep.start()
@@ -1195,6 +1245,9 @@ var _lamp_before_sleep := true
 func _on_woke() -> void:
 	# Up again, the lamp as you had it before (it came on every morning: playtest 25. 10.).
 	back.set_lamp(_lamp_before_sleep)
+	# The grandfather clock strikes the morning's hour as you get up.
+	if back.grandfather != null and host.has_method("_hour_now"):
+		back.grandfather.strike(int(host.call("_hour_now")))
 	look_back.reset()
 	# The head stays turned the way you got up (to the door), not back to the bed.
 	look_back.yaw_deg = rad_to_deg(wrapf(camera.rotation.y - back_base_rot.y, -PI, PI))

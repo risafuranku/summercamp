@@ -4,6 +4,33 @@
 
 ---
 
+## PLAYTEST 2026-11-13/14 — Richard's notes (his words, then the note in brackets; tick with the commit)
+
+- [ ] P1 „hosti se v recepci spawnou až když do ní vejdu, přes okno jsou neviditelní“ (the guests waiting at the desk drawn only from inside: they must stand there, seen through the window too)
+- [x] P2 „ikonka másla na objednávacim lístku vypadá jako druhá kukuřice“ (the BUTTER check on the cob's paper is cob_buttered: a butter picture, tk_butter)
+- [ ] P3 „animace vlézání do stanu a vylézání ze stanu je hrozně stiff“ (the walk into and out of the tent: a crouch, a sway, eased)
+- [x] P4 „při usínání v recepci a zavírání očí zavři dveře, ať to navazuje na ranní zavřené“ (going to sleep in the reception: its door shut as the eyes close)
+- [ ] P5 „tak štípání polen tam je, ale chtěl jsem to interaktivní, jako obsluhování“ (splitting logs at the campfire as a station-like minigame: a log on the block, aim, swing, the halves fly, a stack for the fire)
+- [ ] P6 „ve hře stále chybí sklad“ (a storeroom: look up what was asked before, then build it)
+- [x] P7 „když má závoz přijet zítra, na progress baru napiš ZÍTRA/TOMORROW, a spusť ho až v ten den“ (the van's plate: TOMORROW while it is tomorrow, the bar runs on its day only)
+- [ ] P8 „když jdu z recepce a držím W, ať rovnou pokračuju v chůzi a nezastavuju“ (out of the reception's door with W held: walking on)
+- [ ] P9 „sprchám clippuje vnější spodní pruh“ (the shower house: its outer bottom band z-fights)
+- [ ] P10 „recepci clippuje uvnitř rámu dveří“ (the reception's door frame inside: z-fighting)
+- [x] P11 „odstranit vypínač co je u dveří, nechat na recepci jen ten vlevo u okna“
+- [ ] P12 „absolutně polishnout ingame internet. reálnej web 1.0, každá stránka jiná, víc interaktivity, víc následků v reálném světě z klikání, eerie uncanny morbidní, občas nightmare fuel. messenger, kde si fakt můžeš s někym psát pár dní, a pak zmizí… polishnout ty hry co tam jsou a vydělávání peněz na počítači“
+- [ ] P13 „polishnout a propracovat drhnutí záchodové mísy“ (the scrub close-up)
+- [ ] P14 „silent guy… projdu jim, nic se nestane. zblízka musí na hráče absolutně vystartovat, ale aby měl hráč šanci uskočit. dá vystartování a zmizí tím svým efektem“
+- [x] P15 „rádio udělej trošičku muffled když jsem v pokojíčku a zavřu dveře“
+- [x] P16 „přidej do pokojíčku velký grandfather clock tikající, co dělá zvuk zvonu když je ráno“
+- [x] P17 „ve tmě v pokojíčku prosvítá skrz zavřené dveře na zeď světlo. mělo by prosvítat jenom lehce pod nimi“
+- [x] P18 „návrat na recepci z pokojíčku je šíííííleně rychlej a splašenej“
+- [ ] P19 „když stojím u okna a chci si posvítit baterkou ven, většina světla se rozplácne a ztratí o okno/sklo“
+- [ ] P20 „baterka uvnitř recepce rozsvěcí ještě jiné světlo… měly by být sjednocené. nech hráče svítit baterkou KDYKOLIV i přes den, automaticky ji nikdy nevypínej nezapínej. přes den nečerpáme baterku, jen přes noc. v UI přes den znázorni, že je neomezená, a po skončení noci hezká animace transformace na denní baterku“
+- [ ] P21 „silent guy mi furt chodí pod lampy. neměl by se jim naopak snažit vyhnout?“
+- [ ] P22 „dost se mi opakujou skladby za sebou… v rádiu“ (no song again soon, its caretaker version counts as the same song)
+- [ ] P23 „v noci má být zpřístupněný builder, jen nemá jít stavět a editovat, ale koukat na kemp jo“
+- [x] P24 „připojování k modemu jen jednou při startu PC“
+
 ## DAY POLISH 2026-11-12 — „Potřebujeme totálně zpříjemnit polishnout denní gameplay, správu kempu, menší eventy a úkoly, minihry, až po postupnou automatizaci přes zaměstnance. noc necháme na jindy zatím“
 
 - [x] The belt pager for what happens away from you, the feed for what is round you (09d6b6d1); slim, off the status bar's edge in the bottom left (1e86a6b6: „pager i nová UI tabule zabírá hrozně moc výhledu“)

@@ -440,6 +440,7 @@ func _coop_take_power(pw: int) -> void:
 ## playtest 25. 10.: "the save does not remember the PC switched on").
 func _resume_desktop() -> void:
 	_state = Boot.DESKTOP
+	_online = true
 	_blacked_out = false
 	_apply_state()
 	_refresh_badges()
@@ -1686,6 +1687,13 @@ func _enter_desktop() -> void:
 	_refresh_tray()
 	play("hdd_long", -14.0)
 	play("startup", -14.0)
+	# The dial-up connects once as Okna comes up and stays on till the machine goes off
+	# (playtest 13. 11.: it dialled again every time the browser opened).
+	_online = true
+	_refresh_tray()
+	get_tree().create_timer(2.4).timeout.connect(func() -> void:
+		if _state == Boot.DESKTOP:
+			play("modem", -16.0))
 	# CampMail is in the startup group (OKNA.INI: run=CAMPMAIL.EXE): with unread mail the
 	# panel opens on it, else where you left it.
 	var first := _last_tab

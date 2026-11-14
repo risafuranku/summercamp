@@ -2921,13 +2921,11 @@ func _pick_office_texture(category: String, base_color: Color) -> Texture2D:
 	return _texture_style.pick_texture(category, base_color)
 
 
-## By the front door as you come in (between the window and the door), not by the PC; and
-## a second one over the bench's end, the other side of the window, on the same light: from
-## the bench the one by the door is behind the curtain (the user 5. 11.).
+## Over the bench's end, left of the window (the user 5. 11.); the one by the front door is
+## gone (playtest 13. 11.: "leave only the one left of the window").
 func _create_office_light_switch() -> void:
 	if _room_root == null:
 		return
-	_add_office_switch("OfficeLightSwitch", Vector3(0.93, 1.22, -2.46))
 	_office_light_switch_bench = _add_office_switch("OfficeLightSwitchBench", Vector3(-1.82, 1.22, -2.46)).get_node("SwitchVisual") as MeshInstance3D
 
 
@@ -4033,6 +4031,21 @@ func _load_radio_stream(res_path: String) -> AudioStream:
 ## its own warden's): the radio goes quiet as the eyes close (the user 21. 10.: "it played
 ## on right through the time skip"), and in the morning it is on another song.
 var _radio_sleep_k := 0.0
+## In the back room with its door shut the radio is through the door (playtest 13. 11.:
+## "a little muffled"): its highs gone (the bus through walls, the moment the door shuts),
+## a few dB under.
+const RADIO_BEHIND_DOOR_DB := -6.0
+var _radio_door_k := 0.0
+
+
+func _radio_behind_door(delta: float) -> float:
+	var shut: bool = visible and _extras != null and _extras.in_back_room() and not _extras.back_door_open()
+	if _radio_player != null:
+		var want := WORLD_SOUNDS.wall_bus(RADIO_DREAD_SCRIPT.MUSIC_BUS) if shut else RADIO_DREAD_SCRIPT.MUSIC_BUS
+		if str(_radio_player.bus) != want:
+			_radio_player.bus = want
+	_radio_door_k = move_toward(_radio_door_k, 1.0 if shut else 0.0, delta / 0.3)
+	return RADIO_BEHIND_DOOR_DB * _radio_door_k
 var _radio_was_asleep := false
 const RADIO_SLEEP_FADE_SEC := 1.0
 
@@ -4057,6 +4070,7 @@ func _update_radio_mix(delta: float) -> void:
 	var target_db = _compute_radio_target_db()
 	var character_db = _compute_radio_character_volume_offset(delta)
 	character_db += linear_to_db(maxf(1.0 - _radio_sleep_k, 0.0001))
+	character_db += _radio_behind_door(delta)
 	# (The night's songs, "night_*", at the songs' level: 8 dB under the rest the Vypinac was
 	# hardly heard, the user 4. 11. The noises, "nightnoise", "nightbuzzer", are that loud.)
 	var night_track_db = RADIO_NIGHT_TRACK_VOLUME_OFFSET_DB if _radio_current_track_is_night and not _radio_last_played_path.get_file().begins_with("night_") else 0.0

@@ -187,7 +187,7 @@ func checklist(t: Dictionary) -> Array:
 	var cook := float(have.get("cook", -1.0))
 	out.append({"text": "COOKED", "state": "todo" if cook < 0.0 else ("done" if cook >= 1.0 and cook <= 1.25 else ("bad" if cook > 1.25 or cook < 0.75 else "todo")), "icon": pic(CORN_TEX + "cob_boiled.png")})
 	var butter := float(have.get("butter", -1.0))
-	out.append({"text": "BUTTER", "state": "done" if butter >= 0.85 else "todo", "icon": pic(CORN_TEX + "cob_buttered.png")})
+	out.append({"text": "BUTTER", "state": "done" if butter >= 0.85 else "todo", "icon": pic(MARKS + "tk_butter.png")})
 	var want := int(t.get("salt", 0))
 	var got := int(have.get("salt", -1))
 	var sstate := "todo"

@@ -297,6 +297,8 @@ func van_hud_row(abs_minute: int) -> Dictionary:
 				return {"icon": "note", "left": clampf(float(int(ev["deadline"]) - abs_minute) / span, 0.0, 1.0), "ev": int(ev["id"])}
 			"pending":
 				var from := float(_van_t0) if _van_t0 >= 0 and _van_t0 < int(ev["at"]) else float(int(ev["at"]) - 240)
+				# On its own day only: ordered yesterday, the bar starts this morning.
+				from = maxf(from, minf(float(int(ev["at"]) / 1440 * 1440) + FIRST_HOUR * 60.0 - 90.0, float(int(ev["at"])) - 30.0))
 				return {"icon": "van", "left": clampf((float(abs_minute) - from) / maxf(1.0, float(int(ev["at"])) - from), 0.0, 1.0)}
 	if not _orders_waiting():
 		return {}
@@ -305,7 +307,13 @@ func van_hud_row(abs_minute: int) -> Dictionary:
 	var due := 1 << 30
 	for o in CoreRoot.get_state().biz.get("orders", []):
 		due = mini(due, int((o as Dictionary).get("due_day", 0)))
-	var t0 := float(_van_t0) if _van_t0 >= 0 else float(abs_minute)
+	# Not today: TOMORROW on the plate, no bar (playtest 13. 11.: the bar ran from the order
+	# through the night and the van came the next day).
+	var today := abs_minute / 1440 + 1
+	if due > today:
+		return {"icon": "van", "left": 0.0, "tomorrow": true}
+	var day_start := float((due - 1) * 1440) + FIRST_HOUR * 60.0 - 90.0
+	var t0 := maxf(float(_van_t0) if _van_t0 >= 0 else float(abs_minute), day_start)
 	var latest := float((due - 1) * 1440) + LAST_HOUR * 60.0
 	return {"icon": "van", "left": clampf((float(abs_minute) - t0) / maxf(1.0, latest - t0), 0.0, 0.95)}
 

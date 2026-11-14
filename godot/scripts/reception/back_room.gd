@@ -16,6 +16,10 @@ const RL = preload("res://scripts/reception/reception_layout.gd")
 const CURTAIN = preload("res://scripts/reception/curtain.gd")
 const TV_SHADER = preload("res://materials/tv_screen.gdshader")
 const SEVEN_SEG = preload("res://scripts/ui/seven_seg.gd")
+const GRANDFATHER = preload("res://scripts/reception/grandfather_clock.gd")
+## Against the wall at the bed's foot, between the bed and the set (grandfather_clock.gd).
+const GRANDFATHER_AT := Vector3(-5.39, 0.05, 0.75)
+var grandfather: Node3D
 const SFX := "res://assets/sfx/backroom/"
 const TESTCARD := "res://assets/textury/camp/tv_testcard.png"
 const PROGRAMME := "res://assets/textury/camp/tv_programme.png"
@@ -83,7 +87,8 @@ func build(parent: Node3D, audio_parent: Node) -> void:
 	var b1 := dz + 0.5
 	K.slab(root, Vector3(t, SIZE.y, a1 - near_end), Vector3(x, SIZE.y * 0.5, (near_end + a1) * 0.5), wall, "WallDoorA")
 	K.slab(root, Vector3(t, SIZE.y, far_end - b1), Vector3(x, SIZE.y * 0.5, (b1 + far_end) * 0.5), wall, "WallDoorB")
-	K.slab(root, Vector3(t, SIZE.y - 2.1, 1.0), Vector3(x, 2.1 + (SIZE.y - 2.1) * 0.5, dz), wall, "WallDoorTop")
+	# (Down to the leaf's top: the office's lintel showed under it, lit, in the dark room.)
+	K.slab(root, Vector3(t, SIZE.y - 2.07, 1.0), Vector3(x, 2.07 + (SIZE.y - 2.07) * 0.5, dz), wall, "WallDoorTop")
 	_cut_window(walls)
 	K.skirting(root, SIZE)
 	_flat("rug_rag", Vector2(1.25, 1.0), Vector3(-0.2, 0.007, 0.6), false, "Rug")
@@ -127,6 +132,10 @@ func build(parent: Node3D, audio_parent: Node) -> void:
 
 	_build_tv_screen()
 	_build_clock()
+	grandfather = GRANDFATHER.new()
+	grandfather.name = "GrandfatherClock"
+	grandfather.position = GRANDFATHER_AT + o
+	root.add_child(grandfather)
 
 	lamp = OmniLight3D.new()
 	lamp.light_color = Color(1.0, 0.78, 0.48)
@@ -150,11 +159,64 @@ func build(parent: Node3D, audio_parent: Node) -> void:
 	tv_light.position = TV + o + Vector3(0, 0.22, -0.45)
 	root.add_child(tv_light)
 
+	_own_light()
 	_tv_hiss = _loop3d(SFX + "tv_hiss.mp3", -22.0)
 	_tv_tone = _loop3d(SFX + "tv_tone.mp3", -28.5)
 	_one = AudioStreamPlayer.new()
 	audio_parent.add_child(_one)
 	_set_tv(true, false)
+
+
+## The room lit by its own lamps (playtest 13. 11.: in the dark the office's light lay on its
+## wall through the shut door): its things on a layer of their own that only its lamps and
+## the office's ceiling light while the door stands open reach (reception_extras.
+## _light_back_room); the office's other lights never. Shut, a strip of the office's light
+## lies on the floor under the door (`set_under_door`).
+const OWN_LAYER := 1 << 14
+var _under_door: MeshInstance3D
+
+
+func _own_light() -> void:
+	# (Off the camp's layer and the office's room layer, one_world_room.ROOM_LAYER, which
+	# own_layer adds only to what is on the camp's: the special ones kept.)
+	for n in root.find_children("*", "GeometryInstance3D", true, false):
+		var g := n as GeometryInstance3D
+		if (g.layers & 1) != 0:
+			g.layers = (g.layers & ~(1 | (1 << 13))) | OWN_LAYER
+	for l in [lamp, bulb, tv_light]:
+		(l as Light3D).light_cull_mask = OWN_LAYER
+	# The light under the door: a strip on the boards inside, brightest at the gap.
+	_under_door = MeshInstance3D.new()
+	_under_door.name = "UnderDoorLight"
+	# A hand's breadth out from the wall (x, its u: bright at the gap) by the door's width (z).
+	var q := QuadMesh.new()
+	q.size = Vector2(0.16, 0.9)
+	q.orientation = PlaneMesh.FACE_Y
+	_under_door.mesh = q
+	var g2 := Gradient.new()
+	g2.set_color(0, Color(1.0, 0.9, 0.68, 0.0))
+	g2.set_color(1, Color(1.0, 0.88, 0.62, 0.42))
+	var gt := GradientTexture2D.new()
+	gt.gradient = g2
+	gt.fill_from = Vector2(0, 0)
+	gt.fill_to = Vector2(1, 0)
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.albedo_texture = gt
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	_under_door.material_override = m
+	_under_door.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_under_door.layers = OWN_LAYER
+	_under_door.position = Vector3(SIZE.x * 0.5 - 0.08, 0.006, DOOR_Z - CENTRE.z)
+	_under_door.visible = false
+	root.add_child(_under_door)
+
+
+## The strip of the office's light under the shut door (on: the office lit, the door shut).
+func set_under_door(on: bool) -> void:
+	if _under_door != null and _under_door.visible != on:
+		_under_door.visible = on
 
 
 ## The far wall (over the bed) with the window in it: ReceptionLayout.BACK_WINDOW_*,
@@ -381,6 +443,8 @@ func update(delta: float, hour: float, has_power := true) -> void:
 			_set_tv(true, false)
 	if curtain != null:
 		curtain.update(delta)
+	if grandfather != null:
+		grandfather.update(delta, hour)
 	_t += delta
 	var h := int(hour) % 24
 	var m := int((hour - floor(hour)) * 60.0)

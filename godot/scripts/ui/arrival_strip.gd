@@ -1,5 +1,7 @@
 extends Control
 
+const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
+
 ## A small bevelled plate down the right edge of the screen for each party you booked,
 ## in the order they will need you. The plate's picture says where they are: a car on the
 ## road (on the way to the camp), the desk bell (at the reception, waiting to be checked
@@ -125,7 +127,7 @@ func _draw() -> void:
 	var f: Font = font if font != null else get_theme_default_font()
 	var fs := int(8.0 * u)
 	for s in services:
-		_post_plate(s, Vector2(x, y0), u)
+		_post_plate(s, Vector2(x, y0), u, f, fs)
 		y0 += step
 	for i in n:
 		_plate(_rows[i], Vector2(x, y0 + step * float(i)), u, f, fs)
@@ -185,7 +187,7 @@ func _plate(row: Dictionary, at: Vector2, u: float, f: Font, fs: int) -> void:
 ## A service's plate (the post's, the wholesaler's: _services): the van (driving) or what
 ## waits at the desk (shaking a pixel now and then while the man waits), the bar filling as
 ## he comes, then running down, red and blinking at the end.
-func _post_plate(s: Array, at: Vector2, u: float) -> void:
+func _post_plate(s: Array, at: Vector2, u: float, f: Font, fs: int) -> void:
 	var row: Dictionary = s[0]
 	var box := Rect2(at, PLATE * u)
 	var who := str(row.get("who", ""))
@@ -195,6 +197,18 @@ func _post_plate(s: Array, at: Vector2, u: float) -> void:
 	draw_rect(Rect2(box.position + Vector2(0, box.size.y - u), Vector2(box.size.x, u)), DARK)
 	draw_rect(Rect2(box.position + Vector2(box.size.x - u, 0), Vector2(u, box.size.y)), DARK)
 	draw_rect(Rect2(box.position + Vector2(u, u), Vector2(u, box.size.y - 2.0 * u)), s[1])
+	# Coming another day: the day's word where the bar is, the van still (the bar runs on its
+	# day: playtest 13. 11.); a word too long beside the van has the plate to itself.
+	if bool(row.get("tomorrow", false)):
+		var word := tr("TOMORROW")
+		var wf: Font = RETRO_UI.FONT_TEXT
+		var ww := wf.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		if ww <= (PLATE.x - BAR.position.x - 1.0) * u:
+			_icon(str(s[2]), at + ICON_AT * u, u)
+			_text(wf, word, at + Vector2(BAR.position.x * u, 10.0 * u), fs, u, BONE)
+		else:
+			_text(wf, word, at + Vector2(floorf((box.size.x - ww) * 0.5) + u, 10.0 * u), fs, u, BONE)
+		return
 	var waiting := str(row.get("icon", "")) == str(s[4])
 	var left := clampf(float(row.get("left", 0.0)), 0.0, 1.0)
 	var col := AMBER
