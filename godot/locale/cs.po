@@ -33405,3 +33405,211 @@ msgstr "Rozepnout zip"
 #. manual
 msgid "The brush"
 msgstr "Štětec"
+
+#: scripts/os98/icu_story.gd
+msgid "hi!! found you in the ICU directory"
+msgstr "ahoj!! nasla jsem te v seznamu ICU"
+
+#: scripts/os98/icu_story.gd
+msgid "you are the camp by the black lake? i am at a summer camp too. its sooo boring lol"
+msgstr "ty jsi ten kemp u cernyho jezera? ja jsem taky na tabore. je to straaasna nuda lol"
+
+#: scripts/os98/icu_story.gd
+msgid "Hi! Which camp?"
+msgstr "Ahoj! Na jakém táboře?"
+
+#: scripts/os98/icu_story.gd
+msgid "cerne jezero"
+msgstr "cerne jezero"
+
+#: scripts/os98/icu_story.gd
+msgid "like you. funny :)"
+msgstr "jako ty. vtipny :)"
+
+#: scripts/os98/icu_story.gd
+msgid "Who is this?"
+msgstr "Kdo jsi?"
+
+#: scripts/os98/icu_story.gd
+msgid "jana. 14"
+msgstr "jana. 14"
+
+#: scripts/os98/icu_story.gd
+msgid "you have the camp now right? the man before you was nice"
+msgstr "ty mas ted ten kemp ze jo? ten pan pred tebou byl hodnej"
+
+#: scripts/os98/icu_story.gd
+msgid "they are calling us for the night game. bye!!"
+msgstr "volaj nas na nocni hru. papa!!"
+
+#: scripts/os98/icu_story.gd
+msgid "are you there?"
+msgstr "jsi tam?"
+
+#: scripts/os98/icu_story.gd
+msgid "we did the night game. i lost my shoe in the woods. the left one. its red"
+msgstr "byli jsme na nocni hre. ztratila jsem v lese botu. levou. je cervena"
+
+#: scripts/os98/icu_story.gd
+msgid "Did you find it?"
+msgstr "Našla jsi ji?"
+
+#: scripts/os98/icu_story.gd
+msgid "no. karel says tomorrow"
+msgstr "ne. karel rika ze zitra"
+
+#: scripts/os98/icu_story.gd
+msgid "its dark in the woods. its so dark"
+msgstr "v lese je tma. je tam takova tma"
+
+#: scripts/os98/icu_story.gd
+msgid "Tell your leaders."
+msgstr "Řekni to vedoucím."
+
+#: scripts/os98/icu_story.gd
+msgid "the leaders are asleep"
+msgstr "vedouci spi"
+
+#: scripts/os98/icu_story.gd
+msgid "everyone is asleep but me"
+msgstr "vsichni spi krome me"
+
+#: scripts/os98/icu_story.gd
+msgid "who is {guest}? the light is on in their tent"
+msgstr "kdo je {guest}? ve stanu se sviti"
+
+#: scripts/os98/icu_story.gd
+msgid "How do you know that?"
+msgstr "Jak to víš?"
+
+#: scripts/os98/icu_story.gd
+msgid "i can see it from here"
+msgstr "vidim to odsud"
+
+#: scripts/os98/icu_story.gd
+msgid "Go to sleep, Jana."
+msgstr "Jdi spát, Jano."
+
+#: scripts/os98/icu_story.gd
+msgid "i cant sleep"
+msgstr "nemuzu spat"
+
+#: scripts/os98/icu_story.gd
+msgid "the man in the hat is by the fence again"
+msgstr "ten pan v klobouku zase stoji u plotu"
+
+#: scripts/os98/icu_story.gd
+msgid "its cold"
+msgstr "je zima"
+
+#: scripts/os98/icu_story.gd
+msgid "your light is on. i like it. leave it on please"
+msgstr "sviti se ti. libi se mi to. nech to rozsviceny prosim"
+
+#: scripts/os98/icu_story.gd
+msgid "Where are you?"
+msgstr "Kde jsi?"
+
+#: scripts/os98/icu_story.gd
+msgid "by the water"
+msgstr "u vody"
+
+#: scripts/os98/icu_story.gd
+msgid "Stop this."
+msgstr "Přestaň s tím."
+
+#: scripts/os98/icu_story.gd
+msgid "ok :("
+msgstr "ok :("
+
+#: scripts/os98/icu_story.gd
+msgid "im sorry. i just want to go home"
+msgstr "promin. ja chci jen domu"
+
+#: scripts/os98/icu_story.gd
+msgid "did you count them at ten?"
+msgstr "spocital jsi je v deset?"
+
+#: scripts/os98/icu_story.gd
+msgid "they are looking for me. i saw the torches"
+msgstr "hledaj me. videla jsem baterky"
+
+#: scripts/os98/icu_story.gd
+msgid "nobody looks in the water"
+msgstr "nikdo se nediva do vody"
+
+#: scripts/os98/icu_story.gd
+msgid "I will call the police."
+msgstr "Zavolám policii."
+
+#: scripts/os98/icu_story.gd
+msgid "the police came in 87"
+msgstr "policie prijela v 87"
+
+#: scripts/os98/icu_story.gd
+msgid "they looked everywhere but the water"
+msgstr "hledali vsude krome vody"
+
+#: scripts/os98/icu_story.gd
+msgid "Come to the reception."
+msgstr "Přijď na recepci."
+
+#: scripts/os98/icu_story.gd
+msgid "i cant"
+msgstr "nemuzu"
+
+#: scripts/os98/icu_story.gd
+msgid "the door is locked from inside. you locked it"
+msgstr "dvere jsou zamcený zevnitr. tys je zamknul"
+
+#: scripts/os98/icu_story.gd
+msgid "tomorrow i will come to your window. dont be scared"
+msgstr "zitra prijdu k tvymu oknu. neboj se"
+
+#: scripts/os98/icu_story.gd
+msgid "im here"
+msgstr "jsem tady"
+
+#: scripts/os98/icu_story.gd
+msgid "at your window"
+msgstr "u tvyho okna"
+
+#: scripts/os98/icu_story.gd
+msgid "why wont you look"
+msgstr "proc se nepodivas"
+
+#: scripts/os98/icu_story.gd
+msgid "i found my shoe"
+msgstr "nasla jsem botu"
+
+#: scripts/os98/icu_story.gd
+msgid "if jana writes, dont answer."
+msgstr "jestli napise jana, neodpovidej."
+
+#: scripts/os98/icu_story.gd
+msgid "dont tell her the light is on"
+msgstr "nerikej ji ze se sviti"
+
+#: scripts/os98/icu_story.gd
+msgid "(online)"
+msgstr "(online)"
+
+#: scripts/os98/icu_story.gd
+msgid "(offline)"
+msgstr "(offline)"
+
+#: scripts/os98/icu_story.gd
+msgid "(not found)"
+msgstr "(nenalezen)"
+
+#: scripts/os98/icu_story.gd
+msgid "%s is typing..."
+msgstr "%s píše..."
+
+#: scripts/os98/icu_story.gd
+msgid "somebody"
+msgstr "někdo"
+
+#: scripts/os98/icu_story.gd
+msgid "jana_k: user not found."
+msgstr "jana_k: uživatel nenalezen."

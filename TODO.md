@@ -18,6 +18,14 @@
 - [x] P10 „recepci clippuje uvnitř rámu dveří“ (the reception's door frame inside: z-fighting) (d8f3523d: in the doorway the frame, a line of the wall, the building's red boards and its grey frame in turn, two faces in one plane; one lining through both walls now, the open leaf no longer into the jamb)
 - [x] P11 „odstranit vypínač co je u dveří, nechat na recepci jen ten vlevo u okna“
 - [ ] P12 „absolutně polishnout ingame internet. reálnej web 1.0, každá stránka jiná, víc interaktivity, víc následků v reálném světě z klikání, eerie uncanny morbidní, občas nightmare fuel. messenger, kde si fakt můžeš s někym psát pár dní, a pak zmizí… polishnout ty hry co tam jsou a vydělávání peněz na počítači“
+  - [x] P12a ICU (a messenger in the tray, an eye that blinks when somebody writes): one contact over several evenings, your replies picked from two or three, she gets nearer the camp each night, then is gone (the account does not exist); now and then a stranger or a spammer
+  - [ ] P12b the camp's webcam on the web (a camera on the reception's pole): a low picture of the real camp every few seconds, at night what is really out there
+  - [ ] P12c Rádio Hlubočany, listeners' requests: a song asked for on its page is played next on the reception's radio
+  - [ ] P12d the camp's guest book signable: your entry stays; later entries answer you by name
+  - [ ] P12e the Courier's missing persons and deaths from the camp's own record (guests who vanished or died)
+  - [ ] P12f every page its own look (fonts, tiles, colours, tables, counters, a jingle here and there)
+  - [ ] P12g the games (Komár, Výlet, Had, Pexeso, Miny): title, sounds, high scores with names that should not be there
+  - [ ] P12h earning on the PC: the jobs tied to the camp (DataPunch cards with your guests' names, KlikBanka adverts that know you, SečtiTo photos of your own camp)
 - [x] P13 „polishnout a propracovat drhnutí záchodové mísy“ (the scrub close-up) (ddab7092: a scale ring at the water line that only short strokes to and fro bite, gritting; murky water with what comes off; the flush swirls it clear; the gauge over the picture, from 0 %)
 - [x] P14 „silent guy… projdu jim, nic se nestane. zblízka musí na hráče absolutně vystartovat, ale aby měl hráč šanci uskočit. dá vystartování a zmizí tím svým efektem“ (d8f3523d: seen within 2.6 m he flares and draws breath (0.45 s), lunges at where you stood and past it; still there, bitten (100 to 89), a step aside, missed (100); then he comes apart)
 - [x] P15 „rádio udělej trošičku muffled když jsem v pokojíčku a zavřu dveře“

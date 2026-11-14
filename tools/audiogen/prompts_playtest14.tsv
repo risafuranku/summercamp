@@ -6,3 +6,7 @@ split_whoosh	1	assets/sfx/life/split_whoosh.mp3	A heavy wood axe swung hard down
 split_set	1	assets/sfx/life/split_set.mp3	A round of firewood set down upright on a wooden chopping block, one solid hollow wooden knock, outdoors, close, nothing else
 split_land	1	assets/sfx/life/split_land.mp3	Two halves of a split firewood log falling onto short dry grass, two soft woody thuds one after the other, outdoors, close, nothing else
 split_pull	1	assets/sfx/life/split_pull.mp3	An axe wrenched out of a log it was stuck in, a creaking squeak of wood fibres then a soft pop as it comes free, close, outdoors, nothing else
+icu_msg	1	assets/sfx/os98/icu_msg.mp3	A short friendly two note electronic chime from a 1998 home computer speaker announcing a new chat message, bright then a little lower, clean, nothing else
+icu_on	1	assets/sfx/os98/icu_on.mp3	A soft short rising electronic blip from an old computer speaker, a contact coming online in a chat program, quiet, nothing else
+icu_off	1	assets/sfx/os98/icu_off.mp3	A soft short falling electronic blip from an old computer speaker, a contact going offline in a chat program, quiet, nothing else
+glass_tap	2	assets/sfx/rooms/glass_tap.mp3	Three slow light taps of a fingertip on a window pane from outside at night, heard from inside a quiet small wooden room, a pause between each tap, nothing else

@@ -5105,6 +5105,25 @@ func _update_torch(delta: float) -> void:
 	_torch.update(delta)
 
 
+## A tap on the office's front window from outside, heard where the window is (ICU's last
+## evening: os98/icu_story.gd).
+const SFX_GLASS_TAP := "res://assets/sfx/rooms/glass_tap.mp3"
+
+
+func knock_office_glass() -> void:
+	if _room_root == null or not ResourceLoader.exists(SFX_GLASS_TAP):
+		return
+	var a := AudioStreamPlayer3D.new()
+	a.stream = load(SFX_GLASS_TAP)
+	a.volume_db = -2.0
+	a.unit_size = 3.0
+	a.max_distance = 18.0
+	a.position = Vector3(-0.4, 1.55, -2.66)
+	_room_root.add_child(a)
+	a.play()
+	a.finished.connect(a.queue_free)
+
+
 ## After dusk with the office light off or no power; not while you sit at the PC.
 func room_is_dark() -> bool:
 	if _extras != null and _extras.where == "store":

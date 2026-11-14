@@ -888,6 +888,19 @@ const SCENARIOS := {
 		["wait", 1.0], ["eval", "_warden_play._split.set('_yaw', 0.3)"], ["wait", 0.2], ["lmb", true], ["wait", 0.6], ["lmb", false], ["wait", 0.2], ["shot", "ls6_glance"], ["wait", 0.3], ["shot", "ls6b"], ["eval", "[get_tree().get_nodes_in_group('campfire')[0].logs_left, _warden_play._split._stuck, _warden_play._split._round != null, _warden_play.is_active()]" ],
 		["wait", 1.2], ["shot", "ls7_set_again"], ["key", "S"], ["wait", 0.6], ["eval", "[get_tree().get_nodes_in_group('campfire')[0].logs_left, _warden_play._split._stuck, _warden_play._split._round != null, _warden_play.is_active()]" ], ["shot", "ls8_out"],
 	],
+	# Playtest 14. 11. P12a: ICU 98 in the tray; jana_k's first evening, a reply, offline; her last.
+	"icu": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["call_on", "_interior_manager", "open_startup_crt_view", []], ["wait", 7.0],
+		["eval", "_interior_manager._building_interior._crt_ui.icu.debug_evening(0)"], ["eval", "debug_jump_to(2, 21.0)"], ["wait", 8.0], ["crt_screen", "icu0_tray"],
+		["eval", "_interior_manager._building_interior._crt_ui.open_icu() != null"], ["wait", 1.0], ["crt_screen", "icu1_open"],
+		["until", "_interior_manager._building_interior._crt_ui.icu.choices().size() > 0", 30.0], ["wait", 0.5], ["crt_screen", "icu2_ask"],
+		["eval", "_interior_manager._building_interior._crt_ui.icu.choose(0)"], ["wait", 7.0], ["crt_screen", "icu3_answer"],
+		["until", "not _interior_manager._building_interior._crt_ui.icu.is_online()", 40.0], ["wait", 0.6], ["crt_screen", "icu4_off"],
+		["eval", "_interior_manager._building_interior._crt_ui.icu.debug_evening(4)"], ["eval", "debug_jump_to(7, 23.0)"],
+		["until", "_interior_manager._building_interior._crt_ui.icu.is_gone()", 60.0], ["wait", 0.8], ["crt_screen", "icu5_gone"],
+		["eval", "[_interior_manager._building_interior._crt_ui.icu.is_gone(), _interior_manager._building_interior._crt_ui.icu.log_lines().size()]"],
+	],
 	# Out of the office's front door with W held (playtest 13. 11.): walking on, no stop.
 	"walkout_w": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 2.0],

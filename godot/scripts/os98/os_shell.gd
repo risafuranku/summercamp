@@ -160,6 +160,12 @@ var _tab_seps: Array = []  # tab id -> Control
 var _clock: Label
 var _money: Label
 var _tray_net: TextureRect
+## ICU 98 in the tray (scripts/os98/icu_story.gd, apps/icu_app.gd): the eye, blinking while a
+## line is unread; a click opens it.
+const ICU_STORY = preload("res://scripts/os98/icu_story.gd")
+var icu = ICU_STORY.new()
+var _tray_icu: TextureRect
+var _icu_blink := 0.0
 var _start_menu: Control
 var _boot: Control
 var _cursor: Control
@@ -239,6 +245,7 @@ var _money2: Label
 
 
 func _ready() -> void:
+	icu.setup(self)
 	theme = T.get_theme()
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	clip_contents = true
@@ -1633,6 +1640,8 @@ func _process(delta: float) -> void:
 				_apply_state()
 		Boot.DESKTOP:
 			_tick_desktop(delta)
+			icu.tick(delta)
+			_tick_icu_tray(delta)
 	_cursor.queue_redraw()
 	if _dual:
 		_screen2.queue_redraw()
@@ -1966,8 +1975,17 @@ func _build_taskbar() -> void:
 	tray.position = Vector2(SCREEN.x - TRAY_W - 3, 3)
 	tray.size = Vector2(TRAY_W, TAB_H)
 	_taskbar.add_child(tray)
+	_tray_icu = TextureRect.new()
+	_tray_icu.position = Vector2(4, 3)
+	_tray_icu.texture = icon("icu", true)
+	_tray_icu.tooltip_text = "ICU 98"
+	_tray_icu.mouse_filter = Control.MOUSE_FILTER_STOP
+	_tray_icu.gui_input.connect(func(e: InputEvent):
+		if e is InputEventMouseButton and e.pressed and (e as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
+			open_icu())
+	tray.add_child(_tray_icu)
 	_tray_net = TextureRect.new()
-	_tray_net.position = Vector2(4, 12)
+	_tray_net.position = Vector2(4, 21)
 	_tray_net.texture = _net_icon()
 	_tray_net.tooltip_text = "Connected to Bohemia Online at 33,600 bps"
 	_tray_net.visible = false
@@ -2178,6 +2196,34 @@ func _refresh_badges() -> void:
 				_flash[id] = FLASH_SEC
 		_badges = b
 		_redraw_tabs()
+
+
+## ICU's window (the tray's eye).
+func open_icu() -> Control:
+	if _state != Boot.DESKTOP:
+		return null
+	return _open_dialog_app("icu", "ICU 98", Vector2(300, 340))
+
+
+## The eye blinks in steps while a line is unread (still when nothing is).
+func _tick_icu_tray(delta: float) -> void:
+	if _tray_icu == null:
+		return
+	if icu.unread() > 0:
+		_icu_blink += delta
+		_tray_icu.modulate.a = 1.0 if fmod(_icu_blink, 0.8) < 0.4 else 0.25
+	elif _tray_icu.modulate.a != 1.0:
+		_icu_blink = 0.0
+		_tray_icu.modulate.a = 1.0
+
+
+## A tap at the office's front window from outside (ICU's last evening).
+func knock_glass() -> void:
+	var m := main_node()
+	var im = m.get("_interior_manager") if m != null else null
+	var bi = im.get("_building_interior") if im != null else null
+	if bi != null and bi.has_method("knock_office_glass"):
+		bi.knock_office_glass()
 
 
 func _refresh_tray() -> void:
