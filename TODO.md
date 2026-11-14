@@ -6,27 +6,27 @@
 
 ## PLAYTEST 2026-11-13/14 — Richard's notes (his words, then the note in brackets; tick with the commit)
 
-- [ ] P1 „hosti se v recepci spawnou až když do ní vejdu, přes okno jsou neviditelní“ (the guests waiting at the desk drawn only from inside: they must stand there, seen through the window too)
+- [x] P1 „hosti se v recepci spawnou až když do ní vejdu, přes okno jsou neviditelní“ (the guests waiting at the desk drawn only from inside: they must stand there, seen through the window too) (d8f3523d: inside it showed the whole queue, even those still walking up from the gate; now inside and through the window alike only who came in, by the door, which swings for them)
 - [x] P2 „ikonka másla na objednávacim lístku vypadá jako druhá kukuřice“ (the BUTTER check on the cob's paper is cob_buttered: a butter picture, tk_butter)
-- [ ] P3 „animace vlézání do stanu a vylézání ze stanu je hrozně stiff“ (the walk into and out of the tent: a crouch, a sway, eased)
+- [x] P3 „animace vlézání do stanu a vylézání ze stanu je hrozně stiff“ (the walk into and out of the tent: a crouch, a sway, eased) (d8f3523d: on your knees both ways, the head shuffling and looking down under the flap, beside the door pole and its rope, up off the knees outside; shot frame by frame)
 - [x] P4 „při usínání v recepci a zavírání očí zavři dveře, ať to navazuje na ranní zavřené“ (going to sleep in the reception: its door shut as the eyes close)
 - [ ] P5 „tak štípání polen tam je, ale chtěl jsem to interaktivní, jako obsluhování“ (splitting logs at the campfire as a station-like minigame: a log on the block, aim, swing, the halves fly, a stack for the fire)
 - [ ] P6 „ve hře stále chybí sklad“ (a storeroom: look up what was asked before, then build it)
 - [x] P7 „když má závoz přijet zítra, na progress baru napiš ZÍTRA/TOMORROW, a spusť ho až v ten den“ (the van's plate: TOMORROW while it is tomorrow, the bar runs on its day only)
 - [x] P8 „když jdu z recepce a držím W, ať rovnou pokračuju v chůzi a nezastavuju“ (out of the reception's door with W held: walking on)
-- [ ] P9 „sprchám clippuje vnější spodní pruh“ (the shower house: its outer bottom band z-fights)
-- [ ] P10 „recepci clippuje uvnitř rámu dveří“ (the reception's door frame inside: z-fighting)
+- [x] P9 „sprchám clippuje vnější spodní pruh“ (the shower house: its outer bottom band z-fights) (d8f3523d: the band was a second skin over the walls, 1.5 cm out, and under the doors three tops met at the floor; the walls stand on the band now, doorways open to the ground over the sill)
+- [x] P10 „recepci clippuje uvnitř rámu dveří“ (the reception's door frame inside: z-fighting) (d8f3523d: in the doorway the frame, a line of the wall, the building's red boards and its grey frame in turn, two faces in one plane; one lining through both walls now, the open leaf no longer into the jamb)
 - [x] P11 „odstranit vypínač co je u dveří, nechat na recepci jen ten vlevo u okna“
 - [ ] P12 „absolutně polishnout ingame internet. reálnej web 1.0, každá stránka jiná, víc interaktivity, víc následků v reálném světě z klikání, eerie uncanny morbidní, občas nightmare fuel. messenger, kde si fakt můžeš s někym psát pár dní, a pak zmizí… polishnout ty hry co tam jsou a vydělávání peněz na počítači“
 - [ ] P13 „polishnout a propracovat drhnutí záchodové mísy“ (the scrub close-up)
-- [ ] P14 „silent guy… projdu jim, nic se nestane. zblízka musí na hráče absolutně vystartovat, ale aby měl hráč šanci uskočit. dá vystartování a zmizí tím svým efektem“
+- [x] P14 „silent guy… projdu jim, nic se nestane. zblízka musí na hráče absolutně vystartovat, ale aby měl hráč šanci uskočit. dá vystartování a zmizí tím svým efektem“ (d8f3523d: seen within 2.6 m he flares and draws breath (0.45 s), lunges at where you stood and past it; still there, bitten (100 to 89), a step aside, missed (100); then he comes apart)
 - [x] P15 „rádio udělej trošičku muffled když jsem v pokojíčku a zavřu dveře“
 - [x] P16 „přidej do pokojíčku velký grandfather clock tikající, co dělá zvuk zvonu když je ráno“
 - [x] P17 „ve tmě v pokojíčku prosvítá skrz zavřené dveře na zeď světlo. mělo by prosvítat jenom lehce pod nimi“
 - [x] P18 „návrat na recepci z pokojíčku je šíííííleně rychlej a splašenej“
-- [ ] P19 „když stojím u okna a chci si posvítit baterkou ven, většina světla se rozplácne a ztratí o okno/sklo“
-- [ ] P20 „baterka uvnitř recepce rozsvěcí ještě jiné světlo… měly by být sjednocené. nech hráče svítit baterkou KDYKOLIV i přes den, automaticky ji nikdy nevypínej nezapínej. přes den nečerpáme baterku, jen přes noc. v UI přes den znázorni, že je neomezená, a po skončení noci hezká animace transformace na denní baterku“
-- [ ] P21 „silent guy mi furt chodí pod lampy. neměl by se jim naopak snažit vyhnout?“
+- [x] P19 „když stojím u okna a chci si posvítit baterkou ven, většina světla se rozplácne a ztratí o okno/sklo“ (d8f3523d: the room's own beam lit the room only and the pale pane took it as a grey disc; one torch now, its beam goes out of the window onto the path, the glass dark)
+- [x] P20 „baterka uvnitř recepce rozsvěcí ještě jiné světlo… měly by být sjednocené. nech hráče svítit baterkou KDYKOLIV i přes den, automaticky ji nikdy nevypínej nezapínej. přes den nečerpáme baterku, jen přes noc. v UI přes den znázorni, že je neomezená, a po skončení noci hezká animace transformace na denní baterku“ (d8f3523d: the other light was your own torch at the body by the door; one torch, one switch, nothing turns it on or off; drains dusk to dawn only; LIGHT by day one bar with the sign for no end, at dawn the cells fill with a white run, close up, the sign blinks in)
+- [x] P21 „silent guy mi furt chodí pod lampy. neměl by se jim naopak snažit vyhnout?“ (d8f3523d: his steps round you, his peeks and his new corners kept out of the lamps; with four lamps lit round the warden every place he stood measured 0.00-0.01)
 - [x] P22 „dost se mi opakujou skladby za sebou… v rádiu“ (no song again soon, its caretaker version counts as the same song)
 - [x] P23 „v noci má být zpřístupněný builder, jen nemá jít stavět a editovat, ale koukat na kemp jo“
 - [x] P24 „připojování k modemu jen jednou při startu PC“
