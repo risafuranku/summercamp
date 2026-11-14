@@ -920,6 +920,19 @@ const SCENARIOS := {
 		["eval", "_interior_manager._building_interior._play_radio_next()"], ["wait", 0.5],
 		["eval", "_interior_manager._building_interior._radio_last_played_path"],
 	],
+	# P6: the warehouse, a rack given to the corn stand, filled: the boxes on it.
+	"warehouse": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["eval", "_interior_manager._building_interior.close_interior()"], ["money", 9000], ["hours", 3.0],
+		["clear", 6, 3, 9, 7], ["build", "corn_stand", 7, 5, 0], ["build", "warehouse", 10, 5, 0], ["wait", 3.0],
+		["view", 10, 5, 2, 2, 5.0, 0, 1.0], ["wait", 0.6], ["shot", "wh0_empty"],
+		["eval", "debug_structure_of_type('warehouse').get_node('Warehouse').next_place(debug_structure_of_type('warehouse').get_node('Warehouse').global_transform * debug_structure_of_type('warehouse').get_node('Warehouse').rack_at[0])"], ["wait", 0.3],
+		["eval", "debug_structure_of_type('warehouse').get_node('Warehouse').next_place(debug_structure_of_type('warehouse').get_node('Warehouse').global_transform * debug_structure_of_type('warehouse').get_node('Warehouse').rack_at[1])"], ["wait", 0.3],
+		["eval", "debug_structure_of_type('warehouse').get_node('Warehouse').debug_fill()"], ["wait", 2.5],
+		["view", 10, 5, 2, 2, 4.0, 0, 1.0], ["wait", 0.6], ["shot", "wh1_full"],
+		["view", 10, 5, 2, 2, 3.0, 20, 1.0], ["wait", 0.6], ["shot", "wh2_close"],
+		["eval", "[debug_structure_of_type('warehouse').get_node('Warehouse').key, debug_structure_of_type('warehouse').get_node('Warehouse')._shown]"],
+	],
 	# Out of the office's front door with W held (playtest 13. 11.): walking on, no stop.
 	"walkout_w": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 2.0],

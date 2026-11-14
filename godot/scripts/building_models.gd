@@ -22,7 +22,7 @@ const FONT := "res://assets/fonts/w95b.fnt"
 const MODELS := ["toilet_block", "shower_block", "pub", "restaurant", "power_generator", "sewer",
 	"bonfire", "sports_field", "lake_slide", "dumpsters",
 	"bench", "picnic_table", "flower_bed", "gnome", "flagpole", "playground", "ping_pong", "hammock", "corn_stand", "mega_gnome",
-	"vecerka", "bowling", "staffroom", "tree_spruce", "tree_birch"]
+	"vecerka", "bowling", "staffroom", "warehouse", "tree_spruce", "tree_birch"]
 
 var _psx: Callable           # (color, wobble, snap, steps, corrosion, category) -> Material
 var _cache: Dictionary = {}
@@ -88,6 +88,8 @@ func build(type: String, root: Node3D, tile: float, footprint: Vector2i) -> Dict
 			return _bowling(root, w, d)
 		"staffroom":
 			return _staffroom(root, w, d)
+		"warehouse":
+			return _warehouse(root, w, d)
 		# Built by BuildingManager's own placers; here for tools/model_viewer.
 		"cabin_1", "cabin_2", "cabin_3":
 			var lv := int(type.right(1))
@@ -1888,6 +1890,50 @@ func _staffroom(r: Node3D, _w: float, _d: float) -> Dictionary:
 	var sx: float = plan.B_MAX.x + plan.WALL - (plan.L_MIN.x - plan.WALL)
 	var sz: float = plan.L_MAX.y - plan.L_MIN.y + 2.0 * plan.WALL
 	return {"size": Vector3(sx, plan.FLOOR + plan.L_H + 0.3, sz), "target": Vector3(plan.DOOR_X, 1.2, plan.L_MAX.y + plan.WALL + 0.1)}
+
+
+## The camp's warehouse (playtest 14. 11.): an open shed of grey boards under a tin lean-to
+## roof on a concrete floor, its steel racks along the back, a painted SKLAD over the front.
+## The racks' boxes and tags are scripts/business/warehouse.gd's (given to the camp's places).
+func _warehouse(r: Node3D, w: float, d: float) -> Dictionary:
+	var sx := w - 0.4
+	var sz := d - 0.6
+	var h := 3.1
+	var boards := _camp_or("planks_grey.png", Color(0.62, 0.6, 0.56), "wood", Vector3(1.2, 1.2, 1.0))
+	var tin := _camp("corrugated_roof.png", Color(0.74, 0.7, 0.66), Vector3(1.6, 1.6, 1.0))
+	# (Light: in the shade of the roof grey steel was lost against the boards.)
+	var steel := _camp_or("galvanized.png", Color(0.92, 0.94, 0.95), "metal", Vector3(0.6, 0.6, 0.6))
+	var concrete := _camp_or("concrete.png", Color(0.6, 0.6, 0.58), "stone", Vector3(1.5, 1.5, 1.5))
+	_plinth_ring(r, sx + 0.2, sz + 0.2)
+	_box(r, "Floor", Vector3(sx, 0.12, sz), Vector3(0, 0.06, 0), concrete)
+	# The back and the two ends; the front open.
+	_box(r, "WallBack", Vector3(sx, h, 0.08), Vector3(0, h * 0.5 + 0.1, -sz * 0.5 + 0.04), boards)
+	for s: float in [-1.0, 1.0]:
+		_box(r, "WallEnd", Vector3(0.08, h, sz), Vector3(s * (sx * 0.5 - 0.04), h * 0.5 + 0.1, 0), boards)
+	for s: float in [-1.0, 1.0]:
+		_box(r, "Post", Vector3(0.12, h + 0.25, 0.12), Vector3(s * (sx * 0.5 - 0.06), (h + 0.25) * 0.5 + 0.1, sz * 0.5 - 0.06), _wood())
+	_lean_roof(r, sx + 0.5, sz + 0.6, h + 0.1, 0.6, tin)
+	_box(r, "Fascia", Vector3(sx + 0.3, 0.32, 0.06), Vector3(0, h + 0.3, sz * 0.5 + 0.02), boards)
+	_label(r, "SKLAD", Vector3(0, h + 0.3, sz * 0.5 + 0.06), 0.22, Color(0.14, 0.12, 0.1))
+	# The racks: steel uprights and three shelves each, along the back.
+	var runtime := Node3D.new()
+	runtime.name = "Warehouse"
+	runtime.set_script(load("res://scripts/business/warehouse.gd"))
+	var racks: Array = []
+	var n := 4
+	var span := sx - 0.5
+	for i in n:
+		var x := -span * 0.5 + span * (float(i) + 0.5) / float(n)
+		var at := Vector3(x, 0.12, -sz * 0.5 + 0.45)
+		racks.append(at)
+		for s: float in [-1.0, 1.0]:
+			for f: float in [-1.0, 1.0]:
+				_box(r, "RackPost", Vector3(0.06, 1.8, 0.06), at + Vector3(s * 0.5, 0.9, f * 0.2), steel)
+		for y: float in [0.32, 0.86, 1.4]:
+			_box(r, "RackShelf", Vector3(1.06, 0.05, 0.46), at + Vector3(0, y, 0), steel)
+	runtime.set("rack_at", racks)
+	r.add_child(runtime)
+	return {"size": Vector3(sx + 0.5, h + 0.6, sz + 0.6), "target": Vector3(0, 1.0, sz * 0.5 + 0.4)}
 
 
 func _use_script(r: Node3D, path: String) -> void:

@@ -83,6 +83,8 @@ func _process(delta: float) -> void:
 	if not Coop.sim_here():
 		return
 	CoreRoot.actions.biz_prune(sites.keys())
+	# The warehouses standing (scripts/business/warehouse.gd): a demolished one's racks go.
+	CoreRoot.actions.biz_store_prune(_live_stores())
 	for key in sites:
 		CoreRoot.actions.biz_site(key, sites[key])
 	var day := CoreRoot.get_day()
@@ -114,6 +116,23 @@ func _live_sites() -> Dictionary:
 		var rc = data.get("root_coord", coord)
 		var key := "%d:%d" % [int(rc.x), int(rc.y)]
 		out[key] = t
+	return out
+
+
+## The warehouses on the plan: their keys.
+func _live_stores() -> Array:
+	var out: Array = []
+	var grid = CoreRoot.get_state().grid
+	if grid == null:
+		return out
+	for coord in grid.cells:
+		var data: Dictionary = grid.cells[coord]
+		if str(data.get("type", "")) != "warehouse":
+			continue
+		var rc = data.get("root_coord", coord)
+		var key := "%d:%d" % [int(rc.x), int(rc.y)]
+		if not out.has(key):
+			out.append(key)
 	return out
 
 

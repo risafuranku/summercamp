@@ -34,7 +34,7 @@ const OVERLAY_SHORT := {"": "Off", "condition": "Wear", "power": "Power", "rooms
 ## (Grok bld_cats).
 const CATEGORIES: Array = [
 	{"id": "housing", "label": "Housing", "icon": "res://assets/textury/builder/cat_housing.png", "items": ["tent_1", "cabin_1", "caravan_1"]},
-	{"id": "washrooms", "label": "Washrooms & staff", "icon": "res://assets/textury/builder/cat_facilities.png", "items": ["toilet_block", "shower_block", "staffroom"]},
+	{"id": "washrooms", "label": "Washrooms & staff", "icon": "res://assets/textury/builder/cat_facilities.png", "items": ["toilet_block", "shower_block", "staffroom", "warehouse"]},
 	{"id": "food", "label": "Businesses", "icon": "res://assets/textury/builder/cat_food.png", "items": ["corn_stand", "pub", "restaurant", "vecerka", "bowling"]},
 	{"id": "fun", "label": "Fun", "icon": "res://assets/textury/builder/cat_fun.png", "items": ["bonfire", "sports_field", "playground", "ping_pong", "hammock", "lake_slide"]},
 	{"id": "decor", "label": "Decor", "icon": "res://assets/textury/builder/cat_decor.png", "items": ["bench", "picnic_table", "flower_bed", "tree_spruce", "tree_birch", "gnome", "flagpole", "mega_gnome"]},
@@ -68,6 +68,7 @@ const ITEM_ICONS := {
 	"hammock": "res://assets/textury/builder/iso_hammock.png",
 	"corn_stand": "res://assets/textury/builder/iso_corn_stand.png",
 	"staffroom": "res://assets/textury/builder/iso_staffroom.png",
+	"warehouse": "res://assets/textury/builder/iso_warehouse.png",
 }
 
 ## Even shorter, for when a catalogue has so many cards that they get narrow.
@@ -92,6 +93,7 @@ const SHORT_NAMES := {
 	"flagpole": "Flagpole", "playground": "Playground", "ping_pong": "Ping-pong", "hammock": "Hammock",
 	"corn_stand": "Corn stand", "bowling": "Bowling",
 	"staffroom": "Staffroom",
+	"warehouse": "Warehouse",
 }
 
 const BLURBS := {

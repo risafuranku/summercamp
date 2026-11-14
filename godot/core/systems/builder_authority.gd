@@ -12,6 +12,7 @@ const DEMOLISH_MAX_SIZE: int = 64
 ## Mega gnome is Builder 98's registered copies' (scripts/builder/shareware.gd).
 const ALLOWED_BUILD_TYPES: Dictionary = {
 	"tent_1": true,
+	"warehouse": true,
 	"cabin_1": true,
 	"caravan_1": true,
 	"bonfire": true,

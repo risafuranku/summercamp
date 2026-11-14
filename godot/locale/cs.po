@@ -33717,3 +33717,15 @@ msgstr "Děkujeme! Vaše přání hrajeme hned potom na 96,4 FM."
 #: scripts/os98/web_pages.gd
 msgid "The line is busy. Try again later."
 msgstr "Linka je obsazená. Zkuste to později."
+
+#: scripts/business/warehouse.gd
+msgid "Warehouse"
+msgstr "Sklad"
+
+#: scripts/business/warehouse.gd
+msgid "Warehouse (2x2)"
+msgstr "Sklad (2x2)"
+
+#: scripts/business/warehouse.gd
+msgid "Give the rack to a place"
+msgstr "Dát regál podniku"

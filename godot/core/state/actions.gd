@@ -289,6 +289,7 @@ func biz_set_rack(store: String, i: int, site_key: String) -> void:
 	b["stores"] = stores
 	_count_store_racks()
 	EventBus.state_changed.emit({"biz": "racks"})
+	_biz_tell("rack", [store, i, site_key])
 
 
 ## The warehouses standing now (their keys): the others' racks go.

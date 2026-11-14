@@ -5853,6 +5853,10 @@ func _coop_biz_change(kind: String, a: Array) -> void:
 			act.biz_waste(str(a[0]), a[1])
 		"gear":
 			act.biz_add_gear(str(a[0]), str(a[1]))
+		"rack":
+			# A warehouse rack given to a place (scripts/business/warehouse.gd).
+			if a.size() > 2:
+				act.biz_set_rack(str(a[0]), int(a[1]), str(a[2]))
 		"licence":
 			act.biz_grant_licence(str(a[0]))
 		"aid":

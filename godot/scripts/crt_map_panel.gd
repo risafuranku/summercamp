@@ -29,7 +29,7 @@ const ICON_SPAN := {
 	"restaurant": 1.56, "pub": 1.69, "pub_2": 1.69, "corn_stand": 0.6, "bonfire": 0.95, "sports_field": 1.49,
 	"lake_slide": 1.26, "playground": 1.28, "ping_pong": 0.54, "hammock": 0.45, "bench": 0.3, "picnic_table": 0.42,
 	"flower_bed": 0.42, "tree_spruce": 0.46, "tree_birch": 0.42, "gnome": 0.2, "mega_gnome": 0.9, "flagpole": 0.3, "lamp_iso": 0.24, "lamp_post": 0.24, "sewer": 0.7, "power_generator": 0.83, "vecerka_iso": 1.8,
-	"staffroom": 1.6,
+	"staffroom": 1.6, "warehouse": 1.6,
 }
 const SFX_DIR := "res://assets/sfx/builder/"
 const WORLD_GEN = preload("res://scripts/world_generator.gd")
@@ -110,6 +110,7 @@ const ICON_PATHS := {
 	"hammock": "res://assets/textury/builder/iso_hammock.png",
 	"corn_stand": "res://assets/textury/builder/iso_corn_stand.png",
 	"staffroom": "res://assets/textury/builder/iso_staffroom.png",
+	"warehouse": "res://assets/textury/builder/iso_warehouse.png",
 	"bonfire": "res://assets/textury/builder/iso_bonfire.png",
 	"sports_field": "res://assets/textury/builder/iso_sports.png",
 	"lake_slide": "res://assets/textury/builder/iso_slide.png",
@@ -3351,6 +3352,8 @@ func _icon_key_for_type(building_type: String) -> String:
 			return "restaurant"
 		"staffroom":
 			return "staffroom"
+		"warehouse":
+			return "warehouse"
 		"vecerka":
 			return "vecerka_iso" if _get_icon("vecerka_iso") != null else "vecerka"
 		"bowling":
