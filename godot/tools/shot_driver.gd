@@ -142,8 +142,7 @@ const SCENARIOS := {
 	# Every page of the title screen (run it with -- --lang=cs to see the Czech).
 	"menupages": [
 		["wait_menu"], ["wait", 2.5], ["shot", "m1_main"],
-		["call_on", "_main_menu", "show_page", ["profiles"]], ["wait", 0.4], ["shot", "m2_wardens"],
-		["call_on", "_main_menu", "_on_profile_activated", ["edit"]], ["wait", 0.4], ["shot", "m3_warden"],
+		["call_on", "_main_menu", "show_page", ["warden"]], ["wait", 0.4], ["shot", "m2_warden"],
 		["call_on", "_main_menu", "show_page", ["newcamp"]], ["wait", 0.4], ["shot", "m4_newcamp"],
 		["call_on", "_main_menu", "show_page", ["camps"]], ["wait", 0.4], ["shot", "m5_camps"],
 		["call_on", "_main_menu", "show_page", ["load"]], ["wait", 0.4], ["shot", "m6_load"],
@@ -843,13 +842,18 @@ const SCENARIOS := {
 	# copy of a warden's profile in the scratch APPDATA for the CONTINUE card.
 	"menulook": [
 		["wait_menu"], ["wait", 6.0], ["shot", "m0_main"], ["wait", 7.0], ["shot", "m0b_main"],
-		["eval", "_main_menu.show_page('camps')"], ["wait", 1.0], ["shot", "m1_camps"], ["eval", "_main_menu._desk.close()"],
-		["eval", "_main_menu._open_camp()"], ["wait", 1.0], ["shot", "m2_load"],
-		["eval", "_main_menu.show_page('newcamp')"], ["wait", 1.0], ["shot", "m3_newcamp"], ["eval", "_main_menu._set_nc_mode(true)"], ["eval", "_main_menu._desk.redraw()"], ["wait", 0.5], ["shot", "m3b_newcamp_sandbox"],
-		["eval", "_main_menu.show_page('coop')"], ["wait", 1.0], ["shot", "m4_coop"],
-		["eval", "_main_menu.show_page('profiles')"], ["wait", 1.0], ["shot", "m5_profiles"],
+		["eval", "_main_menu.show_page('camps')"], ["wait", 1.0], ["shot", "m1_camps"],
+		["eval", "_main_menu._desk.page.click('saves')"], ["wait", 1.0], ["shot", "m2_load"],
+		["eval", "_main_menu.show_page('newcamp')"], ["wait", 1.0], ["shot", "m3_newcamp"], ["eval", "_main_menu._desk.page.click('sandbox')"], ["eval", "_main_menu._desk.redraw()"], ["wait", 0.5], ["shot", "m3b_newcamp_sandbox"],
+		["eval", "_main_menu.show_page('coop')"], ["wait", 1.0], ["eval", "_main_menu._desk.page.set('address', '192.168.0.17')"], ["eval", "_main_menu._desk.redraw()"], ["wait", 0.4], ["shot", "m4_coop"],
+		["eval", "_main_menu.show_coop_notice('The host did not answer.')"], ["wait", 0.5], ["shot", "m4b_coop_notice"],
+		["eval", "_main_menu.show_page('warden')"], ["wait", 1.0], ["shot", "m5_warden"],
+		["eval", "_main_menu._desk.page.click('new')"], ["eval", "_main_menu._desk.redraw()"], ["wait", 0.5], ["shot", "m5b_warden_new"], ["eval", "_main_menu._desk.page.click('back')"],
 		["eval", "_main_menu.show_page('options')"], ["wait", 1.0], ["shot", "m6_options"],
+		["eval", "_main_menu._desk.page.click('tape:body')"], ["eval", "_main_menu._desk.redraw()"], ["wait", 0.5], ["shot", "m6b_body"],
 		["eval", "_main_menu.show_page('controls')"], ["wait", 1.0], ["shot", "m7_controls"],
+		["eval", "_main_menu._desk.page.click('part:1')"], ["eval", "_main_menu._desk.redraw()"], ["wait", 0.5], ["shot", "m7b_controls_in"],
+		["eval", "_main_menu.show_page('credits')"], ["wait", 1.0], ["shot", "m7c_credits"],
 		["eval", "_main_menu.show_page('main')"], ["eval", "_main_menu.show_loading('Opening the camp...')"], ["wait", 1.0], ["shot", "m8_loading"],
 	],
 	# The office at dusk from a few places (the title screen in the reception, 14. 11.).

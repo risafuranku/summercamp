@@ -1,8 +1,27 @@
 # TODO — Cursed Camp Manager Simulator
 
-*Updated: 2026-11-02. Vision: DESIGN.md. What exists: PRODUCT.md.*
+*Updated: 2026-11-15. Vision: DESIGN.md. What exists: PRODUCT.md.*
 
 ---
+
+## DEMO AND STEAM 2026-11-15 (Richard: „Zhodnoť pak hru jako celek, vyvíjíme to už delší dobu… potřebujeme to zase posunout o několik kroků dál. Dej mi tučný QnA“)
+
+Q&A decisions (his answers):
+- Goal: a **demo + Steam page**. First outside players: 5–10 people they know (a closed build). Dates: **the closed demo in December 2026, the public demo at Steam Next Fest February 2027** (check the Next Fest sign-up dates). Full release (not Early Access) once the whole month and the mystery are done. Name stays **Cursed Camp Manager Simulator**.
+- The core when cutting: **the day → night loop**, both halves tied. No freeze on new mechanics.
+- Demo = **the first 3 days** (arrival, Vera's checklist, the first guests, the quiet first night, nights 2 and 3 with an enemy), ~60–90 min; it ends on **a strong night 3 and a cliffhanger** in Vera's morning mail, then the Wishlist screen. **Co-op 2–4 in the demo** (only what is reliable for two).
+- Full game: **weekly goals with unlocks + money and stars** pull you on; **a mystery with an end** (Vera, the feed-mill firm, the woods; 2–3 endings by how you play).
+- Nights stay **by the guests only** (the forecast from the bookings, no directed curve). Teaching: **Vera's checklist trimmed to the 3 days + picture guides of 2–4 steps**, no explanatory text. Losing exists (death at night, bankruptcy, failed inspection) and **goes back to that day's morning**.
+- Trailer: **a 90s TV advert / cereal-box CD** (voice, captions, enthusiasm that slowly goes wrong).
+- **Start with an absolute code clean-up.** Then **the Steam Deck fully on the gamepad** (the office PC and the close-ups too, readable at 7", Deck Verified as the aim). **Half-done things finished before the demo** (the raccoon's brain, the land round Liblice, the way to Pristoupim, the rest marked 🔨/🟡 in PRODUCT.md).
+
+Plan (in this order; tick with the commit):
+- [ ] D0 Clean-up: the main menu's pages finished and its old plates gone (main_menu.gd 1933 → ~470 lines: done 15. 11.); main.gd (7871 lines) split by responsibility; dead code and unused assets out; PRODUCT.md / DESIGN.md / AGENTS.md matched to the game as it is; one automatic run of the demo's 3 days, alone and for two
+- [ ] D1 The demo's 3 days: the checklist trimmed, picture guides, night 3 built up, Vera's cliffhanger mail, the Wishlist end screen, losing back to the morning, co-op 2–4 through all of it
+- [ ] D2 Half-done things finished (list from PRODUCT.md 🔨/🟡 and the open TODO points)
+- [ ] D3 Steam Deck: the gamepad everywhere (a cursor on the stick for the PC and the close-ups), text size at 1280x800 on 7", measured frame time on Deck-class hardware
+- [ ] D4 Steam page: capsule and header from real renders + the logo (Grok samples first), screenshots, CZ + EN text, the 90s-advert trailer
+- [ ] D5 Full game after the demo: weekly goals and unlocks, money and stars, the mystery and its endings (its own Q&A first)
 
 ## MAIN MENU 2026-11-14 (Richard: „potřebujeme totálně polishnout main menu… vypadá to jak nějakej prototyp, dost to podceňuje tu hru, moc jí to neodráží“)
 
@@ -11,7 +30,7 @@ Q&A: concept „Recepce za soumraku“ (the menu in the game itself: the counter
 - [x] M1 Stage: the live office at dusk as the title's background (the building interior's room, its eye placed by the title, no office play: tube off, desk lamp on, radio silent), a slow drift; the CRT shows the game's title; replaces the flythrough
 - [x] M2 Showcase camp for the menu world (fixed seed, built camp in view of the windows, lamps lit, the bonfire burning), never the player's save
 - [x] M3 Main page = the guest book (desk/register.png) open on the counter: the items handwritten on its lines, CONTINUE as the last entry (camp, day, till); the logo
-- [ ] M4 (camps = key board and new camp = the form with the stamp done: title_desk.gd, page_keys.gd, page_form.gd; left: warden, co-op, settings, a camp's saves, controls) Pages as the counter's close-ups: camps = the key board (key_board/key_rack/key_fob, a Dymo label each) → a camp's saves; new camp = a booking form stamped (booking/stamp); warden = the ID card with the figure as its photo; co-op = the phone; settings = a sheet on the clipboard; quit = the desk lamp. One size and type for all, no explanatory texts
+- [x] M4 Pages as the counter's close-ups, all of them (15. 11.): camps = the key board (page_keys.gd), a camp's saves = a printout beside its card (page_saves.gd), new camp = the application with the stamp (page_form.gd), co-op = the office telephone cut out of its close-up (page_phone.gd, desk/phone.png by tools/artgen/desk_phone_cut.py), warden = the ID card with a photo booth strip and jacket cloth (page_warden.gd, also the first start), configuration / view and body / controls / credits = printouts with tapes (page_config.gd; the rows shared with the pause menu: scripts/ui/settings_rows.gd); main_menu.gd 1933 -> ~470 lines, the old plates gone (only the secret TEST NIGHTS plate left)
 - [ ] M5 Hotspots in the 3D office matching the book's lines (hover glints both), a camera move to the object for its page, the counter's sounds (page, keys, phone, stamp, radio click)
 - [ ] M6 Loading screen of its own (nothing of the menu showing through), the way into the game from the office
 - [ ] M7 Grok logo after 16. 11.

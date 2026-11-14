@@ -83,18 +83,22 @@ godot/
   data/buildings/*.tres       # building definitions
   data/pools/                 # email + guest content
   scripts/
-    main.gd                   # orchestration (~3k lines; still the biggest file)
+    main.gd                   # orchestration (~7.9k lines; the biggest file, to be split: TODO D0)
     os98/                     # the camp computer "Okna 98" at 640x480: os_shell (the panel:
                               # tabs, pages, taskbar, boot, installs), os_page, os_theme,
                               # os_window (dialogs), os_files (the disk), web_pages (the
                               # 1998 web), apps/<app>_app.gd, apps/job_*, apps/game_*
-    ui/                       # retro_ui (kit), retro_menu (menu parts), main_menu,
-                              # pause_menu, game_over_screen, boot_screen
+    ui/                       # retro_ui (kit), retro_menu (menu parts), settings_rows
+                              # (the configuration's rows), main_menu, pause_menu,
+                              # game_over_screen, boot_screen
+    ui/title/                 # the title: the office at dusk (title_stage), the showcase
+                              # camp (title_camp), the guest book (title_book), the
+                              # counter's close-ups (title_desk + one page_*.gd each)
     enemies/                  # i_enemy_brain, enemy_base, silent_man, tourist, girl, stalker
     hud_manager.gd            # Build-engine HUD
     maintenance_controller.gd # upkeep in the world (signs, hold R, crew)
     electricity_billing.gd    # bills, power cut, UPS
-    blood_fx.gd, menu_flythrough.gd, save_codec.gd, ...
+    blood_fx.gd, save_codec.gd, ...
   assets/fonts/*.fnt          # baked bitmap fonts (do not edit by hand, see §7)
   tools/                      # in-engine harnesses (§3) and the screenshot driver
 tools/                        # repo-level tooling: gen_pixel_fonts.py, audiogen/,
@@ -274,8 +278,9 @@ a small animated `<movie>.webp`. The business shot drivers (`jednota_shots`, `pr
 | HUD | `scripts/hud_manager.gd` (+ `scripts/ui/retro_ui.gd` kit). Two channels for what the player is told (12. 11.): `push_pager(text, kind, group)` for what happens away from you (a day's trouble starting, a breakdown, someone at the desk or driving off, the post, the mains, the night's jobs, a hand's news): the belt pager, `scripts/ui/pager.gd`, in the bottom left corner coming up out of the status bar's top edge (the screen's bottom edge in a room; `hud_manager._place_pager`), slim: `assets/textury/hud/pager_slim.png` cut at its own pixels out of the Grok `pager.png` (`tools/artgen/prompts_day.tsv` hud_pager) by `tools/artgen/pager_slim.py` (12. 11.: the whole one took a quarter of the view); one message at a time on its lit screen, two lines a page, a group replaces its waiting one, the LED red for a warning; its "Pager: " stays in the line for the Czech and is not shown; `push_status` for what is said and done round you (the feed at the top left, three lines). Both go into CampStat's log (`feed_log`). |
 | Menus / pause / game over | `scripts/ui/` |
 | Camera moves in rooms; things that move in steps | the camera moves in rooms (sitting down, getting up, looking back, the window, the bus seat) are smooth: `scripts/ui/cam_move.gd` `CAM_MOVE.move(host, camera, {"position": p, "rotation": r}, seconds)`; it holds the tween for a steady frame (`CAM_MOVE.hold(host, tween)` for any tween started while a room is built); the fire, the torch hand, the gate and such machinery step twelve a second through `scripts/ui/step12.gd`; the door transition into buildings `scripts/ui/door_transition.gd` (frozen frame, smooth dither dissolve), called from `interior_manager._door_transition()`, skipped since 21. 10. when you walked in through the door by hand (`_walk_up_first`, `_walked_in_ms`); out of them no dissolve: `interior_manager._step_out_of(structure)` puts the warden at the building's door (`door_anim.entry_points`) facing out and walks him off the doorstep (`_walk_body`) |
-| Story or sandbox, the sandbox's switches | NEW CAMP page in `scripts/ui/main_menu.gd` (`_set_nc_mode`, `NC_RULE_TEXT`); in game `main.CAMP_RULES` / `camp_rule(id)` ("threats", "weather", "events", "wear", "money"), saved as the snapshot's "rules"; a new system that the sandbox should be able to switch off checks `camp_rule` |
-| The title screen's camera (shots, their light and weather) | `scripts/menu_flythrough.gd` (a shot = rails + subject + two looks; nodes found by script, a regenerated camp names them CampLake2 etc.) |
+| Story or sandbox, the sandbox's switches | the new camp's application on the title's counter, `scripts/ui/title/page_form.gd` (`RULES`, `RULE_TEXT`, `MONEY`, `_make`); in game `main.CAMP_RULES` / `camp_rule(id)` ("threats", "weather", "events", "wear", "money"), saved as the snapshot's "rules"; a new system that the sandbox should be able to switch off checks `camp_rule` |
+| The title screen's view (the office at dusk, the camp out of its window) | `scripts/ui/title/title_stage.gd` (`EYE`, `LOOK`, `FOV`, `HOURS`; the clock held, `building_interior.set_title_view`), `title_camp.gd` (`SEED`, `PLAN` laid along the front window's line of sight) |
+| The title's pages (the counter's things close up) | `scripts/ui/main_menu.gd` (`show_page`, the page names and `ALIASES`), `scripts/ui/title/title_desk.gd` (the 480 x 270 counter and what pages draw with: `paper`, `tape`, `face`, `camp_card`, `field`), one `page_*.gd` each (keys, saves, form, phone, warden, config); the configuration's rows and what they do: `scripts/ui/settings_rows.gd` (the pause menu's `retro_menu.OptionsPage` uses the same) |
 | Studio splash (UNDO LABS + POWERED BY GODOT neon, the first scene) | `scripts/ui/studio_splash.gd` + `materials/studio_neon.gdshader`; palette `tools/gen_splash_palette.py`, sounds recorded (ElevenLabs, `splash_*` rows in `tools/audiogen/prompts_world.tsv`); after any change re-bake the engine boot image: `godot --path godot --script res://tools/studio_splash_bake.gd -- --boot` (frames for a look: `-- --frames=<dir>`) |
 | The check-in desk's key board (Dymo labels, the label maker), the room across the counter by hour/weather and its night scares | `scripts/reception/checkin_desk.gd` (`_slots`, `_pick_view`, `_roll_scare`); art `tools/artgen/desk_art.py views` |
 | The counter in the room: the picture laid on it, the keys' drawer, the stamps and the label maker as objects, the pointer cast onto them | `scripts/reception/desk_room.gd` (`_point`, `_build_drawer`, `_build_stamps`, `_tick_stamps`); the bite out of the counter for the drawer: `building_interior.gd` ("Counter*"). Who stands in the room: `desk_room.present_queue()`, the desk queue less those whose figure is still out in the camp (walking up from the gate, waiting at the door), the same from inside and through the panes (`tick_unseen`); their figure goes in by the reception's door, which swings (`guest_agents` `in_office`). The front doorway's lining runs through both walls into the building's own frame (`building_interior` FrontDoorFrame*, the walls' ends inside it), the leaf hinged on its outer face (`desk_room.DOOR_HINGE`, `DOOR_LEAF_Z`) |

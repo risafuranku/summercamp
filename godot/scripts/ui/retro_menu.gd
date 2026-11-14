@@ -376,15 +376,8 @@ class OptionsPage:
 	signal controls_requested
 	signal credits_requested
 
-	const MODE_IDS := ["windowed", "fullscreen", "borderless"]
-	const MODE_LABELS := ["WINDOWED", "FULLSCREEN", "BORDERLESS"]
-	## The bottom is off (GameSettings.MASTER_DB_OFF mutes Master), not -40 dB still heard.
-	const VOLUME_STEPS := [-80.0, -40.0, -30.0, -24.0, -20.0, -16.0, -12.0, -9.0, -6.0, -4.0, -2.0, 0.0, 3.0, 6.0]
-	const MOUSE_STEPS := [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0]
-	## View and body (the warden's: profiles.gd profile_body): the FOV, how much the head
-	## bobs and leans (0 against sickness).
-	const FOV_STEPS := [60.0, 64.0, 68.0, 72.0, 76.0, 80.0, 84.0, 90.0]
-	const PCT_STEPS := [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+	## The rows and what they do: settings_rows.gd (shared with the title's printout).
+	const ROWS = preload("res://scripts/ui/settings_rows.gd")
 	## A row's height: thirteen rows fit the title screen's plate and the pause menu's.
 	const ROW_VP := 13.0
 	## Where "View and body" is on the main rows (back from that page lands on it).
@@ -432,34 +425,24 @@ class OptionsPage:
 				continue
 			remove_child(child)
 			child.queue_free()
-		_rows = [
-			{"id": "mode", "name": "Window mode"},
-			{"id": "resolution", "name": "Resolution"},
-			{"id": "render", "name": "Render style"},
-			{"id": "palette", "name": "256-colour palette"},
-			{"id": "volume", "name": "Master volume", "bar": VOLUME_STEPS.size() - 1},
-			{"id": "mic", "name": "Microphone", "action": true},
-			# The pointer's speed for every look (playtest 1. 11.: "add mouse sensitivity":
-			# it was only the warden's X and Y, two pages down); those stay as fine tuning.
-			{"id": "mouse", "name": "Mouse sensitivity", "bar": MOUSE_STEPS.size() - 1},
-			{"id": "body", "name": "View and body", "action": true},
-			{"id": "hints", "name": "Work hints"},
-			{"id": "controls", "name": "Controls", "action": true},
-			{"id": "credits", "name": "Credits", "action": true},
-			{"id": "reset", "name": "Reset defaults", "action": true},
-			{"id": "back", "name": "Back", "action": true},
-		]
+		# The settings, then the rows that go somewhere (View and body after the mouse, as it
+		# always was: BODY_ROW).
+		_rows = []
+		var main_rows: Array = ROWS.MAIN.duplicate(true)
+		_rows.append_array(main_rows.slice(0, 7))
+		_rows.append({"id": "body", "name": "View and body", "action": true})
+		_rows.append_array(main_rows.slice(7))
+		_rows.append({"id": "controls", "name": "Controls", "action": true})
+		_rows.append({"id": "credits", "name": "Credits", "action": true})
+		_rows.append({"id": "reset", "name": "Reset defaults", "action": true})
+		_rows.append({"id": "back", "name": "Back", "action": true})
+		for r in _rows:
+			if r["id"] == "mic":
+				r["action"] = true
 		if section == "body":
-			_rows = [
-				{"id": "fov", "name": "Field of view"},
-				{"id": "mouse_x", "name": "Mouse X", "bar": MOUSE_STEPS.size() - 1},
-				{"id": "mouse_y", "name": "Mouse Y", "bar": MOUSE_STEPS.size() - 1},
-				{"id": "invert", "name": "Invert mouse Y"},
-				{"id": "bob", "name": "Head bob", "bar": PCT_STEPS.size() - 1},
-				{"id": "lean", "name": "Lean", "bar": PCT_STEPS.size() - 1},
-				{"id": "crouch", "name": "Crouch (Ctrl)"},
-				{"id": "body_back", "name": "Back", "action": true},
-			]
+			_rows = []
+			_rows.append_array(ROWS.BODY.duplicate(true))
+			_rows.append({"id": "body_back", "name": "Back", "action": true})
 		_row_nodes.clear()
 		_value_labels.clear()
 		_name_labels.clear()
@@ -536,65 +519,17 @@ class OptionsPage:
 			if i >= _value_labels.size():
 				return
 			var id := str(_rows[i]["id"])
-			var text := ""
-			var bar_value := -1.0
-			match id:
-				"mode":
-					text = MODE_LABELS[maxi(0, MODE_IDS.find(GameSettings.get_window_mode()))]
-				"resolution":
-					var r: Vector2i = GameSettings.get_resolution()
-					text = "%d X %d" % [r.x, r.y]
-					if GameSettings.get_window_mode() != "windowed":
-						text = "DESKTOP"
-				"render":
-					text = str(RETRO_RENDER.PRESET_LABELS.get(GameSettings.get_retro_preset(), "")).to_upper()
-				"palette":
-					text = "ON" if GameSettings.get_retro_palette_enabled() else "OFF"
-				"volume":
-					var db: float = GameSettings.get_master_volume_db()
-					var vi := _nearest(VOLUME_STEPS, db)
-					text = "OFF" if vi == 0 else "%+d DB" % int(round(db))
-					bar_value = float(vi) / float(VOLUME_STEPS.size() - 1)
-				"mouse":
-					var m: float = GameSettings.get_mouse_sensitivity()
-					var mi := _nearest(MOUSE_STEPS, m)
-					text = "%d%%" % int(round(m * 100.0))
-					bar_value = float(mi + 1) / float(MOUSE_STEPS.size())
-				"mic":
-					text = "%s  v" % _mic_name(GameSettings.get_mic_device())
-				"invert":
-					text = "ON" if GameSettings.get_invert_mouse_y() else "OFF"
-				"hints":
-					# The businesses' next step lit (the brief of 21. 10.), the warden's.
-					text = "ON" if load("res://scripts/profiles.gd").profile_hints() else "OFF"
-				"fov":
-					text = "%d°" % int(round(float(_body().get("fov", 72.0))))
-				"mouse_x", "mouse_y":
-					var mb := float(_body().get(id, 1.0))
-					text = "%d%%" % int(round(mb * 100.0))
-					bar_value = float(_nearest(MOUSE_STEPS, mb) + 1) / float(MOUSE_STEPS.size())
-				"bob", "lean":
-					var pb := float(_body().get(id, 1.0))
-					text = "%d%%" % int(round(pb * 100.0))
-					bar_value = float(_nearest(PCT_STEPS, pb)) / float(PCT_STEPS.size() - 1)
-				"crouch":
-					text = "TOGGLE" if bool(_body().get("crouch_toggle", false)) else "HOLD"
-				"controls", "reset", "back", "body", "body_back":
-					text = ""
+			var v: Dictionary = ROWS.value(id)
+			var text := str(v["text"])
+			if id == "mic":
+				text = "%s  v" % text
 			# The value looked up before its arrows: "< NATIVE (PALETTE ONLY) >" whole found
 			# nothing (S6).
-			if str(text) != "" and not _rows[i].has("bar") and not _rows[i].has("action"):
-				text = "< %s >" % tr(str(text))
+			if text != "" and not _rows[i].has("bar") and not _rows[i].has("action"):
+				text = "< %s >" % tr(text)
 			_value_labels[i].text = text
-			if _bars[i] != null and bar_value >= 0.0:
-				_bars[i].set_value(bar_value)
-
-	## A microphone as a row says it: the default in the game's words, the rest as Windows names
-	## them, short enough for the row.
-	func _mic_name(device: String) -> String:
-		if device == GameSettings.MIC_DEFAULT:
-			return tr("DEFAULT")
-		return device.to_upper() if device.length() <= 26 else device.substr(0, 24).to_upper() + ".."
+			if _bars[i] != null and float(v["bar"]) >= 0.0:
+				_bars[i].set_value(float(v["bar"]))
 
 	func _open_drop() -> void:
 		_close_drop()
@@ -649,7 +584,7 @@ class OptionsPage:
 			lit.size = r.size
 			lit.visible = false
 			r.add_child(lit)
-			var l := RETRO_UI.label(_mic_name(str(_drop_devices[i])), RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_BONE, ui_scale)
+			var l := RETRO_UI.label(ROWS.mic_name(str(_drop_devices[i])), RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_BONE, ui_scale)
 			l.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 			l.clip_text = true
 			l.position = Vector2(3.0 * s, 0.0)
@@ -737,41 +672,6 @@ class OptionsPage:
 			return
 		var id := str(_rows[selected]["id"])
 		match id:
-			"mode":
-				var mi := posmod(MODE_IDS.find(GameSettings.get_window_mode()) + dir, MODE_IDS.size())
-				GameSettings.set_window_mode(MODE_IDS[mi], true, true)
-			"resolution":
-				var list: Array[Vector2i] = GameSettings.get_supported_resolutions()
-				var ri := posmod(list.find(GameSettings.get_resolution()) + dir, list.size())
-				GameSettings.set_resolution(list[ri], true, true)
-			"render":
-				var order: Array[String] = RETRO_RENDER.PRESET_ORDER
-				var pi := posmod(order.find(GameSettings.get_retro_preset()) + dir, order.size())
-				GameSettings.set_retro_preset(order[pi], true)
-			"palette":
-				GameSettings.set_retro_palette_enabled(not GameSettings.get_retro_palette_enabled(), true)
-			"volume":
-				var vi := clampi(_nearest(VOLUME_STEPS, GameSettings.get_master_volume_db()) + dir, 0, VOLUME_STEPS.size() - 1)
-				GameSettings.set_master_volume_db(VOLUME_STEPS[vi], true, true)
-			"mouse":
-				var mi2 := clampi(_nearest(MOUSE_STEPS, GameSettings.get_mouse_sensitivity()) + dir, 0, MOUSE_STEPS.size() - 1)
-				GameSettings.set_mouse_sensitivity(MOUSE_STEPS[mi2], true)
-			"invert":
-				GameSettings.set_invert_mouse_y(not GameSettings.get_invert_mouse_y(), true)
-			"hints":
-				var prof = load("res://scripts/profiles.gd")
-				prof.set_profile_hints(prof.profile_id, not prof.profile_hints())
-			"fov":
-				var fi := clampi(_nearest(FOV_STEPS, float(_body().get("fov", 72.0))) + dir, 0, FOV_STEPS.size() - 1)
-				_set_body("fov", FOV_STEPS[fi])
-			"mouse_x", "mouse_y":
-				var mxi := clampi(_nearest(MOUSE_STEPS, float(_body().get(id, 1.0))) + dir, 0, MOUSE_STEPS.size() - 1)
-				_set_body(id, MOUSE_STEPS[mxi])
-			"bob", "lean":
-				var pi2 := clampi(_nearest(PCT_STEPS, float(_body().get(id, 1.0))) + dir, 0, PCT_STEPS.size() - 1)
-				_set_body(id, PCT_STEPS[pi2])
-			"crouch":
-				_set_body("crouch_toggle", not bool(_body().get("crouch_toggle", false)))
 			"body", "body_back":
 				if activate:
 					section = "body" if id == "body" else "main"
@@ -793,29 +693,18 @@ class OptionsPage:
 				return
 			"reset":
 				if activate:
-					GameSettings.reset_defaults()
+					ROWS.reset()
 				else:
 					return
 			"back":
 				if activate:
 					back_requested.emit()
 				return
+			_:
+				if not ROWS.change(id, dir):
+					return
 		_play(0.85)
 		refresh()
-
-	func _body() -> Dictionary:
-		return load("res://scripts/profiles.gd").profile_body()
-
-	func _set_body(key: String, value) -> void:
-		var prof = load("res://scripts/profiles.gd")
-		prof.set_profile_body(prof.profile_id, key, value)
-
-	func _nearest(steps: Array, value: float) -> int:
-		var best := 0
-		for i in steps.size():
-			if absf(float(steps[i]) - value) < absf(float(steps[best]) - value):
-				best = i
-		return best
 
 	func _play(pitch: float) -> void:
 		if _sfx != null and _sfx.stream != null and _sfx.is_inside_tree():

@@ -53,6 +53,7 @@ const COLORS := [
 
 static var _cache: Dictionary = {}
 static var _atlas_cache: Dictionary = {}
+static var _cloth_cache: Dictionary = {}
 
 
 static func count() -> int:
@@ -98,6 +99,43 @@ static func texture(model: int, color: int, pose: String = "stand") -> Texture2D
 			tex = ImageTexture.create_from_image(img)
 	_cache[key] = tex
 	return tex
+
+
+## A square of warden `model`'s standing picture where the jacket is most (its hue band,
+## enough colour): `size` px a side, for a swatch of the cloth (the title's ID card page:
+## the jackets' colours shown as the jacket's own pixels). Found once and kept.
+static func cloth_rect(model: int, size: int) -> Rect2i:
+	model = posmod(model, LETTERS.size())
+	var key := "%d|%d" % [model, size]
+	if _cloth_cache.has(key):
+		return _cloth_cache[key]
+	var best := Rect2i(0, 48, size, size)
+	var base := texture(model, 0, "stand")
+	var img: Image = base.get_image() if base != null else null
+	if img != null:
+		if img.is_compressed():
+			img.decompress()
+		var jacket: Dictionary = JACKETS[model]
+		var w := img.get_width()
+		var h := img.get_height()
+		var mask := PackedByteArray()
+		mask.resize(w * h)
+		for y in h:
+			for x in w:
+				var c := img.get_pixel(x, y)
+				mask[y * w + x] = 1 if c.a > 0.5 and c.s >= float(jacket["sat"]) and _in_hue(c.h * 360.0, jacket["hue"]) else 0
+		var top := -1
+		for y in range(int(h * 0.12), int(h * 0.6) - size, 2):
+			for x in range(0, w - size + 1, 2):
+				var n := 0
+				for yy in size:
+					for xx in size:
+						n += mask[(y + yy) * w + x + xx]
+				if n > top:
+					top = n
+					best = Rect2i(x, y, size, size)
+	_cloth_cache[key] = best
+	return best
 
 
 ## Warden `model` seen from eight sides (scripts/figures/doom_figure.gd), {} until drawn.

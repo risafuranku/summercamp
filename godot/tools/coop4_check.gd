@@ -224,9 +224,9 @@ func _run_step(step: Array) -> void:
 	if str(step[0]) == "coop4_turned_away":
 		# What the fifth was told, and whether they are still on a line.
 		var menu = _main.get("_main_menu")
-		var notice = menu.get("_coop_notice") if menu != null else null
+		var notice: String = menu.coop_notice() if menu != null else ""
 		var f := FileAccess.open(_out_dir.path_join("c4_full.json"), FileAccess.WRITE)
-		f.store_string(JSON.stringify({"notice": str(notice.text) if notice != null else "", "active": Coop.is_active(), "in_game": bool(_main.get("_gameplay_started"))}))
+		f.store_string(JSON.stringify({"notice": notice, "active": Coop.is_active(), "in_game": bool(_main.get("_gameplay_started"))}))
 		f.close()
 		return
 	if str(step[0]) == "coop4_aim":

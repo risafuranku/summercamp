@@ -33822,3 +33822,9 @@ msgstr "Režim"
 
 msgid "APPROVED"
 msgstr "SCHVÁLENO"
+
+msgid "Delete save"
+msgstr "Smazat uložení"
+
+msgid "Delete warden"
+msgstr "Smazat správce"

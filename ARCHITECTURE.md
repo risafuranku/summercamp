@@ -15,7 +15,7 @@ Technical wiring. For rules of engagement see [AGENTS.md](AGENTS.md); for intent
 │                   ui/ (menus, pause, game over, boot)        │
 ├──────────────────────────────────────────────────────────────┤
 │ 5  Orchestration  main.gd + extracted modules: blood_fx,     │
-│                   electricity_billing, menu_flythrough,      │
+│                   electricity_billing, ui/title (the title), │
 │                   maintenance_controller, save_codec,        │
 │                   enemies/* (one brain per night threat)     │
 ├──────────────────────────────────────────────────────────────┤

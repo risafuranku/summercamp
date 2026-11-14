@@ -12,7 +12,16 @@ signal back
 
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 const LANG = preload("res://scripts/lang.gd")
+const CAMP_TEXT = preload("res://scripts/ui/title/camp_text.gd")
+const WARDEN_LOOKS = preload("res://scripts/coop/warden_looks.gd")
+## The ID card (108 x 70): its grey photograph ground (10, 16, 35, 38) behind a warden's
+## photograph (face()).
+const ID_CARD := "res://assets/textury/desk/id_card.png"
+const PHOTO_GROUND := Rect2(11, 17, 33, 36)
 const TOP := "res://assets/textury/desk/desk_top.png"
+## The striped tractor-feed paper (88 x 118): holed margins 7 px each side, the stripes
+## every 6 rows (a sheet of any size is cut from it: paper()).
+const SHEET := "res://assets/textury/desk/booking.png"
 const W := 480
 const H := 270
 const INK := Color(0.14, 0.16, 0.32)
@@ -22,7 +31,7 @@ const PAPER := Color(0.93, 0.9, 0.82)
 const FONT_PX := 8
 
 ## The page on it now: an object with paint(desk, c), hotspots() -> [{id, rect}],
-## click(id), key(event) -> bool, opened().
+## click(id), key(event) -> bool, opened(), and if it likes closed().
 var page
 var _vp: SubViewport
 var _canvas: Control
@@ -77,6 +86,7 @@ func _ready() -> void:
 
 
 func open_page(p) -> void:
+	_closed()
 	clear_fields()
 	page = p
 	visible = true
@@ -88,9 +98,15 @@ func open_page(p) -> void:
 
 
 func close() -> void:
+	_closed()
 	visible = false
 	page = null
 	clear_fields()
+
+
+func _closed() -> void:
+	if page != null and page.has_method("closed"):
+		page.closed()
 
 
 func redraw() -> void:
@@ -239,10 +255,111 @@ func link(c: Control, pos: Vector2, s: String, id: String, col := INK) -> Rect2:
 	text(c, pos, s, col)
 	var r := Rect2(pos + Vector2(-2, -8), Vector2(w + 4, 11))
 	if _hover == id:
-		c.draw_rect(Rect2(pos.x - 1, pos.y + 1, w + 2, 1), RED)
-		for d in 3:
-			c.draw_rect(Rect2(pos.x - 7 + d, pos.y - 5 + d, 1, 5 - d * 2), RED)
+		mark(c, pos, w)
 	return r
+
+
+## The red pencil's mark on the line written at `pos` (`w` long): under it and before it.
+func mark(c: Control, pos: Vector2, w: float) -> void:
+	c.draw_rect(Rect2(pos.x - 1, pos.y + 1, w + 2, 1), RED)
+	for d in 3:
+		c.draw_rect(Rect2(pos.x - 7 + d, pos.y - 5 + d, 1, 5 - d * 2), RED)
+
+
+## Computer paper of any size cut from the tractor-feed sheet (SHEET): its holed margins
+## down both sides, its stripes going on, a shadow under it. `r` in native px.
+func paper(c: Control, r: Rect2) -> void:
+	r = Rect2(r.position.floor(), r.size.floor())
+	c.draw_rect(Rect2(r.position + Vector2(3, 4), r.size), Color(0, 0, 0, 0.35))
+	var t := tex(SHEET)
+	if t == null:
+		c.draw_rect(r, PAPER)
+		return
+	var y := 0.0
+	while y < r.size.y:
+		# The first band from the sheet's top (its torn edge), the rest from row 6 on: 108
+		# rows, a whole number of stripes, so they run on.
+		var sy := 0.0 if y == 0.0 else 6.0
+		var sh := minf(114.0 - sy, r.size.y - y)
+		var at := r.position + Vector2(0, y)
+		c.draw_texture_rect_region(t, Rect2(at, Vector2(7, sh)), Rect2(0, sy, 7, sh))
+		c.draw_texture_rect_region(t, Rect2(at + Vector2(r.size.x - 7, 0), Vector2(7, sh)), Rect2(81, sy, 7, sh))
+		var x := 7.0
+		while x < r.size.x - 7.0:
+			var tw := minf(74.0, r.size.x - 7.0 - x)
+			c.draw_texture_rect_region(t, Rect2(at + Vector2(x, 0), Vector2(tw, sh)), Rect2(7, sy, tw, sh))
+			x += tw
+		y += sh
+
+
+## A camp's card as the key board lays it beside the board (the booking card: the camp's
+## photograph glued on, its name in ink, its mode and day, till and guests in pencil).
+func camp_card(c: Control, at: Vector2, camp: Dictionary) -> void:
+	var card := tex(SHEET)
+	var cr := Rect2(at, card.get_size() if card != null else Vector2(88, 118))
+	c.draw_rect(Rect2(cr.position + Vector2(2, 3), cr.size), Color(0, 0, 0, 0.35))
+	if card != null:
+		c.draw_texture(card, cr.position)
+	else:
+		c.draw_rect(cr, PAPER)
+	if camp.is_empty():
+		return
+	photo(c, Rect2(cr.position + Vector2(8, 10), Vector2(72, 40)), CAMP_TEXT.thumb(str(camp.get("thumb", ""))))
+	var x := cr.position.x + 12
+	text(c, Vector2(x, cr.position.y + 66), str(camp.get("name", "Camp")).to_upper(), INK)
+	text(c, Vector2(x, cr.position.y + 78), (tr("SANDBOX") if bool(camp.get("sandbox", false)) else tr("STORY")) + "  " + tr("DAY %d") % int(camp.get("day", 1)), PENCIL)
+	text(c, Vector2(x, cr.position.y + 89), "$" + CAMP_TEXT.money(int(camp.get("money", 0))), PENCIL)
+	text(c, Vector2(x, cr.position.y + 100), tr("%d GUESTS") % int(camp.get("guests", 0)), PENCIL)
+
+
+## A warden's photograph as on an ID: their figure (warden_looks.gd, in their jacket),
+## head and shoulders (35 x 38 of it) at `k` times its pixels; with `edge`, glued on in a
+## white edge on the ID card's grey ground (without: into a frame already there).
+const FACE := Vector2i(35, 38)
+
+
+func face(c: Control, at: Vector2, model: int, color: int, k := 1, edge := true) -> Rect2:
+	var r := Rect2(at.floor(), Vector2(FACE) * float(k))
+	if edge:
+		c.draw_rect(Rect2(r.position + Vector2(2, 2), r.size + Vector2(4, 4)), Color(0, 0, 0, 0.35))
+		c.draw_rect(r.grow(2), Color(0.94, 0.92, 0.86))
+		var ground := tex(ID_CARD)
+		if ground != null:
+			c.draw_texture_rect_region(ground, r, PHOTO_GROUND)
+	var t := WARDEN_LOOKS.texture(model, color, "stand")
+	if t != null:
+		c.draw_texture_rect_region(t, r, Rect2(t.get_width() / 2 - FACE.x / 2, 0, FACE.x, FACE.y))
+	return r
+
+
+## `s` broken into lines no wider than `width` (whole words).
+func wrap(s: String, width: float) -> Array[String]:
+	var out: Array[String] = []
+	var line := ""
+	for word in s.split(" ", false):
+		var next := word if line == "" else line + " " + word
+		if line != "" and text_w(next) > width:
+			out.append(line)
+			line = word
+		else:
+			line = next
+	if line != "":
+		out.append(line)
+	return out
+
+
+## A strip of tape you can click (dymo): its id hovered, a pale line under it.
+func tape(c: Control, center: Vector2, s: String, id: String, col := Color8(24, 24, 26)) -> Rect2:
+	var r := dymo(c, center, s, col)
+	if _hover == id:
+		c.draw_rect(Rect2(r.position.x, r.end.y + 1, r.size.x, 1), Color(0.95, 0.85, 0.5))
+	return r
+
+
+## Where a tape of `s` centred on `center` lies (for hotspots, before it is drawn).
+func tape_rect(center: Vector2, s: String) -> Rect2:
+	var w := maxf(14.0, text_w(s.to_upper()) + 6.0)
+	return Rect2((center - Vector2(w * 0.5, 4)).floor() + Vector2(-2, -2), Vector2(w + 4, 13))
 
 
 ## A photograph glued in: a white edge, a strip of tape over its top.
@@ -256,13 +373,13 @@ func photo(c: Control, r: Rect2, t: Texture2D) -> void:
 	c.draw_rect(Rect2(r.position.x + r.size.x * 0.5 - 9, r.position.y - 4, 18, 6), Color(0.92, 0.88, 0.7, 0.62))
 
 
-## A strip of Dymo tape with `s` punched into it, white on `tape`.
-func dymo(c: Control, center: Vector2, s: String, tape := Color8(24, 24, 26)) -> Rect2:
+## A strip of Dymo tape with `s` punched into it, white on `col`.
+func dymo(c: Control, center: Vector2, s: String, col := Color8(24, 24, 26)) -> Rect2:
 	var t := s.to_upper()
 	var w := maxf(14.0, text_w(t) + 6.0)
 	var r := Rect2((center - Vector2(w * 0.5, 4)).floor(), Vector2(w, 9))
 	c.draw_rect(Rect2(r.position + Vector2(1, 1), r.size), Color(0, 0, 0, 0.4))
-	c.draw_rect(r, tape)
-	c.draw_rect(Rect2(r.position, Vector2(r.size.x, 1)), tape.lightened(0.25))
+	c.draw_rect(r, col)
+	c.draw_rect(Rect2(r.position, Vector2(r.size.x, 1)), col.lightened(0.25))
 	text(c, r.position + Vector2(3, 7), t, Color(0.92, 0.92, 0.9))
 	return r
