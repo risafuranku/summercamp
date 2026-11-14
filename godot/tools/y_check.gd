@@ -191,8 +191,9 @@ func _builder() -> Array:
 	return s
 
 
-## The torch by F in rain and storm, by day (Y6): it does not come on by itself, stays on
-## after the rain till you switch it off, F sleeps in the dry; every switch heard (Y3).
+## The torch (Y6, and playtest 14. 11.): yours any time, F lights it and puts it out by day, in
+## the dry and in the rain alike; nothing turns it on or off by itself (rain, evening, morning);
+## every switch heard (Y3).
 func _torch() -> Array:
 	var look := func(what: String) -> Array:
 		return ["eval", "['Y %s', 'on', _player.is_flashlight_active(), 'click', _player.get_node_or_null('TorchClick') != null and _player.get_node('TorchClick').playing]" % what]

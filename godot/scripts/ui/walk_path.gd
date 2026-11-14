@@ -19,9 +19,30 @@ const STRIDE := 0.68
 const CAM_MOVE = preload("res://scripts/ui/cam_move.gd")
 const BOB := 0.016
 const SWAY := 0.006
+## How the head goes with the steps: `stride` metres a step, the eye dipping `bob` as each comes
+## down, rolling `sway` (radians) over the side that bears it once every two, turning `yaw` with
+## it and nodding `nod`; `dip` the look down at the way's middle (a low door).
+const WALK := {"stride": STRIDE, "bob": BOB, "sway": SWAY}
+## On hands and knees (into a tent and out of it, playtest 13. 11.: "the way into the tent and
+## out is terribly stiff"): short shuffles, the head low and heavy from side to side, looking
+## at the ground under the flap and up again.
+const CRAWL := {"stride": 0.3, "bob": 0.028, "sway": 0.05, "yaw": 0.03, "nod": 0.035, "dip": 0.32}
+const GAITS := {"walk": WALK, "crawl": CRAWL}
 
 
-static func play(host: Node, camera: Camera3D, keys: Array, duration: float) -> Tween:
+## The head's offset `dist` metres along a way in `gait` (WALK, CRAWL), its steps at `env`
+## (0 standing, 1 under way): [position, rotation (x nod, y yaw, z roll)]. The camp's eye takes
+## the same (interior_manager's walks into a tent and out of it: player_controller.gait_pos).
+static func gait_offset(gait: Dictionary, dist: float, env: float) -> Array:
+	var ph := dist / float(gait.get("stride", STRIDE)) * PI
+	var down := absf(sin(ph))
+	var side := sin(ph)
+	var pos := Vector3(0.0, -down * float(gait.get("bob", BOB)) * env, 0.0)
+	var rot := Vector3(-down * float(gait.get("nod", 0.0)) * env, side * float(gait.get("yaw", 0.0)) * env, side * float(gait.get("sway", SWAY)) * env)
+	return [pos, rot]
+
+
+static func play(host: Node, camera: Camera3D, keys: Array, duration: float, gait: Dictionary = WALK) -> Tween:
 	var pos: Array[Vector3] = []
 	var rot: Array[Vector3] = []
 	for k in keys:
@@ -56,9 +77,10 @@ static func play(host: Node, camera: Camera3D, keys: Array, duration: float) -> 
 		# The steps: fade in after the first and out before the last.
 		var dist := lerpf(walked[i], walked[i + 1], t)
 		var env := sin(clampf(u, 0.0, 1.0) * PI)
-		var ph := dist / STRIDE * PI
-		p.y -= absf(sin(ph)) * BOB * env
-		r.z += sin(ph) * SWAY * env
+		var off := gait_offset(gait, dist, env)
+		p += off[0]
+		r += off[1]
+		r.x -= float(gait.get("dip", 0.0)) * env
 		camera.position = p
 		camera.rotation = r
 	var tw := host.create_tween()

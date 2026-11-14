@@ -1565,8 +1565,8 @@ func _update_torch(delta: float) -> void:
 		_torch = INTERIOR_TORCH.new()
 		_torch.name = "Torch"
 		add_child(_torch)
-		_torch.setup(_interior_camera, _viewport, _interior_camera.get_parent() as Node3D, layer)
-	_torch.update(delta, room_is_dark())
+		_torch.setup(_interior_camera, _viewport, layer)
+	_torch.update(delta)
 
 
 ## After dusk with the lamp off (L) or no power.

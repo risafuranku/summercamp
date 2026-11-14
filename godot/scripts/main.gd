@@ -1757,6 +1757,9 @@ func _sync_hud_player_meters() -> void:
 		return
 	if _player.has_method("get_stamina_ratio"):
 		_hud_manager.set_stamina_ratio(_player.get_stamina_ratio())
+	# (The day first: its gauge fills up from where the night left the cell.)
+	if _player.has_method("is_torch_night"):
+		_hud_manager.set_light_day(not bool(_player.is_torch_night()))
 	if _player.has_method("get_flashlight_battery"):
 		_hud_manager.set_light_ratio(_player.get_flashlight_battery())
 
@@ -4369,9 +4372,9 @@ func _apply_time_from_clock(force_interior_sync: bool = false, force_sky_snap: b
 	if lamp_phase_changed:
 		_lamp_flashlight_active = lamp_and_flashlight_active
 		_lamp_grid_power_available = grid_power_available
-		if _player != null and _player.has_method("set_flashlight_allowed"):
-			# Not behind the title screen (it lit the menu's camp after Quit to menu: playtest 21. 10.).
-			_player.set_flashlight_allowed(lamp_and_flashlight_active and not _menu_mode)
+		if _player != null and _player.has_method("set_torch_night"):
+			# The night the torch's cell is spent in (by day it has no end: playtest 14. 11.).
+			_player.set_torch_night(lamp_and_flashlight_active and not _menu_mode)
 		if building_manager != null and building_manager.has_method("set_lamps_active"):
 			building_manager.set_lamps_active(lamp_and_flashlight_active and grid_power_available)
 	if _interior_manager != null and _interior_manager.has_method("set_grid_power_available"):
@@ -4413,8 +4416,6 @@ func _set_weather_state(new_state: int) -> void:
 		_interior_manager.sync_weather(_weather_state)
 	if GuestManager != null and GuestManager.has_method("set_camp_weather"):
 		GuestManager.set_camp_weather(_weather_state)
-	if _player != null and _player.has_method("set_flashlight_rain"):
-		_player.set_flashlight_rain(_is_raining_weather_active() and not _menu_mode)
 	# No line in the feed for it: the player sees the weather change (the user 30. 10.).
 
 
@@ -4528,8 +4529,10 @@ func _update_player_control_lock() -> void:
 	if _player == null or not _player.has_method("set_controls_enabled"):
 		return
 	_player.set_controls_enabled(not _is_any_interior_open() and not (_lake_trip != null and _lake_trip.is_active()) and not _coop_menu_up() and not _in_attraction() and not _coop_down and not _enemy_holding_player())
-	# The camp's torch is not spent while you are in a room (player_controller.in_room).
+	# In a room the torch is in the room's eye's hand (player_controller.in_room, hold_torch); not
+	# behind the title screen (it lit the menu's camp after Quit to menu: playtest 21. 10.).
 	_player.in_room = _is_any_interior_open()
+	_player.torch_usable = not _menu_mode
 
 
 ## A catch playing out, its close-up, its black: your legs and hands are not yours till it ends.
@@ -5065,8 +5068,9 @@ func _enter_main_menu() -> void:
 		_hud_manager.set_liminal_forecast_count(0)
 	_menu_mode = true
 	_gameplay_started = false
-	if _player != null and is_instance_valid(_player) and _player.has_method("set_flashlight_allowed"):
-		_player.set_flashlight_allowed(false)
+	if _player != null and is_instance_valid(_player) and _player.has_method("set_torch_night"):
+		_player.set_torch_night(false)
+		_player.set("torch_switch", false)
 	_pending_loaded_player_state.clear()
 	_pending_loaded_crt_state.clear()
 	if weather_system != null and weather_system.has_method("set_auto_cycle_enabled"):

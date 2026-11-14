@@ -25,6 +25,8 @@ extends Node
 ##   door_tick(eye, fov)    optional: its windows kept up for the eye coming in
 ##   door_walk_in(from, fov) optional: the room walks its own way in from the doorway
 ##   door_opening()         optional: the door opens on the way out (a tent unzips)
+##   door_spec's optional "gait" (walk_path.GAITS: "crawl" for a tent) and "pace" (metres a
+##   second): how the eye goes through it, both ways
 
 const DOOR_ANIM := preload("res://scripts/attractions/door_anim.gd")
 const WALK_PATH := preload("res://scripts/ui/walk_path.gd")
@@ -140,9 +142,9 @@ func step_in() -> void:
 		through.y = lerpf(from_pos.y, stand_pos.y, 0.5)
 		keys.append({"pos": through, "rot": from_rot.lerp(stand_rot, 0.25)})
 	keys.append({"pos": stand_pos, "rot": stand_rot})
-	var dur := clampf(_length(keys) / PACE + _turn(keys) / PI * TURN_SEC, 0.7, 2.6)
+	var dur := clampf(_length(keys) / _pace() + _turn(keys) / PI * TURN_SEC, 0.7, 2.6)
 	_room.set("door_walking", true)
-	_walk = WALK_PATH.play(_room as Node, _room_cam, keys, dur)
+	_walk = WALK_PATH.play(_room as Node, _room_cam, keys, dur, _gait())
 	_walk.parallel().tween_property(_room_cam, "fov", fov, dur * 0.7)
 	_walk.tween_callback(_walked_in)
 
@@ -178,7 +180,7 @@ func leave(room: Object, structure: Node3D, way: Dictionary, camp: Node3D, done:
 	# On the step outside, at the height of the warden's eye, looking out.
 	var sill: Vector3 = way["sill"]
 	var normal: Vector3 = way["normal"]
-	var end_g := Vector3(sill.x, _eye.global_position.y, sill.z) + normal * STEP_M
+	var end_g := Vector3(sill.x, _eye.global_position.y, sill.z) + normal * STEP_M + (way.get("aside", Vector3.ZERO) as Vector3)
 	var end_f: Vector3 = _frame_g.affine_inverse() * end_g
 	var parent := _room_cam.get_parent() as Node3D
 	var end_pos: Vector3 = parent.global_transform.affine_inverse() * end_g if parent != null else end_g
@@ -197,9 +199,9 @@ func leave(room: Object, structure: Node3D, way: Dictionary, camp: Node3D, done:
 		keys.append({"pos": from_pos, "rot": Vector3(-0.04, atan2(-to.x, -to.z), 0.0)})
 		keys.append({"pos": front, "rot": out_rot})
 	keys.append({"pos": end_pos, "rot": out_rot})
-	var dur := clampf(_length(keys) / PACE + _turn(keys) / PI * TURN_SEC, 0.8, 2.8)
+	var dur := clampf(_length(keys) / _pace() + _turn(keys) / PI * TURN_SEC, 0.8, 2.8)
 	room.set("door_walking", true)
-	_walk = WALK_PATH.play(room as Node, _room_cam, keys, dur)
+	_walk = WALK_PATH.play(room as Node, _room_cam, keys, dur, _gait())
 	_walk.parallel().tween_property(_room_cam, "fov", _eye.fov, dur)
 	_walk.tween_callback(_walked_out)
 	return true
@@ -282,6 +284,15 @@ func _take(room: Object, structure: Node3D, way: Dictionary, camp: Node3D, make_
 	_camp = camp
 	_frame_g = (spec["root"] as Node3D).global_transform * _frame(spec["at"], spec["out"])
 	return true
+
+
+## How this room's door is gone through (its door_spec): the head's gait, the pace.
+func _gait() -> Dictionary:
+	return WALK_PATH.GAITS.get(str(_spec.get("gait", "walk")), WALK_PATH.WALK)
+
+
+func _pace() -> float:
+	return float(_spec.get("pace", PACE))
 
 
 ## A door's frame: at `at`, up, +Z the way out.

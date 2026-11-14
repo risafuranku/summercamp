@@ -161,7 +161,8 @@ func _showers(r: Node3D, _w: float, _d: float) -> Dictionary:
 	var galv := _camp_or("galvanized.png", Color(0.72, 0.74, 0.74), "metal", Vector3(0.6, 0.6, 0.6))
 	var oo: Vector3 = SERVICE_PLAN.outer(room)
 	_plinth_ring(r, oo.x + 0.1, oo.z + 0.1)
-	var o := _service_skin(r, "wash", walls, slab)
+	# A darker painted base band, splashed and damp, the walls standing on it.
+	var o := _service_skin(r, "wash", walls, slab, {"top": 0.545, "mat": _camp_or("concrete.png", Color(0.38, 0.4, 0.38), "stone")})
 	var sx := o.x
 	var sz := o.z
 	# (The house's top, less the 10 cm it once stood on.)
@@ -171,9 +172,6 @@ func _showers(r: Node3D, _w: float, _d: float) -> Dictionary:
 	var y0: float = SERVICE_PLAN.FLOOR
 	var ds: Vector2 = SERVICE_PLAN.SHOWER_DOOR
 	var leaf_z: float = SERVICE_PLAN.leaf_z(room)
-	# A darker painted base band, splashed and damp: a skin of its own just out of the walls,
-	# the doorway through it.
-	_skin_walls(r, sx + 0.03, sz + 0.03, 0.095, 0.545, 0.03, {"front": [[-ds.x * 0.5, ds.x * 0.5, y0, y0 + ds.y]]}, _camp_or("concrete.png", Color(0.38, 0.4, 0.38), "stone"), 0.0, "BaseBand")
 	# The flat roof: a concrete slab overhanging all round, tar paper on top.
 	_box(r, "RoofSlab", Vector3(sx + 0.36, 0.18, sz + 0.36), Vector3(0, h + 0.19, 0), slab)
 	_box(r, "TarPaper", Vector3(sx + 0.26, 0.03, sz + 0.26), Vector3(0, h + 0.295, 0), _flat(Color(0.12, 0.12, 0.13)))
@@ -188,7 +186,8 @@ func _showers(r: Node3D, _w: float, _d: float) -> Dictionary:
 	var jamb := 0.13
 	var lintel := 0.18
 	for side: float in [-1.0, 1.0]:
-		_box(r, "DoorSurround", Vector3(jamb, ds.y + lintel + 0.05, 0.06), Vector3(side * (ds.x + jamb) * 0.5, 0.1 + (ds.y + lintel + 0.05) * 0.5, front + 0.02), slab)
+		# (Its face 5 mm before the plinth's, not in its plane.)
+		_box(r, "DoorSurround", Vector3(jamb, ds.y + lintel + 0.05, 0.065), Vector3(side * (ds.x + jamb) * 0.5, 0.1 + (ds.y + lintel + 0.05) * 0.5, front + 0.0225), slab)
 	_box(r, "DoorSurround", Vector3(ds.x, lintel, 0.06), Vector3(0, y0 + ds.y + lintel * 0.5, front + 0.02), slab)
 	_box(r, "Door", Vector3(ds.x, ds.y, 0.05), Vector3(0, y0 + ds.y * 0.5, leaf_z), steel)
 	_box(r, "DoorGlass", Vector3(0.22, 0.5, 0.055), Vector3(0, y0 + 1.52, leaf_z + 0.005), _flat(Color(0.42, 0.5, 0.5)))
@@ -1187,8 +1186,12 @@ func _skin_walls(r: Node3D, w: float, d: float, y0: float, y1: float, t: float, 
 
 ## A small service building's walls round its room (service_plan.gd: the toilet block, the
 ## shower house, the generator shed): a skin from the ground to the lid, a doorway through the
-## front behind each leaf, a sill under each across the walls' thickness.
-func _service_skin(r: Node3D, kind: String, mat: Material, sill_mat: Material) -> Vector3:
+## front behind each leaf down to the ground, a sill filling each under the leaf across the
+## walls' thickness (the skin not under it as well: their tops met at the floor and fought).
+## `base` a band round the foot of its own ({"top": m, "mat": Material, "proud": m out of the
+## walls}): the walls stand on it, not over it (playtest 14. 11.: the shower house's band laid
+## over the walls 1.5 cm out flickered against them).
+func _service_skin(r: Node3D, kind: String, mat: Material, sill_mat: Material, base := {}) -> Vector3:
 	var room: Vector3 = SERVICE_PLAN.inside(kind)
 	var o: Vector3 = SERVICE_PLAN.outer(room)
 	var holes := {"front": []}
@@ -1196,9 +1199,14 @@ func _service_skin(r: Node3D, kind: String, mat: Material, sill_mat: Material) -
 	for dr in SERVICE_PLAN.doors(kind):
 		var x := float(dr[0])
 		var size: Vector2 = dr[1]
-		(holes["front"] as Array).append([x - size.x * 0.5, x + size.x * 0.5, SERVICE_PLAN.FLOOR, SERVICE_PLAN.FLOOR + size.y])
+		(holes["front"] as Array).append([x - size.x * 0.5, x + size.x * 0.5, 0.0, SERVICE_PLAN.FLOOR + size.y])
 		_box(r, "Sill", Vector3(size.x, SERVICE_PLAN.FLOOR, deep), Vector3(x, SERVICE_PLAN.FLOOR * 0.5, o.z * 0.5 - deep * 0.5), sill_mat)
-	_skin_walls(r, o.x, o.z, 0.0, o.y - SERVICE_PLAN.SKIN, SERVICE_PLAN.SKIN, holes, mat, SERVICE_PLAN.SKIN)
+	var foot := 0.0
+	if not base.is_empty():
+		foot = float(base["top"])
+		var proud := float(base.get("proud", 0.015))
+		_skin_walls(r, o.x + proud * 2.0, o.z + proud * 2.0, 0.0, foot, SERVICE_PLAN.SKIN + proud, holes, base["mat"], 0.0, "BaseBand")
+	_skin_walls(r, o.x, o.z, foot, o.y - SERVICE_PLAN.SKIN, SERVICE_PLAN.SKIN, holes, mat, SERVICE_PLAN.SKIN)
 	return o
 
 

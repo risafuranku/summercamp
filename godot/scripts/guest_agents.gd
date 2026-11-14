@@ -428,6 +428,12 @@ func _update_party(party: Dictionary, now: float, _delta: float) -> void:
 		walking = moved
 		if not moved and qi <= 1:
 			visible_now = false
+			# In through the reception's door: its leaf swings as they step in (from then on
+			# they stand inside, desk_room.present_queue).
+			if not bool(party.get("in_office", false)):
+				party["in_office"] = true
+				var main_b := get_tree().current_scene.find_child("MainBuilding", true, false) as Node3D if is_inside_tree() and get_tree().current_scene != null else null
+				DOOR_ANIM.open(DOOR_ANIM.find_door(main_b), 1.6 + 0.5 * float(members.size()))
 	else:
 		dwell_phase = true
 		lead_pos = points[points.size() - 1]

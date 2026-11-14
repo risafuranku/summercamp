@@ -41,12 +41,12 @@ func _ready() -> void:
 			# Night: their ember, near and far.
 			["eval", "debug_jump_to(1, 22.6)"], ["wait", 3.0], ["coop_signal", "host_night"],
 			["coop_wait_file", "client_lit_night"], ["wait", 1.0],
-			["eval", "_player.set('_flashlight_user_enabled', false)"], ["eval", "_player._refresh_flashlight_state()"],
+			["eval", "_player.set('torch_switch', false)"], ["eval", "_player._refresh_flashlight_state()"],
 			["hb_close", 3.0], ["wait", 0.8], ["shot", "h10_ember_3m"],
 			["hb_close", 8.0], ["wait", 0.8], ["shot", "h11_ember_8m"],
 			["hb_close", 25.0], ["wait", 0.8], ["shot", "h12_ember_25m"],
 			["coop_signal", "host_far"], ["coop_wait_file", "client_drag_night"], ["wait", 0.3], ["shot", "h13_ember_25m_drag"],
-			["eval", "_player.set('_flashlight_user_enabled', true)"], ["eval", "_player._refresh_flashlight_state()"],
+			["eval", "_player.set('torch_switch', true)"], ["eval", "_player._refresh_flashlight_state()"],
 			# A light for the other's cigarette from the host's.
 			["hb_close", 1.2], ["wait", 0.6], ["key", "C"], ["wait", 1.4], ["keyhold", "C", true], ["wait", 1.4], ["keyhold", "C", false], ["wait", 1.5],
 			["coop_signal", "host_lit_for_light"], ["coop_wait_file", "client_waits_light"], ["hb_close", 1.2], ["wait", 0.5],

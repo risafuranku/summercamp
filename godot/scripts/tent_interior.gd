@@ -924,7 +924,8 @@ func door_spec(_structure: Node3D) -> Dictionary:
 	if _tent_root == null:
 		return {}
 	return {"root": _tent_root, "at": Vector3(0.0, 0.0, DOOR_PLANE_Z), "out": Vector3(0, 0, 1),
-		"size": Vector2(TENT_HALF_WIDTH * 2.0, TENT_RIDGE_HEIGHT), "inner": 0.05, "leaf": []}
+		"size": Vector2(TENT_HALF_WIDTH * 2.0, TENT_RIDGE_HEIGHT), "inner": 0.05, "leaf": [],
+		"gait": "crawl", "pace": 0.62}
 
 
 ## On the way out: the door unzips as you come to it (and stays so).
@@ -1351,14 +1352,14 @@ func play_room_ready() -> void:
 	_prep.play_room_ready()
 
 
-## The torch comes on in here by itself when the room is dark (if it is on, F).
+## Your torch in here (interior_torch.gd): held by this room's eye while it is switched on.
 func _update_torch(delta: float) -> void:
 	if _torch == null:
 		_torch = INTERIOR_TORCH.new()
 		_torch.name = "Torch"
 		add_child(_torch)
-		_torch.setup(_interior_camera, _viewport, _interior_camera.get_parent() as Node3D, layer)
-	_torch.update(delta, room_is_dark())
+		_torch.setup(_interior_camera, _viewport, layer)
+	_torch.update(delta)
 
 
 ## A tent has no light of its own: dark from dusk.

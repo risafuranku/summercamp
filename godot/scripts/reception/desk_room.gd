@@ -23,7 +23,10 @@ const STRANGER_SPRITE := "res://assets/textury/npc/host1.png"
 ## behind it at z = 1.15, the front door is in the window wall at x = 1.25..2.2.
 const COUNTER_SPOT := Vector3(0.42, 0.0, -0.62)
 const BENCH_SPOT := Vector3(-1.05, 0.0, -1.95)
-const DOOR_HINGE := Vector3(2.2, 0.0, -2.55)
+## The hinge on the leaf's outer face (it swings out): its edge clear of the lining as it
+## opens (on its middle the edge went 2.5 cm into the jamb).
+const DOOR_HINGE := Vector3(2.2, 0.0, -2.575)
+const DOOR_LEAF_Z := 0.025
 const DOOR_W := 0.95
 const BELL_POS := Vector3(0.98, 1.0, 0.02)
 const POLL_SEC := 0.5
@@ -270,7 +273,7 @@ func process(delta: float, in_office: bool) -> void:
 	_poll -= delta
 	if _poll <= 0.0:
 		_poll = POLL_SEC
-		_queue = GuestManager.get_desk_queue() if GuestManager != null else []
+		_queue = present_queue()
 		_tick_stranger(POLL_SEC, in_office)
 		_place_people()
 		_place_hand()
@@ -838,9 +841,26 @@ func _front_info() -> Dictionary:
 
 
 func _next_for_desk() -> Dictionary:
-	_queue = GuestManager.get_desk_queue() if GuestManager != null else []
+	_queue = present_queue()
 	_place_people()
 	return _front_info()
+
+
+## Who waits at the desk (GuestManager.get_desk_queue()) and is in the room: not those whose
+## figure is still out in the camp, walking up from the gate or waiting at the door. The same
+## from inside and through the panes (playtest 13. 11.: "guests appear in the reception only
+## when I go in, through the window they aren't there": inside it showed the whole queue).
+func present_queue() -> Array:
+	var q: Array = GuestManager.get_desk_queue() if GuestManager != null else []
+	var scene: Node = host.get_tree().current_scene if host != null and host.is_inside_tree() else null
+	var agents = scene.get("_guest_agents") if scene != null else null
+	if agents == null or not agents.has_method("guest_world_position"):
+		return q
+	var out: Array = []
+	for row in q:
+		if not is_finite(agents.guest_world_position(int((row as Dictionary).get("id", -1))).x):
+			out.append(row)
+	return out
 
 
 ## Seen from the camp, through the panes (the room stands in the building, nobody in it on this
@@ -853,17 +873,12 @@ func tick_unseen(delta: float, serving := -999) -> void:
 	if _unseen_t > 0.0:
 		return
 	_unseen_t = POLL_SEC
-	var q: Array = GuestManager.get_desk_queue() if GuestManager != null else []
 	var inside: Array = []
-	var scene: Node = host.get_tree().current_scene if host != null and host.is_inside_tree() else null
-	var agents = scene.get("_guest_agents") if scene != null else null
-	for row in q:
-		var id := int((row as Dictionary).get("id", -1))
-		if agents == null or not agents.has_method("guest_world_position") or not is_finite(agents.guest_world_position(id).x):
-			if id == serving:
-				inside.push_front(row)
-			else:
-				inside.append(row)
+	for row in present_queue():
+		if int((row as Dictionary).get("id", -1)) == serving:
+			inside.push_front(row)
+		else:
+			inside.append(row)
 	_show(_front, inside[0] if inside.size() > 0 else {}, COUNTER_SPOT)
 	_show(_second, inside[1] if inside.size() > 1 else {}, BENCH_SPOT)
 	_place_hand()
@@ -996,7 +1011,8 @@ func _tick_stranger(step: float, in_office: bool) -> void:
 	var hour := _hour()
 	var late := hour >= 22.5 or hour < 3.5
 	var night := day if hour >= 12.0 else day - 1
-	if not in_office or not late or day < 2 or not _queue.is_empty() or night == _stranger_night or is_open():
+	var waiting: Array = GuestManager.get_desk_queue() if GuestManager != null else []
+	if not in_office or not late or day < 2 or not waiting.is_empty() or night == _stranger_night or is_open():
 		_stranger_wait = -1.0
 		return
 	if _stranger_wait < 0.0:
@@ -1084,15 +1100,15 @@ func _build_door() -> void:
 	_door_pivot.name = "FrontDoorPivot"
 	_door_pivot.position = DOOR_HINGE
 	room_root.add_child(_door_pivot)
-	var leaf := K.slab(_door_pivot, Vector3(DOOR_W, 2.05, 0.05), Vector3(-DOOR_W * 0.5, 1.025, 0.0), K.surface("planks_dark", 0.8), "FrontDoorLeaf")
+	var leaf := K.slab(_door_pivot, Vector3(DOOR_W, 2.05, 0.05), Vector3(-DOOR_W * 0.5, 1.025, DOOR_LEAF_Z), K.surface("planks_dark", 0.8), "FrontDoorLeaf")
 	# The painted door once on each face, fixed to the leaf (a world-mapped one tiled it,
 	# two handles and two plates, and slid over the boards as it swung). Its handle is
 	# painted on the right: inside the hinge is on the right, so that face is mirrored.
-	var face_in := K.picture(_door_pivot, "door_wood", Vector2(DOOR_W, 2.05), Vector3(-DOOR_W * 0.5, 1.025, 0.026), 0.0, "FrontDoorFaceIn")
+	var face_in := K.picture(_door_pivot, "door_wood", Vector2(DOOR_W, 2.05), Vector3(-DOOR_W * 0.5, 1.025, DOOR_LEAF_Z + 0.026), 0.0, "FrontDoorFaceIn")
 	(face_in.material_override as StandardMaterial3D).uv1_scale = Vector3(-1.0, 1.0, 1.0)
-	var face_out := K.picture(_door_pivot, "door_wood", Vector2(DOOR_W, 2.05), Vector3(-DOOR_W * 0.5, 1.025, -0.026), 180.0, "FrontDoorFaceOut")
+	var face_out := K.picture(_door_pivot, "door_wood", Vector2(DOOR_W, 2.05), Vector3(-DOOR_W * 0.5, 1.025, DOOR_LEAF_Z - 0.026), 180.0, "FrontDoorFaceOut")
 	# Click it and you go out into the camp, the way you came in (reception_extras).
-	_hot("front_door", DOOR_HINGE + Vector3(-DOOR_W * 0.5, 1.05, 0.05), Vector3(DOOR_W, 2.1, 0.2), [leaf, face_in, face_out])
+	_hot("front_door", DOOR_HINGE + Vector3(-DOOR_W * 0.5, 1.05, DOOR_LEAF_Z + 0.05), Vector3(DOOR_W, 2.1, 0.2), [leaf, face_in, face_out])
 	# In the camp's one world (building_interior, W26) the building's own leaf is the door
 	# from outside, this one from inside: the camp's eye leaves it out.
 	for m in [leaf, face_in, face_out]:

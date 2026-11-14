@@ -1149,12 +1149,21 @@ func _build_room() -> void:
 
 	# ── FRONT WALL — broken around window opening (x: -1.4..0.6, y: 0.95..2.40) ──
 	_add_box(_room_root, "WallFrontLeft",   Vector3(-1.95, 1.4, -2.55), Vector3(1.10, 2.8, 0.1), Color(0.66, 0.50, 0.36))
-	_add_box(_room_root, "WallFrontRight",  Vector3( 0.925, 1.4, -2.55), Vector3(0.65, 2.8, 0.1), Color(0.66, 0.50, 0.36))
-	_add_box(_room_root, "WallFrontRightB", Vector3( 2.35, 1.4, -2.55), Vector3(0.30, 2.8, 0.1), Color(0.66, 0.50, 0.36))
-	_add_box(_room_root, "WallFrontDoorTop", Vector3( 1.725, 2.45, -2.55), Vector3(0.95, 0.7, 0.1), Color(0.66, 0.50, 0.36))
-	_add_box(_room_root, "FrontDoorFrameL", Vector3( 1.22, 1.05, -2.52), Vector3(0.06, 2.10, 0.14), Color(0.20, 0.14, 0.10))
-	_add_box(_room_root, "FrontDoorFrameR", Vector3( 2.23, 1.05, -2.52), Vector3(0.06, 2.10, 0.14), Color(0.20, 0.14, 0.10))
-	_add_box(_room_root, "FrontDoorFrameT", Vector3( 1.725, 2.12, -2.52), Vector3(1.07, 0.06, 0.14), Color(0.20, 0.14, 0.10))
+	# (The two walls' ends stop inside the door's lining, not in its faces.)
+	_add_box(_room_root, "WallFrontRight",  Vector3( 0.91, 1.4, -2.55), Vector3(0.62, 2.8, 0.1), Color(0.66, 0.50, 0.36))
+	_add_box(_room_root, "WallFrontRightB", Vector3( 2.365, 1.4, -2.55), Vector3(0.27, 2.8, 0.1), Color(0.66, 0.50, 0.36))
+	_add_box(_room_root, "WallFrontDoorTop", Vector3( 1.725, 2.45, -2.55), Vector3(1.01, 0.7, 0.1), Color(0.66, 0.50, 0.36))
+	# The doorway's lining: one board each side and over it through the whole wall, from 5 cm
+	# into the room out into the building's own frame outside (building_models.reception:
+	# its boards stand 3 cm off this wall, 9 cm thick). The doorway showed this frame, a line
+	# of the wall's paper, the building's red boards and its grey frame in turn, two of them
+	# in one plane (playtest 14. 11.: "clipping inside the door frame").
+	var lining_z := Vector2(-2.73, -2.45)
+	var lining_d := lining_z.y - lining_z.x
+	var lining_c := (lining_z.x + lining_z.y) * 0.5
+	_add_box(_room_root, "FrontDoorFrameL", Vector3( 1.22, 1.045, lining_c), Vector3(0.06, 2.15, lining_d), Color(0.20, 0.14, 0.10))
+	_add_box(_room_root, "FrontDoorFrameR", Vector3( 2.23, 1.045, lining_c), Vector3(0.06, 2.15, lining_d), Color(0.20, 0.14, 0.10))
+	_add_box(_room_root, "FrontDoorFrameT", Vector3( 1.725, 2.12, lining_c), Vector3(1.07, 0.06, lining_d), Color(0.20, 0.14, 0.10))
 	# The camp looking in through the office window does not see these (they stand
 	# outside the room's front wall, in the way at a slant: the user 21. 10.).
 	for n in ["FrontStep", "FrontPorchL", "FrontPorchR", "FrontPorchTop"]:
@@ -2713,12 +2722,7 @@ var _clear_glass_mat: StandardMaterial3D
 ## Window glass: a little grey-green, the sky and the sun's glint on it at a slant.
 func _clear_glass() -> StandardMaterial3D:
 	if _clear_glass_mat == null:
-		var m := StandardMaterial3D.new()
-		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		m.albedo_color = Color(0.6, 0.68, 0.68, 0.14)
-		m.roughness = 0.06
-		m.metallic_specular = 0.9
-		_clear_glass_mat = m
+		_clear_glass_mat = ONE_WORLD_ROOM.clear_glass()
 	return _clear_glass_mat
 
 
@@ -5091,14 +5095,14 @@ func _category_for_node(node_name: String, base_color: Color) -> String:
 	return "decor_wood"
 
 
-## The torch comes on in here by itself when the room is dark (if it is on, F).
+## Your torch in here (interior_torch.gd): held by this room's eye while it is switched on.
 func _update_torch(delta: float) -> void:
 	if _torch == null:
 		_torch = INTERIOR_TORCH.new()
 		_torch.name = "Torch"
 		add_child(_torch)
-		_torch.setup(_interior_camera, _viewport, _interior_camera.get_parent() as Node3D, layer)
-	_torch.update(delta, room_is_dark())
+		_torch.setup(_interior_camera, _viewport, layer)
+	_torch.update(delta)
 
 
 ## After dusk with the office light off or no power; not while you sit at the PC.

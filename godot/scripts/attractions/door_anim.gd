@@ -80,6 +80,9 @@ static func _mark_pairs(doors: Array) -> void:
 ## doors (or tents on one pitch). Without a door leaf: the tent's flap (TentFlap in the
 ## model: you duck in there, `duck`), else the middle of the building's front (+Z of its
 ## model, turned with it).
+const TENT_ASIDE_M := 0.24
+
+
 static func entry_points(structure: Node3D, pick := 0) -> Dictionary:
 	if structure == null:
 		return {}
@@ -121,6 +124,10 @@ static func entry_points(structure: Node3D, pick := 0) -> Dictionary:
 	var out := {"outside": ground + normal * 0.7, "inside": ground - normal * 0.55, "door": door, "pair": pair, "duck": door == null and not flaps.is_empty(), "sill": sill, "normal": normal}
 	if way_pane != null:
 		out["pane"] = way_pane
+	# A tent's pole stands in the middle of its doorway and its guy rope runs out over it: the
+	# way in and out goes beside them (`aside`, from the middle; the crawl went through both).
+	if bool(out["duck"]):
+		out["aside"] = normal.cross(Vector3.UP).normalized() * TENT_ASIDE_M
 	return out
 
 

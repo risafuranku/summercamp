@@ -182,6 +182,11 @@ var _run_k := 0.0
 var _run_nod := 0.0
 var _run_nod_v := 0.0
 var _run_roll := 0.0
+## A way the body is moved along from outside (a tween: into a tent on your knees and out):
+## the head's gait on it (walk_path.gait_offset), set every frame by whoever moves it, zero
+## after. The steps' own bob is the controls' and stands still then.
+var gait_pos := Vector3.ZERO
+var gait_rot := Vector3.ZERO
 var _shift := 0.0
 ## Steps taken (whole = a foot down), counted in physics by the ground covered; the two
 ## latest physics values, so the frame between them draws the step smoothly.
@@ -220,19 +225,23 @@ var _flashlight_fill: OmniLight3D
 var _flashlight_halo: SpotLight3D
 var _beam_q := Quaternion.IDENTITY
 var _beam_ready := false
-var _flashlight_allowed: bool = false
-var _flashlight_user_enabled: bool = true
+## The switch under your thumb (F, in the camp and in a room alike). Nothing turns it on or off
+## but you (playtest 14. 11.: "let the player shine it ANY time, by day too, never switch it on
+## or off by itself"), save a cell gone flat in the night.
+var torch_switch := false
+## Dusk to dawn (main): only then is the cell spent; by day the torch has no end.
+var _night := false
+## The torch can be lit at all (main, every frame: not behind the title screen).
+var torch_usable := true
 ## The torch is in the bag (scripts/ui/inventory.gd): thrown on the ground, it is dark.
 var torch_carried := true
 ## A bottle in the right hand (scripts/town/pockets.gd): the torch is in your pocket.
 var hand_busy := false
 var _flashlight_active: bool = false
-## In a room (main, every frame): the body waits at the door and the camp's torch is not
-## in use; only the room's own torch (scripts/ui/interior_torch.gd: indoor_torch_on) spends
-## the cell (playtest 1. 11.: night came while you were inside and the torch was flat by
-## the time you went out).
+## In a room (main, every frame): the body waits at the door and the torch is the room's eye's
+## to hold (hold_torch), not lit at the body (playtest 14. 11.: "another torch by the door
+## shining into the reception").
 var in_room := false
-var indoor_torch_on := false
 var _flashlight_flicker_time: float = 0.0
 var stamina: float = 1.0
 ## 0..1: how far the torch is lowered while you run (the beam dips, the hand drops).
@@ -258,14 +267,7 @@ const TORCH_FAIL := [2.3, 0.15, 1.7, 0.0, 2.6, 0.05, 1.1, 0.0, 0.5, 0.0]
 const TORCH_ON := preload("res://assets/sfx/player/torch_on.mp3")
 const TORCH_OFF := preload("res://assets/sfx/player/torch_off.mp3")
 const TORCH_CLICK_DB := -9.0
-var _flashlight_user_chose_off: bool = false
-## It is raining (main: set_flashlight_rain).
-var _raining := false
-## F works by day: the rain, and a torch you switched on in it stays on after it till you
-## switch it off (nothing puts it out over your head).
-var _flashlight_wet := false
 var _torch_snd: AudioStreamPlayer
-var _flashlight_disallowed_at: int = -100000
 var _grid_manager: Node
 var _steps: Dictionary = {}          # surface -> [AudioStream]
 var _ground_life: Node               # the puddles (scripts/ambient/ground_life.gd)
@@ -687,7 +689,7 @@ func _ensure_input_actions() -> void:
 	# stay in until Ctrl or Space gets you up (a long hold would clash with holding it to
 	# stay crouched).
 	_add_key_action("move_crouch", KEY_CTRL)
-	_add_key_action("toggle_flashlight", KEY_F) # comes on by itself at dusk; F saves battery
+	_add_key_action("toggle_flashlight", KEY_F) # yours alone, day and night
 	_add_key_action("toggle_interior_light", KEY_L)
 
 
@@ -808,34 +810,18 @@ func set_grid_manager(grid_manager: Node) -> void:
 	_grid_manager = grid_manager
 
 
-## Main allows the flashlight at dusk (and by F in the rain: set_flashlight_rain); enemies
-## "blink" it off for a fraction of a second. Coming back from a blink keeps the player's own on/off choice; coming back
-## after a real dark period (a new evening) switches it on again.
-func set_flashlight_allowed(allowed: bool) -> void:
-	var was_allowed := _flashlight_allowed
-	_flashlight_allowed = allowed
-	var now := Time.get_ticks_msec()
-	if not allowed and was_allowed:
-		_flashlight_disallowed_at = now
-	if allowed and not was_allowed:
-		if now - _flashlight_disallowed_at > 5000:
-			_flashlight_user_chose_off = false
-		_flashlight_user_enabled = not _flashlight_user_chose_off and flashlight_battery > 0.02
-		_flashlight_wet = _raining
-	_refresh_flashlight_state()
+## Dusk to dawn (main): the cell is spent while the torch is lit. At the night's end it is full
+## and stays so through the day (the HUD's gauge turns into the day's: hud_manager).
+func set_torch_night(night: bool) -> void:
+	if night == _night:
+		return
+	_night = night
+	if not night:
+		flashlight_battery = 1.0
 
 
-## Rain and storms: the torch is yours by day too (the user 5. 11.), by F only: it comes on
-## by itself in the dark alone.
-func set_flashlight_rain(raining: bool) -> void:
-	_raining = raining
-	if raining and not _flashlight_wet:
-		_flashlight_wet = true
-		if not _flashlight_allowed:
-			_flashlight_user_enabled = false
-	elif _flashlight_allowed:
-		_flashlight_wet = raining
-	_refresh_flashlight_state()
+func is_torch_night() -> bool:
+	return _night
 
 
 ## The switch under your thumb.
@@ -880,37 +866,34 @@ func torch_dark() -> bool:
 	return Time.get_ticks_msec() / 1000.0 < _torch_back_until
 
 
-## In a dark room the torch is on whenever you have not switched it off and the cell is
-## not flat, whatever the hour outside (it is only allowed outdoors from 19:30; a tent
-## is dark from 18:00).
-func torch_wanted_indoors() -> bool:
-	return not _flashlight_user_chose_off and flashlight_battery > 0.02
-
-
-## F: the torch on or off (also from inside a room, scripts/ui/interior_torch.gd, which
-## clicks for itself: only it knows the room is dark).
+## F: the torch on or off, in the camp or in a room (interior_torch.gd passes it on).
 func toggle_flashlight() -> void:
 	if not torch_carried:
 		return
-	if _flashlight_user_enabled or flashlight_battery > 0.02:
-		var was := _flashlight_active
-		var wanted := _flashlight_user_enabled
-		var chose_off := _flashlight_user_chose_off
-		_flashlight_user_enabled = not _flashlight_user_enabled
-		_flashlight_user_chose_off = not _flashlight_user_enabled
-		_refresh_flashlight_state()
-		if _flashlight_active != was and not in_room:
-			torch_click(_flashlight_active)
-		elif _flashlight_active == was and not in_room:
-			# By day, or with both hands full: the switch goes, nothing comes (it was dead
-			# silent), and the torch stays as you had it for the dark.
-			_flashlight_user_enabled = wanted
-			_flashlight_user_chose_off = chose_off
-			_refresh_flashlight_state()
-			torch_click(true)
-	elif (_flashlight_allowed or _raining) and not in_room:
+	if not torch_switch and flashlight_battery <= 0.02:
 		# A flat cell: the switch goes, nothing comes.
 		torch_click(true)
+		return
+	torch_switch = not torch_switch
+	_refresh_flashlight_state()
+	torch_click(torch_switch)
+
+
+## A room's eye holds the torch (interior_torch.gd, every frame the room is open and the switch
+## is on): these same lights at `xf` in the world. The rooms stand in the camp's own world, so its
+## beam goes on out of their windows (playtest 14. 11.: the room's own beam, a second torch,
+## lit the room only and was lost on the glass).
+var _held_xf := Transform3D()
+var _held_frame := -10
+
+
+func hold_torch(xf: Transform3D) -> void:
+	_held_xf = xf
+	_held_frame = Engine.get_process_frames()
+
+
+func _torch_held() -> bool:
+	return Engine.get_process_frames() - _held_frame <= 1
 
 
 func play_damage_feedback(tier: int, _damage_amount: int, fatal: bool = false) -> void:
@@ -1203,7 +1186,7 @@ func _update_head_motion(delta: float) -> void:
 		) * _damage_shake_intensity
 	# The interpolation is in the world; the head is the body's child (turned with it).
 	var interp_local := global_basis.inverse() * interp
-	_head.position = _base_head_pos + interp_local + _bob_offset + Vector3(0.0, _spring_y * bob_k - _stance_drop, 0.0) + damage_pos_jitter
+	_head.position = _base_head_pos + interp_local + _bob_offset + Vector3(0.0, _spring_y * bob_k - _stance_drop, 0.0) + damage_pos_jitter + gait_pos * bob_k
 
 	# The look: Build's shift of the picture for the first part (eased in), the eye's turn
 	# for the rest; together they are exactly where the mouse put it (_apply_projection).
@@ -1227,7 +1210,9 @@ func _update_head_motion(delta: float) -> void:
 	_hurt_t += delta
 	var hurt_roll := (sin(_hurt_t * 0.9) * 0.035 + sin(_hurt_t * 2.3) * 0.01) * hurt
 	_head.rotation.x += (-0.035 - 0.02 * sin(_hurt_t * 0.6) - 0.025 * absf(_bob_offset.y) * 10.0) * hurt
-	_head.rotation.z = _mouse_impact.y + idle_roll + jitter_roll + _current_tilt + damage_rot_jitter.y + hurt_roll + _run_roll
+	_head.rotation.z = _mouse_impact.y + idle_roll + jitter_roll + _current_tilt + damage_rot_jitter.y + hurt_roll + _run_roll + gait_rot.z * bob_k
+	_head.rotation.x += gait_rot.x * bob_k
+	_head.rotation.y = gait_rot.y * bob_k
 	if _camera != null:
 		# A little wider in a run.
 		var fov_base := float(view.get("fov", camera_fov))
@@ -1296,7 +1281,7 @@ func _ensure_flashlight() -> void:
 		_flashlight_fill = OmniLight3D.new()
 		_flashlight_fill.name = "FlashlightFill"
 		_head.add_child(_flashlight_fill)
-	_flashlight_fill.position = Vector3(0.0, -0.05, -0.1)
+	_flashlight_fill.position = FILL_AT
 	_flashlight_fill.light_color = Color(1.0, 0.94, 0.82)
 	_flashlight_fill.light_energy = flashlight_fill_energy
 	_flashlight_fill.light_cull_mask = 1048575
@@ -1308,10 +1293,9 @@ func _ensure_flashlight() -> void:
 
 
 func _refresh_flashlight_state() -> void:
-	# (The rain over and the torch off: F sleeps till dusk.)
-	if _flashlight_wet and not _raining and not _flashlight_user_enabled:
-		_flashlight_wet = false
-	_flashlight_active = (_flashlight_allowed or _flashlight_wet) and _flashlight_user_enabled and torch_carried and not hand_busy
+	# In a room it is lit only in the room's eye's hand (hold_torch), never at the body by the door.
+	var lit := torch_switch and torch_usable and torch_carried and not hand_busy and flashlight_battery > 0.0
+	_flashlight_active = lit and (not in_room or _torch_held())
 	if _flashlight != null:
 		_flashlight.visible = _flashlight_active
 		_flashlight.light_energy = flashlight_energy if _flashlight_active else 0.0
@@ -1348,10 +1332,13 @@ func get_flashlight_battery() -> float:
 
 
 func _update_flashlight_battery(delta: float) -> void:
-	if (_flashlight_active and not in_room) or (in_room and indoor_torch_on):
+	if not _night:
+		flashlight_battery = 1.0
+	elif _flashlight_active:
 		flashlight_battery = maxf(0.0, flashlight_battery - BATTERY_DRAIN_PER_SEC * (1.0 + flashlight_drain_boost) * delta)
 		if flashlight_battery <= 0.0:
-			_flashlight_user_enabled = false
+			# Flat: it goes out, and so does the switch (dawn does not light it again).
+			torch_switch = false
 			_refresh_flashlight_state()
 	else:
 		flashlight_battery = minf(1.0, flashlight_battery + BATTERY_REST_PER_SEC * delta)
@@ -1379,6 +1366,8 @@ func get_beam_lag() -> Vector2:
 ## out of the torch you see in your hand (scripts/ui/torch_hand.gd, the lens a bit right
 ## of the middle), catches up with a turn a beat late, swings with your step and dips
 ## while you run.
+## The fill light's place at the head (in a room's eye's hand it goes with the beam).
+const FILL_AT := Vector3(0.0, -0.05, -0.1)
 const BEAM_YAW_DEG := -6.0
 const BEAM_PITCH_DEG := -7.0
 const BEAM_RUN_DIP_DEG := -8.0
@@ -1387,6 +1376,18 @@ const BEAM_RUN_DIP_DEG := -8.0
 func _aim_beam(delta: float) -> void:
 	if _camera == null or _flashlight == null:
 		return
+	if in_room and _torch_held():
+		# In the room's eye's hand: its beam, its fill at the hand (hold_torch).
+		_beam_q = _held_xf.basis.get_rotation_quaternion()
+		_beam_ready = true
+		_flashlight.global_transform = _held_xf
+		if _flashlight_halo != null:
+			_flashlight_halo.global_transform = _held_xf
+		if _flashlight_fill != null:
+			_flashlight_fill.global_position = _held_xf.origin
+		return
+	if _flashlight_fill != null:
+		_flashlight_fill.position = FILL_AT
 	# Where you look: the eye's turn and Build's shift of the picture (look_basis).
 	var target := look_basis() * Basis(Vector3.UP, deg_to_rad(BEAM_YAW_DEG)) * Basis(Vector3.RIGHT, deg_to_rad(BEAM_PITCH_DEG + BEAM_RUN_DIP_DEG * sprint_lower))
 	target = target * Basis(Vector3.UP, _bob_offset.x * 1.1) * Basis(Vector3.RIGHT, -_bob_offset.y * 0.8)
@@ -1409,6 +1410,7 @@ var torch_fade := 1.0
 
 
 func _update_flashlight_effect(delta: float) -> void:
+	_refresh_flashlight_state()
 	_aim_beam(delta)
 	if _flashlight == null or not _flashlight_active:
 		return

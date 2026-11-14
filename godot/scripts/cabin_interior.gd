@@ -134,8 +134,6 @@ var _bathroom_root: Node3D
 var _active_room: String = "main"
 ## The bathroom's walls (the door's wall in pieces round its opening), re-skinned per tier.
 var _bath_walls: Array = []
-## Your torch's beams: under neither room, so they shine in both.
-var _torch_root: Node3D
 
 # Screen-space active zones.
 var _catalog_mesh: MeshInstance3D
@@ -1343,9 +1341,6 @@ func _build_cabin_room() -> void:
 	_bathroom_root = Node3D.new()
 	_bathroom_root.name = "BathroomRoom"
 	_cabin_root.add_child(_bathroom_root)
-	_torch_root = Node3D.new()
-	_torch_root.name = "TorchBeams"
-	_cabin_root.add_child(_torch_root)
 
 	_interior_camera = Camera3D.new()
 	_interior_camera.name = "CabinCamera"
@@ -2669,15 +2664,15 @@ func _category_for_node(node_name: String, color: Color) -> String:
 	return _cabin_level_category("wood")
 
 
-## The torch comes on in here by itself when the room is dark (if it is on, F).
+## Your torch in here (interior_torch.gd): held by this room's eye while it is switched on.
 func _update_torch(delta: float) -> void:
 	if _torch == null:
 		_torch = INTERIOR_TORCH.new()
 		_torch.name = "Torch"
 		add_child(_torch)
 		# (Its beams under neither room: the bathroom hides the room, and they went with it.)
-		_torch.setup(_interior_camera, _viewport, _torch_root, layer)
-	_torch.update(delta, room_is_dark())
+		_torch.setup(_interior_camera, _viewport, layer)
+	_torch.update(delta)
 
 
 ## After dusk with the lights off (L) or the camp's power gone.

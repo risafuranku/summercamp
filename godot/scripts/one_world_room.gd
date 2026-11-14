@@ -226,7 +226,9 @@ static func figure_glass() -> ShaderMaterial:
 static func clear_glass() -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.albedo_color = Color(0.6, 0.68, 0.68, 0.14)
+	# Dark, its shine all reflection: a pale pane took the torch's beam as a grey disc, the light
+	# seemingly stopped on the glass (playtest 14. 11.: "most of the light splats on the window").
+	m.albedo_color = Color(0.05, 0.06, 0.06, 0.14)
 	m.roughness = 0.06
 	m.metallic_specular = 0.9
 	return m

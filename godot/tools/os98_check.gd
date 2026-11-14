@@ -192,9 +192,12 @@ func _run() -> void:
 	await _shot("builder")
 	_shell.set_is_day(false)
 	await _frames(3)
-	_expect(_shell.open_app("builder") == null, "Builder opens at night")
+	# At night the Builder opens to look at the camp, its tools put away (playtest 14. 11.).
+	_expect(_shell.open_app("builder") != null, "Builder does not open at night")
 	var page = _shell._pages.get("builder")
-	_expect(page != null and page.cover != null and str(page.cover.get_meta("kind", "")) == "licence", "Builder has no licence cover at night")
+	_expect(page == null or page.cover == null or str(page.cover.get_meta("kind", "")) != "licence", "Builder has a licence cover at night")
+	# (Its tools put away go by the camp's clock, CoreRoot.is_night: the shot driver's
+	# buildernight, not this shell's day.)
 	await _shot("builder_night")
 	_shell.set_is_day(true)
 	await _frames(3)
@@ -260,11 +263,9 @@ func _run() -> void:
 	_shell.open_app("browser")
 	await _frames(3)
 	var br = _shell.app_of("browser")
-	_expect(br != null and br._dial.visible, "the browser did not offer to dial")
-	await _shot("dialer")
-	br._start_dial()
-	await _wait(8.2)
-	_expect(_shell.is_online(), "the modem did not connect")
+	# The modem dialled once as the desktop came up (playtest 14. 11.): online, no dialer.
+	_expect(_shell.is_online(), "the PC is not online after its start")
+	_expect(br != null and not br._dial.visible, "the browser offers to dial again")
 	await _wait(1.6)
 	await _shot("web_portal")
 	# Every page renders, with no shorthand left over and no dead internal link.

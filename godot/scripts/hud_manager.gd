@@ -312,6 +312,18 @@ func set_light_ratio(value: float) -> void:
 		_light_bar.set_value(_light)
 
 
+## Day: the torch has no end (RETRO_UI.TorchGauge turns into the day's at dawn).
+var _light_day := true
+
+
+func set_light_day(day: bool) -> void:
+	if day == _light_day:
+		return
+	_light_day = day
+	if _light_bar is RETRO_UI.TorchGauge:
+		(_light_bar as RETRO_UI.TorchGauge).set_day(day)
+
+
 ## 0-1 fear from the night: widens the status face's eyes.
 func set_fear(value: float) -> void:
 	value = clampf(value, 0.0, 1.0)
@@ -723,7 +735,13 @@ func _build_status_bar() -> void:
 	var stam := _cell(row, "stamina", "STAMINA")
 	_stamina_bar = _put_bar(stam, _segment_bar(8, RETRO_UI.C_GREEN, RETRO_UI.C_AMBER), 11, 4)
 	_put(stam, _caption("LIGHT"), 22)
-	_light_bar = _put_bar(stam, _segment_bar(8, Color(1.0, 0.92, 0.55), RETRO_UI.C_RED), 25, 4)
+	var torch := RETRO_UI.TorchGauge.new()
+	torch.ui_scale = _scale
+	torch.segments = 8
+	torch.color_full = Color(1.0, 0.92, 0.55)
+	torch.color_low = RETRO_UI.C_RED
+	torch.set_day(_light_day, false)
+	_light_bar = _put_bar(stam, torch, 25, 4)
 
 	var cash := _cell(row, "cash", "CASH")
 	_cash_value = _put(cash, _big("$0", RETRO_UI.C_AMBER), ROW_VALUE)

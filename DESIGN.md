@@ -131,7 +131,7 @@ One in-game day = about 19 real minutes (1 real second = 1.25 game minutes,
 | --- | --- | --- |
 | 06:30 | Day | Builder unlocked; bookings, building, upkeep, talking to guests |
 | 18:00 | Evening | last building window; guests drift back |
-| 19:30 | | lamps and flashlight come on |
+| 19:30 | | lamps come on; the torch's cell starts to drain (the torch is yours to switch, day or night) |
 | 20:00 | Night | Builder locks; bills are issued; the night roll happens |
 | ~22:40-02:20 | | archetype trouble windows; enemies active |
 | 06:30 | | enemies leave; battery recharged; reviews, consequences |

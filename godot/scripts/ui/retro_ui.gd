@@ -332,6 +332,93 @@ class SegmentBar:
 				draw_rect(Rect2(x, 0, seg_w, float(ui_scale)), col.lightened(0.35))
 
 
+## The torch's gauge (the HUD's LIGHT): by night its cell in segments, as SegmentBar; by day
+## one unbroken bar with the sign for no end on it (playtest 14. 11.: "show in the UI that by
+## day it is unlimited, and at the night's end a nice change into the day's torch"). At dawn
+## the segments fill up one after another, close up into one bar and the sign comes; at dusk
+## it goes and the bar breaks into its cells again. In steps, twelve a second; still between.
+class TorchGauge:
+	extends SegmentBar
+
+	const DAWN_SEC := 1.3
+	const DUSK_SEC := 0.6
+	const COLOR_DAY := Color(1.0, 0.86, 0.42, 1.0)
+	## The sign, 7 x 3 pixels: two rings meeting in the middle.
+	const SIGN := [Vector2i(1, 0), Vector2i(5, 0), Vector2i(0, 1), Vector2i(2, 1), Vector2i(3, 1), Vector2i(4, 1), Vector2i(6, 1), Vector2i(1, 2), Vector2i(5, 2)]
+
+	var day := false
+	## 0 night .. 1 day while it turns; the value it filled up from.
+	var _k := 0.0
+	var _turn := 0.0
+	var _from := 1.0
+
+	## `animate`: false puts it straight there (a game loaded, the first frame).
+	func set_day(on: bool, animate := true) -> void:
+		if on == day:
+			return
+		day = on
+		_from = value
+		if not animate:
+			_k = 1.0 if on else 0.0
+			_turn = 0.0
+			queue_redraw()
+			return
+		_turn = DAWN_SEC if on else DUSK_SEC
+		set_process(true)
+
+	func _process(delta: float) -> void:
+		_t += delta
+		if _turn > 0.0:
+			var whole := DAWN_SEC if day else DUSK_SEC
+			_turn = maxf(0.0, _turn - delta)
+			var k := 1.0 - _turn / whole
+			# Twelve steps a second.
+			k = floorf(k * whole * 12.0) / maxf(1.0, whole * 12.0) if _turn > 0.0 else 1.0
+			_k = k if day else 1.0 - k
+			if _turn <= 0.0:
+				_k = 1.0 if day else 0.0
+				set_process(blink)
+		queue_redraw()
+
+	func _draw() -> void:
+		if _k <= 0.0:
+			super._draw()
+			return
+		var px := float(ui_scale)
+		# Dawn's parts: filling (0-0.45), closing up (0.45-0.75), the sign (0.75-1).
+		var fill := clampf(_k / 0.45, 0.0, 1.0)
+		var close := clampf((_k - 0.45) / 0.3, 0.0, 1.0)
+		var sign_k := clampf((_k - 0.75) / 0.25, 0.0, 1.0)
+		var gap := roundf(px * (1.0 - close))
+		var seg_w := floorf((size.x - gap * float(segments - 1)) / float(segments))
+		var used := seg_w * float(segments) + gap * float(segments - 1)
+		var x0 := floorf((size.x - used) * 0.5)
+		var shown := lerpf(_from, 1.0, fill)
+		var lit := int(ceil(shown * float(segments) - 0.001))
+		var night_col := color_low.lerp(color_full, clampf(shown * 1.4 - 0.2, 0.0, 1.0))
+		var col := night_col.lerp(COLOR_DAY, close)
+		for i in segments:
+			var x := x0 + float(i) * (seg_w + gap)
+			var on := i < lit
+			# A white flash runs along them as the cell fills.
+			var c := col if on else color_off
+			if fill < 1.0 and i == int(fill * float(segments)):
+				c = Color.WHITE
+			draw_rect(Rect2(x, 0, seg_w + (gap if i < segments - 1 and close >= 1.0 else 0.0), size.y), c)
+			if on:
+				draw_rect(Rect2(x, 0, seg_w, px), c.lightened(0.35))
+		if sign_k <= 0.0:
+			return
+		# Comes in with two blinks, then stays.
+		if sign_k < 1.0 and int(sign_k * 6.0) % 2 == 1:
+			return
+		var ink := Color(0.24, 0.16, 0.05, 1.0)
+		var sx := floorf((size.x - 7.0 * px) * 0.5)
+		var sy := floorf((size.y - 3.0 * px) * 0.5)
+		for c2 in SIGN:
+			draw_rect(Rect2(sx + float(c2.x) * px, sy + float(c2.y) * px, px, px), ink)
+
+
 ## Doom-style status face drawn in pixels. `mood` 0-100 bends the mouth and colours the
 ## skin; `fear` 0-1 widens the eyes; `gaze` -1/0/1 makes it glance left or right.
 ## Used for the camp mood (and guest cards).

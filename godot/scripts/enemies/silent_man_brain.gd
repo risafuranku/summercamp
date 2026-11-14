@@ -64,6 +64,15 @@ class_name SilentManBrain
 ## the last wobble every time (`SFX_CALL`; tools/audiogen/fever_dream.py far_call). His
 ## humming round his corner is as rare: a phrase, then nothing for minutes.
 ##
+## Walked up to (playtest 13. 11.: "a new player does not know he can hurt you, walks up to
+## him and through him, nothing happens"): seen at arm's length, he goes for you. The glasses
+## flare and he draws breath (a beat to see it coming), then lunges at where you stood and past
+## it; still there, you are bitten; out of his way (a step aside, back, a jump), he misses.
+## Either way he comes apart into the dark at the end of it, as the light takes him.
+##
+## The lamps are not his (P21 of 14. 11.: "he keeps walking under the lamps"): wherever he
+## stands or steps, round you, at a corner, leaning out past it, he keeps out of their light.
+##
 ## Your own torch on him has its price (playtest 25. 10.): his glasses throw the light back
 ## and the bulb goes dead in your hand for three seconds, then catches again, flickering
 ## (player_controller.torch_blackout). More Quiet Guys turned, more of him (main starts
@@ -140,6 +149,14 @@ const LIT_SECONDS := 0.9
 const STRIKES := ["ear", "above", "turn", "cross"]
 ## Lurking: how far off, and how dark the spot must be.
 const LURK_DIST := Vector2(7.0, 13.0)
+## The lunge: how near he lets you come seen, his breath before it, the dash, how far past where
+## you stood it carries him, how near it must end to bite, the bite's share of a catch's.
+const LUNGE_DIST := 2.6
+const LUNGE_WINDUP := 0.45
+const LUNGE_DASH := 0.3
+const LUNGE_PAST := 0.9
+const LUNGE_HIT_M := 0.7
+const LUNGE_DAMAGE_K := 0.6
 const LURK_DARK := 0.15
 const DISSOLVE_FRAMES := 6
 const KILLS := ["strangle", "snap", "bite", "inside", "eyes"]
@@ -434,6 +451,12 @@ func _on_tick(dt: float) -> void:
 	if _neck_until > 0.0:
 		_tick_neck()
 		return
+	if _lunge_t >= 0.0:
+		_update_lunge(dt)
+		return
+	if _body.visible and _distance_to_player(_body.global_position) < LUNGE_DIST and _is_seen(head):
+		_start_lunge()
+		return
 	if _elapsed < _resume_at:
 		_body.visible = _lurking
 		return
@@ -557,7 +580,7 @@ func _choose_lurk() -> void:
 		var peek := Vector3.INF
 		for sgn in [1.0, -1.0]:
 			var q := _stand(p + side * sgn * 0.8)
-			if q != Vector3.INF and not _ray_blocked(cam.global_position, q + Vector3(0, HEIGHT * 0.8, 0)):
+			if q != Vector3.INF and _lamp_light_at(q) <= LURK_DARK and not _ray_blocked(cam.global_position, q + Vector3(0, HEIGHT * 0.8, 0)):
 				peek = q
 				score += 1.0
 				break
@@ -714,7 +737,7 @@ func _place_behind(dist: float) -> void:
 	var dir := Vector3(from.x - to.x, 0.0, from.z - to.z)
 	if dir.length_squared() < 0.01:
 		dir = -_forward_flat()
-	var p := _stand(to + dir.normalized() * dist)
+	var p := _dark_stand(to, dir.normalized(), dist)
 	if p == Vector3.INF:
 		return
 	_walk_from = from
@@ -1083,11 +1106,99 @@ func _reset_far(pause: float) -> void:
 	_resume_at = _elapsed + pause
 	_next_step = _resume_at + _step_interval
 	_walk_t = -1.0
-	# Out of sight, somewhere behind you.
-	var p := _point_from_player(_dist, 180.0 + _rng.randf_range(-50.0, 50.0))
+	# Out of sight, somewhere behind you, out of the lamps.
+	var p := Vector3.INF
+	for _i in 8:
+		p = _point_from_player(_dist, 180.0 + _rng.randf_range(-60.0, 60.0))
+		if p != Vector3.INF and _lamp_light_at(p) <= LURK_DARK:
+			break
 	if p != Vector3.INF:
 		_body.global_position = p
 	_set_tex(_look_for(_dist))
+
+
+## A place to stand `dist` from `centre` toward `dir`, out of the lamps' light: straight there,
+## else turned round you a little at a time either way (INF: none dark that near).
+func _dark_stand(centre: Vector3, dir: Vector3, dist: float) -> Vector3:
+	for k in 7:
+		var ang := deg_to_rad(18.0 * float((k + 1) / 2) * (1.0 if k % 2 == 1 else -1.0))
+		var p := _stand(centre + dir.rotated(Vector3.UP, ang) * dist)
+		if p != Vector3.INF and _lamp_light_at(p) <= LURK_DARK:
+			return p
+	return Vector3.INF
+
+
+# ── the lunge ────────────────────────────────────────────────────────────────
+
+var _lunge_t := -1.0
+var _lunge_from := Vector3.ZERO
+var _lunge_to := Vector3.ZERO
+var _lunge_hit := false
+var _lunge_dashing := false
+
+
+## Seen at arm's length: the glasses flare, a breath, he crouches into it.
+func _start_lunge() -> void:
+	_lunge_t = 0.0
+	_lunge_hit = false
+	_lurking = false
+	_staring = false
+	_eyes_out = false
+	_walk_t = -1.0
+	_lunge_from = _body.global_position
+	# At where you stand as he draws breath, and on past it: out of the way in that beat, he
+	# misses (he does not turn after you).
+	var at := _player_pos()
+	var go := Vector3(at.x - _lunge_from.x, 0.0, at.z - _lunge_from.z)
+	_lunge_to = Vector3(at.x, _lunge_from.y, at.z)
+	if go.length_squared() > 0.0001:
+		var past := _stand(_lunge_from + go.normalized() * (go.length() + LUNGE_PAST))
+		if past != Vector3.INF:
+			_lunge_to = past
+	_lunge_dashing = false
+	_set_tex(T_M2 if _tex.has(T_M2) else _look_for(1.0))
+	var head := _body.global_position + Vector3(0, HEIGHT * 0.86, 0)
+	_sound(SFX_MMM, head, 0.0, 1.25, 16.0)
+	var fx := _fx()
+	if fx != null:
+		fx.set_presence(_fx_key, 0.8)
+
+
+func _update_lunge(dt: float) -> void:
+	_lunge_t += dt
+	var head := _body.global_position + Vector3(0, HEIGHT * 0.86, 0)
+	if _eyes != null:
+		_eyes.set("want", 1.0)
+		_eyes.set("flare", 1.0)
+	if _lunge_t < LUNGE_WINDUP:
+		# Down into it, in steps.
+		_body.scale.y = 1.0 - 0.07 * floorf(_lunge_t / LUNGE_WINDUP * 4.0) / 4.0
+		return
+	if not _lunge_dashing:
+		_lunge_dashing = true
+		_body.scale.y = 1.0
+		_set_tex(T_M2 if _tex.has(T_M2) else _look_for(0.5))
+		_sound(SFX_STING, head, 3.0, _rng.randf_range(0.95, 1.05), 18.0)
+		_sound(SFX_RUSTLE, head, 0.0, 1.3, 16.0)
+	var k := clampf((_lunge_t - LUNGE_WINDUP) / LUNGE_DASH, 0.0, 1.0)
+	_body.global_position = _lunge_from.lerp(_lunge_to, k)
+	# The bite where he passes you, once.
+	if not _lunge_hit:
+		var me := _player_pos()
+		if Vector2(me.x - _body.global_position.x, me.z - _body.global_position.z).length() < LUNGE_HIT_M:
+			_lunge_hit = true
+			_near_you(_sound(SFX_BITE, me + Vector3(0, 1.5, 0), 2.0))
+			_hurt(maxi(1, int(round(float(_damage) * LUNGE_DAMAGE_K))))
+			var fx := _fx()
+			if fx != null:
+				fx.red_flash(0.8)
+				fx.glitch(0.8, 0.7)
+				fx.freeze(0.06)
+	if k >= 1.0:
+		_lunge_t = -1.0
+		# Come apart where it carried him.
+		_driven_off()
+		_drive_offs -= 1
 
 
 # ── the catch and the kill ───────────────────────────────────────────────────
@@ -1497,7 +1608,7 @@ func _start_reveal() -> bool:
 		var ang := deg_to_rad(_rng.randf_range(-22.0, 22.0))
 		var dir := fwd.rotated(Vector3.UP, ang)
 		var p := _stand(_player_pos() + dir * _rng.randf_range(8.0, 11.0))
-		if p == Vector3.INF or _lamp_light_at(p) > DARK_LIGHT:
+		if p == Vector3.INF or _lamp_light_at(p) > LURK_DARK:
 			continue
 		if _ray_blocked(cam.global_position, p + Vector3(0, HEIGHT * 0.8, 0)):
 			continue

@@ -168,12 +168,14 @@ func door_opened() -> void:
 	_ok("the left button opens a door", opened)
 
 
+## By day F lights the torch and puts it out (playtest 14. 11.: yours any time), the cell full.
 func torch_day() -> void:
 	var p: Node = _main.get("_player")
-	var chose: bool = p.get("_flashlight_user_chose_off")
-	var want: bool = p.get("_flashlight_user_enabled")
+	var was: bool = p.get("torch_switch")
 	p.call("toggle_flashlight")
-	_ok("the torch by day keeps its state", bool(p.get("_flashlight_user_chose_off")) == chose and bool(p.get("_flashlight_user_enabled")) == want)
+	var on: bool = p.get("torch_switch")
+	p.call("toggle_flashlight")
+	_ok("the torch by day switches on and off", on != was and bool(p.get("torch_switch")) == was and float(p.get("flashlight_battery")) >= 0.999)
 
 
 func hand_click(at := Vector2(-1, -1)) -> void:

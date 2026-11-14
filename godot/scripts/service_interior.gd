@@ -4549,14 +4549,14 @@ func on_breaker_board_closed() -> void:
 		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 
-## The torch comes on in here by itself when the room is dark (if it is on, F).
+## Your torch in here (interior_torch.gd): held by this room's eye while it is switched on.
 func _update_torch(delta: float) -> void:
 	if _torch == null:
 		_torch = INTERIOR_TORCH.new()
 		_torch.name = "Torch"
 		add_child(_torch)
-		_torch.setup(_interior_camera, _viewport, _interior_camera.get_parent() as Node3D, layer)
-	_torch.update(delta, room_is_dark())
+		_torch.setup(_interior_camera, _viewport, layer)
+	_torch.update(delta)
 
 
 ## After dusk with the lights off (L) or the camp's power gone.
