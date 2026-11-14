@@ -839,6 +839,48 @@ const SCENARIOS := {
 		["door_front", "shower_block", 2.2], ["wait", 0.6], ["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('shower_block'))"], ["wait", 4.0],
 		["eye_trace", 4.0, "_service_interior", "showers"], ["key", "Escape"], ["wait", 4.2],
 	],
+	# The title screen and its pages as they are (polish of the main menu, 14. 11.): run with a
+	# copy of a warden's profile in the scratch APPDATA for the CONTINUE card.
+	"menulook": [
+		["wait_menu"], ["wait", 6.0], ["shot", "m0_main"], ["wait", 7.0], ["shot", "m0b_main"],
+		["eval", "_main_menu.show_page('camps')"], ["wait", 1.0], ["shot", "m1_camps"],
+		["eval", "_main_menu._open_camp()"], ["wait", 1.0], ["shot", "m2_load"],
+		["eval", "_main_menu.show_page('newcamp')"], ["wait", 1.0], ["shot", "m3_newcamp"],
+		["eval", "_main_menu.show_page('coop')"], ["wait", 1.0], ["shot", "m4_coop"],
+		["eval", "_main_menu.show_page('profiles')"], ["wait", 1.0], ["shot", "m5_profiles"],
+		["eval", "_main_menu.show_page('options')"], ["wait", 1.0], ["shot", "m6_options"],
+		["eval", "_main_menu.show_page('controls')"], ["wait", 1.0], ["shot", "m7_controls"],
+		["eval", "_main_menu.show_page('main')"], ["eval", "_main_menu.show_loading('Opening the camp...')"], ["wait", 1.0], ["shot", "m8_loading"],
+	],
+	# The office at dusk from a few places (the title screen in the reception, 14. 11.).
+	"officelook": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 2.0],
+		["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 1.0], ["eval", "_build_test_camp('')"], ["wait", 3.0], ["eval", "debug_jump_to(1, 19.5)"], ["wait", 2.0],
+		["room_cam", "_building_interior", [0.0, 1.5, 1.15], [-0.4, 1.5, -2.5]], ["wait", 0.8], ["shot", "o1_front"],
+		["room_cam", "_building_interior", [1.9, 1.65, 2.1], [-0.8, 1.1, -1.6]], ["wait", 0.8], ["shot", "o2_corner"],
+		["room_cam", "_building_interior", [-1.6, 1.6, 1.9], [0.8, 1.0, -0.8]], ["wait", 0.8], ["shot", "o3_desk"],
+		["room_cam", "_building_interior", [-1.5, 1.55, -1.2], [2.5, 1.4, 1.2]], ["wait", 0.8], ["shot", "o4_side"],
+		["room_cam", "_building_interior", [0.6, 1.25, 1.8], [-0.6, 1.2, -2.5]], ["wait", 0.8], ["shot", "o5_low"],
+		["room_cam", "_building_interior", [0.0, 1.7, -1.8], [0.0, 1.1, 2.0]], ["wait", 0.8], ["shot", "o6_back"],
+	],
+	"officedump": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 2.0],
+		["dump_nodes", "_building_interior", ["Phone", "Radio", "Key", "Bell", "Lamp", "Book", "Coat", "Hook", "Stove", "Board", "Clock", "Calendar", "Monitor", "Crt", "CRT", "Register", "Dymo", "Jacket", "Window", "Fan", "Cabinet", "Map", "Diploma", "Counter", "Desk"]],
+	],
+	# Shots of the office for the title (14. 11.).
+	"titleshots": [
+		["wait_menu"], ["wait", 3.0],
+		["eval", "_main_menu.set('visible', false)"], ["eval", "_title_stage.set('eye', Vector3(0.35, 1.45, 1.6))"], ["eval", "_title_stage.set('look', Vector3(-0.55, 1.15, -2.4))"], ["eval", "_title_stage.set('fov', 68.0)"], ["wait", 0.6], ["shot", "t1"],
+		["eval", "_main_menu.set('visible', false)"], ["eval", "_title_stage.set('eye', Vector3(0.3, 1.38, 1.9))"], ["eval", "_title_stage.set('look', Vector3(-1.0, 1.25, -1.2))"], ["eval", "_title_stage.set('fov', 56.0)"], ["wait", 0.6], ["shot", "t2"],
+		["eval", "_main_menu.set('visible', false)"], ["eval", "_title_stage.set('eye', Vector3(-0.2, 1.32, 1.7))"], ["eval", "_title_stage.set('look', Vector3(-1.2, 1.3, -0.6))"], ["eval", "_title_stage.set('fov', 50.0)"], ["wait", 0.6], ["shot", "t3"],
+		["eval", "_main_menu.set('visible', false)"], ["eval", "_title_stage.set('eye', Vector3(0.9, 1.5, 1.8))"], ["eval", "_title_stage.set('look', Vector3(-0.6, 1.2, -2.0))"], ["eval", "_title_stage.set('fov', 52.0)"], ["wait", 0.6], ["shot", "t4"],
+		["eval", "_main_menu.set('visible', false)"], ["eval", "_title_stage.set('eye', Vector3(-0.6, 1.25, 1.95))"], ["eval", "_title_stage.set('look', Vector3(-0.9, 1.35, -2.5))"], ["eval", "_title_stage.set('fov', 60.0)"], ["wait", 0.6], ["shot", "t5"],
+		["eval", "_main_menu.set('visible', false)"], ["eval", "_title_stage.set('eye', Vector3(0.6, 1.3, 1.4))"], ["eval", "_title_stage.set('look', Vector3(-1.4, 1.25, -0.4))"], ["eval", "_title_stage.set('fov', 48.0)"], ["wait", 0.6], ["shot", "t6"],
+	],
+	"windowtiles": [
+		["wait_menu"], ["wait", 2.0],
+		["eval", "[4, -6, grid_manager.world_to_grid(_interior_manager._building_interior._room_root.global_transform * Vector3(-6, 0.0, -6.5)), world_generator.gate_tile()]"], ["eval", "[4, -0.4, grid_manager.world_to_grid(_interior_manager._building_interior._room_root.global_transform * Vector3(-0.4, 0.0, -6.5)), world_generator.gate_tile()]"], ["eval", "[4, 5, grid_manager.world_to_grid(_interior_manager._building_interior._room_root.global_transform * Vector3(5, 0.0, -6.5)), world_generator.gate_tile()]"], ["eval", "[8, -6, grid_manager.world_to_grid(_interior_manager._building_interior._room_root.global_transform * Vector3(-6, 0.0, -10.5)), world_generator.gate_tile()]"], ["eval", "[8, -0.4, grid_manager.world_to_grid(_interior_manager._building_interior._room_root.global_transform * Vector3(-0.4, 0.0, -10.5)), world_generator.gate_tile()]"], ["eval", "[8, 5, grid_manager.world_to_grid(_interior_manager._building_interior._room_root.global_transform * Vector3(5, 0.0, -10.5)), world_generator.gate_tile()]"], ["eval", "[12, -6, grid_manager.world_to_grid(_interior_manager._building_interior._room_root.global_transform * Vector3(-6, 0.0, -14.5)), world_generator.gate_tile()]"], ["eval", "[12, -0.4, grid_manager.world_to_grid(_interior_manager._building_interior._room_root.global_transform * Vector3(-0.4, 0.0, -14.5)), world_generator.gate_tile()]"], ["eval", "[12, 5, grid_manager.world_to_grid(_interior_manager._building_interior._room_root.global_transform * Vector3(5, 0.0, -14.5)), world_generator.gate_tile()]"], ["eval", "[16, -6, grid_manager.world_to_grid(_interior_manager._building_interior._room_root.global_transform * Vector3(-6, 0.0, -18.5)), world_generator.gate_tile()]"], ["eval", "[16, -0.4, grid_manager.world_to_grid(_interior_manager._building_interior._room_root.global_transform * Vector3(-0.4, 0.0, -18.5)), world_generator.gate_tile()]"], ["eval", "[16, 5, grid_manager.world_to_grid(_interior_manager._building_interior._room_root.global_transform * Vector3(5, 0.0, -18.5)), world_generator.gate_tile()]"], ["eval", "[22, -6, grid_manager.world_to_grid(_interior_manager._building_interior._room_root.global_transform * Vector3(-6, 0.0, -24.5)), world_generator.gate_tile()]"], ["eval", "[22, -0.4, grid_manager.world_to_grid(_interior_manager._building_interior._room_root.global_transform * Vector3(-0.4, 0.0, -24.5)), world_generator.gate_tile()]"], ["eval", "[22, 5, grid_manager.world_to_grid(_interior_manager._building_interior._room_root.global_transform * Vector3(5, 0.0, -24.5)), world_generator.gate_tile()]"], ["eval", "[30, -6, grid_manager.world_to_grid(_interior_manager._building_interior._room_root.global_transform * Vector3(-6, 0.0, -32.5)), world_generator.gate_tile()]"], ["eval", "[30, -0.4, grid_manager.world_to_grid(_interior_manager._building_interior._room_root.global_transform * Vector3(-0.4, 0.0, -32.5)), world_generator.gate_tile()]"], ["eval", "[30, 5, grid_manager.world_to_grid(_interior_manager._building_interior._room_root.global_transform * Vector3(5, 0.0, -32.5)), world_generator.gate_tile()]"], ["eval", "[40, -6, grid_manager.world_to_grid(_interior_manager._building_interior._room_root.global_transform * Vector3(-6, 0.0, -42.5)), world_generator.gate_tile()]"], ["eval", "[40, -0.4, grid_manager.world_to_grid(_interior_manager._building_interior._room_root.global_transform * Vector3(-0.4, 0.0, -42.5)), world_generator.gate_tile()]"], ["eval", "[40, 5, grid_manager.world_to_grid(_interior_manager._building_interior._room_root.global_transform * Vector3(5, 0.0, -42.5)), world_generator.gate_tile()]"], 
+	],
 	"tentcrawl": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
 		["eval", "_interior_manager._building_interior.close_interior()"], ["money", 9000], ["hours", 2.0],
@@ -2775,6 +2817,35 @@ func _run_step(step: Array) -> void:
 				_main.call("_sync_runtime_state_from_systems", true)
 		"eval":
 			_eval(str(step[1]))
+		"room_cam":
+			# ["room_cam", room, [x, y, z], [tx, ty, tz]]: interior_manager's `room`'s eye put at a
+			# point of its own space looking at another (and kept there by its look).
+			var room = _main._interior_manager.get(str(step[1]))
+			var cam: Camera3D = room.get("_interior_camera") if room != null else null
+			if cam != null:
+				var at := Vector3(step[2][0], step[2][1], step[2][2])
+				var to := Vector3(step[3][0], step[3][1], step[3][2])
+				var rot := Basis.looking_at(to - at, Vector3.UP).get_euler()
+				cam.position = at
+				cam.rotation = rot
+				if "_idle_cam_base_rot" in room:
+					room.set("_idle_cam_base_rot", rot)
+		"dump_nodes":
+			# ["dump_nodes", room, [name parts]]: interior_manager's `room`'s things whose names
+			# have one of the parts, where they are in its room space ("DUMP name (x, y, z)").
+			var droom = _main._interior_manager.get(str(step[1]))
+			var rr: Node3D = droom.get("_room_root") if droom != null else null
+			if rr != null:
+				var seen := {}
+				for n in rr.find_children("*", "Node3D", true, false):
+					var nm := str(n.name)
+					if seen.has(nm):
+						continue
+					for part in step[2]:
+						if nm.find(str(part)) >= 0:
+							seen[nm] = true
+							print("DUMP %s %s" % [nm, str((rr.global_transform.affine_inverse() * (n as Node3D).global_position).snapped(Vector3(0.01, 0.01, 0.01)))])
+							break
 		"evals":
 			# Several in the same frame (what a node's own frame would undo in between).
 			for e in step[1]:

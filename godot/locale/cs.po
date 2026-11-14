@@ -33798,3 +33798,9 @@ msgstr "Seděli jsme u studenýho ohně. Ani poleno naštípaný."
 
 msgid "Go into the warehouse"
 msgstr "Jít do skladu"
+
+msgid "GUEST BOOK"
+msgstr "KNIHA HOSTŮ"
+
+msgid "Warden %s"
+msgstr "Správce %s"

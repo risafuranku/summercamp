@@ -55,6 +55,8 @@ const PROFILES = preload("res://scripts/profiles.gd")
 const LANG = preload("res://scripts/lang.gd")
 const BALANCE_CONFIG = preload("res://core/balance/balance_config.gd")
 const BOOT_SCREEN = preload("res://scripts/ui/boot_screen.gd")
+## The main page: the guest book on the counter of the office at dusk (14. 11.).
+const TITLE_BOOK = preload("res://scripts/ui/title/title_book.gd")
 const TILE_COLS := 3
 const TILE_ROWS := 2
 
@@ -137,6 +139,10 @@ var _logo
 var _flicker_next := 6.0
 var _flicker_t := -1.0
 var _card: Control
+## The guest book (the main page) and the camp CONTINUE goes back to, as its last entry.
+var _book
+var _continue_camp: Dictionary = {}
+var _continue_save: Dictionary = {}
 var _card_pic: TextureRect
 var _card_name: Label
 var _card_info: Label
@@ -198,6 +204,13 @@ func _ready() -> void:
 	_rebuild()
 
 
+## The language changed (the warden's, after the title was built): the guest book's entry
+## written again in it (its till, its day).
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_TRANSLATION_CHANGED and _book != null and is_instance_valid(_book):
+		_book.set_entry(_book_entry())
+
+
 # ── public API ────────────────────────────────────────────────────────────────
 
 func open() -> void:
@@ -218,7 +231,7 @@ func close() -> void:
 func show_page(page: String) -> void:
 	_page = page
 	if _card != null:
-		_card.visible = page == "main" and _has_continue
+		_card.visible = false
 	_save_delete_armed = false
 	_camp_delete_armed = false
 	_profile_delete_armed = ""
@@ -244,7 +257,10 @@ func show_page(page: String) -> void:
 	if _main_list == null:
 		return
 	_main_list.get_parent().visible = page == "main"
-	_column.visible = page == "main"
+	_column.visible = false
+	_shade.visible = false
+	if _book != null:
+		_book.visible = page == "main"
 	_sub_shade.visible = page != "main"
 	_load_page.visible = page == "load"
 	_options_page.visible = page == "options"
@@ -275,6 +291,9 @@ func refresh_saves() -> void:
 		_main_list.set_items(_main_items())
 		if _page == "main":
 			_main_list.select_id("continue" if _has_continue else "new")
+	if _book != null:
+		_book.set_items(_main_items(), "continue" if _has_continue else "new")
+		_book.set_entry(_book_entry())
 	_save_selected = clampi(_save_selected, 0, maxi(0, _save_entries.size() - 1))
 	_save_scroll = clampi(_save_scroll, 0, maxi(0, _save_entries.size() - _visible_rows))
 	_refresh_save_rows()
@@ -376,6 +395,15 @@ func _rebuild() -> void:
 	_lantern(_main_list)
 	_main_list.set_items(_main_items())
 	_build_card(vp)
+	# The guest book in its place (the column, its shade, the card and the footer are
+	# the old title's: hidden).
+	_book = TITLE_BOOK.new()
+	_book.name = "GuestBook"
+	_root.add_child(_book)
+	_book.layout(vp)
+	_book.activated.connect(_on_main_activated)
+	_book.set_items(_main_items(), "continue" if _has_continue else "new")
+	_book.set_entry(_book_entry())
 
 	# ONE CAMP (its saves)
 	_load_page = _page_frame("CAMP", plate_h)
@@ -499,7 +527,6 @@ func _rebuild() -> void:
 	_test_page.add_child(test_hint)
 
 	_build_ask_box()
-	_build_footer(vp)
 	_build_loading(vp)
 	show_page(_page)
 	refresh_saves()
@@ -775,7 +802,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				_test_list.select(0, false)
 				used = true
 			else:
-				used = _main_list.handle_input(event)
+				used = _book.handle_input(event) if _book != null else _main_list.handle_input(event)
 		"test":
 			if event.is_action_pressed("ui_cancel"):
 				show_page("main")
@@ -1836,10 +1863,21 @@ func _build_card(vp: Vector2) -> void:
 	card.visible = false
 
 
+## The guest book's last entry: the camp CONTINUE goes back to, its photograph, its day and
+## till, its warden and how long ago ({} without one).
+func _book_entry() -> Dictionary:
+	if not _has_continue or _continue_save.is_empty():
+		return {}
+	return {"name": str(_continue_camp.get("name", "Camp")), "thumb": _thumb_texture(str(_continue_camp.get("thumb", ""))),
+		"lines": [_summary(_continue_save), LANG.f("Warden %s", [PROFILES.profile_name()]), _ago(int(_continue_save.get("updated_unix", 0)))]}
+
+
 func _refresh_card(camp: Dictionary, save: Dictionary) -> void:
+	_continue_camp = camp
+	_continue_save = save
 	if _card == null:
 		return
-	_card.visible = _has_continue and _page == "main"
+	_card.visible = false
 	if not _has_continue:
 		return
 	_card_pic.texture = _thumb_texture(str(camp.get("thumb", "")))

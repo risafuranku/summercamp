@@ -4,6 +4,18 @@
 
 ---
 
+## MAIN MENU 2026-11-14 (Richard: „potřebujeme totálně polishnout main menu… vypadá to jak nějakej prototyp, dost to podceňuje tu hru, moc jí to neodráží“)
+
+Q&A: concept „Recepce za soumraku“ (the menu in the game itself: the counter, items in the guest book, camps as keys with Dymo labels, co-op the phone, settings the radio, the camp behind the window); behind the window always a showcase camp; the logo now from the game's textures, Grok's after 16. 11. (2 samples first).
+
+- [ ] M1 Stage: the live office at dusk as the title's background (the building interior's room, its eye placed by the title, no office play: tube off, desk lamp on, radio silent), a slow drift; the CRT shows the game's title; replaces the flythrough
+- [ ] M2 Showcase camp for the menu world (fixed seed, built camp in view of the windows, lamps lit, the bonfire burning), never the player's save
+- [ ] M3 Main page = the guest book (desk/register.png) open on the counter: the items handwritten on its lines, CONTINUE as the last entry (camp, day, till); the logo
+- [ ] M4 Pages as the counter's close-ups: camps = the key board (key_board/key_rack/key_fob, a Dymo label each) → a camp's saves; new camp = a booking form stamped (booking/stamp); warden = the ID card with the figure as its photo; co-op = the phone; settings = a sheet on the clipboard; quit = the desk lamp. One size and type for all, no explanatory texts
+- [ ] M5 Hotspots in the 3D office matching the book's lines (hover glints both), a camera move to the object for its page, the counter's sounds (page, keys, phone, stamp, radio click)
+- [ ] M6 Loading screen of its own (nothing of the menu showing through), the way into the game from the office
+- [ ] M7 Grok logo after 16. 11.
+
 ## PLAYTEST 2026-11-14 (co-op)
 
 - [x] R1 „Načetl jsem svůj single player save kterej byl den 3, a vůbec nám nechodily žádný maily. kupoval sem reklamu, smazal sem špatný recenze, a prostě 0 mailů, 0 hostů, docházej nám prachy.“ (co-op from a loaded single-player save, day 3: no mail, no guests at all; blocking) (no fault in co-op: tools/coop_mail.py hosts a copy of his own save for two and the mail keeps coming on both machines. In his game: 2 bookings in the hours really played (the dice low, the old page's 2.3 stars, the deleted reviews caught = -0.3 for 3 days), then the debug menu's N jumped day 5 to day 9 fourteen hours at a go, which skipped every hour's mail roll; now N/T step the clock an hour at a time, each hour rolling the mail and the guests)

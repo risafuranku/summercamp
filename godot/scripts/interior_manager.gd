@@ -425,6 +425,20 @@ func room_jobs() -> Array:
 	return jobs
 
 
+## The office alone, a step at a time, for the title screen at boot (main: the title is the
+## office, scripts/ui/title/title_stage.gd); [] when it stands. The other rooms come behind
+## the loading bar of the first camp (room_jobs).
+func office_jobs() -> Array:
+	if _building_interior != null and is_instance_valid(_building_interior):
+		return []
+	_office_later = true
+	var jobs: Array = [_setup_building_interior]
+	for i in BUILDING_INTERIOR_SCRIPT.BUILD_JOBS:
+		jobs.append(func() -> void: _building_interior.build_job(i))
+	jobs.append(_finish_building_interior)
+	return jobs
+
+
 func setup_all() -> void:
 	_setup_building_interior()
 	_setup_cabin_interior()

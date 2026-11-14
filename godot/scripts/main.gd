@@ -50,7 +50,8 @@ const BLOOD_FX_SCRIPT = preload("res://scripts/blood_fx.gd")
 const HURT_FX_SCRIPT = preload("res://scripts/ui/hurt_fx.gd")
 const PAUSE_KEYS_SCRIPT = preload("res://scripts/ui/pause_keys.gd")
 var _hurt_fx: CanvasLayer
-const MENU_FLYTHROUGH_SCRIPT = preload("res://scripts/menu_flythrough.gd")
+const TITLE_STAGE = preload("res://scripts/ui/title/title_stage.gd")
+const TITLE_CAMP = preload("res://scripts/ui/title/title_camp.gd")
 const LAND_WARMUP = preload("res://scripts/town/land_warmup.gd")
 const START_DISSOLVE = preload("res://scripts/ui/door_transition.gd")
 const SAVE_CODEC = preload("res://scripts/save_codec.gd")
@@ -170,7 +171,8 @@ var _menu_music_retry_pending: bool = false
 var _main_menu: CanvasLayer
 var _pause_menu: CanvasLayer
 var _pause_prev_mouse := Input.MOUSE_MODE_CAPTURED
-var _menu_flythrough: Node
+## The title screen's stage: the office at dusk (scripts/ui/title/title_stage.gd).
+var _title_stage: Node
 var _pending_loaded_player_state: Dictionary = {}
 var _loaded_away := false
 var _pending_loaded_crt_state: Dictionary = {}
@@ -354,10 +356,10 @@ func _bootstrap_runtime() -> void:
 	await _boot_step("Opening the office", 0.3)
 	_bind_or_create_managers()
 	_bind_billing()
-	_menu_flythrough = MENU_FLYTHROUGH_SCRIPT.new()
-	_menu_flythrough.name = "MenuFlythrough"
-	add_child(_menu_flythrough)
-	_menu_flythrough.setup(fallback_camera, grid_manager, building_manager)
+	_title_stage = TITLE_STAGE.new()
+	_title_stage.name = "TitleStage"
+	add_child(_title_stage)
+	_title_stage.setup(self)
 	_setup_weather_visuals_module()
 	RETRO_RENDER.register(_sub_viewport_container)
 	get_viewport().size_changed.connect(func() -> void: RETRO_RENDER.refresh_all(get_tree()))
@@ -368,6 +370,13 @@ func _bootstrap_runtime() -> void:
 	_setup_guest_agents()
 	_setup_god_cursor()
 	fallback_camera.current = true
+	# The office now, behind the boot's bar: the title screen is the office at dusk.
+	await _boot_step("Furnishing the rooms", 0.87)
+	_ensure_interior_manager()
+	if _interior_manager.has_method("office_jobs"):
+		for job: Callable in _interior_manager.office_jobs():
+			job.call()
+			await get_tree().process_frame
 	await _boot_step("Lighting the lamps", 0.9)
 
 	if _weather_visuals != null:
@@ -1404,7 +1413,7 @@ func _process(delta: float) -> void:
 		_weather_visuals.update_frame(delta)
 
 	if _menu_mode:
-		_menu_flythrough.update(delta)
+		_title_stage.update(delta)
 		return
 
 	if sim:
@@ -5086,7 +5095,6 @@ func _enter_main_menu() -> void:
 	_ensure_main_menu()
 	_load_preview_world_for_menu()
 	_main_menu.open()
-	_menu_flythrough.rebuild()
 	_start_menu_music()
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
@@ -6827,6 +6835,8 @@ func _play_start_dissolve() -> void:
 
 
 func _start_game_from_menu() -> void:
+	# The office is the game's again (the title held it at dusk with the tube off).
+	_title_stage.close()
 	_stop_menu_music()
 	_play_start_dissolve()
 	if _main_menu != null:
@@ -6858,26 +6868,18 @@ func _write_startup_autosave() -> void:
 	_write_autosave("Autosave")
 
 
+## The title's world: always the showcase camp (scripts/ui/title/title_camp.gd, playtest
+## 14. 11.), never the player's; the office at dusk over it (title_stage.gd).
 func _load_preview_world_for_menu() -> void:
 	_active_save_path = ""
-	var latest := SaveManager.get_latest_save_path()
-	if latest.is_empty():
-		_reset_state_for_new_game()
-		_generate_grid_world()
-		_prune_preview_to_reception_only()
-		_rebuild_core_cells_from_visual_structures()
-		_menu_flythrough.rebuild()
-		return
-	var snapshot := SaveManager.read_save(latest)
-	if snapshot.is_empty() or not _apply_save_snapshot(snapshot, true):
-		_reset_state_for_new_game()
-		_generate_grid_world()
-		_prune_preview_to_reception_only()
-		_rebuild_core_cells_from_visual_structures()
-		_menu_flythrough.rebuild()
-		return
-	_active_save_path = latest
-	_menu_flythrough.rebuild()
+	_reset_state_for_new_game()
+	_pending_world_seed = TITLE_CAMP.SEED
+	_generate_grid_world()
+	_prune_preview_to_reception_only()
+	TITLE_CAMP.build(self)
+	_rebuild_core_cells_from_visual_structures()
+	TITLE_CAMP.light(self)
+	_title_stage.open()
 
 
 func _start_menu_music() -> void:

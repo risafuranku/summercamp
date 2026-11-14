@@ -32,6 +32,8 @@ const RECEPTION_PREFIX := {
 }
 const TEXTURE_STYLE_SCRIPT = preload("res://scripts/texture_style.gd")
 const RETRO_RENDER = preload("res://scripts/retro_render.gd")
+const TITLE_UI = preload("res://scripts/ui/retro_ui.gd")
+const TITLE_BOOT = preload("res://scripts/ui/boot_screen.gd")
 const DELIVERY_CLOSEUP = preload("res://scripts/closeup/delivery_closeup.gd")
 ## Camera moves in steps, twelve a second (sitting down, standing up, looking round).
 const CAM_MOVE = preload("res://scripts/ui/cam_move.gd")
@@ -578,6 +580,114 @@ func walk_in_handoff() -> Dictionary:
 	return {"to": (p["pos"] as Vector3) - Vector3(0.0, head.position.y, 0.0), "dir": -(p["dir"] as Vector3)}
 
 
+# ── the title screen ─────────────────────────────────────────────────────────
+
+## The title screen is this room (scripts/ui/title/title_stage.gd, playtest 14. 11.: "the
+## reception at dusk"): its eye on the screen where the title puts it, nothing of the office's
+## own play (no clicks, no look of its own), the tube off and the desk lamp on, the radio
+## silent (the title has its own music), the CRT showing the game's title.
+var title_mode := false
+var _title_was: Array = []
+var _crt_title: Control
+
+
+func set_title_view(on: bool) -> void:
+	if on == title_mode or _interior_camera == null:
+		return
+	title_mode = on
+	if on:
+		_title_was = [_office_lights_on, _desk_lamp_on, _radio_power_on]
+		_office_lights_on = false
+		_desk_lamp_on = true
+		_radio_power_on = false
+		if _viewport != null:
+			_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+			_viewport.audio_listener_enable_3d = false
+		_bind_one_world()
+		_one_world_inside(true)
+		_update_window_texture()
+		visible = true
+		_sync_interior_viewport_to_window()
+		RETRO_RENDER.apply_to(_viewport_container)
+		_set_crt_viewport_live(true)
+		_show_crt_title(true)
+		_interior_camera.fov = OFFICE_FOV
+		_interior_camera.current = true
+	else:
+		if _title_was.size() == 3:
+			_office_lights_on = bool(_title_was[0])
+			_desk_lamp_on = bool(_title_was[1])
+			_radio_power_on = bool(_title_was[2])
+		_show_crt_title(false)
+		_set_crt_viewport_live(false)
+		if _viewport != null:
+			_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
+		_one_world_inside(false)
+		visible = false
+	_apply_office_switch_visual()
+	_apply_office_wall_texture_state()
+	_sync_desk_lamp_look()
+	_apply_room_time_profile()
+
+
+## The room's eye (the title places it), and the room's root (room space for it).
+func title_camera() -> Camera3D:
+	return _interior_camera
+
+
+func room_root() -> Node3D:
+	return _room_root
+
+
+## The CRT's own title card over its desktop: the game's logo on the black of a screen
+## just switched on (BOOT_SCREEN's), the line under it spaced out.
+func _show_crt_title(on: bool) -> void:
+	if _crt_viewport == null:
+		return
+	if on and _crt_title == null:
+		_crt_title = Control.new()
+		_crt_title.name = "CrtTitle"
+		_crt_title.set_anchors_preset(Control.PRESET_FULL_RECT)
+		_crt_title.size = Vector2(CRT_RESOLUTION)
+		var bg := ColorRect.new()
+		bg.color = Color(0.012, 0.01, 0.008)
+		bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+		bg.size = Vector2(CRT_RESOLUTION)
+		_crt_title.add_child(bg)
+		var s := maxi(1, int(float(CRT_RESOLUTION.y) / 160.0))
+		var title := Label.new()
+		title.text = "CURSED CAMP"
+		title.add_theme_font_override("font", TITLE_UI.FONT_BIG)
+		title.add_theme_font_size_override("font_size", TITLE_UI.SIZE_BIG * s * 2)
+		title.add_theme_color_override("font_color", Color(1.0, 0.7, 0.3))
+		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		title.size = Vector2(CRT_RESOLUTION.x, CRT_RESOLUTION.y * 0.3)
+		title.position = Vector2(0, CRT_RESOLUTION.y * 0.3)
+		_crt_title.add_child(title)
+		TITLE_BOOT.paint_logo(title, s)
+		var sub := Label.new()
+		sub.text = "M A N A G E R   S I M U L A T O R"
+		sub.add_theme_font_override("font", TITLE_UI.FONT_TEXT)
+		sub.add_theme_font_size_override("font_size", TITLE_UI.SIZE_TEXT * s)
+		sub.add_theme_color_override("font_color", Color(0.9, 0.62, 0.3))
+		sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		sub.size = Vector2(CRT_RESOLUTION.x, 30)
+		sub.position = Vector2(0, CRT_RESOLUTION.y * 0.6)
+		_crt_title.add_child(sub)
+		var by := Label.new()
+		by.text = "(C) 2026 UNDO LABS"
+		by.add_theme_font_override("font", TITLE_UI.FONT_TEXT)
+		by.add_theme_font_size_override("font_size", TITLE_UI.SIZE_TEXT * s)
+		by.add_theme_color_override("font_color", Color(0.5, 0.42, 0.34))
+		by.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		by.size = Vector2(CRT_RESOLUTION.x, 30)
+		by.position = Vector2(0, CRT_RESOLUTION.y * 0.8)
+		_crt_title.add_child(by)
+		_crt_viewport.add_child(_crt_title)
+	if _crt_title != null:
+		_crt_title.visible = on
+
+
 func close_interior() -> void:
 	if _camera_tween != null:
 		_camera_tween.kill()
@@ -626,7 +736,8 @@ func _process(delta: float) -> void:
 		_fan_spin += delta * 380.0
 		# Drawn in steps (10 a second), like the rest of the old machinery.
 		_fan_pivot.rotation_degrees.z = floorf(_fan_spin / 38.0) * 38.0
-	if _interior_camera == null:
+	# The title screen moves the eye itself (title_stage.gd): nothing of the office's own.
+	if _interior_camera == null or title_mode:
 		return
 	if _crt_active:
 		# Seated means the computer is in use (the screen saver keys off it).
@@ -1634,7 +1745,7 @@ func _exit_crt_view() -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if not visible:
+	if not visible or title_mode:
 		return
 	# At the counter (the check-in played on it): the counter's own input.
 	if _desk_room != null and _desk_room.is_open():
