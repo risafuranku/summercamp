@@ -161,6 +161,7 @@ python godot/tools/post_coop.py [OUT_DIR]   # the second monitor for two: ordere
 python godot/tools/window_coop.py [OUT_DIR] # the reception's windows for two: from outside the joining warden sees the host at the PC, in the back room, the curtain drawn, the lights out
 python godot/tools/sleep_coop.py [OUT_DIR]  # to bed for two: a tent each (host first, client first), office and tent, one kept awake; the night passes for both at once, both wake at the alarm
 python godot/tools/rooms_coop.py [OUT_DIR]  # the rooms seen from the camp for two: the door swings before the warden is through it, their figure goes from window to window in the room
+python godot/tools/coop_mail.py OUT [SAVE]  # mail for two in a camp hosted from a save (a sandbox camp saved, or a copy of SAVE in the host's own APPDATA): bookings keep coming, both inboxes alike
 godot --headless --path godot --script res://tools/night_swell_check.gd   # the nights by the guests: a step at a time, up and down, what the night may have
 # windowed, --audio-driver Dummy, -- --out=DIR: res://tools/theatre_check.tscn   what comes down from the god cursor against the rooms in buildings: the cabin's leaf, two vans
 # Playtest 4. 11. checks (windowed, --audio-driver Dummy, -- --out=DIR):
@@ -1107,6 +1108,11 @@ every night's sewer, toilets and frozen pipes the moment they broke).
 - **First-time loads**: what is built the first time costs its pictures and sounds from
   disk, not the building (the land 265-947 ms cold, 25 ms warm). Read them on the loader's
   threads while something else is on screen (`builder/warmup.gd`, `town/land_warmup.gd`).
+- **A jump of the clock skips the hours' mail**: `EmailManager._on_time_tick` rolls each hour
+  it saw and catches up three at most; `debug_jump_to` and `set_time_hours` skip the rest (no
+  bookings, no spam in those hours). The debug menu's T and N (`scripts/ui/debug_menu.gd`)
+  step the clock an hour at a time, so a day passed that way books like a day played
+  (playtest 14. 11.: N from day 5 to day 9 brought no booking and read as broken co-op).
 
 ---
 

@@ -197,10 +197,11 @@ func _post_plate(s: Array, at: Vector2, u: float, f: Font, fs: int) -> void:
 	draw_rect(Rect2(box.position + Vector2(0, box.size.y - u), Vector2(box.size.x, u)), DARK)
 	draw_rect(Rect2(box.position + Vector2(box.size.x - u, 0), Vector2(u, box.size.y)), DARK)
 	draw_rect(Rect2(box.position + Vector2(u, u), Vector2(u, box.size.y - 2.0 * u)), s[1])
-	# Coming another day: the day's word where the bar is, the van still (the bar runs on its
-	# day: playtest 13. 11.); a word too long beside the van has the plate to itself.
-	if bool(row.get("tomorrow", false)):
-		var word := tr("TOMORROW")
+	# Coming another day, or today before the morning: the day's word where the bar is, the
+	# van still (the bar runs on its day from the morning: playtests 13. and 14. 11.); a word
+	# too long beside the van has the plate to itself.
+	if bool(row.get("tomorrow", false)) or bool(row.get("today", false)):
+		var word := tr("TOMORROW") if bool(row.get("tomorrow", false)) else tr("TODAY")
 		var wf: Font = RETRO_UI.FONT_TEXT
 		var ww := wf.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 		if ww <= (PLATE.x - BAR.position.x - 1.0) * u:

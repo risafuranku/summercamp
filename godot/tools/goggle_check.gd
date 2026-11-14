@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## Headless check of the camp on Atlas (scripts/reviews/goggle.gd, from when it was
-## Goggle): a new camp's page has last summer's reviews and a low rating, only the first
+## Goggle): a new camp's page is empty (no reviews before the first guest), only the first
 ## blueprints open; good guests' reviews raise the rating and open the next tier (and it
 ## stays open); a review booked for removal is gone the next morning (or, caught, stays
 ## and flags the page with the rating down), each removal dearer than the one before; an
@@ -41,10 +41,8 @@ func _guest(name: String, stars: int, day: int, id: int) -> Dictionary:
 func _run() -> void:
 	var g = GOGGLE.new(7)
 	g.reset(7)
-	_expect(g.count() == GOGGLE.OLD_REVIEWS.size(), "a new camp's page has %d old reviews, not %d" % [GOGGLE.OLD_REVIEWS.size(), g.count()])
-	var start: float = g.rating(1)
-	print("start rating %.1f (%d)" % [start, g.count()])
-	_expect(start > 1.5 and start < 3.0, "the old page should rate it low (2-3), it is %.1f" % start)
+	_expect(g.count() == 0, "a new camp's page is empty, it has %d reviews" % g.count())
+	print("start: %d reviews" % g.count())
 	_expect(g.tier == 0, "only the first blueprints open on a new camp (tier %d)" % g.tier)
 	_expect(g.unlocked("tent_1") and g.unlocked("corn_stand") and not g.unlocked("pub") and not g.unlocked("lake_slide") and not g.unlocked("upgrade:2"), "the first tier opens tents and the corn stand, not the pub, the slide or upgrades")
 	# Good guests: reviews open nothing now (the rating is shown, it plays no part).

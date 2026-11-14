@@ -888,9 +888,8 @@ directory had them. Four pages:
 
 - **The camp's page** (it opens there). Every guest's review goes up in public; the stars
   are the plain average of what is up, to one decimal, the bars of five to one in red.
-  The page was there before you: seven reviews from last summer, mostly bad, and one
-  nobody should have written ("Do not let the boy in the red shoes in. He knocks.",
-  answered by someone who is not you). Newest, lowest or highest first, three to a page
+  A new camp's page is empty: no review before the first guest's (playtest 14. 11.: a
+  clean slate, not even a strange one). Newest, lowest or highest first, three to a page
   (<< Previous 1 2 3 Next >>), or the photos.
 - **The catalogue**, Atlas's front page: a full banner (468 x 60) over twelve sections
   with three of their own and how many pages each has (Cars and motorbikes, Travel,
@@ -1056,8 +1055,8 @@ was left out: the camp's rating is on Atlas (§5i); the blueprints open by guest
   the padlock springs and drops off, the grey goes, in steps; NEW stays on them as a
   sticker on the picture till each is first picked (the PC's store "blueprints": {seen,
   fresh}, with the camp's save and in co-op).
-- **The district's diplomas**, each once: Most Improved Camp (a star more on Goggle than
-  last summer's page), the Guests' Favourite (ten or more in good spirits), the Tidiest
+- **The district's diplomas**, each once: Most Improved Camp (four stars or more on
+  Atlas, a star over the district's middle), the Guests' Favourite (ten or more in good spirits), the Tidiest
   Camp (ten buildings or more in good repair). The district's own paper (Grok, no words)
   with the award typed on it.
 - **Shareware.** Stavitel software's nag after ten builds and every twelve after

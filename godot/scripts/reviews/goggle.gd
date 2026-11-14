@@ -41,17 +41,6 @@ const FLAG_PENALTY := 0.3
 ## An apology to a review of 1-2 stars: the chance of an edit by the morning.
 const APOLOGY_EDIT := 0.4
 
-## The page as it was before you came (last summer's guests, day <= 0: "a year ago").
-const OLD_REVIEWS := [
-	{"name": "Jirka Holub", "archetype": "drunk", "stars": 2, "text": "Beer warm, toilets worse. The lake is nice if you like brown.", "day": -320},
-	{"name": "Marketa S.", "archetype": "cheap_chick", "stars": 1, "text": "Mould in the cabin, a dead mouse in the shower. The owner just stared at us.", "day": -300},
-	{"name": "Fam. Dvorakovi", "archetype": "family", "stars": 3, "text": "The kids loved the slide. Shame about the smell from the lake at night.", "day": -290},
-	{"name": "Pavel K.", "archetype": "quiet_guy", "stars": 4, "text": "Quiet. Very quiet. I slept well.", "day": -280},
-	{"name": "Houbari z Jihlavy", "archetype": "picker", "stars": 2, "text": "Mushrooms in the woods, yes. But someone walks round the tents before dawn and does not answer.", "day": -270},
-	{"name": "anonymous", "archetype": "tramp", "stars": 1, "text": "Do not let the boy in the red shoes in. He knocks.", "day": -261,
-		"ghost_reply": "We have his shoe. He can come and get it."},
-	{"name": "Lenka", "archetype": "cheap_chick", "stars": 3, "text": "Cheap and nobody asks questions. Bring your own sheets.", "day": -250},
-]
 const REPLIES := {
 	"thanks": "Thank you for staying with us. We hope to see you again next summer!",
 	"sorry": "We are sorry your stay was not what it should have been. We have looked into it and it is being put right.",
@@ -97,7 +86,8 @@ func _init(seed_value: int = 0) -> void:
 		_rng.randomize()
 
 
-## A new camp's page: last summer's reviews.
+## A new camp's page: empty, a clean slate (playtest 14. 11.: no reviews written before the
+## first guest, not even the strange ones).
 func reset(seed_value: int = 0) -> void:
 	reviews.clear()
 	removed_count = 0
@@ -109,11 +99,6 @@ func reset(seed_value: int = 0) -> void:
 	_next_id = 1
 	if seed_value != 0:
 		_rng.seed = seed_value
-	for r in OLD_REVIEWS:
-		var e := _entry(str(r["name"]), str(r["archetype"]), int(r["stars"]), str(r["text"]), int(r["day"]), 1, -1)
-		e["old"] = true
-		e["ghost_reply"] = str(r.get("ghost_reply", ""))
-		e["helpful"] = _rng.randi_range(0, 6)
 	_refresh_tier()
 
 

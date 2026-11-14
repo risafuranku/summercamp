@@ -88,6 +88,9 @@ func _ready() -> void:
 		["eval", C + ".log_state('ordered')"],
 		["eval", C + ".order('rum')"], ["wait", 1.2],
 		["eval", C + ".log_state('second')"], ["shot", "v1_on_way"],
+		# Before midnight TOMORROW, after it TODAY, the bar only from the morning (14. 11.).
+		["eval", "debug_jump_to(1, 23.5)"], ["wait", 1.2], ["eval", C + ".log_state('late')"],
+		["eval", "debug_jump_to(2, 0.5)"], ["wait", 1.2], ["eval", C + ".log_state('midnight')"], ["shot", "v1b_today"],
 		["eval", "debug_jump_to(2, 7.4)"], ["wait", 2.0],
 		["eval", C + ".log_state('morning')"],
 		["eval", C + ".order('kofola')"], ["wait", 1.2],

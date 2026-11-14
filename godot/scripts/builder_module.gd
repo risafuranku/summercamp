@@ -2024,17 +2024,13 @@ func _camp_facts() -> Dictionary:
 			sum += 0.0 if bool(r.get("broken", false)) else float(r.get("condition", 1.0))
 		repair = sum / float(rows.size()) if not rows.is_empty() else 0.0
 	var caught := false
-	var start := 5.0
+	# Most Improved Camp: a star over the district's middle (a new camp has no page).
+	var start := 3.0
 	var tier_stars := {}
 	if g != null:
 		for e in g.reviews:
 			if bool(e.get("flagged", false)):
 				caught = true
-		var olds: Array = g.OLD_REVIEWS
-		var sum2 := 0.0
-		for r in olds:
-			sum2 += float(r["stars"])
-		start = snappedf(sum2 / float(maxi(1, olds.size())), 0.1)
 		for i in g.TIERS.size():
 			tier_stars[i] = "%d" % int(g.TIERS[i]["guests"])
 	return {

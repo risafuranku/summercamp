@@ -146,11 +146,19 @@ func _night_or_day() -> void:
 	_step_hours(fposmod(to - h, 24.0))
 
 
+## The clock on as if the hours had gone by, an hour at a time: each hour's tick rolls the
+## mail and the guests (playtest 14. 11.: N jumped fourteen hours in one, the hours' rolls
+## were skipped, and a camp tried that way had no booking for days).
 func _step_hours(hours: float) -> void:
 	var ts = main.get("time_system")
-	if ts != null and ts.has_method("step_time_hours"):
-		ts.step_time_hours(hours)
-		main.call("_sync_runtime_state_from_systems", true)
+	if ts == null or not ts.has_method("step_time_hours"):
+		return
+	var left := hours
+	while left > 0.0001:
+		var step := minf(1.0, left)
+		ts.step_time_hours(step)
+		left -= step
+		main.call("_sync_runtime_state_from_systems", left <= 0.0001)
 
 
 func _weather() -> void:

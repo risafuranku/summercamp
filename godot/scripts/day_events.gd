@@ -299,6 +299,8 @@ func van_hud_row(abs_minute: int) -> Dictionary:
 				var from := float(_van_t0) if _van_t0 >= 0 and _van_t0 < int(ev["at"]) else float(int(ev["at"]) - 240)
 				# On its own day only: ordered yesterday, the bar starts this morning.
 				from = maxf(from, minf(float(int(ev["at"]) / 1440 * 1440) + FIRST_HOUR * 60.0 - 90.0, float(int(ev["at"])) - 30.0))
+				if float(abs_minute) < from:
+					return _van_day_word(int(ev["at"]) / 1440 + 1, abs_minute)
 				return {"icon": "van", "left": clampf((float(abs_minute) - from) / maxf(1.0, float(int(ev["at"])) - from), 0.0, 1.0)}
 	if not _orders_waiting():
 		return {}
@@ -309,13 +311,20 @@ func van_hud_row(abs_minute: int) -> Dictionary:
 		due = mini(due, int((o as Dictionary).get("due_day", 0)))
 	# Not today: TOMORROW on the plate, no bar (playtest 13. 11.: the bar ran from the order
 	# through the night and the van came the next day).
-	var today := abs_minute / 1440 + 1
-	if due > today:
-		return {"icon": "van", "left": 0.0, "tomorrow": true}
 	var day_start := float((due - 1) * 1440) + FIRST_HOUR * 60.0 - 90.0
+	if float(abs_minute) < day_start:
+		return _van_day_word(due, abs_minute)
 	var t0 := maxf(float(_van_t0) if _van_t0 >= 0 else float(abs_minute), day_start)
 	var latest := float((due - 1) * 1440) + LAST_HOUR * 60.0
 	return {"icon": "van", "left": clampf((float(abs_minute) - t0) / maxf(1.0, latest - t0), 0.0, 0.95)}
+
+
+## The van's day on the plate before its morning, no bar: TOMORROW, and from midnight TODAY
+## (playtest 14. 11.: at midnight the bar started and ran through the night).
+func _van_day_word(day: int, abs_minute: int) -> Dictionary:
+	if day > abs_minute / 1440 + 1:
+		return {"icon": "van", "left": 0.0, "tomorrow": true}
+	return {"icon": "van", "left": 0.0, "today": true}
 
 
 ## How many orders the van has brought (due today or before), for the driver's word.

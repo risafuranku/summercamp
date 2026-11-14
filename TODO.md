@@ -4,6 +4,15 @@
 
 ---
 
+## PLAYTEST 2026-11-14 (co-op)
+
+- [x] R1 „Načetl jsem svůj single player save kterej byl den 3, a vůbec nám nechodily žádný maily. kupoval sem reklamu, smazal sem špatný recenze, a prostě 0 mailů, 0 hostů, docházej nám prachy.“ (co-op from a loaded single-player save, day 3: no mail, no guests at all; blocking) (no fault in co-op: tools/coop_mail.py hosts a copy of his own save for two and the mail keeps coming on both machines. In his game: 2 bookings in the hours really played (the dice low, the old page's 2.3 stars, the deleted reviews caught = -0.3 for 3 days), then the debug menu's N jumped day 5 to day 9 fourteen hours at a go, which skipped every hour's mail roll; now N/T step the clock an hour at a time, each hour rolling the mail and the guests)
+- [x] R2 „na atlasu NIKDY nebudou v nové hře již předpřipravené recenze, ani ty creepy, sere mě to. chci čistý štít“ (a new game's Atlas starts empty: no seeded reviews of any kind) (goggle.OLD_REVIEWS gone; Most Improved Camp: four stars or more)
+- [ ] R3 „zákazníci u ohniště si budou sami přidávat polena. hráč se musí starat o to aby vždy bylo nasekáno dost. ty polena co se přidávaj do ohně změníme model na rozsekané polýnka… automatizovat sekání polen… do stávajících… dal bych to jako možnost staff room zaměstnancům… jednou za den aby hráč nasekal polýnka když nemá zaměstnance“ (guests feed the fire from the pile themselves; the pile's and the burning logs' model the split pieces of the minigame; a staffroom hand's job splits them; without one, once a day is enough)
+- [x] R4 „notifikace o závozu se z ZÍTRA aktivuje hned po půlnoci… po půlnoci napíšeš DNES, a až od rána se spustí odpočet“ (after midnight the van's plate says TODAY, the bar runs only from the morning) (day_events._van_day_word; van_check: 23:30 TOMORROW, 00:30 TODAY, 07:24 the bar)
+- [ ] R5 „animace lezení ze stanu ven není moc plynulá (část uvnitř a část venku) a je krapánek moc dlouhá. Podobný refurbish animace uděláme i pro chatku, záchody, karavan, sprchu, recepci.“ (one continuous, shorter way out of the tent; the same smoothness through every door: cabin, toilets, caravan, showers, reception)
+- [ ] R6 „SKLAD má být vnitřní budova, podobná jako staff room, s podobně fungujícím interiérem jako celá hra. vibe interiéru jako kumbál v recepci nebo kumbál ve staff roomu. tak jak je teď mi nefungoval, nešlo mi jít dovnitř.“ (the warehouse a building with a room inside like the staffroom's, a store-room look, its racks in there)
+
 ## PLAYTEST 2026-11-13/14 — Richard's notes (his words, then the note in brackets; tick with the commit)
 
 - [x] P1 „hosti se v recepci spawnou až když do ní vejdu, přes okno jsou neviditelní“ (the guests waiting at the desk drawn only from inside: they must stand there, seen through the window too) (d8f3523d: inside it showed the whole queue, even those still walking up from the gate; now inside and through the window alike only who came in, by the door, which swings for them)
