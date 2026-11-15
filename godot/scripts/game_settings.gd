@@ -40,6 +40,9 @@ var _keys: Dictionary = {}
 func _ready() -> void:
 	load_settings()
 	apply_settings()
+	# The gamepad, turned into the keys and the mouse the game is played with
+	# (scripts/input/pad.gd; GameSettings.get_node("Pad")).
+	add_child(load("res://scripts/input/pad.gd").new())
 	# One pixel throughout: a SubViewport's own 2D is linear unless told, and text and
 	# pictures drawn in one (rooms, the PC, close-ups) came out smeared.
 	get_tree().node_added.connect(_nearest_in_viewport)

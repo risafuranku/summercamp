@@ -24,6 +24,7 @@ extends Node
 ## The NIGHT RISK cell encodes the game's central risk/reward trade (see DESIGN.md):
 ## lamps for the level, the archetype closest to tipping and its odds underneath.
 
+const PROMPT = preload("res://scripts/input/prompt.gd")
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 const LANG = preload("res://scripts/lang.gd")
 
@@ -290,7 +291,10 @@ func set_hint_text(text: String) -> void:
 	_hint_text = text
 	if _hint_label == null:
 		return
-	_hint_label.text = text.to_upper()
+	# In the warden's language first, then its keys as the pad's buttons when the pad is in
+	# hand (scripts/input/prompt.gd); the label translates nothing more.
+	_hint_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_hint_label.text = PROMPT.swap(tr(text)).to_upper()
 	_hint_plate.visible = not text.is_empty()
 	_hint_plate.size = Vector2.ZERO
 

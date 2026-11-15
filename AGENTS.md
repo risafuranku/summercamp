@@ -103,6 +103,11 @@ godot/
                               # down, the menu's co-op), coop_night, warden_looks, ...
     debug/                    # liminal_window (the night forecast's debug window),
                               # test_camps (the title's secret L page)
+    input/                    # pad (the gamepad turned into the keys and the mouse the game
+                              # is played with: GameSettings' child "Pad", the one way a pad
+                              # comes in; walk/look/pointer/buttons), prompt (a hint's "[E]"
+                              # as the pad's "[A]" when the pad is in hand: hud.set_hint_text
+                              # swaps after the lookup; write hints with their keys as ever)
     demo/                     # demo (the demo build: feature tag "demo" or `-- --demo`,
                               # DAYS, the Steam page), demo_end (the morning after day 3:
                               # the clock stops at 07:12, the grandson's mail, "Vera"
@@ -1168,6 +1173,11 @@ every night's sewer, toilets and frozen pipes the moment they broke).
 - **`player.torch_fade`:** going in by a door the torch goes down over the walk; a lit room burnt white at arm's length.
 - **`_camp()` is triplanar, two metres a repeat:** a picture meant whole (a door) on a box shows a slice of it, its handle off the leaf. Give the leaf a `_side_quad` face, as the caravan and the cabins have (`DoorFace`, door_anim hangs it with the leaf).
 - **Render layer 1 << 14 is the corn stand's two back posts** (`stand_layout.BACK_LAYER`): every eye sees them but the stations', a hand from them.
+
+- **Made input events need device 0.** An action made in code (`InputEventKey.new()` added to
+  the InputMap) answers device 0 only; an event parsed with another device does nothing
+  (15. 11.: the pad's Esc and F, sent as device 77, opened nothing). The pad's events are
+  the keyboard's device marked with meta `"pad"` (`scripts/input/pad.gd`).
 
 ## 6. Working style
 

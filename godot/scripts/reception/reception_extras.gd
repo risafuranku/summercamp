@@ -16,6 +16,7 @@ extends RefCounted
 ## lives in scripts/reception/camp_office.gd, reached through main.
 
 ## Walking between the rooms: one smooth move (scripts/ui/walk_path.gd).
+const PROMPT = preload("res://scripts/input/prompt.gd")
 const WALK_PATH = preload("res://scripts/ui/walk_path.gd")
 const INVENTORY_BAG = preload("res://scripts/ui/inventory.gd")
 const STORE_ROOM = preload("res://scripts/reception/store_room.gd")
@@ -860,7 +861,7 @@ func _take_megaphone() -> void:
 		return
 	glint.clear()
 	back.show_megaphone(false)
-	_office_call("say", ["The camp's megaphone. Hold %s and the whole camp hears you." % GameSettings.key_name("megaphone_talk")], null)
+	_office_call("say", ["The camp's megaphone. Hold %s and the whole camp hears you." % PROMPT.button(GameSettings.key_name("megaphone_talk"))], null)
 
 
 ## The megaphone on the chest of drawers unless somebody has it (a bag, the ground).

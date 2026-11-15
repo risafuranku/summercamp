@@ -16,6 +16,7 @@ extends CanvasLayer
 ## Pictures: assets/textury/items/, ui/inv_*.png (Grok, tools/artgen/office_art.py).
 ## town_trip.gd owns it, with the pockets (smoking, drinking) it feeds, and saves it.
 
+const PROMPT = preload("res://scripts/input/prompt.gd")
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 const COLS := 6
 const ROWS := 3
@@ -321,7 +322,7 @@ func use(it: Dictionary) -> void:
 		"key_motel":
 			_say("The tag says which door. It is at the motel.")
 		"megaphone":
-			_say("The camp's megaphone. Hold %s and shout: the whole camp hears you." % GameSettings.key_name("megaphone_talk"))
+			_say("The camp's megaphone. Hold %s and shout: the whole camp hears you." % PROMPT.button(GameSettings.key_name("megaphone_talk")))
 		"matches":
 			if consume("matches"):
 				close()

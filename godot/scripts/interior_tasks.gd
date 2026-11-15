@@ -14,6 +14,7 @@ extends Control
 
 signal task_completed(task_id: String)
 
+const PROMPT = preload("res://scripts/input/prompt.gd")
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 const PREP = preload("res://scripts/interior_prep.gd")
 ## The room's card (12. 11.: it was a list of sentences, "[ ] Sweep up the cigarette ends" ten
@@ -274,7 +275,7 @@ func _process(delta: float) -> void:
 		var how := "CLICK" if bool(target.get("scrub", false)) or str(target.get("verb", "")) in CLICK_VERBS else "[LMB]"
 		# Each piece translated before it is upper-cased and put together (in Czech the
 		# whole line was never found: "[LMB]  MAKE THE BED", the playtest of 30. 10.).
-		_prompt.text = ("%s..." % tr(str(target["verb"])).to_upper()) if not _holding.is_empty() else ("%s  %s" % [tr(how), tr(str(target["label"])).to_upper()])
+		_prompt.text = ("%s..." % tr(str(target["verb"])).to_upper()) if not _holding.is_empty() else ("%s  %s" % [PROMPT.swap(tr(how)), tr(str(target["label"])).to_upper()])
 		var m := get_viewport().get_mouse_position()
 		_prompt.position = (m + Vector2(-_prompt.size.x * 0.5, 16.0 * _scale)).floor()
 	queue_redraw()

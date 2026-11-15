@@ -39,6 +39,11 @@ Plan (in this order; tick with the commit):
   - the cigarette and the bottle, the walkie-talkie and the megaphone
   - "Raccoon thing ❌" in PRODUCT.md is out of date: the raccoon is in the day events and the pipes; a fifth night threat for waste is an open question in DESIGN.md, not a half-done thing
 - [ ] D3 Steam Deck: the gamepad everywhere (a cursor on the stick for the PC and the close-ups), text size at 1280x800 on 7", measured frame time on Deck-class hardware
+  - Q&A 15. 11.: "a translator and one way to write the prompts" (not Steam Input's keyboard template, not every screen on its own): the aim Deck Verified
+  - [x] the translator (15. 11.): scripts/input/pad.gd (GameSettings' child "Pad"): out in the camp the left stick walks (an axis on the move actions), the right stick turns the head (mouse motion), A use, B jump/leave, X repair, Y torch, LT run, RT the left button, L3 crouch, R3 drop, LB megaphone, RB radio, the cross a cigarette / the bottle / a room's light / Q; with a pointer the left stick moves it, the right stick scrolls, A clicks (Enter after the cross picked a row), B Esc, LT the right button, LB/RB a room's last/next; Menu Esc, View Tab. The engine's own pad events are off the ui_* actions (no double presses). Its events are the keyboard's device (0) marked with meta "pad" (the actions made in code answer device 0 only)
+  - [x] the prompts: scripts/input/prompt.gd swap(): the HUD's hint line, the rooms' click prompt and the megaphone's line show the pad's buttons once the pad is touched, the keys again after a key; the hints keep "[E]" in their words and the catalogue
+  - tools/pad_check.tscn (EN and CS): PASS
+  - open: a picture of the pad's layout on the Controls sheet; the Deck's on-screen keyboard for typing (the PC's address bar, the camp's name, the phone); text size and frame time on the Deck itself; rumble; the pause menu's rows on the cross were checked only through the pointer
 - [ ] D4 Steam page: capsule and header from real renders + the logo (Grok samples first), screenshots, CZ + EN text, the 90s-advert trailer
 - [ ] D5 Full game after the demo: weekly goals and unlocks, money and stars, the mystery and its endings (its own Q&A first)
 
