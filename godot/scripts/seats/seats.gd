@@ -21,6 +21,7 @@ const PAD = preload("res://scripts/input/pad.gd")
 const FIGURE = preload("res://scripts/coop/remote_player.gd")
 const LOOKS = preload("res://scripts/coop/warden_looks.gd")
 const PROFILES = preload("res://scripts/profiles.gd")
+const HUD_SCRIPT = preload("res://scripts/hud_manager.gd")
 
 ## Every seat's screen is in this group.
 const GROUP := "seat_screen"
@@ -31,13 +32,17 @@ const GAP := 2
 ## Each seat's warden as the other seat sees them (the co-op's figure, remote_player.gd),
 ## on a render layer of its own that its own eye leaves out: seat 1's, seat 2's.
 const FIG_LAYER := [1 << 10, 1 << 12]
+## The bar's cells while the window is split (hud_manager shown_cells): each its own
+## HEALTH and STAMINA, the camp's cells once across the TV.
+const CELLS_ONE := ["health", "stamina", "cash", "clock"]
+const CELLS_TWO := ["health", "stamina", "guests", "mail", "risk"]
 
 signal seats_changed(count: int)
 
 var main: Node
 ## Seat 2 while it is here: {"body", "pad", "box" (its SubViewportContainer), "screen",
 ## "eye" (its camera in the world), "view" (the world's viewport it looks through), "figs"
-## (both wardens' figures)}; {} when nobody sits there.
+## (both wardens' figures), "hud" (its own HUD on its screen)}; {} when nobody sits there.
 var two: Dictionary = {}
 var _menu_held := 0.0
 ## The Menu that joined is let go first (held on, it would leave at once).
@@ -126,6 +131,20 @@ func join(device: int) -> void:
 	eye.name = "Eye"
 	world_vp.add_child(eye)
 	main.add_child(box)
+	# Its own HUD on its screen: its health and stamina, the camp's cells yours leaves out.
+	var hud = HUD_SCRIPT.new()
+	hud.name = "HudManager"
+	hud.shown_cells = CELLS_TWO
+	hud.pager_sound = false
+	screen.add_child(hud)
+	hud.setup_interaction_hint()
+	hud.setup_money_hud()
+	hud.setup_weather_hud()
+	hud.setup_time_hud()
+	hud.set_camera_provider(func(): return eye)
+	var hud1 = main.get("_hud_manager")
+	if hud1 != null:
+		hud1.show_cells(CELLS_ONE)
 	world_vp.world_3d = ((main.get("_sub_viewport_container") as Node).get_child(0) as SubViewport).find_world_3d()
 	eye.current = true
 	RETRO_RENDER.register(view)
@@ -143,7 +162,7 @@ func join(device: int) -> void:
 	# Your figure is seen by seat 2's eye, seat 2's by yours (each faces the one who looks).
 	figs[0].viewer = eye
 	figs[1].viewer = cam1
-	two = {"body": body, "pad": body.seat_input, "box": box, "screen": screen, "eye": eye, "view": world_vp, "figs": figs}
+	two = {"body": body, "pad": body.seat_input, "box": box, "screen": screen, "eye": eye, "view": world_vp, "figs": figs, "hud": hud}
 	_menu_held = 0.0
 	_menu_armed = false
 	_layout()
@@ -167,6 +186,9 @@ func leave() -> void:
 	var cam1 := p1.get_node_or_null("Head/Camera3D") as Camera3D if p1 != null and is_instance_valid(p1) else null
 	if cam1 != null:
 		cam1.cull_mask |= int(FIG_LAYER[0])
+	var hud1 = main.get("_hud_manager")
+	if hud1 != null:
+		hud1.show_cells([])
 	two = {}
 	_layout()
 	seats_changed.emit(count())
@@ -180,6 +202,7 @@ func _process(delta: float) -> void:
 		leave()
 		return
 	_feed_figures()
+	_feed_hud(body)
 	var pad = two["pad"]
 	pad.poll()
 	if not pad.held("menu"):
@@ -213,6 +236,17 @@ func _put_eye() -> void:
 	eye.v_offset = cam.v_offset
 	eye.environment = cam.environment
 	eye.attributes = cam.attributes
+
+
+## Seat 2's HUD: the camp's clock, weather and night risk as yours shows them, its own
+## stamina and torch (its health is whole: the night goes for the window's warden so far).
+func _feed_hud(body: Node) -> void:
+	var hud = two.get("hud")
+	if hud == null or not is_instance_valid(hud):
+		return
+	hud.mirror_camp(main.get("_hud_manager"))
+	main.sync_player_meters(hud, body)
+	hud.set_health_ratio(1.0)
 
 
 func _figure(model: int, color: int, seat_index: int) -> Node3D:

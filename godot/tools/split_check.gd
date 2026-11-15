@@ -23,7 +23,7 @@ func _ready() -> void:
 		["pad_button", 0, JOY_BUTTON_X], ["wait", 0.5],
 		["eval", C + ".check('one seat before', _seats.count() == 1)"],
 		["pad_button", 1, JOY_BUTTON_START], ["wait", 1.5],
-		["eval", C + ".check_joined()"], ["shot", "sp0_joined"],
+		["eval", C + ".check_joined()"], ["wait", 0.5], ["eval", C + ".check_huds()"], ["shot", "sp0_joined"],
 		# Pad 1 walks its own warden only.
 		["eval", C + ".mark()"], ["pad_axis", 1, JOY_AXIS_LEFT_Y, -1.0], ["wait", 1.0], ["pad_axis", 1, JOY_AXIS_LEFT_Y, 0.0], ["wait", 0.3],
 		["eval", C + ".check_moved(2, true)"], ["eval", C + ".check_moved(1, false)"], ["shot", "sp1_two_walked"],
@@ -131,6 +131,30 @@ func check_figures() -> void:
 	check("seat 2's eye leaves its figure out, sees yours", (eye2.cull_mask & (1 << 12)) == 0 and (eye2.cull_mask & (1 << 10)) != 0)
 
 
+## Each seat's bar: its own HEALTH and STAMINA, the camp's cells once across the TV, and
+## the whole of it inside its half.
+func check_huds() -> void:
+	var hud1 = _main.get("_hud_manager")
+	var hud2 = _main.get("_seats").two.get("hud")
+	check("seat 2 has its own HUD", hud2 != null and is_instance_valid(hud2))
+	if hud2 == null:
+		return
+	for pair in [[hud1, ["health", "stamina", "cash", "clock"], 1], [hud2, ["health", "stamina", "guests", "mail", "risk"], 2]]:
+		var cells: Dictionary = pair[0].get("_cells")
+		var shown: Array = []
+		var right := 0.0
+		for id in cells:
+			var c: Control = cells[id]
+			if c.is_visible_in_tree():
+				shown.append(id)
+				right = maxf(right, c.get_global_rect().end.x)
+		shown.sort()
+		var want: Array = (pair[1] as Array).duplicate()
+		want.sort()
+		var w := float((pair[0] as Node).get_viewport().get_visible_rect().size.x)
+		check("seat %d's bar: %s (its right end %.0f of %.0f)" % [pair[2], shown, right, w], shown == want and right <= w)
+
+
 func mark() -> void:
 	for s in [1, 2]:
 		var b := _body(s)
@@ -157,6 +181,12 @@ func check_left() -> void:
 	check("pad 1's Menu held leaves", seats.count() == 1)
 	var one := _main.get_node("Seat1") as Control
 	check("the window whole again (%.0f)" % one.size.x, absf(one.size.x - float(get_viewport().get_visible_rect().size.x)) < 4.0)
+	var cells: Dictionary = _main.get("_hud_manager").get("_cells")
+	var n := 0
+	for id in cells:
+		if (cells[id] as Control).visible:
+			n += 1
+	check("your bar whole again (%d cells)" % n, n == cells.size())
 
 
 func verdict() -> void:

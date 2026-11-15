@@ -1584,15 +1584,21 @@ func _add_mouse_button_action(action_name: String, button_index: int) -> void:
 
 
 func _sync_hud_player_meters() -> void:
-	if _hud_manager == null or _player == null or not is_instance_valid(_player):
+	sync_player_meters(_hud_manager, _player)
+
+
+## A warden's stamina and torch on a HUD (yours on yours; a split screen's second warden on
+## its own, scripts/seats/seats.gd).
+func sync_player_meters(hud: Node, body: Node) -> void:
+	if hud == null or body == null or not is_instance_valid(body):
 		return
-	if _player.has_method("get_stamina_ratio"):
-		_hud_manager.set_stamina_ratio(_player.get_stamina_ratio())
+	if body.has_method("get_stamina_ratio"):
+		hud.set_stamina_ratio(body.get_stamina_ratio())
 	# (The day first: its gauge fills up from where the night left the cell.)
-	if _player.has_method("is_torch_night"):
-		_hud_manager.set_light_day(not bool(_player.is_torch_night()))
-	if _player.has_method("get_flashlight_battery"):
-		_hud_manager.set_light_ratio(_player.get_flashlight_battery())
+	if body.has_method("is_torch_night"):
+		hud.set_light_day(not bool(body.is_torch_night()))
+	if body.has_method("get_flashlight_battery"):
+		hud.set_light_ratio(body.get_flashlight_battery())
 
 
 ## The night through the player's skin: insects fall silent near a presence, the HUD
