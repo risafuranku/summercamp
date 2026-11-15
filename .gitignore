@@ -27,3 +27,7 @@ tools/audiogen/.env
 __pycache__/
 tools/audiogen/raw_radio/
 
+
+# The web export (tools/web/export.mjs): the build and the page it composes
+build/
+godot/.web_shell.html

@@ -60,6 +60,9 @@ const LAND_WARMUP = preload("res://scripts/town/land_warmup.gd")
 const INSTANCE = preload("res://scripts/instance/instance.gd")
 const SCREEN_INPUT = preload("res://scripts/instance/screen_input.gd")
 const LOCAL_CLIENT = preload("res://scripts/instance/local_client.gd")
+const MIXER = preload("res://scripts/audio/mixer.gd")
+const PAGE = preload("res://scripts/web/page.gd")
+const UNDO_HUB = preload("res://scripts/web/undo_hub.gd")
 const PAD_INPUT = preload("res://scripts/input/pad.gd")
 const START_DISSOLVE = preload("res://scripts/ui/door_transition.gd")
 const SAVE_CODEC = preload("res://scripts/save_codec.gd")
@@ -309,6 +312,12 @@ func _ready() -> void:
 	if pad != null and not local_client:
 		pad.join_handler = _on_second_pad
 	_screen.add_child(HandCursor.new())
+	# On the web (UNDO.games) a lost focus is a click on the hub's bar: the game pauses when the
+	# page is hidden instead (scripts/web/undo_hub.gd).
+	var hub := UNDO_HUB.node()
+	if hub != null and not local_client:
+		pause_on_focus_loss = false
+		hub.page_hidden.connect(_on_page_hidden)
 	_show_startup_loading_screen()
 	await get_tree().process_frame
 	# The warden and the camp played last (scripts/profiles.gd): their saves are the
@@ -321,6 +330,11 @@ func _ready() -> void:
 	_enter_main_menu()
 	if local_client:
 		_coop_camp.on_menu_join("127.0.0.1")
+	else:
+		# The web page's card goes once the title has drawn (scripts/web/page.gd).
+		for i in 3:
+			await get_tree().process_frame
+		PAGE.ready()
 
 
 ## The 2D layer (HUD, menus) is pixel art and must be scaled by whole numbers. The
@@ -359,6 +373,8 @@ func _hide_startup_loading_screen() -> void:
 func _boot_step(text: String, progress: float) -> void:
 	if _boot_screen != null and _boot_screen.has_method("set_status"):
 		_boot_screen.set_status(text, progress)
+	if not local_client:
+		PAGE.step(text, progress)
 	await get_tree().process_frame
 	await get_tree().process_frame
 
@@ -445,6 +461,7 @@ func _start_gameplay_runtime() -> void:
 	_stop_active_enemy_brain()
 	_menu_mode = false
 	_gameplay_started = true
+	_hub_playing(true)
 	_game_over_active = false
 	_game_over_reason = GAME_OVER_REASON_DEATH
 	_clear_game_over_screen()
@@ -3029,6 +3046,7 @@ func _enter_main_menu() -> void:
 		_hud_manager.set_liminal_forecast_count(0)
 	_menu_mode = true
 	_gameplay_started = false
+	_hub_playing(false)
 	if _player != null and is_instance_valid(_player) and _player.has_method("set_torch_night"):
 		_player.set_torch_night(false)
 		_player.set("torch_switch", false)
@@ -3501,7 +3519,7 @@ func _start_menu_music() -> void:
 	if _menu_music_player == null:
 		_menu_music_player = AudioStreamPlayer.new()
 		_menu_music_player.name = "MenuMusic"
-		_menu_music_player.bus = "Master"
+		_menu_music_player.bus = MIXER.MUSIC
 		_menu_music_player.volume_db = MENU_THEME_VOLUME_DB
 		_screen.add_child(_menu_music_player)
 	if _menu_music_player.playing:
@@ -3686,6 +3704,19 @@ func _notification(what: int) -> void:
 		# night goes on regardless: no pause).
 		if pause_on_focus_loss and _can_pause_now() and not INSTANCE.coop(self).is_active():
 			_open_pause_menu()
+
+
+## The web page hidden (another tab, the window down): paused as alt-tab pauses on a PC.
+func _on_page_hidden(hidden: bool) -> void:
+	if hidden and _can_pause_now() and not INSTANCE.coop(self).is_active():
+		_open_pause_menu()
+
+
+## UNDO.games counts the time played while a camp is in play (web only).
+func _hub_playing(on: bool) -> void:
+	var hub := UNDO_HUB.node()
+	if hub != null and not local_client:
+		hub.set_playing(on)
 
 
 func _can_pause_now() -> bool:

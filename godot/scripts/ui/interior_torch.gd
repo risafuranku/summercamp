@@ -94,7 +94,8 @@ func _input(event: InputEvent) -> void:
 	if Engine.get_process_frames() - _frame > 2:
 		return
 	var key := event as InputEventKey
-	if key == null or key.echo or not event.is_action_pressed("toggle_flashlight"):
+	# (The title's office is a room too: before the first camp's warden the action is not made.)
+	if key == null or key.echo or not InputMap.has_action("toggle_flashlight") or not event.is_action_pressed("toggle_flashlight"):
 		return
 	var player := _player()
 	if player != null and player.has_method("toggle_flashlight"):

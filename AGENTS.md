@@ -296,6 +296,32 @@ Films of the businesses' work (the camera to a station, frying, a beer, the till
 then `python tools/movie_cut.py <out>/<movie>.avi` keeps only the work (its `mark` steps) as `<movie>_cut.avi` and
 a small animated `<movie>.webp`. The business shot drivers (`jednota_shots`, `proto_shots`) take `--size=WxH` too.
 
+### The web demo (UNDO.games, TODO.md WEB DEMO)
+
+The demo runs in a browser on undogames.cz (computers only for now). Godot's Web preset
+(nothreads, feature `demo`, Compatibility renderer: WebGL 2), its page `web/shell.src.html`.
+- `node tools/web/export.mjs [--release]`: composes the page (`godot/.web_shell.html`, ignored),
+  exports to `build/web` (ignored), copies the page's pictures and the splash, brotli. `--release`
+  adds the UNDO lock (runs only inside the catalogue). `--shell-only` redoes the page alone.
+- `node tools/web/qa.mjs --out=DIR --seconds=N --shots=a,b --do="t:click:x,y;t:type:text;t:key:Enter"`:
+  the export in a muted headless Chromium (console, shots, fps; `--gl` times each shader program's
+  link, `--capture=FILE` keeps their sources, `--angle=vulkan` boots fast for play tests, `--profile=DIR`
+  a browser profile kept between runs; storage is per port). Headless shots draw the canvas over
+  the page's curtain: look at the page itself in a real browser.
+- The engine has one thread there. While it downloads, boots and the browser translates its
+  shaders, the page plays the studio splash as a recording (`web/splash.webm`, made by
+  `res://tools/splash_movie.tscn` with `--write-movie`) and then the title card with the boot's
+  bar, moved by CSS (`scripts/web/page.gd`: `PAGE.step` from main's boot steps, `PAGE.ready` once
+  the title has drawn). On the web studio_splash goes straight to main.
+- Windows browsers translate every Godot shader program through D3D: 0.5-2 s each, ~470 to the
+  title. `web/gl-skip.js` gives the variants Godot translates and never draws an empty program.
+  Fewer shaders and material variants is what makes the web boot shorter.
+- UNDO.games: `scripts/web/undo_hub.gd` (GameSettings' child "Undo", web only) over
+  `web/undo-bridge.js`: the bar's music and effects volumes onto `scripts/audio/mixer.gd`, the time
+  played (`set_playing`), a hidden page pauses (a lost focus does not: a click on the hub's bar).
+- Sound on the web plays through Godot's mixer (`audio/general/default_playback_type.web=0`):
+  the buses' effects work and the songs are not decoded whole.
+
 ---
 
 ## 4. Where things live
@@ -470,6 +496,10 @@ every night's sewer, toilets and frozen pipes the moment they broke).
 
 ## 5. Gotchas
 
+- **Music and effects are two channels** (`scripts/audio/mixer.gd`, buses "Music" and "Sfx" into
+  Master; UNDO.games' bar sets them apart). A bus the game makes is sent on by its name: the
+  songs' buses are listed in `MIXER.MUSIC_BUSES`, every other bus is effects; a player left on
+  Master is effects. Music on a player of its own: `bus = MIXER.MUSIC`.
 - **List a res:// folder with `scripts/res_dir.gd`, never DirAccess** (`RES_DIR.files(dir, exts)`,
   `RES_DIR.names(dir)`): an exported game (Steam, web) has `song.mp3.import` and `x.tres.remap`
   in the folder, not the files, so a DirAccess listing found nothing (15. 11.: the web export's

@@ -368,7 +368,9 @@ func _main_items() -> Array[Dictionary]:
 	items.append({"id": "coop", "text": "Co-op"})
 	items.append({"id": "warden", "text": "Warden"})
 	items.append({"id": "options", "text": "Configuration"})
-	items.append({"id": "quit", "text": "Quit to DOS"})
+	# (In a browser the page is left by the browser's or the hub's own way out.)
+	if not OS.has_feature("web"):
+		items.append({"id": "quit", "text": "Quit to DOS"})
 	return items
 
 

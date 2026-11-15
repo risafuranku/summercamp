@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="cs">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+		<meta name="theme-color" content="#030202">
+		<title>Cursed Camp Manager Simulator</title>
+		<!-- The UNDO lock (web/undo-lock.js, a copy as every UNDO game has it): the game runs only in
+		     the undogames.cz catalogue, which holds the sign-in. Release builds only (--release). -->
+		<script>/*UNDO_LOCK*/</script>
+		<!-- UNDO.games: the time played, the mute and the volumes. Before the engine makes its AudioContext. -->
+		<script src="https://undogames.cz/undo-controller.js" data-game="cursed-camp"></script>
+		<script>/*UNDO_BRIDGE*/</script>
+		<!-- The shader variants Godot translates and never draws get an empty program (web/gl-skip.js). -->
+		<script>/*GL_SKIP*/</script>
+		<style>
+html, body, #canvas { margin: 0; padding: 0; border: 0; }
+html, body {
+	width: 100%; height: 100%; background: #030202; overflow: hidden;
+	touch-action: none; overscroll-behavior: none; -webkit-user-select: none; user-select: none;
+	-webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
+}
+#canvas { display: block; width: 100%; height: 100%; }
+#canvas:focus { outline: none; }
+/* The curtain: the splash (a recording of the game's) and the title card with the boot's bar,
+   over the canvas while the engine downloads and boots. Everything that moves here moves by
+   transform or opacity: the compositor draws it while the engine holds the page's one thread. */
+#curtain { position: fixed; inset: 0; background: #030202; transition: opacity .45s ease-out; }
+#curtain.gone { opacity: 0; pointer-events: none; }
+#splash { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; transition: opacity .6s ease-in; }
+#curtain.card #splash { opacity: 0; }
+#card { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(var(--s) * 9px); opacity: 0; transition: opacity .6s ease-out .25s; }
+#curtain.card #card { opacity: 1; }
+#logo { width: calc(var(--s) * 260px); height: calc(var(--s) * 58px); image-rendering: pixelated; }
+/* The bar as the game draws it (scripts/ui/boot_screen.gd StepBar): 24 segments of 5 by 3 pixels,
+   a pixel apart, in a frame; the lit ones amber with a light top row; a light segment runs
+   along the lit ones at 16 steps a second. */
+#bar { position: relative; width: calc(var(--s) * 150px); height: calc(var(--s) * 7px); background: #000; }
+#bar::before { content: ''; position: absolute; inset: calc(var(--s) * 1px); background: #140f0d; }
+#segs, #lit { position: absolute; left: calc(var(--s) * 1px); top: calc(var(--s) * 2px); height: calc(var(--s) * 3px); display: flex; gap: calc(var(--s) * 1px); }
+#lit { overflow: hidden; width: 0; }
+#segs i, #lit i { flex: none; width: calc(var(--s) * 5px); height: 100%; background: #2e1f14; }
+#lit i { background: linear-gradient(#ffcd74 0 calc(var(--s) * 1px), #ffb838 0); }
+#head { position: absolute; left: 0; top: 0; width: calc(var(--s) * 5px); height: 100%; background: linear-gradient(#ffeaa9 0 calc(var(--s) * 1px), #ffe085 0); animation: head 1.75s steps(28) infinite; }
+@keyframes head { from { transform: translateX(calc(var(--s) * -24px)); } to { transform: translateX(calc(var(--s) * 144px)); } }
+#notice { display: none; max-width: 80vw; font: 16px/1.4 ui-monospace, Menlo, Consolas, monospace; color: #ff6a3d; text-align: center; white-space: pre-line; }
+/* A phone or a tablet: the demo is for a computer for now. The office's computer, and the link
+   to send to oneself. */
+#phone { display: none; position: fixed; inset: 0; background: #030202; flex-direction: column; align-items: center; justify-content: center; gap: 28px; padding: 24px; box-sizing: border-box; }
+body.phone #phone { display: flex; }
+body.phone #curtain, body.phone #canvas { display: none; }
+#phone img { width: min(86vw, 520px); image-rendering: pixelated; }
+#phone .logo { width: min(80vw, 390px); }
+#send { display: flex; align-items: center; gap: 12px; padding: 14px 22px; border: 3px solid #000; background: #ffb838; color: #140f0d; font: 700 18px/1 ui-monospace, Menlo, Consolas, monospace; letter-spacing: .08em; text-transform: uppercase; box-shadow: inset 0 3px 0 #ffcd74, 0 4px 0 #000; }
+#send:active { transform: translateY(2px); box-shadow: inset 0 3px 0 #ffcd74, 0 2px 0 #000; }
+#send svg { width: 22px; height: 22px; }
+#send.done { background: #8fd16a; box-shadow: inset 0 3px 0 #b8e89a, 0 4px 0 #000; }
+		</style>
+		$GODOT_HEAD_INCLUDE
+	</head>
+	<body>
+		<canvas id="canvas"></canvas>
+		<div id="curtain">
+			<video id="splash" muted playsinline preload="auto">
+				<source src="splash.webm" type="video/webm">
+				<source src="splash.mp4" type="video/mp4">
+			</video>
+			<div id="card">
+				<img id="logo" src="card_logo.png" alt="Cursed Camp Manager Simulator">
+				<div id="bar"><div id="segs"></div><div id="lit"><div id="head"></div></div></div>
+				<div id="notice"></div>
+			</div>
+		</div>
+		<div id="phone">
+			<img class="logo" src="card_logo.png" alt="Cursed Camp Manager Simulator">
+			<img src="phone_pc.png" alt="">
+			<button id="send" type="button">
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="square"><path d="M12 3v12M7 8l5-5 5 5M4 13v8h16v-8"/></svg>
+				<span></span>
+			</button>
+		</div>
+		<script src="$GODOT_URL"></script>
+		<script>
+// iOS Safari ignores user-scalable=no and touch-action for a pinch: the gestures are refused here.
+for (const type of ['gesturestart', 'gesturechange', 'gestureend']) addEventListener(type, (event) => event.preventDefault(), { passive: false });
+addEventListener('dblclick', (event) => event.preventDefault(), { passive: false });
+addEventListener('contextmenu', (event) => event.preventDefault());
+
+// A locked page (outside the catalogue) does not download the engine.
+if (window.__undoLocked) throw new Error('locked');
+const GODOT_CONFIG = $GODOT_CONFIG;
+const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
+(function () {
+	const cs = (navigator.language || '').toLowerCase().startsWith('cs') || (navigator.language || '').toLowerCase().startsWith('sk');
+	// A touch device without a mouse: the computer picture and the link, no 300 MB download.
+	if (matchMedia('(hover: none) and (pointer: coarse)').matches && !/[?&]phone=play/.test(location.search)) {
+		document.body.classList.add('phone');
+		const send = document.getElementById('send');
+		const label = send.querySelector('span');
+		label.textContent = cs ? 'Poslat odkaz' : 'Send the link';
+		const back = new URLSearchParams(location.search).get('undo_return');
+		const link = back && /^https:\/\//.test(back) ? back : location.href.split('?')[0];
+		send.addEventListener('click', async () => {
+			try {
+				if (navigator.share) { await navigator.share({ title: 'Cursed Camp Manager Simulator', url: link }); return; }
+				await navigator.clipboard.writeText(link);
+				send.classList.add('done');
+				label.textContent = cs ? 'Zkopírováno' : 'Copied';
+			} catch (e) { /* the share sheet closed */ }
+		});
+		return;
+	}
+	const curtain = document.getElementById('curtain');
+	const splash = document.getElementById('splash');
+	const notice = document.getElementById('notice');
+	const segs = document.getElementById('segs');
+	const lit = document.getElementById('lit');
+	for (let i = 0; i < 24; i++) { segs.appendChild(document.createElement('i')); lit.insertBefore(document.createElement('i'), lit.lastElementChild); }
+	// The game's pixel in CSS pixels, as its own card has it: the canvas in device pixels, main's
+	// whole-number canvas scale (main._apply_integer_canvas_scale), RETRO_UI.ui_scale on that.
+	const scale = () => {
+		const dpr = devicePixelRatio || 1, w = innerWidth * dpr, h = innerHeight * dpr;
+		const k = Math.max(1, Math.floor(Math.min(w / 1280, h / 720)));
+		const s = Math.max(2, Math.min(Math.floor(Math.ceil(h / k) / 240), Math.floor(Math.ceil(w / k) / 400)));
+		document.documentElement.style.setProperty('--s', (s * k / dpr).toFixed(4));
+	};
+	scale();
+	addEventListener('resize', scale);
+	const fail = (error) => {
+		console.error(error);
+		notice.textContent = error instanceof Error ? error.message : String(error);
+		notice.style.display = 'block';
+		curtain.classList.add('card');
+	};
+	// The bar: the download is its first half, the game's boot (scripts/web/page.gd) the second.
+	let download = 0, boot = 0, ready = false, splashDone = false;
+	const show = () => {
+		const n = Math.round((download * 0.5 + boot * 0.5) * 24);
+		lit.style.width = `calc(var(--s) * ${n > 0 ? n * 6 - 1 : 0}px)`;
+	};
+	const toCard = () => {
+		if (splashDone) return;
+		splashDone = true;
+		if (ready) { reveal(); return; }
+		curtain.classList.add('card');
+	};
+	const reveal = () => {
+		curtain.classList.add('gone');
+		setTimeout(() => curtain.remove(), 600);
+		document.getElementById('canvas').focus();
+	};
+	splash.addEventListener('ended', toCard);
+	splash.addEventListener('error', toCard);
+	// The splash can be cut short as the game's can: a click or a key.
+	curtain.addEventListener('pointerdown', toCard);
+	addEventListener('keydown', toCard, { once: true });
+	splash.play().catch(toCard);
+	setTimeout(toCard, 12000);
+	window.__ccShell = {
+		status(share) { boot = Math.max(boot, Math.min(1, Number(share) || 0)); show(); },
+		ready() {
+			if (ready) return;
+			ready = true;
+			boot = 1;
+			show();
+			if (splashDone) requestAnimationFrame(() => requestAnimationFrame(reveal));
+		},
+	};
+	const missing = Engine.getMissingFeatures({ threads: GODOT_THREADS_ENABLED });
+	if (missing.length) { fail(missing.join('\n')); return; }
+	new Engine(GODOT_CONFIG).startGame({
+		onProgress(current, total) { if (current > 0 && total > 0) { download = Math.min(1, current / total); show(); } },
+	}).then(() => { download = 1; show(); }, fail);
+}());
+		</script>
+	</body>
+</html>

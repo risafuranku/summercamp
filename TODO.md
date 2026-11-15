@@ -4,6 +4,25 @@
 
 ---
 
+## WEB DEMO 2026-11-15 (Richard: „připravíš webovou verzi dema, kterou budeme moct dát na undogames?“, then „klidně loaduj napozadí zatim co bude hrát splashscreen“)
+
+Q&A (his answers): **the web even with the long first load** (Windows browsers translate the game's shaders for ~2 min the first time); **computers only for now** (a phone gets a picture of a computer and a way to send itself the link; touch after the demo); **co-op on the web too** (a Cloudflare room like Prší or Lodě).
+
+What was measured (15. 11., headless Chromium, ANGLE D3D11 as Chrome and Firefox on Windows):
+- The export works: Web nothreads preset (export feature `demo`), 39.5 MB wasm (8 MB brotli), 299 MB pck. It boots to the title and runs it at ~35 fps.
+- The first boot froze ~150 s: 480 shader programs linked one by one (143 s waiting on them), each Godot program 128 KB of GLSL, 0.5-2 s in D3D's compiler even with every light off (39 shaders of ours, ~12 programs each: depth, instancing, the light types present, side check, shadows). With ANGLE on Vulkan the same boot took 39 s. A second visit after the browser restarts: 494 links in 0.9 s (Chrome's GPU disk cache). Not helping: fewer lights per object (4), shadows off (-10 %), the programs compiled ahead in a context of our own (even the same context: Chrome reuses nothing within a session).
+- Directory listings of res:// came back empty in the export (the radio had no songs): the export lists `x.mp3.import`.
+
+Plan (tick with the commit):
+- [x] W1 res:// listings that work in an export (3e947f27: scripts/res_dir.gd, ResourceLoader.list_directory): the radio (65 songs on the web now), the OST, the caravan's songs, the texture pack (the Steam build needed it too)
+- [ ] W2 tools/web: export.mjs (the shell, the export, brotli), serve.mjs, qa.mjs (muted Chromium: console, shots, fps, link times, `--capture` of the programs) done; publish.mjs and the test server `_servers/summercamp-web.cmd` open
+- [x] W3 the shell (web/shell.src.html): the studio splash as a recording (tools/splash_movie, web/splash.webm/.mp4), then the title card with the boot's bar drawn as the game's (CSS, moves while the engine holds the thread), gone once the title has drawn (scripts/web/page.gd); web/gl-skip.js (from the Stickwound port: Godot's never-drawn default variants get an empty program: link waits 143 -> ~55 s, to the title 158 -> 84 s cold); the UNDO bridge (web/undo-bridge.js, scripts/web/undo_hub.gd: music and effects volumes on two channels, scripts/audio/mixer.gd; the time played; a hidden page pauses, a lost focus does not); the lock in --release; a phone or tablet gets the office's PC and a send-the-link button (no 300 MB download); Quit to DOS hidden on the web; sound through Godot's mixer on the web (bus effects work). Played in headless Chromium: warden card, guest book, New camp, the stamp, the camp loads, the desk and CampMail
+  - open: the splash's fade and the card's pixel at other DPRs seen in a real browser (headless shots draw the canvas over the page); `undo:viewport` insets unused; the second visit was 0.9 s of links once (before gl-skip and the page), now ~100 s: why (testing the page without the hub's script and the video)
+- [ ] W4 the boot on the web: what is not needed for the title later (the warmups one file a frame), the shaders a material a frame behind the loading, the camp's first minutes warmed
+- [ ] W5 size: the pck under ~150 MB (the sounds transcoded for the web in a copy of the project, the textures checked)
+- [ ] W6 co-op on the web: a relay MultiplayerPeer over a Cloudflare room (the co-op's RPCs unchanged), room codes in the phone page; ENet stays for the PC; the split screen PC only
+- [ ] W7 checked: a day and a night in Chrome, Edge, Firefox; the co-op web for two; then the Vercel project ready (publishing in the catalogue is Richard's)
+
 ## SPLITSCREEN 2026-11-15 (Richard: „začni hru připravovat na splitscreen. Chtěl bych hrát na jednom zařízení s dvěma ovladači“)
 
 His direction (after the first try): **„uvnitř jednoho godotu poběží jeden host hráč a druhý klient hráč“**: the split screen is the co-op, both pictures in the one window of the one summercamp program, each pad its own warden's. Not two programs, not a mode of its own („máme singleplayer, multiplayer a splitscreen… ty ses asi uplně posral“).

@@ -182,7 +182,9 @@ var _tap_cooldown := 0.0
 func _ready() -> void:
 	_born_ms = Time.get_ticks_msec()
 	DisplayServer.window_set_title(WINDOW_TITLE)
-	if not preview and DisplayServer.get_name() == "headless":
+	# On the web the page plays this splash as a recording over the canvas while the engine
+	# boots (scripts/web/page.gd): the engine goes straight to main.
+	if not preview and (DisplayServer.get_name() == "headless" or OS.has_feature("web")):
 		get_tree().change_scene_to_file.call_deferred(MAIN_SCENE)
 		return
 	set_anchors_preset(Control.PRESET_FULL_RECT)

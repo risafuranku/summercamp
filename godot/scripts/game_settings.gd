@@ -43,6 +43,11 @@ func _ready() -> void:
 	# The gamepad, turned into the keys and the mouse the game is played with
 	# (scripts/input/pad.gd; GameSettings.get_node("Pad")).
 	add_child(load("res://scripts/input/pad.gd").new())
+	# Music and effects as two channels (scripts/audio/mixer.gd; GameSettings.get_node("Mixer")).
+	add_child(load("res://scripts/audio/mixer.gd").new())
+	# UNDO.games around the web demo (scripts/web/undo_hub.gd; GameSettings.get_node("Undo")).
+	if OS.has_feature("web"):
+		add_child(load("res://scripts/web/undo_hub.gd").new())
 	# One pixel throughout: a SubViewport's own 2D is linear unless told, and text and
 	# pictures drawn in one (rooms, the PC, close-ups) came out smeared.
 	get_tree().node_added.connect(_nearest_in_viewport)
