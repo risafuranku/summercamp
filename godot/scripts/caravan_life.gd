@@ -25,6 +25,7 @@ extends Node3D
 ## your ears (the room is two metres wide).
 
 const K = preload("res://scripts/interior_kit.gd")
+const RES_DIR = preload("res://scripts/res_dir.gd")
 const SFX := "res://assets/sfx/caravan/"
 const SONGS_DIR := "res://assets/sfx/radio/"
 const CLICK_META := "cv_thing"
@@ -581,15 +582,12 @@ func _spill(lk: Dictionary) -> void:
 
 func _radio_song() -> void:
 	var songs: Array = []
-	var dir := DirAccess.open(SONGS_DIR)
-	if dir != null:
-		for f in dir.get_files():
-			var n := f.trim_suffix(".import").trim_suffix(".remap")
-			if n.ends_with("_song.mp3") and not songs.has(n):
-				songs.append(n)
+	for f in RES_DIR.files(SONGS_DIR, ["mp3"]):
+		if f.ends_with("_song.mp3"):
+			songs.append(f)
 	if songs.is_empty():
 		return
-	var path: String = SONGS_DIR + str(songs[_rng.randi() % songs.size()])
+	var path: String = str(songs[_rng.randi() % songs.size()])
 	if not ResourceLoader.exists(path):
 		return
 	var p := _loop_player("radio_song")

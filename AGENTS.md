@@ -470,6 +470,10 @@ every night's sewer, toilets and frozen pipes the moment they broke).
 
 ## 5. Gotchas
 
+- **List a res:// folder with `scripts/res_dir.gd`, never DirAccess** (`RES_DIR.files(dir, exts)`,
+  `RES_DIR.names(dir)`): an exported game (Steam, web) has `song.mp3.import` and `x.tres.remap`
+  in the folder, not the files, so a DirAccess listing found nothing (15. 11.: the web export's
+  radio had no songs, the texture pack no pictures). user:// folders are real: DirAccess there.
 - **`PROJECTION_MATRIX[1][1]` is negative in this renderer** (its clip space has y down).
   A shader that sizes something in pixels from it (`2 * depth / (P[1][1] * VIEWPORT_SIZE.y)`
   metres a pixel) must take `abs()`: without it the least width never held and wires drew

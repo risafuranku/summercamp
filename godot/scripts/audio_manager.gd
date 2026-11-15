@@ -1,6 +1,7 @@
 extends Node3D
 
 const INSTANCE = preload("res://scripts/instance/instance.gd")
+const RES_DIR = preload("res://scripts/res_dir.gd")
 const BALANCE_CONFIG = preload("res://core/balance/balance_config.gd")
 
 const SFX_DOOR_OPEN_PATH := "res://assets/sfx/dvereotevrit.mp3"
@@ -507,26 +508,7 @@ func _append_ambient_track(res_path: String, seen_paths: Dictionary) -> void:
 
 
 func _collect_audio_paths_in_dir(dir_path: String) -> Array[String]:
-	var result: Array[String] = []
-	var dir = DirAccess.open(dir_path)
-	if dir == null:
-		return result
-
-	var normalized_dir = dir_path.trim_suffix("/")
-	dir.list_dir_begin()
-	while true:
-		var file_name = dir.get_next()
-		if file_name.is_empty():
-			break
-		if dir.current_is_dir():
-			continue
-		var lower = file_name.to_lower()
-		if not (lower.ends_with(".mp3") or lower.ends_with(".wav") or lower.ends_with(".ogg")):
-			continue
-		result.append("%s/%s" % [normalized_dir, file_name])
-	dir.list_dir_end()
-	result.sort()
-	return result
+	return RES_DIR.files(dir_path, ["mp3", "wav", "ogg"])
 
 
 func _setup_weather_layers() -> void:

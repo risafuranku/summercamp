@@ -1,6 +1,7 @@
 extends CanvasLayer
 
 const INSTANCE = preload("res://scripts/instance/instance.gd")
+const RES_DIR = preload("res://scripts/res_dir.gd")
 const INTERIOR_BARREL_SHADER = preload("res://materials/interior_barrel_post.gdshader")
 const ROOM_WEATHER = preload("res://scripts/ambient/room_weather.gd")
 const INTERIOR_KIT = preload("res://scripts/interior_kit.gd")
@@ -4109,25 +4110,7 @@ func _shuffle_radio_playlist() -> void:
 
 
 func _collect_audio_paths_in_dir(dir_path: String) -> Array[String]:
-	var result: Array[String] = []
-	var dir = DirAccess.open(dir_path)
-	if dir == null:
-		return result
-	var normalized_dir = dir_path.trim_suffix("/")
-	dir.list_dir_begin()
-	while true:
-		var file_name = dir.get_next()
-		if file_name.is_empty():
-			break
-		if dir.current_is_dir():
-			continue
-		var lower = file_name.to_lower()
-		if not (lower.ends_with(".mp3") or lower.ends_with(".wav") or lower.ends_with(".ogg")):
-			continue
-		result.append("%s/%s" % [normalized_dir, file_name])
-	dir.list_dir_end()
-	result.sort()
-	return result
+	return RES_DIR.files(dir_path, ["mp3", "wav", "ogg"])
 
 
 func _load_radio_stream(res_path: String) -> AudioStream:

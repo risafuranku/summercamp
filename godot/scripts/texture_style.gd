@@ -1,6 +1,8 @@
 extends RefCounted
 class_name TextureStyle
 
+const RES_DIR = preload("res://scripts/res_dir.gd")
+
 const TEXTURE_ROOT_PRIMARY := "res://assets/textury/redneck"
 const TEXTURE_ROOT_SECONDARY := "res://assets/textury/redneck"
 const TEXTURE_ROOT_SECONDARY_ALIAS := "res://assets/textury/redneck"
@@ -525,7 +527,7 @@ func _ensure_loaded() -> void:
 	_active_roots = PackedStringArray()
 	for root_any in TEXTURE_ROOTS:
 		var root = str(root_any)
-		if DirAccess.open(root) == null:
+		if not DirAccess.dir_exists_absolute(root):
 			continue
 		_active_roots.append(root)
 		_load_candidates_from_dir(root)
@@ -543,7 +545,7 @@ func ensure_loaded_stepped(step: Callable, p0: float, p1: float, batch: int = 24
 	var all: Array = []
 	for root_any in TEXTURE_ROOTS:
 		var root = str(root_any)
-		if DirAccess.open(root) == null:
+		if not DirAccess.dir_exists_absolute(root):
 			continue
 		_active_roots.append(root)
 		_list_candidate_files(root, all)
@@ -557,27 +559,11 @@ func ensure_loaded_stepped(step: Callable, p0: float, p1: float, batch: int = 24
 
 ## The files _load_candidates_from_dir would take, in its order.
 func _list_candidate_files(root: String, out: Array) -> void:
-	var dir = DirAccess.open(root)
-	if dir == null:
-		return
-	var files: Array[String] = []
-	var subdirs: Array[String] = []
-	dir.list_dir_begin()
-	var file_name = dir.get_next()
-	while file_name != "":
-		if not file_name.begins_with("."):
-			if dir.current_is_dir():
-				subdirs.append(file_name)
-			else:
-				files.append(file_name)
-		file_name = dir.get_next()
-	dir.list_dir_end()
-	files.sort()
-	subdirs.sort()
-	for subdir in subdirs:
+	var listed: Dictionary = RES_DIR.names(root)
+	for subdir in listed["dirs"]:
 		_list_candidate_files(root.path_join(subdir), out)
-	for file in files:
-		if SUPPORTED_EXT.has(file.get_extension().to_lower()):
+	for file in listed["files"]:
+		if SUPPORTED_EXT.has(str(file).get_extension().to_lower()):
 			out.append([root.path_join(file), file])
 
 
@@ -619,55 +605,10 @@ func _build_tag_lookup() -> void:
 
 
 func _load_candidates_from_dir(root: String) -> void:
-	var dir = DirAccess.open(root)
-	if dir == null:
-		return
-
-	var files: Array[String] = []
-	var subdirs: Array[String] = []
-	dir.list_dir_begin()
-	var file_name = dir.get_next()
-	while file_name != "":
-		if file_name.begins_with("."):
-			file_name = dir.get_next()
-			continue
-		if dir.current_is_dir():
-			subdirs.append(file_name)
-		else:
-			files.append(file_name)
-		file_name = dir.get_next()
-	dir.list_dir_end()
-	files.sort()
-	subdirs.sort()
-
-	for subdir in subdirs:
-		_load_candidates_from_dir(root.path_join(subdir))
-
-	for file in files:
-		var ext = file.get_extension().to_lower()
-		if not SUPPORTED_EXT.has(ext):
-			continue
-		var path = root.path_join(file)
-		var tex = _load_texture_from_path(path)
-		if tex == null:
-			continue
-		var stats = _cached_stats(path, tex, _compute_texture_stats)
-		if stats.is_empty():
-			continue
-		_candidates.append({
-			"path": path,
-			"texture": tex,
-			"avg": stats.get("avg", Vector3(0.5, 0.5, 0.5)),
-			"variance": stats.get("variance", 0.1),
-			"saturation": stats.get("saturation", 0.2),
-			"value": stats.get("value", 0.5),
-			"aspect": stats.get("aspect", 1.0),
-			"alpha_coverage": stats.get("alpha_coverage", 1.0),
-			"magenta_ratio": stats.get("magenta_ratio", 0.0),
-			"top_avg": stats.get("top_avg", Vector3(0.5, 0.5, 0.5)),
-			"bottom_avg": stats.get("bottom_avg", Vector3(0.5, 0.5, 0.5)),
-			"tags": _tags_for_candidate(path, file),
-		})
+	var all: Array = []
+	_list_candidate_files(root, all)
+	for entry in all:
+		_add_candidate(str(entry[0]), str(entry[1]))
 
 
 func _tags_for_candidate(path: String, file_name: String) -> Array[String]:
