@@ -32,6 +32,9 @@ const STEPS: Array[Dictionary] = [
 		"hint": "The envelope icon on the desktop.",
 		"reward": 0,
 		"mail_subject": "The camp is yours now",
+		# Her polaroids (assets/textury/mail/polaroid_<id>.png, tools/artgen/polaroids.py),
+		# with the mail and on the office's noticeboard.
+		"photos": ["cabin_out", "cabin_in", "pc_download"],
 		"mail_body": "Dear,\n\nYou will have heard by now. I am at my sister's in Pelhrimov, and I am staying: my hip will not do the lake any more, and I am too old to pretend. The camp is yours. It was always going to be yours.\n\nIt has been shut since last summer. After your uncle went I did not have the strength to open it again, and a winter with nobody in it has done the rest: the cabins have gone to rot and the tents are rags.\n\nNow the bad part. A firm, Agrostroj Hlubocany, wants the land: a feed mill where the cabins are and the lake for its water. The district is on their side. Their man comes to look on the nineteenth of October. If the camp is not open and paying by then, the district sells the land to them, and that is the end of it. A month. I know.\n\nStart with the old cabin by the office. Patch it up, clean it out, make up the bed: that is how every room here works. Then the programs. The builder: www.stavitel98.cz/BLDR98SW.EXE - and the guest register the district wants: www.okres-hlubocany.cz/GUESTRAK.EXE - click them, they download, then run them from the Download folder. CampStat is on the machine already, your uncle put it there; the bills are in it.\n\nI left you $850. Do not spend it on the slide.\n\nI will write when I can. The phone will ring at night sometimes. You do not have to answer it.\n\n- Teta Vera",
 		"mail_links": [
 			{"text": "www.stavitel98.cz/BLDR98SW.EXE", "file": "BLDR98SW.EXE"},
@@ -90,6 +93,7 @@ const STEPS: Array[Dictionary] = [
 		"hint": "Write him in the register, give him his key, stamp the booking.",
 		"reward": 60,
 		"mail_subject": "The book",
+		"photos": ["desk_book", "desk_drawer"],
 		"mail_body": "Everyone who sleeps here goes in the book: name and number off the card, the booking off the slip, the right key off the board, the stamp, the papers back.\n\nIf someone comes to the desk who is not booked and his card does not look right, you stamp him REFUSED and give him his card back. Do not argue with him.\n\n- V.",
 	},
 	{
@@ -110,6 +114,7 @@ const STEPS: Array[Dictionary] = [
 		"hint": "The bed is behind the office, through the door by the keys.",
 		"reward": 200,
 		"mail_subject": "Tonight",
+		"photos": ["night_door"],
 		"mail_body": "When it gets dark the builder locks. That is not a bug, that is the camp.\n\nIf you hear footsteps where there is nobody, turn around. If something follows you, get inside. Do not stand in the dark staring at it. The more of one kind of guest you take, the worse the night.\n\nSee you in the morning. Please.\n\n- V.",
 	},
 	{
@@ -542,8 +547,26 @@ func _send_task_mail(step: Dictionary) -> void:
 		"task_id": id,
 		"reward": reward,
 		"links": (step.get("mail_links", []) as Array).duplicate(true),
+		"images": _photo_images(step),
+		"attachment": _photo_files(step),
 		"day": _day(), "time": _time_str(),
 	})
+
+
+## A step's polaroids as CampMail's pictures ("polaroid_<id>" in assets/textury/mail/).
+func _photo_images(step: Dictionary) -> Array:
+	var out: Array = []
+	for id in step.get("photos", []):
+		out.append("polaroid_%s" % str(id))
+	return out
+
+
+## Their files as the mail's attachment line ("FOTO1.JPG, FOTO2.JPG").
+func _photo_files(step: Dictionary) -> String:
+	var names: Array = []
+	for i in (step.get("photos", []) as Array).size():
+		names.append("FOTO%d.JPG" % (i + 1))
+	return ", ".join(names)
 
 
 ## Mirek's letter refused or thrown away, or he gave up at the counter: the checklist goes on

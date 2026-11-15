@@ -56,6 +56,18 @@ const SFX_PAPER_BACK := "res://assets/sfx/desk/paper_slide.mp3"
 const SFX_KEY := "res://assets/sfx/desk/keys.mp3"
 const SFX_KEY_BACK := "res://assets/sfx/desk/key_hang.mp3"
 
+## Vera's polaroids (the photos with her mails, quest_manager "photos"), as they came,
+## tucked into the frame's foot along the bare cork under the notes; one clicked is held
+## up. Picture px: where the row starts, each one's top, the step between them, the scale
+## of the mail's 96 px print; the frame's foot drawn again over their lower edges.
+const PHOTO_X := 22.0
+const PHOTO_TOP := 197.0
+const PHOTO_STEP := 34.0
+const PHOTO_K := 0.34
+const PHOTOS_MAX := 6
+const PHOTO_TILT := [-0.06, 0.04, -0.02, 0.07, -0.05, 0.03]
+const FRAME_FOOT := Rect2(0, 230, 320, 10)
+
 ## Callable() -> bool: is the shed key still on the board?
 var key_present: Callable
 ## Callable() -> bool: take the key (false: no room for it in the bag).
@@ -71,6 +83,9 @@ var _maze_small: Texture2D
 var _maze: Dictionary = {}
 ## The pole's timetable close-up, never shown: it draws its sheet here when held up.
 var _sheet_view
+var _photos: Array[Texture2D] = []
+## Their small prints for the row (polaroid_<id>_small.png), the big one where none.
+var _photos_small: Array[Texture2D] = []
 
 
 func _exit_tree() -> void:
@@ -90,6 +105,36 @@ func _opened() -> void:
 	_reading = ""
 	say("", "", false)
 	_maze = _read_maze()
+	_photos = _read_photos()
+	_photos_small.clear()
+	for t in _photos:
+		var small := t.resource_path.replace(".png", "_small.png")
+		_photos_small.append(load(small) if ResourceLoader.exists(small) else t)
+
+
+## The photos that came with mail (CampMail's "images"), the oldest first.
+func _read_photos() -> Array[Texture2D]:
+	var out: Array[Texture2D] = []
+	var em = get_node_or_null("/root/EmailManager")
+	if em == null:
+		return out
+	var mails: Array = []
+	for m in em.inbox:
+		if not (m.get("images", []) as Array).is_empty() and str(m.get("_folder", "inbox")) != "deleted":
+			mails.append(m)
+	mails.sort_custom(func(a, b): return int(a.get("id", 0)) < int(b.get("id", 0)))
+	for m in mails:
+		for img in m["images"]:
+			var path := "res://assets/textury/mail/%s.png" % str(img)
+			if out.size() < PHOTOS_MAX and ResourceLoader.exists(path):
+				out.append(load(path))
+	return out
+
+
+func _photo_rect(i: int) -> Rect2:
+	var t := _photos_small[i]
+	var sz := t.get_size() if t != _photos[i] else (t.get_size() * PHOTO_K).floor()
+	return Rect2(Vector2(PHOTO_X + PHOTO_STEP * i, PHOTO_TOP), sz)
 
 
 ## The corn maze of this camp (cornfield.gd, the same on both wardens' machines).
@@ -117,6 +162,8 @@ func _hotspots() -> Array:
 	out.append({"id": "key" if _has_key() else "pin", "rect": KEY_RECT})
 	if not _maze.is_empty():
 		out.append({"id": "maze", "rect": MAZE_RECT})
+	for i in _photos.size():
+		out.append({"id": "photo:%d" % i, "rect": _photo_rect(i)})
 	return out
 
 
@@ -198,6 +245,7 @@ func _paint(c: Control) -> void:
 		_paint_sheet(c, MAZE_RECT, 1.0)
 		if hovered() == "maze":
 			c.draw_rect(MAZE_RECT, Color(1.0, 0.92, 0.6, 0.14))
+	_paint_photos(c)
 	if _reading == "maze":
 		c.draw_rect(Rect2(0, 0, W, PIC_H), Color(0, 0, 0, 0.62))
 		var grow := 0.86 if _read_t < 0.06 else 1.0
@@ -207,8 +255,40 @@ func _paint(c: Control) -> void:
 		_paint_sheet(c, Rect2(at, size), 2.0 if grow >= 1.0 else 0.0)
 	elif _reading == "timetable":
 		_paint_timetable_held(c)
+	elif _reading.begins_with("photo:"):
+		_paint_photo_held(c, int(_reading.trim_prefix("photo:")))
 	elif _reading != "":
 		_paint_held(c, NOTES[_reading])
+
+
+## Vera's photos along the foot of the cork, a little crooked, their lower edges under
+## the frame.
+func _paint_photos(c: Control) -> void:
+	if _photos.is_empty():
+		return
+	for i in _photos.size():
+		var r := _photo_rect(i)
+		var mid := r.get_center()
+		c.draw_set_transform(mid, float(PHOTO_TILT[i % PHOTO_TILT.size()]), Vector2.ONE)
+		c.draw_rect(Rect2(-r.size * 0.5 + Vector2(1, 2), r.size), Color(0, 0, 0, 0.45))
+		c.draw_texture_rect(_photos_small[i], Rect2(-r.size * 0.5, r.size), false)
+		if hovered() == "photo:%d" % i:
+			c.draw_rect(Rect2(-r.size * 0.5, r.size), Color(1.0, 0.92, 0.6, 0.14))
+		c.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	if picture != null:
+		c.draw_texture_rect_region(picture, FRAME_FOOT, FRAME_FOOT)
+
+
+## One of them held up close.
+func _paint_photo_held(c: Control, i: int) -> void:
+	if i < 0 or i >= _photos.size():
+		return
+	c.draw_rect(Rect2(0, 0, W, PIC_H), Color(0, 0, 0, 0.62))
+	var grow := 0.86 if _read_t < 0.06 else 1.0
+	var size := (_photos[i].get_size() * 2.0 * grow).floor()
+	var at := ((Vector2(W, PIC_H) - size) * 0.5).floor()
+	c.draw_rect(Rect2(at + Vector2(3, 4), size), Color(0, 0, 0, 0.5))
+	c.draw_texture_rect(_photos[i], Rect2(at, size), false)
 
 
 ## The squared sheet in `r` with the maze on it in pencil, its ways as lines from room to

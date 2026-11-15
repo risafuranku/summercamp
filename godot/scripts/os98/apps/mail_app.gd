@@ -17,6 +17,8 @@ const T = preload("res://scripts/os98/os_theme.gd")
 const ICONS = preload("res://scripts/os98/apps/browser_icons.gd")
 const LANG = preload("res://scripts/lang.gd")
 const IMG_DIR := "res://assets/textury/mail/"
+## How wide a photo sent with a mail is drawn (Vera's polaroids are 96 px).
+const PHOTO_W := 96
 ## A "rich" mail's points: a line that starts with ":name: " is a row of pictures and text.
 const MAIL_ICONS := {
 	"housing": "res://assets/textury/builder/tb2_housing.png",
@@ -353,7 +355,7 @@ func refresh() -> void:
 		var it := _list.create_item(root)
 		var unread := not bool(mail.get("_read", true if _folder == "sent" else false))
 		it.set_icon(0, _row_icon(mail, unread))
-		if str(mail.get("attachment", "")) != "" or str(mail.get("image", "")) != "":
+		if str(mail.get("attachment", "")) != "" or str(mail.get("image", "")) != "" or not (mail.get("images", []) as Array).is_empty():
 			it.set_text(0, "  @")
 		it.set_text(1, _short_sender(str(mail.get("from", mail.get("to", "?")))))
 		it.set_text(2, _text_of(mail, "subject"))
@@ -486,7 +488,7 @@ func _draw_header() -> void:
 	var att := _attachment_name(_current)
 	if att != "":
 		c.draw_rect(Rect2(4, y - 8, c.size.x - 8, 1), T.SHADOW)
-		var icon: Texture2D = _shell.icon("image" if att.ends_with(".GIF") else "txt", true)
+		var icon: Texture2D = _shell.icon("image" if att.ends_with(".GIF") or att.ends_with(".JPG") else "txt", true)
 		if icon != null:
 			c.draw_texture_rect(icon, Rect2(60, y - 5, 16, 16), false)
 		c.draw_string(T.FONT_BOLD, Vector2(6, y + 7), tr("Attach:"), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
@@ -526,6 +528,16 @@ func _show_message(mail: Dictionary) -> void:
 		var tex: Texture2D = load(IMG_DIR + img + ".png")
 		_body.append_text("\n")
 		_body.add_image(tex, mini(tex.get_width(), 280), 0)
+		_body.append_text("\n")
+	# Photos sent with it (Vera's polaroids): side by side under the text.
+	var pics: Array = mail.get("images", [])
+	if not pics.is_empty():
+		_body.append_text("\n")
+		for p in pics:
+			var path := IMG_DIR + str(p) + ".png"
+			if ResourceLoader.exists(path):
+				_body.add_image(load(path), PHOTO_W, 0)
+				_body.append_text("  ")
 		_body.append_text("\n")
 	_body.scroll_to_line(0)
 	if _is_review(mail):
