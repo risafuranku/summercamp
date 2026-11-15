@@ -43,6 +43,9 @@ const RUN_SPEED := 4.6
 const VIEW_FPS := 12.0
 ## Drawn this far behind the newest state (seconds).
 const DELAY := 0.1
+## How far behind the states it is drawn: DELAY over the wire, a hair for a warden at this
+## machine (a split screen's other seat, scripts/seats/seats.gd, fed every frame).
+var delay := DELAY
 ## Further than this between two states is a jump (a door, the bus): no sliding.
 const SNAP_DIST := 6.0
 ## The state's position is the player's body origin, and the body's capsule
@@ -219,6 +222,24 @@ static func _lens_texture() -> Texture2D:
 
 ## One state from the other machine: {p: Vector3, y: yaw, d: torch direction, t: torch
 ## on, v: speed, in: inside something, boat: [Transform3D] while rowing}.
+## Whose eye it is drawn for (seen from eight sides, the torch's bulb toward it): the
+## viewport's camera, or `viewer` when it is set (a split screen: the other seat's eye,
+## scripts/seats/seats.gd; the viewport's camera is the window's warden's).
+var viewer: Camera3D
+
+
+func _eye() -> Camera3D:
+	if viewer != null and is_instance_valid(viewer):
+		return viewer
+	return get_viewport().get_camera_3d() if get_viewport() != null else null
+
+
+## Drawn on these render layers only (a split screen: not in its own warden's eye).
+func set_render_layers(mask: int) -> void:
+	_sprite.layers = mask
+	_shadow.layers = mask
+
+
 func push_state(s: Dictionary) -> void:
 	_buf.append({"at": Time.get_ticks_msec() / 1000.0, "s": s})
 	while _buf.size() > 16:
@@ -250,7 +271,7 @@ func _process(delta: float) -> void:
 	if _buf.is_empty():
 		visible = false
 		return
-	var now := Time.get_ticks_msec() / 1000.0 - DELAY
+	var now := Time.get_ticks_msec() / 1000.0 - delay
 	var a: Dictionary = _buf[0]
 	var b: Dictionary = _buf[_buf.size() - 1]
 	for i in range(_buf.size() - 1):
@@ -317,7 +338,7 @@ func _process(delta: float) -> void:
 			_sprite.flip_h = bool(place["flip"])
 			_sprite.rotation.z = float(place["rz"])
 			_sprite.position = Vector3.ZERO
-			var cam := get_viewport().get_camera_3d()
+			var cam := _eye()
 			if _doom != null and _doom.held() and cam != null:
 				_doom.set_anim(pose)
 				_doom.show(cam.global_position)
@@ -411,7 +432,7 @@ func _walk_doom(delta: float, jumped: bool) -> void:
 	# A little lift on the frames between the steps (the legs together), no sway, no flip.
 	_sprite.rotation.z = 0.0
 	_sprite.position = Vector3(0.0, 0.015 if _doom.anim in ["walk", "run"] and _doom.frame % 2 == 1 else 0.0, 0.0)
-	var cam := get_viewport().get_camera_3d() if get_viewport() != null else null
+	var cam := _eye()
 	if cam != null:
 		_doom.show(cam.global_position)
 
@@ -517,7 +538,7 @@ func _animate_work(_delta: float) -> void:
 ## they go, else facing the job they are at (show_at's face) or you.
 func _room_doom(delta: float) -> void:
 	var here := global_position
-	var cam := get_viewport().get_camera_3d() if get_viewport() != null else null
+	var cam := _eye()
 	var moved := Vector3.ZERO
 	if _last_pos != Vector3.INF:
 		moved = here - _last_pos
@@ -566,7 +587,7 @@ func _aim_torch(s: Dictionary, inside: bool) -> void:
 	_beam.transform = xf
 	_halo.transform = xf
 	# The bulb shows when the beam comes your way.
-	var cam := get_viewport().get_camera_3d() if get_viewport() != null else null
+	var cam := _eye()
 	if cam != null:
 		var to_cam := (cam.global_position - (global_position + hand)).normalized()
 		if dir.dot(to_cam) > 0.55:

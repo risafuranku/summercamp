@@ -103,6 +103,14 @@ godot/
                               # down, the menu's co-op), coop_night, warden_looks, ...
     debug/                    # liminal_window (the night forecast's debug window),
                               # test_camps (the title's secret L page)
+    seats/                    # seats (the wardens at this machine, TODO.md SPLITSCREEN: a
+                              # seat's screen is a SubViewport everything that warden sees is
+                              # drawn into; seat 1's is main's Seat1/Screen, the whole window
+                              # alone; a second pad's Menu in the camp makes seat 2, the window
+                              # split side by side; each seat's warden seen by the other as the
+                              # co-op's figure; screen_of(node) for where to draw), seat_pad
+                              # (seat 2's pad read straight from its device), screen_input
+                              # (main's own input heard inside seat 1's screen)
     input/                    # pad (the gamepad turned into the keys and the mouse the game
                               # is played with: GameSettings' child "Pad", the one way a pad
                               # comes in; walk/look/pointer/buttons; a screen with keys of
@@ -1178,6 +1186,14 @@ every night's sewer, toilets and frozen pipes the moment they broke).
 - **`player.torch_fade`:** going in by a door the torch goes down over the walk; a lit room burnt white at arm's length.
 - **`_camp()` is triplanar, two metres a repeat:** a picture meant whole (a door) on a box shows a slice of it, its handle off the leaf. Give the leaf a `_side_quad` face, as the caravan and the cabins have (`DoorFace`, door_anim hangs it with the leaf).
 - **Render layer 1 << 14 is the corn stand's two back posts** (`stand_layout.BACK_LAYER`): every eye sees them but the stations', a hand from them.
+
+- **What a warden sees is drawn on its seat's screen** (scripts/seats/seats.gd). Main's
+  children live in `main._screen` (Seat1/Screen), not on Main: add with `_screen.add_child`,
+  find them there (`_screen.get_node(...)`). Never `get_tree().root.add_child` a layer: use
+  `SEATS.screen_of(self).add_child(...)`. Main's `_input`/`_unhandled_input` are
+  `screen_input`/`screen_unhandled_input`, called from the screen's first child. The window's
+  size is not a seat's in a split screen: lay out by `get_viewport()` (the seat's screen).
+  The group "player" is the window's warden only; every seat's body is in "warden".
 
 - **Made input events need device 0.** An action made in code (`InputEventKey.new()` added to
   the InputMap) answers device 0 only; an event parsed with another device does nothing

@@ -127,13 +127,18 @@ func check(what: String, ok: bool) -> void:
 		_fails += 1
 
 
+## (Where the pad put the pointer, pad.gd pointer_at: the PC's own mouse over the window
+## moved the window's pointer under the test and failed it now and then.)
 func mark_pointer() -> void:
-	_mark["pointer"] = get_viewport().get_mouse_position()
+	get_node("/root/GameSettings/Pad").pointer_at = Vector2(-1, -1)
+	_mark["pointer"] = get_viewport().get_final_transform() * get_viewport().get_mouse_position()
 
 
 func check_pointer_moved() -> void:
-	var now := get_viewport().get_mouse_position()
-	check("the left stick moves the pointer at the desk (%s -> %s)" % [_mark.get("pointer"), now], now.x > float((_mark.get("pointer", Vector2.ZERO) as Vector2).x) + 40.0)
+	var from: Vector2 = _mark.get("pointer", Vector2.ZERO)
+	var to: Vector2 = get_node("/root/GameSettings/Pad").pointer_at
+	var right_edge := float(DisplayServer.window_get_size().x) - 2.0
+	check("the left stick moves the pointer at the desk (%s -> %s)" % [from, to], to.x >= 0.0 and (to.x > from.x + 40.0 or to.x >= right_edge))
 
 
 func mark_player() -> void:

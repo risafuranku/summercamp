@@ -309,6 +309,11 @@ var _damage_flicker_time: float = 0.0
 var _death_fall_active: bool = false
 var _death_fall_tween: Tween
 var controls_enabled: bool = true
+## Which warden at this machine this body is (scripts/seats/seats.gd): 1 the window's (the
+## keys, the mouse and pad.gd's translator), 2 the second pad's in a split screen, read
+## through `seat_input` (scripts/seats/seat_pad.gd) instead of the global Input.
+var seat := 1
+var seat_input = null
 ## Sat on something (a bench in Lesna: town_trip.gd): the mouse still looks round, the
 ## feet stay where they are.
 var seated: bool = false
@@ -328,11 +333,15 @@ var boots_wet := 0.0
 var last_step_surface := "grass"
 
 func _ready() -> void:
-	name = "Player"
-	add_to_group("player")
+	# ("player" is the window's warden; every seat's is a "warden".)
+	name = "Player" if seat <= 1 else "Warden%d" % seat
+	add_to_group("warden")
+	if seat <= 1:
+		add_to_group("player")
 	_damage_rng.randomize()
 	ensure_runtime_setup()
-	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	if seat <= 1:
+		Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
 
 func ensure_runtime_setup() -> void:
@@ -391,7 +400,8 @@ func _ensure_camera() -> void:
 	# rain on the glass): building_interior.INVIEW_HIDE_LAYER.
 	camera.cull_mask &= ~(1 << 17)
 	camera.near = camera_near
-	camera.current = true
+	# (Seat 2's world is drawn through its seat's own eye, which follows this one.)
+	camera.current = seat <= 1
 	_ensure_flashlight()
 	# Your breath in the cold, panting when you are spent (scripts/ambient/player_breath.gd).
 	if camera.get_node_or_null("PlayerBreath") == null:
@@ -417,7 +427,8 @@ func _remove_barrel_overlay_if_present() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not controls_enabled:
+	# (Another seat's warden hears its own pad only, read each step: _seat_frame.)
+	if not controls_enabled or seat_input != null:
 		return
 
 	if event is InputEventMouseMotion and Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
@@ -425,25 +436,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			# The mouse is the hand's now (a gesture of work, ui/gesture.gd).
 			gesture_motion += event.relative
 			return
-		var invert := invert_vertical_look
-		# Options' mouse sensitivity (the machine's), then the warden's own X and Y.
-		var sens := 1.0
-		if GameSettings != null:
-			invert = invert != GameSettings.get_invert_mouse_y()
-			sens = GameSettings.get_mouse_sensitivity()
-		# Yaw used to be applied twice by accident; the doubled speed is what the game
-		# was tuned with, so it is kept as an explicit factor. No acceleration, no easing:
-		# the eye goes where the mouse goes, this frame.
-		rotate_y(-event.relative.x * mouse_sensitivity * sens * YAW_SENSITIVITY_FACTOR * float(view.get("mouse_x", 1.0)))
-		var pitch_input = -event.relative.y
-		if invert:
-			pitch_input = -pitch_input
-		var d: float = pitch_input * mouse_sensitivity * sens * vertical_look_sensitivity_multiplier * float(view.get("mouse_y", 1.0))
-		var lim := look_limits()
-		_pitch_target = clampf(_pitch_target + d, -lim.x, lim.y)
-		_pitch = clampf(_pitch + d, -lim.x, lim.y)
-		_mouse_impact += Vector2(0.0, -event.relative.x) * handheld_look_strength
-		_mouse_impact.y = clamp(_mouse_impact.y, -0.08, 0.08)
+		_look_by(event.relative)
 
 	if event.is_action_pressed("toggle_flashlight"):
 		toggle_flashlight()
@@ -457,7 +450,59 @@ func _unhandled_input(event: InputEvent) -> void:
 		Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
 
+## The head turned by `relative` mouse pixels (the mouse's, or a seat's right stick as such).
+func _look_by(relative: Vector2) -> void:
+	var invert := invert_vertical_look
+	# Options' mouse sensitivity (the machine's), then the warden's own X and Y.
+	var sens := 1.0
+	if GameSettings != null:
+		invert = invert != GameSettings.get_invert_mouse_y()
+		sens = GameSettings.get_mouse_sensitivity()
+	# Yaw used to be applied twice by accident; the doubled speed is what the game
+	# was tuned with, so it is kept as an explicit factor. No acceleration, no easing:
+	# the eye goes where the mouse goes, this frame.
+	rotate_y(-relative.x * mouse_sensitivity * sens * YAW_SENSITIVITY_FACTOR * float(view.get("mouse_x", 1.0)))
+	var pitch_input = -relative.y
+	if invert:
+		pitch_input = -pitch_input
+	var d: float = pitch_input * mouse_sensitivity * sens * vertical_look_sensitivity_multiplier * float(view.get("mouse_y", 1.0))
+	var lim := look_limits()
+	_pitch_target = clampf(_pitch_target + d, -lim.x, lim.y)
+	_pitch = clampf(_pitch + d, -lim.x, lim.y)
+	_mouse_impact += Vector2(0.0, -relative.x) * handheld_look_strength
+	_mouse_impact.y = clamp(_mouse_impact.y, -0.08, 0.08)
+
+
+## Another seat's warden, once a physics step: its pad's buttons (the torch, crouching), as
+## _unhandled_input hears the window's.
+func _seat_frame() -> void:
+	seat_input.poll()
+	if not controls_enabled:
+		return
+	if seat_input.just_pressed("toggle_flashlight"):
+		toggle_flashlight()
+	if seat_input.just_pressed("move_crouch"):
+		_crouch_key(true)
+	elif seat_input.just_released("move_crouch"):
+		_crouch_key(false)
+
+
+## The walk, a held action, a press this step: the window's Input, or this seat's pad.
+func _move_input() -> Vector2:
+	return seat_input.move_vector() if seat_input != null else Input.get_vector("move_left", "move_right", "move_forward", "move_backward")
+
+
+func _held(action: String) -> bool:
+	return seat_input.held(action) if seat_input != null else Input.is_action_pressed(action)
+
+
+func _just_pressed(action: String) -> bool:
+	return seat_input.just_pressed(action) if seat_input != null else Input.is_action_just_pressed(action)
+
+
 func _physics_process(delta: float) -> void:
+	if seat_input != null:
+		_seat_frame()
 	# Put somewhere since the last step (a door walk's tween moves it between them): nothing
 	# drawn between the two (_after_physics).
 	if _phys_cur != Vector3.INF and global_position.distance_squared_to(_phys_cur) > 1e-10:
@@ -488,10 +533,10 @@ func _physics_process(delta: float) -> void:
 		_after_physics(delta)
 		return
 
-	var input_vec = Input.get_vector("move_left", "move_right", "move_forward", "move_backward")
+	var input_vec = _move_input()
 	var local_dir = Vector3(input_vec.x, 0.0, input_vec.y)
 	var move_dir = (global_transform.basis * local_dir).normalized()
-	var wants_sprint := Input.is_action_pressed("move_sprint") and input_vec.length_squared() > 0.01
+	var wants_sprint := _held("move_sprint") and input_vec.length_squared() > 0.01
 	# A sprint gets you up off your knees (if there is room over you).
 	if wants_sprint and stance != 0 and is_on_floor():
 		_set_stance(0)
@@ -534,7 +579,7 @@ func _physics_process(delta: float) -> void:
 
 	if not is_on_floor():
 		velocity.y -= gravity * delta
-	elif Input.is_action_just_pressed("move_jump"):
+	elif _just_pressed("move_jump"):
 		if stance != 0:
 			# Space gets you up first.
 			_set_stance(0)
@@ -676,6 +721,13 @@ func _foot_down(motion: float) -> void:
 ## Every frame (the eye is never moved in steps): the head between the last two physics
 ## positions, the bob, the lean, the stance, the look and its Build shift, the torch.
 func _process(delta: float) -> void:
+	if seat_input != null and controls_enabled:
+		var rel: Vector2 = seat_input.look(delta)
+		if rel != Vector2.ZERO:
+			if look_locked:
+				gesture_motion += rel
+			else:
+				_look_by(rel)
 	_view_t -= delta
 	if _view_t <= 0.0:
 		_view_t = 0.5
@@ -1250,7 +1302,7 @@ func _update_head_motion(delta: float) -> void:
 		_yaw_rate = lerpf(_yaw_rate, wrapf(yaw - _yaw_last, -PI, PI) / delta, 1.0 - exp(-14.0 * delta))
 	_yaw_last = yaw
 	var lean_k := float(view.get("lean", 1.0))
-	var strafe := Input.get_axis("move_right", "move_left") * base_tilt_amount * clampf(_walk_amp * 1.6, 0.0, 1.0) if controls_enabled else 0.0
+	var strafe := -_move_input().x * base_tilt_amount * clampf(_walk_amp * 1.6, 0.0, 1.0) if controls_enabled else 0.0
 	var turn := clampf(_yaw_rate * rotation_tilt_amount, -0.045, 0.045)
 	_current_tilt = lerpf(_current_tilt, (strafe + turn) * lean_k, 1.0 - exp(-tilt_smoothing * delta))
 	# Hurt: the view sways and droops, and limps with the steps.

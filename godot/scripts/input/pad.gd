@@ -20,6 +20,9 @@ extends Node
 ## stand for them while it is shown: screen_keys().
 ## `using_pad`: the last thing touched was the pad (prompt.gd shows its buttons then).
 ## rumble(): the body's knocks in the hands (the player's hurt and the ground shaking).
+## A split screen (scripts/seats/seats.gd): another pad's Menu out in the camp asks
+## `join_handler` for seat 2; that pad is then the seat's own (read straight from it,
+## scripts/seats/seat_pad.gd) and this translator leaves it alone till release().
 
 signal device_changed(using_pad: bool)
 
@@ -72,6 +75,21 @@ var _look_rest := Vector2.ZERO
 var _screens: Array = []
 var _rumble_at := -99.0
 var _rumble_power := 0.0
+## A pad another seat has: {device: seat}.
+var _claimed: Dictionary = {}
+## The walk's stick events on the move actions (their device follows pad_device).
+var _walk_events: Array = []
+## Asked when a pad not seat 1's presses Menu: (device) -> true when it took a seat.
+var join_handler: Callable
+
+
+## The pad is nobody's seat any more (it left): seat 1's translator may have it again.
+func release(device: int) -> void:
+	_claimed.erase(device)
+
+
+func claimed(device: int) -> bool:
+	return _claimed.has(device)
 
 
 ## The pad's node (GameSettings makes it); null before.
@@ -139,7 +157,8 @@ func _take_pad_off_ui() -> void:
 				InputMap.action_erase_event(a, ev)
 
 
-## The left stick on the move actions (their keys are the player's: player_controller).
+## The left stick on the move actions (their keys are the player's: player_controller):
+## any pad's until one is used, then that pad's alone (a second pad is another seat's).
 func _walk_on_stick() -> void:
 	for action in WALK:
 		if not InputMap.has_action(action):
@@ -150,6 +169,16 @@ func _walk_on_stick() -> void:
 		ev.device = -1
 		InputMap.action_add_event(action, ev)
 		InputMap.action_set_deadzone(action, DEAD)
+		_walk_events.append(ev)
+
+
+## The pad that speaks for the window's warden now: its sticks, its walk.
+func _set_pad_device(device: int) -> void:
+	if device == pad_device:
+		return
+	pad_device = device
+	for ev in _walk_events:
+		(ev as InputEventJoypadMotion).device = device
 
 
 func _set_using(on: bool) -> void:
@@ -162,16 +191,22 @@ func _set_using(on: bool) -> void:
 func _input(event: InputEvent) -> void:
 	if event.has_meta(MADE):
 		return
+	if (event is InputEventJoypadButton or event is InputEventJoypadMotion) and _claimed.has(event.device):
+		return
 	if event is InputEventJoypadButton:
-		pad_device = event.device
-		_set_using(true)
 		var b := event as InputEventJoypadButton
+		if b.pressed and b.button_index == JOY_BUTTON_START and pad_device >= 0 and event.device != pad_device 				and join_handler.is_valid() and bool(join_handler.call(event.device)):
+			_claimed[event.device] = 2
+			get_viewport().set_input_as_handled()
+			return
+		_set_pad_device(event.device)
+		_set_using(true)
 		_button(b.button_index, b.pressed)
 		get_viewport().set_input_as_handled()
 	elif event is InputEventJoypadMotion:
 		var m := event as InputEventJoypadMotion
 		if absf(m.axis_value) > DEAD:
-			pad_device = event.device
+			_set_pad_device(event.device)
 			_set_using(true)
 		if TRIGGERS.has(m.axis):
 			_trigger(m.axis, m.axis_value)
@@ -298,6 +333,11 @@ func _stick(ax: int, ay: int) -> Vector2:
 	return v / l * t * t
 
 
+## Where the stick last put the pointer, in the window's pixels (tools/pad_check reads it:
+## the PC's own mouse moving over the window is not the pad's doing).
+var pointer_at := Vector2(-1, -1)
+
+
 func _move_pointer(by_window_px: Vector2) -> void:
 	_rows = false
 	var vp := get_viewport()
@@ -305,6 +345,7 @@ func _move_pointer(by_window_px: Vector2) -> void:
 	var win := xf * vp.get_mouse_position() + by_window_px
 	var size := Vector2(DisplayServer.window_get_size())
 	win = win.clamp(Vector2.ZERO, size - Vector2.ONE)
+	pointer_at = win
 	var at := xf.affine_inverse() * win
 	vp.warp_mouse(at)
 	var mm := InputEventMouseMotion.new()

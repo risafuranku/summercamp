@@ -100,6 +100,8 @@ const WINDOW_TITLE := "Cursed Camp Manager Simulator"
 ## Seat 1's screen (TODO.md SPLITSCREEN: a warden's own SubViewport; everything this
 ## warden sees is drawn into it, the world's view and the UI); one player: the whole window.
 @onready var _screen: SubViewport = $Seat1/Screen
+## The seats at this machine (scripts/seats/seats.gd).
+var _seats: Node
 @onready var _sub_viewport_container: SubViewportContainer = $Seat1/Screen/SubViewportContainer
 @onready var _world_3d: Node3D = $Seat1/Screen/SubViewportContainer/SubViewport/World3D
 @onready var world_environment: WorldEnvironment = $Seat1/Screen/SubViewportContainer/SubViewport/World3D/WorldEnvironment
@@ -274,6 +276,10 @@ func _ready() -> void:
 	heard.main = self
 	_screen.add_child(heard)
 	_screen.move_child(heard, 0)
+	# The wardens at this machine: a second pad's Menu in the camp splits the screen.
+	_seats = SEATS.new()
+	_seats.main = self
+	add_child(_seats)
 	_screen.add_child(HandCursor.new())
 	_show_startup_loading_screen()
 	await get_tree().process_frame
