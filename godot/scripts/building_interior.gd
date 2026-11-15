@@ -594,7 +594,9 @@ var _crt_title: Control
 func set_title_view(on: bool) -> void:
 	if on == title_mode or _interior_camera == null:
 		return
-	title_mode = on
+	# (Set while the room is shown or hidden: the title's room going is not a way out of
+	# the office, interior_manager._on_interior_visibility_changed.)
+	title_mode = true
 	if on:
 		_title_was = [_office_lights_on, _desk_lamp_on, _radio_power_on]
 		_office_lights_on = false
@@ -624,6 +626,7 @@ func set_title_view(on: bool) -> void:
 			_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 		_one_world_inside(false)
 		visible = false
+		title_mode = false
 	_apply_office_switch_visual()
 	_apply_office_wall_texture_state()
 	_sync_desk_lamp_look()

@@ -880,7 +880,10 @@ func _finish_building_interior() -> void:
 
 
 func _on_interior_visibility_changed() -> void:
-	if _building_interior == null:
+	# The title's room shown or let go (title_stage.gd): nobody was in the office, nobody
+	# walks out of it (a game started from the title walked the warden out of the door,
+	# with its sound, on a body the load had just freed).
+	if _building_interior == null or bool(_building_interior.get("title_mode")):
 		return
 	if not _building_interior.is_open():
 		if bool(_building_interior.get("walked_out")):
