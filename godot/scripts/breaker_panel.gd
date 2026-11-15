@@ -372,7 +372,7 @@ func _boy_catch() -> void:
 	get_tree().create_timer(BOY_FACE_STEPS.TURN).timeout.connect(func(): _boy_sfx(BOY_DIR + "shriek.mp3", 2.0, 1.0))
 	if fx != null:
 		fx.tinnitus(2.0)
-	var main := get_parent()
+	var main := get_tree().current_scene
 	get_tree().create_timer(BOY_FACE_STEPS.HIT_AT).timeout.connect(func():
 		if fx != null:
 			fx.glitch(0.9, 0.6)
@@ -388,7 +388,7 @@ func _boy_catch() -> void:
 
 
 func _night_fx():
-	var main := get_parent()
+	var main := get_tree().current_scene
 	var world = main.get("_world_3d") if main != null else null
 	return NIGHTMARE_FX.get_for(world) if world != null else null
 

@@ -4,6 +4,17 @@
 
 ---
 
+## SPLITSCREEN 2026-11-15 (Richard: „začni hru připravovat na splitscreen. Chtěl bych hrát na jednom zařízení s dvěma ovladači“; Q&A: „pravý splitscreen v jedné hře“, not two windows over the co-op: „je to jako coop, jenom ty dva hráči jsou v jednom programu“)
+
+The design: a **seat** is one warden at this machine: its input (the keyboard and the mouse and/or a pad), its **screen** (a SubViewport everything this warden sees is drawn into, and its input goes only into: `get_viewport()` is the seat's half, so layouts follow by themselves), its view of the one World3D (its own camera), its body, and its player-facing layer (HUD, rooms, close-ups, minigames, the pause menu). Seat 1 always exists (one player = one seat over the whole window); a second pad's Menu in the camp makes seat 2, the screen split side by side. The camp (the world, the sim, CoreRoot, the mail) is one and shared, as the host's is in the co-op. What is per seat today is all main's and global (main._player ~1000 uses in 91 files, 68 input handlers, 45 full-screen layers, 62 mouse-mode switches): the stages move it a piece at a time, each one verified with single play unchanged.
+- [x] S1 the seat's screen (15. 11.): scenes/main.tscn Seat1 (a SubViewportContainer, process ALWAYS so it hands on input in a pause) / Screen (SubViewport, group "seat_screen", PAUSABLE) holds the world's view; everything main adds goes on `_screen`, the 12 `get_tree().root.add_child` on `SEATS.screen_of(node)`; main's own input is heard inside the screen where it was before (scripts/seats/screen_input.gd, the screen's first child: after the rooms' Esc and E). One player: no change (the 41 checks, pad_check, shots of the title, desk, camp, a room and Esc out of it). Left for S3: the 7 `root.size_changed` and the 22 window-size reads (the same while one seat has the window)
+- [ ] S2 input per seat: pad.gd's hands per device (seat 1's pad as now; another pad's Menu in the camp = join), player_controller reads its seat's input (walk, look, jump, run, crouch, torch) instead of the global Input when it is not seat 1's
+- [ ] S3 seat 2 outdoors: its body beside seat 1's, its view of the world (a camera on its head, the screens side by side), out again by holding Menu; the sound from seat 1's ears for now
+- [ ] S4 seat 2's HUD and its hands (E on guests and things, repairs, carrying): main's per-player frame (hints, interaction) per seat
+- [ ] S5 rooms, close-ups, minigames, the pause menu per seat (interior_manager per seat; the mouse mode per seat: seat 2's pointer its own cursor)
+- [ ] S6 the office PC (one machine: whoever sits at it, the other sees them there), the night (the enemies go for both, both sleep as in the co-op), saves (seat 2's warden: a profile picked on joining), the title
+- [ ] S7 two views of the world on the Deck (frame time), layout and sound for two
+
 ## DEMO AND STEAM 2026-11-15 (Richard: „Zhodnoť pak hru jako celek, vyvíjíme to už delší dobu… potřebujeme to zase posunout o několik kroků dál. Dej mi tučný QnA“)
 
 Q&A decisions (his answers):

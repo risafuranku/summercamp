@@ -7,6 +7,7 @@ extends CanvasLayer
 ## goes; type it, Enter paints it (the brush's sound), Esc leaves the board as it was.
 ## Nothing else on the screen.
 
+const SEATS = preload("res://scripts/seats/seats.gd")
 signal painted(name: String)
 signal closed
 
@@ -103,7 +104,7 @@ func _sound(path: String) -> void:
 	p.volume_db = -6.0
 	p.bus = "SFX" if AudioServer.get_bus_index("SFX") >= 0 else "Master"
 	# Plays on after the board is gone.
-	get_tree().root.add_child(p)
+	SEATS.screen_of(self).add_child(p)
 	p.play()
 	p.finished.connect(p.queue_free)
 

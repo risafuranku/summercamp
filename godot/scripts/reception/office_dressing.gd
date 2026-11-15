@@ -13,6 +13,7 @@ extends RefCounted
 ##     the dried plants on the sill, the milk-glass ceiling light, the runner rug.
 ## Faces and sprites from Grok (assets/textury/camp, tools/artgen/prompts.tsv).
 
+const SEATS = preload("res://scripts/seats/seats.gd")
 const K = preload("res://scripts/interior_kit.gd")
 const SFX_CRACKLE := "res://assets/sfx/life/fire_crackle.mp3"
 const SFX_STOVE := "res://assets/sfx/rooms/stove_door.mp3"
@@ -349,7 +350,7 @@ func click(id: String) -> bool:
 		if item.is_empty() or diploma_open():
 			return true
 		_diploma_view = DIPLOMA_VIEW.new()
-		root.get_tree().root.add_child(_diploma_view)
+		SEATS.screen_of(root).add_child(_diploma_view)
 		_diploma_view.open(item)
 		return true
 	if id != "stove":

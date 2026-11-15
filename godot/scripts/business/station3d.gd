@@ -56,6 +56,7 @@ extends Node3D
 ##   guest_point(t) -> Vector3    where the guest of ticket t is (global; INF unknown): the
 ##                         stars and the tip fly up over them
 
+const SEATS = preload("res://scripts/seats/seats.gd")
 signal closed
 ## Another station of this room was asked for (the bar's tab, a number key, Tab).
 signal switch_to(station: String)
@@ -951,7 +952,7 @@ func open_station(cam: Camera3D) -> void:
 	if _hands_ui == null or not is_instance_valid(_hands_ui):
 		_hands_ui = load("res://scripts/business/station_hands.gd").new()
 		_hands_ui.name = "StationHand"
-		get_tree().root.add_child(_hands_ui)
+		SEATS.screen_of(self).add_child(_hands_ui)
 	_opened()
 
 

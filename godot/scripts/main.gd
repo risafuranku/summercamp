@@ -57,6 +57,8 @@ var _hurt_fx: CanvasLayer
 const TITLE_STAGE = preload("res://scripts/ui/title/title_stage.gd")
 const TITLE_CAMP = preload("res://scripts/ui/title/title_camp.gd")
 const LAND_WARMUP = preload("res://scripts/town/land_warmup.gd")
+const SCREEN_INPUT = preload("res://scripts/seats/screen_input.gd")
+const SEATS = preload("res://scripts/seats/seats.gd")
 const START_DISSOLVE = preload("res://scripts/ui/door_transition.gd")
 const SAVE_CODEC = preload("res://scripts/save_codec.gd")
 const ELECTRICITY_BILLING_SCRIPT = preload("res://scripts/electricity_billing.gd")
@@ -95,11 +97,14 @@ const SAVE_VERSION := 3
 const AUTOSAVE_INTERVAL_SEC := 60.0
 const WINDOW_TITLE := "Cursed Camp Manager Simulator"
 
-@onready var _sub_viewport_container: SubViewportContainer = $SubViewportContainer
-@onready var _world_3d: Node3D = $SubViewportContainer/SubViewport/World3D
-@onready var world_environment: WorldEnvironment = $SubViewportContainer/SubViewport/World3D/WorldEnvironment
-@onready var sun: DirectionalLight3D = $SubViewportContainer/SubViewport/World3D/Sun
-@onready var fallback_camera: Camera3D = $SubViewportContainer/SubViewport/World3D/FallbackCamera
+## Seat 1's screen (TODO.md SPLITSCREEN: a warden's own SubViewport; everything this
+## warden sees is drawn into it, the world's view and the UI); one player: the whole window.
+@onready var _screen: SubViewport = $Seat1/Screen
+@onready var _sub_viewport_container: SubViewportContainer = $Seat1/Screen/SubViewportContainer
+@onready var _world_3d: Node3D = $Seat1/Screen/SubViewportContainer/SubViewport/World3D
+@onready var world_environment: WorldEnvironment = $Seat1/Screen/SubViewportContainer/SubViewport/World3D/WorldEnvironment
+@onready var sun: DirectionalLight3D = $Seat1/Screen/SubViewportContainer/SubViewport/World3D/Sun
+@onready var fallback_camera: Camera3D = $Seat1/Screen/SubViewportContainer/SubViewport/World3D/FallbackCamera
 
 var _player: CharacterBody3D
 var grid_manager: Node3D
@@ -263,7 +268,13 @@ func _ready() -> void:
 	DisplayServer.window_set_title(WINDOW_TITLE)
 	_apply_integer_canvas_scale()
 	get_tree().root.size_changed.connect(_apply_integer_canvas_scale)
-	add_child(HandCursor.new())
+	# Main's input heard inside seat 1's screen, first there (scripts/seats/screen_input.gd).
+	var heard := SCREEN_INPUT.new()
+	heard.name = "MainInput"
+	heard.main = self
+	_screen.add_child(heard)
+	_screen.move_child(heard, 0)
+	_screen.add_child(HandCursor.new())
 	_show_startup_loading_screen()
 	await get_tree().process_frame
 	# The warden and the camp played last (scripts/profiles.gd): their saves are the
@@ -296,7 +307,7 @@ func _show_startup_loading_screen() -> void:
 	if _boot_screen != null:
 		return
 	_boot_screen = BOOT_SCREEN_SCRIPT.new()
-	add_child(_boot_screen)
+	_screen.add_child(_boot_screen)
 
 
 func _hide_startup_loading_screen() -> void:
@@ -319,13 +330,13 @@ func _bootstrap_runtime() -> void:
 	await _boot_step("Waking the camp", 0.05)
 	# The land's and the buses' pictures and sounds read on the loader's threads while the
 	# boot and the title are up (scripts/town/land_warmup.gd): a new camp's first frames.
-	add_child(LAND_WARMUP.new())
+	_screen.add_child(LAND_WARMUP.new())
 	time_system = TIME_SYSTEM_SCRIPT.new(CoreRoot.get_state())
 	weather_system = WEATHER_SYSTEM_SCRIPT.new()
 	if weather_system != null and weather_system.has_method("set_auto_cycle_enabled"):
 		weather_system.set_auto_cycle_enabled(true)
 	visual_module = VISUAL_MODULE_SCRIPT.new()
-	add_child(visual_module)
+	_screen.add_child(visual_module)
 
 	_texture_style = TEXTURE_STYLE_SCRIPT.new()
 	_ensure_input_actions()
@@ -334,7 +345,7 @@ func _bootstrap_runtime() -> void:
 		var dm = preload("res://scripts/ui/debug_menu.gd").new()
 		dm.name = "DebugMenu"
 		dm.main = self
-		add_child(dm)
+		_screen.add_child(dm)
 	await _boot_step("Tuning the radio", 0.15)
 	_setup_audio()
 
@@ -356,7 +367,7 @@ func _bootstrap_runtime() -> void:
 	_bind_billing()
 	_title_stage = TITLE_STAGE.new()
 	_title_stage.name = "TitleStage"
-	add_child(_title_stage)
+	_screen.add_child(_title_stage)
 	_title_stage.setup(self)
 	_setup_weather_visuals_module()
 	RETRO_RENDER.register(_sub_viewport_container)
@@ -413,7 +424,7 @@ func _start_gameplay_runtime() -> void:
 	if legacy_ui_adapter == null:
 		legacy_ui_adapter = LEGACY_UI_ADAPTER_SCRIPT.new()
 		legacy_ui_adapter.name = "LegacyUIAdapter"
-		add_child(legacy_ui_adapter)
+		_screen.add_child(legacy_ui_adapter)
 
 	_setup_interior_manager()
 	_setup_interaction_controller()
@@ -456,7 +467,7 @@ func _import_quests(data: Dictionary) -> void:
 func _setup_quest_manager() -> void:
 	if _quest_manager == null or not is_instance_valid(_quest_manager):
 		_quest_manager = QUEST_MANAGER_SCRIPT.new()
-		add_child(_quest_manager)
+		_screen.add_child(_quest_manager)
 	_quest_manager.setup(self)
 	if _pending_quest_state_loaded:
 		_import_quests(_pending_quest_state)
@@ -469,7 +480,7 @@ func _setup_paper_map() -> void:
 	if _paper_map == null or not is_instance_valid(_paper_map):
 		_paper_map = PAPER_MAP_SCRIPT.new()
 		_paper_map.name = "PaperMap"
-		add_child(_paper_map)
+		_screen.add_child(_paper_map)
 		_paper_map.setup(self)
 
 
@@ -478,7 +489,7 @@ func _setup_night_jobs() -> void:
 	if _night_jobs == null or not is_instance_valid(_night_jobs):
 		_night_jobs = NIGHT_JOBS_SCRIPT.new()
 		_night_jobs.name = "NightJobs"
-		add_child(_night_jobs)
+		_screen.add_child(_night_jobs)
 		_night_jobs.setup(self)
 		_night_jobs.changed.connect(_on_night_jobs_changed)
 		EventBus.building_failed.connect(func(_c, _t): _sync_dark_lamps())
@@ -486,7 +497,7 @@ func _setup_night_jobs() -> void:
 	if _breaker_panel == null or not is_instance_valid(_breaker_panel):
 		_breaker_panel = BREAKER_PANEL_SCRIPT.new()
 		_breaker_panel.name = "BreakerPanel"
-		add_child(_breaker_panel)
+		_screen.add_child(_breaker_panel)
 		_breaker_panel.fixed.connect(func(fault: int):
 			# The boy's board done: he is back in the tent by morning.
 			if _night_jobs.boy_tier_at("breaker") > 0:
@@ -518,7 +529,7 @@ func _setup_night_jobs() -> void:
 	if _day_events == null or not is_instance_valid(_day_events):
 		_day_events = DAY_EVENTS_SCRIPT.new()
 		_day_events.name = "DayEvents"
-		add_child(_day_events)
+		_screen.add_child(_day_events)
 		_day_events.setup(self)
 	if not _pending_day_events.is_empty():
 		_day_events.import_state(_pending_day_events)
@@ -526,7 +537,7 @@ func _setup_night_jobs() -> void:
 	if _week_ledger == null or not is_instance_valid(_week_ledger):
 		_week_ledger = WEEK_LEDGER_SCRIPT.new()
 		_week_ledger.name = "WeekLedger"
-		add_child(_week_ledger)
+		_screen.add_child(_week_ledger)
 		_week_ledger.reset(int(CoreRoot.get_state().money) if CoreRoot.get_state() != null else 0)
 	if not _pending_week_ledger.is_empty():
 		_week_ledger.import_state(_pending_week_ledger)
@@ -534,12 +545,12 @@ func _setup_night_jobs() -> void:
 	if _omens == null or not is_instance_valid(_omens):
 		_omens = OMENS_SCRIPT.new()
 		_omens.name = "Omens"
-		add_child(_omens)
+		_screen.add_child(_omens)
 		_omens.setup(self)
 	if _evening == null or not is_instance_valid(_evening):
 		_evening = EVENING_SCRIPT.new()
 		_evening.name = "EveningUnease"
-		add_child(_evening)
+		_screen.add_child(_evening)
 		_evening.setup(self)
 	if not _pending_omens.is_empty():
 		_omens.import_state(_pending_omens)
@@ -547,7 +558,7 @@ func _setup_night_jobs() -> void:
 	if _director_fx == null or not is_instance_valid(_director_fx):
 		_director_fx = preload("res://scripts/night/director_effects.gd").new()
 		_director_fx.name = "DirectorEffects"
-		add_child(_director_fx)
+		_screen.add_child(_director_fx)
 		_director_fx.setup(self, _director)
 	if not _pending_director.is_empty():
 		_director.import_state(_pending_director)
@@ -561,17 +572,17 @@ func _setup_night_jobs() -> void:
 	if _lake_trip == null or not is_instance_valid(_lake_trip):
 		_lake_trip = LAKE_TRIP_SCRIPT.new()
 		_lake_trip.name = "LakeTrip"
-		add_child(_lake_trip)
+		_screen.add_child(_lake_trip)
 		_lake_trip.setup(self)
 	if _warden_play == null or not is_instance_valid(_warden_play):
 		_warden_play = WARDEN_PLAY_SCRIPT.new()
 		_warden_play.name = "WardenPlay"
-		add_child(_warden_play)
+		_screen.add_child(_warden_play)
 		_warden_play.setup(self)
 	if camp_office == null or not is_instance_valid(camp_office):
 		camp_office = CAMP_OFFICE_SCRIPT.new()
 		camp_office.name = "CampOffice"
-		add_child(camp_office)
+		_screen.add_child(camp_office)
 		camp_office.setup(self)
 	if not _pending_camp_office.is_empty():
 		camp_office.import_state(_pending_camp_office)
@@ -660,7 +671,7 @@ func _show_week_report() -> void:
 	_week_report_screen.setup(_week_ledger.report(CoreRoot.get_state(), _camp_value()))
 	_week_report_screen.stay_requested.connect(_on_week_report_stay)
 	_week_report_screen.main_menu_requested.connect(_on_week_report_menu)
-	add_child(_week_report_screen)
+	_screen.add_child(_week_report_screen)
 	if _hud_manager != null:
 		_hud_manager.set_world_hud_visible(false)
 	get_tree().paused = true
@@ -697,7 +708,7 @@ func _coop_show_books(report: Dictionary) -> void:
 	_week_report_screen.setup(report)
 	_week_report_screen.follower = true
 	_week_report_screen.main_menu_requested.connect(_on_week_report_menu)
-	add_child(_week_report_screen)
+	_screen.add_child(_week_report_screen)
 	if _hud_manager != null:
 		_hud_manager.set_world_hud_visible(false)
 
@@ -888,7 +899,7 @@ func _update_corn_wading(delta: float) -> void:
 		var path := "res://assets/sfx/world/corn_rustle.mp3"
 		if ResourceLoader.exists(path):
 			_corn_rustle.stream = load(path)
-		add_child(_corn_rustle)
+		_screen.add_child(_corn_rustle)
 	_corn_rustle_t -= delta
 	if moving and _corn_rustle_t <= 0.0 and _corn_rustle.stream != null:
 		_corn_rustle_t = randf_range(0.45, 0.8)
@@ -917,7 +928,7 @@ func _setup_maintenance() -> void:
 	if _maintenance == null or not is_instance_valid(_maintenance):
 		_maintenance = MAINTENANCE_CONTROLLER_SCRIPT.new()
 		_maintenance.name = "MaintenanceController"
-		add_child(_maintenance)
+		_screen.add_child(_maintenance)
 	_maintenance.setup(_world_3d, building_manager, Callable(self, "_get_player_camera"), _hud_manager)
 	if CoreRoot.failure_system != null:
 		CoreRoot.failure_system.enabled = camp_rule("wear")
@@ -1046,7 +1057,7 @@ func _setup_weather_visuals_module() -> void:
 	if _weather_visuals == null:
 		_weather_visuals = WEATHER_VISUALS_SCRIPT.new()
 		_weather_visuals.name = "WeatherVisuals"
-		add_child(_weather_visuals)
+		_screen.add_child(_weather_visuals)
 	_weather_visuals.setup(
 		world_environment,
 		sun,
@@ -1070,7 +1081,7 @@ func _ensure_hud_manager() -> void:
 		return
 	_hud_manager = HUD_MANAGER_SCRIPT.new()
 	_hud_manager.name = "HudManager"
-	add_child(_hud_manager)
+	_screen.add_child(_hud_manager)
 	_hud_manager.setup_interaction_hint()
 	_hud_manager.setup_money_hud()
 	_hud_manager.setup_weather_hud()
@@ -1091,11 +1102,11 @@ func _ensure_interior_manager() -> void:
 	if legacy_ui_adapter == null:
 		legacy_ui_adapter = LEGACY_UI_ADAPTER_SCRIPT.new()
 		legacy_ui_adapter.name = "LegacyUIAdapter"
-		add_child(legacy_ui_adapter)
+		_screen.add_child(legacy_ui_adapter)
 	if _interior_manager == null:
 		_interior_manager = INTERIOR_MANAGER_SCRIPT.new()
 		_interior_manager.name = "InteriorManager"
-		add_child(_interior_manager)
+		_screen.add_child(_interior_manager)
 		if _interior_manager.has_signal("service_repair_requested"):
 			_interior_manager.service_repair_requested.connect(_on_service_repair_requested)
 		if _interior_manager.has_signal("notice"):
@@ -1120,7 +1131,7 @@ func _setup_interaction_controller() -> void:
 	if _interaction_controller == null:
 		_interaction_controller = INTERACTION_CONTROLLER_SCRIPT.new()
 		_interaction_controller.name = "InteractionController"
-		add_child(_interaction_controller)
+		_screen.add_child(_interaction_controller)
 	if _interaction_controller.has_method("setup"):
 		_interaction_controller.setup(
 			_world_3d,
@@ -1286,7 +1297,9 @@ func _process(delta: float) -> void:
 ## _unhandled_input here (the world's viewport container takes it): the hand went out to the
 ## door and nothing came of it. What takes a click of its own (carrying, the seats) has it
 ## first and marks it handled.
-func _input(event: InputEvent) -> void:
+## Main's input comes through seat 1's screen (scripts/seats/screen_input.gd, made in
+## _ready), heard where it was before the screen.
+func screen_input(event: InputEvent) -> void:
 	var mb := event as InputEventMouseButton
 	if mb == null or not mb.pressed or mb.button_index != MOUSE_BUTTON_LEFT:
 		return
@@ -1298,7 +1311,7 @@ func _input(event: InputEvent) -> void:
 		_try_interact()
 
 
-func _unhandled_input(event: InputEvent) -> void:
+func screen_unhandled_input(event: InputEvent) -> void:
 	if not _startup_bootstrap_complete:
 		return
 	if _menu_mode:
@@ -1310,7 +1323,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	# anywhere (PauseKeys).
 	if event.is_action_pressed("ui_cancel"):
 		_open_pause_menu()
-		get_viewport().set_input_as_handled()
+		_screen.set_input_as_handled()
 		return
 
 	# The debug keys are all in the one debug menu now (L, scripts/ui/debug_menu.gd).
@@ -1791,7 +1804,7 @@ func start_corn_hunt(job: Dictionary) -> bool:
 	var guest: Dictionary = guests[randi_range(0, guests.size() - 1)]
 	var hunt := CORN_HUNT_SCRIPT.new()
 	hunt.name = "CornHunt"
-	add_child(hunt)
+	_screen.add_child(hunt)
 	if not hunt.setup(self, corn, guest):
 		hunt.queue_free()
 		return false
@@ -1952,7 +1965,7 @@ func _despawn_all_runtime_enemies() -> int:
 func _toggle_liminal_debug_window() -> void:
 	if _liminal_window == null:
 		_liminal_window = LIMINAL_WINDOW.new(self)
-		add_child(_liminal_window)
+		_screen.add_child(_liminal_window)
 	_liminal_window.toggle()
 
 
@@ -2043,7 +2056,7 @@ func _emit_player_damage_feedback(damage_amount: int, fatal_hit: bool) -> void:
 	if _hurt_fx == null or not is_instance_valid(_hurt_fx):
 		_hurt_fx = HURT_FX_SCRIPT.new()
 		_hurt_fx.set("main", self)
-		add_child(_hurt_fx)
+		_screen.add_child(_hurt_fx)
 	_hurt_fx.hit(damage_amount, tier, fatal_hit)
 	if _player != null and _player.has_method("play_damage_feedback"):
 		_player.play_damage_feedback(tier, damage_amount, fatal_hit)
@@ -2099,7 +2112,7 @@ func _ensure_blood_fx() -> void:
 	if _blood_fx == null:
 		_blood_fx = BLOOD_FX_SCRIPT.new()
 		_blood_fx.name = "BloodFx"
-		add_child(_blood_fx)
+		_screen.add_child(_blood_fx)
 		_blood_fx.setup(_world_3d, Callable(self, "_get_player_camera"), Callable(self, "_get_player_ref"))
 
 
@@ -2117,7 +2130,7 @@ func _prewarm_hurt() -> void:
 	if _hurt_fx == null or not is_instance_valid(_hurt_fx):
 		_hurt_fx = HURT_FX_SCRIPT.new()
 		_hurt_fx.set("main", self)
-		add_child(_hurt_fx)
+		_screen.add_child(_hurt_fx)
 	_hurt_fx.prewarm()
 	_ensure_blood_fx()
 	_blood_fx.prewarm()
@@ -2153,7 +2166,7 @@ func _show_game_over_screen() -> void:
 	_game_over_screen.setup(title, reason, stats, SaveManager.has_saves())
 	_game_over_screen.load_last_requested.connect(_on_game_over_load_save_pressed)
 	_game_over_screen.main_menu_requested.connect(_on_game_over_main_menu_pressed)
-	add_child(_game_over_screen)
+	_screen.add_child(_game_over_screen)
 
 
 func _clear_game_over_screen() -> void:
@@ -2191,7 +2204,7 @@ func _bind_or_create_managers() -> void:
 	building_manager = _resolve_manager_node("BuildingManager", BUILDING_MANAGER_SCRIPT, "setup")
 	world_generator = _resolve_manager_node("WorldGenerator", WORLD_GENERATOR_SCRIPT, "generate_world")
 
-	var existing_econ = get_node_or_null("EconomyManager")
+	var existing_econ = _screen.get_node_or_null("EconomyManager")
 	if existing_econ != null and existing_econ.has_method("get_money"):
 		economy_manager = existing_econ
 	else:
@@ -2200,7 +2213,7 @@ func _bind_or_create_managers() -> void:
 			existing_econ.queue_free()
 		economy_manager = ECONOMY_MANAGER_SCRIPT.new()
 		economy_manager.name = "EconomyManager"
-		add_child(economy_manager)
+		_screen.add_child(economy_manager)
 	if _hud_manager != null and _hud_manager.has_method("on_money_changed"):
 		var cb = Callable(_hud_manager, "on_money_changed")
 		# Canonical money flow is emitted by GameActions via EventBus.
@@ -2532,12 +2545,12 @@ func _setup_audio() -> void:
 		_music_director = preload("res://scripts/audio/music_director.gd").new()
 		_music_director.name = "MusicDirector"
 		_music_director.main = self
-		add_child(_music_director)
+		_screen.add_child(_music_director)
 	if _caretaker == null or not is_instance_valid(_caretaker):
 		_caretaker = preload("res://scripts/audio/caretaker.gd").new()
 		_caretaker.name = "Caretaker"
 		_caretaker.main = self
-		add_child(_caretaker)
+		_screen.add_child(_caretaker)
 
 
 func _try_interact() -> void:
@@ -2672,11 +2685,11 @@ func _update_torch_hand() -> void:
 	if _lodging_signs == null or not is_instance_valid(_lodging_signs):
 		_lodging_signs = load("res://scripts/lodging_signs.gd").new()
 		_lodging_signs.name = "LodgingSigns"
-		add_child(_lodging_signs)
+		_screen.add_child(_lodging_signs)
 	if _torch_hand == null or not is_instance_valid(_torch_hand):
 		_torch_hand = load("res://scripts/ui/torch_hand.gd").new()
 		_torch_hand.name = "TorchHand"
-		add_child(_torch_hand)
+		_screen.add_child(_torch_hand)
 	var on: bool = _gameplay_started and not _menu_mode and _player != null and _player.has_method("is_flashlight_active") \
 		and bool(_player.is_flashlight_active()) and not _is_any_interior_open() \
 		and not (_lake_trip != null and _lake_trip.is_active()) and not get_tree().paused and not _in_attraction() \
@@ -2839,7 +2852,7 @@ func _setup_sewer_pipe_minigame() -> void:
 		return
 	_sewer_pipe_minigame = SEWER_PIPE_MINIGAME_SCRIPT.new()
 	_sewer_pipe_minigame.name = "SewerPipeMinigame"
-	add_child(_sewer_pipe_minigame)
+	_screen.add_child(_sewer_pipe_minigame)
 	if _sewer_pipe_minigame.has_signal("repair_completed"):
 		_sewer_pipe_minigame.repair_completed.connect(_on_repair_completed)
 	if _sewer_pipe_minigame.has_signal("repair_cancelled"):
@@ -2868,7 +2881,7 @@ func _open_sewer_pipe_repair(coord: Vector2i, building_type: String) -> void:
 func _setup_utility_repair_minigame() -> void:
 	_utility_repair_minigame = UTILITY_REPAIR_MINIGAME_SCRIPT.new()
 	_utility_repair_minigame.name = "UtilityRepairMinigame"
-	add_child(_utility_repair_minigame)
+	_screen.add_child(_utility_repair_minigame)
 	if _utility_repair_minigame.has_signal("repair_completed"):
 		_utility_repair_minigame.repair_completed.connect(_on_repair_completed)
 	if _utility_repair_minigame.has_signal("repair_cancelled"):
@@ -3036,7 +3049,7 @@ func _ensure_main_menu() -> void:
 	if _main_menu != null:
 		return
 	_main_menu = MAIN_MENU_SCRIPT.new()
-	add_child(_main_menu)
+	_screen.add_child(_main_menu)
 	_main_menu.continue_requested.connect(_on_menu_continue_pressed)
 	_main_menu.new_game_requested.connect(_on_menu_new_game_pressed)
 	_main_menu.new_camp_requested.connect(_on_menu_new_camp)
@@ -3247,7 +3260,7 @@ func open_camp_sign() -> void:
 	if _sign_paint != null and is_instance_valid(_sign_paint):
 		return
 	_sign_paint = SIGN_PAINT.new()
-	get_tree().root.add_child(_sign_paint)
+	_screen.add_child(_sign_paint)
 	_sign_paint.open(camp_name())
 	if _player != null and _player.has_method("set_controls_enabled"):
 		_player.set_controls_enabled(false)
@@ -3356,7 +3369,7 @@ var _start_dissolve: CanvasLayer
 func _play_start_dissolve() -> void:
 	if _start_dissolve == null:
 		_start_dissolve = START_DISSOLVE.new()
-		add_child(_start_dissolve)
+		_screen.add_child(_start_dissolve)
 	_start_dissolve.play(true)
 
 
@@ -3452,7 +3465,7 @@ func _start_menu_music() -> void:
 		_menu_music_player.name = "MenuMusic"
 		_menu_music_player.bus = "Master"
 		_menu_music_player.volume_db = MENU_THEME_VOLUME_DB
-		add_child(_menu_music_player)
+		_screen.add_child(_menu_music_player)
 	if _menu_music_player.playing:
 		return
 	if not ResourceLoader.exists(MENU_THEME_PATH):
@@ -3703,13 +3716,13 @@ func _ensure_pause_menu() -> void:
 	if _pause_menu != null:
 		return
 	_pause_menu = PAUSE_MENU_SCRIPT.new()
-	add_child(_pause_menu)
+	_screen.add_child(_pause_menu)
 	_pause_menu.resume_requested.connect(func() -> void: _close_pause_menu(true))
 	_pause_menu.save_requested.connect(_on_pause_save_requested)
 	_pause_menu.quit_to_title_requested.connect(_on_pause_quit_requested)
 	var keys := PAUSE_KEYS_SCRIPT.new()
 	keys.set("main", self)
-	get_tree().root.add_child.call_deferred(keys)
+	_screen.add_child.call_deferred(keys)
 
 
 func _close_pause_menu(recapture_mouse: bool) -> void:
