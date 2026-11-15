@@ -13,7 +13,7 @@ signal page_hidden(hidden: bool)
 signal viewport_changed(top: float, bottom: float)
 
 const MIXER = preload("res://scripts/audio/mixer.gd")
-const GAME_SLUG := "cursed-camp"
+const GAME_SLUG := "cursed-camp-demo"
 ## How often `undo:ready` is said until the hub answers with the profile.
 const READY_EVERY := 0.75
 const POLL_EVERY := 0.05

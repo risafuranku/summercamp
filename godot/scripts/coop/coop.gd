@@ -236,6 +236,14 @@ func nearest_other(pos: Vector3, max_dist := INF) -> int:
 
 # ── starting and ending ──────────────────────────────────────────────────────
 
+## Whether this build can open or call a camp at all: the line is ENet (UDP), which a browser
+## has not got. The web demo plays alone until its line goes through a relay (TODO.md WEB DEMO
+## W6); the menu's co-op and the split screen's second warden (a co-op client over the
+## loopback) ask this.
+static func line_available() -> bool:
+	return not OS.has_feature("web")
+
+
 ## Opens the camp to up to three other machines on `port`. False when the port is taken.
 func host() -> bool:
 	leave()

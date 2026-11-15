@@ -12,6 +12,7 @@ extends Node
 const INSTANCE = preload("res://scripts/instance/instance.gd")
 const INPUT = preload("res://scripts/instance/instance_input.gd")
 const PAD = preload("res://scripts/input/pad.gd")
+const COOP = preload("res://scripts/coop/coop.gd")
 ## The second warden's sounds go here, silent: the camp is heard once, from the host's game
 ## (its own world's sounds and music would play everything twice).
 const BUS := "LocalClient"
@@ -40,8 +41,11 @@ var _menu_armed := false
 
 
 ## The second warden in: the host's camp hosted (if it is not), this instance made, its
-## main drawn on the right, joined to 127.0.0.1. Returns the node (in the tree).
+## main drawn on the right, joined to 127.0.0.1. Returns the node (in the tree), null where
+## the build has no co-op line (the web: its pads all play the one warden).
 static func start(host_main: Node, pad_device: int) -> Node:
+	if not COOP.line_available():
+		return null
 	var tree := host_main.get_tree()
 	var host_coop := INSTANCE.coop(host_main)
 	if not host_coop.is_active() and not host_coop.host():
