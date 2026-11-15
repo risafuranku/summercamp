@@ -83,10 +83,13 @@ godot/
   data/buildings/*.tres       # building definitions
   data/pools/                 # email + guest content
   scripts/
-    main.gd                   # orchestration (~4.9k lines, 15. 11.; it was 7.9k: being split
-                              # by responsibility, TODO D0). It keeps the systems, the game's
+    main.gd                   # orchestration (~3.7k lines, 15. 11.; it was 7.9k: split by
+                              # responsibility, TODO D0). It keeps the systems, the game's
                               # flow (title, new camp, load, pause, game over) and one-line
-                              # facades others call it by. Move a stretch out with
+                              # facades others call it by.
+    main_debug.gd             # main.gd with the debug_* hooks the shot driver, the harnesses
+                              # and the debug menu call by name (extends main.gd; it is the
+                              # script scenes/main.tscn runs). New hooks go here, not in main. Move a stretch out with
                               # `python tools/main_extract.py SPEC.json`, then a headless
                               # start and `python tools/main_refs_check.py` (every main.<name>
                               # in the scripts and tools must still be main's)

@@ -17,6 +17,7 @@ import sys
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 GODOT = os.path.join(ROOT, "godot")
 MAIN = os.path.join(GODOT, "scripts", "main.gd")
+MAIN_DEBUG = os.path.join(GODOT, "scripts", "main_debug.gd")
 
 # What every Node (and Object) has: not main's own.
 NODE = set("""
@@ -46,6 +47,9 @@ CALL_STEP = re.compile(r"\[\s*\"call\"\s*,\s*\"(\w+)\"")
 
 def declared():
     src = open(MAIN, encoding="utf-8").read()
+    # The scene's root runs main_debug.gd (main.gd with the harnesses' debug_* hooks on top).
+    if os.path.exists(MAIN_DEBUG):
+        src += chr(10) + open(MAIN_DEBUG, encoding="utf-8").read()
     names = set(DECL.findall(src))
     # main.gd extends Node3D/Node: its base members count too.
     return names | NODE | IGNORE
@@ -67,7 +71,7 @@ def main():
     have = declared()
     bad = {}
     for path in files(sys.argv[1:]):
-        if os.path.abspath(path) == os.path.abspath(MAIN):
+        if os.path.abspath(path) in (os.path.abspath(MAIN), os.path.abspath(MAIN_DEBUG)):
             continue
         text = open(path, encoding="utf-8", errors="replace").read()
         for n, line in enumerate(text.split("\n"), 1):
