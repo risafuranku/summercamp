@@ -9,6 +9,7 @@ extends Node
 ## Debug builds only: F10 shows the director's state, tension, budget, archetypes, what
 ## it did and why (never in a release build).
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const DIR := "res://assets/sfx/director/"
 ## A person, dark: one of us, standing where nobody should (not the hunters' own shapes).
 const FIGURE_TEX := "res://assets/textury/npc/host1.png"
@@ -143,7 +144,7 @@ func run(id: String, ctx: Dictionary) -> Vector3:
 		"breaker_trip":
 			# The camp's own breaker, as a night's job (the machine that runs the camp).
 			var nj = main.get("_night_jobs")
-			if nj != null and nj.has_method("trip_breaker_now") and Coop.sim_here():
+			if nj != null and nj.has_method("trip_breaker_now") and INSTANCE.coop(self).sim_here():
 				nj.trip_breaker_now()
 	return Vector3.INF
 

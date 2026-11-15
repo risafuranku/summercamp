@@ -527,7 +527,7 @@ func _bottle_event(e: String, v) -> void:
 			if world.partner_in_reach():
 				world.send("give_bottle", [float(v)])
 				_play("b", "bottle_set.mp3", -8.0)
-				_say("You hand %s the bottle." % Coop.partner_name())
+				_say("You hand %s the bottle." % INSTANCE.coop(self).partner_name())
 			else:
 				_play("b", "bottle_set.mp3", -6.0)
 				world.set_bottle_down(float(v))
@@ -1089,7 +1089,7 @@ func _offer_cig() -> void:
 	_offering = 1.1
 	_play("c", "pack.mp3", -4.0)
 	world.send("offer_cig", [])
-	_say("You offer %s a Start." % Coop.partner_name())
+	_say("You offer %s a Start." % INSTANCE.coop(self).partner_name())
 
 
 ## The hands are animated like a Build-engine weapon: whole pictures, each held for a

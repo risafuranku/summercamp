@@ -452,7 +452,7 @@ func _on_time_tick(hour: int, minute: int) -> void:
 	_last_tick_signature = tick_signature
 
 	# Co-op: the mail comes to the host's machine.
-	if not Coop.sim_here():
+	if not INSTANCE.coop(self).sim_here():
 		return
 	var now_abs = _absolute_minutes(day, safe_hour, safe_minute)
 	_deliver_due_mails(now_abs)
@@ -1162,9 +1162,9 @@ func coop_take(mail: Dictionary) -> void:
 ## The other warden's machine: what was done to a mail goes to the host too (it is done
 ## here at once, and the host's mail comes back). True when it went.
 func _coop_send(what: String, mail: Dictionary, extra: Array = []) -> bool:
-	if not Coop.is_client():
+	if not INSTANCE.coop(self).is_client():
 		return false
-	Coop.send_request("mail", [what, int(mail.get("_runtime_id", -1))] + extra)
+	INSTANCE.coop(self).send_request("mail", [what, int(mail.get("_runtime_id", -1))] + extra)
 	return true
 
 
@@ -1269,8 +1269,8 @@ func settle_reputation() -> void:
 
 
 func send_mail(to: String, subject: String, body: String, day: int, time: String) -> void:
-	if Coop.is_client():
-		Coop.send_request("mail", ["send", -1, to, subject, body, day, time])
+	if INSTANCE.coop(self).is_client():
+		INSTANCE.coop(self).send_request("mail", ["send", -1, to, subject, body, day, time])
 	sent.append({"to": to, "subject": subject, "body": body, "day": day, "time": time})
 
 

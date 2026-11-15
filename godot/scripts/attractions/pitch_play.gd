@@ -10,6 +10,7 @@ extends Node3D
 ## corner flags stir in the wind. Stepped at 12 frames a second like the rest of the
 ## camp; the kicks and the cheers are assets/sfx/life (ball_kick, goal_cheer).
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const POSES = preload("res://scripts/attractions/poses.gd")
 const FPS := 12.0
 const SFX_KICK := "res://assets/sfx/life/ball_kick.mp3"
@@ -154,7 +155,7 @@ func _process(delta: float) -> void:
 	guests_here = _seen.keys().filter(func(k): return int(k) >= 0).size()
 	_wave_flags()
 	# Co-op: the host's rally, followed here (coop_take_shot).
-	if not Coop.is_client():
+	if not INSTANCE.coop(self).is_client():
 		_rally()
 	if _ball != null:
 		var at := _ball_pos()
@@ -300,7 +301,7 @@ func _juggle(by: int) -> void:
 func _launch(kind: String, from: Vector3, to: Vector3, dur: float, by: int, next: int) -> void:
 	_shot = {"kind": kind, "from": from, "to": to, "t0": _clock, "dur": dur, "by": by, "next": next}
 	# Co-op: the other machine's ball goes as this one.
-	if Coop.is_host() and Coop.has_partner():
+	if INSTANCE.coop(self).is_host() and INSTANCE.coop(self).has_partner():
 		var wp := get_tree().get_first_node_in_group("warden_play")
 		if wp != null:
 			var out := _shot.duplicate()

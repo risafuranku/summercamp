@@ -1,7 +1,7 @@
 extends Node
 
 ## The staffroom's hands at work (DESIGN.md §7c, the rules core/systems/staff_rules.gd).
-## The machine that runs the camp (Coop.sim_here) moves each of them on by the game's
+## The machine that runs the camp (INSTANCE.coop(self).sim_here) moves each of them on by the game's
 ## clock and writes where they are and what they are at into biz.staff.act (every state
 ## is a walk from a to b between two game minutes, a job at a place till a minute, or a
 ## spot in the staffroom); every machine draws them from it, so both wardens see the same
@@ -257,9 +257,9 @@ func _process(delta: float) -> void:
 	_poll -= delta
 	if _poll <= 0.0:
 		_poll = STEP
-		if Coop.sim_here() and staffroom() != null:
+		if INSTANCE.coop(self).sim_here() and staffroom() != null:
 			_run()
-		elif staffroom() == null and not _acts().is_empty() and Coop.sim_here():
+		elif staffroom() == null and not _acts().is_empty() and INSTANCE.coop(self).sim_here():
 			# The staffroom was pulled down: everybody home.
 			for slug in _acts().keys():
 				CoreRoot.actions.staff_act(str(slug), {})
@@ -1245,11 +1245,11 @@ func _update_camp_side() -> void:
 ## The other wardens whose room is this staffroom: peer id -> their room state.
 func _wardens_in() -> Dictionary:
 	var out := {}
-	if not Coop.is_active():
+	if not INSTANCE.coop(self).is_active():
 		return out
 	var key := staffroom_key()
-	for id in Coop.others():
-		var r: Dictionary = Coop.state_of(id).get("room", {})
+	for id in INSTANCE.coop(self).others():
+		var r: Dictionary = INSTANCE.coop(self).state_of(id).get("room", {})
 		if str(r.get("t", "")) == "service" and str(r.get("k", "")) == key and str(r.get("s", "")).begins_with("staff/"):
 			out[id] = r
 	return out
@@ -1268,7 +1268,7 @@ func _draw_wardens(room: Node3D, me_in: bool) -> void:
 		var r: Dictionary = inside_now[id]
 		var fig = _wardens.get(id)
 		if fig == null or not is_instance_valid(fig):
-			var look: Dictionary = Coop.look_of(id)
+			var look: Dictionary = INSTANCE.coop(self).look_of(id)
 			fig = COOP_FIGURE.new()
 			fig.setup(int(look.get("m", 1)), int(look.get("c", 0)), true)
 			room.add_child(fig)

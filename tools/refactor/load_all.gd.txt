@@ -1,0 +1,22 @@
+extends SceneTree
+func _init():
+	var bad := 0
+	var n := 0
+	for root in ["res://scripts", "res://core"]:
+		var stack := [root]
+		while not stack.is_empty():
+			var d: String = stack.pop_back()
+			var da := DirAccess.open(d)
+			if da == null:
+				continue
+			for sub in da.get_directories():
+				stack.append(d + "/" + sub)
+			for f in da.get_files():
+				if f.ends_with(".gd"):
+					n += 1
+					var s = ResourceLoader.load(d + "/" + f, "", ResourceLoader.CACHE_MODE_IGNORE)
+					if s == null or not (s as Script).can_instantiate() and not (s as Script).is_abstract():
+						bad += 1
+						print("BAD ", d + "/" + f)
+	print("LOADED %d scripts, %d bad" % [n, bad])
+	quit()

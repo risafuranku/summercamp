@@ -218,10 +218,10 @@ var _mate_rooms: Dictionary = {}
 
 
 func _mates_doors() -> void:
-	if Coop.wardens.is_empty():
+	if INSTANCE.coop(self).wardens.is_empty():
 		return
-	for id in Coop.others():
-		var st: Dictionary = Coop.state_of(id)
+	for id in INSTANCE.coop(self).others():
+		var st: Dictionary = INSTANCE.coop(self).state_of(id)
 		var room = st.get("room", {})
 		var key := str((room as Dictionary).get("k", "")) if room is Dictionary else ""
 		var was := str(_mate_rooms.get(id, ""))

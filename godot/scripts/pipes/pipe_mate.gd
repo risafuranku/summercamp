@@ -11,10 +11,11 @@ extends RefCounted
 ##     first, slowly, back the way you came); with four down there, a jam;
 ##   - close, the pipe shrinks: your breath and heart go up, the dark closes in round the
 ##     view; crawling into one knocks their boots or their head (they jump at their end:
-##     Coop.send_play "pipe_bump", to them);
+##     INSTANCE.coop(host).send_play "pipe_bump", to them);
 ##   - a hole clamped by one is clamped for all ("pipe_fixed").
 ## Each machine keeps its own raccoon (one may see it, the others not).
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const LOOKS = preload("res://scripts/coop/warden_looks.gd")
 ## The wardens' pixel in the world (a standing one: 128 px for 1.74 m): the pictures of
 ## them lying are drawn to it, as everything is (the same Build-engine pixel throughout).
@@ -51,8 +52,8 @@ func mates() -> Dictionary:
 	var out := {}
 	if key == "":
 		return out
-	for id in Coop.others():
-		var s = Coop.state_of(id).get("pipe", {})
+	for id in INSTANCE.coop(host).others():
+		var s = INSTANCE.coop(host).state_of(id).get("pipe", {})
 		if s is Dictionary and str(s.get("k", "")) == key:
 			out[int(id)] = s
 	return out
@@ -135,7 +136,7 @@ func _show(id: int, m: Dictionary) -> float:
 	var their_dir := Vector3(d.x, 0.0, d.y)
 	var c := their_dir.dot(to_them.normalized()) if dist > 0.05 else 1.0
 	var pose := "crawl_back" if c > 0.5 else ("crawl_front" if c < -0.5 else "crawl_side")
-	var look: Dictionary = Coop.look_of(id)
+	var look: Dictionary = INSTANCE.coop(host).look_of(id)
 	var model := int(look.get("m", 1))
 	if not LOOKS.has_pose(model, pose):
 		pose = "prone"
@@ -164,7 +165,7 @@ func bumped_into() -> void:
 	if _bump_cd > 0.0:
 		return
 	_bump_cd = 2.5
-	Coop.send_play("pipe_bump", [key, blocker])
+	INSTANCE.coop(host).send_play("pipe_bump", [key, blocker])
 
 
 func _drop(id: int) -> void:

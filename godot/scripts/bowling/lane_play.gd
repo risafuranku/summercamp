@@ -14,6 +14,7 @@ extends CanvasLayer
 ## on the board over the lane and on the strip at the top; S or the right button on the
 ## approach leaves the lane. In co-op the other warden sees your balls (bowling.gd's ops).
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const RULES := preload("res://core/systems/bowling_rules.gd")
 const LAYOUT := preload("res://scripts/bowling/bowling_layout.gd")
 const RETRO_UI := preload("res://scripts/ui/retro_ui.gd")
@@ -79,7 +80,7 @@ func active() -> bool:
 
 
 func _me() -> String:
-	return str(multiplayer.get_unique_id()) if Coop.is_active() else "me"
+	return str(multiplayer.get_unique_id()) if INSTANCE.coop(self).is_active() else "me"
 
 
 func _bowling() -> Node:

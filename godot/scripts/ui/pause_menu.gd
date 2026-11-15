@@ -13,6 +13,7 @@ extends CanvasLayer
 ## main.gd pauses the SceneTree while this is open; the layer keeps processing.
 ## Quitting to the title autosaves first, so no confirmation is needed.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal resume_requested
 signal save_requested
 signal quit_to_title_requested
@@ -62,7 +63,7 @@ func open(info: String) -> void:
 	_info_text = info
 	if _info != null:
 		_info.text = info
-	var coop: bool = Coop.has_partner() or Coop.is_host()
+	var coop: bool = INSTANCE.coop(self).has_partner() or INSTANCE.coop(self).is_host()
 	# Built at bootstrap, before a warden (and so the language) was chosen: Czech rows
 	# are taller.
 	if coop != _built_coop or LANG.current != _built_lang:
@@ -74,7 +75,7 @@ func open(info: String) -> void:
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	HandCursor.menu_over = true
 	# main pauses the tree for this unless a co-op camp goes on (main._open_pause_menu).
-	if Coop.is_active():
+	if INSTANCE.coop(self).is_active():
 		_mute_others(true)
 
 

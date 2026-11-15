@@ -24,6 +24,7 @@ extends Node
 ## Medium he lies now and then (warmer when you go away), heavy more, and he asks you to
 ## turn round. No line of text tells any of it: his voice does.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal finished(rescued: bool)
 
 const INTERIOR_PREP = preload("res://scripts/interior_prep.gd")
@@ -390,7 +391,7 @@ func _update_scarecrow(delta: float, player: Node3D) -> void:
 func _hit(player: Node3D) -> void:
 	# The one leading them gets it (co-op: the other warden, on their machine).
 	if leader != null and is_instance_valid(leader) and player == leader:
-		Coop.send_night_event("hurt", [HIT_DAMAGE])
+		INSTANCE.coop(self).send_night_event("hurt", [HIT_DAMAGE])
 	elif _main.has_method("damage_player"):
 		_main.damage_player(HIT_DAMAGE)
 	if boy == 0:
@@ -538,7 +539,7 @@ func _boy_strike(player: Node3D) -> void:
 			fx.red_flash(0.55)
 			fx.glitch(0.9, 0.7)
 		if hurt_who != null:
-			Coop.send_night_event("hurt", [BOY_HIT[boy]])
+			INSTANCE.coop(self).send_night_event("hurt", [BOY_HIT[boy]])
 		elif _main.has_method("damage_player"):
 			_main.damage_player(BOY_HIT[boy]))
 	get_tree().create_timer(2.2).timeout.connect(_say_looked)

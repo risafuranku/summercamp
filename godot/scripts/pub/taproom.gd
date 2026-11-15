@@ -21,7 +21,7 @@ extends Node
 ## they go (pub_rules.bill_for, settle): the money comes in then.
 ##
 ## Co-op (up to four): everything done here is an op (`act`) applied at once and sent to
-## everyone (Coop.send_taproom); counts go as changes, the keg as its whole new state.
+## everyone (INSTANCE.coop(self).send_taproom); counts go as changes, the keg as its whole new state.
 ## The host sends the mugs back dirty when they have been drunk, does a hand's work and
 ## keeps the keg and the mugs in the books for the save (actions.biz_tap). A machine
 ## that joins asks the host for the bars as they are.
@@ -276,8 +276,8 @@ func strokes(key: String, visit: String, member: int) -> int:
 ##   pints [delta]
 func act(key: String, op: String, args: Array) -> void:
 	_apply(key, op, args)
-	if Coop.is_active() and Coop.has_method("send_taproom"):
-		Coop.send_taproom(key, op, args)
+	if INSTANCE.coop(self).is_active() and INSTANCE.coop(self).has_method("send_taproom"):
+		INSTANCE.coop(self).send_taproom(key, op, args)
 
 
 func _apply(key: String, op: String, args: Array) -> void:
@@ -316,12 +316,12 @@ func _apply(key: String, op: String, args: Array) -> void:
 	changed.emit(key, op)
 
 
-## From another machine (Coop.send_taproom).
+## From another machine (INSTANCE.coop(self).send_taproom).
 func coop_taproom(key: String, op: String, args: Array) -> void:
 	if op == "hello":
-		if Coop.is_host():
+		if INSTANCE.coop(self).is_host():
 			for k in _sites:
-				Coop.send_taproom(str(k), "snap", [_snapshot(str(k))])
+				INSTANCE.coop(self).send_taproom(str(k), "snap", [_snapshot(str(k))])
 		return
 	_apply(key, op, args)
 
@@ -502,10 +502,10 @@ func _process(delta: float) -> void:
 	if _acc < 1.0:
 		return
 	_acc = 0.0
-	if Coop.is_client() and not _asked_snap and Coop.has_method("send_taproom"):
+	if INSTANCE.coop(self).is_client() and not _asked_snap and INSTANCE.coop(self).has_method("send_taproom"):
 		_asked_snap = true
-		Coop.send_taproom("", "hello", [])
-	if not Coop.sim_here():
+		INSTANCE.coop(self).send_taproom("", "hello", [])
+	if not INSTANCE.coop(self).sim_here():
 		return
 	_host_second()
 

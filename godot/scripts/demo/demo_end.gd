@@ -9,6 +9,7 @@ extends RefCounted
 ## sandbox camp has no story: its nag comes at the PC once the clock has stopped.
 ## Nothing of it is saved: the inbox, the day and the hour say where it stands.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const DEMO = preload("res://scripts/demo/demo.gd")
 const WEEK_LEDGER = preload("res://scripts/week_ledger.gd")
 const VERA := "Teta Vera <vera.kralova@rodina.cz>"
@@ -56,7 +57,7 @@ func tick(delta: float) -> void:
 		_answer_t = 0.0
 		_nag_t = 0.0
 		return
-	if Coop.sim_here() and not main._sandbox:
+	if INSTANCE.coop(main).sim_here() and not main._sandbox:
 		_send_mails(delta)
 	_tick_nag(delta)
 

@@ -185,10 +185,10 @@ func _refusal() -> String:
 	var room := _room()
 	if bool((room["state"] as Dictionary).get("occupied", false)):
 		return "Guests are staying here. Not this bed."
-	for id in Coop.others():
-		var st: Dictionary = Coop.state_of(id)
+	for id in INSTANCE.coop(self).others():
+		var st: Dictionary = INSTANCE.coop(self).state_of(id)
 		if bool(st.get("z", false)) and str((st.get("room", {}) as Dictionary).get("k", "")) == str(room["key"]):
-			return "%s is asleep in it." % Coop.name_of(id)
+			return "%s is asleep in it." % INSTANCE.coop(self).name_of(id)
 	return ""
 
 

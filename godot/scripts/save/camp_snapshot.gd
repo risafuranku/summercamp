@@ -10,6 +10,7 @@ extends RefCounted
 ## mail and the guests. preview_only: the title's look at a camp, not a game going on.
 ## reset_for_new_game(): every system and the state as a camp starts, before a new one.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 var main: Node
 
 
@@ -86,7 +87,7 @@ func build(slot_name: String, kind: String) -> Dictionary:
 		},
 		"mode": "sandbox" if main._sandbox else "campaign",
 		"rules": main._camp_rules.duplicate(),
-		"coop": Coop.is_host(),
+		"coop": INSTANCE.coop(main).is_host(),
 		"crt_desktop": crt_desktop_state,
 		"email_runtime": email_runtime_state,
 		"guest_runtime": guest_runtime_state,
@@ -206,7 +207,7 @@ func apply(snapshot: Dictionary, preview_only: bool) -> bool:
 	# The host's camp's name before the board by the gate is built with it: it was read after,
 	# the board had the name of this machine's own last camp and kept it (the user 7. 11.).
 	var host_meta = snapshot.get("meta", {})
-	if not preview_only and host_meta is Dictionary and Coop.is_client():
+	if not preview_only and host_meta is Dictionary and INSTANCE.coop(main).is_client():
 		main._coop_camp_name = str((host_meta as Dictionary).get("camp_name", ""))
 	if main.world_generator.has_method("generate_base_world"):
 		main.world_generator.generate_base_world(false, false)

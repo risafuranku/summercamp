@@ -327,10 +327,10 @@ func _busy() -> Array:
 		var st = stations[id]
 		if is_instance_valid(st) and bool(st.call("is_open")):
 			out.append(str(id))
-	if Coop.is_active() and not stations.is_empty():
+	if INSTANCE.coop(self).is_active() and not stations.is_empty():
 		var key := str(stations.values()[0].get("building_key"))
-		for pid in Coop.others():
-			var room: Dictionary = Coop.state_of(pid).get("room", {})
+		for pid in INSTANCE.coop(self).others():
+			var room: Dictionary = INSTANCE.coop(self).state_of(pid).get("room", {})
 			if str(room.get("k", "")) == key and str(room.get("t", "")) == "corn":
 				out.append(str(room.get("w", "")))
 	return out

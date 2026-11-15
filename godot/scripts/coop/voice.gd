@@ -107,7 +107,7 @@ func _process(delta: float) -> void:
 	if _may_talk():
 		if _held("megaphone_talk") and _has_megaphone():
 			want = "megaphone"
-		elif _held("radio_talk") and Coop.has_partner():
+		elif _held("radio_talk") and INSTANCE.coop(self).has_partner():
 			want = "radio"
 	if want != _sending:
 		if _sending != "":
@@ -202,8 +202,8 @@ func _send(samples: PackedFloat32Array, last: bool) -> void:
 	bytes.resize(samples.size())
 	for i in samples.size():
 		bytes[i] = _mulaw(samples[i])
-	if Coop.has_partner():
-		Coop.send_voice(flags, bytes)
+	if INSTANCE.coop(self).has_partner():
+		INSTANCE.coop(self).send_voice(flags, bytes)
 
 
 static func _mulaw(x: float) -> int:
@@ -242,7 +242,7 @@ func _my_position() -> Vector3:
 
 # ── hearing ──────────────────────────────────────────────────────────────────
 
-## A packet from another warden (Coop._voice).
+## A packet from another warden (INSTANCE.coop(self)._voice).
 func on_voice(id: int, flags: int, data: PackedByteArray) -> void:
 	var mega := (flags & F_MEGA) != 0
 	var key := "%d:%s" % [id, "megaphone" if mega else "radio"]
@@ -305,10 +305,10 @@ func _update_rx() -> void:
 		var rx: Dictionary = _rx[key]
 		var talking := now - int(rx["last"]) < 400
 		if talking:
-			on_air = "%s %s" % ["MEGAPHONE:" if bool(rx["mega"]) else "RADIO:", Coop.name_of(int(rx["id"])).to_upper()]
+			on_air = "%s %s" % ["MEGAPHONE:" if bool(rx["mega"]) else "RADIO:", INSTANCE.coop(self).name_of(int(rx["id"])).to_upper()]
 		if bool(rx["mega"]):
 			var p3: AudioStreamPlayer3D = rx["player"]
-			var fig: Node3D = Coop.figure_of(int(rx["id"]))
+			var fig: Node3D = INSTANCE.coop(self).figure_of(int(rx["id"]))
 			if fig != null and is_instance_valid(fig) and fig.is_inside_tree():
 				p3.global_position = fig.global_position + Vector3(0, 1.6, 0)
 				if talking:

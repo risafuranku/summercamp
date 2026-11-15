@@ -344,11 +344,11 @@ func interact(structure: Node3D) -> void:
 				return
 			if not gate.is_raised():
 				gate.open_for_player()
-				Coop.send_sync("gate", ["up"])
+				INSTANCE.coop(self).send_sync("gate", ["up"])
 				return
 			var why: String = gate.close_for_player()
 			if why.is_empty():
-				Coop.send_sync("gate", ["down"])
+				INSTANCE.coop(self).send_sync("gate", ["down"])
 			else:
 				_say(why)
 		"trip_timetable":
@@ -534,7 +534,7 @@ func _make_room() -> Node:
 	)
 	r.drank.connect(func(): pockets.drunk += 1.0)
 	r.wants_closeup.connect(_room_closeup)
-	r.candle_lit.connect(func(count: int): Coop.send_place("town", "chapel", "candles", [count]))
+	r.candle_lit.connect(func(count: int): INSTANCE.coop(self).send_place("town", "chapel", "candles", [count]))
 	# (The one left behind in a doorway closes too: not the room you are in any more.)
 	r.closed.connect(func():
 		if r == _room:
@@ -796,8 +796,8 @@ func mate_spot(id: int) -> String:
 func may_enter(n: int) -> bool:
 	if _has_motel_key() and _key_room() == n:
 		return true
-	for id in Coop.others():
-		if str(Coop.state_of(id).get("tr", "")) == "motel_room:%d" % n:
+	for id in INSTANCE.coop(self).others():
+		if str(INSTANCE.coop(self).state_of(id).get("tr", "")) == "motel_room:%d" % n:
 			return true
 	return false
 
@@ -837,7 +837,7 @@ const KEY_SPARE := {
 ## Simek speaking: to you, and for whoever else is at the reception to see.
 func _simek(text: String) -> void:
 	_room.say("Mr Simek", text)
-	Coop.send_place("town", "motel", "say", [text])
+	INSTANCE.coop(self).send_place("town", "motel", "say", [text])
 
 
 ## The key of room `n` shown to Simek: he says what it is and what it costs.
@@ -880,7 +880,7 @@ func rent(n: int) -> bool:
 	if _room != null and _room.has_method("take_key"):
 		_room.take_key(n)
 	_simek(str((KEY_SPARE if spare else KEY_TAKEN).get(n, "")))
-	Coop.send_place("town", "motel", "book", [n])
+	INSTANCE.coop(self).send_place("town", "motel", "book", [n])
 	_update_motel(h)
 	return true
 
@@ -919,7 +919,7 @@ func left_motel_room() -> void:
 			inventory.remove_item("key_motel")
 		motel_room_n = 0
 		_party_room = 0
-		Coop.send_place("town", "motel", "book", [0])
+		INSTANCE.coop(self).send_place("town", "motel", "book", [0])
 	_update_motel(hour())
 
 
@@ -940,8 +940,8 @@ func _update_motel(h: float) -> void:
 		var v = _room.get("_view")
 		if v != null and v.lit():
 			awake[int(_room.motel_n)] = true
-	for id in Coop.others():
-		var st: Dictionary = Coop.state_of(id)
+	for id in INSTANCE.coop(self).others():
+		var st: Dictionary = INSTANCE.coop(self).state_of(id)
 		var tr := str(st.get("tr", ""))
 		if tr.begins_with("motel_room:") and not bool(st.get("z", false)):
 			awake[int(tr.substr(11))] = true
@@ -1126,8 +1126,8 @@ func _process(delta: float) -> void:
 	# Co-op: the other wardens in the same place in Lesna stand there with you.
 	if _room != null and _room.is_open():
 		var here: Array = []
-		for id in Coop.others():
-			if str(Coop.state_of(id).get("tr", "")) == coop_place():
+		for id in INSTANCE.coop(self).others():
+			if str(INSTANCE.coop(self).state_of(id).get("tr", "")) == coop_place():
 				here.append(int(id))
 		_room.coop_mates(here)
 	var road := _road()
@@ -1281,10 +1281,10 @@ func _in_four() -> bool:
 ## anything (motel_night.gd), then the night stops for everybody and the room plays it.
 ## In co-op only with every warden asleep in four (getting up stops the night for all).
 func _motel_night(office, delta: float) -> void:
-	if Coop.is_client():
+	if INSTANCE.coop(self).is_client():
 		return
-	for id in Coop.others():
-		if str(Coop.state_of(id).get("tr", "")) != coop_place():
+	for id in INSTANCE.coop(self).others():
+		if str(INSTANCE.coop(self).state_of(id).get("tr", "")) != coop_place():
 			return
 	var h := hour()
 	var night := _night_index(h)
@@ -1325,7 +1325,7 @@ func _motel_night(office, delta: float) -> void:
 	if kind == "bell":
 		_bell3_night = night
 		_ring_bell_now()
-	Coop.send_place("town", "motel", "wake", [kind])
+	INSTANCE.coop(self).send_place("town", "motel", "wake", [kind])
 	office.cancel_sleep()
 	# The eyes were shut (however briefly): they open on it.
 	_sleep_fade = 1.0
@@ -1354,7 +1354,7 @@ func debug_motel_wake(kind: String) -> void:
 	_wake_kind = kind
 	if kind == "bell":
 		_ring_bell_now()
-	Coop.send_place("town", "motel", "wake", [kind])
+	INSTANCE.coop(self).send_place("town", "motel", "wake", [kind])
 	var office = _main().get("camp_office") if _main() != null else null
 	if office != null and office.has_method("cancel_sleep"):
 		office.cancel_sleep()
@@ -1374,7 +1374,7 @@ func _ring_bell_now() -> void:
 	_bell.play()
 
 
-## The other wardens' doings in Liblice's places (Coop.send_place "town", through
+## The other wardens' doings in Liblice's places (INSTANCE.coop(self).send_place "town", through
 ## town_places.gd): the chapel's candles burning.
 func coop_town_place(key: String, op: String, data: Array) -> void:
 	if key == "motel" and op == "book" and not data.is_empty():
@@ -1396,7 +1396,7 @@ func coop_town_place(key: String, op: String, data: Array) -> void:
 			_room.set("_npc_nod", 0.5)
 		return
 	if key == "motel" and op == "walk" and not data.is_empty():
-		var who := int(Coop.get("sender"))
+		var who := int(INSTANCE.coop(self).get("sender"))
 		_mate_spots[who] = str(data[0])
 		if _room != null and _room.is_open():
 			var here = _room.get("_view")
@@ -1459,7 +1459,7 @@ func _update_sleep(delta: float) -> void:
 	if _sleeping:
 		# In co-op whoever lies down first lies there with the room (the TV, the lamp)
 		# till the other is in bed too; the black comes when the night does.
-		var dark: bool = not Coop.has_partner() or office == null or office.night_begun()
+		var dark: bool = not INSTANCE.coop(self).has_partner() or office == null or office.night_begun()
 		if dark:
 			_sleep_fade = minf(1.0, _sleep_fade + delta * 1.5)
 			# Eyes shut: the room's windows need not draw the village.
@@ -1710,8 +1710,8 @@ func _board_text(s: float, stand: String) -> String:
 
 ## Anybody (another warden) on that round's bus.
 func _anyone_on(key: String) -> bool:
-	for id in Coop.others():
-		var b = Coop.state_of(id).get("bus", {})
+	for id in INSTANCE.coop(self).others():
+		var b = INSTANCE.coop(self).state_of(id).get("bus", {})
 		if b is Dictionary and str((b as Dictionary).get("rk", "")) == key:
 			return true
 	return false
@@ -1729,9 +1729,9 @@ func _line_keep(entries: Array, at: float) -> void:
 	if me != null:
 		var mine: Dictionary = _ride.coop_state() if _ride != null and _ride.is_open() else {}
 		wardens.append({"id": 0, "p": me.global_position, "in": _ride != null and _ride.is_open(), "bus": mine})
-	if not Coop.is_client():
-		for id in Coop.others():
-			var st: Dictionary = Coop.state_of(id)
+	if not INSTANCE.coop(self).is_client():
+		for id in INSTANCE.coop(self).others():
+			var st: Dictionary = INSTANCE.coop(self).state_of(id)
 			var b = st.get("bus", {})
 			wardens.append({"id": int(id), "p": st.get("p", Vector3.INF), "in": bool(st.get("in", false)), "bus": b if b is Dictionary else {}})
 	for e in entries:
@@ -1792,7 +1792,7 @@ func line_ask(pole: String, who: String) -> String:
 
 ## Co-op: the host's rounds (what they wait and pull in for), for the other machine.
 func coop_line() -> Dictionary:
-	if not Coop.has_partner() or Coop.is_client():
+	if not INSTANCE.coop(self).has_partner() or INSTANCE.coop(self).is_client():
 		return {}
 	return line.live
 
@@ -1800,10 +1800,10 @@ func coop_line() -> Dictionary:
 ## The other machine: the host's rounds, with what this one asked for itself and the
 ## host has not taken in yet (it only ever adds: longer waits, more stops).
 func _take_host_line() -> void:
-	if not Coop.is_client():
+	if not INSTANCE.coop(self).is_client():
 		return
-	for id in Coop.others():
-		var ln = Coop.state_of(id).get("ln", null)
+	for id in INSTANCE.coop(self).others():
+		var ln = INSTANCE.coop(self).state_of(id).get("ln", null)
 		if not (ln is Dictionary):
 			continue
 		var merged: Dictionary = (ln as Dictionary).duplicate(true)
@@ -1827,8 +1827,8 @@ func _take_host_line() -> void:
 ## by the driver while they get their ticket) behind the windows.
 func _update_rider_figs() -> void:
 	var want := {}
-	for id in Coop.others():
-		var b = Coop.state_of(id).get("bus", {})
+	for id in INSTANCE.coop(self).others():
+		var b = INSTANCE.coop(self).state_of(id).get("bus", {})
 		if not (b is Dictionary) or str((b as Dictionary).get("rk", "")) == "":
 			continue
 		var key := str(b["rk"])
@@ -1860,7 +1860,7 @@ func _update_rider_figs() -> void:
 			bus.add_child(fig)
 		var seat := int(b.get("s", -1))
 		var pose := "sit" if seat >= 0 and seat < BUS_RIDE.SEATS.size() else "stand"
-		var look: Dictionary = Coop.look_of(id)
+		var look: Dictionary = INSTANCE.coop(self).look_of(id)
 		var pk := "%s|%d|%d" % [pose, int(look.get("m", 1)), int(look.get("c", 0))]
 		if pk != str(_rider_poses.get(id, "")):
 			_rider_poses[id] = pk
@@ -2014,7 +2014,7 @@ func _on_ride_arrived() -> void:
 		else:
 			spot = _town.arrive_spot()
 	# Co-op: the other warden steps down a pace further along.
-	if Coop.is_client():
+	if INSTANCE.coop(self).is_client():
 		spot.origin += spot.basis.x * 0.9
 	_put_player(spot)
 	if _im != null and _im.has_method("_door_transition"):
@@ -2265,8 +2265,8 @@ func import_state(d: Dictionary) -> void:
 		return
 	var inv = d.get("inventory", null)
 	if inv is Dictionary:
-		inventory.import_state(inv, Coop.is_client())
-	elif not Coop.is_client():
+		inventory.import_state(inv, INSTANCE.coop(self).is_client())
+	elif not INSTANCE.coop(self).is_client():
 		# From before the bag: the counts of cigarettes and bottles, into it.
 		inventory.import_state({}, false)
 		var cigs := int(d.get("cigarettes", 0))

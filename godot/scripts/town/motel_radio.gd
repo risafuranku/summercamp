@@ -10,6 +10,7 @@ extends RefCounted
 ## Co-op: whoever is in the room hears one programme: the switch and the piece go in the
 ## room's state (motel_view.gd), the host says what comes next.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const DIR := "res://assets/sfx/radio/"
 const SFX := "res://assets/sfx/"
 const SONGS := ["autobusnula_song", "cervenydest_song", "chladnicka_song", "jahody_song", "lekar_song",
@@ -78,7 +79,7 @@ func set_on(v: bool, by_itself := false) -> void:
 			view._play(str(voice["on"]), -9.0)
 		_warm = float(voice["warm"])
 		_under_on()
-		if not Coop.is_client():
+		if not INSTANCE.coop(room).is_client():
 			_next()
 		return
 	view._play("radio/radio_off.wav", -10.0)
@@ -114,7 +115,7 @@ func tick(delta: float) -> void:
 		_p.volume_db = lerpf(-46.0, db, k * k)
 	else:
 		_p.volume_db = db
-	if not _p.playing and not Coop.is_client():
+	if not _p.playing and not INSTANCE.coop(room).is_client():
 		_next()
 
 

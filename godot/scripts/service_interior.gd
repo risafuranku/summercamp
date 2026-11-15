@@ -2765,8 +2765,8 @@ func _side_done(entry: Dictionary) -> void:
 		if not all:
 			continue
 		sides.append(side)
-		if Coop.is_client():
-			Coop.send_request("service_side", [_upkeep_coord, side])
+		if INSTANCE.coop(self).is_client():
+			INSTANCE.coop(self).send_request("service_side", [_upkeep_coord, side])
 		else:
 			CoreRoot.actions.service_side(_upkeep_coord, side)
 	entry["sides_done"] = sides
@@ -2782,8 +2782,8 @@ func _finish_upkeep() -> void:
 	var broken := bool(entry.get("broken", false))
 	var cost := UPKEEP_RULES.repair_cost(def) if broken else UPKEEP_RULES.service_cost(def, float(cell.get("maintenance", 1.0)))
 	# Co-op: serviced in the host's camp (it comes back as a fact, _on_block_serviced).
-	if Coop.is_client():
-		Coop.send_request("service", [_upkeep_coord, cost])
+	if INSTANCE.coop(self).is_client():
+		INSTANCE.coop(self).send_request("service", [_upkeep_coord, cost])
 		if _upkeep_prep != null:
 			_upkeep_prep.play_room_ready()
 		return
@@ -3613,19 +3613,19 @@ func _patience_map() -> Dictionary:
 ## The other wardens at this bistro's stations: station -> their name.
 func _bistro_taken() -> Dictionary:
 	var out := {}
-	if not Coop.is_active():
+	if not INSTANCE.coop(self).is_active():
 		return out
 	var im := get_parent()
 	var mine: Dictionary = im.coop_room() if im != null and im.has_method("coop_room") else {}
 	if mine.is_empty():
 		return out
-	for id in Coop.others():
-		var r: Dictionary = Coop.state_of(id).get("room", {})
+	for id in INSTANCE.coop(self).others():
+		var r: Dictionary = INSTANCE.coop(self).state_of(id).get("room", {})
 		if str(r.get("k", "")) != str(mine.get("k", "")) or str(r.get("t", "")) != str(mine.get("t", "")):
 			continue
 		var w := str(r.get("w", ""))
 		if _station_layout().STATIONS.has(w):
-			out[w] = Coop.name_of(id)
+			out[w] = INSTANCE.coop(self).name_of(id)
 	return out
 
 
@@ -4314,12 +4314,12 @@ func _staff_laptop_live() -> bool:
 
 func _staff_open_laptop() -> void:
 	# Co-op: one at the PC at a time, here or at the office (the others look on).
-	for id in Coop.others():
-		var theirs: Dictionary = Coop.state_of(id).get("room", {})
+	for id in INSTANCE.coop(self).others():
+		var theirs: Dictionary = INSTANCE.coop(self).state_of(id).get("room", {})
 		if str(theirs.get("w", "")) in ["pc", "laptop"]:
 			var hud = INSTANCE.main_of(self).get("_hud_manager") if INSTANCE.main_of(self) != null else null
 			if hud != null:
-				hud.push_status(tr("%s is on the PC. You look over their shoulder.") % Coop.name_of(id), 1)
+				hud.push_status(tr("%s is on the PC. You look over their shoulder.") % INSTANCE.coop(self).name_of(id), 1)
 			return
 	_ensure_laptop_view()
 	_hot_glint.clear()

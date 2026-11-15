@@ -420,8 +420,8 @@ func _update_work(delta: float, can_act: bool) -> void:
 		_reset_work()
 		_denied_key = key
 		# Co-op: mended in the host's camp (it comes back as a fact).
-		if Coop.is_client():
-			Coop.send_request("service", [target["coord"], int(target["cost"])])
+		if INSTANCE.coop(self).is_client():
+			INSTANCE.coop(self).send_request("service", [target["coord"], int(target["cost"])])
 		else:
 			CoreRoot.actions.service_building(target["coord"], int(target["cost"]))
 

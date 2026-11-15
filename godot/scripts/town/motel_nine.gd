@@ -12,6 +12,7 @@ extends RefCounted
 ##   the photograph a wedding, one of them scratched out;
 ##   by itself    (what wakes you as the set does in four) the tape runs.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const PLAN = preload("res://scripts/town/motel_plan.gd")
 const FURN = preload("res://scripts/town/motel_furnish.gd")
 const ROOMS = preload("res://scripts/town/motel_rooms.gd")
@@ -220,7 +221,7 @@ func _tape_stop() -> void:
 func _make_me() -> void:
 	if _me != null:
 		return
-	var look: Dictionary = Coop.my_look() if Coop.has_method("my_look") else {}
+	var look: Dictionary = INSTANCE.coop(room).my_look() if INSTANCE.coop(room).has_method("my_look") else {}
 	var tex: Texture2D = LOOKS.texture(int(look.get("m", 1)), int(look.get("c", 0)), "stand")
 	if tex == null:
 		return

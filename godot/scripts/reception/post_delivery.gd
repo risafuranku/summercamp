@@ -16,7 +16,7 @@ extends Node
 ##              slip (post_closeup.gd); at closing time he gives up for the day: "missed"
 ##   missed     he walks back out, drives off, comes again the next morning (ordered)
 ##   delivered  signed for: the second monitor is on the desk; he walks out, drives off
-## Only the machine that runs the camp (Coop.sim_here) moves the stages on by the clock;
+## Only the machine that runs the camp (INSTANCE.coop(self).sim_here) moves the stages on by the clock;
 ## the van and the man are drawn on every machine from the stage and the game minute it
 ## began (`t0`), so both see them in the same place without messages of their own.
 
@@ -188,7 +188,7 @@ func _process(delta: float) -> void:
 		var d := state()
 		_stage = str(d.get("stage", ""))
 		_t0 = float(d.get("t0", 0.0))
-		if Coop.sim_here():
+		if INSTANCE.coop(self).sim_here():
 			_run_clock(d)
 			d = state()
 			_stage = str(d.get("stage", ""))

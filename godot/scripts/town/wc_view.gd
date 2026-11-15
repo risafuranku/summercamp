@@ -16,6 +16,7 @@ extends RefCounted
 ## the kiosk's east end behind its door (IN_KIOSK; the camp's one world, town_room), as deep as
 ## the room the shop leaves there (1.75 m since 11. 11.: it was 2.7, through the shop's wall).
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const K = preload("res://scripts/interior_kit.gd")
 const SFX := "res://assets/sfx/"
 const CAMP := "res://assets/textury/camp/"
@@ -576,7 +577,7 @@ func _low() -> float:
 	if night == null or not is_instance_valid(night) or not (night.get("sanity") is Dictionary):
 		return 0.0
 	var s: Dictionary = night.get("sanity")
-	return clampf((100.0 - float(s.get("own" if Coop.is_client() else "host", 100.0))) / 100.0, 0.0, 1.0)
+	return clampf((100.0 - float(s.get("own" if INSTANCE.coop(room).is_client() else "host", 100.0))) / 100.0, 0.0, 1.0)
 
 
 ## Somebody outside tries the handle: the door shifts in its frame, nobody says anything.

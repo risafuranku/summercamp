@@ -26,6 +26,7 @@ extends Node
 ## does and its oars stroke as yours: coop_state "boat" and "rp"); they climb into the bow
 ## and ride with you face to face, go ashore with you and come back with you.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
 const PROMPT = preload("res://scripts/input/prompt.gd")
 const HOVER_GLINT = preload("res://scripts/ui/hover_glint.gd")
@@ -172,7 +173,7 @@ func hint() -> String:
 	if _state == NONE and _near_boat() and not _coop_boat_away:
 		return "[E] Take the boat across"
 	if _state == NONE and _can_join():
-		return "[E] Get in with %s" % Coop.name_of(_rower_id)
+		return "[E] Get in with %s" % INSTANCE.coop(self).name_of(_rower_id)
 	return ""
 
 
@@ -804,7 +805,7 @@ func _input(event: InputEvent) -> void:
 		match _hover:
 			"boat":
 				if _passenger:
-					_say("%s has the oars: wait for them." % Coop.name_of(_rower_id))
+					_say("%s has the oars: wait for them." % INSTANCE.coop(self).name_of(_rower_id))
 				else:
 					_start_rowing("camp")
 			"hut":
@@ -924,9 +925,9 @@ func _land() -> void:
 	else:
 		_catch = {"tex": "res://assets/textury/pipes/red_shoe.png", "text": "A red shoe, a lady's, full of mud. Like the one in the pipes. The left one.", "money": 0}
 	var money := int(_catch.get("money", 0))
-	if money > 0 and Coop.is_client():
+	if money > 0 and INSTANCE.coop(self).is_client():
 		# Co-op: the till is the host's.
-		Coop.send_request("money", [money])
+		INSTANCE.coop(self).send_request("money", [money])
 		_caught_today += 1
 	elif money > 0 and CoreRoot != null and CoreRoot.actions != null:
 		CoreRoot.actions.add_money(money)
@@ -1247,11 +1248,11 @@ var _remote_rp_at := 0.0
 
 ## The other warden is in the boat and it is still by the camp jetty, you beside it.
 func _can_join() -> bool:
-	if not _coop_boat_away or not _partner_rowing or not Coop.is_active():
+	if not _coop_boat_away or not _partner_rowing or not INSTANCE.coop(self).is_active():
 		return false
 	# One oarsman, one in the bow: the boat holds two.
-	for id in Coop.others():
-		if Coop.state_of(id).has("ride"):
+	for id in INSTANCE.coop(self).others():
+		if INSTANCE.coop(self).state_of(id).has("ride"):
 			return false
 	var lake = _lake_node()
 	var p := _player()
@@ -1287,7 +1288,7 @@ func _start_passenger() -> void:
 	rig.kick(0.12 if _rng.randf() < 0.5 else -0.12, -0.05, -0.18)
 	rig.play_sound("step_in.mp3" if ResourceLoader.exists(SFX + "step_in.mp3") else "bump.mp3", -2.0)
 	if from_shore:
-		_say("You climb into the bow. %s rows." % Coop.name_of(_rower_id))
+		_say("You climb into the bow. %s rows." % INSTANCE.coop(self).name_of(_rower_id))
 	_move_cam(_bow_view(), BOARD_SEC, Callable())
 
 

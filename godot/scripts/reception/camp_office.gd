@@ -14,6 +14,7 @@ extends Node
 ##   - the shed key from the noticeboard (the generator shed's back room).
 ## Saved with the game (export_state / import_state).
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const ELECTRICIAN_VISIT = preload("res://scripts/reception/electrician_visit.gd")
 const LANG = preload("res://scripts/lang.gd")
 const BOOK = preload("res://scripts/closeup/phone_book.gd")
@@ -118,8 +119,8 @@ func sleep_refusal() -> String:
 ## at the bed it felt like a wall; lying there it is the night's own).
 func _kept_awake() -> bool:
 	# (The night's things are the host's: on the other machines its clock says.)
-	if Coop.is_client():
-		return bool(Coop.last_clock.get("ka", false))
+	if INSTANCE.coop(self).is_client():
+		return bool(INSTANCE.coop(self).last_clock.get("ka", false))
 	return kept_awake_here()
 
 
@@ -145,7 +146,7 @@ func lie_down() -> void:
 	_in_bed = true
 	_night_started = false
 	_eyes_shut = false
-	_nights_at_bed = int(Coop.last_clock.get("sln", 0))
+	_nights_at_bed = int(INSTANCE.coop(self).last_clock.get("sln", 0))
 
 
 func in_bed() -> bool:
@@ -164,7 +165,7 @@ func cancel_sleep() -> void:
 func may_sleep() -> bool:
 	if _kept_awake():
 		return false
-	return not Coop.has_partner() or _partner_in_bed()
+	return not INSTANCE.coop(self).has_partner() or _partner_in_bed()
 
 
 func start_sleep() -> void:
@@ -173,7 +174,7 @@ func start_sleep() -> void:
 	_eyes_shut = true
 	# Co-op: the host's machine passes the night once all are asleep (_coop_bed); the
 	# other machines wait for the host's clock to do it.
-	if Coop.has_partner():
+	if INSTANCE.coop(self).has_partner():
 		return
 	_pass_night()
 
@@ -192,7 +193,7 @@ func _pass_night() -> void:
 	var h := _hour()
 	_sleep_left = (WAKE_HOUR - h) if h < WAKE_HOUR else (24.0 - h + WAKE_HOUR)
 	_sleep_left = maxf(0.0, _sleep_left)
-	_sleep_rate = minf(SLEEP_RATE, _sleep_left / NIGHT_MIN_SEC) if Coop.has_partner() else SLEEP_RATE
+	_sleep_rate = minf(SLEEP_RATE, _sleep_left / NIGHT_MIN_SEC) if INSTANCE.coop(self).has_partner() else SLEEP_RATE
 
 
 ## The night is passing on this machine (the host's clock tells the other one).
@@ -205,7 +206,7 @@ func is_sleeping_through() -> bool:
 		return _sleep_left > 0.0
 	# Not the host: asleep till its clock has passed the night (_coop_bed gets you up
 	# then); woken as soon as it began, you lay with the alarm while it still ran.
-	if Coop.is_client():
+	if INSTANCE.coop(self).is_client():
 		return true
 	return _sleep_left > 0.0 or not _night_started
 
@@ -217,16 +218,16 @@ func night_begun() -> bool:
 
 ## Every other warden lying down (wherever their bed is).
 func _partner_in_bed() -> bool:
-	for id in Coop.others():
-		if not bool(Coop.state_of(id).get("z", false)):
+	for id in INSTANCE.coop(self).others():
+		if not bool(INSTANCE.coop(self).state_of(id).get("z", false)):
 			return false
 	return true
 
 
 ## Every other warden asleep, eyes shut.
 func _partner_asleep() -> bool:
-	for id in Coop.others():
-		if not bool(Coop.state_of(id).get("zs", false)):
+	for id in INSTANCE.coop(self).others():
+		if not bool(INSTANCE.coop(self).state_of(id).get("zs", false)):
 			return false
 	return true
 
@@ -234,11 +235,11 @@ func _partner_asleep() -> bool:
 ## Co-op, each frame: the host starts the night once all lie down and stops it if any
 ## of them gets up; the other machines follow the host's clock to the morning.
 func _coop_bed() -> void:
-	if not _in_bed or not Coop.has_partner():
+	if not _in_bed or not INSTANCE.coop(self).has_partner():
 		return
-	if Coop.is_client():
-		var host_passing := bool(Coop.last_clock.get("sl", false))
-		var night_gone := int(Coop.last_clock.get("sln", 0)) != _nights_at_bed
+	if INSTANCE.coop(self).is_client():
+		var host_passing := bool(INSTANCE.coop(self).last_clock.get("sl", false))
+		var night_gone := int(INSTANCE.coop(self).last_clock.get("sln", 0)) != _nights_at_bed
 		if host_passing or night_gone:
 			_night_started = true
 		if not host_passing and _night_started:
@@ -262,19 +263,19 @@ var _beds_t := 0.0
 
 
 func _coop_beds_line(delta: float) -> void:
-	if not Coop.has_partner():
+	if not INSTANCE.coop(self).has_partner():
 		_beds_line = ""
 		return
 	var names: Array = []
 	if _in_bed:
-		names.append(str(Coop.my_look().get("n", "")))
-	for id in Coop.others():
-		if bool(Coop.state_of(id).get("z", false)):
-			names.append(Coop.name_of(id))
+		names.append(str(INSTANCE.coop(self).my_look().get("n", "")))
+	for id in INSTANCE.coop(self).others():
+		if bool(INSTANCE.coop(self).state_of(id).get("z", false)):
+			names.append(INSTANCE.coop(self).name_of(id))
 	if names.is_empty():
 		_beds_line = ""
 		return
-	var line := LANG.f("Asleep: %s (%d/%d)", [", ".join(names.filter(func(n): return str(n) != "")), names.size(), 1 + Coop.others().size()])
+	var line := LANG.f("Asleep: %s (%d/%d)", [", ".join(names.filter(func(n): return str(n) != "")), names.size(), 1 + INSTANCE.coop(self).others().size()])
 	_beds_t -= delta
 	if line == _beds_line and _beds_t > 0.0:
 		return
@@ -287,7 +288,7 @@ func _coop_beds_line(delta: float) -> void:
 
 ## Co-op: up again before the night was through (a key in the dark): it stops for all.
 func get_up() -> void:
-	if not Coop.has_partner():
+	if not INSTANCE.coop(self).has_partner():
 		return
 	_in_bed = false
 	_eyes_shut = false
@@ -345,8 +346,8 @@ func phone_context() -> Dictionary:
 
 func on_phone_effect(effect: String, _number: String) -> void:
 	# Co-op: whoever you ring comes to the host's camp.
-	if Coop.is_client():
-		Coop.send_request("phone", [effect, _number])
+	if INSTANCE.coop(self).is_client():
+		INSTANCE.coop(self).send_request("phone", [effect, _number])
 		return
 	if effect == "electrician" and (electrician == null or not is_instance_valid(electrician)):
 		var night := BOOK.is_night(_hour())
@@ -366,15 +367,15 @@ func shed_key_out() -> bool:
 
 
 func take_shed_key() -> void:
-	if Coop.is_client():
-		Coop.send_request("shed_key", [])
+	if INSTANCE.coop(self).is_client():
+		INSTANCE.coop(self).send_request("shed_key", [])
 	has_shed_key = true
 
 
 ## Hung back on the board (out of a bag: scripts/ui/inventory.gd).
 func return_shed_key() -> void:
-	if Coop.is_client():
-		Coop.send_inv("key_back", [])
+	if INSTANCE.coop(self).is_client():
+		INSTANCE.coop(self).send_inv("key_back", [])
 	has_shed_key = false
 
 

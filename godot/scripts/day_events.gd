@@ -29,6 +29,7 @@ extends Node
 ## football, the guitar at the fire, the pub through its door) and far-off one-shots
 ## (an axe, a dog, a moped on the road) so the camp is never silent by day.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal changed
 
 const INTERIOR_PREP = preload("res://scripts/interior_prep.gd")
@@ -699,7 +700,7 @@ func _start_line(ev: Dictionary) -> String:
 	return line
 
 
-## The host: the other warden sorted out event `id` (Coop.send_request "day_event").
+## The host: the other warden sorted out event `id` (INSTANCE.coop(self).send_request "day_event").
 func coop_resolve(id: int) -> void:
 	var ev := _event_by_id(id)
 	if not ev.is_empty() and str(ev["state"]) == "open":
@@ -709,7 +710,7 @@ func coop_resolve(id: int) -> void:
 func _resolve(ev: Dictionary, by := "") -> void:
 	if coop_follow:
 		# Done in the host's camp (what it pays and how the guests take it); here, how it went.
-		Coop.send_request("day_event", [int(ev["id"])])
+		INSTANCE.coop(self).send_request("day_event", [int(ev["id"])])
 		_close(ev, "done", str(COOP_DONE_LINES.get(str(ev["kind"]), "")))
 		return
 	var rules: Dictionary = RULES[str(ev["kind"])]

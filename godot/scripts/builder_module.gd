@@ -1872,8 +1872,8 @@ func _on_build_for_nag(_type: String, _pos: Vector2i, _rot: int) -> void:
 
 
 func _mail_tomorrow(kind: String, extra: String) -> void:
-	if Coop.is_client():
-		Coop.send_request("builder98_mail", [kind, extra])
+	if INSTANCE.coop(self).is_client():
+		INSTANCE.coop(self).send_request("builder98_mail", [kind, extra])
 	elif EmailManager != null and EmailManager.has_method("schedule_pool_mail"):
 		EmailManager.schedule_pool_mail(load("res://scripts/builder/shareware.gd").mail_for(kind, extra, CoreRoot.get_day()))
 

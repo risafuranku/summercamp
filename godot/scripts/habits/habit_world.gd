@@ -434,14 +434,14 @@ func _unhandled_input(event: InputEvent) -> void:
 # ── co-op ────────────────────────────────────────────────────────────────────
 
 func send(kind: String, data: Array) -> void:
-	if Coop.has_method("send_habit"):
-		Coop.send_habit(kind, data)
+	if INSTANCE.coop(self).has_method("send_habit"):
+		INSTANCE.coop(self).send_habit(kind, data)
 
 
-## Something the other warden did with their hands (Coop._habit).
+## Something the other warden did with their hands (INSTANCE.coop(self)._habit).
 func coop_habit(kind: String, data: Array) -> void:
-	# Whose hands (Coop.sender: the warden it came from).
-	var fig := _figure_of(Coop.sender)
+	# Whose hands (INSTANCE.coop(self).sender: the warden it came from).
+	var fig := _figure_of(INSTANCE.coop(self).sender)
 	match kind:
 		"strike":
 			if fig != null:
@@ -491,9 +491,9 @@ func coop_habit(kind: String, data: Array) -> void:
 				_sound(fig, "pack.mp3", -5.0)
 			if pockets != null and pockets.bag != null:
 				if pockets.bag.has_method("add_item") and pockets.bag.add_item("cigs", 1):
-					pockets._say("%s offers you a Start. C to smoke it." % Coop.partner_name())
+					pockets._say("%s offers you a Start. C to smoke it." % INSTANCE.coop(self).partner_name())
 				else:
-					pockets._say("%s offers you a Start, but your bag is full." % Coop.partner_name())
+					pockets._say("%s offers you a Start, but your bag is full." % INSTANCE.coop(self).partner_name())
 		"give_bottle":
 			# A bottle from their hand into yours (or at your feet, your hand full).
 			if pockets != null:
@@ -503,7 +503,7 @@ func coop_habit(kind: String, data: Array) -> void:
 						set_bottle_down(2.0)
 				elif not pockets.take_bottle(lv, true):
 					set_bottle_down(lv)
-				pockets._say("%s hands you a bottle." % Coop.partner_name())
+				pockets._say("%s hands you a bottle." % INSTANCE.coop(self).partner_name())
 		"light_you":
 			# They held their flame or their cigarette to yours (to whom: data[0]).
 			if not data.is_empty() and int(data[0]) != multiplayer.get_unique_id():
@@ -513,7 +513,7 @@ func coop_habit(kind: String, data: Array) -> void:
 				pockets.cig.events.append(["lit", 0])
 				pockets.cig.state = pockets.CIG.EXHALE
 				pockets.cig.t = 0.0
-				pockets._say("A light from %s." % Coop.sender_name())
+				pockets._say("A light from %s." % INSTANCE.coop(self).sender_name())
 		"butt", "bottle":
 			var root := INSTANCE.main_of(self).get("_world_3d") as Node3D if INSTANCE.main_of(self) != null else null
 			if root == null:
@@ -530,12 +530,12 @@ var _partner_id := 0
 
 func _partner_figure() -> Node3D:
 	var cam := get_viewport().get_camera_3d() if get_viewport() != null else null
-	_partner_id = Coop.nearest_other(cam.global_position, 6.0) if cam != null else Coop.remote_id
+	_partner_id = INSTANCE.coop(self).nearest_other(cam.global_position, 6.0) if cam != null else INSTANCE.coop(self).remote_id
 	return _figure_of(_partner_id)
 
 
 func _figure_of(id: int) -> Node3D:
-	var f: Node3D = Coop.figure_of(id)
+	var f: Node3D = INSTANCE.coop(self).figure_of(id)
 	return f if f != null and f.visible else null
 
 
@@ -554,7 +554,7 @@ func _partner_mouth(fig: Node3D) -> Vector3:
 ## Their hands as the state says ("hb": c, l, b): the ember at their mouth, the flame.
 func _partner(_delta: float) -> void:
 	var fig := _partner_figure()
-	var hb: Dictionary = Coop.state_of(_partner_id).get("hb", {}) if Coop.is_active() else {}
+	var hb: Dictionary = INSTANCE.coop(self).state_of(_partner_id).get("hb", {}) if INSTANCE.coop(self).is_active() else {}
 	if fig == null or hb.is_empty():
 		if _partner_fx != null and is_instance_valid(_partner_fx):
 			_partner_fx.visible = false
@@ -689,7 +689,7 @@ func _offer_light(fig: Node3D, hb: Dictionary) -> void:
 	if mine == 2 or Input.is_action_pressed("smoke"):
 		_light_cd = 3.0
 		send("light_you", [_partner_id])
-		pockets._say("You give %s a light." % Coop.name_of(_partner_id))
+		pockets._say("You give %s a light." % INSTANCE.coop(self).name_of(_partner_id))
 
 
 ## Both with an open bottle up, face to face: the bottles knock.

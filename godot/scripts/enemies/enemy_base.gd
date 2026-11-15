@@ -259,7 +259,7 @@ func _hurt(amount: int) -> void:
 func _player_health() -> int:
 	var peer := _quarry_peer()
 	if peer != 0:
-		return int(Coop.state_of(peer).get("hp", 100))
+		return int(INSTANCE.coop(_world_root).state_of(peer).get("hp", 100))
 	var scene := INSTANCE.main_of(_world_root) if _world_root != null and _world_root.is_inside_tree() else null
 	var h = scene.get("_player_health") if scene != null else null
 	return int(h) if h != null else 100
@@ -305,7 +305,7 @@ func _quarry_indoors() -> bool:
 	var night: bool = scene.has_method("_is_enemy_night_active") and bool(scene.call("_is_enemy_night_active"))
 	var peer := _quarry_peer()
 	if peer != 0:
-		return night and bool(Coop.state_of(peer).get("in", false))
+		return night and bool(INSTANCE.coop(_world_root).state_of(peer).get("in", false))
 	# A room of the camp: what the camp's night does at its windows stays at the camp, not in the
 	# motel, the pub, the bus and the pipes (they had the shutter every ten seconds out in Liblice).
 	var inside: bool = scene.has_method("in_camp_room") and bool(scene.call("in_camp_room"))
@@ -583,7 +583,7 @@ func _room_windows() -> Array:
 		var im = _im()
 		return im.photo_windows() if im != null and im.has_method("photo_windows") else []
 	var out: Array = []
-	for w in Coop.state_of(peer).get("pw", []):
+	for w in INSTANCE.coop(_world_root).state_of(peer).get("pw", []):
 		var o := {"pos": w[0], "out": w[1], "open": float(w[2]), "facing": float(w[3]), "far": true}
 		# Where that window's camera looks out from (older machines do not send it).
 		if (w as Array).size() > 4 and w[4] != w[0]:

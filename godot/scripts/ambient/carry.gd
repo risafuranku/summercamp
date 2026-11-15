@@ -15,7 +15,7 @@ extends Node3D
 ##   - what is in your hand is not in the bag (inventory.gd: the bag is for pockets).
 ## At night a thrown thing is a noise where it lands: `heard(pos, loudness)` goes to the
 ## group "night_ears" (no enemy listens yet: the hook for the night's code).
-## Co-op: picked up, set down and thrown on every machine (Coop.send_body "carry"); what
+## Co-op: picked up, set down and thrown on every machine (INSTANCE.coop(self).send_body "carry"); what
 ## the other wardens carry is drawn at their figure's hand.
 
 const INSTANCE = preload("res://scripts/instance/instance.gd")
@@ -417,7 +417,7 @@ func _can_act_visual() -> bool:
 # ── co-op ─────────────────────────────────────────────────────────────────────
 
 func _send(op: String, data: Array) -> void:
-	Coop.send_body("carry", [op] + data)
+	INSTANCE.coop(self).send_body("carry", [op] + data)
 
 
 ## Another warden took, set down, threw or binned one of the small things.

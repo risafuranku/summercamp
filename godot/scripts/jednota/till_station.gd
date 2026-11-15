@@ -17,6 +17,7 @@ extends "res://scripts/jednota/jednota_station.gd"
 
 ## Design pixels on the counter (640 x 360 over st_till).
 ## The basket's goods lie in it (the basket is in the picture), a little askew.
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const ITEM_SPOTS := [Vector2(74, 62), Vector2(120, 70), Vector2(76, 132), Vector2(122, 140), Vector2(72, 205), Vector2(120, 212)]
 const ITEM_TURN := [-14.0, 18.0, 8.0, -20.0, 22.0, -6.0]
 const SCALE_AT := Vector2(207, 104)
@@ -469,7 +470,7 @@ func big_ticket() -> Dictionary:
 # ── the warden at the till: its hand stands aside ────────────────────────────
 
 func _me() -> String:
-	return str(multiplayer.get_unique_id()) if Coop.is_active() else "me"
+	return str(multiplayer.get_unique_id()) if INSTANCE.coop(self).is_active() else "me"
 
 
 func _opened() -> void:

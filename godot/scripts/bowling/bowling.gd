@@ -42,7 +42,7 @@ extends Node
 ## Stepped on its own clock in seconds, like the hall's animations it schedules for.
 ## Co-op: the host simulates (the balls, the hands, the machine, who gives up); what a
 ## warden does at a station is an op (`act`: checkin, set, shelve, unjam) applied at once and
-## sent to everyone (Coop.send_place "bowl"); after a change the host sends the alley as it
+## sent to everyone (INSTANCE.coop(self).send_place "bowl"); after a change the host sends the alley as it
 ## stands ("snap").
 
 const INSTANCE = preload("res://scripts/instance/instance.gd")
@@ -118,7 +118,7 @@ var _rng := RandomNumberGenerator.new()
 func _ready() -> void:
 	name = "Bowlings"
 	add_to_group("bowlings")
-	# Coop.send_place("bowl", ...) finds it here.
+	# INSTANCE.coop(self).send_place("bowl", ...) finds it here.
 	add_to_group("places_bowl")
 	_rng.randomize()
 
@@ -182,10 +182,10 @@ func _process(delta: float) -> void:
 		_sites.clear()
 		_hand_busy.clear()
 		_asked_snap = false
-	if Coop.is_client():
-		if not _asked_snap and Coop.has_method("send_place"):
+	if INSTANCE.coop(self).is_client():
+		if not _asked_snap and INSTANCE.coop(self).has_method("send_place"):
 			_asked_snap = true
-			Coop.send_place("bowl", "", "hello", [])
+			INSTANCE.coop(self).send_place("bowl", "", "hello", [])
 		# The pins' wait goes on here too (the host's snap puts it right).
 		for key in _sites:
 			for lane in site(str(key))["lanes"]:
@@ -194,9 +194,9 @@ func _process(delta: float) -> void:
 		return
 	for key in _bowling_keys():
 		_tick(key, dt)
-	if Coop.is_active() and Coop.has_method("send_place"):
+	if INSTANCE.coop(self).is_active() and INSTANCE.coop(self).has_method("send_place"):
 		for key in _dirty:
-			Coop.send_place("bowl", str(key), "snap", [_snapshot(str(key))])
+			INSTANCE.coop(self).send_place("bowl", str(key), "snap", [_snapshot(str(key))])
 	_dirty.clear()
 
 
@@ -238,8 +238,8 @@ func _tick(key: String, dt: float) -> void:
 ##   wball [lane, entry, res, seed] their ball (worked out where it was thrown)
 func act(key: String, op: String, args: Array) -> void:
 	_apply(key, op, args)
-	if Coop.is_active() and Coop.has_method("send_place"):
-		Coop.send_place("bowl", key, op, args)
+	if INSTANCE.coop(self).is_active() and INSTANCE.coop(self).has_method("send_place"):
+		INSTANCE.coop(self).send_place("bowl", key, op, args)
 
 
 func _apply(key: String, op: String, args: Array) -> void:
@@ -319,12 +319,12 @@ func _apply(key: String, op: String, args: Array) -> void:
 			changed.emit(key, "snap")
 
 
-## From another machine (Coop.send_place "bowl").
+## From another machine (INSTANCE.coop(self).send_place "bowl").
 func coop_place(key: String, op: String, args: Array) -> void:
 	if op == "hello":
-		if Coop.is_host():
+		if INSTANCE.coop(self).is_host():
 			for k in _sites:
-				Coop.send_place("bowl", str(k), "snap", [_snapshot(str(k))])
+				INSTANCE.coop(self).send_place("bowl", str(k), "snap", [_snapshot(str(k))])
 		return
 	_apply(key, op, args)
 

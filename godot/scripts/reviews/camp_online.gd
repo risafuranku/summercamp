@@ -8,6 +8,7 @@ extends RefCounted
 ## apps through atlas_hour, atlas_buy_ad, goggle_remove, goggle_reply, goggle_mail_replied,
 ## bazaar_list.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 var main: Node
 
 
@@ -17,7 +18,7 @@ func _init(main_node: Node) -> void:
 
 ## A party checked out: what they left behind goes to the lost and found.
 func on_guest_state(guest_id: int, _old: String, new_state: String) -> void:
-	if new_state != "departed" or not main._gameplay_started or CoreRoot.get_state() == null or not Coop.sim_here():
+	if new_state != "departed" or not main._gameplay_started or CoreRoot.get_state() == null or not INSTANCE.coop(main).sim_here():
 		return
 	for g in CoreRoot.get_state().guests:
 		if g is Dictionary and int((g as Dictionary).get("id", -1)) == guest_id:
@@ -83,7 +84,7 @@ func setup_goggle() -> void:
 
 
 func _on_review(review: Dictionary) -> void:
-	if not main._gameplay_started or not Coop.sim_here() or not (review is Dictionary):
+	if not main._gameplay_started or not INSTANCE.coop(main).sim_here() or not (review is Dictionary):
 		return
 	main._goggle.add_guest_review(review, main._day_index)
 	_announce_tier(main._goggle.check_tier(main._day_index))
@@ -207,9 +208,9 @@ func atlas_buy_ad(kind: String, days: int) -> Dictionary:
 		return {"ok": false, "reason": "no", "cost": cost}
 	CoreRoot.actions.spend_money(cost)
 	CoreRoot.actions.note_camp("ads", cost)
-	if Coop.is_client():
+	if INSTANCE.coop(main).is_client():
 		# The host's page runs it (the fee goes with the till).
-		Coop.send_request("atlas_ad", [kind, days, now])
+		INSTANCE.coop(main).send_request("atlas_ad", [kind, days, now])
 	return {"ok": true, "cost": cost}
 
 
@@ -242,14 +243,14 @@ func goggle_remove(id: int) -> Dictionary:
 	var cost: int = main._goggle.removal_cost()
 	if CoreRoot.get_money() < cost:
 		return {"ok": false, "reason": "money", "cost": cost}
-	if Coop.is_client():
+	if INSTANCE.coop(main).is_client():
 		# The host's page; the fee goes with the till.
 		CoreRoot.actions.spend_money(cost)
 		CoreRoot.actions.note_camp("ads", cost)
 		var e: Dictionary = main._goggle.by_id(id)
 		if not e.is_empty():
 			e["removing"] = main._day_index
-		Coop.send_request("goggle_remove", [id])
+		INSTANCE.coop(main).send_request("goggle_remove", [id])
 		return {"ok": true, "cost": cost}
 	if not main._goggle.request_removal(id, main._day_index):
 		return {"ok": false, "reason": "no", "cost": cost}
@@ -300,10 +301,10 @@ func goggle_reply(id: int, kind: String) -> void:
 	var e: Dictionary = main._goggle.by_id(id)
 	if e.is_empty():
 		return
-	if Coop.is_client():
+	if INSTANCE.coop(main).is_client():
 		e["reply"] = kind
 		e["reply_day"] = main._day_index
-		Coop.send_request("goggle_reply", [id, kind])
+		INSTANCE.coop(main).send_request("goggle_reply", [id, kind])
 		return
 	if not main._goggle.reply(id, kind, main._day_index):
 		return
@@ -332,6 +333,6 @@ func goggle_unlocked(item: String) -> bool:
 ## The bazaar page's "put it up" link (browser).
 func bazaar_list(id: int) -> bool:
 	# Co-op: the host's lost and found (the pulse brings it back as the host has it).
-	if Coop.is_client():
-		Coop.send_request("bazaar_list", [id])
+	if INSTANCE.coop(main).is_client():
+		INSTANCE.coop(main).send_request("bazaar_list", [id])
 	return main._bazaar.list(id, main._day_index)

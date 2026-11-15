@@ -112,8 +112,8 @@ func _ready() -> void:
 	_audio = AudioStreamPlayer.new()
 	_audio.volume_db = -6.0
 	add_child(_audio)
-	if Coop != null and not Coop.peer_left.is_connected(_on_peer_left):
-		Coop.peer_left.connect(_on_peer_left)
+	if Coop != null and not INSTANCE.coop(self).peer_left.is_connected(_on_peer_left):
+		INSTANCE.coop(self).peer_left.connect(_on_peer_left)
 	# Not reset here: a save loaded straight from the title screen fills the bag before it is
 	# in the tree, and a reset on coming in emptied it again (playtest 25. 10.: the shed key
 	# gone from the save). A new camp resets it (new_camp).
@@ -676,13 +676,13 @@ func _throw(it: Dictionary) -> void:
 	var item := {"id": str(it["id"]), "n": int(it.get("n", 1))}
 	var pos := _drop_point()
 	_play("drop.mp3")
-	if Coop.is_client():
-		Coop.send_inv("drop", [item, pos])
+	if INSTANCE.coop(self).is_client():
+		INSTANCE.coop(self).send_inv("drop", [item, pos])
 		return
 	var id := _new_id()
 	_add_drop(id, item, pos, "host")
-	if Coop.is_host():
-		Coop.send_inv("add", [id, item, pos, "host"])
+	if INSTANCE.coop(self).is_host():
+		INSTANCE.coop(self).send_inv("add", [id, item, pos, "host"])
 
 
 ## A step in front of you on the ground (short of a wall).
@@ -751,7 +751,7 @@ func _clear_drops() -> void:
 
 
 func _mine(d: Dictionary) -> bool:
-	return (str(d["by"]) == "client") == Coop.is_client()
+	return (str(d["by"]) == "client") == INSTANCE.coop(self).is_client()
 
 
 ## The thing on the ground the view is on, within reach, or "".
@@ -794,38 +794,38 @@ func _take_drop(id: String) -> void:
 		_play("nope.mp3")
 		_say("No room for it in the bag.")
 		return
-	if Coop.is_client():
-		Coop.send_inv("take", [id])
+	if INSTANCE.coop(self).is_client():
+		INSTANCE.coop(self).send_inv("take", [id])
 		return
 	_remove_drop(id)
 	add_item(str(item["id"]), int(item.get("n", 1)))
 	_play("pick.mp3")
-	if Coop.is_host():
-		Coop.send_inv("del", [id])
+	if INSTANCE.coop(self).is_host():
+		INSTANCE.coop(self).send_inv("del", [id])
 
 
-## From the other machine (Coop.send_inv): the host decides who gets what off the ground.
+## From the other machine (INSTANCE.coop(self).send_inv): the host decides who gets what off the ground.
 func coop_inv(kind: String, data: Array) -> void:
 	match kind:
 		"drop":
-			if Coop.is_host():
+			if INSTANCE.coop(self).is_host():
 				var id := _new_id()
 				_add_drop(id, data[0], data[1], "client")
-				Coop.send_inv("add", [id, data[0], data[1], "client"])
+				INSTANCE.coop(self).send_inv("add", [id, data[0], data[1], "client"])
 		"add":
 			_add_drop(str(data[0]), data[1], data[2], str(data[3]))
 		"del":
 			_remove_drop(str(data[0]))
 		"take":
 			var id := str(data[0])
-			if not Coop.is_host() or not _drops.has(id):
+			if not INSTANCE.coop(self).is_host() or not _drops.has(id):
 				return
 			var d: Dictionary = _drops[id]
 			if str(d["by"]) == "client" and Time.get_ticks_msec() - int(d["ms"]) < DROP_LOCK_MS:
 				return
 			_remove_drop(id)
 			# To whoever picked it up (the others just see it gone).
-			Coop.send_inv("give", [id, d["item"], Coop.sender])
+			INSTANCE.coop(self).send_inv("give", [id, d["item"], INSTANCE.coop(self).sender])
 		"give":
 			_remove_drop(str(data[0]))
 			if data.size() > 2 and int(data[2]) != multiplayer.get_unique_id():
@@ -834,7 +834,7 @@ func coop_inv(kind: String, data: Array) -> void:
 			if add_item(str(item["id"]), int(item.get("n", 1))):
 				_play("pick.mp3")
 			else:
-				Coop.send_inv("drop", [item, _drop_point()])
+				INSTANCE.coop(self).send_inv("drop", [item, _drop_point()])
 		"key_back":
 			var office = _office()
 			if office != null and office.has_method("return_shed_key"):
@@ -850,7 +850,7 @@ func _on_peer_left() -> void:
 ## The shed key is off the board but nobody here has it and it is not on the ground:
 ## after a load it is in the bag (saves from before the bag), otherwise back on the board.
 func _reconcile_key() -> void:
-	if Coop.is_client():
+	if INSTANCE.coop(self).is_client():
 		return
 	var office = _office()
 	if office == null or not bool(office.get("has_shed_key")) or has("key_shed"):

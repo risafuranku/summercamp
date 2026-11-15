@@ -17,8 +17,9 @@ extends Node
 ## machine's attraction with their key (-11 the host, -12.. the joining ones by their
 ## place on the line) and the place they have on theirs (coop_state "att"); the ball games
 ## are the host's (each flight sent over, the others' swings sent to the host), the logs
-## go on through the host (Coop.send_play).
+## go on through the host (INSTANCE.coop(self).send_play).
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const POSES = preload("res://scripts/attractions/poses.gd")
 const LOG_SPLIT = preload("res://scripts/attractions/log_split.gd")
 const LOOKS = preload("res://scripts/coop/warden_looks.gd")
@@ -68,9 +69,11 @@ func is_active() -> bool:
 	return _att != null or (_split != null and _split.is_open())
 
 
-## Your key in the attractions: the host -11, the joining wardens -12, -13, -14.
-static func local_key() -> int:
-	return HOST_KEY - Coop.my_slot if Coop.is_client() else HOST_KEY
+## Your key in the attractions: the host -11, the joining wardens -12, -13, -14 (`node`:
+## one of the instance's, scripts/instance/instance.gd).
+static func local_key(node: Node = null) -> int:
+	var coop := INSTANCE.coop(node)
+	return HOST_KEY - int(coop.my_slot) if coop.is_client() else HOST_KEY
 
 
 # ── getting in and out ───────────────────────────────────────────────────────
@@ -128,7 +131,7 @@ func try_interact() -> bool:
 
 func _join(att: Node3D) -> void:
 	var p := _player()
-	_key = local_key()
+	_key = local_key(self)
 	if p == null or not att.warden_join(_key, p.global_position):
 		_say("No room.")
 		return
@@ -137,7 +140,7 @@ func _join(att: Node3D) -> void:
 		var made := _proxy()
 		_member = made[0]
 		_sprite = made[1]
-	_sprite.set_meta("base_path", _base_path(Coop.my_look()))
+	_sprite.set_meta("base_path", _base_path(INSTANCE.coop(self).my_look()))
 	_act = ""
 	_yaw = 0.0
 	_pitch = 0.0
@@ -252,7 +255,7 @@ var _fires_t := 0.0
 
 func _send_fires(delta: float) -> void:
 	_fires_t -= delta
-	if _fires_t > 0.0 or not Coop.is_host() or not Coop.has_partner():
+	if _fires_t > 0.0 or not INSTANCE.coop(self).is_host() or not INSTANCE.coop(self).has_partner():
 		return
 	_fires_t = 4.0
 	var out := {}
@@ -260,7 +263,7 @@ func _send_fires(delta: float) -> void:
 		if f.has_method("export_state"):
 			out[att_id(f)] = f.export_state()
 	if not out.is_empty():
-		Coop.send_play("fires", ["", out])
+		INSTANCE.coop(self).send_play("fires", ["", out])
 
 
 func _tick_local(delta: float) -> void:
@@ -339,8 +342,8 @@ func _input(event: InputEvent) -> void:
 ## LMB: what your hands do in the attraction (the host's ball games: their swing goes
 ## to the host).
 func _press() -> void:
-	if Coop.is_client() and _att.has_method("coop_follows") and _att.coop_follows():
-		Coop.send_play("press", [att_id(_att), _key])
+	if INSTANCE.coop(self).is_client() and _att.has_method("coop_follows") and _att.coop_follows():
+		INSTANCE.coop(self).send_play("press", [att_id(_att), _key])
 		_att.warden_press(_key)
 		return
 	var did := str(_att.warden_press(_key))
@@ -366,11 +369,11 @@ func _put_log(att: Node) -> void:
 	if int(att.get("logs_left")) <= 0:
 		_say("The woodpile is empty.")
 		return
-	if Coop.is_client():
-		Coop.send_play("log", [att_id(att)])
+	if INSTANCE.coop(self).is_client():
+		INSTANCE.coop(self).send_play("log", [att_id(att)])
 		return
-	if att.add_log() and Coop.has_partner():
-		Coop.send_play("log", [att_id(att)])
+	if att.add_log() and INSTANCE.coop(self).has_partner():
+		INSTANCE.coop(self).send_play("log", [att_id(att)])
 
 
 # ── co-op ────────────────────────────────────────────────────────────────────
@@ -403,7 +406,7 @@ func coop_state() -> Dictionary:
 	return {"id": att_id(_att), "k": _key, "sl": int(_att.warden_slot(_key)), "ps": _act, "x": x}
 
 
-## From the other machine (Coop._play): "shot" [id, flight, roster] the host's ball;
+## From the other machine (INSTANCE.coop(self)._play): "shot" [id, flight, roster] the host's ball;
 ## "press" [id, key] the other's swing at it (host); "log" [id] a log on the fire (the
 ## host puts it on and says so; the other puts it on when told).
 func coop_play(kind: String, data: Array) -> void:
@@ -423,7 +426,7 @@ func coop_play(kind: String, data: Array) -> void:
 				crawl.coop_fixed(int(data[1]))
 		return
 	if kind == "fires":
-		if Coop.is_client():
+		if INSTANCE.coop(self).is_client():
 			for id in (data[1] as Dictionary).keys():
 				var f := find_att(str(id))
 				if f != null and f.has_method("coop_take_state"):
@@ -434,36 +437,36 @@ func coop_play(kind: String, data: Array) -> void:
 		return
 	match kind:
 		"shot":
-			if Coop.is_client() and att.has_method("coop_take_shot"):
+			if INSTANCE.coop(self).is_client() and att.has_method("coop_take_shot"):
 				att.coop_take_shot(data[1], data[2])
 		"press":
-			if Coop.is_host():
+			if INSTANCE.coop(self).is_host():
 				att.warden_press(int(data[1]))
 		"log":
-			if Coop.is_host():
+			if INSTANCE.coop(self).is_host():
 				if att.add_log():
-					Coop.send_play("log", [att_id(att)])
+					INSTANCE.coop(self).send_play("log", [att_id(att)])
 			else:
 				att.add_log()
 		"chop":
 			# (Your own split come back from the host: heard already, as you made it.)
-			if att.split_one(not (_split.is_open() and _split.get("_att") == att)) and Coop.is_host():
-				Coop.send_play("chop", [att_id(att)])
+			if att.split_one(not (_split.is_open() and _split.get("_att") == att)) and INSTANCE.coop(self).is_host():
+				INSTANCE.coop(self).send_play("chop", [att_id(att)])
 
 
 ## The host's ball games: each new flight goes to the other machine.
 func shot_out(att: Node, shot: Dictionary, roster: Dictionary) -> void:
-	if Coop.is_host() and Coop.has_partner():
-		Coop.send_play("shot", [att_id(att), shot, roster])
+	if INSTANCE.coop(self).is_host() and INSTANCE.coop(self).has_partner():
+		INSTANCE.coop(self).send_play("shot", [att_id(att), shot, roster])
 
 
 ## The other wardens in attractions on this machine: each placed by it with their key
 ## and place, their figure drawn there (remote_player.gd asks mate_place(its id)).
 func _update_mate() -> void:
 	for id in _mates.keys():
-		if not Coop.wardens.has(id):
+		if not INSTANCE.coop(self).wardens.has(id):
 			_mate_gone(int(id))
-	for id in Coop.others():
+	for id in INSTANCE.coop(self).others():
 		_update_one(int(id))
 
 
@@ -471,7 +474,7 @@ func _update_one(id: int) -> void:
 	if not _mates.has(id):
 		_mates[id] = {"att": null, "key": OTHER_KEY, "member": null, "sprite": null, "place": {}, "guitar": null}
 	var e: Dictionary = _mates[id]
-	var s = Coop.state_of(id).get("att")
+	var s = INSTANCE.coop(self).state_of(id).get("att")
 	var st: Dictionary = s if s is Dictionary else {}
 	var att := find_att(str(st.get("id", ""))) if not st.is_empty() else null
 	var was = e["att"]
@@ -489,7 +492,7 @@ func _update_one(id: int) -> void:
 		e["sprite"] = made[1]
 	var member: Node3D = e["member"]
 	var sprite: Sprite3D = e["sprite"]
-	sprite.set_meta("base_path", _base_path(Coop.look_of(id)))
+	sprite.set_meta("base_path", _base_path(INSTANCE.coop(self).look_of(id)))
 	var key := int(e["key"])
 	var x = st.get("x", {})
 	att.warden_force(key, int(st.get("sl", -1)), x if x is Dictionary else {})
@@ -521,7 +524,7 @@ func _mate_gone(id: int) -> void:
 ## attraction ({} when not).
 func mate_place(id := 0) -> Dictionary:
 	if id == 0:
-		id = Coop.remote_id
+		id = INSTANCE.coop(self).remote_id
 	return (_mates.get(id, {}) as Dictionary).get("place", {})
 
 

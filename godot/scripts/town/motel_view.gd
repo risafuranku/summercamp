@@ -29,6 +29,7 @@ extends RefCounted
 ## switched in a room is switched for both (_state, take_state), and you see the other
 ## warden walk (room_mates.gd).
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const PLAN = preload("res://scripts/town/motel_plan.gd")
 const ROOMS = preload("res://scripts/town/motel_rooms.gd")
 const K = preload("res://scripts/interior_kit.gd")
@@ -205,7 +206,7 @@ func _read_sanity() -> float:
 	var s = night.get("sanity")
 	if not (s is Dictionary):
 		return 100.0
-	return float((s as Dictionary).get("own" if Coop.is_client() else "host", 100.0))
+	return float((s as Dictionary).get("own" if INSTANCE.coop(room).is_client() else "host", 100.0))
 
 
 func _low() -> float:
@@ -250,7 +251,7 @@ func build(hour: float, keys: Array) -> void:
 		if not k.is_empty() and int(k.get("night", -1)) == _night_no():
 			take_state(k.get("s", {}), true)
 	_sent = _state_key()
-	Coop.send_place("town", "motel", "walk", [str(_walker.here)])
+	INSTANCE.coop(room).send_place("town", "motel", "walk", [str(_walker.here)])
 
 
 ## The door you came in by from the next place in the building (the reception's to the
@@ -1416,7 +1417,7 @@ func _set_chain(on: bool) -> void:
 func _went(to: String) -> void:
 	if quirk != null:
 		quirk.walked(to)
-	Coop.send_place("town", "motel", "walk", [to])
+	INSTANCE.coop(room).send_place("town", "motel", "walk", [to])
 
 
 func _wardrobe(quiet := false) -> void:
@@ -2053,7 +2054,7 @@ func _tick_mirror() -> void:
 ## You in the mirror (your own warden, from the front), the one behind you, both seen only
 ## by the mirror's camera.
 func _make_reflection() -> void:
-	var look: Dictionary = Coop.my_look() if Coop.has_method("my_look") else {}
+	var look: Dictionary = INSTANCE.coop(room).my_look() if INSTANCE.coop(room).has_method("my_look") else {}
 	var tex: Texture2D = LOOKS.texture(int(look.get("m", 1)), int(look.get("c", 0)), "stand")
 	if tex != null:
 		_mir_me = Sprite3D.new()
@@ -2132,7 +2133,7 @@ var _sleepers: Dictionary = {}
 
 func place_mates(mates: Dictionary, ids: Array) -> void:
 	for id in _sleepers.keys():
-		if not ids.has(id) or not bool(Coop.state_of(int(id)).get("z", false)):
+		if not ids.has(id) or not bool(INSTANCE.coop(room).state_of(int(id)).get("z", false)):
 			if is_instance_valid(_sleepers[id]):
 				(_sleepers[id] as Node).queue_free()
 			_sleepers.erase(id)
@@ -2142,7 +2143,7 @@ func place_mates(mates: Dictionary, ids: Array) -> void:
 		var fig = mates.get(i)
 		if fig == null:
 			continue
-		if n != 0 and bool(Coop.state_of(i).get("z", false)):
+		if n != 0 and bool(INSTANCE.coop(room).state_of(i).get("z", false)):
 			fig.visible = false
 			_lay(i)
 			continue
@@ -2208,12 +2209,12 @@ func _tick_sync(delta: float) -> void:
 	if _sync_t > 0.0:
 		return
 	_sync_t = 0.25
-	if not Coop.has_partner():
+	if not INSTANCE.coop(room).has_partner():
 		return
 	var key := _state_key()
 	if key != _sent:
 		_sent = key
-		Coop.send_place("town", "motel", "room", [n, _state()])
+		INSTANCE.coop(room).send_place("town", "motel", "room", [n, _state()])
 
 
 ## What the other warden switched (or how you left it: `quiet`, nothing heard).
@@ -2278,7 +2279,7 @@ func take_state(d: Dictionary, quiet := false) -> void:
 func _lay(id: int) -> void:
 	var sl: Sprite3D = _sleepers.get(id)
 	if sl == null or not is_instance_valid(sl):
-		var look: Dictionary = Coop.look_of(id)
+		var look: Dictionary = INSTANCE.coop(room).look_of(id)
 		var tex: Texture2D = LOOKS.texture(int(look.get("m", 1)), int(look.get("c", 0)), "bedfoot")
 		if tex == null:
 			return

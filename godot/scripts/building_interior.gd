@@ -1043,8 +1043,8 @@ func crt_under(at: Vector2) -> int:
 ## Sat down at the PC, turned to screen `look`. Co-op: one at it at a time (the others look
 ## over their shoulder).
 func go_to_pc(look := 0) -> void:
-	for id in Coop.others():
-		var theirs: Dictionary = Coop.state_of(id).get("room", {})
+	for id in INSTANCE.coop(self).others():
+		var theirs: Dictionary = INSTANCE.coop(self).state_of(id).get("room", {})
 		if str(theirs.get("t", "")) == "office" and str(theirs.get("w", "")) == "pc":
 			if _extras != null:
 				_extras.coop_refuse("pc")
@@ -3152,7 +3152,7 @@ func _sync_desk_lamp_look() -> void:
 
 
 ## Co-op: the office's lights, curtains and set, the same on both machines (main polls
-## this and sends it when it changes, Coop.send_sync "office").
+## this and sends it when it changes, INSTANCE.coop(self).send_sync "office").
 func coop_office_state() -> Dictionary:
 	if _extras == null:
 		return {}
@@ -3662,8 +3662,8 @@ func _setup_radio() -> void:
 	if _dread == null:
 		_dread = RADIO_DREAD_SCRIPT.new()
 		_dread.on_event = func(ev: int, seed_n: int) -> void:
-			if Coop.is_host():
-				Coop.send_sync("radio_ev", [ev, seed_n])
+			if INSTANCE.coop(self).is_host():
+				INSTANCE.coop(self).send_sync("radio_ev", [ev, seed_n])
 		_dread.name = "RadioDread"
 		add_child(_dread)
 	_radio_load_paths = _collect_audio_paths_in_dir("res://assets/sfx/radio")
@@ -3745,7 +3745,7 @@ func _play_radio_next() -> void:
 	if _radio_player == null:
 		return
 	# Co-op: the other machine's set plays what the host's does (coop_take_radio).
-	if Coop.is_client():
+	if INSTANCE.coop(self).is_client():
 		return
 	if _radio_first_pending:
 		_radio_first_pending = false
@@ -3847,7 +3847,7 @@ func _radio_play_path(path: String, at: float) -> bool:
 ## song cut dead, a breath of dead air): the set comes back on a song of the dread tiers',
 ## somewhere into it, as if it had been on all along.
 func _radio_break_in() -> void:
-	if Coop.is_client() or _radio_player == null or _dread == null:
+	if INSTANCE.coop(self).is_client() or _radio_player == null or _dread == null:
 		return
 	var path: String = _radio_tiers.pick_break(float(_dread.dread), _radio_rng)
 	var s: AudioStream = _radio_stream_by_path.get(path, null)
@@ -3870,7 +3870,7 @@ func _tick_music_duck(delta: float) -> void:
 
 func _tick_radio_greetings() -> void:
 	# The host's (or a lone warden's) set: the other machine follows it (coop_take_radio).
-	if _radio_player == null or Coop.is_client():
+	if _radio_player == null or INSTANCE.coop(self).is_client():
 		return
 	var on_air := _radio_last_played_path == RADIO_GREETINGS_PATH and _radio_player.playing
 	var at := _greetings_at(_hour_now())
@@ -4389,7 +4389,7 @@ func _radio_dread_context(delta: float) -> Dictionary:
 		"guests": _count_guests_in_camp(),
 		# In the office to hear it (radio_dread's terror waits for an ear).
 		"listening": visible,
-		"client": Coop.is_client(),
+		"client": INSTANCE.coop(self).is_client(),
 		# A song of the dread tiers' on air: the set leaves it raw (radio_dread._raw).
 		"raw": RADIO_TIERS.tier_of(_radio_last_played_path) >= 2 and _radio_player != null and _radio_player.playing,
 	}
@@ -4552,8 +4552,8 @@ func _try_click_room(event: InputEventMouseButton) -> bool:
 	if _node_has_click_type(collider, "radio_power_toggle"):
 		_toggle_radio_power()
 		# Co-op: the set is the host's; it switches there and comes back so.
-		if Coop.is_client():
-			Coop.send_request("radio", [_radio_power_on])
+		if INSTANCE.coop(self).is_client():
+			INSTANCE.coop(self).send_request("radio", [_radio_power_on])
 		return true
 	if _node_has_click_type(collider, "reception_notebook"):
 		open_checkin_desk()

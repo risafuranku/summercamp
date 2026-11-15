@@ -26,6 +26,7 @@ extends Node
 ## loud it is here is this machine's own: indoors through the walls, asleep nothing, a
 ## presence near this warden silences it for them only.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const DIR := "res://assets/music/"
 const CUES_JSON := "res://assets/music/music_cues.json"
 const BUS := "WorldMusic"
@@ -160,7 +161,7 @@ func tick(delta: float) -> void:
 		if _phase != OFF:
 			_stop()
 		return
-	if not Coop.is_client():
+	if not INSTANCE.coop(self).is_client():
 		_choose(delta)
 	_play(delta)
 	_mix(delta)
@@ -169,7 +170,7 @@ func tick(delta: float) -> void:
 ## The host's (or a lone warden's) choice: when a piece comes in, which, and when it goes.
 func _choose(delta: float) -> void:
 	var out_here := _out_and_about()
-	var anyone := out_here or (Coop.is_host() and _partner_out)
+	var anyone = out_here or (INSTANCE.coop(self).is_host() and _partner_out)
 	if anyone:
 		_drive = minf(1.0, _drive + delta / DRIVE_FILL_SEC)
 		_idle = 0.0
@@ -295,7 +296,7 @@ func _out_and_about() -> bool:
 
 
 func _anyone_outdoors() -> bool:
-	return not _indoors() or (Coop.is_host() and _partner_out)
+	return not _indoors() or (INSTANCE.coop(self).is_host() and _partner_out)
 
 
 func _indoors() -> bool:
@@ -392,7 +393,7 @@ func _mix(delta: float) -> void:
 
 ## The host: the piece (main's coop sync "music"). The client: whether it is out and about.
 func coop_state() -> Dictionary:
-	if Coop.is_client():
+	if INSTANCE.coop(self).is_client():
 		return {"out": _out_and_about()}
 	var pos := _player.get_playback_position() if _phase != OFF else 0.0
 	return {"n": _n if _phase != OFF else 0, "c": _cue, "at": _came_in_at, "out": _phase == DOWN or _going_out,
@@ -400,7 +401,7 @@ func coop_state() -> Dictionary:
 
 
 func coop_take(d: Dictionary) -> void:
-	if not Coop.is_client():
+	if not INSTANCE.coop(self).is_client():
 		_partner_out = bool(d.get("out", false))
 		return
 	var n := int(d.get("n", 0))

@@ -507,7 +507,7 @@ func _sees_quarry() -> bool:
 func _quarry_moving() -> bool:
 	var peer := _quarry_peer()
 	if peer != 0:
-		var v = Coop.state_of(peer).get("v", 0.0)
+		var v = INSTANCE.coop(_world_root).state_of(peer).get("v", 0.0)
 		var sp := 0.0
 		if v is Vector3:
 			sp = Vector2((v as Vector3).x, (v as Vector3).z).length()
@@ -1173,7 +1173,7 @@ func _door_of(l: Dictionary) -> Vector3:
 func _quarry_room() -> String:
 	var peer := _quarry_peer()
 	if peer != 0:
-		return str(Coop.state_of(peer).get("room", ""))
+		return str(INSTANCE.coop(_world_root).state_of(peer).get("room", ""))
 	var im = _im()
 	if im != null and im.has_method("photo_building"):
 		return str(im.call("photo_building"))
@@ -1236,7 +1236,7 @@ func _tick_heard_inside(dt: float) -> void:
 func _room_place() -> Vector3:
 	var peer := _quarry_peer()
 	if peer != 0:
-		for w in Coop.state_of(peer).get("pw", []):
+		for w in INSTANCE.coop(_world_root).state_of(peer).get("pw", []):
 			if w is Array and (w as Array).size() > 0 and w[0] is Vector3:
 				return w[0]
 		return Vector3.INF
@@ -1256,9 +1256,9 @@ func _relay(on: bool) -> void:
 	var stream := _stream(SFX["eat_a"] if _rng.randf() < 0.5 else SFX["eat_b"])
 	# Every other warden's office radio too (co-op: whoever hides in there hears her meal;
 	# coop_night._on_ext "relay").
-	if Coop != null and Coop.is_active() and Coop.is_host():
-		for peer in Coop.others():
-			Coop.send_night_fx("ext", ["relay", [stream.resource_path if stream != null else "", 0.8]] if on else ["relay_off", []], int(peer))
+	if Coop != null and INSTANCE.coop(_world_root).is_active() and INSTANCE.coop(_world_root).is_host():
+		for peer in INSTANCE.coop(_world_root).others():
+			INSTANCE.coop(_world_root).send_night_fx("ext", ["relay", [stream.resource_path if stream != null else "", 0.8]] if on else ["relay_off", []], int(peer))
 	var dread = _dread()
 	if dread == null:
 		return

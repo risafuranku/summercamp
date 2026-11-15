@@ -294,11 +294,11 @@ func _split(hard: float) -> void:
 
 
 func _logs_full_after_split() -> bool:
-	if Coop.is_client():
-		Coop.send_play("chop", [warden.att_id(_att)])
+	if INSTANCE.coop(self).is_client():
+		INSTANCE.coop(self).send_play("chop", [warden.att_id(_att)])
 		return int(_att.get("logs_left")) + 1 >= int(_att.get("WOODPILE_LOGS"))
-	if _att.split_one() and Coop.has_partner():
-		Coop.send_play("chop", [warden.att_id(_att)])
+	if _att.split_one() and INSTANCE.coop(self).has_partner():
+		INSTANCE.coop(self).send_play("chop", [warden.att_id(_att)])
 	return int(_att.get("logs_left")) >= int(_att.get("WOODPILE_LOGS"))
 
 

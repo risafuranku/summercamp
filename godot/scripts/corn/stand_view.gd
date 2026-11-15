@@ -205,12 +205,12 @@ func _tabs_ids() -> Array:
 ## The other wardens at this stand's stations: station -> their name.
 func _taken() -> Dictionary:
 	var out := {}
-	if not Coop.is_active():
+	if not INSTANCE.coop(self).is_active():
 		return out
-	for id in Coop.others():
-		var r: Dictionary = Coop.state_of(id).get("room", {})
+	for id in INSTANCE.coop(self).others():
+		var r: Dictionary = INSTANCE.coop(self).state_of(id).get("room", {})
 		if str(r.get("k", "")) == building_key and str(r.get("t", "")) == "corn" and LAYOUT.STATIONS.has(str(r.get("w", ""))):
-			out[str(r["w"])] = Coop.name_of(id)
+			out[str(r["w"])] = INSTANCE.coop(self).name_of(id)
 	return out
 
 

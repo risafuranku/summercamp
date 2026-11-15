@@ -181,7 +181,7 @@ func _burn(hours: float, live := true) -> void:
 		embers = maxf(0.0, embers - hours * 0.035)
 	# Guests at it in the evening feed it from the woodpile (the host's: its state goes to the
 	# other machine, which sees the piece fly: coop_take_state).
-	if live and guests_here > 0 and fuel < GUEST_FEED_AT and is_evening() and logs_left > 0 and not _feeding and Coop.sim_here():
+	if live and guests_here > 0 and fuel < GUEST_FEED_AT and is_evening() and logs_left > 0 and not _feeding and INSTANCE.coop(self).sim_here():
 		logs_left -= 1
 		_throw_log()
 

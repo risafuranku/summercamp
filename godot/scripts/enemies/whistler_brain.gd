@@ -462,7 +462,7 @@ func _noise() -> float:
 	var speed := _speed
 	var peer := _quarry_peer()
 	if peer != 0:
-		var st: Dictionary = Coop.state_of(peer)
+		var st: Dictionary = INSTANCE.coop(_world_root).state_of(peer)
 		speed = float(st.get("v", 0.0)) if not (st.get("v") is Vector2 or st.get("v") is Vector3) else Vector2(st["v"].x, st["v"].y if st["v"] is Vector2 else st["v"].z).length()
 		stance = 2 if str(st.get("act", "")) == "prone" else (1 if str(st.get("act", "")) == "crouch" else 0)
 	elif _player != null and _player.get("stance") != null:

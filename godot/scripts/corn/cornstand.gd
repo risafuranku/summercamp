@@ -9,10 +9,11 @@ extends Node
 ## The orders are worked out each time from whoever the guest simulation has at the stand
 ## (corn_rules.tickets_for), so every machine has the same ones; only what was served is
 ## told. Co-op (up to four): every change is an op (`act`) applied at once and sent to
-## everyone (Coop.send_place "corn"); the pot's cobs count their own seconds on every
+## everyone (INSTANCE.coop(self).send_place "corn"); the pot's cobs count their own seconds on every
 ## machine. The host does the hands' work and keeps the stand in the books for the save
 ## (actions.biz_keep "corn").
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const RULES := preload("res://core/systems/corn_rules.gd")
 const ORDERS := preload("res://scripts/food/orders.gd")
 const BUSINESS := preload("res://scripts/business/business_runtime.gd")
@@ -36,7 +37,7 @@ var _rng := RandomNumberGenerator.new()
 func _ready() -> void:
 	name = "CornStands"
 	add_to_group("cornstands")
-	# Coop.send_place("corn", ...) finds it here.
+	# INSTANCE.coop(self).send_place("corn", ...) finds it here.
 	add_to_group("places_corn")
 	_rng.randomize()
 
@@ -155,8 +156,8 @@ func tickets(key: String, only := "") -> Array:
 ##   served [tid, rec]   a cob over the counter
 func act(key: String, op: String, args: Array) -> void:
 	_apply(key, op, args)
-	if Coop.is_active() and Coop.has_method("send_place"):
-		Coop.send_place("corn", key, op, args)
+	if INSTANCE.coop(self).is_active() and INSTANCE.coop(self).has_method("send_place"):
+		INSTANCE.coop(self).send_place("corn", key, op, args)
 
 
 func _apply(key: String, op: String, args: Array) -> void:
@@ -189,12 +190,12 @@ func _apply(key: String, op: String, args: Array) -> void:
 	changed.emit(key, op)
 
 
-## From another machine (Coop.send_place "corn").
+## From another machine (INSTANCE.coop(self).send_place "corn").
 func coop_place(key: String, op: String, args: Array) -> void:
 	if op == "hello":
-		if Coop.is_host():
+		if INSTANCE.coop(self).is_host():
 			for k in _sites:
-				Coop.send_place("corn", str(k), "snap", [_snapshot(str(k))])
+				INSTANCE.coop(self).send_place("corn", str(k), "snap", [_snapshot(str(k))])
 		return
 	_apply(key, op, args)
 
@@ -292,10 +293,10 @@ func _process(delta: float) -> void:
 	if _acc < 1.0:
 		return
 	_acc = 0.0
-	if Coop.is_client() and not _asked_snap and Coop.has_method("send_place"):
+	if INSTANCE.coop(self).is_client() and not _asked_snap and INSTANCE.coop(self).has_method("send_place"):
 		_asked_snap = true
-		Coop.send_place("corn", "", "hello", [])
-	if not Coop.sim_here():
+		INSTANCE.coop(self).send_place("corn", "", "hello", [])
+	if not INSTANCE.coop(self).sim_here():
 		return
 	var holds := {}
 	for key in _stand_sites():

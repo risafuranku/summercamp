@@ -728,7 +728,7 @@ func _hover_under_mouse() -> String:
 func click() -> bool:
 	if is_modal():
 		return true
-	if Coop.is_client() and _hover in COOP_HOSTS_ONLY:
+	if INSTANCE.coop(host).is_client() and _hover in COOP_HOSTS_ONLY:
 		coop_refuse(_hover)
 		return true
 	match _hover:
@@ -809,8 +809,8 @@ const COOP_REFUSALS := {
 
 ## Another warden at the desk (0 none): their peer id.
 func _desk_warden() -> int:
-	for id in Coop.others():
-		var r: Dictionary = Coop.state_of(id).get("room", {})
+	for id in INSTANCE.coop(host).others():
+		var r: Dictionary = INSTANCE.coop(host).state_of(id).get("room", {})
 		if str(r.get("t", "")) == "office" and str(r.get("w", "")) == "desk":
 			return int(id)
 	return 0
@@ -818,8 +818,8 @@ func _desk_warden() -> int:
 
 ## Another warden at the PC (0 none).
 func _pc_warden() -> int:
-	for id in Coop.others():
-		var r: Dictionary = Coop.state_of(id).get("room", {})
+	for id in INSTANCE.coop(host).others():
+		var r: Dictionary = INSTANCE.coop(host).state_of(id).get("room", {})
 		if str(r.get("t", "")) == "office" and str(r.get("w", "")) == "pc":
 			return int(id)
 	return 0
@@ -833,7 +833,7 @@ func _partner_at_desk() -> bool:
 ## name (the one at it, else the first of them).
 func coop_refuse(what: String) -> void:
 	var who := _pc_warden() if what == "pc" else _desk_warden()
-	var line := str(COOP_REFUSALS.get(what, COOP_REFUSALS["pc"])).replace("The other warden", Coop.name_of(who) if who != 0 else Coop.partner_name())
+	var line := str(COOP_REFUSALS.get(what, COOP_REFUSALS["pc"])).replace("The other warden", INSTANCE.coop(host).name_of(who) if who != 0 else INSTANCE.coop(host).partner_name())
 	_office_call("say", [line], null)
 
 
@@ -984,7 +984,7 @@ func go_out_front() -> void:
 	# Still going through the doorway: the camp's walk goes on at its pace (walk_path Hand).
 	out_hand = WALK_PATH.Hand.new()
 	_walk = WALK_PATH.play(host, camera, keys, dur, WALK_PATH.WALK, true, out_hand)
-	_walk.parallel().tween_callback(Coop.send_door.bind("office", 0, 3.0)).set_delay(dur * 0.38)
+	_walk.parallel().tween_callback(INSTANCE.coop(host).send_door.bind("office", 0, 3.0)).set_delay(dur * 0.38)
 	if door != null:
 		_walk.parallel().tween_callback(_play.bind(SFX_FRONT_DOOR, -8.0)).set_delay(dur * 0.38)
 		_walk.parallel().tween_property(door, "rotation_degrees:y", FRONT_DOOR_OPEN_DEG, 0.7) \
@@ -1204,10 +1204,10 @@ func _try_sleep() -> void:
 	var refusal := str(_office_call("sleep_refusal", [], ""))
 	# One bed, one warden (playtest 18. 10.): the other turns in in a tent, cabin or
 	# caravan of the camp's (scripts/lodge_bed.gd).
-	for id in Coop.others():
-		var st: Dictionary = Coop.state_of(id)
+	for id in INSTANCE.coop(host).others():
+		var st: Dictionary = INSTANCE.coop(host).state_of(id)
 		if refusal == "" and bool(st.get("z", false)) and str((st.get("room", {}) as Dictionary).get("k", "")) == "office":
-			refusal = "%s has the bed. Find a free bed in a tent, cabin or caravan." % Coop.name_of(id)
+			refusal = "%s has the bed. Find a free bed in a tent, cabin or caravan." % INSTANCE.coop(host).name_of(id)
 	if refusal != "":
 		_office_call("say", [refusal], null)
 		return

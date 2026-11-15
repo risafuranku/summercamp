@@ -1235,15 +1235,15 @@ func _inview_wardens() -> void:
 	if im != null and _inview_tent != null and im.has_method("_room_key_for"):
 		key = str(im.call("_room_key_for", _inview_tent))
 	var seen: Array = []
-	if key != "" and Coop.is_active():
-		for id in Coop.others():
-			var info: Dictionary = Coop.state_of(id).get("room", {})
+	if key != "" and INSTANCE.coop(self).is_active():
+		for id in INSTANCE.coop(self).others():
+			var info: Dictionary = INSTANCE.coop(self).state_of(id).get("room", {})
 			if str(info.get("k", "")) != key:
 				continue
 			seen.append(id)
 			var fig = _inview_figs.get(id)
 			if fig == null or not is_instance_valid(fig):
-				var look: Dictionary = Coop.look_of(id)
+				var look: Dictionary = INSTANCE.coop(self).look_of(id)
 				fig = COOP_FIGURE.new()
 				fig.setup(int(look.get("m", 1)), int(look.get("c", 0)), true)
 				_viewport.add_child(fig)

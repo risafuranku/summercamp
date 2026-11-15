@@ -169,8 +169,8 @@ func build(host_node, extras_node, root: Node3D) -> void:
 	desk.key_board_provider = func(): return GuestManager.get_key_board() if GuestManager != null else []
 	desk.check_in_call = func(id: int):
 		# Co-op: checked in for real in the host's camp; here at once, for the desk.
-		if Coop.is_client():
-			Coop.send_request("checkin", [id])
+		if INSTANCE.coop(host).is_client():
+			INSTANCE.coop(host).send_request("checkin", [id])
 		return GuestManager.request_check_in(id) if GuestManager != null else {"ok": false}
 	desk.next_guest_provider = _next_for_desk
 	# How bad tonight is, for what the desk sees across the counter at night.
@@ -178,8 +178,8 @@ func build(host_node, extras_node, root: Node3D) -> void:
 		var dread = host.get("_dread") if host != null else null
 		return float(dread.get("dread")) if dread != null else 0.0
 	desk.refused.connect(func(id: int):
-		if Coop.is_client():
-			Coop.send_request("refuse", [id])
+		if INSTANCE.coop(host).is_client():
+			INSTANCE.coop(host).send_request("refuse", [id])
 		if GuestManager != null:
 			GuestManager.refuse_at_desk(id)
 		_poll = 0.0
@@ -219,7 +219,7 @@ func import_state(d: Dictionary) -> void:
 	_pending_state = {}
 
 
-## Co-op: the register and the key hooks, both ways (main polls it, Coop.send_sync
+## Co-op: the register and the key hooks, both ways (main polls it, INSTANCE.coop(host).send_sync
 ## "register"); what comes in is merged with what was written here.
 func coop_register() -> Dictionary:
 	return desk.export_state() if desk != null else {}

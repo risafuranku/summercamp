@@ -1890,7 +1890,7 @@ func _back_up() -> void:
 func _blocked_by_mate() -> void:
 	_bump_t = 0.0
 	_play_one("bump.mp3", -4.0)
-	var who := Coop.name_of(mate.blocker)
+	var who = INSTANCE.coop(self).name_of(mate.blocker)
 	var m: Dictionary = mate.mate()
 	var facing_you := false
 	if not m.is_empty():
@@ -1906,7 +1906,7 @@ func coop_bumped() -> void:
 		return
 	_bump_t = 0.0
 	_play_one("bump.mp3", -2.0)
-	_set_status(tr("Something knocks against you. %s.") % Coop.sender_name())
+	_set_status(tr("Something knocks against you. %s.") % INSTANCE.coop(self).sender_name())
 
 
 ## The other machine: they clamped hole `i`.
@@ -2153,7 +2153,7 @@ func _update_clamp(delta: float) -> void:
 ## A hole shut (the clamp, or pipe_repair's work): for both wardens, then on along the pipe.
 func _leak_done() -> void:
 	var l: Dictionary = _leaks[maxi(0, _cur_leak)]
-	Coop.send_play("pipe_fixed", [mate.key, maxi(0, _cur_leak)])
+	INSTANCE.coop(self).send_play("pipe_fixed", [mate.key, maxi(0, _cur_leak)])
 	l["fixed"] = true
 	if l.get("fx") != null:
 		l["fx"].emitting = false

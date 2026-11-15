@@ -11,6 +11,7 @@ extends CanvasLayer
 ## and slides off. The last one of a night, when the flash kills you, fills the screen
 ## instead: your own face, close, his grin at the edge of it.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 const FIGURE = preload("res://scripts/coop/remote_player.gd")
 const LOOKS = preload("res://scripts/coop/warden_looks.gd")
@@ -109,7 +110,7 @@ func take(world: World3D, from: Vector3, target: Vector3, you: Vector3, face: Ve
 	var holder := Node3D.new()
 	holder.name = "PolaroidStandIns"
 	_vp.add_child(holder)
-	var look: Dictionary = Coop.my_look() if Coop != null else {"m": 1, "c": 0}
+	var look: Dictionary = INSTANCE.coop(self).my_look() if Coop != null else {"m": 1, "c": 0}
 	var fig = FIGURE.new()
 	holder.add_child(fig)
 	fig.setup(int(look.get("m", 1)), int(look.get("c", 0)), true)

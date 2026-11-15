@@ -631,8 +631,8 @@ func bin_items() -> Array:
 func earn(amount: int) -> void:
 	if amount <= 0:
 		return
-	if Coop.is_client():
-		Coop.send_request("money", [amount])
+	if INSTANCE.coop(self).is_client():
+		INSTANCE.coop(self).send_request("money", [amount])
 	elif CoreRoot != null and CoreRoot.actions != null:
 		CoreRoot.actions.add_money(amount)
 
@@ -699,8 +699,8 @@ func add_score(game: String, value: int) -> int:
 ## The name a new best result goes under: the warden's own.
 func player_name() -> String:
 	var n := ""
-	if Coop != null and Coop.has_method("my_look"):
-		n = str((Coop.my_look() as Dictionary).get("n", ""))
+	if Coop != null and INSTANCE.coop(self).has_method("my_look"):
+		n = str((INSTANCE.coop(self).my_look() as Dictionary).get("n", ""))
 	return n if n != "" else "Warden"
 
 
@@ -1630,7 +1630,7 @@ func _process(delta: float) -> void:
 		if not _has_power() and _state != Boot.OFF and _state != Boot.SAFE_OFF:
 			power_off()
 			_blacked_out = true
-		elif _coop_pw == 1 and Coop.is_active() and (_state == Boot.OFF or _state == Boot.SAFE_OFF) and _has_power():
+		elif _coop_pw == 1 and INSTANCE.coop(self).is_active() and (_state == Boot.OFF or _state == Boot.SAFE_OFF) and _has_power():
 			_coop_take_power(1)
 		elif _has_power() and _blacked_out and _open and _state == Boot.OFF:
 			_blacked_out = false

@@ -2,12 +2,13 @@ extends Node
 
 ## The night's screen and ears of another warden (scripts/night/nightmare_fx.gd, on their
 ## machine), for an enemy brain on the host's that hunts their stand-in (coop_proxy.gd):
-## every call goes over to them (Coop.send_night_fx) and is played there, on their screen
+## every call goes over to them (INSTANCE.coop(self).send_night_fx) and is played there, on their screen
 ## alone. What a brain gives it is sent as it can travel: a texture as its path, a camera
 ## as "their own camera". `ext` is for what is not the fx layer's (the Photographer's
 ## pictures: coop_night.gd `_on_ext`). Calls that say the same as the last of their kind
 ## (a close-up held, the presence each tick) are not sent again.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const FX_TEX := preload("res://scripts/night/fx_tex.gd")
 
 ## The peer whose screen this is.
@@ -66,7 +67,7 @@ func _send(method: String, args: Array) -> void:
 		if method == "close_up_off":
 			_last.erase("overlay")
 			_last.erase("split")
-	Coop.send_night_fx(method, packed, peer)
+	INSTANCE.coop(self).send_night_fx(method, packed, peer)
 
 
 func set_dread(source: String, level: float) -> void:
@@ -199,7 +200,7 @@ func tinnitus(seconds: float) -> void:
 ## where it was when it began; each says it all, so it may be lost on the way.
 func view(pitch: float, roll: float, yaw: float) -> void:
 	if peer != 0:
-		Coop.send_night_fx("look", [pitch, roll, yaw], peer)
+		INSTANCE.coop(self).send_night_fx("look", [pitch, roll, yaw], peer)
 
 
 func view_off() -> void:

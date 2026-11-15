@@ -81,7 +81,7 @@ func _process(delta: float) -> void:
 	var sites := _live_sites()
 	_watch_waiting(sites)
 	# In co-op the host runs the camp.
-	if not Coop.sim_here():
+	if not INSTANCE.coop(self).sim_here():
 		return
 	CoreRoot.actions.biz_prune(sites.keys())
 	# The warehouses standing (their racks: scripts/business/store_room.gd): a demolished one's racks go.
@@ -749,8 +749,8 @@ func _complaint(kind: String) -> String:
 ## the same counter was none the wiser (the user 7. 11.).
 func _say_all(text: String, kind := 0, group := "") -> void:
 	_say(text, kind, group)
-	if Coop.is_host():
-		Coop.send_fact("biz_say", [text, kind, group])
+	if INSTANCE.coop(self).is_host():
+		INSTANCE.coop(self).send_fact("biz_say", [text, kind, group])
 
 
 func _say(text: String, kind := 0, group := "") -> void:

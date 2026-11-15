@@ -672,7 +672,7 @@ func _windows() -> Array:
 		var im = _im()
 		return im.photo_windows() if im != null and im.has_method("photo_windows") else []
 	var out: Array = []
-	for w in Coop.state_of(peer).get("pw", []):
+	for w in INSTANCE.coop(_world_root).state_of(peer).get("pw", []):
 		out.append({"pos": w[0], "out": w[1], "open": float(w[2]), "facing": float(w[3]), "far": true})
 	return out
 
@@ -1008,7 +1008,7 @@ func _throw_shadow(lens: Vector3) -> void:
 
 
 func _my_model() -> int:
-	return int(Coop.my_look().get("m", 1)) if Coop != null and Coop.has_method("my_look") else 1
+	return int(INSTANCE.coop(_world_root).my_look().get("m", 1)) if Coop != null and INSTANCE.coop(_world_root).has_method("my_look") else 1
 
 
 ## A shot of his at your drawn curtains or your tent: hide from him long enough in a night and

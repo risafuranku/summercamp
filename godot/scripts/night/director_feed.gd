@@ -7,6 +7,7 @@ extends RefCounted
 ## the warden it presses (scripts/coop/coop_night.gd) and those with them. The song at the
 ## end of the world (caretaker_context) and the omens (omen_context) read the same camp.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const NIGHT_SWELL = preload("res://core/systems/night_swell.gd")
 const OMENS_SCRIPT = preload("res://scripts/omens.gd")
 
@@ -31,27 +32,27 @@ func tick() -> void:
 	# Co-op: the night presses on one warden at a time (scripts/coop/coop_night.gd); what
 	# it does to another happens on their machine, and to those with them too.
 	var target := "host"
-	if Coop.is_host() and Coop.has_partner() and main._coop_night != null:
+	if INSTANCE.coop(main).is_host() and INSTANCE.coop(main).has_partner() and main._coop_night != null:
 		target = main._coop_night.director_target()
 		if target != "host":
 			ctx = context_other(ctx, main._coop_night.peer_of(target))
 	var id: String = main._director.tick(main.get_process_delta_time(), ctx)
 	if id != "" and target != "host":
 		var peer: int = main._coop_night.peer_of(target)
-		Coop.send_night_event("fx", [id], peer)
+		INSTANCE.coop(main).send_night_event("fx", [id], peer)
 		for with_them in main._coop_night.near(target):
 			if int(with_them) == 1:
 				main._director_fx.run(id, context())
 			elif int(with_them) != peer:
-				Coop.send_night_event("fx", [id], int(with_them))
+				INSTANCE.coop(main).send_night_event("fx", [id], int(with_them))
 		main._director.watch(id, ctx["pos"])
 		return
 	if id != "":
 		var at: Vector3 = main._director_fx.run(id, ctx)
 		main._director.watch(id, at)
-		if Coop.is_host() and Coop.has_partner() and main._coop_night != null:
+		if INSTANCE.coop(main).is_host() and INSTANCE.coop(main).has_partner() and main._coop_night != null:
 			for with_you in main._coop_night.near("host"):
-				Coop.send_night_event("fx", [id], int(with_you))
+				INSTANCE.coop(main).send_night_event("fx", [id], int(with_you))
 		# The log names the guest who stood outside.
 		if id == "guest_out" and not main._director.log.is_empty():
 			if at == Vector3.INF:
@@ -111,7 +112,7 @@ func context() -> Dictionary:
 ## Co-op: the night's context as another warden (`peer`) is in it (where they are, in the
 ## light or the dark, walking), the camp's side as it is.
 func context_other(ctx: Dictionary, peer: int) -> Dictionary:
-	var s: Dictionary = Coop.state_of(peer)
+	var s: Dictionary = INSTANCE.coop(main).state_of(peer)
 	var room: Dictionary = s.get("room", {})
 	var pos: Vector3 = s.get("p", Vector3.ZERO)
 	var where := "out_dark"

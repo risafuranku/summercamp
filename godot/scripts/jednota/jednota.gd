@@ -20,10 +20,11 @@ extends Node
 ## baskets); a thing comes off it when it is sold at the till. What is left in the
 ## storeroom is the stock less the rest (backroom()).
 ## Co-op (up to four): every change is an op (`act`) applied at once and sent to everyone
-## (Coop.send_place "vecerka"). The host has the guests take their baskets, gives up those
+## (INSTANCE.coop(self).send_place "vecerka"). The host has the guests take their baskets, gives up those
 ## who wait too long, does the hands' work and keeps the rack and the trolley in the books
 ## for the save (actions.biz_keep "jednota").
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const RULES := preload("res://core/systems/jednota_rules.gd")
 const ORDERS := preload("res://scripts/food/orders.gd")
 const BUSINESS := preload("res://scripts/business/business_runtime.gd")
@@ -49,7 +50,7 @@ var _rng := RandomNumberGenerator.new()
 func _ready() -> void:
 	name = "Jednotas"
 	add_to_group("jednotas")
-	# Coop.send_place("vecerka", ...) finds it here.
+	# INSTANCE.coop(self).send_place("vecerka", ...) finds it here.
 	add_to_group("places_vecerka")
 	_rng.randomize()
 
@@ -192,8 +193,8 @@ func tickets(key: String) -> Array:
 ##   parcel [visit, item]           a parcel from the deli into a basket already picked
 func act(key: String, op: String, args: Array) -> void:
 	_apply(key, op, args)
-	if Coop.is_active() and Coop.has_method("send_place"):
-		Coop.send_place("vecerka", key, op, args)
+	if INSTANCE.coop(self).is_active() and INSTANCE.coop(self).has_method("send_place"):
+		INSTANCE.coop(self).send_place("vecerka", key, op, args)
 
 
 func _apply(key: String, op: String, args: Array) -> void:
@@ -258,12 +259,12 @@ func _apply(key: String, op: String, args: Array) -> void:
 	changed.emit(key, op)
 
 
-## From another machine (Coop.send_place "vecerka").
+## From another machine (INSTANCE.coop(self).send_place "vecerka").
 func coop_place(key: String, op: String, args: Array) -> void:
 	if op == "hello":
-		if Coop.is_host():
+		if INSTANCE.coop(self).is_host():
 			for k in _sites:
-				Coop.send_place("vecerka", str(k), "snap", [_snapshot(str(k))])
+				INSTANCE.coop(self).send_place("vecerka", str(k), "snap", [_snapshot(str(k))])
 		return
 	_apply(key, op, args)
 
@@ -436,10 +437,10 @@ func _process(delta: float) -> void:
 	if _acc < 1.0:
 		return
 	_acc = 0.0
-	if Coop.is_client() and not _asked_snap and Coop.has_method("send_place"):
+	if INSTANCE.coop(self).is_client() and not _asked_snap and INSTANCE.coop(self).has_method("send_place"):
 		_asked_snap = true
-		Coop.send_place("vecerka", "", "hello", [])
-	if not Coop.sim_here():
+		INSTANCE.coop(self).send_place("vecerka", "", "hello", [])
+	if not INSTANCE.coop(self).sim_here():
 		return
 	_holds.clear()
 	for key in _shop_sites():

@@ -13,9 +13,10 @@ extends Node
 ## The goods, the prices and her words are counter_goods.gd's, the places on the counter the
 ## rooms' (jednota_view.gd, kiosk_view.gd: `begin`). Co-op: everybody's money is their own
 ## business, but the other wardens standing in the shop see your goods come onto the counter
-## and go, and hear the till (Coop.send_place("shop", place, ...): this node is the group
+## and go, and hear the till (INSTANCE.coop(self).send_place("shop", place, ...): this node is the group
 ## "places_shop").
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const GOODS = preload("res://scripts/town/counter_goods.gd")
 const PAY = preload("res://scripts/town/counter_pay.gd")
 const SEVEN = preload("res://scripts/ui/seven_seg.gd")
@@ -319,7 +320,7 @@ func _tick_ring(delta: float) -> void:
 		return
 	if _ring_i == _to_pay.size():
 		_sound(SFX_TILL, -6.0)
-		Coop.send_place("shop", place, "till", [_total])
+		INSTANCE.coop(self).send_place("shop", place, "till", [_total])
 		_ring_i += 1
 		_ring_t = AFTER_BELL
 		return
@@ -590,7 +591,7 @@ func _tell() -> void:
 	var ids: Array = []
 	for g in _on:
 		ids.append(str(g["id"]))
-	Coop.send_place("shop", place, "goods", [ids])
+	INSTANCE.coop(self).send_place("shop", place, "goods", [ids])
 
 
 ## town_room's mates in the shop now: someone new sees what lies here; someone gone takes
@@ -612,13 +613,13 @@ func mates_here(ids: Array) -> void:
 		_tell()
 
 
-## From the other machine (Coop.send_place "shop").
+## From the other machine (INSTANCE.coop(self).send_place "shop").
 func coop_place(key: String, op: String, data: Array) -> void:
 	if place == "" or key != place:
 		return
 	match op:
 		"goods":
-			_set_mate_goods(Coop.sender, data[0] as Array)
+			_set_mate_goods(INSTANCE.coop(self).sender, data[0] as Array)
 		"till":
 			_sound(SFX_TILL, -9.0)
 			if not busy():

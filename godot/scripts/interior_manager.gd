@@ -795,7 +795,7 @@ func _on_crt_interact() -> void:
 		var leaf := _nearest_door(shell, stop)
 		if leaf != null:
 			DOOR_ANIM.open(leaf, 3.0)
-		Coop.send_door("office", 0, 2.6)
+		INSTANCE.coop(self).send_door("office", 0, 2.6)
 		_play_office_door(OFFICE_DOOR_OPEN)
 		var tw := create_tween()
 		_stepping_out = tw
@@ -1117,10 +1117,10 @@ var _walked_in_ms := -100000
 ## told by "in" (the warden gone in, the room up) it opened after they had walked through it (the
 ## user 9. 11.: "the player goes through and only then the door").
 func coop_door_opens(structure: Node3D, door: Variant, seconds := 2.6) -> void:
-	if not Coop.is_active() or door == null:
+	if not INSTANCE.coop(self).is_active() or door == null:
 		return
 	var pick: int = DOOR_ANIM.find_doors(structure).find(door)
-	Coop.send_door(_room_key_for(structure), maxi(pick, 0), seconds)
+	INSTANCE.coop(self).send_door(_room_key_for(structure), maxi(pick, 0), seconds)
 
 
 func _walk_up_first(structure: Node3D, again: Callable, room: Object = null) -> bool:
@@ -1506,7 +1506,7 @@ func _on_room_task_completed(interior: Object, structure: Node3D, task_id: Strin
 	var was_ready := str(GuestManager.get_room_state(key).get("status", "")) == "ready"
 	GuestManager.complete_room_task(key, task_id)
 	# Co-op: done here at once, and for real in the host's camp (which sends it back).
-	Coop.send_room_task(key, task_id)
+	INSTANCE.coop(self).send_room_task(key, task_id)
 	var room: Dictionary = GuestManager.get_room_state(key)
 	interior.set_room(room)
 	if not was_ready and str(room.get("status", "")) == "ready" and interior.has_method("play_room_ready"):
@@ -1905,8 +1905,8 @@ func _on_upgrade_confirmed() -> void:
 	var mode = str(_pending_upgrade_context.get("mode", ""))
 	var cost = int(_pending_upgrade_context.get("cost", 0))
 	# Co-op: bought in the host's camp (the new building comes back as a fact).
-	if Coop.is_client():
-		Coop.send_request("upgrade", [_pending_upgrade_context.duplicate()])
+	if INSTANCE.coop(self).is_client():
+		INSTANCE.coop(self).send_request("upgrade", [_pending_upgrade_context.duplicate()])
 		if _building_upgrade_menu != null:
 			_building_upgrade_menu.close_menu()
 		return
@@ -1972,8 +1972,8 @@ func map_upgrade(origin: Vector2i, current_type: String) -> bool:
 	var offer := map_upgrade_offer(origin, current_type)
 	if offer.is_empty() or bool(offer.get("max", false)) or float(offer.get("locked", 0.0)) > 0.0:
 		return false
-	if Coop.is_client():
-		Coop.send_request("upgrade", [offer.duplicate()])
+	if INSTANCE.coop(self).is_client():
+		INSTANCE.coop(self).send_request("upgrade", [offer.duplicate()])
 		return true
 	if not _economy_manager.has_method("spend_money") or not _economy_manager.spend_money(int(offer["cost"])):
 		return false
@@ -2034,7 +2034,7 @@ func _handle_replace_upgrade(origin: Vector2i, old_type: String, new_type: Strin
 	if CoreRoot != null and CoreRoot.actions != null:
 		CoreRoot.actions.retype_building(origin, new_type)
 	# Co-op: the other warden's camp gets the same upgrade.
-	Coop.send_fact("upgrade", [origin, old_type, new_type])
+	INSTANCE.coop(self).send_fact("upgrade", [origin, old_type, new_type])
 	var removed_registered = _economy_manager.unregister_building_at(origin, old_type)
 	if not removed_registered and old_type == "cabin_1":
 		_economy_manager.unregister_building_at(origin, "cabin")
@@ -2212,8 +2212,8 @@ func set_tent_door(key: String, open: bool, send := true) -> void:
 	else:
 		tent_doors.erase(key)
 	_show_tent_door(key, open)
-	if send and was != open and Coop.is_active():
-		Coop.send_tent_door(key, open)
+	if send and was != open and INSTANCE.coop(self).is_active():
+		INSTANCE.coop(self).send_tent_door(key, open)
 
 
 ## The camp's tent at `key` as its door is: the flap, or the doorway with the flap rolled up.
@@ -2255,8 +2255,8 @@ func coop_send_curtains(state: Array) -> void:
 	if key == "":
 		return
 	_curtains_by_room[key] = state.duplicate()
-	if Coop.is_active():
-		Coop.send_curtains(key, state)
+	if INSTANCE.coop(self).is_active():
+		INSTANCE.coop(self).send_curtains(key, state)
 
 
 func coop_take_curtains(key: String, state: Array) -> void:
@@ -2353,9 +2353,9 @@ func coop_room() -> Dictionary:
 
 ## Whom another warden is seeing to at the counter now (-999 nobody).
 func coop_desk_guest() -> int:
-	if Coop.is_active():
-		for id in Coop.others():
-			var info: Dictionary = Coop.state_of(id).get("room", {})
+	if INSTANCE.coop(self).is_active():
+		for id in INSTANCE.coop(self).others():
+			var info: Dictionary = INSTANCE.coop(self).state_of(id).get("room", {})
 			if str(info.get("k", "")) == "office" and str(info.get("w", "")) == "desk":
 				return int(info.get("g", -999))
 	return -999
@@ -2475,11 +2475,11 @@ func _coop_room_seen(info: Dictionary) -> Array:
 
 
 func _coop_rooms_from_camp(delta: float) -> void:
-	if _room_figs.is_empty() and not Coop.has_partner():
+	if _room_figs.is_empty() and not INSTANCE.coop(self).has_partner():
 		return
 	var seen := {}
-	for id in Coop.others():
-		var info: Dictionary = Coop.state_of(id).get("room", {})
+	for id in INSTANCE.coop(self).others():
+		var info: Dictionary = INSTANCE.coop(self).state_of(id).get("room", {})
 		var e: Variant = info.get("e", null)
 		if not (e is Array) or (e as Array).size() < 3:
 			continue
@@ -2492,7 +2492,7 @@ func _coop_rooms_from_camp(delta: float) -> void:
 		if rec.is_empty() or not is_instance_valid(rec["fig"]) or (rec["fig"] as Node).get_parent() != where[1]:
 			if not rec.is_empty() and is_instance_valid(rec["fig"]):
 				(rec["fig"] as Node).queue_free()
-			var look: Dictionary = Coop.look_of(id)
+			var look: Dictionary = INSTANCE.coop(self).look_of(id)
 			var fig = COOP_FIGURE.new()
 			fig.setup(int(look.get("m", 1)), int(look.get("c", 0)), true)
 			(where[1] as Node).add_child(fig)
@@ -2566,8 +2566,8 @@ func _room_job(it) -> String:
 ## back, or by their job). Not in your room: no figure.
 func coop_partner(info: Dictionary, id := 0) -> void:
 	if id == 0:
-		id = Coop.remote_id
-	var look: Dictionary = Coop.look_of(id)
+		id = INSTANCE.coop(self).remote_id
+	var look: Dictionary = INSTANCE.coop(self).look_of(id)
 	var model := int(look.get("m", 1))
 	var mine := coop_room()
 	var same: bool = not info.is_empty() and not mine.is_empty() and str(info.get("k", "")) == str(mine["k"]) \
@@ -2626,7 +2626,7 @@ func coop_partner(info: Dictionary, id := 0) -> void:
 		right = right.normalized() if right.length() > 0.01 else Vector3.RIGHT
 		# Across the room from you (a cabin is three paces deep), a little to one side, the
 		# next of them a pace along the other way; in a tent at its back, one behind another.
-		var nth := maxi(0, Coop.others().find(id))
+		var nth := maxi(0, INSTANCE.coop(self).others().find(id))
 		var side := 0.3 + 0.6 * float(nth)
 		var spot: Vector3 = cam.global_position + fwd * 1.8 + right * (side if nth % 2 == 0 else -side)
 		if tent and root != null:
@@ -2791,7 +2791,7 @@ var _office_figs_t := 0.0
 
 func _coop_office_from_camp(delta: float) -> void:
 	var bi = _building_interior
-	var live: bool = bi != null and Coop.is_active() and not bi.is_open() and bool(bi.get("_inview_live"))
+	var live: bool = bi != null and INSTANCE.coop(self).is_active() and not bi.is_open() and bool(bi.get("_inview_live"))
 	if not live:
 		if not _office_figs.is_empty():
 			for id in _office_figs.keys():
@@ -2809,12 +2809,12 @@ func _coop_office_from_camp(delta: float) -> void:
 	if vp == null or root == null:
 		return
 	var seen: Array = []
-	for id in Coop.others():
-		var info: Dictionary = Coop.state_of(id).get("room", {})
+	for id in INSTANCE.coop(self).others():
+		var info: Dictionary = INSTANCE.coop(self).state_of(id).get("room", {})
 		if str(info.get("k", "")) != "office":
 			continue
 		seen.append(id)
-		var look: Dictionary = Coop.look_of(id)
+		var look: Dictionary = INSTANCE.coop(self).look_of(id)
 		var model := int(look.get("m", 1))
 		var fig = _office_figs.get(id)
 		if fig == null or not is_instance_valid(fig):
@@ -2854,7 +2854,7 @@ func _coop_lay_sleeper(id: int, vp: Node, foot: Vector3, head: Vector3) -> void:
 	var sl: Sprite3D = e["sleeper"]
 	if sl == null or not is_instance_valid(sl) or sl.get_parent() != vp:
 		_coop_hide_sleeper(id)
-		var look: Dictionary = Coop.look_of(id)
+		var look: Dictionary = INSTANCE.coop(self).look_of(id)
 		var tex: Texture2D = COOP_LOOKS.texture(int(look.get("m", 1)), int(look.get("c", 0)), "bedfoot")
 		if tex == null:
 			return
@@ -2911,7 +2911,7 @@ func coop_partner_look(look: Dictionary, id := 0) -> void:
 			continue
 		var fig = _coop_figs[i].get("fig")
 		if fig != null and is_instance_valid(fig) and fig.has_method("set_look"):
-			var l: Dictionary = Coop.look_of(i) if id == 0 else look
+			var l: Dictionary = INSTANCE.coop(self).look_of(i) if id == 0 else look
 			fig.set_look(int(l.get("m", 1)), int(l.get("c", 0)))
 
 

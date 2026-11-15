@@ -26,12 +26,13 @@ extends Node
 ## the same ones; only what was served is told.
 ##
 ## Co-op (up to four): everything done here is an op (`act`) applied at once and sent to
-## everyone (Coop.send_kitchen); counts go as changes, a pan place or the pot as its whole
+## everyone (INSTANCE.coop(self).send_kitchen); counts go as changes, a pan place or the pot as its whole
 ## new state, so the machines agree however the ops cross. The host also holds the guests
 ## in their seats while their food is coming (guest_life.visit_holds), sends back the
 ## plates they ate from, and keeps the trays' counts in the books for the save
 ## (actions.biz_kitchen). A machine that joins asks the host for the kitchens as they are.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const RULES := preload("res://core/systems/bistro_rules.gd")
 const ORDERS := preload("res://scripts/food/orders.gd")
 const BUSINESS := preload("res://scripts/business/business_runtime.gd")
@@ -269,8 +270,8 @@ func ticket_of(key: String, visit: String, member: int) -> Dictionary:
 ##   soup [state]               the bufet's soup pot
 func act(key: String, op: String, args: Array) -> void:
 	_apply(key, op, args)
-	if Coop.is_active():
-		Coop.send_kitchen(key, op, args)
+	if INSTANCE.coop(self).is_active():
+		INSTANCE.coop(self).send_kitchen(key, op, args)
 
 
 func _apply(key: String, op: String, args: Array) -> void:
@@ -392,13 +393,13 @@ func serve_hatch(key: String, t: Dictionary, hand := "") -> Dictionary:
 	return v
 
 
-## From another machine (Coop.send_kitchen).
+## From another machine (INSTANCE.coop(self).send_kitchen).
 func coop_kitchen(key: String, op: String, args: Array) -> void:
 	if op == "hello":
 		# Somebody new: the kitchens as they are here (the host's are the ones).
-		if Coop.is_host():
+		if INSTANCE.coop(self).is_host():
 			for k in _sites:
-				Coop.send_kitchen(str(k), "snap", [_snapshot(str(k))])
+				INSTANCE.coop(self).send_kitchen(str(k), "snap", [_snapshot(str(k))])
 		return
 	_apply(key, op, args)
 
@@ -572,10 +573,10 @@ func _process(delta: float) -> void:
 	if _acc < 1.0:
 		return
 	_acc = 0.0
-	if Coop.is_client() and not _asked_snap:
+	if INSTANCE.coop(self).is_client() and not _asked_snap:
 		_asked_snap = true
-		Coop.send_kitchen("", "hello", [])
-	if not Coop.sim_here():
+		INSTANCE.coop(self).send_kitchen("", "hello", [])
+	if not INSTANCE.coop(self).sim_here():
 		return
 	_host_second()
 
@@ -757,7 +758,7 @@ func proto_state(key: String) -> Dictionary:
 ## A guest gone at dawn (the night took them; night_roll.claim_turned_guests) or before it: the
 ## machine's next night has its sack. The host's.
 func _on_guest_state(_id: int, _old: String, new_state: String) -> void:
-	if new_state != "departed" or GuestManager == null or not Coop.sim_here():
+	if new_state != "departed" or GuestManager == null or not INSTANCE.coop(self).sim_here():
 		return
 	var hour := int(GuestManager._last_known_hour)
 	if hour < 3 or hour >= 8:

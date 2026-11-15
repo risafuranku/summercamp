@@ -6,6 +6,7 @@ extends Node3D
 ## missed fetches it, then serves. One player alone bounces the ball on the bat; the
 ## rest stand at the side and wait their turn. Stepped at 12 frames a second.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const WARDEN_PLAY = preload("res://scripts/attractions/warden_play.gd")
 const POSES = preload("res://scripts/attractions/poses.gd")
 const FPS := 12.0
@@ -98,7 +99,7 @@ func pose_member(guest_id: int, i: int, _n: int, member: Node3D, sprite: Sprite3
 	var base := str(info.get("sprite_path", ""))
 	POSES.set_pose(sprite, base, "bat" if slot_now < 2 else "")
 	if slot_now < 2:
-		var mine := key == WARDEN_PLAY.local_key()
+		var mine := key == WARDEN_PLAY.local_key(self)
 		_bat_drawn[slot_now] = POSES.has_pose(base, "bat") and not mine
 	if sprite != null:
 		sprite.flip_h = slot_now == 1
@@ -122,7 +123,7 @@ func _process(delta: float) -> void:
 			_slot_of.erase(key)
 	guests_here = _seen.keys().filter(func(k): return int(k) >= 0).size()
 	# Co-op: the host's game, followed here (coop_take_shot).
-	if not Coop.is_client():
+	if not INSTANCE.coop(self).is_client():
 		_play()
 	if _ball != null:
 		_ball.position = _ball_pos()
@@ -131,7 +132,7 @@ func _process(delta: float) -> void:
 		var b := _bats[i] as Node3D
 		var side := -1.0 if i == 0 else 1.0
 		b.visible = not (_occupied(i) and bool(_bat_drawn.get(i, false)))
-		if _key_at(i) == WARDEN_PLAY.local_key():
+		if _key_at(i) == WARDEN_PLAY.local_key(self):
 			# Yours: in your hand before your eyes, swung at each hit.
 			var sw := clampf(1.0 - (_clock - float(_hit_at.get(i, -9.0))) / 0.25, 0.0, 1.0)
 			b.position = Vector3(side * (END_X - 0.28 - 0.25 * sw), BAT_Y + 0.22, 0.3 - 0.3 * sw)
@@ -224,7 +225,7 @@ func _hit(slot: int) -> void:
 func _launch(kind: String, from: Vector3, to: Vector3, apex: float, dur: float, _by: int, to_slot: int) -> void:
 	_shot = {"kind": kind, "from": from, "to": to, "apex": apex, "t0": _clock, "dur": dur, "to_slot": to_slot}
 	# Co-op: the other machine's ball goes as this one.
-	if Coop.is_host() and Coop.has_partner():
+	if INSTANCE.coop(self).is_host() and INSTANCE.coop(self).has_partner():
 		var wp := get_tree().get_first_node_in_group("warden_play")
 		if wp != null:
 			var out := _shot.duplicate()

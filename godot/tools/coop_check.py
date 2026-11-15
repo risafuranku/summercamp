@@ -174,7 +174,8 @@ def main():
             failures.append("the two are not in the same pipes (%s / %s)" % (hp2["pipe_net"], cp2["pipe_net"]))
         if not hp2["pipe_net"]["mate_seen"] or not cp2["pipe_net"]["mate_seen"]:
             failures.append("in the pipes they do not see each other (host %s, other %s)" % (hp2["pipe_net"]["mate_seen"], cp2["pipe_net"]["mate_seen"]))
-        if "boots" not in cp2["pipe_net"]["status"] and "torch" not in cp2["pipe_net"]["status"]:
+        # (In the warden's language: the pipes' line is Czech since 15. 11., "boty", "Baterka".)
+        if not any(w in cp2["pipe_net"]["status"] for w in ("boots", "torch", "boty", "Baterka")):
             failures.append("the other crawled through the host (%s)" % cp2["pipe_net"]["status"])
     # In the pub: the host at the tap is seen behind the bar pulling a beer.
     cpt = load("client_pub_tap")

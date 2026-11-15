@@ -351,8 +351,8 @@ var clock_scale := 1.0
 ## The other wardens on a bus (their coop_state): peer id -> it.
 func _mates_info() -> Dictionary:
 	var out := {}
-	for id in Coop.others():
-		var b = Coop.state_of(id).get("bus", {})
+	for id in INSTANCE.coop(self).others():
+		var b = INSTANCE.coop(self).state_of(id).get("bus", {})
 		if b is Dictionary and not (b as Dictionary).is_empty():
 			out[int(id)] = b
 	return out
@@ -1425,18 +1425,18 @@ func _play_two(file: String, db: float) -> void:
 ## Co-op: may it go? Wardens on board: once every one of them sits (or it went for
 ## them). One near the stop outside: a moment for them. Elsewhere, or alone: at once.
 func _mate_ready(delta: float) -> bool:
-	if not Coop.has_partner():
+	if not INSTANCE.coop(self).has_partner():
 		return true
 	var all := _mates_info()
 	var someone_near := false
-	for id in Coop.others():
+	for id in INSTANCE.coop(self).others():
 		var m: Dictionary = all.get(id, {})
 		if not m.is_empty() and str(m.get("st", "")) == stop:
 			if int(m.get("s", -1)) < 0 and not bool(m.get("go", false)):
 				_driver_waits()
 				return false
 			continue
-		var st: Dictionary = Coop.state_of(id)
+		var st: Dictionary = INSTANCE.coop(self).state_of(id)
 		var p: Vector3 = st.get("p", Vector3.INF)
 		if stop_pos != Vector3.INF and p != Vector3.INF and not bool(st.get("in", false)) \
 				and Vector2(p.x - stop_pos.x, p.z - stop_pos.z).length() < 30.0:
@@ -1460,7 +1460,7 @@ func _driver_waits() -> void:
 func _update_mate() -> void:
 	var all := _mates_info()
 	var standing := 0
-	for id in Coop.others():
+	for id in INSTANCE.coop(self).others():
 		var m: Dictionary = all.get(id, {})
 		# On the same run: both still at the stop, or both gone.
 		var here := not m.is_empty() and str(m.get("st", "")) == stop and bool(m.get("go", false)) == (_state in [RIDING, STOPPING, DONE])
@@ -1475,7 +1475,7 @@ func _update_mate() -> void:
 			standing += 1
 		_show_mate(int(id), m, standing)
 	for id in _mates.keys():
-		if not Coop.wardens.has(id) and is_instance_valid(_mates[id]):
+		if not INSTANCE.coop(self).wardens.has(id) and is_instance_valid(_mates[id]):
 			_mates[id].visible = false
 
 
@@ -1504,7 +1504,7 @@ func _show_mate(id: int, m: Dictionary, nth_standing: int) -> void:
 		pos = Vector3(sv.x, 0.0, sv.y)
 		# The bus faces -z: sat behind them you see their back.
 		pose = "desk" if _cam.position.z > sv.y + 0.2 else "sit"
-	var look: Dictionary = Coop.look_of(id)
+	var look: Dictionary = INSTANCE.coop(self).look_of(id)
 	var key := "%s|%d|%d" % [pose, int(look.get("m", 1)), int(look.get("c", 0))]
 	if key != str(_mate_poses.get(id, "")):
 		_mate_poses[id] = key
@@ -1941,7 +1941,7 @@ func _line_ask(who: String, quiet := false) -> void:
 ## The machine that leads this ride: of the wardens on it, the lowest id. {} when it is
 ## this one (or you ride alone); else that warden's bus state.
 func _leader_state() -> Dictionary:
-	if not Coop.has_partner():
+	if not INSTANCE.coop(self).has_partner():
 		return {}
 	var me := multiplayer.get_unique_id()
 	var best := me
@@ -1958,7 +1958,7 @@ func _leader_state() -> Dictionary:
 
 ## The leader's bus has gone while this one still holds at the stop: go with it.
 func _leader_went() -> bool:
-	if not Coop.has_partner() or _seat < 0:
+	if not INSTANCE.coop(self).has_partner() or _seat < 0:
 		return false
 	var me := multiplayer.get_unique_id()
 	var all := _mates_info()
@@ -1989,7 +1989,7 @@ func _follow(delta: float) -> void:
 
 ## STOP pressed on another machine on this bus: the bell, STOJIME, and it pulls in for them.
 func _merge_stops() -> void:
-	if not Coop.has_partner():
+	if not INSTANCE.coop(self).has_partner():
 		return
 	var going := _state in [RIDING, STOPPING, DONE]
 	for m in _mates_info().values():

@@ -14,10 +14,11 @@ extends RefCounted
 ##   six          some nights a line of light under its door (motel_plan.six_lit); never
 ##                explained;
 ##   the others   stand and walk where they are on their machines (`mate_walk`: each warden's
-##                spot comes by Coop.send_place "town" "motel" "walk"); you see them go
+##                spot comes by INSTANCE.coop(room).send_place "town" "motel" "walk"); you see them go
 ##                in at a door (`mate_leaves`).
 ## Its space is motel space: the block's middle on the ground, x east, z south.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const PLAN = preload("res://scripts/town/motel_plan.gd")
 const ROOMS = preload("res://scripts/town/motel_rooms.gd")
 const K = preload("res://scripts/interior_kit.gd")
@@ -152,7 +153,7 @@ func build(hour: float, arrive: String) -> void:
 	_light(hour)
 	_sounds()
 	_walker = WALK.new(room, spots(), ways(), "lobby", SFX + "rooms/steps_wood.mp3", -17.0)
-	_walker.on_go = func(to: String): Coop.send_place("town", "motel", "walk", [to])
+	_walker.on_go = func(to: String): INSTANCE.coop(room).send_place("town", "motel", "walk", [to])
 	_crew = MATES.new(room, spots(), ways(), "lobby")
 	var at := arrive if spots().has(arrive) else "lobby"
 	_arrive_at = at
@@ -177,7 +178,7 @@ func build(hour: float, arrive: String) -> void:
 	# only by clicking a door through the ceiling"); a room's door walks you to it by its own click
 	# (7. 11.: "far too many places to stand").
 	_walker.floor_spots(["junction", "west", "s0", "s1", "top", "up_east", "up_west"], Vector2(0.8, 0.8), {"s0": "top", "s1": "junction"})
-	Coop.send_place("town", "motel", "walk", [at])
+	INSTANCE.coop(room).send_place("town", "motel", "walk", [at])
 	room._look.yaw_limit_deg = 180.0
 	room._look.pitch_up_deg = 34.0
 	room._look.pitch_down_deg = 40.0

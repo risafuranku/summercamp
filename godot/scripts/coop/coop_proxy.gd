@@ -5,6 +5,7 @@ extends CharacterBody3D
 ## their torch from their warden state, and what an enemy does to the torch in their hand
 ## sent to their machine.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const TORCH_RANGE := 18.0
 const TORCH_HALF_ANGLE := 23.0
 
@@ -12,7 +13,7 @@ const TORCH_HALF_ANGLE := 23.0
 var flashlight_drain_boost := 0.0:
 	set(v):
 		if not is_equal_approx(v, flashlight_drain_boost):
-			Coop.send_night_event("drain", [v], int(get_meta("coop_id", 0)))
+			INSTANCE.coop(self).send_night_event("drain", [v], int(get_meta("coop_id", 0)))
 		flashlight_drain_boost = v
 
 
@@ -21,27 +22,27 @@ var flashlight_drain_boost := 0.0:
 var flashlight_stutter := 0.0:
 	set(v):
 		if not is_equal_approx(v, flashlight_stutter):
-			Coop.send_night_event("stutter", [v], int(get_meta("coop_id", 0)))
+			INSTANCE.coop(self).send_night_event("stutter", [v], int(get_meta("coop_id", 0)))
 		flashlight_stutter = v
 var held_speed_mult := 1.0:
 	set(v):
 		if not is_equal_approx(v, held_speed_mult):
-			Coop.send_night_event("held", [v], int(get_meta("coop_id", 0)))
+			INSTANCE.coop(self).send_night_event("held", [v], int(get_meta("coop_id", 0)))
 		held_speed_mult = v
 
 
 func set_controls_enabled(on: bool) -> void:
-	Coop.send_night_event("controls", [on], int(get_meta("coop_id", 0)))
+	INSTANCE.coop(self).send_night_event("controls", [on], int(get_meta("coop_id", 0)))
 
 
 ## The Silent Man's glasses throwing your torch back: it goes dead in their hand there.
 func torch_blackout(seconds: float, back := 1.1) -> void:
-	Coop.send_night_event("blackout", [seconds, back], int(get_meta("coop_id", 0)))
+	INSTANCE.coop(self).send_night_event("blackout", [seconds, back], int(get_meta("coop_id", 0)))
 
 
 ## Their warden state (the stand-in's peer id is its meta "coop_id").
 func _state() -> Dictionary:
-	return Coop.state_of(int(get_meta("coop_id", 0)))
+	return INSTANCE.coop(self).state_of(int(get_meta("coop_id", 0)))
 
 
 func is_flashlight_active() -> bool:

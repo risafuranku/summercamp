@@ -47,6 +47,7 @@ extends RefCounted
 ## an owl up in the roof, the candles' small crackle (louder near them), a beam ticking,
 ## wax, a moth at the red glass; and the worse things come a little easier.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const K = preload("res://scripts/interior_kit.gd")
 const WALK = preload("res://scripts/town/room_walk.gd")
 const CANDLE_CLOSEUP = preload("res://scripts/town/candle_closeup.gd")
@@ -355,7 +356,7 @@ func _read_sanity() -> float:
 	var s = night.get("sanity")
 	if not (s is Dictionary):
 		return 100.0
-	return float((s as Dictionary).get("own" if Coop.is_client() else "host", 100.0))
+	return float((s as Dictionary).get("own" if INSTANCE.coop(room).is_client() else "host", 100.0))
 
 
 ## 0 calm .. 1 at the end of the tether.

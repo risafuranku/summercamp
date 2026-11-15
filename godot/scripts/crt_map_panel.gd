@@ -1294,7 +1294,7 @@ func undo_last() -> bool:
 		_emit_status("Nothing to undo today.", STATUS_DENY)
 		return false
 	# Co-op: on the other warden's machine the camp is the host's; take it down instead.
-	if Coop.is_client():
+	if INSTANCE.coop(self).is_client():
 		_emit_status("Not from here. Bulldoze it instead.", STATUS_DENY)
 		return false
 	var group := int(_undo.back()["group"])
@@ -2401,16 +2401,16 @@ var _hands: Array = []
 func _update_mate() -> void:
 	var prev := _mates
 	_mates = {}
-	for id in Coop.others():
+	for id in INSTANCE.coop(self).others():
 		var cell := Vector2.INF
-		var fig := Coop.figure_of(id)
+		var fig = INSTANCE.coop(self).figure_of(id)
 		if fig != null and fig.visible:
 			cell = _world_to_cell_f(fig.global_position)
 		else:
-			var key := str((Coop.state_of(id).get("room", {}) as Dictionary).get("k", ""))
+			var key := str((INSTANCE.coop(self).state_of(id).get("room", {}) as Dictionary).get("k", ""))
 			if key.contains(":"):
 				# Several in one room: side by side at its door.
-				cell = Vector2(float(key.get_slice(":", 0)), float(key.get_slice(":", 1))) + Vector2(0.3 + 0.2 * float(Coop.others().find(id) % 3), 0.9)
+				cell = Vector2(float(key.get_slice(":", 0)), float(key.get_slice(":", 1))) + Vector2(0.3 + 0.2 * float(INSTANCE.coop(self).others().find(id) % 3), 0.9)
 		if cell == Vector2.INF:
 			continue
 		var was: Dictionary = prev.get(id, {})
@@ -2524,7 +2524,7 @@ func _guest_mini(archetype: String, h: int) -> Texture2D:
 
 ## Another warden's miniature: their look and jacket (warden_looks.gd).
 func _mate_mini(h: int, id: int) -> Texture2D:
-	var look: Dictionary = Coop.look_of(id)
+	var look: Dictionary = INSTANCE.coop(self).look_of(id)
 	var key := "mate|%d|%d" % [int(look.get("m", 1)), int(look.get("c", 0))]
 	var by: Dictionary = _guest_minis.get(key, {})
 	if not by.has(h):
@@ -2689,7 +2689,7 @@ func _draw_guest(e: Dictionary, tile_h: float) -> void:
 			_draw_think(e, foot, sz)
 		if e.has("mate"):
 			# Their name over them, so they are not taken for a guest.
-			var who := Coop.name_of(int(e["mate"]))
+			var who = INSTANCE.coop(self).name_of(int(e["mate"]))
 			var tw := T.FONT.get_string_size(who, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
 			_draw_tag(foot - Vector2(tw * 0.5 + 3.0, sz.y + 17.0), who, false)
 		return

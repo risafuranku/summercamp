@@ -12,6 +12,7 @@ extends RefCounted
 ## brains' lines are kept for the log only (on_enemy_notice): no text tells you what is
 ## out there. The forecast window (scripts/debug/liminal_window.gd) reads this state.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const NIGHT_SWELL = preload("res://core/systems/night_swell.gd")
 ## The boss night: three kinds turned at once, or a camp this full.
 const ANTLERED_GUESTS := 16
@@ -124,7 +125,7 @@ func resume_after_load() -> void:
 
 
 func on_night_tick(night_index: int) -> void:
-	if not main._gameplay_started or main._menu_mode or main._game_over_active or not Coop.sim_here():
+	if not main._gameplay_started or main._menu_mode or main._game_over_active or not INSTANCE.coop(main).sim_here():
 		return
 	if night_index == last_rolled_night_id:
 		return

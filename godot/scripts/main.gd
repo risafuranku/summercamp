@@ -260,9 +260,14 @@ var _billing: RefCounted = ELECTRICITY_BILLING_SCRIPT.new()
 
 
 ## Main is the root of its instance (scripts/instance/instance.gd): what is under it finds it
-## by INSTANCE.main_of(self).
+## by INSTANCE.main_of(self), and its co-op side by INSTANCE.coop(self): `coop` is a local
+## client's own Coop node (null: the Coop autoload, the host's or a lone machine's).
+var coop: Node = null
+
+
 func _enter_tree() -> void:
 	add_to_group(INSTANCE.GROUP)
+	INSTANCE.count += 1
 
 
 func _ready() -> void:
@@ -454,7 +459,7 @@ func _reapply_crt_desktop_state_next_frame() -> void:
 ## (a new one does not start it): loading it must not start it either, nor on the other
 ## warden's machine, where its rewards would be paid a second time.
 func _import_quests(data: Dictionary) -> void:
-	if _sandbox or Coop.is_client():
+	if _sandbox or INSTANCE.coop(self).is_client():
 		_quest_manager.stop()
 		return
 	_quest_manager.import_state(data)
@@ -501,8 +506,8 @@ func _setup_night_jobs() -> void:
 					if b != null and b.has_method("boy_found"):
 						b.boy_found()
 			_night_jobs.on_breaker_fixed(fault)
-			if Coop.is_client():
-				Coop.send_request("breaker", [fault])
+			if INSTANCE.coop(self).is_client():
+				INSTANCE.coop(self).send_request("breaker", [fault])
 		)
 		_breaker_panel.closed.connect(func():
 			if _breaker_panel.was_fixed() and _hud_manager != null:
@@ -672,7 +677,7 @@ func _show_week_report() -> void:
 		_hud_manager.set_world_hud_visible(false)
 	get_tree().paused = true
 	# The other wardens read the same page (they stood in a stopped camp with nothing to read).
-	Coop.send_fact("books", [_week_report_screen.report_data()])
+	INSTANCE.coop(self).send_fact("books", [_week_report_screen.report_data()])
 
 
 ## What stands in the camp, at what it costs to build (the month's books: what was put into the
@@ -722,7 +727,7 @@ func _coop_books_closed() -> void:
 
 ## Stay on: the week is closed, the camp runs on with no end (sandbox from here).
 func _on_week_report_stay() -> void:
-	Coop.send_fact("books_shut", [])
+	INSTANCE.coop(self).send_fact("books_shut", [])
 	_close_week_report()
 	if _hud_manager != null:
 		_hud_manager.set_world_hud_visible(true)
@@ -742,7 +747,7 @@ var _goods_day := 0
 
 
 func _tick_day_events() -> void:
-	if _day_events != null and not camp_rule("events") and Coop.sim_here() and _gameplay_started and _day_index != _goods_day and _time_of_day_hours >= 8.0:
+	if _day_events != null and not camp_rule("events") and INSTANCE.coop(self).sim_here() and _gameplay_started and _day_index != _goods_day and _time_of_day_hours >= 8.0:
 		# No delivery van to sign for without them: what was ordered and paid comes all the same.
 		_goods_day = _day_index
 		if CoreRoot.actions != null:
@@ -822,7 +827,7 @@ func _note_grid_power(powered: bool) -> void:
 
 
 func _is_grid_powered() -> bool:
-	if Coop.is_client():
+	if INSTANCE.coop(self).is_client():
 		return _coop_powered
 	return not _billing.power_cut_active and not (_night_jobs != null and _night_jobs.breaker_tripped)
 
@@ -940,7 +945,7 @@ func get_upkeep_snapshot() -> Dictionary:
 func request_maintenance_crew() -> Dictionary:
 	if _maintenance == null:
 		return {"ok": false, "reason": "unavailable"}
-	if Coop.is_client():
+	if INSTANCE.coop(self).is_client():
 		# The crew is the host's to send (and pay): asked for from here.
 		var snap: Dictionary = _maintenance.get_upkeep_snapshot()
 		if bool(snap.get("night", false)):
@@ -949,7 +954,7 @@ func request_maintenance_crew() -> Dictionary:
 			return {"ok": false, "reason": "nothing_to_do"}
 		if CoreRoot.get_money() < int(snap.get("crew_cost", 0)):
 			return {"ok": false, "reason": "insufficient_funds", "amount": int(snap.get("crew_cost", 0))}
-		Coop.send_request("crew", [])
+		INSTANCE.coop(self).send_request("crew", [])
 		return {"ok": true, "jobs": int(snap.get("crew_jobs", 0)), "amount": int(snap.get("crew_cost", 0))}
 	return _maintenance.request_maintenance_crew()
 
@@ -958,10 +963,10 @@ func request_maintenance_crew() -> Dictionary:
 func request_maintenance_crew_at(coord: Vector2i) -> Dictionary:
 	if _maintenance == null:
 		return {"ok": false, "reason": "unavailable"}
-	if Coop.is_client():
+	if INSTANCE.coop(self).is_client():
 		if CoreRoot.is_night():
 			return {"ok": false, "reason": "night"}
-		Coop.send_request("crew_at", [coord])
+		INSTANCE.coop(self).send_request("crew_at", [coord])
 		return {"ok": true, "jobs": 1, "amount": 0}
 	return _maintenance.request_crew_at(coord)
 
@@ -1196,12 +1201,12 @@ func _process(delta: float) -> void:
 
 	# Co-op: the other warden's machine runs no clock or weather of its own (the host's
 	# come in, coop_apply_clock), nor anything below that changes the camp.
-	var sim: bool = Coop.sim_here()
+	var sim: bool = INSTANCE.coop(self).sim_here()
 	if time_system and sim:
 		# Slower while a warden rides the 380 through the real land (town_trip.gd):
 		# its thirteen minutes take the real road's five.
 		time_system.process(delta * clock_pace())
-	elif time_system and Coop.is_client() and _gameplay_started and not _menu_mode:
+	elif time_system and INSTANCE.coop(self).is_client() and _gameplay_started and not _menu_mode:
 		_coop_camp.run_clock(delta)
 	if weather_system and sim and not camp_rule("weather"):
 		if weather_system.current_weather != WEATHER_CLEAR:
@@ -1278,7 +1283,7 @@ func _process(delta: float) -> void:
 	# The other warden's machine too: the host's day events shown and done from here
 	# (day_events.coop_follow), the lamps' signs and hold R (what it does goes to the host).
 	if _day_events != null:
-		_day_events.coop_follow = Coop.is_client()
+		_day_events.coop_follow = INSTANCE.coop(self).is_client()
 	_tick_day_events()
 	if _maintenance != null:
 		_maintenance.tick(delta, not _is_any_interior_open() and not _game_over_active)
@@ -1387,7 +1392,7 @@ func _sync_runtime_state_from_systems(force: bool = false) -> void:
 				gate.set_night(gate_dark)
 		if previous_time_state == TIME_NIGHT and _time_state == TIME_DAY:
 			_on_day_phase_started()
-		if previous_time_state != TIME_NIGHT and _time_state == TIME_NIGHT and _day_events != null and Coop.sim_here() and camp_rule("events"):
+		if previous_time_state != TIME_NIGHT and _time_state == TIME_NIGHT and _day_events != null and INSTANCE.coop(self).sim_here() and camp_rule("events"):
 			_day_events.on_night()
 		# On every warden's machine (the joining one has no enemy of its own to start it). At
 		# dusk if you are out (the world is drawn then): the frame the night begins has its
@@ -1596,7 +1601,7 @@ func _update_threat_senses(delta: float) -> void:
 			_still_seconds += maxf(delta, 0.0)
 	# A joining machine runs no brains: the host's enemies, where the host says they are.
 	var brains: Array = _enemy_brains
-	if brains.is_empty() and _coop_night != null and Coop.is_active() and not Coop.is_host():
+	if brains.is_empty() and _coop_night != null and INSTANCE.coop(self).is_active() and not INSTANCE.coop(self).is_host():
 		brains = [_coop_night]
 	_senses.update(
 		delta,
@@ -1640,7 +1645,7 @@ func _poll_arrivals(delta: float) -> void:
 	if _arrivals_poll > 0.0 or _hud_manager == null:
 		return
 	_arrivals_poll = 0.5
-	if not Coop.sim_here():
+	if not INSTANCE.coop(self).sim_here():
 		# The host's guests by the host's clock (GuestManager keeps no time of its own here).
 		GuestManager._on_time_tick(int(_time_of_day_hours), int(fposmod(_time_of_day_hours, 1.0) * 60.0))
 	var arrivals: Array = GuestManager.get_arrivals()
@@ -1907,7 +1912,7 @@ func _away_in_town() -> bool:
 func _on_day_phase_started() -> void:
 	if not _gameplay_started or _menu_mode:
 		return
-	if not Coop.sim_here():
+	if not INSTANCE.coop(self).sim_here():
 		# The other warden's machine: only what dawn does to you.
 		if _player != null and _player.has_method("recharge_flashlight"):
 			_player.recharge_flashlight()
@@ -2068,7 +2073,7 @@ func _trigger_game_over(reason: String = GAME_OVER_REASON_DEATH) -> void:
 	if _game_over_active:
 		return
 	# Co-op: the camp goes on for the other warden; you come to by the office.
-	if reason == GAME_OVER_REASON_DEATH and Coop.has_partner():
+	if reason == GAME_OVER_REASON_DEATH and INSTANCE.coop(self).has_partner():
 		_coop_camp.come_to()
 		return
 	_stop_active_enemy_brain()
@@ -2173,7 +2178,7 @@ func _clear_game_over_screen() -> void:
 func _on_game_over_load_save_pressed() -> void:
 	_game_over_active = false
 	_clear_game_over_screen()
-	var shared := Coop.is_active()
+	var shared = INSTANCE.coop(self).is_active()
 	# That day's morning (the night after midnight is still the day before's: the latest
 	# morning up to today), or the last save when the camp has none yet.
 	var morning := SaveManager.morning_for(_day_index)
@@ -2429,7 +2434,7 @@ func get_electricity_ui_snapshot() -> Dictionary:
 
 func request_pay_electricity_bill(bill_id: String) -> Dictionary:
 	_sync_billing_clock()
-	if Coop.is_client():
+	if INSTANCE.coop(self).is_client():
 		# The bills are the host's: paid there (the money with its till); gone from the
 		# list here at once, the pulse brings the rest.
 		for i in _billing.bills.size():
@@ -2442,7 +2447,7 @@ func request_pay_electricity_bill(bill_id: String) -> Dictionary:
 			if CoreRoot.get_money() < amount:
 				return {"ok": false, "reason": "insufficient_funds", "amount": amount}
 			_billing.bills.remove_at(i)
-			Coop.send_request("pay_bill", [bill_id.strip_edges()])
+			INSTANCE.coop(self).send_request("pay_bill", [bill_id.strip_edges()])
 			return {"ok": true, "amount": amount}
 		return {"ok": false, "reason": "not_found"}
 	var paid: Dictionary = _billing.pay(bill_id)
@@ -2555,7 +2560,7 @@ func _try_interact() -> void:
 		return
 	if _interior_manager != null and not _is_any_interior_open() and _interior_manager.tent_zip_use():
 		return
-	if Coop.is_client():
+	if INSTANCE.coop(self).is_client():
 		_coop_camp.client_interact()
 		return
 	if _lake_trip != null and not _is_any_interior_open() and _lake_trip.try_interact():
@@ -2705,7 +2710,7 @@ func _update_interaction_hint() -> void:
 		_hud_manager.set_hint_text("")
 		return
 	if _coop_camp.partner_down_near():
-		_hud_manager.set_hint_text(LANG.f("[E] Get %s up", [Coop.name_of(_coop_camp.down_near_id)]))
+		_hud_manager.set_hint_text(LANG.f("[E] Get %s up", [INSTANCE.coop(self).name_of(_coop_camp.down_near_id)]))
 		return
 	# Something in your hands, or a small thing under the crosshair (scripts/ambient/carry.gd:
 	# it takes its own E and click, on either machine).
@@ -2719,7 +2724,7 @@ func _update_interaction_hint() -> void:
 	if zip != "":
 		_hud_manager.set_hint_text("[E] %s" % tr(zip))
 		return
-	if Coop.is_client():
+	if INSTANCE.coop(self).is_client():
 		_hud_manager.set_hint_text(_coop_camp.client_hint())
 		return
 	# (Walking up to a door or out of one: the keys are not yours.)
@@ -2900,8 +2905,8 @@ func _open_utility_repair(coord: Vector2i, building_type: String) -> void:
 
 func _on_repair_completed(coord: Vector2i, _building_type: String) -> void:
 	# Co-op: mended in the host's camp (the breakdown goes with the next pulse).
-	if Coop.is_client():
-		Coop.send_request("repair", [coord])
+	if INSTANCE.coop(self).is_client():
+		INSTANCE.coop(self).send_request("repair", [coord])
 	elif economy_manager != null and economy_manager.has_method("add_repair_progress"):
 		economy_manager.add_repair_progress(coord, 1.0)
 	if _player != null and _player.has_method("set_controls_enabled"):
@@ -2960,7 +2965,7 @@ func _emit_state_update() -> void:
 func _enter_main_menu() -> void:
 	_close_week_report()
 	# Leaving a co-op camp closes the line (the other warden goes back to their menu).
-	Coop.leave()
+	INSTANCE.coop(self).leave()
 	# Whatever room, job or close-up was open is shut, or it stays under the menu taking
 	# clicks (playtest 18. 10.: cleaning a tent behind the title screen).
 	_leave_everything(true)
@@ -3115,9 +3120,9 @@ func _on_menu_new_game_pressed() -> void:
 ## NEW CAMP (main menu, or the co-op page's Host a new camp): a camp of the warden's,
 ## named, its world from `seed` (0: a new one).
 func _on_menu_new_camp(camp_name: String, seed: int, coop: bool, sandbox: bool, rules: Dictionary) -> void:
-	if coop and not Coop.host():
+	if coop and not INSTANCE.coop(self).host():
 		if _main_menu != null:
-			_main_menu.show_coop_notice("Port %d is taken." % Coop.port)
+			_main_menu.show_coop_notice("Port %d is taken." % INSTANCE.coop(self).port)
 		return
 	await _start_new_camp(sandbox, "", camp_name, seed, coop, rules)
 
@@ -3223,7 +3228,7 @@ var _sign_paint: CanvasLayer
 ## The camp's name, painted on the board by the gate (playtest 25. 10.: "change the camp's
 ## name with E on the sign before the camp"): the profile's camp's; the host's in co-op.
 func camp_name() -> String:
-	if Coop.is_client() and _coop_camp_name != "":
+	if INSTANCE.coop(self).is_client() and _coop_camp_name != "":
 		return _coop_camp_name
 	if PROFILES.camp_id == "":
 		return _coop_camp_name
@@ -3235,13 +3240,13 @@ func set_camp_name(n: String, from_peer := false) -> void:
 	n = n.strip_edges().left(CAMP_NAME_MAX)
 	if n == "":
 		return
-	if Coop.is_client() or PROFILES.camp_id == "":
+	if INSTANCE.coop(self).is_client() or PROFILES.camp_id == "":
 		_coop_camp_name = n
 	else:
 		PROFILES.rename_camp(PROFILES.camp_id, n)
 	_refresh_camp_sign()
-	if not from_peer and Coop.is_active():
-		Coop.send_sync("camp_name", [n])
+	if not from_peer and INSTANCE.coop(self).is_active():
+		INSTANCE.coop(self).send_sync("camp_name", [n])
 
 
 func _refresh_camp_sign() -> void:
@@ -3434,7 +3439,7 @@ func _ensure_runtime_started_after_menu_load() -> void:
 func _write_startup_autosave() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
-	if not _gameplay_started or not Coop.sim_here():
+	if not _gameplay_started or not INSTANCE.coop(self).sim_here():
 		return
 	_write_autosave("Autosave")
 
@@ -3545,7 +3550,7 @@ func request_manual_save(slot_name: String = "") -> String:
 ## The camp at the start of a day (at dawn, and when a camp is made): the game over's "Back
 ## to the morning" (TODO.md "DEMO AND STEAM": losing goes back to that day's morning).
 func _write_morning_save() -> void:
-	if not _gameplay_started or not Coop.sim_here() or not _test_night.is_empty():
+	if not _gameplay_started or not INSTANCE.coop(self).sim_here() or not _test_night.is_empty():
 		return
 	var snapshot := _build_save_snapshot("Morning", "morning")
 	if snapshot.is_empty():
@@ -3558,7 +3563,7 @@ func _write_morning_save() -> void:
 func _write_autosave(slot_name: String) -> void:
 	# The other warden's machine holds the host's camp, not its own: nothing to save.
 	# A test night's camp is thrown away.
-	if not Coop.sim_here() or not _test_night.is_empty():
+	if not INSTANCE.coop(self).sim_here() or not _test_night.is_empty():
 		return
 	var snapshot := _build_save_snapshot(slot_name, "autosave")
 	if snapshot.is_empty():
@@ -3633,14 +3638,14 @@ func _prune_preview_to_reception_only() -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
-		if _gameplay_started and Coop.sim_here():
+		if _gameplay_started and INSTANCE.coop(self).sim_here():
 			_write_autosave("Autosave")
-		Coop.leave()
+		INSTANCE.coop(self).leave()
 		get_tree().quit()
 	elif what == NOTIFICATION_APPLICATION_FOCUS_OUT:
 		# Alt-tab during the night should not cost the player their life (in co-op the
 		# night goes on regardless: no pause).
-		if pause_on_focus_loss and _can_pause_now() and not Coop.is_active():
+		if pause_on_focus_loss and _can_pause_now() and not INSTANCE.coop(self).is_active():
 			_open_pause_menu()
 
 
@@ -3664,7 +3669,7 @@ func _open_pause_menu() -> void:
 	_pause_prev_mouse = Input.mouse_mode
 	_pause_menu.open(_pause_info_line())
 	# In co-op the camp goes on for the other warden: the menu is only over your view.
-	get_tree().paused = not Coop.is_active()
+	get_tree().paused = not INSTANCE.coop(self).is_active()
 
 
 ## P or F10 (PauseKeys, first to hear any key): the menu in a room or a job too, where Esc
@@ -3742,10 +3747,10 @@ func _pause_info_line() -> String:
 		else:
 			line += LANG.f("   SAVED %d H AGO", [ago / 3600])
 	# Co-op: who you are with, or (the host alone) where the other can call in.
-	if Coop.has_partner():
+	if INSTANCE.coop(self).has_partner():
 		line += LANG.f("   WITH %s", [_coop_camp.names_said().to_upper()])
-	elif Coop.is_host():
-		var here: Array[String] = Coop.local_addresses()
+	elif INSTANCE.coop(self).is_host():
+		var here: Array[String] = INSTANCE.coop(self).local_addresses()
 		if not here.is_empty():
 			line += LANG.f("   OPEN AT %s", [here[0]])
 	return line
@@ -3774,6 +3779,7 @@ func _on_pause_quit_requested() -> void:
 
 
 func _exit_tree() -> void:
+	INSTANCE.count = maxi(0, INSTANCE.count - 1)
 	_stop_menu_music()
 	if _menu_music_player != null and is_instance_valid(_menu_music_player):
 		# free(), not queue_free(): on quit the deferred queue may never be flushed,

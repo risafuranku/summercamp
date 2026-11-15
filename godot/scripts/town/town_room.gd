@@ -399,7 +399,7 @@ func coop_mates(ids: Array) -> void:
 			# A view with a door can see them out through it (then their figure is its own).
 			var fig = _mates[id]
 			_mates.erase(id)
-			var where := str(Coop.state_of(int(id)).get("tr", ""))
+			var where := str(INSTANCE.coop(self).state_of(int(id)).get("tr", ""))
 			if _open and _view != null and _view.has_method("mate_leaves") and is_instance_valid(fig) and bool(_view.mate_leaves(int(id), fig, where)):
 				continue
 			if is_instance_valid(fig):
@@ -410,7 +410,7 @@ func coop_mates(ids: Array) -> void:
 		for id in ids:
 			var f2 = _mates.get(int(id))
 			if f2 == null or not is_instance_valid(f2) or f2.get_parent() != _root:
-				var lk: Dictionary = Coop.look_of(int(id))
+				var lk: Dictionary = INSTANCE.coop(self).look_of(int(id))
 				f2 = REMOTE_PLAYER.new()
 				f2.setup(int(lk.get("m", 1)), int(lk.get("c", 0)), true)
 				_root.add_child(f2)
@@ -422,7 +422,7 @@ func coop_mates(ids: Array) -> void:
 		var id := int(ids[i])
 		var fig = _mates.get(id)
 		if fig == null or not is_instance_valid(fig) or fig.get_parent() != _root:
-			var look: Dictionary = Coop.look_of(id)
+			var look: Dictionary = INSTANCE.coop(self).look_of(id)
 			fig = REMOTE_PLAYER.new()
 			fig.setup(int(look.get("m", 1)), int(look.get("c", 0)), true)
 			_root.add_child(fig)
