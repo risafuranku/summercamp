@@ -356,7 +356,7 @@ func _bootstrap_runtime() -> void:
 	await _boot_step("Growing the woods", 0.45)
 	await _generate_grid_world_stepped()
 	await _boot_step("Raking the paths", 0.85)
-	_rebuild_core_cells_from_visual_structures()
+	_structures.rebuild_cells()
 	_setup_guest_agents()
 	_setup_god_cursor()
 	fallback_camera.current = true
@@ -1736,7 +1736,7 @@ func _on_eventbus_state_changed(changes: Dictionary) -> void:
 	if changes.is_empty():
 		return
 	if changes.has("guests"):
-		_sync_guest_accommodation_state()
+		_structures.sync_guest_counts()
 		_sync_liminal_forecast_hud()
 
 
@@ -4024,7 +4024,7 @@ func _build_test_camp(enemy_id: String) -> void:
 func _start_new_camp(sandbox: bool, test_enemy: String = "", camp_name: String = "", seed: int = 0, coop: bool = false, rules: Dictionary = {}) -> void:
 	var started := Time.get_ticks_msec()
 	await _show_menu_loading_for("Generating a fresh camp...")
-	_reset_state_for_new_game()
+	_snapshot.reset_for_new_game()
 	_sandbox = sandbox
 	_camp_rules = CAMP_RULES.merged(rules, true) if sandbox else CAMP_RULES.duplicate()
 	if int(_camp_rules.get("money", 0)) > 0:
@@ -4039,7 +4039,7 @@ func _start_new_camp(sandbox: bool, test_enemy: String = "", camp_name: String =
 	if test_enemy.is_empty() and camp_name != "":
 		PROFILES.create_camp(camp_name, world_generator.world_seed, sandbox, coop)
 	_refresh_camp_sign()
-	_rebuild_core_cells_from_visual_structures()
+	_structures.rebuild_cells()
 	# The camp's old cabin, shut since last summer: the campaign's start, not a sandbox's
 	# (there you build from a clean camp: the user 20. 10.).
 	if sandbox:
@@ -4292,12 +4292,12 @@ func _write_startup_autosave() -> void:
 ## 14. 11.), never the player's; the office at dusk over it (title_stage.gd).
 func _load_preview_world_for_menu() -> void:
 	_active_save_path = ""
-	_reset_state_for_new_game()
+	_snapshot.reset_for_new_game()
 	_pending_world_seed = TITLE_CAMP.SEED
 	_generate_grid_world()
 	_prune_preview_to_reception_only()
 	TITLE_CAMP.build(self)
-	_rebuild_core_cells_from_visual_structures()
+	_structures.rebuild_cells()
 	TITLE_CAMP.light(self)
 	_title_stage.open()
 
@@ -4442,270 +4442,9 @@ func _apply_pending_crt_desktop_state() -> void:
 	_pending_loaded_crt_state.clear()
 
 
-func _ensure_loaded_world_landmarks() -> void:
-	if building_manager == null or grid_manager == null:
-		return
-	if not _has_structure_type("main_building"):
-		_place_default_reception_landmark()
-	if world_generator != null and world_generator.has_method("place_starter_path"):
-		world_generator.place_starter_path()
-	if not _has_structure_type("sewer"):
-		if world_generator != null and world_generator.has_method("place_sewer_landmark"):
-			world_generator.place_sewer_landmark()
-		else:
-			_place_default_sewer_landmark_fallback()
-
-
-func _has_structure_type(building_id: String) -> bool:
-	if building_manager == null:
-		return false
-	var structures_root := building_manager.get_node_or_null("Structures")
-	if structures_root == null:
-		return false
-	for child in structures_root.get_children():
-		var structure := child as Node3D
-		if structure == null:
-			continue
-		if str(structure.get_meta("building_type", "")) == building_id:
-			return true
-	return false
-
-
-func _place_default_reception_landmark() -> bool:
-	if building_manager == null or grid_manager == null:
-		return false
-	if not building_manager.has_method("place_main_building"):
-		return false
-	var footprint := Vector2i(2, 2)
-	var center_x := int(floor(float(grid_manager.grid_width - footprint.x) * 0.5))
-	var candidates: Array[Vector2i] = [
-		Vector2i(center_x, 1),
-		Vector2i(center_x, 0),
-		Vector2i(center_x - 1, 0),
-		Vector2i(center_x + 1, 0),
-		Vector2i(center_x, 1),
-		Vector2i(center_x - 1, 1),
-		Vector2i(center_x + 1, 1),
-		Vector2i(center_x, 2)
-	]
-	for candidate in candidates:
-		if candidate.x < 0 or candidate.y < 0:
-			continue
-		if candidate.x + footprint.x > grid_manager.grid_width:
-			continue
-		if candidate.y + footprint.y > grid_manager.grid_height:
-			continue
-		if building_manager.place_main_building(candidate, footprint):
-			return true
-
-	var max_y: int = int(min(8, max(1, grid_manager.grid_height - footprint.y)))
-	var min_x: int = int(max(0, center_x - 5))
-	var max_x: int = int(min(grid_manager.grid_width - footprint.x, center_x + 5))
-	for y in range(0, max_y + 1):
-		for x in range(min_x, max_x + 1):
-			if building_manager.place_main_building(Vector2i(x, y), footprint):
-				return true
-	return false
-
-
-func _place_default_sewer_landmark_fallback() -> bool:
-	if building_manager == null or grid_manager == null:
-		return false
-	var center_x := int(floor(float(grid_manager.grid_width) / 2.0))
-	var base_y: int = int(max(0, grid_manager.grid_height - 3))
-	var offsets := [0, 2, -2, 4, -4, 6, -6]
-	for offset in offsets:
-		var x := clampi(center_x + int(offset), 0, grid_manager.grid_width - 1)
-		var ys := [base_y, max(0, base_y - 1)]
-		for y in ys:
-			var coord := Vector2i(x, int(y))
-			if not grid_manager.is_in_bounds(coord):
-				continue
-			var tile = grid_manager.get_tile(coord)
-			if tile == null or tile.occupied:
-				continue
-			if tile.tile_type != grid_manager.TILE_GRASS:
-				continue
-			if building_manager.place_building_at(coord, "sewer"):
-				return true
-	return false
-
-
-func _find_structure_root_at(origin: Vector2i) -> Node3D:
-	if grid_manager == null:
-		return null
-	var tile = grid_manager.get_tile(origin)
-	if tile == null or tile.occupant == null:
-		return null
-	var current = tile.occupant as Node
-	while current != null:
-		if current is Node3D and current.has_meta("grid_origin"):
-			return current as Node3D
-		current = current.get_parent()
-	return null
-
-
-func _rebuild_core_cells_from_visual_structures() -> void:
-	if building_manager == null:
-		return
-	var state = CoreRoot.get_state()
-	if state == null or state.grid == null:
-		return
-	state.grid.cells.clear()
-	var structures_root := building_manager.get_node_or_null("Structures")
-	if structures_root == null:
-		return
-	var next_id := 1
-	for child in structures_root.get_children():
-		var structure := child as Node3D
-		if structure == null:
-			continue
-		var building_id := str(structure.get_meta("building_type", "")).strip_edges()
-		if building_id.is_empty():
-			continue
-		# A lamp standing on a path tile belongs to the path (cell["lamp"], below): written
-		# over the cell it made the path vanish for the Builder and the guests (playtest
-		# 2026-10-17: "lamps destroy the path under them at a crossing").
-		if structure.has_meta("on_path"):
-			continue
-		var origin_any = structure.get_meta("grid_origin", Vector2i.ZERO)
-		var footprint_any = structure.get_meta("grid_footprint", Vector2i.ONE)
-		var origin := origin_any as Vector2i if origin_any is Vector2i else Vector2i.ZERO
-		var footprint := footprint_any as Vector2i if footprint_any is Vector2i else Vector2i.ONE
-		var condition := clampf(float(structure.get_meta("condition", 1.0)), 0.0, 1.0)
-		var instance_id := "structure_%d" % next_id
-		next_id += 1
-		for oy in range(footprint.y):
-			for ox in range(footprint.x):
-				var coord := origin + Vector2i(ox, oy)
-				if not state.grid.is_in_bounds(coord):
-					continue
-				state.grid.occupy_cell(coord, building_id, instance_id, origin, footprint)
-				var cell = state.grid.cells.get(coord, {})
-				if cell is Dictionary:
-					var cell_dict := cell as Dictionary
-					cell_dict["maintenance"] = condition
-					state.grid.cells[coord] = cell_dict
-	for child in structures_root.get_children():
-		if child is Node3D and child.has_meta("on_path"):
-			var o = child.get_meta("grid_origin", Vector2i.ZERO)
-			if state.grid.cells.has(o):
-				# A bench on a path keeps its turn (the edge it stands at).
-				if str(child.get_meta("building_type", "")) == "bench":
-					state.grid.cells[o]["bench"] = int(child.get_meta("build_rotation", 0))
-				else:
-					state.grid.cells[o]["lamp"] = true
-
-
-## GuestManager owns the room states (status, preparation, who is in it). This only
-## mirrors how many checked-in guests each lodging holds onto its 3D structure, for the
-## lights in the windows and the interiors. (It used to rebuild the states itself and
-## overwrote room preparation with a legacy "clean".)
-func _sync_guest_accommodation_state() -> void:
-	if building_manager == null or GuestManager == null:
-		return
-	var structures_root := building_manager.get_node_or_null("Structures")
-	if structures_root == null:
-		return
-	var states: Dictionary = GuestManager.get_accommodation_states()
-	for child in structures_root.get_children():
-		var structure := child as Node3D
-		if structure == null:
-			continue
-		var origin_any = structure.get_meta("grid_origin", Vector2i.ZERO)
-		var origin := origin_any as Vector2i if origin_any is Vector2i else Vector2i.ZERO
-		var acc: Dictionary = states.get(SAVE_CODEC.coord_to_key(origin), {})
-		var present := int(acc.get("occupied", 0))
-		structure.set_meta("guest_count", present)
-		structure.set_meta("has_guest", present > 0)
-
-
-func _reset_state_for_new_game() -> void:
-	_sandbox = false
-	_camp_rules = CAMP_RULES.duplicate()
-	_pending_loaded_player_state.clear()
-	_pending_night_jobs.clear()
-	if _night_jobs != null:
-		_night_jobs.reset()
-	_pending_camp_office.clear()
-	_pending_town_trip.clear()
-	if camp_office != null:
-		camp_office.reset()
-	_pending_day_events.clear()
-	if _day_events != null:
-		_day_events.reset()
-	# The bag: the torch again, nothing on the ground (scripts/ui/inventory.gd).
-	var trip = _interior_manager.town_trip() if _interior_manager != null and _interior_manager.has_method("town_trip") else null
-	if trip != null and trip.get("inventory") != null:
-		trip.inventory.new_camp()
-	_pending_loaded_crt_state.clear()
-	_last_known_crt_desktop_state.clear()
-	_billing.reset(1)
-	_lamp_grid_power_available = true
-	_active_save_path = ""
-	_clear_blood_fx()
-	var state = CoreRoot.get_state()
-	if state == null:
-		return
-	_pending_week_ledger.clear()
-	if _week_ledger != null:
-		_week_ledger.reset(BALANCE_CONFIG.STARTING_MONEY)
-	_pending_omens.clear()
-	if _omens != null:
-		_omens.reset()
-	if _director != null:
-		_director.begin_night(-1)
-		_director.ever.clear()
-		# Not the last game's night on CampStat's NIGHT page.
-		_director.last_log.clear()
-	_pending_bazaar.clear()
-	_bazaar.reset()
-	_pending_goggle.clear()
-	_pending_graph.clear()
-	_goggle_fresh = true
-	if _director_fx != null:
-		_director_fx.clear()
-	CoreRoot.apply_changes({
-		"money": BALANCE_CONFIG.STARTING_MONEY,
-		"day": 1,
-		"is_night": false,
-		"karma": 0.0,
-		"satisfaction": 50.0,
-		"hrotfaktor": 0.0,
-		"night_swell": 0.0,
-		"energy_load": 0.0,
-		"infra_load": 0.0
-	})
-	_night_roll.last_night_kinds = []
-	_night_roll.night_lost = 0
-	_night_roll.swell_moved = -1
-	if state.grid != null:
-		state.grid.cells.clear()
-		state.grid.tile_types.clear()
-		state.grid.occupants.clear()
-	state.failures.clear()
-	state.guests.clear()
-	state.accommodation_states.clear()
-	state.guest_reviews.clear()
-	state.guest_transactions.clear()
-	state.next_guest_id = 1
-	# The businesses' books too (the menu's preview of the last save left them in: its
-	# places, stock, orders and licences); actions._biz starts them anew with a new stamp.
-	state.biz = {}
-	if EmailManager != null and EmailManager.has_method("reset_runtime"):
-		EmailManager.reset_runtime(true)
-	if GuestManager != null and GuestManager.has_method("reset_runtime_state"):
-		GuestManager.reset_runtime_state()
-	if _guest_agents != null:
-		_guest_agents.clear_agents()
-	if time_system != null and time_system.has_method("set_time_hours"):
-		time_system.set_time_hours(9.0)
-	if weather_system != null and weather_system.has_method("set_weather"):
-		weather_system.set_weather(WEATHER_CLEAR)
-	_day_index = 1
-	_time_of_day_hours = 9.0
-	_time_state = TIME_DAY
-	_weather_state = WEATHER_CLEAR
+## The camp's buildings and the grid's cells kept in step (scripts/camp/camp_structures.gd).
+const CAMP_STRUCTURES = preload("res://scripts/camp/camp_structures.gd")
+var _structures: RefCounted = CAMP_STRUCTURES.new(self)
 
 
 func _prune_preview_to_reception_only() -> void:

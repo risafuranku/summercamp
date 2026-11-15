@@ -95,12 +95,17 @@ def main():
         out_lines.append("".join(parts))
     m = "\n".join(out_lines)
     m = re.sub(r"\n{4,}", "\n\n\n", m)
-    head = spec["head"].replace("@MAIN@", MAIN_HEAD)
-    out = head.rstrip("\n") + "\n\n\n" + m.strip("\n") + "\n"
     mod = os.path.join(GODOT, spec["module"])
     os.makedirs(os.path.dirname(mod), exist_ok=True)
-    if os.path.exists(mod):
-        raise SystemExit("exists: " + mod)
+    if spec.get("append"):
+        # Into a module made before (it has main already): the stretch at its end.
+        assert os.path.exists(mod), mod
+        out = open(mod, encoding="utf-8").read().rstrip("\n") + "\n\n\n" + m.strip("\n") + "\n"
+    else:
+        if os.path.exists(mod):
+            raise SystemExit("exists: " + mod)
+        head = spec["head"].replace("@MAIN@", MAIN_HEAD)
+        out = head.rstrip("\n") + "\n\n\n" + m.strip("\n") + "\n"
     open(mod, "w", encoding="utf-8").write(out)
     new_main = src[:a] + spec["replace_in_main"] + src[b:]
     for rx, repl in spec.get("main_subs", []):

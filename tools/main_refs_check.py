@@ -28,7 +28,7 @@ set_process_input set_process_unhandled_input name owner process_mode get_script
 set_meta get_meta has_meta remove_meta notification propagate_notification
 is_queued_for_deletion get_instance_id tr tr_n is_class get_class free set_deferred
 create_tween add_to_group is_in_group remove_from_group get_path print_tree
-get_process_delta_time get_physics_process_delta_time
+get_process_delta_time get_physics_process_delta_time multiplayer
 """.split())
 
 # Other things called main (a lamp's main light, "main.tscn").

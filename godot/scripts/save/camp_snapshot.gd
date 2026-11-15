@@ -8,6 +8,7 @@ extends RefCounted
 ## regenerated from its seed with the saved tiles and buildings on it, the state, the
 ## systems' states (those not made yet are kept as main._pending_* until they are), the
 ## mail and the guests. preview_only: the title's look at a camp, not a game going on.
+## reset_for_new_game(): every system and the state as a camp starts, before a new one.
 
 var main: Node
 
@@ -20,7 +21,7 @@ func build(slot_name: String, kind: String) -> Dictionary:
 	var state = CoreRoot.get_state()
 	if state == null or state.grid == null:
 		return {}
-	main._sync_guest_accommodation_state()
+	main._structures.sync_guest_counts()
 
 	var tile_types: Array[Dictionary] = []
 	for key_any in state.grid.tile_types.keys():
@@ -264,7 +265,7 @@ func apply(snapshot: Dictionary, preview_only: bool) -> bool:
 		var origin := Vector2i(int(origin_dict.get("x", 0)), int(origin_dict.get("y", 0)))
 		var rotation := int(entry.get("rotation", 0))
 		main.building_manager.place_building_at_visual_only(origin, building_id, rotation)
-		var root: Node3D = main._find_structure_root_at(origin)
+		var root: Node3D = main._structures.root_at(origin)
 		if root == null:
 			continue
 		var condition := clampf(float(entry.get("condition", 1.0)), 0.0, 1.0)
@@ -275,7 +276,7 @@ func apply(snapshot: Dictionary, preview_only: bool) -> bool:
 		if bool(entry.get("is_permanent", false)):
 			root.set_meta("is_permanent", true)
 
-	main._ensure_loaded_world_landmarks()
+	main._structures.ensure_landmarks()
 
 	# The trees and the corn where they stood (what was cleared stays cleared); saves
 	# from before they were kept grow a new wood.
@@ -288,7 +289,7 @@ func apply(snapshot: Dictionary, preview_only: bool) -> bool:
 	var rules_any = snapshot.get("rules", {})
 	main._camp_rules = main.CAMP_RULES.merged(rules_any if rules_any is Dictionary and main._sandbox else {}, true)
 
-	main._rebuild_core_cells_from_visual_structures()
+	main._structures.rebuild_cells()
 	var crt_any = snapshot.get("crt_desktop", {})
 	var loaded_crt_state: Dictionary = {}
 	if crt_any is Dictionary:
@@ -433,8 +434,96 @@ func apply(snapshot: Dictionary, preview_only: bool) -> bool:
 			GuestManager.reset_runtime_state()
 		elif GuestManager.has_method("import_runtime_state"):
 			GuestManager.import_runtime_state({})
-	main._sync_guest_accommodation_state()
+	main._structures.sync_guest_counts()
 	main._sync_runtime_state_from_systems(true)
 	if not preview_only:
 		main._refresh_camp_sign()
 	return true
+
+
+func reset_for_new_game() -> void:
+	main._sandbox = false
+	main._camp_rules = main.CAMP_RULES.duplicate()
+	main._pending_loaded_player_state.clear()
+	main._pending_night_jobs.clear()
+	if main._night_jobs != null:
+		main._night_jobs.reset()
+	main._pending_camp_office.clear()
+	main._pending_town_trip.clear()
+	if main.camp_office != null:
+		main.camp_office.reset()
+	main._pending_day_events.clear()
+	if main._day_events != null:
+		main._day_events.reset()
+	# The bag: the torch again, nothing on the ground (scripts/ui/inventory.gd).
+	var trip = main._interior_manager.town_trip() if main._interior_manager != null and main._interior_manager.has_method("town_trip") else null
+	if trip != null and trip.get("inventory") != null:
+		trip.inventory.new_camp()
+	main._pending_loaded_crt_state.clear()
+	main._last_known_crt_desktop_state.clear()
+	main._billing.reset(1)
+	main._lamp_grid_power_available = true
+	main._active_save_path = ""
+	main._clear_blood_fx()
+	var state = CoreRoot.get_state()
+	if state == null:
+		return
+	main._pending_week_ledger.clear()
+	if main._week_ledger != null:
+		main._week_ledger.reset(main.BALANCE_CONFIG.STARTING_MONEY)
+	main._pending_omens.clear()
+	if main._omens != null:
+		main._omens.reset()
+	if main._director != null:
+		main._director.begin_night(-1)
+		main._director.ever.clear()
+		# Not the last game's night on CampStat's NIGHT page.
+		main._director.last_log.clear()
+	main._pending_bazaar.clear()
+	main._bazaar.reset()
+	main._pending_goggle.clear()
+	main._pending_graph.clear()
+	main._goggle_fresh = true
+	if main._director_fx != null:
+		main._director_fx.clear()
+	CoreRoot.apply_changes({
+		"money": main.BALANCE_CONFIG.STARTING_MONEY,
+		"day": 1,
+		"is_night": false,
+		"karma": 0.0,
+		"satisfaction": 50.0,
+		"hrotfaktor": 0.0,
+		"night_swell": 0.0,
+		"energy_load": 0.0,
+		"infra_load": 0.0
+	})
+	main._night_roll.last_night_kinds = []
+	main._night_roll.night_lost = 0
+	main._night_roll.swell_moved = -1
+	if state.grid != null:
+		state.grid.cells.clear()
+		state.grid.tile_types.clear()
+		state.grid.occupants.clear()
+	state.failures.clear()
+	state.guests.clear()
+	state.accommodation_states.clear()
+	state.guest_reviews.clear()
+	state.guest_transactions.clear()
+	state.next_guest_id = 1
+	# The businesses' books too (the menu's preview of the last save left them in: its
+	# places, stock, orders and licences); actions._biz starts them anew with a new stamp.
+	state.biz = {}
+	if EmailManager != null and EmailManager.has_method("reset_runtime"):
+		EmailManager.reset_runtime(true)
+	if GuestManager != null and GuestManager.has_method("reset_runtime_state"):
+		GuestManager.reset_runtime_state()
+	if main._guest_agents != null:
+		main._guest_agents.clear_agents()
+	if main.time_system != null and main.time_system.has_method("set_time_hours"):
+		main.time_system.set_time_hours(9.0)
+	if main.weather_system != null and main.weather_system.has_method("set_weather"):
+		main.weather_system.set_weather(main.WEATHER_CLEAR)
+	main._day_index = 1
+	main._time_of_day_hours = 9.0
+	main._time_state = main.TIME_DAY
+	main._weather_state = main.WEATHER_CLEAR
