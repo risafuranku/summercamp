@@ -18,6 +18,7 @@ extends Node
 ## hands; stepped like the fire (12 a second) where things fly. Co-op: each split goes
 ## through the host (warden_play: "chop").
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const K = preload("res://scripts/interior_kit.gd")
 const SPLIT_WOOD = preload("res://scripts/attractions/split_wood.gd")
 const SFX := "res://assets/sfx/life/"
@@ -526,7 +527,7 @@ func _play_at(file: String, at: Vector3, db: float, pitch: float) -> void:
 func _world() -> Node:
 	var main = warden.get("main") if warden != null else null
 	var w = main.get("_world_3d") if main != null else null
-	return w if w != null else (main if main != null else get_tree().current_scene)
+	return w if w != null else (main if main != null else INSTANCE.main_of(self))
 
 
 func _player() -> Node3D:

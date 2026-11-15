@@ -6,6 +6,7 @@ extends Node3D
 ## worked from scripts/corn/stand_view.gd), steam off the pot in puffs (a Grok sprite, in
 ## steps, twelve a second), the awning's flaps stirring in the wind.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const BUSINESS := preload("res://scripts/business/business_runtime.gd")
 const RULES := preload("res://core/systems/business_rules.gd")
 const FPS := 12.0
@@ -345,7 +346,7 @@ func _process(delta: float) -> void:
 	if _bulb != null and int(_t * FPS) % 12 == 0:
 		# On well before the dusk by the sky's own clock (the evenings draw in): at seven you could
 		# no longer see what you were serving.
-		var main := get_tree().current_scene
+		var main := INSTANCE.main_of(self)
 		var h: float = main.call("season_hour") if main != null and main.has_method("season_hour") else 12.0
 		# Nothing on its menu: shut, dark, nothing on the boil, the card on the counter.
 		var shut := _shut_by_menu()

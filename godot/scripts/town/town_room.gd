@@ -28,6 +28,7 @@ extends CanvasLayer
 ## Room space is `_space`: the seat, or the origin of the room's own world for a place whose
 ## building is missing (the old painted village).
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal closed
 ## Paid for at the counter (counter_shop.gd), into the bag (scripts/ui/inventory.gd).
 signal bought(item: String)
@@ -772,7 +773,7 @@ func _sync_haze() -> void:
 	if not _env.fog_enabled:
 		_cam.environment = null
 		return
-	var main := get_tree().current_scene if is_inside_tree() else null
+	var main := INSTANCE.main_of(self) if is_inside_tree() else null
 	var we = main.get("world_environment") if main != null else null
 	var src: Environment = (we as WorldEnvironment).environment if we is WorldEnvironment else null
 	if src == null:

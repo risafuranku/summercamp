@@ -18,6 +18,7 @@ extends Node
 ## The way is the staffroom hands' (staff_runtime.way: the guests' grid, quicker on the
 ## paths); the figures the businesses' own (their Doom sets, standing, bobbing a step).
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const BUSINESS := preload("res://scripts/business/business_runtime.gd")
 const RULES := preload("res://core/systems/business_rules.gd")
 const DOOM := preload("res://scripts/figures/doom_figure.gd")
@@ -49,7 +50,7 @@ var _view := 0.0
 
 
 func _main() -> Node:
-	return get_tree().current_scene if is_inside_tree() else null
+	return INSTANCE.main_of(self) if is_inside_tree() else null
 
 
 func _hour() -> float:

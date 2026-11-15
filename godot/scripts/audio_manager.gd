@@ -1,5 +1,6 @@
 extends Node3D
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const BALANCE_CONFIG = preload("res://core/balance/balance_config.gd")
 
 const SFX_DOOR_OPEN_PATH := "res://assets/sfx/dvereotevrit.mp3"
@@ -1283,7 +1284,7 @@ func _resolve_grid_manager() -> Node:
 	var tree = get_tree()
 	if tree == null:
 		return null
-	var root = tree.current_scene
+	var root = INSTANCE.main_of(self)
 	if root == null:
 		return null
 	_grid_manager_ref = _find_node_by_name(root, "GridManager")

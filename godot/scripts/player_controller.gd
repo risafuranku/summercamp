@@ -1,6 +1,7 @@
 extends CharacterBody3D
 
 ## A foot came down (the bob's step, its sound): the feet you see looking down, the prints.
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal foot_fell(left: bool)
 
 const FAR_TREES := preload("res://scripts/ambient/far_trees.gd")
@@ -1587,7 +1588,7 @@ func _surface_under() -> String:
 	var ground := _ground_under()
 	if ground == "wood":
 		return ground
-	var main := get_tree().current_scene if is_inside_tree() else null
+	var main := INSTANCE.main_of(self) if is_inside_tree() else null
 	if main != null and (_ground_life == null or not is_instance_valid(_ground_life)):
 		_ground_life = main.find_child("GroundLife", true, false)
 	var gl := _ground_life
@@ -1626,7 +1627,7 @@ func _ground_under() -> String:
 				if n.has_meta("building_type") and (hit["position"] as Vector3).y > 0.08:
 					return "wood"
 				n = n.get_parent()
-	var main := get_tree().current_scene if is_inside_tree() else null
+	var main := INSTANCE.main_of(self) if is_inside_tree() else null
 	var sl = main.get("_season_look") if main != null else null
 	if sl != null and float(sl.get("wet")) > 0.45:
 		return "mud"

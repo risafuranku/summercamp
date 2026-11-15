@@ -13,6 +13,7 @@ extends Node
 ## them, your lighter or your lit cigarette lights theirs (and theirs yours); two open
 ## bottles held up close clink.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const ART := "res://assets/textury/habits/"
 const SFX := "res://assets/sfx/habits/"
 const PIXEL_M := 0.0045
@@ -63,7 +64,7 @@ func tex(n: String) -> Texture2D:
 
 ## The camera you see through now and the node of its world to put things in.
 func _view() -> Dictionary:
-	var main := get_tree().current_scene
+	var main := INSTANCE.main_of(self)
 	if main == null:
 		return {}
 	if pockets != null and pockets._indoors():
@@ -340,7 +341,7 @@ func _land(n: Sprite3D, kind: String, extra, at: Vector3) -> void:
 
 ## Gravel, paths, concrete, the road: things break there. Grass and earth take them.
 func _hard_ground(at: Vector3) -> bool:
-	var main := get_tree().current_scene
+	var main := INSTANCE.main_of(self)
 	var gm = main.get("grid_manager") if main != null else null
 	if gm != null and gm.has_method("world_to_grid"):
 		var c: Vector2i = gm.world_to_grid(at)
@@ -514,7 +515,7 @@ func coop_habit(kind: String, data: Array) -> void:
 				pockets.cig.t = 0.0
 				pockets._say("A light from %s." % Coop.sender_name())
 		"butt", "bottle":
-			var root := get_tree().current_scene.get("_world_3d") as Node3D if get_tree().current_scene != null else null
+			var root := INSTANCE.main_of(self).get("_world_3d") as Node3D if INSTANCE.main_of(self) != null else null
 			if root == null:
 				return
 			var s := _sprite("butt_lit" if kind == "butt" and bool(data[2]) else ("butt" if kind == "butt" else "bottle_side"))

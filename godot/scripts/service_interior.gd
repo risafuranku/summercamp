@@ -1,6 +1,7 @@
 extends CanvasLayer
 
 ## The room swipe moves in steps, twelve a second (scripts/ui/step12.gd).
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const STEP12 = preload("res://scripts/ui/step12.gd")
 const ROOM_PUSH = preload("res://scripts/ui/room_push.gd")
 const RETRO_RENDER = preload("res://scripts/retro_render.gd")
@@ -957,7 +958,7 @@ func _update_late_night(delta: float) -> void:
 		_late_night = LATE_NIGHT.new()
 		_late_night.name = "LateNight"
 		_late_night.tension_of = func() -> float:
-			var d = get_tree().current_scene.get("_director") if get_tree().current_scene != null else null
+			var d = INSTANCE.main_of(self).get("_director") if INSTANCE.main_of(self) != null else null
 			return float(d.tension) if d != null else 0.3
 		_late_night.dim = _late_dim
 		_late_night.room_of = func() -> Node3D: return _late_room()
@@ -2541,7 +2542,7 @@ func _wall_decal(root: Node3D, path: String, at: Vector3, size: float) -> void:
 
 
 func _open_sewer_terminal() -> void:
-	var crawl = get_tree().current_scene.get("_sewer_pipe_minigame") if get_tree().current_scene != null else null
+	var crawl = INSTANCE.main_of(self).get("_sewer_pipe_minigame") if INSTANCE.main_of(self) != null else null
 	if crawl == null or not crawl.has_method("preview_network"):
 		return
 	if _sewer_terminal == null:
@@ -3995,7 +3996,7 @@ func _tick_windows(delta: float) -> void:
 
 
 func _camp_weather() -> int:
-	var scene := get_tree().current_scene if is_inside_tree() else null
+	var scene := INSTANCE.main_of(self) if is_inside_tree() else null
 	return int(scene.get("_weather_state")) if scene != null and scene.get("_weather_state") != null else 0
 
 
@@ -4316,7 +4317,7 @@ func _staff_open_laptop() -> void:
 	for id in Coop.others():
 		var theirs: Dictionary = Coop.state_of(id).get("room", {})
 		if str(theirs.get("w", "")) in ["pc", "laptop"]:
-			var hud = get_tree().current_scene.get("_hud_manager") if get_tree().current_scene != null else null
+			var hud = INSTANCE.main_of(self).get("_hud_manager") if INSTANCE.main_of(self) != null else null
 			if hud != null:
 				hud.push_status(tr("%s is on the PC. You look over their shoulder.") % Coop.name_of(id), 1)
 			return

@@ -15,6 +15,7 @@ extends Control
 ## The cards are in the program's own memory; what was paid tonight is the shell's
 ## (export_persistent_state) so a reboot does not reset the night.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const T = preload("res://scripts/os98/os_theme.gd")
 const LANG = preload("res://scripts/lang.gd")
 const RATE := 4                 # $ for a perfect card
@@ -113,7 +114,7 @@ func _draw() -> void:
 
 func _night_key() -> String:
 	var day := CoreRoot.get_day() if CoreRoot != null else 1
-	var main = _shell.get_tree().current_scene if _shell != null else null
+	var main = INSTANCE.main_of(_shell) if _shell != null else null
 	var h := float(main.get("_time_of_day_hours")) if main != null and main.get("_time_of_day_hours") != null else 22.0
 	# Before 06:00 the night belongs to the day before.
 	return str(day - (1 if h < 12.0 else 0))

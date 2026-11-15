@@ -57,6 +57,7 @@ var _hurt_fx: CanvasLayer
 const TITLE_STAGE = preload("res://scripts/ui/title/title_stage.gd")
 const TITLE_CAMP = preload("res://scripts/ui/title/title_camp.gd")
 const LAND_WARMUP = preload("res://scripts/town/land_warmup.gd")
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const START_DISSOLVE = preload("res://scripts/ui/door_transition.gd")
 const SAVE_CODEC = preload("res://scripts/save_codec.gd")
 const ELECTRICITY_BILLING_SCRIPT = preload("res://scripts/electricity_billing.gd")
@@ -256,6 +257,12 @@ var _still_last_pos: Vector3 = Vector3.INF
 var _lamp_flashlight_active: bool = false
 var _lamp_grid_power_available: bool = true
 var _billing: RefCounted = ELECTRICITY_BILLING_SCRIPT.new()
+
+
+## Main is the root of its instance (scripts/instance/instance.gd): what is under it finds it
+## by INSTANCE.main_of(self).
+func _enter_tree() -> void:
+	add_to_group(INSTANCE.GROUP)
 
 
 func _ready() -> void:

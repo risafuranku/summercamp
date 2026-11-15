@@ -12,6 +12,7 @@ extends RefCounted
 ## He has no booking. What you do with him is up to you (checkin_desk.gd); main hears
 ## how many such you let in (the omens draw on it, scripts/omens.gd).
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const DESK = preload("res://scripts/reception/checkin_desk.gd")
 const K = preload("res://scripts/interior_kit.gd")
 const BELL_TEX := "res://assets/textury/desk/bell.png"
@@ -852,7 +853,7 @@ func _next_for_desk() -> Dictionary:
 ## when I go in, through the window they aren't there": inside it showed the whole queue).
 func present_queue() -> Array:
 	var q: Array = GuestManager.get_desk_queue() if GuestManager != null else []
-	var scene: Node = host.get_tree().current_scene if host != null and host.is_inside_tree() else null
+	var scene: Node = INSTANCE.main_of(host) if host != null and host.is_inside_tree() else null
 	var agents = scene.get("_guest_agents") if scene != null else null
 	if agents == null or not agents.has_method("guest_world_position"):
 		return q
@@ -1053,7 +1054,7 @@ func _make_stranger() -> Dictionary:
 
 
 func _hour() -> float:
-	var main = host.get_tree().current_scene if host != null and host.get_tree() != null else null
+	var main = INSTANCE.main_of(host) if host != null and host.get_tree() != null else null
 	if main != null and main.get("_time_of_day_hours") != null:
 		return float(main.get("_time_of_day_hours"))
 	return 12.0

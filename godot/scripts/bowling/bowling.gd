@@ -45,6 +45,7 @@ extends Node
 ## sent to everyone (Coop.send_place "bowl"); after a change the host sends the alley as it
 ## stands ("snap").
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const RULES := preload("res://core/systems/bowling_rules.gd")
 const BIZ_RULES := preload("res://core/systems/business_rules.gd")
 const BUSINESS := preload("res://scripts/business/business_runtime.gd")
@@ -991,7 +992,7 @@ func _grumble(key: String, lane: Dictionary) -> void:
 
 
 func _feed(text: String) -> void:
-	var main := get_tree().current_scene
+	var main := INSTANCE.main_of(self)
 	var hud = main.get("_hud_manager") if main != null else null
 	if hud != null and hud.has_method("push_status"):
 		hud.push_status(text, 1, "bowling_feed")

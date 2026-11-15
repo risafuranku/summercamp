@@ -16,6 +16,7 @@ extends RefCounted
 ##   aid.tick()                                      # each frame the room is open
 ##   aid.use()                                       # the click
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const K = preload("res://scripts/interior_kit.gd")
 const BALANCE = preload("res://core/balance/balance_config.gd")
 const HEAL := 50
@@ -93,7 +94,7 @@ static func morning_of(day: int, hour: float) -> int:
 
 func _morning() -> int:
 	var day := CoreRoot.get_day() if CoreRoot != null else 1
-	var main = node.get_tree().current_scene if node != null and node.is_inside_tree() else null
+	var main = INSTANCE.main_of(node) if node != null and node.is_inside_tree() else null
 	var hour := float(main.get("_time_of_day_hours")) if main != null and main.get("_time_of_day_hours") != null else 12.0
 	return morning_of(day, hour)
 
@@ -129,7 +130,7 @@ func use() -> bool:
 	_used_here = m
 	if CoreRoot != null and CoreRoot.actions != null:
 		CoreRoot.actions.aid_used(id, m)
-	var main = node.get_tree().current_scene
+	var main = INSTANCE.main_of(node)
 	if main != null and main.has_method("heal_player"):
 		main.heal_player(HEAL)
 	if _player != null and ResourceLoader.exists(SFX):

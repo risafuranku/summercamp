@@ -11,6 +11,7 @@ extends Node3D
 ## every machine lays them alike; kicked, they stay where they stopped until the camp is
 ## loaded again.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const FPS := 12.0
 const TEX := "res://assets/textury/world/"
 const SFX := "res://assets/sfx/world/"
@@ -87,7 +88,7 @@ func _process(delta: float) -> void:
 # ── laying them out ──────────────────────────────────────────────────────────
 
 func _structures() -> Array:
-	var main := get_tree().current_scene
+	var main := INSTANCE.main_of(self)
 	var bm = main.get("building_manager") if main != null else null
 	var s: Node = bm.get_node_or_null("Structures") if bm != null else null
 	return s.get_children() if s != null else []
@@ -323,7 +324,7 @@ func _sound(at: Vector3, k: Dictionary, db_add := 0.0) -> void:
 ## a plop; at night the noise of it goes to whatever listens (group "night_ears").
 func _landed(p: Dictionary, at: Vector3, speed: float) -> void:
 	var k: Dictionary = KINDS[p["kind"]]
-	var main := get_tree().current_scene
+	var main := INSTANCE.main_of(self)
 	var lake := main.find_child("CampLake", true, false) if main != null else null
 	if lake != null and lake.has_method("in_water") and bool(lake.in_water(at)):
 		var plop := SFX + "fish_plop.mp3"

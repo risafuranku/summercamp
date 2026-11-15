@@ -11,6 +11,7 @@ extends CanvasLayer
 ##   - a shadow under you on the ground (a blob like the guests' and the other wardens').
 ## Made by the player (player_controller._ensure_body_view); not in a room or a close-up.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const HANDS = preload("res://scripts/ui/hands.gd")
 const DIR := "res://assets/textury/hands_lo/"
 ## How far ahead of your origin the boots are (m), on the ground.
@@ -144,7 +145,7 @@ func _showing() -> bool:
 	var cam := player.get("_camera") as Camera3D
 	if cam == null or not cam.current:
 		return false
-	var main := get_tree().current_scene
+	var main := INSTANCE.main_of(self)
 	if main != null and main.has_method("_is_any_interior_open") and bool(main.call("_is_any_interior_open")):
 		return false
 	# A close-up over the view (as pockets.gd asks it).
@@ -177,7 +178,7 @@ func _place_feet(vp: Vector2, k: float, mat: Material, mo: Vector2) -> void:
 		return
 	var size := tex.get_size() * k
 	var bar := 0.0
-	var main := get_tree().current_scene
+	var main := INSTANCE.main_of(self)
 	var hud = main.get("_hud_manager") if main != null else null
 	if hud != null and hud.has_method("get_bar_height_px"):
 		bar = float(hud.get_bar_height_px())
@@ -210,7 +211,7 @@ func _crawl(vp: Vector2, k: float, mat: Material, mo: Vector2) -> void:
 	if plant == null or reach == null:
 		return
 	var bar := 0.0
-	var main := get_tree().current_scene
+	var main := INSTANCE.main_of(self)
 	var hud = main.get("_hud_manager") if main != null else null
 	if hud != null and hud.has_method("get_bar_height_px"):
 		bar = float(hud.get_bar_height_px())

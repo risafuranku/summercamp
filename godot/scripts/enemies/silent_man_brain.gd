@@ -240,7 +240,7 @@ var _face_night := -1
 
 
 func _night_no() -> int:
-	var main: Node = _world_root.get_tree().current_scene if _world_root != null and _world_root.is_inside_tree() else null
+	var main: Node = INSTANCE.main_of(_world_root) if _world_root != null and _world_root.is_inside_tree() else null
 	return int(main.get("_day_index")) if main != null and main.get("_day_index") != null else 0
 
 
@@ -1591,7 +1591,7 @@ func _mark_met() -> void:
 
 
 func _director():
-	var scene := _world_root.get_tree().current_scene if _world_root != null and _world_root.is_inside_tree() else null
+	var scene := INSTANCE.main_of(_world_root) if _world_root != null and _world_root.is_inside_tree() else null
 	return scene.get("_director") if scene != null else null
 
 

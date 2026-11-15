@@ -12,6 +12,7 @@ extends CanvasLayer
 ## torch drops, changes hands and comes up in the left (the sprite mirrored, as Build
 ## mirrored its sprites); with both hands busy it is in your pocket and dark.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const HANDS = preload("res://scripts/ui/hands.gd")
 const TEX := "res://assets/textury/hands_lo/torch.png"
 const FPS := 12.0
@@ -63,7 +64,7 @@ func embed(parent: Node, index: int) -> void:
 
 ## The player's sprint_lower (0..1), in whole steps of a sixth.
 func _run_lower() -> float:
-	var main := get_tree().current_scene if get_tree() != null else null
+	var main := INSTANCE.main_of(self) if get_tree() != null else null
 	var p = main.get("_player") if main != null else null
 	var v = p.get("sprint_lower") if p != null else null
 	return floorf(float(v) * 6.0) / 6.0 if v != null else 0.0

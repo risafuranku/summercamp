@@ -24,6 +24,7 @@ extends CanvasLayer
 ## What you have is in the bag (scripts/ui/inventory.gd): packs of Start, bottles; used
 ## from there with a double click or with C and B. town_trip.gd owns this node.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const CIG = preload("res://scripts/habits/cigarette.gd")
 const BOTTLE = preload("res://scripts/habits/bottle.gd")
 const WORLD = preload("res://scripts/habits/habit_world.gd")
@@ -675,7 +676,7 @@ func _say(text: String) -> void:
 
 
 func _main() -> Node:
-	return get_tree().current_scene if is_inside_tree() else null
+	return INSTANCE.main_of(self) if is_inside_tree() else null
 
 
 func _player() -> CharacterBody3D:

@@ -30,6 +30,7 @@ extends Node3D
 ## lamp (`figure`), and now and then a curtain lifts at a corner while you stand there.
 ## Each machine by its own warden: a thing of the eye, nothing in the books.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const FPS := 12.0
 const WINDOW_LIT := "res://assets/textury/camp/window_lit.png"
 const WINDOW_TV := "res://assets/textury/camp/window_tv.png"
@@ -139,7 +140,7 @@ func _process(delta: float) -> void:
 # ── the lodgings ─────────────────────────────────────────────────────────────
 
 func _scan() -> void:
-	var main := get_tree().current_scene
+	var main := INSTANCE.main_of(self)
 	var bm = main.get("building_manager") if main != null else null
 	var structures: Node = bm.get_node_or_null("Structures") if bm != null else null
 	if structures == null:
@@ -340,7 +341,7 @@ func lit_state(key: String) -> Dictionary:
 
 
 func _update() -> void:
-	var main := get_tree().current_scene
+	var main := INSTANCE.main_of(self)
 	if main == null:
 		return
 	var hour: float = float(main.get("_time_of_day_hours")) if main.get("_time_of_day_hours") != null else 12.0
@@ -526,7 +527,7 @@ func _cube_of(rec: Dictionary) -> ShaderMaterial:
 	var kind := str(rec["kind"])
 	if kind != "cabin" and kind != "caravan":
 		return null
-	var main := get_tree().current_scene
+	var main := INSTANCE.main_of(self)
 	var im = main.get("_interior_manager") if main != null else null
 	var it = im.get("_cabin_interior" if kind == "cabin" else "_caravan_interior") if im != null else null
 	if it == null or not is_instance_valid(it) or not it.has_method("cube_spec") or not is_instance_valid(rec["root"]):

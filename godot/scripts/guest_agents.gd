@@ -13,6 +13,7 @@ extends Node3D
 ## If a path cannot be found the agent glides straight to the target; the simulation
 ## never waits for the visuals.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const GUEST_NEEDS = preload("res://core/systems/guest_needs_system.gd")
 const POSES = preload("res://scripts/attractions/poses.gd")
 const DOOR_ANIM = preload("res://scripts/attractions/door_anim.gd")
@@ -432,7 +433,7 @@ func _update_party(party: Dictionary, now: float, _delta: float) -> void:
 			# they stand inside, desk_room.present_queue).
 			if not bool(party.get("in_office", false)):
 				party["in_office"] = true
-				var main_b := get_tree().current_scene.find_child("MainBuilding", true, false) as Node3D if is_inside_tree() and get_tree().current_scene != null else null
+				var main_b := INSTANCE.main_of(self).find_child("MainBuilding", true, false) as Node3D if is_inside_tree() and INSTANCE.main_of(self) != null else null
 				DOOR_ANIM.open(DOOR_ANIM.find_door(main_b), 1.6 + 0.5 * float(members.size()))
 	else:
 		dwell_phase = true

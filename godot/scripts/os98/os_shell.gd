@@ -22,6 +22,7 @@ extends Control
 ## the page; the program is `page.content.get_child(0)`), app_of(), _open_email_app(),
 ## _open_guestrack_app(), wants_keyboard(), play(), extras().
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal desktop_ready
 
 const T = preload("res://scripts/os98/os_theme.gd")
@@ -547,7 +548,7 @@ func main_node() -> Node:
 		if cur.has_method("_time_of_day_string") and cur.has_method("get_electricity_ui_snapshot"):
 			return cur
 		cur = cur.get_parent()
-	return get_tree().current_scene if get_tree() != null else null
+	return INSTANCE.main_of(self) if get_tree() != null else null
 
 
 func is_day() -> bool:

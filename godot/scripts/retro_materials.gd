@@ -22,6 +22,7 @@ extends Node
 ##
 ## Started by RetroRender.register(), one per game (root/RetroMaterials).
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const SNAP_LINES := 150.0
 const AFFINE := 0.6
 const CHECK_PER_FRAME := 400
@@ -192,7 +193,7 @@ static var vis_far := 0.0
 
 func _visibility() -> void:
 	_ensure_globals()
-	var main := get_tree().current_scene
+	var main := INSTANCE.main_of(self)
 	var h = main.get("_time_of_day_hours") if main != null else null
 	var night := 0.0
 	if h != null:

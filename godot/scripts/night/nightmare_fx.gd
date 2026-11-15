@@ -27,6 +27,7 @@ extends CanvasLayer
 ## The dread is the largest any source has set this frame, eased; a source that stops
 ## setting it lets it fall. Nothing here is drawn while all of it is at rest.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const SHADER := preload("res://materials/nightmare_screen.gdshader")
 const NODE_NAME := "NightmareFX"
 const TINNITUS_HZ := 5600.0
@@ -1264,7 +1265,7 @@ func _update_sense(delta: float) -> void:
 ## Your own wounds: low on health the ears go too (from under about half, all of it near
 ## none). Main's `_player_health` on this machine; nothing in the menu.
 func _strain_target() -> float:
-	var scene := get_tree().current_scene if is_inside_tree() else null
+	var scene := INSTANCE.main_of(self) if is_inside_tree() else null
 	if scene == null:
 		return 0.0
 	var started = scene.get("_gameplay_started")

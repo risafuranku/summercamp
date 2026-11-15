@@ -36,6 +36,7 @@ extends CanvasLayer
 ## Outside is lit by the hour and the weather (set_time); at night the strip lights are
 ## on inside and the windows are black but for what passes.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal arrived
 signal left_bus
 
@@ -524,7 +525,7 @@ func set_time(hour: float, _fog: float, raining: bool) -> void:
 ## Into the game's world: this view shows it from the cabin's camera, and the game's own
 ## view (the player's eye, left at the stop) stops drawing while you ride.
 func _into_world() -> void:
-	var main := get_tree().current_scene
+	var main := INSTANCE.main_of(self)
 	_main_vp = main.get_node_or_null("SubViewportContainer/SubViewport") as SubViewport if main != null else null
 	if _main_vp != null:
 		_vp.world_3d = _main_vp.find_world_3d()

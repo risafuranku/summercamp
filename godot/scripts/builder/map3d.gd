@@ -28,6 +28,7 @@ extends Control
 ## tilts, the wheel zooms to the pointer; T a quarter round; arrows pan. A click on the
 ## compass turns north up again.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal left_3d
 
 const BUILDING_MODELS = preload("res://scripts/building_models.gd")
@@ -486,7 +487,7 @@ func _night_k(main: Node) -> float:
 
 
 func _sync_env() -> void:
-	var main := get_tree().current_scene if get_tree() != null else null
+	var main := INSTANCE.main_of(self) if get_tree() != null else null
 	var we = main.get("world_environment") if main != null else null
 	var src: Environment = (we as WorldEnvironment).environment if we is WorldEnvironment else null
 	if src == null and _vp.world_3d != null:

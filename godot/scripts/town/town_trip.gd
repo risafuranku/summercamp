@@ -19,6 +19,7 @@ extends Node
 ## close-ups and the ride count as rooms (is_open): the HUD and the camp's controls step
 ## aside. Created and owned by InteriorManager.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const TIMES = preload("res://scripts/town/bus_timetable.gd")
 ## The leaves of the places' doors, walked through (interior_manager._walk_up_first).
 const DOOR_ANIM = preload("res://scripts/attractions/door_anim.gd")
@@ -234,7 +235,7 @@ func _pockets_allowed() -> bool:
 
 
 func _main() -> Node:
-	return get_tree().current_scene if get_tree() != null else null
+	return INSTANCE.main_of(self) if get_tree() != null else null
 
 
 func _player() -> Node3D:

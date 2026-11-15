@@ -10,6 +10,7 @@ extends "res://scripts/enemies/i_enemy_brain.gd"
 ## - bodies are lit by the scene (shaded sprites): in the dark they exist only where
 ##   the flashlight or a lamp touches them.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 var _world_root: Node3D
 var _player: CharacterBody3D
 var _grid_manager: Node
@@ -259,7 +260,7 @@ func _player_health() -> int:
 	var peer := _quarry_peer()
 	if peer != 0:
 		return int(Coop.state_of(peer).get("hp", 100))
-	var scene := _world_root.get_tree().current_scene if _world_root != null and _world_root.is_inside_tree() else null
+	var scene := INSTANCE.main_of(_world_root) if _world_root != null and _world_root.is_inside_tree() else null
 	var h = scene.get("_player_health") if scene != null else null
 	return int(h) if h != null else 100
 
@@ -298,7 +299,7 @@ func is_private_now() -> bool:
 
 ## Is the warden it hunts in a room now (the night is on)?
 func _quarry_indoors() -> bool:
-	var scene := _world_root.get_tree().current_scene if _world_root != null and _world_root.is_inside_tree() else null
+	var scene := INSTANCE.main_of(_world_root) if _world_root != null and _world_root.is_inside_tree() else null
 	if scene == null:
 		return false
 	var night: bool = scene.has_method("_is_enemy_night_active") and bool(scene.call("_is_enemy_night_active"))
@@ -561,7 +562,7 @@ func _stride(moved: float, each := 1.1) -> void:
 ## What is left of the day's light, 0 in the night proper (the sky's own clock): by it you can
 ## see what stands out there without a torch.
 func _twilight() -> float:
-	var scene := _world_root.get_tree().current_scene if _world_root != null and _world_root.is_inside_tree() else null
+	var scene := INSTANCE.main_of(_world_root) if _world_root != null and _world_root.is_inside_tree() else null
 	var wv = scene.get("_weather_visuals") if scene != null else null
 	if wv == null:
 		return 0.0
@@ -569,7 +570,7 @@ func _twilight() -> float:
 
 
 func _im():
-	var scene := _world_root.get_tree().current_scene if _world_root != null and _world_root.is_inside_tree() else null
+	var scene := INSTANCE.main_of(_world_root) if _world_root != null and _world_root.is_inside_tree() else null
 	return scene.get("_interior_manager") if scene != null else null
 
 
@@ -594,7 +595,7 @@ func _room_windows() -> Array:
 ## The other wardens (co-op): the host's own warden when he hunts a stand-in, and every
 ## stand-in but the one he hunts. Their torches by where they really point.
 func _lit_by_others(point: Vector3) -> bool:
-	var scene := _world_root.get_tree().current_scene if _world_root != null and _world_root.is_inside_tree() else null
+	var scene := INSTANCE.main_of(_world_root) if _world_root != null and _world_root.is_inside_tree() else null
 	if scene == null:
 		return false
 	var others: Array = []

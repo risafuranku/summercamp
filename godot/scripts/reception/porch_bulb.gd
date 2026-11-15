@@ -11,6 +11,7 @@ extends Node3D
 ## second, like the camp's other things. Made by building_models.reception, its node at
 ## the hook.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const FPS := 12.0
 ## The bare cord from the hook, then the picture (its own bit of cord, the socket, the
 ## glass: 18 x 64 px), in metres: a small bulb, not a lamp.
@@ -86,7 +87,7 @@ func _process(delta: float) -> void:
 		return
 	var dt := minf(_acc, 0.25)
 	_acc = 0.0
-	var main := get_tree().current_scene
+	var main := INSTANCE.main_of(self)
 	var ws := 0
 	var lit := false
 	if main != null:

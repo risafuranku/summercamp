@@ -17,6 +17,7 @@ extends Node3D
 ## ground and the paths and looked like oil). Not while you are in a room. Made by
 ## InteriorManager.setup() in the camp's world, like sky_life.gd and wind_life.gd.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const FPS := 12.0
 const PUDDLES := 26
 ## The ground's cells for puddles (m): each has its own place for one, the same every time.
@@ -288,7 +289,7 @@ func _ground_y(space: PhysicsDirectSpaceState3D, p: Vector3, me: Node3D) -> floa
 	if hit.is_empty():
 		return NAN
 	var y := float((hit["position"] as Vector3).y) + GRASS_TOP
-	var main_n := get_tree().current_scene
+	var main_n := INSTANCE.main_of(self)
 	var gm = main_n.get("grid_manager") if main_n != null else null
 	if gm != null and gm.has_method("get_tile"):
 		var tile = gm.get_tile(gm.world_to_grid(p))
@@ -327,7 +328,7 @@ func _process(delta: float) -> void:
 	var h := float(hour_getter.call()) if hour_getter.is_valid() else 12.0
 	# 3 light rain, 4 rain, 5 storm.
 	_rain = [0.0, 0.0, 0.0, 0.45, 0.8, 1.0, 0.0][clampi(wtr, 0, 6)]
-	var main_n := get_tree().current_scene
+	var main_n := INSTANCE.main_of(self)
 	var day := int(main_n.get("_day_index")) if main_n != null and main_n.get("_day_index") != null else 1
 	# Snow falling is no rain: no puddles growing under it, no rings on them.
 	if _rain > 0.0 and Season.precip_is_snow(day, h):
@@ -486,7 +487,7 @@ func _drop_from(from: Vector3, col: Color) -> void:
 ## The buildings within reach, the four nearest; a building keeps its drips' beat while it
 ## stays near.
 func _scan_eaves(centre: Vector3) -> void:
-	var main := get_tree().current_scene
+	var main := INSTANCE.main_of(self)
 	var bm = main.get("building_manager") if main != null else null
 	var structures: Node = bm.get_node_or_null("Structures") if bm != null else null
 	var found: Array = []

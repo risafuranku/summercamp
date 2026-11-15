@@ -16,6 +16,7 @@ extends CanvasLayer
 ## Pictures: assets/textury/items/, ui/inv_*.png (Grok, tools/artgen/office_art.py).
 ## town_trip.gd owns it, with the pockets (smoking, drinking) it feeds, and saves it.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const PROMPT = preload("res://scripts/input/prompt.gd")
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 const COLS := 6
@@ -1085,7 +1086,7 @@ func _draw_item(it: Dictionary, at: Vector2, fs: float, mod: Color, count := tru
 # ── helpers ──────────────────────────────────────────────────────────────────
 
 func _main() -> Node:
-	return get_tree().current_scene if get_tree() != null else null
+	return INSTANCE.main_of(self) if get_tree() != null else null
 
 
 ## Where the camp is (main's 3D world in its low-resolution viewport).

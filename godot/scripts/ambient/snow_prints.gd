@@ -8,6 +8,7 @@ extends Node3D
 ## in a minute and a half while it snows, in ten minutes when it does not; the oldest
 ## goes first when there are more than the pool. Made by ground_life.gd.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const TEX := "res://assets/textury/world/boot_print.png"
 const POOL := 64
 const STRIDE := 0.72
@@ -64,7 +65,7 @@ func _process(delta: float) -> void:
 		return
 	var dt := _acc
 	_acc = 0.0
-	var main := get_tree().current_scene
+	var main := INSTANCE.main_of(self)
 	if main == null or main.get("_time_of_day_hours") == null:
 		return
 	var hour := float(main.get("_time_of_day_hours"))

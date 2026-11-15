@@ -8,6 +8,7 @@ extends Node3D
 ## A director's blackout (dark_until) is no fault and does not spark. Made by
 ## world_sounds.gd.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const FPS := 12.0
 const EMBERS := "res://assets/textury/camp/embers.png"
 const ZAPS := ["res://assets/sfx/world/lamp_zap_a.mp3", "res://assets/sfx/world/lamp_zap_b.mp3"]
@@ -70,7 +71,7 @@ func _process(delta: float) -> void:
 	if _flash_steps > 0:
 		_flash_steps -= 1
 		_flash.visible = _flash_steps > 0
-	var main := get_tree().current_scene
+	var main := INSTANCE.main_of(self)
 	var bm = main.get("building_manager") if main != null else null
 	if not player_getter.is_valid() and get_parent() != null and get_parent().get("player_getter") is Callable:
 		player_getter = get_parent().get("player_getter")

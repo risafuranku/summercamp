@@ -26,6 +26,7 @@ extends Node
 ## keeps the keg and the mugs in the books for the save (actions.biz_tap). A machine
 ## that joins asks the host for the bars as they are.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const RULES := preload("res://core/systems/pub_rules.gd")
 const ORDERS := preload("res://scripts/food/orders.gd")
 const BUSINESS := preload("res://scripts/business/business_runtime.gd")
@@ -599,7 +600,7 @@ func _stars_of(served: Dictionary, visit: String) -> float:
 
 
 func _feed(text: String) -> void:
-	var main := get_tree().current_scene
+	var main := INSTANCE.main_of(self)
 	var hud = main.get("_hud_manager") if main != null else null
 	if hud != null and hud.has_method("push_status"):
 		hud.push_status(text, 0, "pub_bill")

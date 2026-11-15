@@ -1,5 +1,6 @@
 extends CanvasLayer
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const RETRO_RENDER = preload("res://scripts/retro_render.gd")
 ## The tent's cross-section: floor half-width and ridge height (metres).
 const TENT_HALF_WIDTH := 0.98
@@ -1108,7 +1109,7 @@ func _poles_of(way: MeshInstance3D, hide: bool) -> void:
 ## Of a tent's doorways (a pair's two) the one nearest your body in the camp: the one you
 ## came in by.
 func _doorway_near(tent: Node3D) -> MeshInstance3D:
-	var scene := get_tree().current_scene if is_inside_tree() else null
+	var scene := INSTANCE.main_of(self) if is_inside_tree() else null
 	var p = scene.get("_player") if scene != null else null
 	var at: Vector3 = (p as Node3D).global_position if p is Node3D else tent.global_position
 	var best: MeshInstance3D = null
@@ -1122,7 +1123,7 @@ func _doorway_near(tent: Node3D) -> MeshInstance3D:
 
 
 func _camp_camera() -> Camera3D:
-	var scene := get_tree().current_scene if is_inside_tree() else null
+	var scene := INSTANCE.main_of(self) if is_inside_tree() else null
 	var w3d = scene.get("_world_3d") if scene != null else null
 	if w3d is Node3D and (w3d as Node3D).is_inside_tree():
 		return (w3d as Node3D).get_viewport().get_camera_3d()
@@ -1147,7 +1148,7 @@ func _find_open_ways() -> Array:
 				continue
 			for w in s.find_children("TentDoorWay", "MeshInstance3D", true, false):
 				out.append([s, w, w])
-	var scene := get_tree().current_scene if is_inside_tree() else null
+	var scene := INSTANCE.main_of(self) if is_inside_tree() else null
 	var bm = scene.get("building_manager") if scene != null else null
 	var structures: Node = bm.get_node_or_null("Structures") if bm != null else null
 	if structures != null:

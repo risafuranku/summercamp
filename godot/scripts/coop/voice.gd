@@ -12,6 +12,7 @@ extends Node
 ## a muted bus with a capture effect, cut down to 16 kHz mono, mu-law, 20 ms a packet.
 ## Made by Coop (its child), so it lives as long as the game.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const RATE := 16000
 const FRAME := 320
 const GAIN := 1.6
@@ -130,7 +131,7 @@ func _may_talk() -> bool:
 	var tree := get_tree()
 	if tree == null or tree.paused:
 		return false
-	var main := tree.current_scene
+	var main := INSTANCE.main_of(self)
 	if main == null or main.get("_gameplay_started") != true or main.get("_menu_mode") == true:
 		return false
 	var focus := get_viewport().gui_get_focus_owner()
@@ -227,14 +228,14 @@ func _alert_guests(at: Vector3, delta: float) -> void:
 	if _alert_t > 0.0 or at == Vector3.INF:
 		return
 	_alert_t = 0.5
-	var main := get_tree().current_scene
+	var main := INSTANCE.main_of(self)
 	var agents = main.get("_guest_agents") if main != null else null
 	if agents != null and agents.has_method("alert"):
 		agents.alert(at, 45.0, 3.0)
 
 
 func _my_position() -> Vector3:
-	var main := get_tree().current_scene
+	var main := INSTANCE.main_of(self)
 	var p = main.get("_player") if main != null else null
 	return (p as Node3D).global_position if p is Node3D else Vector3.INF
 
@@ -283,7 +284,7 @@ func _make_rx(id: int, mega: bool) -> Dictionary:
 		p3.max_distance = 320.0
 		p3.max_db = 6.0
 		player = p3
-		var world: Node = get_tree().current_scene
+		var world: Node = INSTANCE.main_of(self)
 		var w3d = world.get("_world_3d") if world != null else null
 		(w3d if w3d is Node else world).add_child(p3)
 	else:
@@ -379,7 +380,7 @@ func _update_hand(delta: float) -> void:
 	_hand.size = _hand.texture.get_size() * k
 	var raise := 1.0 - (1.0 - _up) * (1.0 - _up)
 	var bar := 0.0
-	var main := get_tree().current_scene
+	var main := INSTANCE.main_of(self)
 	var hud = main.get("_hud_manager") if main != null else null
 	if hud != null and hud.has_method("get_bar_height_px"):
 		bar = float(hud.get_bar_height_px())

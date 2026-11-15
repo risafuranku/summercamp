@@ -14,6 +14,7 @@ extends Node3D
 ##     10.: the panting was annoying, too often, too loud and too long.)
 ## Moved in steps (twelve a second) like the rest of the Build world.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const PUFF_SHADER = preload("res://materials/breath_puff.gdshader")
 const PUFF_TEX := "res://assets/textury/camp/breath_puff.png"
 ## How big a puff is as it leaves your mouth and when it is gone (m): small and low in the
@@ -75,7 +76,7 @@ func _ready() -> void:
 
 
 func _main() -> Node:
-	return get_tree().current_scene if is_inside_tree() else null
+	return INSTANCE.main_of(self) if is_inside_tree() else null
 
 
 ## Cold enough to see your breath: the night and the early morning, and the whole day

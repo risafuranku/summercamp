@@ -25,6 +25,7 @@ extends Node3D
 ## the camera never. Made by weather_visuals.gd in the camp's world; not while you are in a
 ## room.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const FPS := 12.0
 const W := "res://assets/textury/world/"
 const SFX_WORLD := "res://assets/sfx/world/"
@@ -144,7 +145,7 @@ func _sound(file: String, at: Vector3, db: float, pitch := 1.0, cut := 0.0) -> v
 
 
 func _main() -> Node:
-	return get_tree().current_scene
+	return INSTANCE.main_of(self)
 
 
 func _outdoors() -> bool:

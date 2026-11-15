@@ -12,6 +12,7 @@ extends Node3D
 ## It follows the player wherever they are (the camp, the road, Lesna). Not while you are
 ## in a room. Made by InteriorManager.setup() in the camp's world.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const FPS := 12.0
 const SFX := "res://assets/sfx/life/"
 
@@ -70,7 +71,7 @@ func _player() -> Node3D:
 
 
 func _hour() -> float:
-	var main := get_tree().current_scene
+	var main := INSTANCE.main_of(self)
 	return float(main.get("_time_of_day_hours")) if main != null and main.get("_time_of_day_hours") != null else 12.0
 
 

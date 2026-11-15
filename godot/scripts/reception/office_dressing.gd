@@ -13,6 +13,7 @@ extends RefCounted
 ##     the dried plants on the sill, the milk-glass ceiling light, the runner rug.
 ## Faces and sprites from Grok (assets/textury/camp, tools/artgen/prompts.tsv).
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const K = preload("res://scripts/interior_kit.gd")
 const SFX_CRACKLE := "res://assets/sfx/life/fire_crackle.mp3"
 const SFX_STOVE := "res://assets/sfx/rooms/stove_door.mp3"
@@ -253,7 +254,7 @@ func _hand(parent: Node3D, length: float, width: float, mat: Material, z: float)
 func _hang_diplomas() -> void:
 	if root == null or not root.is_inside_tree():
 		return
-	var main = root.get_tree().current_scene
+	var main = INSTANCE.main_of(root)
 	var im = main.get("_interior_manager") if main != null else null
 	var bi = im.get("_building_interior") if im != null else null
 	var pc = bi.get("_crt_ui") if bi != null else null
@@ -283,7 +284,7 @@ func _hang_diplomas() -> void:
 
 ## The diploma `i` on the wall as the Courier brought it: its award, the camp, its day.
 func _diploma_item(i: int) -> Dictionary:
-	var main = root.get_tree().current_scene if root != null and root.is_inside_tree() else null
+	var main = INSTANCE.main_of(root) if root != null and root.is_inside_tree() else null
 	var im = main.get("_interior_manager") if main != null else null
 	var bi = im.get("_building_interior") if im != null else null
 	var pc = bi.get("_crt_ui") if bi != null else null

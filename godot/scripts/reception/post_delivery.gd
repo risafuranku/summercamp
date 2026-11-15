@@ -20,6 +20,7 @@ extends Node
 ## the van and the man are drawn on every machine from the stage and the game minute it
 ## began (`t0`), so both see them in the same place without messages of their own.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const STORE_KEY := "post"
 const PRICE := 149
 ## Ordered to the van at the gate, game minutes (a few hours, as the page says).
@@ -152,7 +153,7 @@ func order_no() -> int:
 
 func _resolve_main() -> Node:
 	if _main == null or not is_instance_valid(_main):
-		_main = get_tree().current_scene if get_tree() != null else null
+		_main = INSTANCE.main_of(self) if get_tree() != null else null
 	return _main
 
 

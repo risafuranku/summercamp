@@ -19,6 +19,7 @@ extends Node
 ##
 ## Made by InteriorManager.setup() (root of the camp's interiors), one per game.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const RULES := preload("res://core/systems/business_rules.gd")
 const LANG := preload("res://scripts/lang.gd")
 const ORDERS := preload("res://scripts/food/orders.gd")
@@ -367,7 +368,7 @@ func _watch_late(sites: Dictionary) -> void:
 			# (Shut for good by its menu: never open, nobody sets out for it.)
 			hours[str(key)] = [0, 0] if RULES.sells_nothing(str(s2.get("kind", "")), s2) else [OPEN_HOUR * 60, RULES.last_orders_at(bool(s2.get("late", false)))]
 		life.order_hours = hours
-	var main := get_tree().current_scene
+	var main := INSTANCE.main_of(self)
 	var hud = main.get("_hud_manager") if main != null else null
 	var h := int(GuestManager._last_known_hour) if GuestManager != null else 12
 	if hud != null and hud.has_method("set_open_late"):
@@ -753,7 +754,7 @@ func _say_all(text: String, kind := 0, group := "") -> void:
 
 
 func _say(text: String, kind := 0, group := "") -> void:
-	var main := get_tree().current_scene
+	var main := INSTANCE.main_of(self)
 	var hud = main.get("_hud_manager") if main != null else null
 	if hud != null and hud.has_method("push_status"):
 		hud.push_status(text, kind, group)

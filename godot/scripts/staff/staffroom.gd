@@ -16,6 +16,7 @@ extends RefCounted
 ## sofa and in the armchairs. Another warden at the laptop
 ## sits on its chair with their back to you (service_interior.coop_job_spot).
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const PLAN = preload("res://scripts/staff/staffroom_plan.gd")
 const WALK_PATH = preload("res://scripts/ui/walk_path.gd")
 const HOVER_GLINT = preload("res://scripts/ui/hover_glint.gd")
@@ -174,7 +175,7 @@ func update_hover(mouse: Vector2) -> String:
 	if id == "to_boiler" and room != "lounge" or id == "to_lounge" and room != "boiler":
 		id = ""
 	# The first-aid cabinet only while it has something in it and you need it.
-	if id == "aid" and (room != "boiler" or aid.used() or not bool(host.get_tree().current_scene.call("player_hurt"))):
+	if id == "aid" and (room != "boiler" or aid.used() or not bool(INSTANCE.main_of(host).call("player_hurt"))):
 		id = ""
 	_hover = id
 	if id == "":
@@ -476,7 +477,7 @@ func on_open() -> void:
 
 
 func _say(text: String) -> void:
-	var main = host.get_tree().current_scene if host != null and host.is_inside_tree() else null
+	var main = INSTANCE.main_of(host) if host != null and host.is_inside_tree() else null
 	var hud = main.get("_hud_manager") if main != null else null
 	if hud != null:
 		hud.push_status(tr(text), 1)

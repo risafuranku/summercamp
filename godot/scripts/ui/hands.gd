@@ -15,6 +15,7 @@ extends Node
 ##     (claim / release) and asks who has it (owner).
 ## Made by the first one who asks (Hands.of(node)); in group "hands".
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const VIRTUAL_LINES := 200.0
 ## Shade steps of the light on the hands (a Build palette's shade ramp has 32; the hands
 ## read better with fewer).
@@ -148,7 +149,7 @@ var _fall_v := 0.0
 
 
 func _move(delta: float) -> void:
-	var main := get_tree().current_scene
+	var main := INSTANCE.main_of(self)
 	var p = main.get("_player") if main != null else null
 	if p == null or delta <= 0.0:
 		motion = Vector2.ZERO
@@ -255,7 +256,7 @@ func _process(delta: float) -> void:
 ## Both hands taken by things that outrank the torch: it goes in your pocket (dark) till
 ## a hand is free (player_controller.hand_busy).
 func _pocket_torch() -> void:
-	var main := get_tree().current_scene
+	var main := INSTANCE.main_of(self)
 	var p = main.get("_player") if main != null else null
 	if p == null or not ("hand_busy" in p):
 		return
@@ -271,7 +272,7 @@ func _shade(v: float) -> float:
 
 
 func _measure() -> Color:
-	var main := get_tree().current_scene
+	var main := INSTANCE.main_of(self)
 	if main == null or main.get("_player") == null:
 		return Color.WHITE
 	var c := Color.BLACK

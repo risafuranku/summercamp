@@ -22,6 +22,7 @@ extends Node3D
 ##     building_interior.gd's own, through the same walls: `wall_bus`).
 ## Made by weather_visuals.gd in the camp's world, like the rain.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const SFX := "res://assets/sfx/world/"
 const BUS := "OutdoorAmbience"
 const LAMP_HUMS := 4
@@ -143,7 +144,7 @@ func _scan(here: Vector3) -> void:
 		if lamp.global_position.distance_to(here) > 40.0:
 			continue
 		_lamps[lamp.get_instance_id()] = _loop_player(lamp, "lamp_buzz.mp3", Vector3(0, 2.3, 0), 1.2, 12.0)
-	var root := get_tree().current_scene
+	var root := INSTANCE.main_of(self)
 	if root == null:
 		return
 	var bm = root.get("building_manager")
@@ -184,7 +185,7 @@ func _scan(here: Vector3) -> void:
 ## What plays now: the lit lamps nearest you, the generator if there is power, the lake,
 ## the frogs at night.
 func _poll(here: Vector3) -> void:
-	var main := get_tree().current_scene
+	var main := INSTANCE.main_of(self)
 	var hour: float = float(main.get("_time_of_day_hours")) if main != null and main.get("_time_of_day_hours") != null else 12.0
 	var night := hour >= 20.5 or hour < 5.0
 	# Lamps: the few nearest that are lit.
@@ -405,7 +406,7 @@ func _after_rain(delta: float, here: Vector3, w: int) -> void:
 	_eaves_t -= delta
 	if _eaves_t > 0.0:
 		return
-	var main := get_tree().current_scene
+	var main := INSTANCE.main_of(self)
 	var sl = main.get("_season_look") if main != null else null
 	var wet: float = float(sl.get("wet")) if sl != null and sl.get("wet") != null else 0.0
 	_eaves_t = lerpf(6.0, 1.2, clampf((wet - 0.2) / 0.6, 0.0, 1.0)) * _rng.randf_range(0.7, 1.3)
@@ -486,7 +487,7 @@ func _set_loop(p: AudioStreamPlayer3D, on: bool, db: float) -> void:
 
 ## The trees round you in the wind: the leaves' loops, and now and then a creak.
 func _trees(delta: float, here: Vector3) -> void:
-	var main := get_tree().current_scene
+	var main := INSTANCE.main_of(self)
 	var w := int(main.get("_weather_state")) if main != null and main.get("_weather_state") != null else 0
 	var wind: float = float({1: 0.8, 3: 0.35, 4: 0.55, 5: 1.0}.get(w, 0.12))
 	_flagpoles(delta, wind)

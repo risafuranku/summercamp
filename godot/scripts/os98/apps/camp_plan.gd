@@ -9,6 +9,7 @@ extends Control
 ## the one asked for (`focus`) blinks. What it shows is read in `rebuild()` (GuestRack's
 ## refresh), not every frame.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const T = preload("res://scripts/os98/os_theme.gd")
 const PAPER := Color8(250, 248, 238)
 const GRID := Color8(230, 228, 216)
@@ -228,7 +229,7 @@ func _draw_building(b: Dictionary, o: Vector2, cell: float) -> void:
 ## How each building wears (CampStat's upkeep), by origin.
 func _wear() -> Dictionary:
 	var out := {}
-	var m = get_tree().current_scene if get_tree() != null else null
+	var m = INSTANCE.main_of(self) if get_tree() != null else null
 	if m != null and m.has_method("get_upkeep_snapshot"):
 		for row in (m.get_upkeep_snapshot() as Dictionary).get("rows", []):
 			if row.get("coord", null) is Vector2i:

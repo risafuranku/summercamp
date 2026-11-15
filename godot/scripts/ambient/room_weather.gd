@@ -18,6 +18,7 @@ extends Node3D
 ## The room makes one (child of its root) and hands it its windows and its moving parts;
 ## `is_open` says when you are in it (nothing plays when you are not).
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const DROPS_TEX := "res://assets/textury/world/glass_drops.png"
 const RUNS_TEX := "res://assets/textury/world/glass_runs.png"
 const COOKIE_TEX := "res://assets/textury/world/window_cookie.png"
@@ -253,7 +254,7 @@ func _process(delta: float) -> void:
 	if open and not _was_open:
 		_set_room_echo()
 	_was_open = open
-	var main := get_tree().current_scene if is_inside_tree() else null
+	var main := INSTANCE.main_of(self) if is_inside_tree() else null
 	if main == null:
 		return
 	var w := int(main.get("_weather_state")) if main.get("_weather_state") != null else 0

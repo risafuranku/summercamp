@@ -22,6 +22,7 @@ extends Node
 ## The other wardens in the staffroom are drawn in its rooms here too when you are
 ## outside (at the laptop, at the books), and its lamps and curtains are as they are in.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const RULES = preload("res://core/systems/staff_rules.gd")
 const MAINT_RULES = preload("res://core/systems/maintenance_rules.gd")
 const DOOR_ANIM_S = preload("res://scripts/attractions/door_anim.gd")
@@ -52,7 +53,7 @@ func _ready() -> void:
 # ── the camp ─────────────────────────────────────────────────────────────────
 
 func _main() -> Node:
-	return get_tree().current_scene if is_inside_tree() else null
+	return INSTANCE.main_of(self) if is_inside_tree() else null
 
 
 func staffroom() -> Node3D:

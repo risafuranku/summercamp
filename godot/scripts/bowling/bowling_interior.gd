@@ -22,6 +22,7 @@ extends CanvasLayer
 ## A click on a lane nobody is on puts you on its approach with a ball (lane_play.gd: you
 ## bowl yourself); on a lane being bowled, behind its bowler to watch.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal request_close
 
 const RETRO_RENDER = preload("res://scripts/retro_render.gd")
@@ -219,7 +220,7 @@ func _key_of(st: Node) -> String:
 
 ## The alley's building at `k` ("x:y") in the camp.
 func _structure_of(k: String) -> Node3D:
-	var scene := get_tree().current_scene if is_inside_tree() else null
+	var scene := INSTANCE.main_of(self) if is_inside_tree() else null
 	var bm = scene.get("building_manager") if scene != null else null
 	var structures: Node = bm.get_node_or_null("Structures") if bm != null else null
 	if structures == null:

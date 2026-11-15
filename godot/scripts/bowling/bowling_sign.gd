@@ -7,6 +7,7 @@ extends Node3D
 ## for a moment with a crackle (neon_flicker.mp3). Steps twelve a second, like the camp's
 ## other machinery.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const HUM := "res://assets/sfx/bowling/neon_hum.mp3"
 const CRACKLE := "res://assets/sfx/bowling/neon_flicker.mp3"
 const STEP := 1.0 / 12.0
@@ -105,6 +106,6 @@ func _play_crackle() -> void:
 
 ## The camp's lamps (dusk, the power on): BuildingManager's own flag.
 func _lamps_on() -> bool:
-	var scene := get_tree().current_scene if is_inside_tree() else null
+	var scene := INSTANCE.main_of(self) if is_inside_tree() else null
 	var bm = scene.get("building_manager") if scene != null else null
 	return bm != null and bool(bm.get("_lamps_active"))

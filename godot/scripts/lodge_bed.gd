@@ -12,6 +12,7 @@ extends Node
 ##
 ## Made by InteriorManager; it watches whichever room is open.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const SLEEP = preload("res://scripts/reception/sleep_sequence.gd")
 
 ## Each kind's bed in its room's own coordinates (the camera's parent): the mattress's
@@ -65,7 +66,7 @@ func eyes_shut() -> bool:
 
 
 func _office():
-	var main := get_tree().current_scene
+	var main := INSTANCE.main_of(self)
 	return main.get("camp_office") if main != null else null
 
 

@@ -5,6 +5,7 @@ extends Node
 ## - Spreads deliveries continuously across the following hour.
 ## - Keeps spam as extra noise mail (not counted as customer demand).
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal email_received(email: Dictionary)
 signal customer_booking_confirmed(email: Dictionary)
 signal customer_booking_rejected(email: Dictionary)
@@ -747,7 +748,7 @@ func _poisson(mean: float) -> int:
 
 ## The camp on Atlas (scripts/reviews/goggle.gd: the reviews, the advertising), or null.
 func _atlas():
-	var main := get_tree().current_scene if get_tree() != null else null
+	var main := INSTANCE.main_of(self) if get_tree() != null else null
 	return main.get("_goggle") if main != null else null
 
 
@@ -1254,7 +1255,7 @@ func reply_to_review(mail: Dictionary, reply_id: String) -> float:
 			mail["_actioned"] = true
 			mail["reply"] = reply_id
 			# The same review on Atlas has the answer too.
-			var main := get_tree().current_scene if get_tree() != null else null
+			var main := INSTANCE.main_of(self) if get_tree() != null else null
 			if main != null and main.has_method("goggle_mail_replied"):
 				main.goggle_mail_replied(int(r.get("guest_id", -1)), reply_id)
 			send_mail("guestbook@cerne-jezero.cz", "Re: " + str(mail.get("subject", "")), str(opt["text"]), int(mail.get("day", 1)), _clock_now())

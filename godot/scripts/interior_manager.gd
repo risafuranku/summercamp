@@ -1,5 +1,6 @@
 extends Node
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal service_repair_requested(coord: Vector2i, building_type: String)
 ## A line for the HUD feed (e.g. a room you cannot go into).
 signal notice(text: String, kind: int)
@@ -290,15 +291,15 @@ func setup(
 		_wind_life.player_getter = func(): return _player
 		_wind_life.indoors = func(): return is_any_open()
 		_wind_life.weather_getter = func():
-			var m := get_tree().current_scene
+			var m := INSTANCE.main_of(self)
 			return int(m.get("_weather_state")) if m != null and m.get("_weather_state") != null else 0
 		_wind_life.season_getter = func():
-			var m := get_tree().current_scene
+			var m := INSTANCE.main_of(self)
 			if m == null or m.get("_day_index") == null:
 				return Vector2(10, 12)
 			return Vector2(float(m.get("_day_index")), float(m.get("_time_of_day_hours")))
 		_wind_life.wind_getter = func():
-			var m := get_tree().current_scene
+			var m := INSTANCE.main_of(self)
 			var wv: Node = m.get("_weather_visuals") if m != null else null
 			if wv == null:
 				return Vector3.ZERO
@@ -311,7 +312,7 @@ func setup(
 		_ground_life.indoors = func(): return is_any_open()
 		_ground_life.weather_getter = _wind_life.weather_getter
 		_ground_life.hour_getter = func():
-			var m := get_tree().current_scene
+			var m := INSTANCE.main_of(self)
 			return float(m.get("_time_of_day_hours")) if m != null and m.get("_time_of_day_hours") != null else 12.0
 	# setup() is called once before player spawn and again after spawn.
 	# Rebind existing interiors so runtime refs (player/audio/grid) stay valid.
@@ -643,7 +644,7 @@ func handle_structure_interact(structure: Node3D) -> void:
 		INTERIOR_MODULE_BOWLING:
 			_on_bowling_interact(structure)
 		INTERIOR_MODULE_SIGN:
-			var main_n := get_tree().current_scene
+			var main_n := INSTANCE.main_of(self)
 			if main_n != null and main_n.has_method("open_camp_sign"):
 				main_n.call("open_camp_sign")
 		_:
@@ -1480,7 +1481,7 @@ func _refuse_if_occupied(structure: Node3D, kind: String) -> bool:
 	knock.finished.connect(knock.queue_free)
 	knock.play()
 	# The complaint's mark leads here when the noisy lot are in: the knock is the word with them.
-	var de = get_tree().current_scene.get("_day_events") if get_tree().current_scene != null else null
+	var de = INSTANCE.main_of(self).get("_day_events") if INSTANCE.main_of(self) != null else null
 	if de != null and de.has_method("on_knocked") and bool(de.on_knocked(key)):
 		return true
 	var replies := ["\"Occupied!\"", "\"We're asleep!\"", "\"Come back later.\"", "\"Who is it?\""]
@@ -1953,7 +1954,7 @@ func map_upgrade_offer(origin: Vector2i, current_type: String) -> Dictionary:
 ## An upgrade to `new_type` waits for the camp's Goggle rating (scripts/reviews/goggle.gd):
 ## the guests in the camp it needs, or 0.0 when it is open.
 func _upgrade_locked(new_type: String) -> float:
-	var main := get_tree().current_scene if get_tree() != null else null
+	var main := INSTANCE.main_of(self) if get_tree() != null else null
 	var g = main.get("_goggle") if main != null else null
 	if g == null:
 		return 0.0

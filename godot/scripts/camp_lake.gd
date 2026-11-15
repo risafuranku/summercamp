@@ -9,6 +9,7 @@ extends Node3D
 ## You can walk out on the jetty; the water itself is fenced off by invisible walls along
 ## the shore (you do not swim at night).
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const INTERIOR_KIT = preload("res://scripts/interior_kit.gd")
 const WATER_SHADER = preload("res://materials/lake_water.gdshader")
 const REEDS := "res://assets/textury/world/reeds.png"
@@ -396,7 +397,7 @@ func _process(delta: float) -> void:
 ## sky's colour, which the time of day and the weather set), where the sun or the moon is
 ## and how bright, how much light there is, the wind and the rain.
 func _water_look() -> void:
-	var scene := get_tree().current_scene if get_tree() != null else null
+	var scene := INSTANCE.main_of(self) if get_tree() != null else null
 	if _water_mat == null or scene == null:
 		return
 	var env_node = scene.get("world_environment")

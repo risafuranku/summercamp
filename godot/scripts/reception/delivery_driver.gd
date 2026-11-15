@@ -12,6 +12,7 @@ extends Node
 ## goes off down the road. Drawn on every machine from the event as each one has it, like
 ## the postman (scripts/reception/post_delivery.gd), whose way in and walk this shares.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const POST = preload("res://scripts/reception/post_delivery.gd")
 const VAN_IN := 5.0
 const VAN_TURN := 2.0
@@ -64,7 +65,7 @@ func setup(host_node) -> void:
 
 func _resolve_main() -> Node:
 	if _main == null or not is_instance_valid(_main):
-		_main = get_tree().current_scene if get_tree() != null else null
+		_main = INSTANCE.main_of(self) if get_tree() != null else null
 	return _main
 
 

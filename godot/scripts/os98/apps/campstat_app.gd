@@ -11,6 +11,7 @@ extends Control
 ## tables with column headers, bars, status chips and real buttons (Pay, Call the crew).
 ## Downloaded from campgrid.cz and installed.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const T = preload("res://scripts/os98/os_theme.gd")
 const LANG = preload("res://scripts/lang.gd")
 const TABS := [["today", "Today"], ["log", "Log"], ["power", "Power"], ["bills", "Bills"], ["night", "Night"], ["upkeep", "Upkeep"], ["money", "Money"], ["reviews", "Reviews"]]
@@ -1108,7 +1109,7 @@ func _page_reviews(y: float) -> float:
 	# The camp's page as the world sees it (scripts/reviews/goggle.gd): last summer's
 	# reviews are there from the first day, the guests' come on top (the user 30. 10.:
 	# "from the start of a sandbox zero reviews"), what was taken down is not.
-	var main := get_tree().current_scene if get_tree() != null else null
+	var main := INSTANCE.main_of(self) if get_tree() != null else null
 	var g = main.get("_goggle") if main != null else null
 	var reviews: Array = g.shown() if g != null else []
 	y = _title(y, tr("GUEST REVIEWS"), tr("what they wrote when they left"))

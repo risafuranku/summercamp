@@ -10,6 +10,7 @@ extends Node3D
 ##     past on the breeze, glinting when they catch the sun.
 ## Made by weather_visuals.gd in the camp's world.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const FPS := 12.0
 const SWARMS := 3
 const PER_SWARM := 14
@@ -82,7 +83,7 @@ func _sprite(t: Texture2D, px: float) -> Sprite3D:
 
 func _process(delta: float) -> void:
 	var player: Node3D = player_getter.call() if player_getter.is_valid() else null
-	var main := get_tree().current_scene
+	var main := INSTANCE.main_of(self)
 	if player == null or main == null:
 		return
 	_poll -= delta
@@ -150,7 +151,7 @@ func _step_swarms(dt: float, here: Vector3, on: bool) -> void:
 
 
 func _step_floaters(dt: float, here: Vector3, on: bool) -> void:
-	var wv = get_tree().current_scene.get("_weather_visuals")
+	var wv = INSTANCE.main_of(self).get("_weather_visuals")
 	var wd: Vector2 = wv.wind_dir if wv != null else Vector2(0.94, 0.34)
 	var wind := Vector3(wd.x, 0, wd.y).normalized()
 	var gust: float = float(wv.get("_wind_now")) if wv != null else 0.15

@@ -17,6 +17,7 @@ extends Node3D
 ## Road points are relative to the gate: x from the gate's centre, z from the south fence
 ## line (south is -z).
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const TEX_DIR := "res://assets/textury/camp/"
 const TOWN_TEX := "res://assets/textury/town/"
 const GEO = preload("res://scripts/geo/geo_data.gd")
@@ -581,7 +582,7 @@ func _process(delta: float) -> void:
 	_lamp_t -= delta
 	if _lamp_t <= 0.0:
 		_lamp_t = 1.0
-		var main := get_tree().current_scene
+		var main := INSTANCE.main_of(self)
 		var h: float = main.call("season_hour") if main != null and main.has_method("season_hour") else 12.0
 		_night = h >= 19.0 or h < 6.5
 		# Now and then the old lamp gives up for a moment.

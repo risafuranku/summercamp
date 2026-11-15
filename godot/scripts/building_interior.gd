@@ -1,5 +1,6 @@
 extends CanvasLayer
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const INTERIOR_BARREL_SHADER = preload("res://materials/interior_barrel_post.gdshader")
 const ROOM_WEATHER = preload("res://scripts/ambient/room_weather.gd")
 const INTERIOR_KIT = preload("res://scripts/interior_kit.gd")
@@ -2476,7 +2477,7 @@ func _reception_shell() -> Node3D:
 		_room_sun_shell = null
 	if _room_sun_shell == null and Time.get_ticks_msec() - _room_sun_seek_ms > 1000:
 		_room_sun_seek_ms = Time.get_ticks_msec()
-		var scene := get_tree().current_scene if get_tree() != null else null
+		var scene := INSTANCE.main_of(self) if get_tree() != null else null
 		var reception := scene.find_child("MainBuilding", true, false) as Node3D if scene != null else null
 		_room_sun_shell = reception.get_node_or_null("Shell") as Node3D if reception != null else null
 	return _room_sun_shell
@@ -2755,7 +2756,7 @@ static func _hide_from_camp(n: Node) -> void:
 ## light up behind them, nothing is painted on them.
 func _sync_reception_glass() -> void:
 	if _glass_cache.is_empty() or not is_instance_valid(_glass_cache.get("office_glass")):
-		var scene := get_tree().current_scene if is_inside_tree() else null
+		var scene := INSTANCE.main_of(self) if is_inside_tree() else null
 		var reception: Node = scene.find_child("MainBuilding", true, false) if scene != null else null
 		if reception == null or not reception.has_meta("reception_glass"):
 			return
@@ -4405,7 +4406,7 @@ func _resolve_main_for_radio() -> Node:
 			_radio_main_ref = n
 			return n
 		n = n.get_parent()
-	return get_tree().current_scene if get_tree() != null else null
+	return INSTANCE.main_of(self) if get_tree() != null else null
 
 
 ## Debug/screenshot entry: pin the radio's dread (-1 lets the night decide again).
@@ -4440,7 +4441,7 @@ func _distance_to_main_building() -> float:
 func _resolve_radio_listener_position() -> Vector3:
 	if _player_ref != null and is_instance_valid(_player_ref):
 		return _player_ref.global_position
-	var scene_root = get_tree().current_scene
+	var scene_root = INSTANCE.main_of(self)
 	var fallback_player = _find_node3d_by_name(scene_root, "Player")
 	if fallback_player == null:
 		fallback_player = _find_node3d_by_name_fragment(scene_root, "player")
@@ -4457,10 +4458,10 @@ func _resolve_main_building_node() -> Node3D:
 	if _main_building_ref != null and is_instance_valid(_main_building_ref):
 		return _main_building_ref
 	if _building_manager == null:
-		_building_manager = _find_node_by_name(get_tree().current_scene, "BuildingManager")
+		_building_manager = _find_node_by_name(INSTANCE.main_of(self), "BuildingManager")
 	var candidate = _find_main_building_in_branch(_building_manager)
 	if candidate == null:
-		var scene_root = get_tree().current_scene
+		var scene_root = INSTANCE.main_of(self)
 		candidate = _find_main_building_in_branch(scene_root)
 	if candidate != null:
 		_main_building_ref = candidate

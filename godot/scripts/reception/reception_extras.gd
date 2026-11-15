@@ -16,6 +16,7 @@ extends RefCounted
 ## lives in scripts/reception/camp_office.gd, reached through main.
 
 ## Walking between the rooms: one smooth move (scripts/ui/walk_path.gd).
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const PROMPT = preload("res://scripts/input/prompt.gd")
 const WALK_PATH = preload("res://scripts/ui/walk_path.gd")
 const INVENTORY_BAG = preload("res://scripts/ui/inventory.gd")
@@ -78,7 +79,7 @@ var _fov_before_out := 0.0
 
 ## The camp eye's FOV now (the warden's Options), for the walk out to end in.
 func _out_fov() -> float:
-	var main: Node = host.get_tree().current_scene if host is Node and (host as Node).is_inside_tree() else null
+	var main: Node = INSTANCE.main_of(host) if host is Node and (host as Node).is_inside_tree() else null
 	var p = main.get("_player") if main != null else null
 	var cam = p.get("_camera") if p != null else null
 	return float((cam as Camera3D).fov) if cam is Camera3D else FRONT_OUT_FOV
@@ -712,7 +713,7 @@ func _hover_under_mouse() -> String:
 			if id == "door":
 				return id if where != "store" else ""
 			# The first-aid cabinet only while it has something in it and you need it.
-			if id == "store_aid" and (store.aid.used() or not bool(host.get_tree().current_scene.call("player_hurt"))):
+			if id == "store_aid" and (store.aid.used() or not bool(INSTANCE.main_of(host).call("player_hurt"))):
 				return ""
 			var room := "back" if back.hot.has(id) else ("store" if store.hot.has(id) else "office")
 			# (The bench is under the office's window: from it the office's things are there

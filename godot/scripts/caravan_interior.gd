@@ -13,6 +13,7 @@ extends CanvasLayer
 ## Room preparation like the tent and the cabin (scripts/interior_prep.gd): make up the
 ## dinette bed, then the mess (core/systems/mess_rules.gd ROOM_SPOTS "caravan").
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal room_task_completed(task_id: String)
 signal request_close
 signal request_upgrade
@@ -604,12 +605,12 @@ func _host_doorways(host: Node3D, delta: float) -> void:
 
 
 func _camp_weather() -> int:
-	var scene := get_tree().current_scene if is_inside_tree() else null
+	var scene := INSTANCE.main_of(self) if is_inside_tree() else null
 	return int(scene.get("_weather_state")) if scene != null and scene.get("_weather_state") != null else 0
 
 
 func _camp_camera() -> Camera3D:
-	var scene := get_tree().current_scene if is_inside_tree() else null
+	var scene := INSTANCE.main_of(self) if is_inside_tree() else null
 	var w3d = scene.get("_world_3d") if scene != null else null
 	if w3d is Node3D and (w3d as Node3D).is_inside_tree():
 		return (w3d as Node3D).get_viewport().get_camera_3d()
@@ -618,7 +619,7 @@ func _camp_camera() -> Camera3D:
 
 func _find_vans() -> Array:
 	var out: Array = []
-	var scene := get_tree().current_scene if is_inside_tree() else null
+	var scene := INSTANCE.main_of(self) if is_inside_tree() else null
 	var bm = scene.get("building_manager") if scene != null else null
 	var structures: Node = bm.get_node_or_null("Structures") if bm != null else null
 	if structures == null:
@@ -828,7 +829,7 @@ func _release_inview() -> void:
 ## The room's light as the camp's hour has it, its lamp as window_lights has the van
 ## (guests in and up: lit; a candle in a power cut), its curtains half drawn over it then.
 func _inview_room_light() -> void:
-	var scene := get_tree().current_scene
+	var scene := INSTANCE.main_of(self)
 	var hour := float(scene.get("_time_of_day_hours")) if scene != null and scene.get("_time_of_day_hours") != null else 12.0
 	var state := TIME_DAY if hour >= 6.5 and hour < 19.5 else (TIME_EVENING if hour >= 19.5 and hour < 21.0 else TIME_NIGHT)
 	var im := get_parent()
@@ -935,7 +936,7 @@ func _build_door() -> void:
 ## The camp eye's FOV now (the warden's Options), for the walk in to start in and the walk
 ## out to end in.
 func _camp_fov() -> float:
-	var scene := get_tree().current_scene if is_inside_tree() else null
+	var scene := INSTANCE.main_of(self) if is_inside_tree() else null
 	var p = scene.get("_player") if scene != null else null
 	var cam = p.get("_camera") if p != null else null
 	return float((cam as Camera3D).fov) if cam is Camera3D else CAMP_FOV
@@ -1036,7 +1037,7 @@ func _doorway_eye() -> Vector3:
 func _life_enter() -> void:
 	if _life == null or not _is_open:
 		return
-	var scene := get_tree().current_scene
+	var scene := INSTANCE.main_of(self)
 	var hour := float(scene.get("_time_of_day_hours")) if scene != null and scene.get("_time_of_day_hours") != null else 12.0
 	_life.spec["daylight"] = _daylight
 	_life.on_enter(hour, _bed_made_node != null and _bed_made_node.visible)

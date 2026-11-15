@@ -5,6 +5,7 @@ extends Node3D
 ## the fly end, faster and wider when the wind is up (the weather). Stepped at 12
 ## frames a second. The flag's material is the model's (meta "material" on the parent).
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const STRIPS := 6
 const FLAG_W := 1.2
 const FLAG_H := 0.8
@@ -52,7 +53,7 @@ func _process(delta: float) -> void:
 
 ## Harder in rain and storms (main's weather 3..5): the nearest ancestor that has it.
 func _wind() -> float:
-	var main := get_tree().current_scene if is_inside_tree() else null
+	var main := INSTANCE.main_of(self) if is_inside_tree() else null
 	var wv = main.get("_weather_visuals") if main != null else null
 	if wv == null:
 		return 0.6

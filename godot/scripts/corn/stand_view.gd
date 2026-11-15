@@ -14,6 +14,7 @@ extends CanvasLayer
 ## starts). Your warden stands behind the counter meanwhile (the others see you there).
 ## Made by scripts/interior_manager.gd.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal closed
 
 const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
@@ -142,7 +143,7 @@ func close_view() -> void:
 ## Your warden behind the counter while you are at it (the others see you there), back
 ## where you stood after.
 func _stand_behind(on: bool) -> void:
-	var main := get_tree().current_scene
+	var main := INSTANCE.main_of(self)
 	var p = main.get("_player") if main != null else null
 	if not (p is Node3D):
 		return

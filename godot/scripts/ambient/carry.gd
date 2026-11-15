@@ -18,6 +18,7 @@ extends Node3D
 ## Co-op: picked up, set down and thrown on every machine (Coop.send_body "carry"); what
 ## the other wardens carry is drawn at their figure's hand.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const HANDS = preload("res://scripts/ui/hands.gd")
 const HL := "res://assets/textury/hands_lo/"
 const REACH := 2.4
@@ -81,7 +82,7 @@ func _player() -> CharacterBody3D:
 
 
 func _main() -> Node:
-	return get_tree().current_scene
+	return INSTANCE.main_of(self)
 
 
 func _can_act() -> bool:

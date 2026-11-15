@@ -6,6 +6,7 @@ extends Control
 ## the district's paper (Grok, no words) with the award typed on it. A click puts it
 ## away (the next one, if there is one, comes up).
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const T = preload("res://scripts/os98/os_theme.gd")
 const COURIER = preload("res://scripts/builder/courier_news.gd")
 const DIPLOMA := "res://assets/textury/builder/diploma.png"
@@ -104,7 +105,7 @@ func _draw_diploma() -> void:
 
 ## The camp's name as painted on its board by the gate (main.camp_name()).
 func _camp_title() -> String:
-	var main := get_tree().current_scene if is_inside_tree() else null
+	var main := INSTANCE.main_of(self) if is_inside_tree() else null
 	var n := str(main.call("camp_name")) if main != null and main.has_method("camp_name") else ""
 	return n if n != "" else "Camp Cerne Jezero"
 

@@ -13,6 +13,7 @@ extends Node3D
 ## season_leaves, season_snow. The snow falls here too: when it is raining and
 ## Season.precip_is_snow, weather_visuals.gd stops the rain and this lets it snow.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const SEASON = preload("res://core/systems/season.gd")
 const REFRESH_SEC := 2.0
 ## The ground's picture by the stage of the autumn (Grok, tools/artgen): dry grass with
@@ -270,7 +271,7 @@ func _leaf_sheet() -> Texture2D:
 ## How bright the falling snow is: white by day, a dim grey at night (it shows where a
 ## light falls on it all the same, being so close).
 func _snow_light() -> float:
-	var main := get_tree().current_scene
+	var main := INSTANCE.main_of(self)
 	var wv = main.get("_weather_visuals") if main != null else null
 	var day := clampf(float(wv.call("compute_daylight_factor")), 0.0, 1.0) if wv != null and wv.has_method("compute_daylight_factor") else 1.0
 	return lerpf(0.3, 0.97, day)

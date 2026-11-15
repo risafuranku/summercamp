@@ -790,7 +790,7 @@ func _through_walls(d: float, walking: bool) -> void:
 
 ## From by the door: the three, in turn, a pause between.
 func _room_lure(n: int) -> void:
-	var scene := _world_root.get_tree().current_scene
+	var scene := INSTANCE.main_of(_world_root)
 	var im = scene.get("_interior_manager") if scene != null else null
 	match n % 3:
 		0:

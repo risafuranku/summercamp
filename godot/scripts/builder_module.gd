@@ -8,6 +8,7 @@ extends Control
 ##
 ## setup(), focus_map(), set_day_mode() are what builder_app.gd calls.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal exit_requested
 signal message_requested(title: String, text: String, kind: String)
 ## A Yes/No question; `on_yes` runs on Yes (builder_app.gd asks it in a message box).
@@ -790,7 +791,7 @@ func _locked(type: String) -> Dictionary:
 	if type == "mega_gnome":
 		_ensure_sw()
 		return {} if _sw != null and _sw.unlocked(type) else {"registered": true}
-	var main := get_tree().current_scene if get_tree() != null else null
+	var main := INSTANCE.main_of(self) if get_tree() != null else null
 	var g = main.get("_goggle") if main != null else null
 	if g == null or type == "" or g.unlocked(type):
 		return {}
@@ -935,8 +936,7 @@ func _close_inspector() -> void:
 
 
 func _main() -> Node:
-	var tree := get_tree()
-	return tree.current_scene if tree != null else null
+	return INSTANCE.main_of(self)
 
 
 # ── the guest card ───────────────────────────────────────────────────────────
@@ -2300,8 +2300,7 @@ func _refresh_info() -> void:
 	if _money == null:
 		return
 	_money.text = "$%s" % _group(CoreRoot.get_money())
-	var tree := get_tree()
-	var main = tree.current_scene if tree != null else null
+	var main = INSTANCE.main_of(self)
 	var clock := str(main.call("_time_of_day_string")) if main != null and main.has_method("_time_of_day_string") else "--:--"
 	_clock.text = "Day %d   %s" % [CoreRoot.get_day(), clock]
 	_refresh_cost()

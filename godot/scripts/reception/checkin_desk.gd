@@ -33,6 +33,7 @@ extends CanvasLayer
 ## has no slip, and his card is not right. Writing him in and giving him a key lets him
 ## stay; stamping him REFUSED and giving him his card back sends him away.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal closed
 signal checked_in(guest_id: int)
 signal refused(guest_id: int)
@@ -493,7 +494,7 @@ func _is_day() -> bool:
 
 
 func _hour() -> float:
-	var main := get_tree().current_scene if get_tree() != null else null
+	var main := INSTANCE.main_of(self) if get_tree() != null else null
 	if main != null and main.get("_time_of_day_hours") != null:
 		return float(main.get("_time_of_day_hours"))
 	return 12.0
@@ -502,7 +503,7 @@ func _hour() -> float:
 # ── across the counter: the hour, the weather, the night ─────────────────────
 
 func _weather() -> Object:
-	var main := get_tree().current_scene if get_tree() != null else null
+	var main := INSTANCE.main_of(self) if get_tree() != null else null
 	return main.get("weather_system") if main != null else null
 
 

@@ -17,6 +17,7 @@ extends Node3D
 ## the crickets (audio_manager.set_insect_hush), and a room muffles it like the rest of
 ## the outside. Each machine hears its own (none of it is the camp's state).
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const SFX := "res://assets/sfx/far/"
 const BUS := "NightInsects"
 const BUS_FALLBACK := "OutdoorAmbience"
@@ -54,7 +55,7 @@ func _stream(file: String) -> AudioStream:
 
 func _process(delta: float) -> void:
 	var player: Node3D = player_getter.call() if player_getter.is_valid() else null
-	var main := get_tree().current_scene
+	var main := INSTANCE.main_of(self)
 	if player == null or main == null or main.get("_time_of_day_hours") == null:
 		return
 	var hour := float(main.get("_time_of_day_hours"))

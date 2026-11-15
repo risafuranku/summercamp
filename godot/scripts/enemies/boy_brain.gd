@@ -120,7 +120,7 @@ func boy_found() -> void:
 
 
 func _main() -> Node:
-	return _world_root.get_tree().current_scene if _world_root != null and _world_root.is_inside_tree() else null
+	return INSTANCE.main_of(_world_root) if _world_root != null and _world_root.is_inside_tree() else null
 
 
 ## The places this camp has for him, one picked: the corn, the generator's board, the

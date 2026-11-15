@@ -27,6 +27,7 @@ extends CanvasLayer
 ## water along the bottom of the pipes runs away from the leak (follow it upstream), it
 ## drips, the torch stutters when something is close.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal repair_completed(coord: Vector2i, building_type: String)
 signal repair_cancelled
 signal player_hurt(amount: int)
@@ -365,7 +366,7 @@ func open_repair(coord: Vector2i, building_type: String, _label_text: String = "
 func _read_boy_tier() -> int:
 	if debug_boy >= 0:
 		return debug_boy
-	var main = get_tree().current_scene if is_inside_tree() else null
+	var main = INSTANCE.main_of(self) if is_inside_tree() else null
 	var nj = main.get("_night_jobs") if main != null else null
 	return int(nj.call("boy_tier_at", "sewer")) if nj != null and nj.has_method("boy_tier_at") else 0
 

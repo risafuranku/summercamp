@@ -649,7 +649,7 @@ func _next_spot() -> Vector3:
 # ── indoors: at your windows ─────────────────────────────────────────────────
 
 func _im():
-	var scene := _world_root.get_tree().current_scene if _world_root != null and _world_root.is_inside_tree() else null
+	var scene := INSTANCE.main_of(_world_root) if _world_root != null and _world_root.is_inside_tree() else null
 	return scene.get("_interior_manager") if scene != null else null
 
 

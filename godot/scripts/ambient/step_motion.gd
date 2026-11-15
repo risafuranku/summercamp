@@ -22,6 +22,7 @@ extends Node
 ## outhouses', the showers' and the generator shed's doors rattle in their frames in a
 ## gale; the tents' door flaps flap.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const NODE_NAME := "StepMotion"
 const FPS := 12.0
 const NEAR := 90.0
@@ -146,7 +147,7 @@ var debug_wind := -1.0
 func wind() -> float:
 	if debug_wind >= 0.0:
 		return debug_wind
-	var scene := get_tree().current_scene if get_tree() != null else null
+	var scene := INSTANCE.main_of(self) if get_tree() != null else null
 	var wv = scene.get("_weather_visuals") if scene != null else null
 	var w = wv.get("_wind_now") if wv != null else null
 	return float(w) if w != null else 0.15
@@ -234,7 +235,7 @@ func _tick(it: Item, n: Node3D, step: float, w: float, eye: Vector3) -> bool:
 
 ## The camp's buildings as they stand: their loose doors and the tents' flaps, once each.
 func _scan_camp() -> void:
-	var scene := get_tree().current_scene if get_tree() != null else null
+	var scene := INSTANCE.main_of(self) if get_tree() != null else null
 	var bm = scene.get("building_manager") if scene != null else null
 	var root: Node = (bm as Node).get_node_or_null("Structures") if bm != null and bm is Node else null
 	if root == null:

@@ -4,6 +4,7 @@ extends Node
 ## place is: its lamps on while it is open (the books' shift, the day's or the late one's),
 ## off when it is shut. From the hour and the books, so every machine sees it the same.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const BUSINESS := preload("res://scripts/business/business_runtime.gd")
 const CREW_FIGURES := preload("res://scripts/business/crew_figures.gd")
 const SERVICE_LIFE := preload("res://scripts/food/service_life.gd")
@@ -111,7 +112,7 @@ func _process(delta: float) -> void:
 
 ## How much of the day there is out there (weather_visuals), 0 at night.
 func _daylight() -> float:
-	var scene := get_tree().current_scene
+	var scene := INSTANCE.main_of(self)
 	var wv = scene.get("_weather_visuals") if scene != null else null
 	return clampf(float(wv.compute_daylight_factor()), 0.0, 1.0) if wv != null and wv.has_method("compute_daylight_factor") else 0.0
 
@@ -130,7 +131,7 @@ func _hang_curtains() -> void:
 func _sync_curtains() -> void:
 	if _curtains.is_empty() or _key == "":
 		return
-	var scene := get_tree().current_scene
+	var scene := INSTANCE.main_of(self)
 	var im := scene.get_node_or_null("InteriorManager") if scene != null else null
 	var by_room = im.get("_curtains_by_room") if im != null else null
 	if not (by_room is Dictionary) or not (by_room as Dictionary).has(_key):

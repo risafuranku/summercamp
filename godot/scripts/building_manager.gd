@@ -1,5 +1,6 @@
 extends Node3D
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 @export var placement_range: float = 24.0
 @export var tent_height: float = 1.8
 ## A tent's size (width, ridge, length): the room inside it, tent_interior.gd's (1.96 m by
@@ -1552,7 +1553,7 @@ var _lamp_air := 0.3
 
 
 func _update_lamp_air() -> void:
-	var main := get_tree().current_scene if is_inside_tree() else null
+	var main := INSTANCE.main_of(self) if is_inside_tree() else null
 	var w = main.get("_weather_state") if main != null else null
 	_lamp_air = 1.0 if w != null and int(w) in [2, 3, 4, 5] else 0.3
 

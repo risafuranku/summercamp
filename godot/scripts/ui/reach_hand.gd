@@ -8,6 +8,7 @@ extends CanvasLayer
 ## claimed meanwhile (hands.gd), lit and dithered with the others.
 ## Made by hands.gd; reads the HUD's hint to know what E is on (nothing on "Talk").
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const HANDS = preload("res://scripts/ui/hands.gd")
 const DIR := "res://assets/textury/hands_lo/"
 const FPS := 12.0
@@ -53,7 +54,7 @@ func _tex_of(n: String) -> Texture2D:
 func _input(event: InputEvent) -> void:
 	if not event.is_action_pressed("interact") or event.is_echo() or not _seq.is_empty():
 		return
-	var main := get_tree().current_scene
+	var main := INSTANCE.main_of(self)
 	if main == null or get_tree().paused or bool(main.get("_menu_mode")):
 		return
 	if main.has_method("_is_any_interior_open") and bool(main.call("_is_any_interior_open")):
@@ -95,7 +96,7 @@ func reach(kind: String) -> void:
 
 
 func _process(delta: float) -> void:
-	var main0 := get_tree().current_scene
+	var main0 := INSTANCE.main_of(self)
 	if not _seq.is_empty() and main0 != null and main0.has_method("_is_any_interior_open") and bool(main0.call("_is_any_interior_open")):
 		# Through the door already: the room has its own hands.
 		_seq.clear()
@@ -136,7 +137,7 @@ func _process(delta: float) -> void:
 	_rect.texture = t
 	_rect.size = t.get_size() * k
 	_rect.flip_h = _side == "left"
-	var main := get_tree().current_scene
+	var main := INSTANCE.main_of(self)
 	var hud = main.get("_hud_manager") if main != null else null
 	var bar := float(hud.get_bar_height_px()) if hud != null and hud.has_method("get_bar_height_px") else 0.0
 	var x := vp.x * 0.56 - _rect.size.x * 0.3

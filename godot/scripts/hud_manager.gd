@@ -24,6 +24,7 @@ extends Node
 ## The NIGHT RISK cell encodes the game's central risk/reward trade (see DESIGN.md):
 ## lamps for the level, the archetype closest to tipping and its odds underneath.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const PROMPT = preload("res://scripts/input/prompt.gd")
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 const LANG = preload("res://scripts/lang.gd")
@@ -1668,7 +1669,7 @@ func _announce_phase(phase: int) -> void:
 	match phase:
 		PHASE_DAY:
 			# A sandbox camp has no month (main._sandbox): its day alone.
-			var main := get_tree().current_scene
+			var main := INSTANCE.main_of(self)
 			var month: bool = (main == null or main.get("_sandbox") != true) and _day <= Season.CAMPAIGN_DAYS
 			show_banner("DAY %d OF %d" % [_day, Season.CAMPAIGN_DAYS] if month else "DAY %d" % _day, Season.date_long(_day), RETRO_UI.C_AMBER, 3.2)
 		PHASE_NIGHT:

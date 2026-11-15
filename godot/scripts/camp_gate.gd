@@ -24,6 +24,7 @@ extends Node3D
 ## and counterweight; playtest 25. 10. "texture the barrier"), falling back to the old
 ## texture set.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const STEP_MOTION := preload("res://scripts/ambient/step_motion.gd")
 const TEX_DIR := "res://assets/textury/camp/"
 const SFX_LIFT := "res://assets/sfx/gate/barrier_lift.mp3"
@@ -96,7 +97,7 @@ func waiting_spot(i: int) -> Vector3:
 
 ## A step out of the reception's door (its leaf, door_anim), INF without the reception.
 func _reception_door() -> Vector3:
-	var scene := get_tree().current_scene if is_inside_tree() else null
+	var scene := INSTANCE.main_of(self) if is_inside_tree() else null
 	var b := scene.find_child("MainBuilding", true, false) as Node3D if scene != null else null
 	if b == null:
 		return Vector3.INF
@@ -229,7 +230,7 @@ func _lower() -> void:
 
 ## The warden here, or the other warden's figure in the camp (co-op), under the arm.
 func _someone_in_gap() -> bool:
-	var main := get_tree().current_scene
+	var main := INSTANCE.main_of(self)
 	var player = main.get("_player") if main != null else null
 	if player is Node3D and _in_gap((player as Node3D).global_position):
 		return true
@@ -469,7 +470,7 @@ func _build_sign() -> void:
 	label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	add_child(label)
 	_sign_label = label
-	var main_n := get_tree().current_scene if is_inside_tree() else null
+	var main_n := INSTANCE.main_of(self) if is_inside_tree() else null
 	set_camp_name(str(main_n.call("camp_name")) if main_n != null and main_n.has_method("camp_name") else "")
 	# E on the board (on the interaction ray's layer, as the barrier's handle).
 	var body := StaticBody3D.new()

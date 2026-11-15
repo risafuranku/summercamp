@@ -15,6 +15,7 @@ extends Node3D
 ## ground under all of it and invisible walls round it: the corn outside the maze is a
 ## wall like the maze's, and the strip ends where the camp's fence line would.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const CORN_TEX := "res://assets/textury/world/corn.png"
 const GROUND_SHADER := preload("res://materials/corn_ground.gdshader")
 const GROUND_SOIL := preload("res://assets/textury/world/corn_soil.png")
@@ -76,7 +77,7 @@ func _process(delta: float) -> void:
 	_t += delta
 	_update_gate(delta)
 	if _main == null:
-		_main = get_tree().current_scene if get_tree() != null else null
+		_main = INSTANCE.main_of(self) if get_tree() != null else null
 	var night := false
 	if _main != null and _main.get("_time_of_day_hours") != null:
 		var h := float(_main.get("_time_of_day_hours"))

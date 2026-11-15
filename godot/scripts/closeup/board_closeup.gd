@@ -18,6 +18,7 @@ extends "res://scripts/closeup/closeup_view.gd"
 ## up to read.
 
 ## Paper rectangles on the picture (px), and the text written on each.
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const NOTES := {
 	"phones": {"rect": Rect2(18, 16, 80, 75), "paper": Color(0.86, 0.84, 0.78), "ink": Color(0.1, 0.1, 0.12), "font": "label",
 		"text": "TELEPHONE   (4/96)\n\nElectrician Novotny\n      0663 22 418\nVet, Liblice    0663 21 007\nDistrict office\n      0663 30 112\nWater board   0663 30 150\nBus station   0663 21 333\nJednota       0663 21 090\nU Jezera (pub)\n      0663 21 515\nPower, faults 0663 30 199\nPolice 158   Ambulance 155"},
@@ -139,7 +140,7 @@ func _photo_rect(i: int) -> Rect2:
 
 ## The corn maze of this camp (cornfield.gd, the same on both wardens' machines).
 func _read_maze() -> Dictionary:
-	var main := get_tree().current_scene if is_inside_tree() else null
+	var main := INSTANCE.main_of(self) if is_inside_tree() else null
 	var corn = main.find_child("CornField", true, false) if main != null else null
 	if corn == null or int(corn.get("maze_cols")) <= 0:
 		return {}

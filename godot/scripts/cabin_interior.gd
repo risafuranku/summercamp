@@ -1,6 +1,7 @@
 extends CanvasLayer
 
 ## Into the bathroom and back you walk through its door (scripts/ui/walk_path.gd).
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const WALK_PATH = preload("res://scripts/ui/walk_path.gd")
 const RETRO_RENDER = preload("res://scripts/retro_render.gd")
 ## The cabin's plan, the same for the room and the model outside (scripts/cabin_layout.gd).
@@ -741,7 +742,7 @@ func _host_doorways(host: Node3D, delta: float) -> void:
 
 
 func _camp_weather() -> int:
-	var scene := get_tree().current_scene if is_inside_tree() else null
+	var scene := INSTANCE.main_of(self) if is_inside_tree() else null
 	return int(scene.get("_weather_state")) if scene != null and scene.get("_weather_state") != null else 0
 
 
@@ -771,7 +772,7 @@ var _inview_cabins: Array = []
 
 
 func _camp_camera() -> Camera3D:
-	var scene := get_tree().current_scene if is_inside_tree() else null
+	var scene := INSTANCE.main_of(self) if is_inside_tree() else null
 	var w3d = scene.get("_world_3d") if scene != null else null
 	if w3d is Node3D and (w3d as Node3D).is_inside_tree():
 		return (w3d as Node3D).get_viewport().get_camera_3d()
@@ -780,7 +781,7 @@ func _camp_camera() -> Camera3D:
 
 func _find_cabins() -> Array:
 	var out: Array = []
-	var scene := get_tree().current_scene if is_inside_tree() else null
+	var scene := INSTANCE.main_of(self) if is_inside_tree() else null
 	var bm = scene.get("building_manager") if scene != null else null
 	var structures: Node = bm.get_node_or_null("Structures") if bm != null else null
 	if structures == null:
@@ -948,7 +949,7 @@ func _release_inview() -> void:
 ## The room's light as the camp's hour has it, its lamp as window_lights has the cabin
 ## (guests in and up: lit), the guests in it while they are up.
 func _inview_room_light() -> void:
-	var scene := get_tree().current_scene
+	var scene := INSTANCE.main_of(self)
 	var hour := float(scene.get("_time_of_day_hours")) if scene != null and scene.get("_time_of_day_hours") != null else 12.0
 	var state := TIME_DAY if hour >= 6.5 and hour < 19.5 else (TIME_EVENING if hour >= 19.5 and hour < 21.0 else TIME_NIGHT)
 	var im := get_parent()

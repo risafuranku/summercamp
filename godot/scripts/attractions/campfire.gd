@@ -18,6 +18,7 @@ extends Node3D
 ## fixed-Y quads, the bed materials/fire_embers.gdshader, the smoke Grok puffs
 ## (camp/fire_smoke.png) through materials/fire_smoke.gdshader, see-through in Build's steps.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const FIRE_SHADER = preload("res://materials/pixel_fire.gdshader")
 const POSES = preload("res://scripts/attractions/poses.gd")
 const SFX_SIZZLE := "res://assets/sfx/life/sausage_sizzle.mp3"
@@ -282,7 +283,7 @@ func _process(delta: float) -> void:
 ## The wind that moves everything else (each fire leaned its own way, whatever the weather): along
 ## the ground, and how far the flames go over with it across the screen (they face the camera).
 func _air() -> float:
-	var main := get_tree().current_scene
+	var main := INSTANCE.main_of(self)
 	var wv = main.get("_weather_visuals") if main != null else null
 	var cam := get_viewport().get_camera_3d()
 	if wv == null or cam == null:

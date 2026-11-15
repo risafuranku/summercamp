@@ -296,7 +296,7 @@ func _stream(path: String) -> AudioStream:
 
 
 func _hour() -> float:
-	var main := _world_root.get_tree().current_scene if _world_root != null and _world_root.is_inside_tree() else null
+	var main := INSTANCE.main_of(_world_root) if _world_root != null and _world_root.is_inside_tree() else null
 	return float(main.get("_time_of_day_hours")) if main != null and main.get("_time_of_day_hours") != null else 0.0
 
 
@@ -856,7 +856,7 @@ func _mark_met() -> void:
 
 
 func _director():
-	var scene := _world_root.get_tree().current_scene if _world_root != null and _world_root.is_inside_tree() else null
+	var scene := INSTANCE.main_of(_world_root) if _world_root != null and _world_root.is_inside_tree() else null
 	return scene.get("_director") if scene != null else null
 
 
@@ -1181,7 +1181,7 @@ func _quarry_room() -> String:
 
 
 func _im():
-	var scene := _world_root.get_tree().current_scene if _world_root != null and _world_root.is_inside_tree() else null
+	var scene := INSTANCE.main_of(_world_root) if _world_root != null and _world_root.is_inside_tree() else null
 	return scene.get("_interior_manager") if scene != null else null
 
 
@@ -1731,7 +1731,7 @@ func dawn() -> Array:
 				"cabin": "Something came into our cabin in the night and took the others. Nobody came. Never again.",
 				"caravan": "Something came into our caravan in the night and took the others. Nobody came. Never again.",
 			}[_kind_of(str(lodged.get(int(id), "")))], "We are leaving. Now.")
-	var main := _world_root.get_tree().current_scene if _world_root != null and _world_root.is_inside_tree() else null
+	var main := INSTANCE.main_of(_world_root) if _world_root != null and _world_root.is_inside_tree() else null
 	var day := int(main.get("_day_index")) if main != null and main.get("_day_index") != null else 1
 	for g in _eaten_guests:
 		var name := str((g as Dictionary).get("name", ""))

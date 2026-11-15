@@ -6,6 +6,7 @@ extends Control
 ## each one's name in the legend turning it off and on. The days come from main's
 ## _day_graph (scripts/builder/day_graph.gd), today's point live.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const T = preload("res://scripts/os98/os_theme.gd")
 const LANG = preload("res://scripts/lang.gd")
 const SIZE := Vector2(440, 268)
@@ -47,7 +48,7 @@ func _gui_input(e: InputEvent) -> void:
 
 
 func _main() -> Node:
-	return get_tree().current_scene if get_tree() != null else null
+	return INSTANCE.main_of(self) if get_tree() != null else null
 
 
 ## The page's lines: [[label, colour, [[day, value]...]], ...] and the value's look.

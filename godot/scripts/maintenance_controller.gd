@@ -20,6 +20,7 @@ extends Node
 ## All writes go through CoreRoot.actions.service_building(); the rules (odds, costs,
 ## durations) live in core/systems/maintenance_rules.gd.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const RULES = preload("res://core/systems/maintenance_rules.gd")
 const STINK_FX = preload("res://scripts/stink_fx.gd")
 const SFX_WORK := "res://assets/sfx/rednecksfx/rrtick.wav"
@@ -444,7 +445,7 @@ func _gesture_lock(on: bool) -> void:
 
 
 func _player_of() -> Node:
-	var main := get_tree().current_scene if is_inside_tree() else null
+	var main := INSTANCE.main_of(self) if is_inside_tree() else null
 	return main.get("_player") if main != null else null
 
 

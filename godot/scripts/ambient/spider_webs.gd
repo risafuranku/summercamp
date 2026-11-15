@@ -21,6 +21,7 @@ extends Node3D
 ##     now and then (webs hung in the air where the trees had been: the user 20. 10.).
 ## Made by weather_visuals.gd in the camp's world.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const SILK_TEX := "res://assets/textury/world/silk_strand.png"
 const SPIDER_TEX := "res://assets/textury/world/spider.png"
 const FACE_TEX := "res://assets/textury/ui/web_face.png"
@@ -356,7 +357,7 @@ func _process(delta: float) -> void:
 	if _replace_t <= 0.0:
 		_replace_t = 60.0
 		_place()
-	var main := get_tree().current_scene
+	var main := INSTANCE.main_of(self)
 	var indoors: bool = main != null and main.has_method("_is_any_interior_open") and bool(main.call("_is_any_interior_open"))
 	var cam := get_viewport().get_camera_3d()
 	var eye: Vector3 = cam.global_position if cam != null else player.global_position + Vector3.UP * 1.6
@@ -409,7 +410,7 @@ func _simulate(w: Dictionary, dt: float) -> void:
 	var pos: PackedVector3Array = w["pos"]
 	var prev: PackedVector3Array = w["prev"]
 	var pinned: PackedByteArray = w["pinned"]
-	var wv = get_tree().current_scene.get("_weather_visuals")
+	var wv = INSTANCE.main_of(self).get("_weather_visuals")
 	var wd: Vector2 = wv.wind_dir if wv != null else Vector2(0.94, 0.34)
 	var ws: float = float(wv.get("_wind_now")) if wv != null else 0.15
 	var gravity := Vector3(0, -1.4, 0)

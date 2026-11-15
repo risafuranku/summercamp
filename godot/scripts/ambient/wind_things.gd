@@ -12,6 +12,7 @@ extends Node3D
 ## the trees creak in the strong wind. Outdoors only, and not out of a moving bus.
 ## Made by weather_visuals.gd (setup_weather_particles), which it reads.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const FPS := 12.0
 const POOL := 40
 ## Not drawn nearer the eye than this (wind_life.gd's NEAR: a thing across the lens is a blot).
@@ -99,7 +100,7 @@ func _process(delta: float) -> void:
 	if delta > 0.0:
 		_cam_speed = lerpf(_cam_speed, cp.distance_to(_last_cam) / delta, 0.2)
 	_last_cam = cp
-	var main := get_tree().current_scene
+	var main := INSTANCE.main_of(self)
 	var indoors: bool = main != null and main.has_method("_is_any_interior_open") and bool(main.call("_is_any_interior_open"))
 	_poll -= delta
 	if _poll <= 0.0:

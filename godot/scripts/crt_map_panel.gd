@@ -1,5 +1,6 @@
 extends Control
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal status_changed(text: String, kind: int)
 signal tool_canceled
 signal submenu_close_requested
@@ -1943,7 +1944,7 @@ const OV_BLUE := Color8(80, 130, 240)
 ## What the overlay shows, read once a second (the snapshots are not cheap).
 func _refresh_overlay() -> void:
 	_ov_data.clear()
-	var m: Node = get_tree().current_scene if get_tree() != null else null
+	var m: Node = INSTANCE.main_of(self) if get_tree() != null else null
 	match overlay:
 		"condition":
 			if m != null and m.has_method("get_upkeep_snapshot"):
@@ -2424,8 +2425,7 @@ func _update_extra_guest() -> void:
 	if state == null:
 		return
 	var hour := 0.0
-	var tree := get_tree()
-	var main = tree.current_scene if tree != null else null
+	var main = INSTANCE.main_of(self)
 	if main != null:
 		hour = float(main.get("_time_of_day_hours")) if main.get("_time_of_day_hours") != null else 0.0
 	# Only from late afternoon, rarely (roughly once per in-game evening at the PC).
@@ -3801,7 +3801,7 @@ func _draw_old_camp(origin: Vector2, tile_w: float, tile_h: float) -> void:
 	if grid_manager == null:
 		return
 	var rng := RandomNumberGenerator.new()
-	var wg = get_tree().current_scene.get("world_generator") if get_tree().current_scene != null else null
+	var wg = INSTANCE.main_of(self).get("world_generator") if INSTANCE.main_of(self) != null else null
 	rng.seed = (int(wg.get("world_seed")) if wg != null else 0) * 13 + 5
 	var gw := int(grid_manager.grid_width)
 	var gh := int(grid_manager.grid_height)
@@ -3850,7 +3850,7 @@ func _tick_lie() -> void:
 func _buried_tile() -> Vector2i:
 	if _buried.x == -2 and grid_manager != null:
 		_buried = Vector2i(-1, -1)
-		var wg = get_tree().current_scene.get("world_generator") if get_tree() != null and get_tree().current_scene != null else null
+		var wg = INSTANCE.main_of(self).get("world_generator") if get_tree() != null and INSTANCE.main_of(self) != null else null
 		var seed_v := int(wg.get("world_seed")) if wg != null and wg.get("world_seed") != null else 0
 		var rng := RandomNumberGenerator.new()
 		rng.seed = seed_v * 31 + 7
@@ -3866,8 +3866,7 @@ func _buried_tile() -> Vector2i:
 
 
 func _read_weather() -> void:
-	var tree := get_tree()
-	var main = tree.current_scene if tree != null else null
+	var main = INSTANCE.main_of(self)
 	if main == null:
 		return
 	var wx := {"state": 0, "snow": false, "wind": 0.15, "dir": Vector2(0.94, 0.34), "flash": 0.0, "hour": 12.0}
@@ -4062,8 +4061,7 @@ func _draw_night(lights: Array, tile_w: float, tile_h: float) -> void:
 
 
 func _night_amount() -> float:
-	var tree := get_tree()
-	var main = tree.current_scene if tree != null else null
+	var main = INSTANCE.main_of(self)
 	if main == null or main.get("_time_of_day_hours") == null:
 		return 0.0
 	var h := float(main.get("_time_of_day_hours"))

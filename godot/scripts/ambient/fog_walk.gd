@@ -11,6 +11,7 @@ extends Node3D
 ## first light, none by day; not in rain, not in a room. Made by weather_visuals.gd beside
 ## ground_life.gd's low mist (that one keeps round you).
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const FPS := 12.0
 const BANKS := 10
 const MIST_TEX := "res://assets/textury/world/mist_bank.png"
@@ -79,7 +80,7 @@ func _ready() -> void:
 
 
 func _main() -> Node:
-	return get_tree().current_scene if is_inside_tree() else null
+	return INSTANCE.main_of(self) if is_inside_tree() else null
 
 
 ## How much of it there is now: the fog all day, the small hours and first light a little.

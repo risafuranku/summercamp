@@ -28,6 +28,7 @@ extends Node
 ## handled). From the days of two, partner_* is the first of the others (the lowest id),
 ## for whatever has not learnt to count past one yet.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal session_started(role: int)
 signal session_ended(reason: String)
 ## Someone came onto or went off the line (any of them; warden_joined / warden_left say who).
@@ -476,7 +477,7 @@ func _patient(id: int) -> void:
 
 
 func _main() -> Node:
-	return get_tree().current_scene if get_tree() != null else null
+	return INSTANCE.main_of(self) if get_tree() != null else null
 
 
 ## The host: four wardens are in the camp already.
