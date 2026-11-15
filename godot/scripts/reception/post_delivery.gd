@@ -20,7 +20,6 @@ extends Node
 ## the van and the man are drawn on every machine from the stage and the game minute it
 ## began (`t0`), so both see them in the same place without messages of their own.
 
-const SEATS = preload("res://scripts/seats/seats.gd")
 const STORE_KEY := "post"
 const PRICE := 149
 ## Ordered to the van at the gate, game minutes (a few hours, as the page says).
@@ -521,7 +520,7 @@ func click_postman() -> bool:
 	if _closeup == null or not is_instance_valid(_closeup):
 		_closeup = CLOSEUP.new()
 		_closeup.post = self
-		SEATS.screen_of(host).add_child(_closeup)
+		host.get_tree().root.add_child(_closeup)
 	_closeup.open_view()
 	return true
 

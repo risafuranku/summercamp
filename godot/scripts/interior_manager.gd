@@ -1599,8 +1599,7 @@ func _on_service_interact(service_node: Node) -> void:
 ## the rest is in its books on the counter.
 func _tell_the_place(structure: Node) -> void:
 	var origin = structure.get_meta("grid_origin", null)
-	var main := get_tree().current_scene
-	var hud = main.get("_hud_manager") if main != null else null
+	var hud = get_parent().get("_hud_manager") if get_parent() != null else null
 	if not (origin is Vector2i) or hud == null:
 		return
 	var s: Dictionary = BUSINESS_RUNTIME.site("%d:%d" % [origin.x, origin.y])

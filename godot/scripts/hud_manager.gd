@@ -98,12 +98,6 @@ const HUD_MOOD_WORDS := {
 }
 
 var _scale: int = 3
-## The bar's cells shown (CELL_WIDTHS' keys), [] for all. A split screen
-## (scripts/seats/seats.gd): each seat its own HEALTH and STAMINA, the camp's cells once
-## across the TV (half the window is narrower than the whole bar).
-var shown_cells: Array = []
-## The belt pager beeps here (a split screen's second HUD keeps quiet: one beep for both).
-var pager_sound := true
 var _layer: CanvasLayer
 var _hint_layer: CanvasLayer
 var _root: Control
@@ -565,47 +559,6 @@ static func bar_width_vp() -> float:
 	return total + 3.0 * float(CELL_WIDTHS.size() - 1) + 10.0
 
 
-## The width of the cells shown (shown_cells), as bar_width_vp measures the whole bar.
-func _shown_width_vp() -> float:
-	if shown_cells.is_empty():
-		return bar_width_vp()
-	var total := 0.0
-	var n := 0
-	for key in CELL_WIDTHS.keys():
-		if key in shown_cells:
-			total += float(CELL_WIDTHS[key])
-			n += 1
-	return total + 3.0 * float(maxi(0, n - 1)) + 10.0
-
-
-## Only these cells on the bar ([] all); laid out again at once.
-func show_cells(ids: Array) -> void:
-	if ids == shown_cells:
-		return
-	shown_cells = ids.duplicate()
-	if _root != null:
-		_rebuild_layout()
-
-
-## A split screen's second HUD (scripts/seats/seats.gd): the camp's clock, weather and
-## night risk as the window's HUD has them (main feeds that one; the cash, the guests and
-## the mail every HUD reads for itself).
-func mirror_camp(from: Node) -> void:
-	if from == null or not is_instance_valid(from):
-		return
-	if str(from.get("_time_str")) != _time_str or int(from.get("_day")) != _day:
-		update_time(str(from.get("_time_str")), int(from.get("_day")))
-	if int(from.get("_weather")) != _weather:
-		update_weather(int(from.get("_weather")))
-	var level := int(from.get("_risk_level_index"))
-	var payload: Dictionary = from.get("_risk_payload")
-	if level != _risk_level_index or bool(from.get("_risk_level_known")) != _risk_level_known or payload != _risk_payload:
-		_risk_level_index = level
-		_risk_level_known = bool(from.get("_risk_level_known"))
-		_risk_payload = payload.duplicate(true)
-		_refresh_risk()
-
-
 ## Status bar height in real pixels (for code that must not draw under it).
 func get_bar_height_px() -> float:
 	return float(BAR_HEIGHT_VP * _scale)
@@ -697,7 +650,7 @@ func _ensure_world_hud() -> void:
 func _rebuild_layout() -> void:
 	var vp_size := get_viewport().get_visible_rect().size
 	_built_for_size = vp_size
-	_scale = RETRO_UI.ui_scale(vp_size.y, vp_size.x, _shown_width_vp())
+	_scale = RETRO_UI.ui_scale(vp_size.y, vp_size.x, bar_width_vp())
 	for child in _root.get_children():
 		_root.remove_child(child)
 		child.queue_free()
@@ -839,9 +792,6 @@ func _build_status_bar() -> void:
 		risk.add_child(pip)
 		_risk_pips.append(pip)
 	_risk_level = _put(risk, _caption("CLEAR", RETRO_UI.C_GREEN), ROW_FOOTER)
-	if not shown_cells.is_empty():
-		for id in _cells:
-			(_cells[id] as Control).visible = id in shown_cells
 
 
 func _caption(text: String, color: Color = RETRO_UI.C_BONE_DIM) -> Label:
@@ -1900,7 +1850,7 @@ func page() -> void:
 		_pager.stream = load(PAGER_SFX) as AudioStream
 		_pager.volume_db = -2.0
 		add_child(_pager)
-	if _pager.stream != null and pager_sound:
+	if _pager.stream != null:
 		_pager.play()
 
 

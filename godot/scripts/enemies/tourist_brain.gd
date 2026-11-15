@@ -52,7 +52,6 @@ extends "res://scripts/enemies/enemy_base.gd"
 ## him (he is always there); the run at your back, the last picture and him at your
 ## window are yours alone (is_private_now).
 
-const SEATS = preload("res://scripts/seats/seats.gd")
 const SPRITE := "res://assets/textury/npc/tourist_idle.png"
 const POSES := {
 	"walk_a": "res://assets/textury/npc/tourist_walk_a.png",
@@ -1078,7 +1077,7 @@ func _photo(lens: Vector3, extra: Texture2D, w: Dictionary, big: bool) -> void:
 		return
 	if _polaroid == null or not is_instance_valid(_polaroid):
 		_polaroid = POLAROID.new()
-		SEATS.screen_of(_world_root).add_child(_polaroid)
+		_world_root.get_tree().root.add_child(_polaroid)
 	_polaroid.call("take_of", _world_root.get_world_3d(), lens, _player, extra, w, big)
 
 

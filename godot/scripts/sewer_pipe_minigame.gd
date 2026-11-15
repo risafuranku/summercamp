@@ -376,7 +376,7 @@ var debug_boy := -1
 
 ## The night's pressure on the camp right now (DESIGN §5e), read from main's omen context.
 func _read_night_pressure() -> float:
-	var main := get_tree().current_scene
+	var main := get_parent()
 	if main != null and main.has_method("_omen_context"):
 		var ctx = main.call("_omen_context")
 		if ctx is Dictionary:
@@ -386,7 +386,7 @@ func _read_night_pressure() -> float:
 
 ## How many times you have been down (the camp office keeps the count over the week).
 func _next_visit() -> int:
-	var main := get_tree().current_scene
+	var main := get_parent()
 	var office = main.get("camp_office") if main != null else null
 	if office == null:
 		return 3
@@ -1952,7 +1952,7 @@ func preview_network(coord: Vector2i) -> Dictionary:
 			since_day = int(other.get("sd", since_day))
 		_rng.seed = hash("%d:%d:%d" % [coord.x, coord.y, since_day])
 		var night := CoreRoot != null and CoreRoot.is_night()
-		var office = get_tree().current_scene.get("camp_office") if get_tree().current_scene != null else null
+		var office = get_parent().get("camp_office") if get_parent() != null else null
 		var visit := int(office.get("pipe_visits")) + 1 if office != null else 3
 		raccoon_level = debug_level if debug_level > 0 else DIRECTOR.mischief_level(_read_night_pressure(), night, visit)
 		if not other.is_empty():

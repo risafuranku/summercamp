@@ -2287,13 +2287,11 @@ and paid on the host and shown on every machine (`quest_manager.coop_state` /
 `coop_follow` in the pulse), a step ticked is announced to all. Built and tested in
 stages, each mechanic gone through for two (TODO.md, CO-OP).
 
-**Two at one machine (split screen, 15. 11.: „na jednom zařízení s dvěma ovladači“, the
-Q&A: the real thing in one program, not two windows over the co-op).** A second pad's Menu
-out in the camp seats a second warden: the window split side by side, each warden's pad
-theirs alone, each sees the other as the co-op's figure, each has its own HEALTH and
-STAMINA on its bar and the camp's cells are shown once across the TV. The camp is one, as
-the host's is. Built in stages (TODO.md SPLITSCREEN): outdoors first, then its hands,
-then the rooms, the PC, the night and the saves.
+**Two at one machine (split screen, 15. 11.: „na jednom zařízení s dvěma ovladači“).** It is
+the co-op, not a mode of its own: „uvnitř jednoho godotu poběží jeden host hráč a druhý
+klient hráč“, both pictures in the one window, each pad its own warden's (TODO.md
+SPLITSCREEN). A separate split-screen path beside the single and the co-op ones was built
+and taken out the same day.
 
 - **One camp, one keeper of it.** The host's machine runs the camp exactly as a single
   player's does; the other machine is a window onto it and sends what its warden does.

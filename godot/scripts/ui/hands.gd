@@ -15,7 +15,6 @@ extends Node
 ##     (claim / release) and asks who has it (owner).
 ## Made by the first one who asks (Hands.of(node)); in group "hands".
 
-const SEATS = preload("res://scripts/seats/seats.gd")
 const VIRTUAL_LINES := 200.0
 ## Shade steps of the light on the hands (a Build palette's shade ramp has 32; the hands
 ## read better with fewer).
@@ -57,7 +56,7 @@ static func of(n: Node) -> Node:
 	_one = load("res://scripts/ui/hands.gd").new()
 	_one.name = "Hands"
 	_one.add_to_group("hands")
-	SEATS.screen_of(n).add_child.call_deferred(_one)
+	n.get_tree().root.add_child.call_deferred(_one)
 	return _one
 
 

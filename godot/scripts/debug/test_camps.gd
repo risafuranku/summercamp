@@ -7,7 +7,6 @@ extends RefCounted
 ## (Out of main.gd 15. 11.: main routes the title's L page here and keeps the camp's flag,
 ## main._test_night.)
 
-const SEATS = preload("res://scripts/seats/seats.gd")
 const MAIN_MENU_SCRIPT = preload("res://scripts/ui/main_menu.gd")
 const BALANCE_CONFIG = preload("res://core/balance/balance_config.gd")
 const BUS_TIMES = preload("res://scripts/town/bus_timetable.gd")
@@ -121,7 +120,7 @@ func start_content_reel() -> void:
 	await start_businesses(true)
 	var reel = load("res://scripts/content_reel.gd").new()
 	reel.name = "ContentReel"
-	SEATS.screen_of(main).add_child(reel)
+	main.get_tree().root.add_child(reel)
 	reel.start(main)
 
 
