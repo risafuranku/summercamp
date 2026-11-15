@@ -62,6 +62,8 @@ func get_supported_resolutions() -> Array[Vector2i]:
 		Vector2i(1024, 576),
 		Vector2i(1152, 648),
 		Vector2i(1280, 720),
+		# The Steam Deck's own screen (16:10).
+		Vector2i(1280, 800),
 		Vector2i(1366, 768),
 		Vector2i(1600, 900),
 		Vector2i(1920, 1080),
