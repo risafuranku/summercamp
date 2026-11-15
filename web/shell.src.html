@@ -13,6 +13,8 @@
 		<script>/*UNDO_BRIDGE*/</script>
 		<!-- The shader variants Godot translates and never draws get an empty program (web/gl-skip.js). -->
 		<script>/*GL_SKIP*/</script>
+		<!-- The game's data kept for good under /assets/, what is kept told to the catalogue (web/offline-data.js). -->
+		<script>/*OFFLINE_DATA*/</script>
 		<style>
 html, body, #canvas { margin: 0; padding: 0; border: 0; }
 html, body {
@@ -92,6 +94,8 @@ const GODOT_CONFIG = $GODOT_CONFIG;
 const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
 (function () {
 	const cs = (navigator.language || '').toLowerCase().startsWith('cs') || (navigator.language || '').toLowerCase().startsWith('sk');
+	// The catalogue's command in a hidden frame (download ahead, delete): no game, no curtain.
+	if (window.__ccOffline.command) { document.getElementById('curtain').remove(); window.__ccOffline.ready(GODOT_CONFIG); return; }
 	// A touch device without a mouse: the computer picture and the link, no 300 MB download.
 	if (matchMedia('(hover: none) and (pointer: coarse)').matches && !/[?&]phone=play/.test(location.search)) {
 		document.body.classList.add('phone');
@@ -168,9 +172,10 @@ const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
 	};
 	const missing = Engine.getMissingFeatures({ threads: GODOT_THREADS_ENABLED });
 	if (missing.length) { fail(missing.join('\n')); return; }
-	new Engine(GODOT_CONFIG).startGame({
+	// The kit's worker in charge first: what the engine downloads is then kept for good.
+	window.__ccOffline.ready(GODOT_CONFIG).then(() => new Engine(GODOT_CONFIG).startGame({
 		onProgress(current, total) { if (current > 0 && total > 0) { download = Math.min(1, current / total); show(); } },
-	}).then(() => { download = 1; show(); }, fail);
+	})).then(() => { download = 1; show(); window.__ccOffline.started(); }, fail);
 }());
 		</script>
 	</body>

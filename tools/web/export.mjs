@@ -24,7 +24,8 @@ const read = (name) => fs.readFileSync(path.join(WEB, name), 'utf8');
 const shell = read('shell.src.html')
   .replace('/*UNDO_LOCK*/', () => (release ? read('undo-lock.js') : ''))
   .replace('/*UNDO_BRIDGE*/', () => read('undo-bridge.js'))
-  .replace('/*GL_SKIP*/', () => read('gl-skip.js'));
+  .replace('/*GL_SKIP*/', () => read('gl-skip.js'))
+  .replace('/*OFFLINE_DATA*/', () => read('offline-data.js'));
 fs.writeFileSync(path.join(ROOT, 'godot/.web_shell.html'), shell);
 
 // --shell-only: the page alone again into the last export (its engine config kept), for
