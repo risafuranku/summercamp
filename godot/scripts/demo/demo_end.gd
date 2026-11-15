@@ -96,7 +96,7 @@ func _tick_nag(delta: float) -> void:
 		return
 	_nag = null
 	var shell := pc()
-	if shell == null or not shell.is_open() or not shell.is_desktop_ready() or not _story_told():
+	if shell == null or not main._is_crt_desktop_active() or not shell.is_desktop_ready() or not _story_told():
 		_nag_t = 0.0
 		return
 	_nag_t += delta

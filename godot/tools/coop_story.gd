@@ -66,7 +66,6 @@ func _story_see(tag: String) -> void:
 	var em = get_node("/root/EmailManager")
 	var qm = _main.get("_quest_manager")
 	var hud = _main.get("_hud_manager")
-	var shell = _main._demo_end.pc()
 	var demo_mails: Array = []
 	for m in em.inbox:
 		if str(m.get("demo_end", "")) != "":
@@ -80,7 +79,7 @@ func _story_see(tag: String) -> void:
 		"vera_read": bool(em.find_mail("task_id", "read_vera").get("_read", false)),
 		"ruin_broken": str(_main._ruin.key) != "" and CoreRoot.get_state().failures.has(str(_main._ruin.key)),
 		"pace": float(_main.clock_pace()), "over": bool(_main._demo_end.over()),
-		"demo": demo_mails, "pc_open": shell != null and bool(shell.is_open()),
+		"demo": demo_mails, "pc_open": bool(_main._is_crt_desktop_active()),
 		"nag": _main._demo_end.get("_nag") != null,
 	}
 	print("STORY_TAG " + JSON.stringify(d))

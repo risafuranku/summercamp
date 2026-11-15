@@ -2458,7 +2458,8 @@ func _condition_met(what: String) -> bool:
 		"menu":
 			return bool(_main.get("_startup_bootstrap_complete")) and bool(_main.get("_menu_mode"))
 		"gameplay":
-			return bool(_main.get("_gameplay_started")) and not bool(_main.get("_menu_mode"))
+			# (And the loading card gone: main draws the first views under it, _reveal_game.)
+			return bool(_main.get("_gameplay_started")) and not bool(_main.get("_menu_mode")) and not bool(_main.get("_revealing"))
 	return true
 
 

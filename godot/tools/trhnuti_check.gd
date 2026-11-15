@@ -35,16 +35,49 @@ func log_frames(on: bool, tag := "") -> void:
 		print("TRHNUTI   at %.2f s: %.0f ms  %s" % [l[0], l[1], l[2]])
 
 
-## What the last frame did: script time, physics, the pipelines compiled (shaders).
-func _monitors() -> String:
+const PIPE_KINDS := [Performance.PIPELINE_COMPILATIONS_CANVAS, Performance.PIPELINE_COMPILATIONS_MESH, Performance.PIPELINE_COMPILATIONS_SURFACE,
+	Performance.PIPELINE_COMPILATIONS_DRAW, Performance.PIPELINE_COMPILATIONS_SPECIALIZATION]
+const PIPE_NAMES := ["canvas", "mesh", "surface", "draw", "spec"]
+
+
+## The pipelines compiled so far (the engine's counters are totals).
+static func pipelines() -> int:
 	var pc := 0
-	for m in [Performance.PIPELINE_COMPILATIONS_CANVAS, Performance.PIPELINE_COMPILATIONS_MESH, Performance.PIPELINE_COMPILATIONS_SURFACE,
-			Performance.PIPELINE_COMPILATIONS_DRAW, Performance.PIPELINE_COMPILATIONS_SPECIALIZATION]:
+	for m in PIPE_KINDS:
 		pc += int(Performance.get_monitor(m))
-	return "process %.0f ms, physics %.0f ms, pipelines %d, objects %d, video %.0f MB, started %s crt %s" % [
+	return pc
+
+
+static func pipeline_kinds() -> Array:
+	var out := []
+	for m in PIPE_KINDS:
+		out.append(int(Performance.get_monitor(m)))
+	return out
+
+
+var _pipes_before := 0
+var _kinds_before: Array = [0, 0, 0, 0, 0]
+
+
+## The kinds compiled in the last frame ("canvas 3 surface 9").
+func _kinds_line() -> String:
+	var now := pipeline_kinds()
+	var parts := []
+	for i in now.size():
+		var d: int = int(now[i]) - int(_kinds_before[i])
+		if d > 0:
+			parts.append("%s %d" % [PIPE_NAMES[i], d])
+	return " ".join(parts)
+
+
+## What the last frame did: script time, physics, the pipelines compiled (shaders: in it,
+## and so far).
+func _monitors() -> String:
+	var pc := pipelines()
+	return "process %.0f ms, physics %.0f ms, pipelines +%d [%s] (%d), objects %d, video %.0f MB, started %s card %s crt %s" % [
 		Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0, Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0,
-		pc, int(Performance.get_monitor(Performance.OBJECT_COUNT)), Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0,
-		str(_main.get("_gameplay_started")) if _main != null else "-", str(_main.call("_is_crt_desktop_active")) if _main != null and _main.has_method("_is_crt_desktop_active") else "-"]
+		pc - _pipes_before, _kinds_line(), pc, int(Performance.get_monitor(Performance.OBJECT_COUNT)), Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0,
+		str(_main.get("_gameplay_started")) if _main != null else "-", str(_main.get("_revealing") or (_main.get("_main_menu") != null and _main.get("_main_menu").visible)) if _main != null else "-", str(_main.call("_is_crt_desktop_active")) if _main != null and _main.has_method("_is_crt_desktop_active") else "-"]
 
 
 func _frame() -> void:
@@ -55,6 +88,8 @@ func _frame() -> void:
 		if d > 40000.0:
 			_long.append([float(now - _t0) / 1000000.0, d / 1000.0, _monitors() + " at " + str(_main.get("time_system").call("get_time_string")) if _main != null and _main.get("time_system") != null else _monitors()])
 	_last = now
+	_pipes_before = pipelines()
+	_kinds_before = pipeline_kinds()
 	if _look:
 		_turn_to_thing()
 

@@ -3169,7 +3169,8 @@ func _start_new_camp(sandbox: bool, test_enemy: String = "", camp_name: String =
 	_pending_quest_state_loaded = false
 	if sandbox:
 		_pending_loaded_crt_state = {"unlock_registry": {"builder": true, "camp_status": true, "guestrack": true, "datapunch": true}}
-	_start_game_from_menu()
+	# (A test night's camp is not opened at the desk.)
+	_start_game_from_menu(test_enemy.is_empty())
 	# The first morning: where a death on the first nights goes back to.
 	call_deferred("_write_morning_save")
 	if _week_ledger != null:
@@ -3184,17 +3185,6 @@ func _start_new_camp(sandbox: bool, test_enemy: String = "", camp_name: String =
 	var bi = _interior_manager.get("_building_interior") if _interior_manager != null else null
 	if bi != null and bi.has_method("queue_first_radio_track"):
 		bi.queue_first_radio_track()
-	if not test_enemy.is_empty():
-		return
-	# A new week starts at the desk: the first part of the game is the computer, and
-	# getting up from it is something you find out you can do. Two frames on (the mouse is
-	# captured one frame on: _ensure_runtime_started_after_menu_load), so the desk is what
-	# the start's dissolve opens on, not the camp.
-	await get_tree().process_frame
-	await get_tree().process_frame
-	if _interior_manager != null and _gameplay_started:
-		_interior_manager.open_startup_crt_view()
-		_first_stand_up_pending = true
 
 
 # ── co-op (scripts/coop/coop.gd) ────────────────────────────────────────────
@@ -3370,16 +3360,54 @@ func _play_start_dissolve() -> void:
 	_start_dissolve.play(true)
 
 
-func _start_game_from_menu() -> void:
+## `open_desk`: a new camp, which starts at the desk.
+func _start_game_from_menu(open_desk := false) -> void:
 	# The office is the game's again (the title held it at dusk with the tube off).
 	_title_stage.close()
 	_stop_menu_music()
-	_play_start_dissolve()
-	if _main_menu != null:
-		_main_menu.close()
+	_revealing = true
 	_start_gameplay_runtime()
 	call_deferred("_ensure_runtime_started_after_menu_load")
 	call_deferred("_write_startup_autosave")
+	_reveal_game(open_desk)
+
+
+## Frames drawn under the loading card before it goes: the camp from the warden's eye,
+## then (a new camp) the desk. The first sight of each compiled 12-41 pipelines on screen:
+## frames of 250-650 ms as the start dissolved and again on first going out
+## (tools/trhnuti_check --part=start, 15. 11.). Drawn under the card they are ready.
+const REVEAL_WARM_FRAMES := 4
+## The card is still up over a started game (tools wait for it: shot_driver "gameplay").
+var _revealing := false
+
+
+func _reveal_game(open_desk: bool) -> void:
+	# (One more: the warden is made a frame on, _ensure_runtime_started_after_menu_load.)
+	for i in REVEAL_WARM_FRAMES + 1:
+		await get_tree().process_frame
+	# The camp all round, from where the warden stands: what any first step out shows.
+	if _player != null and is_instance_valid(_player) and _gameplay_started:
+		var keep: Transform3D = _player.global_transform
+		for k in 4:
+			_player.rotate_y(PI * 0.5)
+			await get_tree().process_frame
+			await get_tree().process_frame
+		if _player != null and is_instance_valid(_player):
+			_player.global_transform = keep
+	# A new week starts at the desk: the first part of the game is the computer, and
+	# getting up from it is something you find out you can do. The desk is what the
+	# start's dissolve opens on.
+	if open_desk and _interior_manager != null and _gameplay_started:
+		_interior_manager.open_startup_crt_view()
+		_first_stand_up_pending = true
+		for i in REVEAL_WARM_FRAMES:
+			await get_tree().process_frame
+	_revealing = false
+	if not _gameplay_started:
+		return
+	_play_start_dissolve()
+	if _main_menu != null:
+		_main_menu.close()
 
 
 func _ensure_runtime_started_after_menu_load() -> void:
@@ -3387,7 +3415,7 @@ func _ensure_runtime_started_after_menu_load() -> void:
 	if not _gameplay_started:
 		return
 	_menu_mode = false
-	if _main_menu != null:
+	if _main_menu != null and not _revealing:
 		_main_menu.close()
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	if _player == null or not is_instance_valid(_player):
