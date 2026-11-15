@@ -47,7 +47,7 @@ def main():
         assert d in block, d
         block = block.replace(d, "")
     rest = src[:a] + src[b:]
-    main_names = set(DECL.findall(rest)) - set(spec.get("keep_names", []))
+    main_names = (set(DECL.findall(rest)) | set(spec.get("extra_main_names", []))) - set(spec.get("keep_names", []))
     local = set(LOCAL.findall(block))
     for p in PARAMS.findall(block):
         for part in p.split(","):
@@ -56,9 +56,29 @@ def main():
                 local.add(n)
     declared_here = set(DECL.findall(block))
     names = sorted((main_names - local - declared_here), key=len, reverse=True)
+    # A member renamed to a name a local already has would be shadowed by it (the old
+    # cabin's `key = key`, 15. 11.).
+    clash = set(spec.get("rename", {}).values()) & local
+    assert not clash, "renamed onto locals: %s" % clash
+    # ...or to a name main has (it would be written main.<name>: main's, not the module's).
+    clash = set(spec.get("rename", {}).values()) & main_names
+    assert not clash, "renamed onto main's names: %s" % clash
     m = block
     for old, new in spec.get("rename", {}).items():
         m = re.sub(r"(?<![\w.\"])" + re.escape(old) + r"\b", new, m)
+        # Its name as a string where the string means this script's method (Callable(self,
+        # "x"), a bare call_deferred("x")); not any "x" (bi.has_method("coop_screen_frame")
+        # is another object's, and renaming it broke the co-op screen, 15. 11.).
+        m = m.replace('Callable(self, "%s")' % old, 'Callable(self, "%s")' % new)
+        m = re.sub(r'(?<![\w.])call_deferred\("%s"' % re.escape(old), 'call_deferred("%s"' % new, m)
+    # Main's methods named in a string on self: main's.
+    for n in main_names - declared_here:
+        m = m.replace('Callable(self, "%s")' % n, 'Callable(main, "%s")' % n)
+        m = re.sub(r'(?<![\w.])call_deferred\("%s"' % re.escape(n), 'main.call_deferred("%s"' % n, m)
+    # A RefCounted has no tree: the Node's own calls go to main.
+    for n in ["get_tree", "add_child", "remove_child", "get_viewport", "create_tween", "get_node_or_null",
+              "get_node", "is_inside_tree", "get_process_delta_time", "get_physics_process_delta_time", "get_window"]:
+        m = re.sub(r"(?<![\w.])" + n + r"\(", "main." + n + "(", m)
     # Main's names, not after a dot, outside strings and comments:
     out_lines = []
     for line in m.split("\n"):

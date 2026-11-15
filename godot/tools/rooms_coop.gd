@@ -27,7 +27,7 @@ func _process(delta: float) -> void:
 	if inside and not _was_in and _in_ms < 0:
 		_in_ms = Time.get_ticks_msec()
 	_was_in = inside
-	if _door_ms < 0 and not (_main.get("_coop_door_told") as Dictionary).is_empty():
+	if _door_ms < 0 and not (_main._coop_camp.door_told as Dictionary).is_empty():
 		_door_ms = Time.get_ticks_msec()
 
 

@@ -1,5 +1,10 @@
 extends Node
 
+## The game: it makes the systems (the camp's state, the world, the rooms, the HUD, the
+## night, the PC) and runs its flow: the title, a new camp, a load, pause, game over. The
+## work of each part is in its own script; main keeps the parts and one-line facades
+## others call it by (AGENTS.md "Project layout": what lives where).
+
 const RETRO_RENDER = preload("res://scripts/retro_render.gd")
 const ORDERS_SERVED = preload("res://scripts/food/orders.gd")
 const PLAYER_SCRIPT = preload("res://scripts/player_controller.gd")
@@ -21,10 +26,9 @@ const TOURIST_BRAIN_SCRIPT = preload("res://scripts/enemies/tourist_brain.gd")
 const GIRL_BRAIN_SCRIPT = preload("res://scripts/enemies/girl_brain.gd")
 const STALKER_BRAIN_SCRIPT = preload("res://scripts/enemies/stalker_brain.gd")
 ## Which enemy a guest archetype brings: one guest of that kind turns into it for the
-## night (`_pick_turned_guest`); if it gets you, that guest is gone by morning
-## (`_claim_turned_guests`). The Antlered Man (stalker) is the boss of a camp packed too
-## full: he comes on top when three kinds turn in one night, or the camp holds
-## ANTLERED_GUESTS guests or more (`_antlered_comes`).
+## night; if it gets you, that guest is gone by morning. The Antlered Man (stalker) is the
+## boss of a camp packed too full (scripts/night/night_roll.gd: pick_turned_guest,
+## claim_turned_guests, ANTLERED_GUESTS).
 const ENEMY_FOR_ARCHETYPE := {
 	"quiet_guy": SILENT_MAN_BRAIN_SCRIPT,
 	"drunk": TOURIST_BRAIN_SCRIPT,
@@ -1203,7 +1207,7 @@ func _process(delta: float) -> void:
 		# its thirteen minutes take the real road's five.
 		time_system.process(delta * clock_scale)
 	elif time_system and Coop.is_client() and _gameplay_started and not _menu_mode:
-		_coop_run_clock(delta)
+		_coop_camp.run_clock(delta)
 	if weather_system and sim and not camp_rule("weather"):
 		if weather_system.current_weather != WEATHER_CLEAR:
 			weather_system.set_weather(WEATHER_CLEAR)
@@ -1240,7 +1244,7 @@ func _process(delta: float) -> void:
 
 	if _hud_manager != null:
 		_hud_manager.set_world_hud_visible(not _is_any_interior_open(), true)
-	_tick_coop_down(delta)
+	_coop_camp.tick_down(delta)
 	_update_player_control_lock()
 	if not _is_any_interior_open() and not (_lake_trip != null and _lake_trip.is_active()) and not _in_attraction():
 		_sync_active_camera()
@@ -2658,7 +2662,7 @@ func _trigger_game_over(reason: String = GAME_OVER_REASON_DEATH) -> void:
 		return
 	# Co-op: the camp goes on for the other warden; you come to by the office.
 	if reason == GAME_OVER_REASON_DEATH and Coop.has_partner():
-		_coop_come_to()
+		_coop_camp.come_to()
 		return
 	_stop_active_enemy_brain()
 	_game_over_active = true
@@ -3424,13 +3428,13 @@ func _setup_audio() -> void:
 func _try_interact() -> void:
 	if _pause_menu != null and _pause_menu.is_open() or _coop_down or _enemy_holding_player():
 		return
-	if _coop_partner_down_near():
-		_coop_lift_partner()
+	if _coop_camp.partner_down_near():
+		_coop_camp.lift_partner()
 		return
 	if _interior_manager != null and not _is_any_interior_open() and _interior_manager.tent_zip_use():
 		return
 	if Coop.is_client():
-		_coop_client_interact()
+		_coop_camp.client_interact()
 		return
 	if _lake_trip != null and not _is_any_interior_open() and _lake_trip.try_interact():
 		return
@@ -3510,7 +3514,7 @@ func _is_structure_interior_open() -> bool:
 func _update_player_control_lock() -> void:
 	if _player == null or not _player.has_method("set_controls_enabled"):
 		return
-	_player.set_controls_enabled(not _is_any_interior_open() and not (_lake_trip != null and _lake_trip.is_active()) and not _coop_menu_up() and not _in_attraction() and not _coop_down and not _enemy_holding_player())
+	_player.set_controls_enabled(not _is_any_interior_open() and not (_lake_trip != null and _lake_trip.is_active()) and not _coop_camp.menu_up() and not _in_attraction() and not _coop_down and not _enemy_holding_player())
 	# In a room the torch is in the room's eye's hand (player_controller.in_room, hold_torch); not
 	# behind the title screen (it lit the menu's camp after Quit to menu: playtest 21. 10.).
 	_player.in_room = _is_any_interior_open()
@@ -3583,8 +3587,8 @@ func _update_interaction_hint() -> void:
 	if _coop_down:
 		_hud_manager.set_hint_text("")
 		return
-	if _coop_partner_down_near():
-		_hud_manager.set_hint_text(LANG.f("[E] Get %s up", [Coop.name_of(_coop_down_near_id)]))
+	if _coop_camp.partner_down_near():
+		_hud_manager.set_hint_text(LANG.f("[E] Get %s up", [Coop.name_of(_coop_camp.down_near_id)]))
 		return
 	# Something in your hands, or a small thing under the crosshair (scripts/ambient/carry.gd:
 	# it takes its own E and click, on either machine).
@@ -3599,7 +3603,7 @@ func _update_interaction_hint() -> void:
 		_hud_manager.set_hint_text("[E] %s" % tr(zip))
 		return
 	if Coop.is_client():
-		_hud_manager.set_hint_text(_coop_client_hint())
+		_hud_manager.set_hint_text(_coop_camp.client_hint())
 		return
 	# (Walking up to a door or out of one: the keys are not yours.)
 	if _is_any_interior_open() or (_interior_manager != null and _interior_manager.stepping_out()):
@@ -3929,7 +3933,7 @@ func _ensure_main_menu() -> void:
 	_main_menu.coop_host_saved_requested.connect(_on_menu_coop_host_saved)
 	_main_menu.coop_join_requested.connect(_on_menu_coop_join)
 	_main_menu.test_night_requested.connect(_on_menu_test_night)
-	_wire_coop()
+	_coop_camp.wire()
 
 
 func _on_menu_load_requested(path: String) -> void:
@@ -4145,1265 +4149,95 @@ func open_camp_sign() -> void:
 	_sign_paint.closed.connect(func():
 		if _player != null and is_instance_valid(_player) and _player.has_method("set_controls_enabled"):
 			_player.set_controls_enabled(true))
-var _coop_wired := false
-
-
-func _wire_coop() -> void:
-	if _coop_wired:
-		return
-	_coop_wired = true
-	_ensure_coop_night()
-	Coop.world_arrived.connect(_on_coop_world_arrived)
-	Coop.join_failed.connect(_on_coop_join_failed)
-	Coop.session_ended.connect(_on_coop_session_ended)
-	Coop.warden_joined.connect(_on_coop_peer_joined)
-	Coop.warden_left.connect(_on_coop_peer_left)
-	Coop.warden_moved.connect(_on_coop_partner_moved)
-	Coop.partner_look_changed.connect(func(_look: Dictionary) -> void:
-		if _interior_manager != null and _interior_manager.has_method("coop_partner_look"):
-			_interior_manager.coop_partner_look({}, 0)
-	)
-	# The host's camp is the camp: what is built, cleared, repaired and how its rooms
-	# stand goes to the other machine (which does it again, coop_apply_fact).
-	EventBus.BuildConfirmed.connect(func(t: String, at: Vector2i, rot: int) -> void:
-		if Coop.is_host():
-			Coop.send_fact("build", [t, at, rot])
-	)
-	EventBus.DemolishConfirmed.connect(func(rect: Rect2i, _n: int, _fee: int, _refund: int) -> void:
-		if Coop.is_host():
-			Coop.send_fact("demolish", [rect])
-	)
-	EventBus.building_serviced.connect(func(at: Vector2i, _t: String, _broken: bool, _cost: int) -> void:
-		if Coop.is_host():
-			Coop.send_fact("service", [at])
-	)
-	EventBus.room_task_done.connect(func(key: String, _task: String) -> void: _coop_send_room(key))
-	EventBus.accommodation_state_changed.connect(func(key: String, _status: String, _n: int) -> void: _coop_send_room(key))
-
-
-## The pause menu is up in a co-op camp (the world goes on; you just stand there).
-func _coop_menu_up() -> bool:
-	return Coop.is_active() and _pause_menu != null and _pause_menu.is_open()
-
-
-## Host: a new sandbox camp, open to one more warden.
-func _on_menu_coop_host() -> void:
-	if not Coop.host():
-		if _main_menu != null:
-			_main_menu.show_coop_notice("Port %d is taken." % Coop.port)
-		return
-	await _start_new_camp(true)
-
-
-## Host the camp last hosted for two (its newest save), for the other warden to join.
-func _on_menu_coop_host_saved(path: String) -> void:
-	# A story camp is one warden's (its mails, checklist and month are not for two).
-	if str(SaveManager.read_save(path).get("mode", "")) != "sandbox":
-		if _main_menu != null:
-			_main_menu.show_coop_notice("A story camp cannot be hosted. Only sandbox camps are for two.")
-		return
-	if not Coop.host():
-		if _main_menu != null:
-			_main_menu.show_coop_notice("Port %d is taken." % Coop.port)
-		return
-	var started := Time.get_ticks_msec()
-	await _show_menu_loading_for("Opening the camp...")
-	if not _start_loaded_game_from_path(path):
-		Coop.leave()
-		await _hide_menu_loading_after(started, 180)
-		if _main_menu != null:
-			_main_menu.show_coop_notice("That camp would not open.")
-		return
-	await _hide_menu_loading_after(started, 520, false)
-	_start_game_from_menu()
-
-
-## Join: call the camp at `address`; it comes back as world_arrived or join_failed.
-func _on_menu_coop_join(address: String) -> void:
-	if _main_menu != null:
-		_main_menu.show_loading("Calling the camp...")
-	Coop.join(address)
-
-
-func _on_coop_join_failed(reason: String) -> void:
-	if _main_menu != null:
-		_main_menu.hide_loading()
-		_main_menu.show_coop_notice(reason)
-
-
-## The host's camp has come down the line: it is loaded like a save, and nothing in it
-## runs here (sim_here() is false): the host's clock, weather and power drive it.
-func _on_coop_world_arrived(snapshot: Dictionary) -> void:
-	if not _apply_save_snapshot(snapshot, false):
-		Coop.leave()
-		_on_coop_join_failed("The camp came through garbled.")
-		return
-	var bi_set = _interior_manager.get("_building_interior") if _interior_manager != null else null
-	if bi_set != null and "_coop_radio_n" in bi_set:
-		# (Back after a drop with the same number on the host's set: it played its own song.)
-		bi_set.set("_coop_radio_n", -1)
-	_active_save_path = ""
-	_coop_powered = true
-	_coop_till_shown = -1
-	_coop_till_seq = 0
-	_coop_till_pending.clear()
-	_start_game_from_menu()
-	if CoreRoot.failure_system != null:
-		CoreRoot.failure_system.enabled = false
-	_coop_forward_builds(true)
-	call_deferred("_coop_flush_facts")
-	# Who is about: once they have all said who they are (their hellos come a moment after).
-	await get_tree().create_timer(2.0).timeout
-	if _hud_manager != null and Coop.has_partner():
-		# (The English "is" / "are" went into the Czech line, 4. 11.: a line each.)
-		_hud_manager.push_status(("You came in by the barrier. %s is about." if Coop.wardens.size() == 1 else "You came in by the barrier. %s are about.") % _coop_names_said(), 1)
-
-
-func _on_coop_session_ended(reason: String) -> void:
-	_coop_forward_builds(false)
-	if CoreRoot != null and CoreRoot.actions != null:
-		CoreRoot.actions.biz_remote = Callable()
-	if _gameplay_started:
-		_close_pause_menu(false)
-		_enter_main_menu()
-	if _main_menu != null:
-		_main_menu.hide_loading()
-		_main_menu.show_coop_notice(reason)
-
-
-func _on_coop_peer_joined(id: int) -> void:
-	# A new line: their till changes are numbered from one again.
-	_coop_till_acked.erase(id)
-	_coop_sync_last.clear()
-	# Their name comes with their hello, a moment after the line opens.
-	await get_tree().create_timer(1.0).timeout
-	if _hud_manager != null and Coop.wardens.has(id):
-		_hud_manager.push_status("%s came in by the barrier." % Coop.name_of(id), 1)
-	# The office, the PC, the register... sent once more as they finish loading the camp:
-	# what came while they were still loading was dropped there, and it is sent again only
-	# when it changes (a PC on at the host stayed off for them: playtest 21. 10.).
-	for wait in [4.0, 8.0, 16.0]:
-		await get_tree().create_timer(wait).timeout
-		if not Coop.wardens.has(id):
-			return
-		if _interior_manager != null:
-			for key in (_interior_manager.get("tent_doors") as Dictionary).keys():
-				Coop.send_tent_door(str(key), true)
-		_coop_sync_last.clear()
-
-
-func _on_coop_peer_left(id: int) -> void:
-	if _hud_manager != null:
-		_hud_manager.push_status("%s has gone home." % Coop.name_of(id), 1)
-	_on_coop_partner_moved(id, {})
-	_coop_partner_was.erase(id)
-
-
-## Where another warden is (each state of theirs): the boat where they have it, their
-## figure in the room you are in if they are in it; the door they go in or out by swings;
-## when they lie down, you hear of it.
-const COOP_DOOR_ANIM = preload("res://scripts/attractions/door_anim.gd")
-## Per warden (peer id): {in: indoors, room: the room they were last in, bed: lying down}.
-var _coop_partner_was: Dictionary = {}
-
-
-func _on_coop_partner_moved(id: int, s: Dictionary) -> void:
-	if not _coop_partner_was.has(id):
-		_coop_partner_was[id] = {"in": false, "room": "", "bed": false}
-	var was: Dictionary = _coop_partner_was[id]
-	var room_info: Dictionary = s.get("room", {})
-	var inside := bool(s.get("in", false))
-	if inside != bool(was["in"]) and not s.is_empty():
-		# (A door walked through on foot was told as it opened: coop_door.)
-		var door_key := str(room_info.get("k", "")) if inside else str(was["room"])
-		if Time.get_ticks_msec() - int(_coop_door_told.get(door_key, -100000)) > 4000:
-			_coop_swing_door(door_key)
-	was["in"] = inside
-	if inside and room_info.has("k"):
-		was["room"] = str(room_info["k"])
-	var in_bed := bool(s.get("z", false))
-	if in_bed and not bool(was["bed"]) and _hud_manager != null:
-		_hud_manager.push_status("%s has turned in." % Coop.name_of(id), 1)
-	was["bed"] = in_bed
-	if _lake_trip != null and _lake_trip.has_method("coop_mirror_boat"):
-		# One boat: whoever of the others has it (rowing, or tied up on the far shore).
-		var rower := 0
-		for oid in Coop.others():
-			var os: Dictionary = Coop.state_of(oid)
-			if os.has("boat") or os.has("boat_at"):
-				rower = int(oid)
-		var rs: Dictionary = Coop.state_of(rower) if rower != 0 else {}
-		_lake_trip.coop_mirror_boat(rs.get("boat", rs.get("boat_at", null)), rs.has("boat_at"), rower, rs.get("rp", []))
-	if _interior_manager != null and _interior_manager.has_method("coop_partner"):
-		var room: Dictionary = s.get("room", {})
-		if bool(s.get("z", false)) and not room.is_empty():
-			# Under the blanket: not standing about the room.
-			room = room.duplicate()
-			room["b"] = true
-		_interior_manager.coop_partner(room, id)
-
-
-## Co-op: knocked down, not dead. You fall and lie where you fell (the other warden sees
-## you lying there: warden state "dn"); the night leaves you be. They get you up with E,
-## or, nobody coming, you come to on the office step a while later, sore.
-const COOP_COME_TO_HEALTH := 35
-const COOP_DOWN_WAIT := 90.0
-var _coop_down := false
-var _coop_down_left := 0.0
-
-
-func _coop_come_to() -> void:
-	if _player == null or not is_instance_valid(_player) or _coop_down:
-		return
-	_coop_down = true
-	_coop_down_left = COOP_DOWN_WAIT
-	if _warden_play != null and _warden_play.is_active():
-		_warden_play.leave()
-	if _player.has_method("set_controls_enabled"):
-		_player.set_controls_enabled(false)
-	if _player.has_method("play_death_fall"):
-		_player.play_death_fall()
-	if _hud_manager != null:
-		_hud_manager.push_status("You go down. The grass is cold against your face.", 2)
-
-
-func _tick_coop_down(delta: float) -> void:
-	if not _coop_down:
-		return
-	_coop_down_left -= delta
-	if _coop_down_left <= 0.0 or not Coop.has_partner():
-		_coop_get_up(false)
-
-
-## Up again: helped (where you lie) or alone (on the office step, much later).
-func _coop_get_up(helped: bool) -> void:
-	if not _coop_down or _player == null or not is_instance_valid(_player):
-		return
-	_coop_down = false
-	if not helped and grid_manager != null and world_generator != null and world_generator.has_method("find_player_spawn_coord"):
-		_player.global_position = grid_manager.grid_to_world(world_generator.find_player_spawn_coord()) + Vector3(1.6, 1.0, 0.6)
-	if _player.has_method("reset_damage_feedback_state"):
-		_player.reset_damage_feedback_state(false)
-	_set_player_health(COOP_COME_TO_HEALTH, false)
-	if _hud_manager != null:
-		if helped:
-			_hud_manager.push_status("%s hauls you up by the jacket. \"Come on. Not here.\"" % Coop.sender_name(), 1)
-		else:
-			_hud_manager.push_status("You come to on the office step. You don't remember getting here.", 2)
-
-
-## Another warden lying near you (knocked down): E gets them up (the nearest of them).
-var _coop_down_near_id := 0
-
-
-func _coop_partner_down_near() -> bool:
-	_coop_down_near_id = 0
-	if _player == null or not is_instance_valid(_player):
-		return false
-	var best := 2.2
-	for id in Coop.others():
-		if not bool(Coop.state_of(id).get("dn", false)):
-			continue
-		var fig := Coop.figure_of(id)
-		if fig == null or not fig.visible:
-			continue
-		var d := Vector2(fig.global_position.x - _player.global_position.x, fig.global_position.z - _player.global_position.z).length()
-		if d < best:
-			best = d
-			_coop_down_near_id = int(id)
-	return _coop_down_near_id != 0
-
-
-func _coop_lift_partner() -> void:
-	# Every machine hears it; only the one lying there gets up (coop_lifted).
-	Coop.send_play("lift", [_coop_down_near_id])
-	if _hud_manager != null:
-		_hud_manager.push_status("You get %s up. They are shaking." % Coop.name_of(_coop_down_near_id), 1)
-
-
-## The other wardens' names as said: "Jana", "Jana and Pepa", "Jana, Pepa and Bara".
-func _coop_names_said() -> String:
-	var names: Array = []
-	for id in Coop.others():
-		names.append(Coop.name_of(id))
-	if names.size() <= 1:
-		return "".join(names)
-	return ", ".join(names.slice(0, names.size() - 1)) + " and " + str(names[-1])
-
-
-func _coop_biz_change(kind: String, a: Array) -> void:
-	var act = CoreRoot.actions if CoreRoot != null else null
-	if act == null or a.is_empty():
-		return
-	match kind:
-		"take":
-			act.biz_take(str(a[0]), a[1])
-		"sale":
-			act.biz_sale(str(a[0]), int(a[1]), int(a[2]), bool(a[3]), false)
-		"lost":
-			act.biz_lost(str(a[0]))
-		"order":
-			act.biz_add_order(str(a[0]), a[1], int(a[2]), int(a[3]))
-		"hire":
-			if a.size() > 2 and a[1] is Dictionary:
-				act.biz_hire(str(a[0]), a[1], int(a[2]))
-		"fire":
-			act.biz_fire(str(a[0]), str(a[1]) if a.size() > 1 else "")
-		"waste":
-			act.biz_waste(str(a[0]), a[1])
-		"gear":
-			act.biz_add_gear(str(a[0]), str(a[1]))
-		"rack":
-			# A warehouse rack given to a place (scripts/business/store_room.gd).
-			if a.size() > 2:
-				act.biz_set_rack(str(a[0]), int(a[1]), str(a[2]))
-		"licence":
-			act.biz_grant_licence(str(a[0]))
-		"aid":
-			# A first-aid cabinet the other warden emptied (scripts/aid_cabinet.gd).
-			if a.size() > 1:
-				act.aid_used(str(a[0]), int(a[1]))
-		"job":
-			act.biz_set_job(str(a[0]), str(a[1]), str(a[2]), str(a[3]))
-		"late":
-			act.biz_set_late(str(a[0]), bool(a[1]))
-		"auto":
-			act.biz_set_auto(str(a[0]), bool(a[1]))
-		"menu":
-			act.biz_set_menu(str(a[0]), str(a[1]), bool(a[2]))
-		"score":
-			act.biz_score(str(a[0]), a[1])
-		# The staffroom's hands (actions.staff_*).
-		"s_hire":
-			if a[0] is Dictionary:
-				act.staff_hire(a[0], int(a[1]) if a.size() > 1 else CoreRoot.get_day())
-		"s_fire":
-			act.staff_fire(str(a[0]))
-		"s_job":
-			if a.size() > 2:
-				act.staff_set_job(str(a[0]), str(a[1]), bool(a[2]))
-		"s_gear":
-			act.staff_add_gear(str(a[0]))
-		"camp":
-			act.note_camp(str(a[0]), int(a[1]))
-
-
-## The other machine: the other warden got you up.
-func coop_lifted(who: int = 0) -> void:
-	if who != 0 and who != multiplayer.get_unique_id():
-		return
-	_coop_get_up(true)
-
-
-## The night for two: enemies hunt either warden, the other machine sees them
-## (scripts/coop/coop_night.gd).
+## The camp for two (scripts/coop/coop_camp.gd): what the host sends and the others do
+## again, the clocks, a warden down, the menu's co-op. The Coop autoload talks to main
+## through coop_* below; the night for two (_coop_night) and whether you are down
+## (_coop_down) stay here, read all over.
+const COOP_CAMP = preload("res://scripts/coop/coop_camp.gd")
+var _coop_camp: RefCounted = COOP_CAMP.new(self)
 const COOP_NIGHT_SCRIPT = preload("res://scripts/coop/coop_night.gd")
 var _coop_night: Node
+var _coop_down := false
 
 
-func _ensure_coop_night() -> void:
-	if _coop_night != null and is_instance_valid(_coop_night):
-		return
-	_coop_night = COOP_NIGHT_SCRIPT.new()
-	_coop_night.name = "CoopNight"
-	_coop_night.main = self
-	add_child(_coop_night)
+func _on_menu_coop_host() -> void:
+	await _coop_camp.on_menu_host()
 
 
-## The host: what of the camp changes by itself, for the other machine once a second
-## (Coop sends it when it changed): the guests and their plans (the agents act them out
-## there too), breakdowns, the buildings' condition (the lamps), the rooms, the mail, the
-## shed key, the day's events and the night's faults that put lamps out.
+func _on_menu_coop_host_saved(path: String) -> void:
+	await _coop_camp.on_menu_host_saved(path)
+
+
+func _on_menu_coop_join(address: String) -> void:
+	await _coop_camp.on_menu_join(address)
+
+
+func coop_lifted(who: int = 0) -> void:
+	_coop_camp.lifted(who)
+
+
 func coop_camp_pulse() -> Dictionary:
-	var state = CoreRoot.get_state()
-	if state == null:
-		return {}
-	var maint := {}
-	var halves := {}
-	for coord in state.grid.cells.keys():
-		var cell = state.grid.cells[coord]
-		if cell is Dictionary and (cell as Dictionary).has("maintenance"):
-			maint[coord] = float(cell["maintenance"])
-			# The two halves of a block too: without them the other machine had both as bad as
-			# the worse one (the user 7. 11.: "it tells me to clean both toilets").
-			if (cell as Dictionary).has("maint_l"):
-				halves[coord] = [float(cell["maint_l"]), float(cell.get("maint_r", cell["maint_l"]))]
-	var mail: Dictionary = {}
-	if EmailManager != null:
-		mail = {"inbox": EmailManager.inbox, "sent": EmailManager.sent, "rep": EmailManager.reputation}
-	var key: bool = camp_office != null and is_instance_valid(camp_office) and camp_office.has_shed_key
-	var day: Dictionary = _day_events.export_state() if _day_events != null else {}
-	# The night's faults that put lamps out (the breaker, a dead circuit).
-	var nj := {"bt": bool(_night_jobs.breaker_tripped), "dc": int(_night_jobs.dead_circuit), "jobs": _night_jobs.coop_jobs()} if _night_jobs != null else {}
-	# The back office (CampStat, the bazaar): the reviews, the takings, the bills, the
-	# lost and found.
-	var books := {"rev": state.guest_reviews, "tx": state.guest_transactions, "sat": float(state.satisfaction), "karma": float(state.karma),
-		"hrot": float(state.hrotfaktor), "elec": _billing.export_state(), "baz": _bazaar.export_state(), "gog": _goggle.export_state()}
-	return {"guests": state.guests, "failures": state.failures, "maint": maint, "maint_lr": halves, "rooms": state.accommodation_states, "mail": mail, "shed_key": key, "day": day, "nj": nj, "biz": state.biz, "books": books, "lost": state.lost_guests}
+	return _coop_camp.camp_pulse()
 
 
-var _coop_day_hash := 0
-
-## The other machine's till: the host's, plus what was spent or taken here and not yet
-## counted there (each change goes to the host numbered; its clock says how far it got).
-var _coop_till_shown := -1
-var _coop_till_seq := 0
-var _coop_till_pending: Array = []      # [[seq, delta]]
-## The host: the last of the other warden's till changes it has counted.
-var _coop_till_acked: Dictionary = {}     # peer id -> the last change counted
-
-
-func _coop_follow_till(host_money: int, acked: int) -> void:
-	var state = CoreRoot.get_state()
-	if _coop_till_shown >= 0:
-		var here := int(state.money) - _coop_till_shown
-		if here != 0:
-			_coop_till_seq += 1
-			_coop_till_pending.append([_coop_till_seq, here])
-			Coop.send_request("till", [_coop_till_seq, here])
-	_coop_till_pending = _coop_till_pending.filter(func(p): return int(p[0]) > acked)
-	var shown := host_money
-	for p in _coop_till_pending:
-		shown += int(p[1])
-	if int(state.money) != shown:
-		CoreRoot.apply_changes({"money": shown})
-	_coop_till_shown = shown
-
-
-## The other warden's machine: the host's camp as it now is (coop_camp_pulse).
 func coop_apply_pulse(p: Dictionary) -> void:
-	if not Coop.is_client() or not _gameplay_started or _menu_mode:
-		return
-	var state = CoreRoot.get_state()
-	if state == null:
-		return
-	var was := {}
-	for g in state.guests:
-		if g is Dictionary:
-			was[int(g.get("id", -1))] = g
-	state.guests = (p.get("guests", []) as Array).duplicate(true)
-	if p.get("lost", null) is Array:
-		state.lost_guests.assign((p["lost"] as Array).duplicate(true))
-	_coop_tell_arrivals(was)
-	state.failures = (p.get("failures", {}) as Dictionary).duplicate(true)
-	var rooms: Dictionary = p.get("rooms", {})
-	if not rooms.is_empty():
-		state.accommodation_states = rooms.duplicate(true)
-	var maint: Dictionary = p.get("maint", {})
-	var halves: Dictionary = p.get("maint_lr", {})
-	for coord in maint.keys():
-		if state.grid.cells.has(coord) and state.grid.cells[coord] is Dictionary:
-			state.grid.cells[coord]["maintenance"] = float(maint[coord])
-			if halves.has(coord):
-				state.grid.cells[coord]["maint_l"] = float(halves[coord][0])
-				state.grid.cells[coord]["maint_r"] = float(halves[coord][1])
-			else:
-				(state.grid.cells[coord] as Dictionary).erase("maint_l")
-				(state.grid.cells[coord] as Dictionary).erase("maint_r")
-	if GuestManager != null and GuestManager.has_method("_emit_guest_overview_state"):
-		GuestManager._emit_guest_overview_state(true)
-	# The businesses' books are the host's (what is on the shelves, the orders, the hands);
-	# what is done to them here goes there.
-	if CoreRoot.actions != null and not CoreRoot.actions.biz_remote.is_valid():
-		CoreRoot.actions.biz_remote = func(kind: String, args: Array) -> void:
-			if Coop.is_client():
-				Coop.send_request("biz", [kind, args])
-	if p.get("biz", null) is Dictionary and not (p["biz"] as Dictionary).is_empty():
-		state.biz = (p["biz"] as Dictionary).duplicate(true)
-	var nj: Dictionary = p.get("nj", {})
-	if _night_jobs != null and not nj.is_empty():
-		_night_jobs.breaker_tripped = bool(nj.get("bt", false))
-		_night_jobs.dead_circuit = int(nj.get("dc", -1))
-		# Tonight's jobs, the host's: listed, paged and pointed to here too.
-		_night_jobs.coop_take(nj.get("jobs", []))
-	_sync_dark_lamps()
-	if camp_office != null and is_instance_valid(camp_office):
-		camp_office.has_shed_key = bool(p.get("shed_key", camp_office.has_shed_key))
-	# The day's events: only when they changed (bringing them in builds their props anew).
-	var day: Dictionary = p.get("day", {})
-	var day_hash := hash(var_to_bytes(day))
-	if _day_events != null and day_hash != _coop_day_hash:
-		_coop_day_hash = day_hash
-		_day_events.import_state(day)
-	var mail: Dictionary = p.get("mail", {})
-	if not mail.is_empty() and EmailManager != null and EmailManager.has_method("coop_take"):
-		EmailManager.coop_take(mail)
-	# The back office is the host's: CampStat's reviews, takings and bills, the bazaar.
-	var books: Dictionary = p.get("books", {})
-	if not books.is_empty():
-		state.guest_reviews = (books.get("rev", []) as Array).duplicate(true)
-		state.guest_transactions = (books.get("tx", []) as Array).duplicate(true)
-		state.satisfaction = float(books.get("sat", state.satisfaction))
-		state.karma = float(books.get("karma", state.karma))
-		state.hrotfaktor = float(books.get("hrot", state.hrotfaktor))
-		if books.get("elec", null) is Dictionary:
-			_billing.import_state(books["elec"], _day_index, false)
-		if books.get("baz", null) is Dictionary:
-			_bazaar.import_state(books["baz"])
-		if books.get("gog", null) is Dictionary:
-			_goggle.import_state(books["gog"])
-
-
-## The other warden's machine: a party reached the barrier, was let in or gave up in the
-## host's camp. GuestManager only signals it where it simulates, so here the barrier
-## stayed down (the party walked through it), and no line, car or hello came: the same
-## signals, from the change of status in the pulse. `was`: id -> the guest before it.
-func _coop_tell_arrivals(was: Dictionary) -> void:
-	if GuestManager == null or not GuestManager.has_method("_arrival_row"):
-		return
-	var now_abs: int = GuestManager._absolute_minutes(maxi(1, _day_index), int(_time_of_day_hours), int(fposmod(_time_of_day_hours, 1.0) * 60.0))
-	var still := {}
-	for g in CoreRoot.get_state().guests:
-		if not (g is Dictionary):
-			continue
-		var id := int(g.get("id", -1))
-		still[id] = true
-		var before := str((was[id] as Dictionary).get("status", "")) if was.has(id) else "expected"
-		var now := str(g.get("status", ""))
-		if before == now:
-			continue
-		if now == "waiting" and before != "waiting":
-			EventBus.guest_at_gate.emit(GuestManager._arrival_row(g, now_abs))
-		elif before == "waiting" and now == "active":
-			EventBus.guest_checked_in.emit((g as Dictionary).duplicate(true))
-	# Waiting at reception for the full time and gone from the list: they gave up and drove
-	# off (sooner, the host turned them away at the desk).
-	for id in was.keys():
-		var old: Dictionary = was[id]
-		if str(old.get("status", "")) == "waiting" and not still.has(id) \
-				and now_abs - int(old.get("gate_since_abs", now_abs)) >= GuestManager.GATE_GIVE_UP_MINUTES - 2:
-			EventBus.guest_gave_up.emit(GuestManager._arrival_row(old, now_abs))
-
-
-## What both machines keep alike, sent when it changes here (Coop.send_sync): the
-## office's lights, curtains and set; the desk's register and key hooks. The joining
-## machine first takes the host's (it sends only what it changes itself).
-var _coop_sync_last: Dictionary = {}
-
-
-func _coop_sync_things() -> Dictionary:
-	var bi = _interior_manager.get("_building_interior") if _interior_manager != null else null
-	if bi == null:
-		return {}
-	var out := {}
-	if bi.has_method("coop_office_state"):
-		out["office"] = bi.coop_office_state()
-	var desk = bi.get("_desk_room")
-	if desk != null and desk.has_method("coop_register"):
-		out["register"] = desk.coop_register()
-	# The office PC: what is installed, downloaded, binned, on the wallpaper (both ways).
-	if bi.has_method("coop_pc_state"):
-		out["pc"] = bi.coop_pc_state()
-	# The radio is the host's: its set plays on the other machine too.
-	if Coop.is_host() and bi.has_method("coop_radio_state"):
-		out["radio"] = bi.coop_radio_state()
-	# Who has been served what in the businesses (the host serves too: the mug lands on
-	# their table on the other machine, and they stop waiting there).
-	if Coop.is_host():
-		out["served"] = ORDERS_SERVED._served.duplicate()
-	# Pristoupim's job (hamlet_trip.gd): one for everyone, merged forwards both ways.
-	var trip = _interior_manager.get("_town_trip") if _interior_manager != null else null
-	if trip != null and trip.has_method("coop_hamlet"):
-		out["hamlet"] = trip.coop_hamlet()
-	# The camp's music: the host's piece; the client's being out and about (for the host's
-	# choosing when a piece comes in).
-	if _music_director != null:
-		out["music"] = _music_director.coop_state()
-	return out
+	_coop_camp.apply_pulse(p)
 
 
 func coop_sync_poll() -> void:
-	if not _gameplay_started or _menu_mode:
-		return
-	var things := _coop_sync_things()
-	for kind in things.keys():
-		var h := hash(var_to_bytes(things[kind]))
-		if not _coop_sync_last.has(kind) and Coop.is_client():
-			_coop_sync_last[kind] = h
-			continue
-		if int(_coop_sync_last.get(kind, 0)) != h:
-			_coop_sync_last[kind] = h
-			Coop.send_sync(kind, [things[kind]])
+	_coop_camp.sync_poll()
 
 
 func coop_sync(kind: String, data: Array) -> void:
-	if not _gameplay_started or _menu_mode:
-		return
-	var bi = _interior_manager.get("_building_interior") if _interior_manager != null else null
-	match kind:
-		"office":
-			if bi != null and bi.has_method("coop_take_office_state"):
-				bi.coop_take_office_state(data[0])
-		"pc":
-			if bi != null and bi.has_method("coop_take_pc_state"):
-				bi.coop_take_pc_state(data[0])
-		"radio":
-			if Coop.is_client() and bi != null and bi.has_method("coop_take_radio"):
-				bi.coop_take_radio(data[0])
-			return
-		"radio_ev":
-			if Coop.is_client() and bi != null and bi.has_method("coop_take_radio_event") and data.size() >= 2:
-				bi.coop_take_radio_event(int(data[0]), int(data[1]))
-			return
-		"music":
-			if _music_director != null:
-				_music_director.coop_take(data[0])
-			return
-		"served":
-			if Coop.is_client():
-				var got: Dictionary = data[0]
-				for v in got:
-					ORDERS_SERVED._served[v] = maxi(int(ORDERS_SERVED._served.get(v, 0)), int(got[v]))
-			return
-		"register":
-			var desk = bi.get("_desk_room") if bi != null else null
-			if desk != null and desk.has_method("coop_take_register"):
-				desk.coop_take_register(data[0])
-		"hamlet":
-			var trip = _interior_manager.get("_town_trip") if _interior_manager != null else null
-			if trip != null and trip.has_method("coop_take_hamlet") and data.size() > 0 and data[0] is Dictionary:
-				trip.coop_take_hamlet(data[0])
-				_coop_sync_last["hamlet"] = hash(var_to_bytes(trip.coop_hamlet()))
-			return
-		"camp_name":
-			if not data.is_empty():
-				set_camp_name(str(data[0]), true)
-			return
-		"gate":
-			var gate = get_tree().get_first_node_in_group("camp_gate")
-			if gate == null:
-				return
-			if not data.is_empty() and str(data[0]) == "down":
-				gate.close_for_player()
-			else:
-				gate.open_for_player()
-			return
-	# Not sent back as it came; the register goes back if it merged with rows written here.
-	var now := _coop_sync_things()
-	if kind in ["office", "pc"] and now.has(kind):
-		_coop_sync_last[kind] = hash(var_to_bytes(now[kind]))
-	elif kind == "register":
-		_coop_sync_last[kind] = hash(var_to_bytes(data[0]))
+	_coop_camp.sync(kind, data)
 
 
-## Over the shoulder: your PC screen for the other machine while you sit at it and the
-## other warden is in the office (InteriorManager has the picture), else nothing.
 func coop_screen_frame() -> PackedByteArray:
-	if _interior_manager == null or not _interior_manager.has_method("coop_room"):
-		return PackedByteArray()
-	var mine: Dictionary = _interior_manager.coop_room()
-	if str(mine.get("w", "")) == "laptop":
-		# At the staffroom's laptop (scripts/staff/laptop_view.gd): for whoever is in its
-		# room with you.
-		for id in Coop.others():
-			var th: Dictionary = Coop.state_of(id).get("room", {})
-			if str(th.get("k", "")) == str(mine.get("k", "")) and str(th.get("s", "")) == str(mine.get("s", "")) and str(th.get("w", "")) != "laptop":
-				var bi_l = _interior_manager.get("_building_interior")
-				return bi_l.coop_screen_frame_any() if bi_l != null else PackedByteArray()
-		return PackedByteArray()
-	if str(mine.get("t", "")) != "office" or str(mine.get("w", "")) != "pc":
-		return PackedByteArray()
-	# Someone in the office to look over your shoulder.
-	var watched := false
-	for id in Coop.others():
-		var theirs: Dictionary = Coop.state_of(id).get("room", {})
-		# Anywhere in the office building (from the back room's doorway too: one space).
-		if str(theirs.get("t", "")) == "office" and str(theirs.get("w", "")) != "pc":
-			watched = true
-	if not watched:
-		return PackedByteArray()
-	var bi = _interior_manager.get("_building_interior")
-	return bi.coop_screen_frame() if bi != null and bi.has_method("coop_screen_frame") else PackedByteArray()
+	return _coop_camp.screen_frame()
 
 
-## The other warden's screen, on your office's PC.
 func coop_show_screen(frame: PackedByteArray) -> void:
-	# In the staffroom: the frame is from its laptop.
-	var si = _interior_manager.get("_service_interior") if _interior_manager != null else null
-	if si != null and si.has_method("coop_show_laptop") and si.is_open():
-		si.coop_show_laptop(frame)
-		return
-	var bi = _interior_manager.get("_building_interior") if _interior_manager != null else null
-	if bi != null and bi.has_method("coop_show_screen") and bi.is_open():
-		bi.coop_show_screen(frame)
+	_coop_camp.show_screen(frame)
 
 
-## The door of the building with room key `key` ("x:y", or "office") opens and shuts.
-func _coop_swing_door(key: String, pick := 0, seconds := 1.4) -> void:
-	var st: Node3D = null
-	if key == "office":
-		st = debug_structure_of_type("main_building")
-	elif key.begins_with("town_"):
-		# Liblice's doors (town_trip.door_node), there on this machine too when its warden is.
-		var trip = _interior_manager.town_trip() if _interior_manager != null and _interior_manager.has_method("town_trip") else null
-		st = trip.door_node(key.substr(5)) if trip != null and trip.has_method("door_node") else null
-	elif key.contains(":"):
-		var parts := key.split(":")
-		st = COOP_DOOR_ANIM.structure_at(Vector2i(int(parts[0]), int(parts[1])))
-	if st == null:
-		return
-	var doors: Array = COOP_DOOR_ANIM.find_doors(st)
-	if not doors.is_empty():
-		COOP_DOOR_ANIM.open(doors[clampi(pick, 0, doors.size() - 1)], seconds)
-
-
-var _coop_door_told: Dictionary = {}
-
-
-## Another warden is opening this door now (coop.gd `_door`).
 func coop_door(key: String, pick: int, seconds: float) -> void:
-	_coop_door_told[key] = Time.get_ticks_msec()
-	_coop_swing_door(key, pick, seconds)
+	_coop_camp.door(key, pick, seconds)
 
 
-## The host: a room's state as it is now, to the other machine.
-func _coop_send_room(key: String) -> void:
-	if not Coop.is_host() or not Coop.has_partner():
-		return
-	var state = CoreRoot.get_state()
-	if state != null and state.accommodation_states.has(key):
-		Coop.send_room_state(key, (state.accommodation_states[key] as Dictionary).duplicate(true))
-
-
-## The host: the other warden finished a job in a room; it is done in the real camp (and
-## the room goes back to them, _coop_send_room).
 func coop_room_task(key: String, task_id: String) -> void:
-	if not Coop.is_host() or GuestManager == null:
-		return
-	GuestManager.complete_room_task(key, task_id)
-	if _interior_manager != null and _interior_manager.has_method("coop_refresh_room"):
-		_interior_manager.coop_refresh_room(key)
+	_coop_camp.room_task(key, task_id)
 
 
-## What the host has done since you joined, kept until your camp is built (it came
-## with the snapshot only up to the moment it was sent).
-var _coop_facts: Array = []
-
-
-## The other warden's machine: the host's room as it is now.
 func coop_room_state(key: String, acc: Dictionary) -> void:
-	if not Coop.is_client():
-		return
-	if not _gameplay_started or _menu_mode:
-		_coop_facts.append(["room", [key, acc]])
-		return
-	CoreRoot.get_state().accommodation_states[key] = acc.duplicate(true)
-	if _interior_manager != null and _interior_manager.has_method("coop_refresh_room"):
-		_interior_manager.coop_refresh_room(key)
+	_coop_camp.room_state(key, acc)
 
 
-## The other warden's machine: what the host did to the camp, done again here (the
-## till is the host's: it is put back as it was).
 func coop_apply_fact(kind: String, data: Array) -> void:
-	if not Coop.is_client():
-		return
-	if not _gameplay_started or _menu_mode:
-		_coop_facts.append([kind, data])
-		return
-	if kind == "room":
-		coop_room_state(str(data[0]), data[1])
-		return
-	if kind == "biz_say":
-		if _hud_manager != null and data.size() >= 3:
-			_hud_manager.push_status(str(data[0]), int(data[1]), str(data[2]))
-		return
-	if kind == "books":
-		_coop_show_books(data[0])
-		return
-	if kind == "books_shut":
-		_coop_books_closed()
-		return
-	var state = CoreRoot.get_state()
-	var keep := int(state.money)
-	state.money = 1 << 30
-	match kind:
-		# Straight to the builder (the joining machine's own requests go to the host).
-		# The host built it at its PC: the god cursor brings it down here too.
-		"build":
-			_god_from_peer(true)
-			CoreRoot.builder_authority._on_request_build(str(data[0]), data[1], int(data[2]))
-			_god_from_peer(false)
-		"demolish":
-			_god_from_peer(true)
-			CoreRoot.builder_authority._on_request_demolish(data[0])
-			_god_from_peer(false)
-		"build_rejected":
-			EventBus.BuildRejected.emit(str(data[0]), data[1], int(data[2]), str(data[3]))
-		"demolish_rejected":
-			EventBus.DemolishRejected.emit(data[0], str(data[1]))
-		"upgrade":
-			if _interior_manager != null:
-				_interior_manager._handle_replace_upgrade(data[0], str(data[1]), str(data[2]), 0)
-		"service":
-			CoreRoot.actions.service_building(data[0], 0)
-	state.money = keep
-	EventBus.money_changed.emit(keep)
+	_coop_camp.apply_fact(kind, data)
 
 
-## The host: what the other warden's hands ask of the camp (Coop.send_request). Done
-## here as if done here; a build or demolition turned down goes back to them.
 func coop_request(kind: String, data: Array) -> void:
-	if not Coop.is_host() or not _gameplay_started:
-		return
-	match kind:
-		"served":
-			var visit := str(data[0])
-			ORDERS_SERVED._served[visit] = int(ORDERS_SERVED._served.get(visit, 0)) + 1
-		"meal":
-			# What the other warden served, for the guest's review (scripts/food/orders.gd).
-			if GuestManager != null and GuestManager.has_method("note_meal") and data.size() >= 3:
-				GuestManager.note_meal(int(data[0]), str(data[1]), int(data[2]))
-		"build":
-			var turned: Array = []
-			var cb := func(t: String, at: Vector2i, rot: int, reason: String) -> void: turned.append([t, at, rot, reason])
-			EventBus.BuildRejected.connect(cb)
-			_god_from_peer(true)
-			EventBus.RequestBuild.emit(str(data[0]), data[1], int(data[2]))
-			_god_from_peer(false)
-			EventBus.BuildRejected.disconnect(cb)
-			if not turned.is_empty():
-				Coop.send_fact("build_rejected", turned[0])
-		"demolish":
-			var turned2: Array = []
-			var cb2 := func(rect: Rect2i, reason: String) -> void: turned2.append([rect, reason])
-			EventBus.DemolishRejected.connect(cb2)
-			_god_from_peer(true)
-			EventBus.RequestDemolish.emit(data[0])
-			_god_from_peer(false)
-			EventBus.DemolishRejected.disconnect(cb2)
-			if not turned2.is_empty():
-				Coop.send_fact("demolish_rejected", turned2[0])
-		"money":
-			CoreRoot.actions.add_money(int(data[0]))
-		"till":
-			# Spent or taken on the other machine (the town, the pub, the pump...).
-			var seq := int(data[0])
-			if seq > int(_coop_till_acked.get(Coop.sender, 0)):
-				_coop_till_acked[Coop.sender] = seq
-				var delta := int(data[1])
-				if delta >= 0:
-					CoreRoot.actions.add_money(delta)
-				else:
-					CoreRoot.actions.spend_money(mini(-delta, CoreRoot.get_money()))
-		"service":
-			CoreRoot.actions.service_building(data[0], int(data[1]))
-		"service_side":
-			CoreRoot.actions.service_side(data[0], str(data[1]))
-		"upgrade":
-			if _interior_manager != null and data[0] is Dictionary:
-				_interior_manager.coop_upgrade(data[0])
-		"day_event":
-			if _day_events != null:
-				_day_events.coop_resolve(int(data[0]))
-		"biz":
-			# The other warden's hands on the businesses' books (actions.biz_remote there);
-			# the money came with their till.
-			_coop_biz_change(str(data[0]), data[1] if data.size() > 1 and data[1] is Array else [])
-		"radio":
-			# The other warden switched the office radio: the set is the host's.
-			var bi_r = _interior_manager.get("_building_interior") if _interior_manager != null else null
-			if bi_r != null and bi_r.has_method("coop_set_radio_power"):
-				bi_r.coop_set_radio_power(bool(data[0]))
-		"corn_take":
-			# The other warden leads them out: they follow the stand-in.
-			if _corn_hunt != null and is_instance_valid(_corn_hunt) and _coop_night != null and _coop_night.proxy(Coop.sender) != null:
-				_corn_hunt.coop_take(_coop_night.proxy(Coop.sender))
-		"repair":
-			if economy_manager != null and economy_manager.has_method("add_repair_progress"):
-				economy_manager.add_repair_progress(data[0], 1.0)
-		"breaker":
-			if _night_jobs != null:
-				_night_jobs.on_breaker_fixed(int(data[0]))
-		"checkin":
-			GuestManager.request_check_in(int(data[0]))
-		"refuse":
-			GuestManager.refuse_at_desk(int(data[0]))
-		"phone":
-			if camp_office != null:
-				camp_office.on_phone_effect(str(data[0]), str(data[1]))
-		"shed_key":
-			if camp_office != null:
-				camp_office.take_shed_key()
-		"mail":
-			if EmailManager != null and EmailManager.has_method("coop_do"):
-				EmailManager.coop_do(data)
-		"pay_bill":
-			request_pay_electricity_bill(str(data[0]))
-		"crew":
-			request_maintenance_crew()
-		"crew_at":
-			request_maintenance_crew_at(data[0])
-		"bazaar_list":
-			bazaar_list(int(data[0]))
-		"goggle_remove":
-			# Paid on their machine (the till brings it).
-			_goggle.request_removal(int(data[0]), _day_index)
-		"goggle_reply":
-			goggle_reply(int(data[0]), str(data[1]))
-		"atlas_ad":
-			# Paid on their machine (the till brings it); one of the kind already running
-			# (both wardens bought it at once): the fee back.
-			if not _goggle.buy_ad(str(data[0]), int(data[1]), int(data[2])):
-				CoreRoot.actions.add_money(_goggle.ad_cost(str(data[0]), int(data[1])))
-		"builder98_mail":
-			# Builder 98 on the other machine: its registration key or the district's
-			# letter comes in the host's mail (the other machine gets it from there).
-			if EmailManager != null and EmailManager.has_method("schedule_pool_mail"):
-				EmailManager.schedule_pool_mail(preload("res://scripts/builder/shareware.gd").mail_for(str(data[0]), str(data[1]), _day_index))
+	_coop_camp.request(kind, data)
 
 
-## A build or demolition from another warden's PC: the god cursor stages it here too.
-func _god_from_peer(on: bool) -> void:
-	if _god_cursor != null and is_instance_valid(_god_cursor):
-		_god_cursor.from_peer = on
-
-
-## The other warden's machine builds nothing of its own accord: what its Builder asks
-## goes to the host (and comes back as a fact). Off again outside co-op.
-var _coop_build_forwarding := false
-
-
-func _coop_forward_builds(on: bool) -> void:
-	var auth = CoreRoot.builder_authority
-	if auth == null or on == _coop_build_forwarding:
-		return
-	_coop_build_forwarding = on
-	var b := Callable(auth, "_on_request_build")
-	var d := Callable(auth, "_on_request_demolish")
-	var fb := Callable(self, "_coop_send_build")
-	var fd := Callable(self, "_coop_send_demolish")
-	if on:
-		if EventBus.RequestBuild.is_connected(b):
-			EventBus.RequestBuild.disconnect(b)
-		if EventBus.RequestDemolish.is_connected(d):
-			EventBus.RequestDemolish.disconnect(d)
-		EventBus.RequestBuild.connect(fb)
-		EventBus.RequestDemolish.connect(fd)
-	else:
-		if EventBus.RequestBuild.is_connected(fb):
-			EventBus.RequestBuild.disconnect(fb)
-		if EventBus.RequestDemolish.is_connected(fd):
-			EventBus.RequestDemolish.disconnect(fd)
-		auth._connect_event_bus()
-
-
-func _coop_send_build(t: String, at: Vector2i, rot: int) -> void:
-	if not Coop.is_client():
-		# Left the co-op camp without the end being heard: the builder is ours again.
-		_coop_forward_builds(false)
-		CoreRoot.builder_authority._on_request_build(t, at, rot)
-		return
-	Coop.send_request("build", [t, at, rot])
-
-
-func _coop_send_demolish(rect: Rect2i) -> void:
-	if not Coop.is_client():
-		_coop_forward_builds(false)
-		CoreRoot.builder_authority._on_request_demolish(rect)
-		return
-	Coop.send_request("demolish", [rect])
-
-
-func _coop_flush_facts() -> void:
-	var queued := _coop_facts.duplicate()
-	_coop_facts.clear()
-	for f in queued:
-		coop_apply_fact(str(f[0]), f[1])
-
-
-## The other warden's hands, so far: the boat, the rooms (tents, cabins, caravans), to be
-## in them and to clean them (the jobs go to the host), and the office building, to be
-## in it and to sleep (its PC, phone, board and check-ins stay the host's). The rest
-## stays the host's until the next stages.
-func _coop_client_interact() -> void:
-	if _lake_trip != null and not _is_any_interior_open() and _lake_trip.try_interact():
-		return
-	if _in_attraction() and _warden_play.try_interact():
-		return
-	# The guest lost in the corn (the host's): take them by the arm.
-	if _coop_corn_guest_near() != null:
-		Coop.send_request("corn_take", [])
-		if _hud_manager != null:
-			_hud_manager.push_status("They grab your sleeve. \"Get me out of here.\"", 1)
-		return
-	# The day's events (the host's, shown here): sorted out through the host.
-	if _day_events != null and not _is_any_interior_open() and _day_events.try_interact():
-		return
-	# A guest: a word with them (a noise complaint settles through the host too).
-	if not _is_any_interior_open():
-		var guest_in_view := _find_guest_in_view()
-		if not guest_in_view.is_empty():
-			if str(guest_in_view.get("status", "")) == "waiting":
-				if _hud_manager != null:
-					_hud_manager.push_status("%s: \"We are waiting for the desk. Is anyone in there?\"" % str(guest_in_view.get("name", "Guest")), 0, "arrivals")
-			else:
-				_talk_to_guest(guest_in_view)
-			return
-	# The attractions: in them on this machine, seen in them on the host's.
-	if _warden_play != null and not _is_any_interior_open() and _warden_play.try_interact():
-		return
-	var st := _coop_client_room_target()
-	if st != null:
-		_handle_structure_interior_interact(st)
-
-
-func _coop_client_hint() -> String:
-	if _is_any_interior_open():
-		return ""
-	if _in_attraction():
-		return str(_warden_play.hint())
-	if _coop_corn_guest_near() != null:
-		return "[E] Take them by the arm"
-	var day_hint: String = _day_events.hint() if _day_events != null else ""
-	if not day_hint.is_empty():
-		return day_hint
-	var guest_in_view := _find_guest_in_view()
-	if not guest_in_view.is_empty():
-		return ("[E] Check in %s" if str(guest_in_view.get("status", "")) == "waiting" else "[E] Talk to %s") % str(guest_in_view.get("name", "guest"))
-	var h: String = _lake_trip.hint() if _lake_trip != null else ""
-	if h.is_empty() and _warden_play != null:
-		h = str(_warden_play.hint())
-	if h.is_empty() and _coop_client_room_target() != null and _interaction_controller.has_method("build_hint_text"):
-		h = str(_interaction_controller.build_hint_text(INTERACT_DISTANCE, false))
-	return h
-
-
-func _coop_corn_guest_near() -> Node3D:
-	if _coop_night == null or _player == null or not is_instance_valid(_player):
-		return null
-	return _coop_night.tagged_near("corn_guest", _player.global_position, 1.8)
-
-
-func _coop_client_room_target() -> Node3D:
-	if _interaction_controller == null or not _interaction_controller.has_method("resolve_interaction"):
-		return null
-	var hit: Dictionary = _interaction_controller.resolve_interaction(INTERACT_DISTANCE, false)
-	if str(hit.get("type", "")) != "structure":
-		return null
-	var st := hit.get("structure") as Node3D
-	if st == null:
-		return null
-	var t := str(st.get_meta("building_type", ""))
-	if t.begins_with("tent_") or t.begins_with("cabin") or t.begins_with("caravan_") or t == "main_building" or t == "corn_stand" or t == "camp_sign":
-		return st
-	# Out of the camp (the barrier, the bus, Lesna): each machine's own (town_trip.gd),
-	# the barrier sent over.
-	if t.begins_with("trip_") or t.begins_with("town_"):
-		return st
-	# The toilets, showers, pub, shed and the rest: in to look and to clean and mend (what
-	# that does goes to the host).
-	if _interior_manager != null and _interior_manager.has_method("_is_supported_service_building_type") and _interior_manager._is_supported_service_building_type(t):
-		return st
-	return null
-
-
-## The camp for the other warden (Coop sends it when they join): the save snapshot,
-## with them standing a step from where a new day starts, facing the office.
 func coop_world_snapshot() -> Dictionary:
-	var snap := _build_save_snapshot("Co-op", "coop")
-	snap.erase("player")
-	if grid_manager != null and world_generator != null and world_generator.has_method("find_player_spawn_coord"):
-		var at: Vector3 = grid_manager.grid_to_world(world_generator.find_player_spawn_coord()) + Vector3(1.6, 1.0, 0.6)
-		snap["player"] = {"position": {"x": at.x, "y": at.y, "z": at.z}}
-	return snap
+	return _coop_camp.world_snapshot()
 
 
-## Where the other warden's figure stands (the camp's 3D world), or null outside a game.
 func coop_world_root() -> Node3D:
-	return _world_3d if _gameplay_started and not _menu_mode else null
+	return _coop_camp.world_root()
 
 
-## What the other machine needs to draw you (Coop sends it ~15 times a second): where
-## you stand and face, the torch and where it points, how fast you go, whether you are
-## inside something (a room, the PC, the bus, the boat) and so out of sight.
 func coop_local_warden() -> Dictionary:
-	if not _gameplay_started or _menu_mode or _player == null or not is_instance_valid(_player):
-		return {}
-	var aim: Dictionary = _player.get_flashlight_aim() if _player.has_method("get_flashlight_aim") else {}
-	var s := {
-		"p": _player.global_position,
-		"y": _player.rotation.y,
-		"t": not aim.is_empty(),
-		"d": aim.get("dir", -_player.global_basis.z),
-		"v": Vector2(_player.velocity.x, _player.velocity.z).length(),
-		"in": _is_any_interior_open() or (_lake_trip != null and _lake_trip.is_active()),
-	}
-	# On the lake: in the boat (it rows where you row), or across on the keeper's jetty.
-	var lake: Dictionary = _lake_trip.coop_state() if _lake_trip != null and _lake_trip.has_method("coop_state") else {}
-	if lake.has("boat") or lake.has("ride"):
-		var key := "boat" if lake.has("boat") else "ride"
-		s[key] = lake[key]
-		# Your oars' strokes: their boat strokes as yours does (boat_rig.gd).
-		if lake.has("rp"):
-			s["rp"] = lake["rp"]
-		s["p"] = (lake[key] as Transform3D).origin
-		s["in"] = false
-		s["t"] = false
-	elif lake.has("shore"):
-		s["p"] = lake["shore"]
-		if bool(lake.get("fish", false)):
-			s["act"] = "fish"
-		if lake.has("boat_at"):
-			s["boat_at"] = lake["boat_at"]
-		s["in"] = false
-		s["t"] = false
-		s["v"] = 0.0
-	# In a room: which, which part of it and the job your hands are on.
-	var room: Dictionary = _interior_manager.coop_room() if _interior_manager != null and _interior_manager.has_method("coop_room") else {}
-	if not room.is_empty():
-		s["room"] = room
-	# At night in a room: its windows (where in the camp, which way, the curtain, how
-	# squarely you look at it), for the host's Photographer to come to (tourist_brain.gd).
-	if bool(s["in"]) and _is_enemy_night_active() and _interior_manager != null and _interior_manager.has_method("photo_windows"):
-		var pw: Array = []
-		for w in _interior_manager.photo_windows():
-			# (Last, where its camera looks out from: on the line from there through the
-			# glass the Silent Man shows in that window however slant it is looked through.)
-			pw.append([(w["pos"] as Vector3).snapped(Vector3.ONE * 0.01), (w["out"] as Vector3).snapped(Vector3.ONE * 0.01),
-				snappedf(float(w.get("open", 1.0)), 0.05), snappedf(float(w.get("facing", 0.0)), 0.05),
-				(w.get("view", w["pos"]) as Vector3).snapped(Vector3.ONE * 0.01)])
-		if not pw.is_empty():
-			s["pw"] = pw
-	# Your health, for the host's enemies to know a hit will be your last (their kills).
-	s["hp"] = _player_health
-	# On a bus (one bus for both: town_trip.gd, bus_ride.gd).
-	var trip = _interior_manager.get("_town_trip") if _interior_manager != null else null
-	var bus: Dictionary = trip.coop_state() if trip != null and trip.has_method("coop_state") else {}
-	if not bus.is_empty():
-		s["bus"] = bus
-	# Line 380's rounds (scripts/town/bus_line.gd): the host's word on what they wait and
-	# pull in for, so the bus is in the same place on every machine.
-	var ln: Dictionary = trip.coop_line() if trip != null and trip.has_method("coop_line") else {}
-	if not ln.is_empty():
-		s["ln"] = ln
-	# In a place in Lesna (the pub, the Jednota...): the other sees you there with them.
-	var town_place: String = trip.coop_place() if trip != null and trip.has_method("coop_place") else ""
-	if town_place != "":
-		s["tr"] = town_place
-	# Down the sewer's pipes: where, for the other warden down there too (pipe_mate.gd).
-	if _sewer_pipe_minigame != null and _sewer_pipe_minigame.is_open() and _sewer_pipe_minigame.has_method("coop_pipe_state"):
-		var pipe: Dictionary = _sewer_pipe_minigame.coop_pipe_state()
-		if not pipe.is_empty():
-			s["pipe"] = pipe
-	# In an attraction: the other machine places you in it (scripts/attractions/warden_play.gd).
-	var att: Dictionary = _warden_play.coop_state() if _warden_play != null and is_instance_valid(_warden_play) else {}
-	if not att.is_empty():
-		s["att"] = att
-	# Behind the corn stand: stood behind its counter at the pot (the close-up hides you).
-	var corn = _interior_manager.get("_corn_stand") if _interior_manager != null else null
-	if corn != null and is_instance_valid(corn) and corn.visible:
-		var stand = corn.get("_stand")
-		if stand != null and is_instance_valid(stand):
-			s["p"] = (stand as Node3D).global_transform * Vector3(0.0, 0.0, -0.85)
-			s["in"] = false
-			s["t"] = false
-			s["v"] = 0.0
-			s["act"] = "cook"
-	# Crouched or on your belly, or something carried in your arms (player_controller
-	# stance, scripts/ambient/carry.gd): the other machine draws that pose.
-	if not s.has("act") and _player != null and not bool(s.get("in", false)):
-		var stance := int(_player.get("stance")) if _player.get("stance") != null else 0
-		var carry := get_tree().get_first_node_in_group("carry")
-		var carried: String = carry.coop_pose() if carry != null else ""
-		if carry != null and str(carry.coop_held()) != "":
-			s["cr"] = str(carry.coop_held())
-		if stance == 2:
-			s["act"] = "prone"
-		elif stance == 1:
-			s["act"] = "crouch"
-		elif carried != "":
-			s["act"] = carried
-	# At work out in the camp: holding R at something, a branch sawn, rubbish bagged.
-	if not s.has("act"):
-		var chore: String = _day_events.coop_work() if _day_events != null and _day_events.has_method("coop_work") else ""
-		if chore != "":
-			s["act"] = chore
-		elif _maintenance != null and _maintenance.has_method("coop_working") and _maintenance.coop_working():
-			s["act"] = "fix"
-	# Knocked down, lying there.
-	if _coop_down:
-		s["dn"] = true
-		s["t"] = false
-	# In bed (the night passes only when both are: camp_office.gd).
-	if camp_office != null and is_instance_valid(camp_office) and camp_office.in_bed():
-		s["z"] = true
-		if camp_office.eyes_shut():
-			s["zs"] = true
-	return s
+	return _coop_camp.local_warden()
 
 
-## The host's clock, weather, power and till for the other machine.
 func coop_clock() -> Dictionary:
-	var state = CoreRoot.get_state()
-	var night_passing: bool = camp_office != null and is_instance_valid(camp_office) and camp_office.is_fast_forwarding()
-	var c := {"d": _day_index, "h": _time_of_day_hours, "w": _weather_state, "pw": _is_grid_powered(), "m": int(state.money) if state != null else 0, "sl": night_passing, "mq": _coop_till_acked}
-	# The nights slept here, what keeps the others from sleeping (camp_office.gd).
-	if camp_office != null and is_instance_valid(camp_office):
-		c["sln"] = camp_office.nights_passed
-		if camp_office.kept_awake_here():
-			c["ka"] = true
-	if clock_scale != 1.0:
-		c["cs"] = clock_scale
-	var build: float = weather_system.storm_build() if weather_system != null else 0.0
-	if build > 0.0:
-		c["sb"] = snappedf(build, 0.01)
-	if _coop_night != null:
-		c["sn"] = _coop_night.sanity_by_peer()
-	return c
+	return _coop_camp.clock()
 
 
-## The other warden's machine sets its day, sky, weather, lamps and till by the host's.
 func coop_apply_clock(c: Dictionary) -> void:
-	if not Coop.is_client() or not _gameplay_started or _menu_mode:
-		return
-	var state = CoreRoot.get_state()
-	if state != null:
-		var day := maxi(1, int(c.get("d", _day_index)))
-		if int(state.day) != day:
-			state.day = day
-		var acked = c.get("mq", {})
-		_coop_follow_till(int(c.get("m", state.money)), int((acked as Dictionary).get(multiplayer.get_unique_id(), 0)) if acked is Dictionary else 0)
-	if time_system != null:
-		_coop_clock_scale = float(c.get("cs", 1.0))
-		var told := float(c.get("h", _time_of_day_hours))
-		var off: float = told - float(time_system.time_of_day_hours)
-		if absf(off) > COOP_CLOCK_SNAP:
-			# (Over midnight too: with the new day from the same word.)
-			time_system.set_time_hours(told)
-			_coop_clock_off = 0.0
-		else:
-			_coop_clock_off = off
-	if _coop_night != null and c.get("sn") is Dictionary and (c["sn"] as Dictionary).has(multiplayer.get_unique_id()):
-		_coop_night.take_own_sanity(float(c["sn"][multiplayer.get_unique_id()]))
-	var w := int(c.get("w", _weather_state))
-	if weather_system != null and w != _weather_state:
-		weather_system.set_weather(w)
-	_coop_storm_build = float(c.get("sb", 0.0))
-	var pw := bool(c.get("pw", true))
-	if pw != _coop_powered:
-		_coop_powered = pw
-		_note_grid_power(pw)
-		_apply_time_from_clock(true, false)
-	_sync_runtime_state_from_systems()
-
-
-## The other warden's clock runs by itself between the host's words (four a second, the first
-## to go when the line is busy): what is worked out from it every frame moved in steps (the
-## user 7. 11.: "the bus ride goes at two frames a second for the guest; the host's is fine":
-## the road, the bus and the guests on it are all the clock's). A word only brings it back in
-## line, softly; far out, at once.
-const COOP_CLOCK_SNAP := 0.05
-const COOP_CLOCK_EASE := 0.02
-var _coop_clock_off := 0.0
-var _coop_clock_scale := 1.0
-
-
-func _coop_run_clock(delta: float) -> void:
-	var step := maxf(delta, 0.0) * _coop_clock_scale * float(time_system.game_hours_per_real_second)
-	var fix := clampf(_coop_clock_off, -COOP_CLOCK_EASE * delta, COOP_CLOCK_EASE * delta)
-	_coop_clock_off -= fix
-	# Midnight is the host's word: the day and the hour turn over together.
-	time_system.set_time_hours(minf(float(time_system.time_of_day_hours) + step + fix, 23.9999))
+	_coop_camp.apply_clock(c)
 
 
 ## From the loading card into the game through the doors' own dissolve: the first frames of
@@ -6006,7 +4840,7 @@ func _pause_info_line() -> String:
 			line += LANG.f("   SAVED %d H AGO", [ago / 3600])
 	# Co-op: who you are with, or (the host alone) where the other can call in.
 	if Coop.has_partner():
-		line += LANG.f("   WITH %s", [_coop_names_said().to_upper()])
+		line += LANG.f("   WITH %s", [_coop_camp.names_said().to_upper()])
 	elif Coop.is_host():
 		var here: Array[String] = Coop.local_addresses()
 		if not here.is_empty():

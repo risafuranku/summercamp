@@ -83,11 +83,23 @@ godot/
   data/buildings/*.tres       # building definitions
   data/pools/                 # email + guest content
   scripts/
-    main.gd                   # orchestration (~7.4k lines; the biggest file, being split by
-                              # responsibility: TODO D0; after moving code out run
-                              # `python tools/main_refs_check.py`: every main.<name> left
+    main.gd                   # orchestration (~4.9k lines, 15. 11.; it was 7.9k: being split
+                              # by responsibility, TODO D0). It keeps the systems, the game's
+                              # flow (title, new camp, load, pause, game over) and one-line
+                              # facades others call it by. Move a stretch out with
+                              # `python tools/main_extract.py SPEC.json`, then a headless
+                              # start and `python tools/main_refs_check.py` (every main.<name>
                               # in the scripts and tools must still be main's)
-    debug/                    # liminal_window (the night forecast's debug window)
+    camp/                     # ruined_cabin (the old cabin a story camp starts with)
+    save/                     # camp_snapshot (a camp as a save holds it, both ways)
+    night/                    # night_roll (the NIGHT RISK forecast, the roll, the brains it
+                              # starts, dawn), director_feed (what the night director sees),
+                              # night_director, director_effects, evening_unease, ...
+    coop/                     # coop.gd (the line, autoload Coop), coop_camp (main's side of
+                              # the camp for two: facts, pulse, screens, clocks, a warden
+                              # down, the menu's co-op), coop_night, warden_looks, ...
+    debug/                    # liminal_window (the night forecast's debug window),
+                              # test_camps (the title's secret L page)
     os98/                     # the camp computer "Okna 98" at 640x480: os_shell (the panel:
                               # tabs, pages, taskbar, boot, installs), os_page, os_theme,
                               # os_window (dialogs), os_files (the disk), web_pages (the
