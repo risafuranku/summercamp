@@ -1761,12 +1761,6 @@ func _resolve_structure_with_building_type(node: Node) -> Node3D:
 	return null
 
 
-func _get_structures_root() -> Node3D:
-	if _building_manager == null:
-		return null
-	return _building_manager.get_node_or_null("Structures") as Node3D
-
-
 func _setup_building_upgrade_menu() -> void:
 	if _building_upgrade_menu != null and is_instance_valid(_building_upgrade_menu):
 		return
@@ -1787,26 +1781,6 @@ func _setup_guest_dialog() -> void:
 	add_child(_guest_dialog)
 	if _guest_dialog.has_signal("dialog_closed"):
 		_guest_dialog.dialog_closed.connect(_on_guest_dialog_closed)
-
-
-func _has_guest_inside(structure: Node) -> bool:
-	if structure == null:
-		return false
-	var visuals = _guest_visuals_for_structure(structure)
-	if not visuals.is_empty():
-		return true
-	if structure.has_meta("guest_count"):
-		return int(structure.get_meta("guest_count", 0)) > 0
-	if structure.has_meta("has_guest"):
-		return bool(structure.get_meta("has_guest", false))
-	return false
-
-
-func _open_guest_dialog(title_text: String, body_text: String) -> void:
-	if _guest_dialog == null:
-		return
-	_guest_dialog.open_dialog(title_text, body_text)
-	_set_player_controls_enabled(false)
 
 
 func _on_guest_dialog_closed() -> void:

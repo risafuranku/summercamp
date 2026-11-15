@@ -831,15 +831,6 @@ func _reset_crt_look_back_state() -> void:
 	_crt_look_back_active = false
 
 
-func _is_crt_text_input_focused() -> bool:
-	if _crt_viewport == null:
-		return false
-	var focused: Control = _crt_viewport.gui_get_focus_owner()
-	if focused == null:
-		return false
-	return focused is LineEdit or focused is TextEdit or focused is CodeEdit
-
-
 func _update_crt_look_back_hold(delta: float) -> void:
 	if not _crt_active:
 		_reset_crt_look_back_state()
@@ -868,30 +859,6 @@ func _update_crt_look_back_hold(delta: float) -> void:
 
 func _handle_crt_look_back_key(_event: InputEventKey) -> bool:
 	# Turning round at the PC by holding S is gone (playtest): S is just a letter there.
-	return false
-
-
-func _is_crt_look_back_pressed_now() -> bool:
-	if Input.is_physical_key_pressed(KEY_S):
-		return true
-	if Input.is_key_pressed(KEY_S):
-		return true
-	return Input.is_action_pressed("move_backward")
-
-
-func _is_crt_look_back_key_event(event: InputEventKey) -> bool:
-	if event == null:
-		return false
-	if event.physical_keycode == KEY_S:
-		return true
-	if event.keycode == KEY_S:
-		return true
-	if event.key_label == KEY_S:
-		return true
-	if event.unicode != 0:
-		var as_text := char(event.unicode).to_lower()
-		if as_text == "s":
-			return true
 	return false
 
 
@@ -976,9 +943,6 @@ func _get_crt_orbit_pivot() -> Vector3:
 		return _crt_orbit_anchor_pos + Vector3(0.0, 0.0, -0.4)
 	var par := _interior_camera.get_parent() as Node3D if _interior_camera != null else null
 	return par.to_local(p) if par != null else p
-
-
-
 
 
 # ── co-op: over the shoulder (scripts/coop/coop.gd) ──────────────────────────
@@ -2372,29 +2336,6 @@ func _windows_open() -> float:
 	return (front * fa + side * sa) / (fa + sa)
 
 
-## A window's view: its own viewport into the camp's world (given by hand: this room is
-## not inside the world's viewport) and an off-axis camera that does not see the window
-## glass of the building it stands in (building_models.GLASS_LAYER).
-func _make_portal(n: String, px: Vector2i) -> Array:
-	var vp := SubViewport.new()
-	vp.name = n
-	vp.size = px
-	vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
-	add_child(vp)
-	var cam := Camera3D.new()
-	cam.projection = Camera3D.PROJECTION_FRUSTUM
-	cam.keep_aspect = Camera3D.KEEP_HEIGHT
-	cam.cull_mask = 0xFFFFF & ~(1 << 19)
-	vp.add_child(cam)
-	_bind_window_world(vp)
-	return [vp, cam]
-
-
-func _bind_window_world(vp: SubViewport = null) -> void:
-	if vp != null and _camp_world() != null:
-		vp.world_3d = _camp_world()
-
-
 ## The camp's world (the windows look out into it).
 func _camp_world() -> World3D:
 	var main := _resolve_main_runtime_host()
@@ -2446,14 +2387,6 @@ func _setup_door_view() -> void:
 	_door_quad.position = DOOR_VIEW_CENTER
 	_door_quad.visible = false
 	_room_root.add_child(_door_quad)
-
-
-## The doorway's view: the room's eye, mapped into the camp, at the room picture's size.
-func _aim_door_view(eye_room: Vector3) -> bool:
-	if _viewport == null or _room_root == null:
-		return false
-	# Only from in front of the doorway (the walk out hands over to the camp before it).
-	return eye_room.z >= DOOR_VIEW_CENTER.z + 0.02
 
 
 ## Walked out by the front door: where the warden is in the camp (a room point on the
@@ -2509,11 +2442,6 @@ func _camp_ground_y(p: Vector3) -> float:
 	q.exclude = [(_player_ref as CollisionObject3D).get_rid()] if _player_ref is CollisionObject3D else []
 	var hit := _player_ref.get_world_3d().direct_space_state.intersect_ray(q)
 	return float((hit["position"] as Vector3).y) if not hit.is_empty() else NAN
-
-
-func _front_door_open() -> bool:
-	var pivot: Node3D = _desk_room.front_door() if _desk_room != null else null
-	return pivot != null and absf(pivot.rotation_degrees.y) > 1.0
 
 
 ## ── one world (W26) ───────────────────────────────────────────────────────────

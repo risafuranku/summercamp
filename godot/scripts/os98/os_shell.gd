@@ -537,10 +537,6 @@ func _open_guestrack_app() -> void:
 	open_app("guestrack")
 
 
-func _open_builder_app() -> void:
-	open_app("builder")
-
-
 # ── services for the programs ────────────────────────────────────────────────
 
 ## main.gd: billing, upkeep and the clock. (The interior proxies some of these, so the

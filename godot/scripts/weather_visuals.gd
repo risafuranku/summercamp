@@ -1900,13 +1900,6 @@ func _sun_horizon_visibility(sun_height: float) -> float:
 	return t * t * (3.0 - (2.0 * t))
 
 
-func _resolve_celestial_sprite_distance(camera_far: float) -> float:
-	var map_half_span = _get_celestial_path_half_span()
-	var map_target = max(map_half_span * CELESTIAL_SPRITE_MAP_DISTANCE_FACTOR, CELESTIAL_SPRITE_MIN_DISTANCE)
-	var far_limit = max(camera_far * CELESTIAL_SPRITE_CAMERA_FAR_FACTOR, 1.0)
-	return min(map_target, far_limit)
-
-
 func _update_cloud_layers(cam_pos: Vector3) -> void:
 	if _cloud_sprites.is_empty(): return
 	var active_density = clampf(_cloud_density_current, 0.0, 1.0)

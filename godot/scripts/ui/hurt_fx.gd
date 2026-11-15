@@ -171,35 +171,6 @@ func hit(amount: int, tier: int, fatal: bool) -> void:
 		_play_at(D + "drip.mp3", -10.0)
 
 
-func _add_splat(tier: int) -> void:
-	if _tex.is_empty():
-		return
-	var vs := get_viewport().get_visible_rect().size
-	var t := TextureRect.new()
-	t.texture = _tex[_rng.randi() % _tex.size()]
-	# A hard hit: gore, not just blood.
-	if tier >= 2 and not _gore.is_empty() and _rng.randf() < 0.75:
-		t.texture = _gore[_rng.randi() % _gore.size()]
-	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	t.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	t.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	t.material = NIGHTMARE_FX.retro_material()
-	var sz: Vector2 = SPLAT_SIZE[tier]
-	var side := vs.y * _rng.randf_range(sz.x, sz.y)
-	t.size = Vector2(side, side)
-	t.pivot_offset = t.size * 0.5
-	t.rotation = _rng.randf_range(-0.5, 0.5)
-	t.flip_h = _rng.randf() < 0.5
-	# Mostly towards the edges: the middle of the view stays yours.
-	var edge := Vector2(_rng.randf_range(-1.0, 1.0), _rng.randf_range(-1.0, 0.6))
-	if edge.length() < 0.55:
-		edge = edge.normalized() * _rng.randf_range(0.55, 0.95)
-	t.position = vs * 0.5 + edge * vs * 0.5 - t.size * 0.5
-	_splat_root.add_child(t)
-	_splats.append({"node": t, "life": float(SPLAT_LIFE[tier]) * _rng.randf_range(0.8, 1.2), "age": 0.0, "drip": _rng.randf_range(4.0, 12.0)})
-
-
 ## Made at the night's first enemy (main._prewarm_hurt), not at the first hit: its sounds
 ## read and its screen's shader compiled now (cold, the first bite cost a 76 ms frame and
 ## the frames after it more; holka_shots --part=hitch, 4. 11.).

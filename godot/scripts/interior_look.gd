@@ -208,15 +208,6 @@ static func _edges(c: Vector2, band: float) -> Vector2:
 	return v
 
 
-## The stick's push for a way `v` from the middle (-1..1 to the edges, corners further):
-## nothing inside `dead`, then along it, up to 1.
-static func _stick(v: Vector2, dead_zone: float) -> Vector2:
-	var r := v.length()
-	if r <= dead_zone:
-		return Vector2.ZERO
-	return v / r * pow(clampf((r - dead_zone) / (1.0 - dead_zone), 0.0, 1.0), STICK_POWER)
-
-
 ## Moves `value` by `step`, slowing down inside the last SOFT_ZONE_DEG before a limit.
 static func _advance(value: float, step: float, lo: float, hi: float) -> float:
 	if step > 0.0:

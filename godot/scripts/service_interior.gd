@@ -1625,36 +1625,6 @@ func _build_restaurant_basement_layout(parent: Node3D) -> void:
 	BISTRO_LAYOUT.cellar(parent, self)
 
 
-func _setup_basement_machine_animation(meshes: Array) -> void:
-	_basement_machine_anim_materials.clear()
-	_basement_machine_anim_frames.clear()
-	_basement_machine_anim_timer = 0.0
-	_basement_machine_anim_frame = 0
-	if _texture_style == null:
-		return
-	var frame_categories = [
-		"service_basement_machine_anim_539",
-		"service_basement_machine_anim_540",
-		"service_basement_machine_anim_541",
-		"service_basement_machine_anim_542"
-	]
-	for category in frame_categories:
-		var tex = _texture_style.pick_texture(category, Color(0.70, 0.24, 0.18))
-		if tex != null:
-			_basement_machine_anim_frames.append(tex)
-	if _basement_machine_anim_frames.is_empty():
-		return
-	for mesh_any in meshes:
-		var mesh = mesh_any as MeshInstance3D
-		if mesh == null:
-			continue
-		var mat = mesh.material_override as StandardMaterial3D
-		if mat == null:
-			continue
-		_basement_machine_anim_materials.append(mat)
-	_apply_basement_machine_frame(0)
-
-
 func _update_basement_machine_animation(delta: float) -> void:
 	if _basement_machine_anim_frames.size() < 2:
 		return
@@ -2044,17 +2014,6 @@ func _switch_service_room(direction: int) -> void:
 	if (_current_profile == "toilet" or _current_profile == "wash") and target_room == _active_subroom:
 		return
 	_play_room_swipe(target_room, direction)
-
-
-func _toggle_secret_room() -> void:
-	if _current_profile != "rest":
-		return
-	if _swipe_animating:
-		return
-	if _restaurant_room == "kitchen":
-		_play_room_swipe("basement", 1)
-	elif _restaurant_room == "basement":
-		_play_room_swipe("kitchen", -1)
 
 
 func _toggle_kitchen_texture_variant() -> void:
@@ -3163,24 +3122,6 @@ func _subroom_of(station_room: String) -> String:
 			# step between two of them went through a dissolve, playtest 25. 10.)
 			return "main" if station_room == "bar" else station_room
 	return station_room
-
-
-## Straight to work (the brief of 21. 10.; no longer on the way in, playtest 25. 10.):
-## the station you were at last in this place, else its ENTRY (where an order starts: the
-## tap, the bistro's floor, the till); never the cellar or the sink. BACK leaves the
-## station for the room; S there leaves the place.
-func _enter_business() -> void:
-	if not (_current_profile in ["rest", "pub", "vecerka"]) or _upkeep_key == "" or not _is_open:
-		return
-	var tabs := _room_tabs()
-	if tabs.is_empty():
-		return
-	var ids: Array = tabs.map(func(t) -> String: return str(t[0]))
-	var consts: Dictionary = (_station_layout() as Script).get_script_constant_map()
-	var first := str(consts.get("ENTRY", ids[0]))
-	var last := str(STATION3D.last_station.get(_upkeep_key, first))
-	var to: String = last if ids.has(last) else (first if ids.has(first) else str(ids[0]))
-	_open_station(to)
 
 
 ## Steps up to the station `id` (unless another warden is at it): the room's camera goes

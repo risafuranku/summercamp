@@ -165,15 +165,6 @@ func _road_h() -> void:
 			ROAD_POST.place(self, Vector3(px, 0.0, side * 3.7), Vector3(0, 0, -side))
 
 
-func _walls_h() -> void:
-	for i in OUTLINE.size():
-		var a: Vector2 = OUTLINE[i]
-		var b: Vector2 = OUTLINE[(i + 1) % OUTLINE.size()]
-		var mid := Vector3((a.x + b.x) * 0.5, 2.0, (a.y + b.y) * 0.5)
-		var body := _solid(self, mid, Vector3(0.4, 4.0, a.distance_to(b) + 0.4))
-		body.rotation.y = atan2(b.x - a.x, b.y - a.y)
-
-
 ## The request stop both sides: a pole with the bus sign, the name plate "PRISTOUPIM,
 ## rozc. na znameni" and the timetable case (click: town_trip's timetable, stop "hamlet").
 ## In the real land nothing else stands there: fields either side of the road.

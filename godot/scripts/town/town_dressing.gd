@@ -573,27 +573,6 @@ func _cars() -> void:
 		TOWN_CAR.parked(car)
 
 
-func _face_on(root: Node3D, name: String, size: Vector2, pos: Vector3, yaw: float) -> MeshInstance3D:
-	var t := _tex(name)
-	if t == null:
-		return null
-	var mi := MeshInstance3D.new()
-	var q := QuadMesh.new()
-	q.size = size
-	mi.mesh = q
-	var m := StandardMaterial3D.new()
-	m.albedo_texture = t
-	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
-	m.alpha_scissor_threshold = 0.5
-	m.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
-	mi.material_override = m
-	mi.position = pos
-	mi.rotation.y = yaw
-	root.add_child(mi)
-	return mi
-
-
 # ── life ─────────────────────────────────────────────────────────────────────
 
 func set_hour(h: float) -> void:

@@ -1989,23 +1989,6 @@ func _set_bathroom_variant() -> void:
 	_set_node_visible_in(_bathroom_root, "ShowerCorner", lv == 3)
 
 
-func _refresh_level_textures() -> void:
-	if _cabin_root == null or _texture_style == null:
-		return
-	for child in _cabin_root.get_children():
-		var mesh_inst = child as MeshInstance3D
-		if mesh_inst == null:
-			continue
-		var std_mat = mesh_inst.material_override as StandardMaterial3D
-		if std_mat == null:
-			continue
-		var category = _category_for_node(mesh_inst.name, std_mat.albedo_color)
-		var tex = _texture_style.pick_texture(category, std_mat.albedo_color)
-		if tex != null:
-			std_mat.albedo_texture = tex
-			std_mat.albedo_color = Color(1.0, 1.0, 1.0, 1.0)
-
-
 func _cabin_level_category(slot: String) -> String:
 	var lv = _cabin_level
 	# Swap Lv2 (Red) and Lv3 (Blue) materials/textures as requested

@@ -117,7 +117,6 @@ func building_manager_has_remove_logic() -> bool:
 	return has_method("remove_structure")
 
 
-
 func setup(grid_manager) -> void:
 	_grid_manager = grid_manager
 	_ensure_structures_root()
@@ -1924,82 +1923,6 @@ func find_nearest_free_tile_in_front(player: Node3D, footprint: Vector2i = Vecto
 			best_coord = coord
 
 	return best_coord
-
-
-func _spawn_crt_placeholder(building: Node3D, building_size: Vector3) -> void:
-	var crt = StaticBody3D.new()
-	crt.name = "CRTPlaceholder"
-	building.add_child(crt)
-
-	var crt_size = Vector3(1.0, 0.85, 0.8)
-	crt.position = Vector3(0.0, -building_size.y * 0.5 + (crt_size.y * 0.5) + 0.15, building_size.z * 0.2)
-
-	var collider = CollisionShape3D.new()
-	var shape = BoxShape3D.new()
-	shape.size = crt_size
-	collider.shape = shape
-	crt.add_child(collider)
-
-	var mesh = MeshInstance3D.new()
-	var box = BoxMesh.new()
-	box.size = crt_size
-	mesh.mesh = box
-	var mat = _make_psx_material(Color(0.52, 0.50, 0.48), 0.008, 28.0, 6.0, 0.06, "decor_metal")
-	mesh.material_override = mat
-	crt.add_child(mesh)
-
-
-func _spawn_door(building: Node3D, building_size: Vector3) -> void:
-	var door = StaticBody3D.new()
-	door.name = "Door"
-	door.add_to_group("crt_interactable")
-	building.add_child(door)
-
-	var collider = CollisionShape3D.new()
-	var collider_shape = BoxShape3D.new()
-	collider_shape.size = Vector3(1.2, 2.4, 0.32)
-	collider.shape = collider_shape
-	door.add_child(collider)
-
-	var door_mesh_instance = MeshInstance3D.new()
-	var door_mesh = BoxMesh.new()
-	var door_size = Vector3(1.0, 2.2, 0.08)
-	door_mesh.size = door_size
-	door_mesh_instance.mesh = door_mesh
-	door_mesh_instance.position = Vector3(0.0, 0.0, 0.02)
-	door.position = Vector3(0.0, -building_size.y * 0.5 + door_size.y * 0.5, building_size.z * 0.5 + 0.02)
-	var mat = _make_psx_material(Color(0.56, 0.35, 0.24), 0.006, 30.0, 6.0, 0.08, "building_door", 0.36)
-	door_mesh_instance.material_override = mat
-	door.add_child(door_mesh_instance)
-
-	var frame_l = MeshInstance3D.new()
-	var frame_r = MeshInstance3D.new()
-	var frame_t = MeshInstance3D.new()
-	var frame_box = BoxMesh.new()
-	frame_box.size = Vector3(0.10, 2.34, 0.12)
-	frame_l.mesh = frame_box
-	frame_r.mesh = frame_box
-	frame_l.position = Vector3(-(door_size.x * 0.5) - 0.08, 0.0, 0.04)
-	frame_r.position = Vector3((door_size.x * 0.5) + 0.08, 0.0, 0.04)
-	var frame_top_box = BoxMesh.new()
-	frame_top_box.size = Vector3(door_size.x + 0.32, 0.12, 0.12)
-	frame_t.mesh = frame_top_box
-	frame_t.position = Vector3(0.0, (door_size.y * 0.5) + 0.10, 0.04)
-	var frame_mat = _make_psx_material(Color(0.78, 0.72, 0.64), 0.004, 26.0, 6.0, 0.06, "building_door", 0.24)
-	frame_l.material_override = frame_mat
-	frame_r.material_override = frame_mat
-	frame_t.material_override = frame_mat
-	door.add_child(frame_l)
-	door.add_child(frame_r)
-	door.add_child(frame_t)
-
-	var knob = MeshInstance3D.new()
-	var knob_box = BoxMesh.new()
-	knob_box.size = Vector3(0.04, 0.06, 0.06)
-	knob.mesh = knob_box
-	knob.position = Vector3(0.34, -0.18, 0.07)
-	knob.material_override = _make_psx_material(Color(0.88, 0.78, 0.42), 0.002, 30.0, 6.0, 0.02, "decor_metal")
-	door.add_child(knob)
 
 
 func _spawn_building_windows(building: Node3D, building_size: Vector3, building_type: String = "") -> void:

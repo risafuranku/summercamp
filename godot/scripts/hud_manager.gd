@@ -1898,28 +1898,6 @@ func _worst_risk_entry(payload: Dictionary) -> Dictionary:
 	return worst
 
 
-## One line naming the archetype closest to tipping, so the meter is actionable
-## rather than merely ominous.
-func _compose_risk_detail(payload: Dictionary) -> String:
-	var worst := _worst_risk_entry(payload)
-	if worst.is_empty():
-		return ""
-	var label := str(worst.get("label", "?"))
-	var count := int(worst.get("count", 0))
-	if int(worst.get("guaranteed_spawns", 0)) > 0:
-		return "%s x%d - spawn guaranteed" % [label, count]
-	var tier := str(worst.get("chance_tier", "none"))
-	if tier == "none" or tier.is_empty():
-		var thresholds_any = worst.get("next_thresholds", {})
-		if thresholds_any is Dictionary:
-			var small_at := int((thresholds_any as Dictionary).get("small_at", 0))
-			if small_at > count:
-				return "%s risk starts at %d" % [label, small_at]
-		return "all archetypes within safe count"
-	var pct := int(round(float(worst.get("chance_probability", 0.0)) * 100.0))
-	return "%s x%d - %s risk %d%%" % [label, count, str(RISK_TIER_LABELS.get(tier, tier)), pct]
-
-
 func _format_money(amount: int) -> String:
 	var negative := amount < 0
 	var digits := str(absi(amount))

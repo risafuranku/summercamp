@@ -1157,22 +1157,6 @@ func _tick_look(delta: float) -> void:
 	_hum.volume_db = lerpf(-40.0, -4.0, _vis)
 
 
-## Which way Builder's map looks (its 3D view's camera, or the quarter the 2D map is
-## turned); with no Builder open, the way the warden looks.
-func _map_yaw() -> float:
-	var m = main.debug_builder_map() if main != null and main.has_method("debug_builder_map") else null
-	if m != null:
-		var v = m.get("map3d")
-		if v != null and bool(v.on):
-			return float(v.get("_yaw"))
-		return deg_to_rad(45.0 - 90.0 * float(m.get("view_rot")))
-	var cam := get_viewport().get_camera_3d() if get_viewport() != null else null
-	if cam == null:
-		return _yaw_t
-	var f := -cam.global_transform.basis.z
-	return atan2(-f.x, -f.z)
-
-
 func _environment() -> Environment:
 	var w := get_world_3d()
 	if w != null and w.environment != null:

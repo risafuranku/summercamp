@@ -634,12 +634,6 @@ func _hud() -> Node:
 	return _main.get("_hud_manager") if _main != null else null
 
 
-func _main_call(method: String, fallback: bool) -> bool:
-	if _main != null and _main.has_method(method):
-		return bool(_main.call(method))
-	return fallback
-
-
 func _day() -> int:
 	return maxi(1, CoreRoot.get_day())
 

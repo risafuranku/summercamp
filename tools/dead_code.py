@@ -34,7 +34,7 @@ def files(exts, bases):
             if ".godot" in dp:
                 continue
             for f in fn:
-                if f.endswith(exts) and not f.startswith("_tmp_"):
+                if f.endswith(exts):
                     yield os.path.join(dp, f)
 
 
@@ -46,7 +46,8 @@ def main():
             words[w] = words.get(w, 0) + 1
     dead = []
     for p, t in texts.items():
-        if not p.endswith(".gd") or os.sep + "tools" + os.sep in p or p.endswith("main_debug.gd"):
+        # (Others' work in progress, tools/_tmp_*, counts as a use but is not listed.)
+        if not p.endswith(".gd") or os.sep + "tools" + os.sep in p or p.endswith("main_debug.gd") or os.path.basename(p).startswith("_tmp_"):
             continue
         for name in FUNC.findall(t):
             if name in ENGINE:

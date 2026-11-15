@@ -1344,17 +1344,6 @@ func _cancel_tool_selection() -> void:
 	_emit_status("Selection canceled.")
 
 
-func _set_zoom(new_zoom: float) -> void:
-	var old_zoom = _zoom_level
-	_zoom_level = clamp(new_zoom, ZOOM_MIN, ZOOM_MAX)
-	if absf(old_zoom - _zoom_level) < 0.001:
-		return
-	_pan_offset *= (_zoom_level / old_zoom)
-	_clamp_pan_offset_for_current_map()
-	_ghost_locked = false
-	_emit_status("Zoom: %d%%" % int(round(_zoom_level * 100.0)))
-
-
 func _connect_event_bus() -> void:
 	if EventBus.has_signal("BuildConfirmed"):
 		var ok_cb := Callable(self, "_on_build_confirmed")
@@ -3705,22 +3694,6 @@ func _diamond_points(center: Vector2, tile_w: float, tile_h: float) -> PackedVec
 	return points
 
 
-func _draw_diamond(center: Vector2, tile_w: float, tile_h: float, fill: Color, outline: Color, outline_width: float) -> void:
-	var points = _diamond_points(center, tile_w, tile_h)
-	_cv.draw_colored_polygon(points, fill)
-	if outline.a > 0.0:
-		for i in range(4):
-			var a = points[i]
-			var b = points[(i + 1) % 4]
-			_cv.draw_line(a, b, outline, outline_width)
-
-
-func _point_in_diamond(point: Vector2, center: Vector2, tile_w: float, tile_h: float) -> bool:
-	var dx = abs(point.x - center.x) / max(tile_w * 0.5, 0.001)
-	var dy = abs(point.y - center.y) / max(tile_h * 0.5, 0.001)
-	return (dx + dy) <= 1.0
-
-
 func _resolve_occupant_root(occupant: Variant) -> Node:
 	if occupant == null:
 		return null
@@ -3753,7 +3726,6 @@ func _rect_contains_coord(rect: Rect2i, coord: Vector2i) -> bool:
 
 func _rect_equals(a: Rect2i, b: Rect2i) -> bool:
 	return a.position == b.position and a.size == b.size
-
 
 
 # ── feedback and life ────────────────────────────────────────────────────────
@@ -4188,7 +4160,6 @@ func _describe(coord: Vector2i) -> String:
 	if coord == _buried_tile() and (what == "Forest floor" or what == "Pine tree"):
 		return LANG.f("%d:%d  %s  -  Something is buried here", [coord.x, coord.y, tr(what)])
 	return "%d:%d  %s" % [coord.x, coord.y, tr(what)]
-
 
 
 func _path_cell(coord: Vector2i) -> bool:
