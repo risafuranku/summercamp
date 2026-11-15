@@ -121,7 +121,7 @@ func start_content_reel() -> void:
 	await start_businesses(true)
 	var reel = load("res://scripts/content_reel.gd").new()
 	reel.name = "ContentReel"
-	main.get_tree().root.add_child(reel)
+	INSTANCE.screen_of(main).add_child(reel)
 	reel.start(main)
 
 

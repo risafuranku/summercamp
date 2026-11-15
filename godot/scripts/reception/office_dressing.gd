@@ -350,7 +350,7 @@ func click(id: String) -> bool:
 		if item.is_empty() or diploma_open():
 			return true
 		_diploma_view = DIPLOMA_VIEW.new()
-		root.get_tree().root.add_child(_diploma_view)
+		INSTANCE.screen_of(root).add_child(_diploma_view)
 		_diploma_view.open(item)
 		return true
 	if id != "stove":

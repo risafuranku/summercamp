@@ -521,7 +521,7 @@ func click_postman() -> bool:
 	if _closeup == null or not is_instance_valid(_closeup):
 		_closeup = CLOSEUP.new()
 		_closeup.post = self
-		host.get_tree().root.add_child(_closeup)
+		INSTANCE.screen_of(host).add_child(_closeup)
 	_closeup.open_view()
 	return true
 

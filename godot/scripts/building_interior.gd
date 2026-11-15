@@ -1921,7 +1921,7 @@ func _ensure_crt_sharp() -> void:
 	_crt_sharp_layer = CanvasLayer.new()
 	_crt_sharp_layer.name = "CrtSharpLayer"
 	_crt_sharp_layer.layer = 64
-	get_tree().root.add_child(_crt_sharp_layer)
+	INSTANCE.screen_of(self).add_child(_crt_sharp_layer)
 	_crt_sharp = Control.new()
 	_crt_sharp.name = "CrtSharp"
 	_crt_sharp.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -4592,7 +4592,7 @@ func open_delivery_note() -> bool:
 		return false
 	if _delivery_closeup == null or not is_instance_valid(_delivery_closeup):
 		_delivery_closeup = DELIVERY_CLOSEUP.new()
-		get_tree().root.add_child(_delivery_closeup)
+		INSTANCE.screen_of(self).add_child(_delivery_closeup)
 	_delivery_closeup.orders = int(de.delivery_orders())
 	_delivery_closeup.on_signed = func() -> void:
 		var d := _day_events()

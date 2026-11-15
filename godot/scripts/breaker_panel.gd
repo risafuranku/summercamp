@@ -15,6 +15,7 @@ extends CanvasLayer
 ## Some nights the family's boy is in here with you, and the board is his game (below,
 ## "the boy"; DESIGN §5a.2).
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal fixed(fault_index: int)
 signal closed
 
@@ -372,7 +373,7 @@ func _boy_catch() -> void:
 	get_tree().create_timer(BOY_FACE_STEPS.TURN).timeout.connect(func(): _boy_sfx(BOY_DIR + "shriek.mp3", 2.0, 1.0))
 	if fx != null:
 		fx.tinnitus(2.0)
-	var main := get_parent()
+	var main := INSTANCE.main_of(self)
 	get_tree().create_timer(BOY_FACE_STEPS.HIT_AT).timeout.connect(func():
 		if fx != null:
 			fx.glitch(0.9, 0.6)
@@ -388,7 +389,7 @@ func _boy_catch() -> void:
 
 
 func _night_fx():
-	var main := get_parent()
+	var main := INSTANCE.main_of(self)
 	var world = main.get("_world_3d") if main != null else null
 	return NIGHTMARE_FX.get_for(world) if world != null else null
 

@@ -132,7 +132,7 @@ func _sync_curtains() -> void:
 	if _curtains.is_empty() or _key == "":
 		return
 	var scene := INSTANCE.main_of(self)
-	var im := scene.get_node_or_null("InteriorManager") if scene != null else null
+	var im = scene.get("_interior_manager") if scene != null else null
 	var by_room = im.get("_curtains_by_room") if im != null else null
 	if not (by_room is Dictionary) or not (by_room as Dictionary).has(_key):
 		return

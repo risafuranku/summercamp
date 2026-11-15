@@ -1077,7 +1077,7 @@ func _photo(lens: Vector3, extra: Texture2D, w: Dictionary, big: bool) -> void:
 		return
 	if _polaroid == null or not is_instance_valid(_polaroid):
 		_polaroid = POLAROID.new()
-		_world_root.get_tree().root.add_child(_polaroid)
+		INSTANCE.screen_of(_world_root).add_child(_polaroid)
 	_polaroid.call("take_of", _world_root.get_world_3d(), lens, _player, extra, w, big)
 
 

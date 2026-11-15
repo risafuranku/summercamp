@@ -615,3 +615,9 @@ func debug_lambda_hooks() -> Array:
 				if cb.is_custom():
 					out.append("%s.%s %s" % [auto, str(sig["name"]), str(cb)])
 	return out
+
+
+## Harnesses: a split screen's second warden started in this program (a co-op client on the
+## loopback line, scripts/instance/local_client.gd), with pad `device`; its node.
+func debug_local_client(device: int) -> Node:
+	return load("res://scripts/instance/local_client.gd").start(self, device)

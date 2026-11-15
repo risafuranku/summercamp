@@ -17,3 +17,9 @@ mechanical part; run from anywhere (they chdir into godot/):
 - `instance_v3.gd.txt`: the next instance.gd (I2b): an instance's root is a local client's
   branch (group "game_instance") or the program's root, its services the root's children by
   the autoloads' names.
+- `rep.py FILE < pairs.txt`: exact replacements (a Python list of (old, new)), keeping the
+  file's line ends; refuses unless each old text is there once.
+- `pad_instance_reps.txt`, `local_client_reps.txt`: I5, the pad translator per instance and
+  the local client's pad, input and silent bus (apply with rep.py, then every other
+  `Input.parse_input_event(` in pad.gd to `_send(`).
+- `main_screen.py`: I4, main draws into its instance's screen (done 15. 11.).

@@ -952,7 +952,7 @@ func open_station(cam: Camera3D) -> void:
 	if _hands_ui == null or not is_instance_valid(_hands_ui):
 		_hands_ui = load("res://scripts/business/station_hands.gd").new()
 		_hands_ui.name = "StationHand"
-		get_tree().root.add_child(_hands_ui)
+		INSTANCE.screen_of(self).add_child(_hands_ui)
 	_opened()
 
 

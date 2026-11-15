@@ -136,7 +136,7 @@ func _pop_blueprints(tier: int) -> void:
 	var layer := CanvasLayer.new()
 	layer.name = "BlueprintNews"
 	layer.layer = 126
-	main.add_child(layer)
+	INSTANCE.screen_of(main).add_child(layer)
 	var w = BLUEPRINT_NEWS.new()
 	w.setup(rows, int(main._goggle.TIERS[tier]["guests"]), maxi(0, opened.size() - rows.size()))
 	var vs: Vector2 = main.get_viewport().get_visible_rect().size

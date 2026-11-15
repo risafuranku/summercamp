@@ -44,13 +44,25 @@ static func root_of(node: Node) -> Node:
 	return tree.root if tree != null else null
 
 
-## The instance's main: the scene's for the host, the branch's Main for a local client.
+## The instance's main: the scene's for the host, the branch's `main` for a local client.
 static func main_of(node: Node) -> Node:
 	var tree := Engine.get_main_loop() as SceneTree
 	var r := root_of(node)
 	if r != null and tree != null and r != tree.root:
-		return r.get_node_or_null("Main")
+		return r.get("main")
 	return tree.current_scene if tree != null else null
+
+
+## Where what is drawn for this instance's warden goes (main's screen: the whole window for
+## one, half of it in a split screen); never the window's root.
+##   INSTANCE.screen_of(self).add_child(layer)
+static func screen_of(node: Node) -> Node:
+	var m := main_of(node)
+	var s = m.get("_screen") if m != null else null
+	if s != null:
+		return s
+	var tree := Engine.get_main_loop() as SceneTree
+	return tree.root if tree != null else null
 
 
 ## One of the instance's own (the autoloads' names): "Coop", "CoreRoot", "EventBus",

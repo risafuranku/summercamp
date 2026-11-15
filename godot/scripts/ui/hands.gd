@@ -57,7 +57,7 @@ static func of(n: Node) -> Node:
 	_one = load("res://scripts/ui/hands.gd").new()
 	_one.name = "Hands"
 	_one.add_to_group("hands")
-	n.get_tree().root.add_child.call_deferred(_one)
+	INSTANCE.screen_of(n).add_child.call_deferred(_one)
 	return _one
 
 

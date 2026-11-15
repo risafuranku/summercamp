@@ -826,7 +826,7 @@ func _on_ext(what: String, args: Array) -> void:
 					return
 			if _polaroid == null or not is_instance_valid(_polaroid):
 				_polaroid = POLAROID.new()
-				main.get_tree().root.add_child(_polaroid)
+				INSTANCE.screen_of(main).add_child(_polaroid)
 			_polaroid.take_of(world.get_world_3d(), args[0], pl, args[1], w, bool(args[2]))
 		"window_flash":
 			var flash: Callable = _window_at(args[0]).get("flash", Callable())
