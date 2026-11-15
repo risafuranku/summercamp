@@ -28,7 +28,6 @@ extends "res://scripts/closeup/closeup_view.gd"
 ## A tool drives it through debug_at / debug_press / debug_stroke (the same way as a hand:
 ## the head along the striker, the flame held to a wick), debug_strike, debug_flame_to.
 
-const INSTANCE = preload("res://scripts/instance/instance.gd")
 const CAMP := "res://assets/textury/camp/"
 const SFX := "res://assets/sfx/"
 const INVENTORY = preload("res://scripts/ui/inventory.gd")
@@ -398,7 +397,7 @@ func _tick(delta: float) -> void:
 	_anim += delta
 	_tick_debug(delta)
 	var m := debug_mouse if debug_mouse.x >= 0.0 else _mouse
-	var down := debug_down or Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
+	var down = debug_down or INSTANCE.input(self).is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
 	_pointer = m.x < 0.0
 	if not _tick_way(delta, m) and m.x >= 0.0:
 		_hand = m.round()
@@ -429,8 +428,8 @@ func _tick(delta: float) -> void:
 
 func _cursor(on: bool) -> void:
 	var want := Input.MOUSE_MODE_VISIBLE if on else Input.MOUSE_MODE_HIDDEN
-	if Input.mouse_mode != want:
-		Input.mouse_mode = want
+	if INSTANCE.input(self).mouse_mode != want:
+		INSTANCE.input(self).mouse_mode = want
 
 
 func _box_at() -> Vector2:
@@ -827,7 +826,7 @@ func _closing() -> void:
 	_seq.clear()
 	_later.clear()
 	_stage = ""
-	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	INSTANCE.input(self).mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 
 # ── for tools ────────────────────────────────────────────────────────────────

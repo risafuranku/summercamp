@@ -556,7 +556,7 @@ func open_interior() -> void:
 	_collect_radio_tracks()
 	_rebuild_radio_tracks_for_time(false)
 
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 
 ## In by the front door on foot (interior_manager walked the warden up to it): the room
@@ -708,7 +708,7 @@ func close_interior() -> void:
 		_viewport.audio_listener_enable_3d = false
 	_one_world_inside(false)
 	visible = false
-	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
 
 func _process(delta: float) -> void:
@@ -895,7 +895,7 @@ func _exit_crt_look_back() -> void:
 
 
 func _apply_idle_mouse_look(delta: float) -> void:
-	var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.turn_axis())
+	var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.turn_axis(self), self)
 	_interior_camera.rotation = _idle_cam_base_rot + offset
 
 

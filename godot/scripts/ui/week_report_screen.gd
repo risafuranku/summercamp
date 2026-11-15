@@ -7,6 +7,7 @@ extends CanvasLayer
 ## one: the district sells, your bus is at ten, and that is the end of the run. The door, the
 ## engine pulling off, the black, the title.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal stay_requested
 signal main_menu_requested
 
@@ -50,7 +51,7 @@ func _ready() -> void:
 	_root.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(_root)
 	_rebuild()
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 
 func _vp(v: float) -> float:

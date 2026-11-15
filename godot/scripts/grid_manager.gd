@@ -1,5 +1,6 @@
 extends Node3D
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const TILE_GRASS = 0
 const TILE_LAKE = 1
 const TILE_RESERVED = 2
@@ -157,7 +158,7 @@ func _ensure_debug_visual() -> void:
 
 func _ensure_grid_model() -> void:
 	var resolved_model: GridModel = null
-	var core_root = get_node_or_null("/root/CoreRoot")
+	var core_root = INSTANCE.core(self)
 	if core_root != null and core_root.has_method("get_state"):
 		var state = core_root.get_state()
 		if state != null:

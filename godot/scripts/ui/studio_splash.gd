@@ -31,6 +31,7 @@ extends Control
 ## went on ticking and striking behind the slow fade, "the intro plays out in the
 ## background", the user 5. 11.). Headless runs go straight to main.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const MAIN_SCENE := "res://scenes/main.tscn"
 ## main.WINDOW_TITLE (preloading main.gd here would load the whole game up front).
 const WINDOW_TITLE := "Cursed Camp Manager Simulator"
@@ -195,7 +196,7 @@ func _ready() -> void:
 	_apply(0.0)
 	if preview:
 		return
-	Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
+	INSTANCE.input(self).mouse_mode = Input.MOUSE_MODE_HIDDEN
 	_apply_integer_canvas_scale()
 	_build_audio()
 	ResourceLoader.load_threaded_request(MAIN_SCENE)

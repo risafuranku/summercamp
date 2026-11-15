@@ -306,7 +306,7 @@ func setup(grid_mgr, building_mgr, _ui_adapter = null, interior_host: Node = nul
 
 func open_panel() -> bool:
 	_open = true
-	Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
+	INSTANCE.input(self).mouse_mode = Input.MOUSE_MODE_HIDDEN
 	if not _has_power():
 		# The camp's power is off: a dead screen, nothing to boot.
 		return true
@@ -321,7 +321,7 @@ func open_panel() -> bool:
 func close_panel() -> void:
 	_open = false
 	_close_start_menu()
-	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	INSTANCE.input(self).mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 
 func is_open() -> bool:

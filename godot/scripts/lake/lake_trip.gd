@@ -249,7 +249,7 @@ func _start_rowing(dest: String) -> void:
 	var p := _player()
 	if p != null and p.has_method("set_controls_enabled"):
 		p.set_controls_enabled(false)
-	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	_ensure_overlay()
 	_overlay.visible = true
 	_set_hands_visible(true)
@@ -403,10 +403,10 @@ func _update_rowing(delta: float) -> void:
 ## rows. [left, right].
 func _steer() -> Array:
 	# (The walk's actions: the keys as the warden set them and the pad's left stick.)
-	var w := Input.is_action_pressed("move_forward") or Input.is_physical_key_pressed(KEY_UP)
-	var s := Input.is_action_pressed("move_backward") or Input.is_physical_key_pressed(KEY_DOWN)
-	var a := Input.is_action_pressed("move_left") or Input.is_physical_key_pressed(KEY_LEFT)
-	var d := Input.is_action_pressed("move_right") or Input.is_physical_key_pressed(KEY_RIGHT)
+	var w = INSTANCE.input(self).is_action_pressed("move_forward") or INSTANCE.input(self).is_physical_key_pressed(KEY_UP)
+	var s = INSTANCE.input(self).is_action_pressed("move_backward") or INSTANCE.input(self).is_physical_key_pressed(KEY_DOWN)
+	var a = INSTANCE.input(self).is_action_pressed("move_left") or INSTANCE.input(self).is_physical_key_pressed(KEY_LEFT)
+	var d = INSTANCE.input(self).is_action_pressed("move_right") or INSTANCE.input(self).is_physical_key_pressed(KEY_RIGHT)
 	if a and d:
 		a = false
 		d = false
@@ -656,7 +656,7 @@ func _finish_trip() -> void:
 	var p := _player()
 	if p != null and p.has_method("set_controls_enabled"):
 		p.set_controls_enabled(true)
-	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
 
 # ── the far shore ─────────────────────────────────────────────────────────────
@@ -674,7 +674,7 @@ func _begin_far_shore() -> void:
 	# Facing the boathouse (north, +Z); turn round for the camp across the water.
 	_base_rot = Vector3(deg_to_rad(-6.0), PI, 0.0)
 	_look.reset()
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	_build_hot()
 	_update_lantern()
 	var h := float(_main.get("_time_of_day_hours"))
@@ -719,7 +719,7 @@ func _update_far_shore(delta: float) -> void:
 		return
 	# W and S row here.
 	_look.keys_tilt = false
-	var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.key_axis())
+	var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.key_axis(self), self)
 	_cam.rotation = _base_rot + offset
 	_update_fishing(delta)
 	# What is under the cursor: things on screen within a few degrees of the ray. The
@@ -782,7 +782,7 @@ func return_home() -> void:
 ## so a click never came through to here and the far shore could not be left.
 func _input(event: InputEvent) -> void:
 	if _state == ROWING or _state == PASSENGER:
-		if event is InputEventMouseMotion and not _moving and Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
+		if event is InputEventMouseMotion and not _moving and INSTANCE.input(self).get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
 			_look_round((event as InputEventMouseMotion).relative)
 		if _state == PASSENGER:
 			# By the camp jetty a passenger may step out (Esc or the right button too).
@@ -1276,7 +1276,7 @@ func _start_passenger() -> void:
 	var p := _player()
 	if p != null and p.has_method("set_controls_enabled"):
 		p.set_controls_enabled(false)
-	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	_ensure_overlay()
 	_overlay.visible = true
 	_set_hands_visible(false)

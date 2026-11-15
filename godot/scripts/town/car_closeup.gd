@@ -189,7 +189,7 @@ func _tick(delta: float) -> void:
 	var car := _car()
 	var has := _has()
 	# Pouring: held on the filler with the full can.
-	var pouring := hovered() == "filler" and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and str(has.get("canister", "")) == "full" and float(car.get("fuel", 0.0)) < 1.0
+	var pouring = hovered() == "filler" and INSTANCE.input(self).is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and str(has.get("canister", "")) == "full" and float(car.get("fuel", 0.0)) < 1.0
 	if pouring:
 		if not _pour_snd:
 			_pour_snd = true

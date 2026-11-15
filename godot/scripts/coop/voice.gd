@@ -123,7 +123,7 @@ func _process(delta: float) -> void:
 
 
 func _held(action: String) -> bool:
-	return InputMap.has_action(action) and Input.is_action_pressed(action)
+	return InputMap.has_action(action) and INSTANCE.input(self).is_action_pressed(action)
 
 
 ## In the game, not in a menu, not typing.

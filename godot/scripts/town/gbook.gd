@@ -213,7 +213,7 @@ func leave() -> void:
 	_fan_on = false
 	_speaker.stop()
 	_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	closed.emit()
 
 
@@ -323,9 +323,9 @@ func _process(delta: float) -> void:
 		return
 	var m := get_viewport().get_mouse_position()
 	if _on_screen(m) or _held:
-		Input.set_mouse_mode(Input.MOUSE_MODE_HIDDEN)
+		INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_HIDDEN)
 	else:
-		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+		INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 		HandCursor.want(HandCursor.WALK if _in_exit_band(m) else HandCursor.ARROW)
 
 

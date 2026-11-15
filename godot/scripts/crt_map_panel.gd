@@ -823,19 +823,19 @@ func _update_keyboard_pan(delta: float) -> void:
 	if not wasd and not has_focus() and not _mouse_inside():
 		return
 	var move := Vector2.ZERO
-	if Input.is_key_pressed(KEY_LEFT) or (wasd and Input.is_physical_key_pressed(KEY_A)):
+	if INSTANCE.input(self).is_key_pressed(KEY_LEFT) or (wasd and INSTANCE.input(self).is_physical_key_pressed(KEY_A)):
 		move.x -= 1.0
-	if Input.is_key_pressed(KEY_RIGHT) or (wasd and Input.is_physical_key_pressed(KEY_D)):
+	if INSTANCE.input(self).is_key_pressed(KEY_RIGHT) or (wasd and INSTANCE.input(self).is_physical_key_pressed(KEY_D)):
 		move.x += 1.0
-	if Input.is_key_pressed(KEY_UP) or (wasd and Input.is_physical_key_pressed(KEY_W)):
+	if INSTANCE.input(self).is_key_pressed(KEY_UP) or (wasd and INSTANCE.input(self).is_physical_key_pressed(KEY_W)):
 		move.y -= 1.0
-	if Input.is_key_pressed(KEY_DOWN) or (wasd and Input.is_physical_key_pressed(KEY_S)):
+	if INSTANCE.input(self).is_key_pressed(KEY_DOWN) or (wasd and INSTANCE.input(self).is_physical_key_pressed(KEY_S)):
 		move.y += 1.0
 	if move.length_squared() <= 0.0001:
 		return
 	move = move.normalized()
 	var speed = KEYBOARD_PAN_SPEED
-	if Input.is_key_pressed(KEY_SHIFT):
+	if INSTANCE.input(self).is_key_pressed(KEY_SHIFT):
 		speed *= KEYBOARD_PAN_SPRINT_MULT
 	if _in_3d():
 		map3d.key_pan(move, speed * delta)
@@ -1106,7 +1106,7 @@ func _request_path_at(local_pos: Vector2) -> void:
 	var coord = _local_to_grid(local_pos)
 	if not _is_valid_coord(coord):
 		return
-	var straight := Input.is_key_pressed(KEY_SHIFT)
+	var straight = INSTANCE.input(self).is_key_pressed(KEY_SHIFT)
 	if coord == _path_end and not (straight and _path_axis != -1):
 		return
 	_path_end = coord
@@ -3446,7 +3446,7 @@ func _has_money(building_type: String) -> bool:
 	var cost = _get_cost(building_type)
 	if cost <= 0:
 		return true
-	var core = get_node_or_null("/root/CoreRoot")
+	var core = INSTANCE.core(self)
 	if core == null or not core.has_method("get_money"):
 		return true
 	return int(core.get_money()) >= cost
@@ -3544,9 +3544,9 @@ func _any_pending_interaction() -> bool:
 
 func _on_mouse_exited() -> void:
 	hover_coord = Vector2i(-1, -1)
-	if _path_drag_active and not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+	if _path_drag_active and not INSTANCE.input(self).is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 		_end_path_drag()
-	if _demolish_drag_active and not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+	if _demolish_drag_active and not INSTANCE.input(self).is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 		_finish_demolish_drag()
 	queue_redraw()
 

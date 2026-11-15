@@ -282,7 +282,7 @@ func open_cabin(level: int = 1) -> void:
 	_apply_time_profile()
 	_refresh_guest_visuals()
 	_cam_base_rot = _interior_camera.rotation
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 
 ## A little down: the floor in view to clean it at once, the window still whole (the
@@ -605,7 +605,7 @@ func close_cabin() -> void:
 	_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	_viewport.audio_listener_enable_3d = false
 	ONE_WORLD_ROOM.camp_view(get_tree(), true)
-	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	request_close.emit()
 
 
@@ -1029,7 +1029,7 @@ func _apply_idle_mouse_look(delta: float) -> void:
 	# (The walk through the door has the camera.)
 	if lodge_sleeping or _walking():
 		return
-	var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.turn_axis())
+	var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.turn_axis(self), self)
 	_interior_camera.rotation = _cam_base_rot + offset
 	# A/D turn the head; held on at the end of the turn, through the door that way.
 	var push: int = _look.take_push()
@@ -2341,7 +2341,7 @@ func debug_pointer_on_bath_door() -> void:
 		return
 	var screen := get_viewport().get_visible_rect().size
 	var sp: Vector2 = _interior_camera.unproject_position((door["body"] as Node3D).global_position) / Vector2(_viewport.size) * screen
-	Input.warp_mouse(sp * Vector2(DisplayServer.window_get_size()) / screen)
+	INSTANCE.input(self).warp_mouse(sp * Vector2(DisplayServer.window_get_size()) / screen)
 
 
 func _sfx(player: AudioStreamPlayer, path: String, db: float) -> void:

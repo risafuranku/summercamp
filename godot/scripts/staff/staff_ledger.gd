@@ -13,7 +13,6 @@ extends "res://scripts/closeup/closeup_view.gd"
 ##   DAY     what the hands did today, their wages tonight
 ## The same is on the office PC in Boss 98 (os98/apps/boss_app.gd).
 
-const INSTANCE = preload("res://scripts/instance/instance.gd")
 const RULES := preload("res://core/systems/staff_rules.gd")
 const BRT := preload("res://core/systems/business_rules.gd")
 const BUSINESS := preload("res://scripts/business/business_runtime.gd")

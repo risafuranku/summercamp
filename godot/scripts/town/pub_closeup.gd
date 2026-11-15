@@ -8,7 +8,6 @@ extends "res://scripts/closeup/closeup_view.gd"
 ##   - Mr Kubat: talk.
 ## Open 10:00-23:00.
 
-const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal drank
 
 const PIC := "res://assets/textury/town/closeup_pub.png"

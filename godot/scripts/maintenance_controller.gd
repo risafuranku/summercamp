@@ -379,7 +379,7 @@ func _find_target() -> Dictionary:
 
 
 func _update_work(delta: float, can_act: bool) -> void:
-	var held := can_act and InputMap.has_action("maintain") and Input.is_action_pressed("maintain")
+	var held = can_act and InputMap.has_action("maintain") and INSTANCE.input(self).is_action_pressed("maintain")
 	var workable := not _target.is_empty() and (bool(_target["broken"]) or float(_target["condition"]) < 0.9)
 	if workable and bool(_target["broken"]) and str(_target["type"]) == "sewer":
 		workable = false

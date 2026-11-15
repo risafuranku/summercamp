@@ -158,7 +158,7 @@ func _join(att: Node3D) -> void:
 	_cam.current = true
 	if p.has_method("set_controls_enabled"):
 		p.set_controls_enabled(false)
-	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
 
 func leave() -> void:
@@ -318,7 +318,7 @@ func _aim_cam(k: float) -> void:
 func _input(event: InputEvent) -> void:
 	if _att == null or get_tree().paused:
 		return
-	if event is InputEventMouseMotion and Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
+	if event is InputEventMouseMotion and INSTANCE.input(self).get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
 		var sens := GameSettings.get_mouse_sensitivity() if GameSettings != null else 1.0
 		_yaw = clampf(_yaw - event.relative.x * 0.0024 * sens, -1.9, 1.9)
 		_pitch = clampf(_pitch - event.relative.y * 0.002 * sens, -0.7, 0.7)

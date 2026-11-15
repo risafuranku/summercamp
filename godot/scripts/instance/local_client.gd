@@ -11,6 +11,10 @@ extends Node
 
 const INSTANCE = preload("res://scripts/instance/instance.gd")
 const INPUT = preload("res://scripts/instance/instance_input.gd")
+const PAD = preload("res://scripts/input/pad.gd")
+## The second warden's sounds go here, silent: the camp is heard once, from the host's game
+## (its own world's sounds and music would play everything twice).
+const BUS := "LocalClient"
 const MAIN_SCENE := "res://scenes/main.tscn"
 ## The services a co-op machine has one of, in the autoloads' order (project.godot).
 const SERVICES := [
@@ -22,12 +26,17 @@ const SERVICES := [
 ]
 ## The line between the two pictures, in the window's pixels.
 const GAP := 2
+## Its pad's Menu held this long: the second warden leaves (once the Menu that joined it is
+## let go).
+const LEAVE_HOLD := 1.2
 
 ## Its main (INSTANCE.main_of for what is under this node).
 var main: Node
 var input = INPUT.new()
 var box: SubViewportContainer
 var screen: SubViewport
+var _menu_held := 0.0
+var _menu_armed := false
 
 
 ## The second warden in: the host's camp hosted (if it is not), this instance made, its
@@ -55,6 +64,13 @@ func _build(port: int) -> void:
 		add_child(n)
 	var coop := get_node("Coop")
 	coop.port = port
+	# Its own pad's translator: its events into its screen and its own input (feed_event).
+	var pad = PAD.new()
+	pad.name = "Pad"
+	pad.sink = self
+	pad.only_device = input.device
+	add_child(pad)
+	_quiet()
 	box = SubViewportContainer.new()
 	box.name = "Screen"
 	box.stretch = true
@@ -77,6 +93,30 @@ func _build(port: int) -> void:
 	layout(true)
 
 
+## One of its pad's made events: into its own input and pushed into its screen (the
+## window's input never reaches it: its box takes none).
+func feed_event(event: InputEvent) -> void:
+	input.feed(event)
+	if screen != null:
+		screen.push_input(event, true)
+
+
+## Its sounds on a silent bus of their own (now and for everything it makes later).
+func _quiet() -> void:
+	if AudioServer.get_bus_index(BUS) < 0:
+		AudioServer.add_bus()
+		AudioServer.set_bus_name(AudioServer.bus_count - 1, BUS)
+	AudioServer.set_bus_mute(AudioServer.get_bus_index(BUS), true)
+	get_tree().node_added.connect(_on_node_added)
+
+
+func _on_node_added(node: Node) -> void:
+	if (node is AudioStreamPlayer or node is AudioStreamPlayer2D or node is AudioStreamPlayer3D) and is_ancestor_of(node):
+		node.set("bus", BUS)
+		# (Its own _ready may set a bus of its own: after that, ours again.)
+		node.ready.connect(func() -> void: node.set("bus", BUS), CONNECT_ONE_SHOT)
+
+
 ## The window split down the middle (true) or the host's alone (false).
 func layout(split: bool) -> void:
 	var host_main := (Engine.get_main_loop() as SceneTree).current_scene
@@ -96,11 +136,27 @@ func layout(split: bool) -> void:
 		one.offset_right = -GAP * 0.5 if split else 0.0
 
 
-## The second warden out: its Coop leaves the line, its instance goes, the window whole.
+func _process(delta: float) -> void:
+	if not Input.is_joy_button_pressed(input.device, JOY_BUTTON_START):
+		_menu_armed = true
+		_menu_held = 0.0
+		return
+	if _menu_armed:
+		_menu_held += delta
+		if _menu_held >= LEAVE_HOLD:
+			stop()
+
+
+## The second warden out: its Coop leaves the line, its instance goes, its pad is the
+## window's again, the window whole.
 func stop() -> void:
+	set_process(false)
 	var coop := get_node_or_null("Coop")
 	if coop != null:
 		coop.leave()
+	var pad := PAD.node()
+	if pad != null:
+		pad.claim(input.device, false)
 	layout(false)
 	INSTANCE.count = 1
 	queue_free()

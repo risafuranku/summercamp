@@ -9,7 +9,6 @@ extends "res://scripts/closeup/closeup_view.gd"
 ##
 ## What you buy goes into the pockets (scripts/town/pockets.gd) via `bought`.
 
-const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal bought(item: String)
 
 const PIC := "res://assets/textury/town/closeup_shop.png"
@@ -159,7 +158,7 @@ func _tick(delta: float) -> void:
 	if _card.is_empty() or _mouse.x < 0.0:
 		_last_scratch = Vector2(-1, -1)
 		return
-	if not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+	if not INSTANCE.input(self).is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 		_last_scratch = Vector2(-1, -1)
 		return
 	# Scratch along the way the mouse went since the last frame.

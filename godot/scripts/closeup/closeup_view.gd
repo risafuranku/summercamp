@@ -15,6 +15,7 @@ extends CanvasLayer
 ##   _tick(delta)
 ##   _opened() / _closing()
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal closed
 
 const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
@@ -102,7 +103,7 @@ func open_view() -> void:
 	_closing_t = -1.0
 	_hover = ""
 	_layout()
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	_opened()
 
 

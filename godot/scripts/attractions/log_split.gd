@@ -103,7 +103,7 @@ func open(att: Node3D) -> bool:
 	_set_round()
 	if p != null and p.has_method("set_controls_enabled"):
 		p.set_controls_enabled(false)
-	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	return true
 
 
@@ -173,7 +173,7 @@ func _process(delta: float) -> void:
 func _input(event: InputEvent) -> void:
 	if _att == null or get_tree().paused:
 		return
-	if event is InputEventMouseMotion and Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
+	if event is InputEventMouseMotion and INSTANCE.input(self).get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
 		var sens := GameSettings.get_mouse_sensitivity() if GameSettings != null else 1.0
 		_yaw -= event.relative.x * 0.0018 * sens
 		_pitch -= event.relative.y * 0.0016 * sens

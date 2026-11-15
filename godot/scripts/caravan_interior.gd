@@ -199,7 +199,7 @@ func open_caravan(level: int = 1, walked := false) -> void:
 		_interior_camera.rotation_degrees = Vector3(EYE_PITCH_DEG, EYE_YAW_DEG, 0.0)
 		_cam_base_rot = _interior_camera.rotation
 		_look.reset()
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 
 func close_caravan() -> void:
@@ -221,7 +221,7 @@ func close_caravan() -> void:
 		_life.on_leave()
 	_interior_camera.fov = ROOM_FOV
 	_set_smash_heard(false)
-	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	request_close.emit()
 
 
@@ -239,7 +239,7 @@ func _process(delta: float) -> void:
 	if _walking:
 		return
 	if not lodge_sleeping:
-		var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.turn_axis())
+		var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.turn_axis(self), self)
 		_interior_camera.rotation = _cam_base_rot + offset
 	_update_torch(delta)
 	if _exit_hint == null:

@@ -11,7 +11,6 @@ extends "res://scripts/closeup/closeup_view.gd"
 ## The picture is the dark counter (assets/textury/closeup/ledger.png darkened) with the
 ## receipt drawn over it: thermal paper, purple-grey ink, torn at the top.
 
-const INSTANCE = preload("res://scripts/instance/instance.gd")
 const RULES := preload("res://core/systems/business_rules.gd")
 const LANG := preload("res://scripts/lang.gd")
 const SFX_PRINT := "res://assets/sfx/bistro/till.mp3"

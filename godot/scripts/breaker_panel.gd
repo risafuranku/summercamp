@@ -100,7 +100,7 @@ func open(fault_index: int, boy_tier := 0) -> void:
 	_needle = 0.0
 	_status = tr("The main has tripped. The camp is dark.")
 	visible = true
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	_board.queue_redraw()
 
 

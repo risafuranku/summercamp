@@ -457,7 +457,7 @@ func open_service(service_type: String) -> void:
 		_store_room.on_open(_anchor_key())
 	_cam_base_rot = _interior_camera.rotation
 	_look.reset()
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	_update_sewer_ambience_state()
 
 
@@ -534,7 +534,7 @@ func close_service() -> void:
 	if _amb != null:
 		_amb.stop()
 	_update_sewer_ambience_state()
-	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	request_close.emit()
 
 
@@ -659,7 +659,7 @@ func _process(delta: float) -> void:
 
 
 func _apply_idle_mouse_look(delta: float) -> void:
-	var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.turn_axis())
+	var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.turn_axis(self), self)
 	_interior_camera.rotation = _cam_base_rot + offset
 	# A/D turn the head; held on at the end of the turn, through the door that way.
 	var push: int = _look.take_push()
@@ -4519,7 +4519,7 @@ func on_breaker_board_closed() -> void:
 	if _shed != null:
 		_shed.on_board_closed()
 	if _is_open:
-		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+		INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 
 ## Your torch in here (interior_torch.gd): held by this room's eye while it is switched on.

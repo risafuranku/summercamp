@@ -371,7 +371,7 @@ func _paper_read() -> void:
 	if _paper_stopped:
 		_paper_stopped = false
 		trip._set_player_controls(true)
-	Input.set_mouse_mode(_mouse_before)
+	INSTANCE.input(self).set_mouse_mode(_mouse_before)
 
 
 # ── open and shut ────────────────────────────────────────────────────────────
@@ -390,8 +390,8 @@ func reserve_left() -> float:
 func _open_bag() -> void:
 	_open = true
 	_sticky = false
-	_mouse_before = Input.get_mouse_mode()
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	_mouse_before = INSTANCE.input(self).get_mouse_mode()
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	_canvas.mouse_filter = Control.MOUSE_FILTER_STOP
 	_canvas.visible = true
 	_set_forced(true)
@@ -409,7 +409,7 @@ func close(recapture := true) -> void:
 	_canvas.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_set_forced(false)
 	if recapture and _mouse_before == Input.MOUSE_MODE_CAPTURED:
-		Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+		INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	_play("close.mp3", -9.0)
 
 

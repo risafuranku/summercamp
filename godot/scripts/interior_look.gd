@@ -14,6 +14,7 @@ extends RefCounted
 ## stick from the middle: the whole screen turned.)
 
 const PROMPT = preload("res://scripts/input/prompt.gd")
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 
 ## Outer share of the screen width that holds a turn at its end (the tent's old dwell).
 const EDGE_BAND := 0.20
@@ -96,7 +97,8 @@ func reset() -> void:
 ## `key_axis`: -1 turn left, 1 turn right (A/D, the arrows: turn_axis). W and S tilt it here.
 ## Returns the rotation offset (pitch, yaw, 0) in radians to add to the base view. It is
 ## already smooth: set the camera to base + offset directly, no further easing.
-func update(delta: float, cursor: Vector2, key_axis: float = 0.0) -> Vector3:
+## `who`: the node it looks for (its instance's input: scripts/instance/instance.gd).
+func update(delta: float, cursor: Vector2, key_axis: float = 0.0, who: Node = null) -> Vector3:
 	var dt := clampf(delta, 0.0, 0.1)
 	_t += dt
 	var steer := cursor.x >= 0.0 and cursor.y >= 0.0
@@ -106,7 +108,7 @@ func update(delta: float, cursor: Vector2, key_axis: float = 0.0) -> Vector3:
 		# A look with a wider calm middle (a station's work fills the picture) has narrower
 		# bands; something held, narrower still.
 		var band := EDGE_TURN * clampf((1.0 - dead) / (1.0 - STICK_DEAD), 0.45, 1.0)
-		if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+		if INSTANCE.input(who).is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 			band *= EDGE_HELD
 		# Round by the left and right edges only: along the bottom lies the way out (the
 		# exit band, a click), along the top what hangs there (the rail of orders); up and
@@ -115,7 +117,7 @@ func update(delta: float, cursor: Vector2, key_axis: float = 0.0) -> Vector3:
 		want_yaw = -edge.x * MAX_YAW_SPEED_DEG
 	want_yaw -= clampf(key_axis, -1.0, 1.0) * KEY_YAW_SPEED_DEG
 	if keys_tilt:
-		want_pitch += tilt_axis() * KEY_PITCH_SPEED_DEG
+		want_pitch += tilt_axis(who) * KEY_PITCH_SPEED_DEG
 	if hold:
 		want_yaw = 0.0
 		want_pitch = 0.0
@@ -235,21 +237,23 @@ static func cursor_of(viewport: Viewport) -> Vector2:
 
 
 ## A/D and the arrow keys as an axis (-1..1): turning the head in a room.
-static func turn_axis() -> float:
-	var axis := key_axis()
-	if Input.is_physical_key_pressed(KEY_A):
+static func turn_axis(who: Node = null) -> float:
+	var inp := INSTANCE.input(who)
+	var axis := key_axis(who)
+	if inp.is_physical_key_pressed(KEY_A):
 		axis -= 1.0
-	if Input.is_physical_key_pressed(KEY_D):
+	if inp.is_physical_key_pressed(KEY_D):
 		axis += 1.0
 	return clampf(axis, -1.0, 1.0)
 
 
 ## W S and the arrows as an axis (1 up, -1 down): tilting the head in a room.
-static func tilt_axis() -> float:
+static func tilt_axis(who: Node = null) -> float:
+	var inp := INSTANCE.input(who)
 	var axis := 0.0
-	if Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP):
+	if inp.is_physical_key_pressed(KEY_W) or inp.is_physical_key_pressed(KEY_UP):
 		axis += 1.0
-	if Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN):
+	if inp.is_physical_key_pressed(KEY_S) or inp.is_physical_key_pressed(KEY_DOWN):
 		axis -= 1.0
 	return axis
 
@@ -270,11 +274,12 @@ static func side_tab_at(viewport: Viewport, hints: Control) -> int:
 
 
 ## Left/right arrow keys as an axis (-1..1).
-static func key_axis() -> float:
+static func key_axis(who: Node = null) -> float:
+	var inp := INSTANCE.input(who)
 	var axis := 0.0
-	if Input.is_physical_key_pressed(KEY_LEFT):
+	if inp.is_physical_key_pressed(KEY_LEFT):
 		axis -= 1.0
-	if Input.is_physical_key_pressed(KEY_RIGHT):
+	if inp.is_physical_key_pressed(KEY_RIGHT):
 		axis += 1.0
 	return axis
 

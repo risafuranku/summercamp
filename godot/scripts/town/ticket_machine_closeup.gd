@@ -11,7 +11,6 @@ extends "res://scripts/closeup/closeup_view.gd"
 ## it (into the bag, to be punched on the bus). Now and then it keeps the money and
 ## thinks about it: thump it. The LCD speaks Czech; the strip under says it in English.
 
-const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal ticket_taken(to: String)
 
 const PIC := "res://assets/textury/town/closeup_stop_machine.png"

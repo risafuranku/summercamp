@@ -359,7 +359,7 @@ func open_repair(coord: Vector2i, building_type: String, _label_text: String = "
 	_vibe.start(raccoon_level, _rng.randi())
 	_play_one("ladder.mp3", -4.0)
 	_update_rig(0.0)
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 
 ## The family's boy's tier at the sewer tonight (scripts/night_jobs.gd), 0 none.
@@ -2131,7 +2131,7 @@ func _arrive() -> void:
 
 
 func _update_clamp(delta: float) -> void:
-	if Input.is_physical_key_pressed(KEY_E) or Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+	if INSTANCE.input(self).is_physical_key_pressed(KEY_E) or INSTANCE.input(self).is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 		_clamp += delta / CLAMP_SECONDS
 		_work_hand.start("Clamping", get_viewport().get_visible_rect().size * Vector2(0.5, 0.55))
 		_work_hand.aim(get_viewport().get_visible_rect().size * Vector2(0.5, 0.55))
@@ -2273,7 +2273,7 @@ func _update_torch(delta: float) -> void:
 		pull_k = floorf((pf - floorf(pf)) * PULL_SECONDS * 12.0) / (PULL_SECONDS * 12.0)
 	var bob := (sin(pull_k * PI) * 14.0 * k) if _moving else (floorf(sin(_bob * 0.8) * 2.0) * k)
 	var lowered := 0.0 if _flashlight.visible else _torch_hand.size.y * 0.55
-	var clamping := _at_leak and (Input.is_physical_key_pressed(KEY_E) or Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT))
+	var clamping = _at_leak and (INSTANCE.input(self).is_physical_key_pressed(KEY_E) or INSTANCE.input(self).is_mouse_button_pressed(MOUSE_BUTTON_LEFT))
 	var hide := _torch_hand.size.y * (1.0 if clamping else 0.0)
 	var turn_x := 0.0
 	if _turning:

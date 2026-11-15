@@ -359,7 +359,7 @@ func open_bowling(p_key: String) -> void:
 		_hall.play(_rng.randf() * 4.0)
 	if _hum.stream != null and _power:
 		_hum.play()
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	_make_stations()
 	_machine_was = "?"
 	_jam_was = str(_bowling.jam_of(key).get("jam", "")) if _bowling.jammed(key) else ""
@@ -401,7 +401,7 @@ func close_bowling() -> void:
 	_parties.clear()
 	for lane in _lanes:
 		lane.reset_view()
-	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	request_close.emit()
 
 
@@ -434,7 +434,7 @@ func _process(delta: float) -> void:
 		return
 	var moving := _station_tween != null and _station_tween.is_valid() and _station_tween.is_running()
 	if not moving and (_move == null or not _move.is_running()):
-		var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.turn_axis())
+		var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.turn_axis(self), self)
 		_interior_camera.rotation = _cam_base_rot + offset
 	if _exit_hint == null:
 		_exit_hint = INTERIOR_LOOK.make_exit_hint(self, "Leave   [Esc]" if _spot == "hall" else "Back   [Esc]")

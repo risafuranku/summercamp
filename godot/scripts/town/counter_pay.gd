@@ -13,7 +13,6 @@ extends "res://scripts/closeup/closeup_view.gd"
 ## Nothing is said about any of this on the screen: a wallet, a mat, a sum on a till.
 
 ## She has taken the money: spend it now (counter_shop.gd).
-const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal paid
 
 const GOODS = preload("res://scripts/town/counter_goods.gd")
@@ -217,7 +216,7 @@ func _moving() -> bool:
 func _tick(delta: float) -> void:
 	if not _drag.is_empty():
 		HandCursor.want(HandCursor.GRAB)
-		if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and _mouse.x >= 0.0:
+		if INSTANCE.input(self).is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and _mouse.x >= 0.0:
 			_drag["at"] = (_mouse - _grab).floor()
 		else:
 			_drop()

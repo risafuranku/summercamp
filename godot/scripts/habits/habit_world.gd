@@ -686,7 +686,7 @@ func _offer_light(fig: Node3D, hb: Dictionary) -> void:
 	var mine: int = pockets.cig.coop_code()
 	if not (mine in [2, 3, 4]) or not _facing(fig, 1.4):
 		return
-	if mine == 2 or Input.is_action_pressed("smoke"):
+	if mine == 2 or INSTANCE.input(self).is_action_pressed("smoke"):
 		_light_cd = 3.0
 		send("light_you", [_partner_id])
 		pockets._say("You give %s a light." % INSTANCE.coop(self).name_of(_partner_id))
@@ -698,7 +698,7 @@ func _offer_clink(fig: Node3D, hb: Dictionary) -> void:
 		return
 	if pockets.bottle.coop_code() < 3 or not _facing(fig, 1.3):
 		return
-	if Input.is_action_just_pressed("drink") or Engine.get_process_frames() - int(pockets.b_tap_frame) <= 1:
+	if INSTANCE.input(self).is_action_just_pressed("drink") or Engine.get_process_frames() - int(pockets.b_tap_frame) <= 1:
 		_clink_cd = 6.0
 		_sound(fig, "clink.mp3", -2.0)
 		pockets._play("fx", "clink.mp3", -3.0)

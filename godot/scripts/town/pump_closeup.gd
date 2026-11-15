@@ -90,7 +90,7 @@ func _clicked(id: String) -> void:
 
 func _tick(delta: float) -> void:
 	# Hold the button over the car (or anywhere but the holsters) to pump.
-	var want := _held != "" and not _full and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and _mouse.x >= 0.0 and hovered() != "hang"
+	var want = _held != "" and not _full and INSTANCE.input(self).is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and _mouse.x >= 0.0 and hovered() != "hang"
 	if want and not _pumping:
 		_pumping = true
 		_pump_t = 0.0

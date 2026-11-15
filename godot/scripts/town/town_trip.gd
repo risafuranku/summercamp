@@ -719,7 +719,7 @@ func _room_closeup(kind: String) -> void:
 
 
 func _back_to_room() -> void:
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE if (_room != null and _room.is_open()) else Input.MOUSE_MODE_CAPTURED)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_VISIBLE if (_room != null and _room.is_open()) else Input.MOUSE_MODE_CAPTURED)
 	if _card_from_bag:
 		_card_from_bag = false
 		_set_player_controls(true)
@@ -1006,7 +1006,7 @@ func _update_watcher(block: Node3D, h: float, night: int) -> void:
 
 ## The picture of the last guest to leave the camp (its reviews keep who they were).
 func _last_departed_sprite() -> String:
-	var gm = get_node_or_null("/root/GuestManager")
+	var gm = INSTANCE.guests(self)
 	var st = INSTANCE.core(self).get("state")
 	if gm == null or st == null:
 		return ""
@@ -1071,7 +1071,7 @@ func _open_machine(stop: String) -> void:
 
 func _on_closeup_closed() -> void:
 	_set_player_controls(true)
-	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
 
 func _set_player_controls(on: bool) -> void:
@@ -2058,8 +2058,8 @@ func _update_seated() -> void:
 	if _seated_on == null:
 		return
 	var p := _player()
-	var moving := Input.get_vector("move_left", "move_right", "move_forward", "move_backward").length() > 0.2
-	var again := Input.is_action_just_pressed("interact") and Time.get_ticks_msec() - _seated_ms > 400
+	var moving = INSTANCE.input(self).get_vector("move_left", "move_right", "move_forward", "move_backward").length() > 0.2
+	var again = INSTANCE.input(self).is_action_just_pressed("interact") and Time.get_ticks_msec() - _seated_ms > 400
 	if p == null or moving or again or not is_instance_valid(_seated_on) or is_open():
 		if p != null:
 			p.set("seated", false)

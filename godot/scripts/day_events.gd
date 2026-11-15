@@ -811,7 +811,7 @@ func _done_sound() -> void:
 
 func _update_target(delta: float, can_act: bool) -> void:
 	# E let go (or nothing to work): the mouse is the eye's again.
-	if not (can_act and Input.is_action_pressed("interact")):
+	if not (can_act and INSTANCE.input(self).is_action_pressed("interact")):
 		var pl2 = _main.get("_player") if _main != null else null
 		if pl2 != null and pl2.has_method("lock_look"):
 			pl2.lock_look("day_events", false)
@@ -849,7 +849,7 @@ func _update_target(delta: float, can_act: bool) -> void:
 	var hold := float((RULES[str(ev["kind"])] as Dictionary).get("hold", 0.0))
 	if hold <= 0.0:
 		return
-	if can_act and InputMap.has_action("interact") and Input.is_action_pressed("interact"):
+	if can_act and InputMap.has_action("interact") and INSTANCE.input(self).is_action_pressed("interact"):
 		# Worked by a gesture (scripts/ui/gesture.gd, the brief of 21. 10.): E held, the saw
 		# to and fro, the rubbish picked up and bagged down and up; the eye stays still.
 		var pl = _main.get("_player") if _main != null else null

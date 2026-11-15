@@ -12,6 +12,7 @@ extends Control
 ## meshes to highlight, and listens to `task_completed`. Rules (what tasks exist, how
 ## long they take) come from core/systems/room_rules.gd through GuestManager.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal task_completed(task_id: String)
 
 const PROMPT = preload("res://scripts/input/prompt.gd")
@@ -211,8 +212,8 @@ func _process(delta: float) -> void:
 	_t += delta
 	if not is_visible_in_tree() or _camera == null:
 		return
-	var lmb_now := Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
-	var pressed_now := lmb_now and not _lmb_was
+	var lmb_now = INSTANCE.input(self).is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
+	var pressed_now = lmb_now and not _lmb_was
 	_lmb_was = lmb_now
 	# The pause menu over the room (a co-op camp is not paused): its clicks are its own.
 	if HandCursor.menu_over:
@@ -228,7 +229,7 @@ func _process(delta: float) -> void:
 		hit = ""
 	if _holding.is_empty():
 		_set_hover(hit)
-	var lmb := Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
+	var lmb = INSTANCE.input(self).is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
 	if pressed_now and not _hover.is_empty() and _holding.is_empty() and bool(_targets[_hover].get("scrub", false)):
 		_open_scrub(_hover)
 		return

@@ -72,7 +72,7 @@ func open(info: String) -> void:
 	visible = true
 	_show("main")
 	_list.select_id("resume")
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	HandCursor.menu_over = true
 	# main pauses the tree for this unless a co-op camp goes on (main._open_pause_menu).
 	if INSTANCE.coop(self).is_active():
@@ -113,7 +113,7 @@ func _mute_others(on: bool) -> void:
 		return
 	if not _muted.is_empty():
 		return
-	var coop := get_node_or_null("/root/Coop")
+	var coop := INSTANCE.coop(self)
 	for n in get_tree().root.find_children("*", "", true, false):
 		if n == self or is_ancestor_of(n) or (coop != null and (n == coop or coop.is_ancestor_of(n))):
 			continue

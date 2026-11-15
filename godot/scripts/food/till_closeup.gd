@@ -9,7 +9,6 @@ extends "res://scripts/closeup/closeup_view.gd"
 ## so; too little, or too much change, and it is the camp's money gone. Quick and exact:
 ## they leave you the small change (scripts/food/orders.gd).
 
-const INSTANCE = preload("res://scripts/instance/instance.gd")
 const ORDERS = preload("res://scripts/food/orders.gd")
 const BUSINESS = preload("res://scripts/business/business_runtime.gd")
 const PIC := "res://assets/textury/closeup/shop_till.png"

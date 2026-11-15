@@ -101,7 +101,7 @@ func _load_icons() -> void:
 
 
 func _process(delta: float) -> void:
-	var want := (Input.is_physical_key_pressed(KEY_TAB) or force_open) and _allowed()
+	var want = (INSTANCE.input(self).is_physical_key_pressed(KEY_TAB) or force_open) and _allowed()
 	_open = move_toward(_open, 1.0 if want else 0.0, delta * 6.0)
 	visible = _open > 0.0
 	if not visible:

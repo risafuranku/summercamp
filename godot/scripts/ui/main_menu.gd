@@ -18,6 +18,7 @@ extends CanvasLayer
 ## camps are scripts/profiles.gd's; main.gd owns what the choices *do*, this script and
 ## its pages only report them (the signals).
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal continue_requested
 signal new_game_requested
 ## `sandbox`: no story; `rules` its switches (main.CAMP_RULES: threats, weather, events,
@@ -135,7 +136,7 @@ func _notification(what: int) -> void:
 func open() -> void:
 	visible = true
 	refresh_saves()
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	show_page("main" if PROFILES.has_profile() else "warden")
 
 

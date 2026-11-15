@@ -255,7 +255,7 @@ func open(p_place: String, p_hour: float) -> void:
 	if _one:
 		ONE_WORLD_ROOM.camp_view(get_tree(), false)
 		_vp.audio_listener_enable_3d = true
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	# (Walked through from the place before: its arrive() once the walk in is over.)
 	if not _stepping:
 		_arrive()
@@ -832,7 +832,7 @@ func _process(delta: float) -> void:
 	_t += delta
 	var modal: bool = _is_modal()
 	if not modal:
-		var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.turn_axis())
+		var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.turn_axis(self), self)
 		_cam.rotation = _base_rot + offset
 		_hover = _hover_at(get_viewport().get_mouse_position())
 		if not _hot.has(_hover):

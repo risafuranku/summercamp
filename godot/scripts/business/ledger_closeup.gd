@@ -21,7 +21,6 @@ extends "res://scripts/closeup/closeup_view.gd"
 ## the paper tabs, the pencilled boxes (nine-sliced), the pencil hatching of the bars, the
 ## rubber stamp's frame; only the writing is set here.
 
-const INSTANCE = preload("res://scripts/instance/instance.gd")
 const RULES := preload("res://core/systems/business_rules.gd")
 const BUSINESS := preload("res://scripts/business/business_runtime.gd")
 const LANG := preload("res://scripts/lang.gd")

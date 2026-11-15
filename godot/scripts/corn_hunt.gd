@@ -251,7 +251,7 @@ func _process(delta: float) -> void:
 				_rustle_player.play()
 		if Vector2(ppos.x - _guest.global_position.x, ppos.z - _guest.global_position.z).length() < 1.8:
 			_set_hint("[E] Take %s by the arm" % guest_name)
-			if Input.is_action_just_pressed("interact"):
+			if INSTANCE.input(self).is_action_just_pressed("interact"):
 				_following = true
 				_crumbs.clear()
 				_set_hint("")
@@ -415,7 +415,7 @@ func _boy_process(delta: float, player: Node3D, ppos: Vector3, in_corn: bool) ->
 			_boy_heat()
 		if Vector2(ppos.x - _guest.global_position.x, ppos.z - _guest.global_position.z).length() < 1.6:
 			_set_hint("[E] Take his hand")
-			if Input.is_action_just_pressed("interact"):
+			if INSTANCE.input(self).is_action_just_pressed("interact"):
 				_take_hand()
 		else:
 			_set_hint("")

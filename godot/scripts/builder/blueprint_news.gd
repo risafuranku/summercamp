@@ -9,6 +9,7 @@ extends Control
 ## with the card's sound; OK (a click, Enter, Space) puts it away. builder_module then
 ## takes the padlocks off their cards in the catalogue.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const T = preload("res://scripts/os98/os_theme.gd")
 const LANG = preload("res://scripts/lang.gd")
 const PIC := Vector2(96, 72)
@@ -45,7 +46,7 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
-	if Input.get_mouse_mode() != Input.MOUSE_MODE_CAPTURED and Rect2(global_position, size * scale).has_point(get_viewport().get_mouse_position()):
+	if INSTANCE.input(self).get_mouse_mode() != Input.MOUSE_MODE_CAPTURED and Rect2(global_position, size * scale).has_point(get_viewport().get_mouse_position()):
 		HandCursor.want(HandCursor.POINT)
 	var now := clampi(int(floorf((_t - 0.25) / EACH_SEC)), -1, items.size())
 	if now != _shown:
@@ -61,7 +62,7 @@ func _process(delta: float) -> void:
 ## station takes every click in its own _input, the window's own turn never came and OK could
 ## not be pressed (the user 9. 11.: "when I have the cursor, let me click OK on the board").
 func _input(e: InputEvent) -> void:
-	if Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
+	if INSTANCE.input(self).get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
 		return
 	if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT and Rect2(global_position, size * scale).has_point(e.position):
 		get_viewport().set_input_as_handled()

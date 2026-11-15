@@ -333,7 +333,7 @@ func _ready() -> void:
 	add_to_group("player")
 	_damage_rng.randomize()
 	ensure_runtime_setup()
-	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
 
 func ensure_runtime_setup() -> void:
@@ -421,7 +421,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not controls_enabled:
 		return
 
-	if event is InputEventMouseMotion and Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
+	if event is InputEventMouseMotion and INSTANCE.input(self).get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
 		if look_locked:
 			# The mouse is the hand's now (a gesture of work, ui/gesture.gd).
 			gesture_motion += event.relative
@@ -454,8 +454,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	# Esc is the pause menu (main.gd), which releases and recaptures the mouse.
 	# A click recaptures it if something else (alt-tab, a closed window) let it go.
 	var click := event as InputEventMouseButton
-	if click != null and click.pressed and Input.get_mouse_mode() != Input.MOUSE_MODE_CAPTURED:
-		Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	if click != null and click.pressed and INSTANCE.input(self).get_mouse_mode() != Input.MOUSE_MODE_CAPTURED:
+		INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
 
 func _physics_process(delta: float) -> void:
@@ -489,14 +489,14 @@ func _physics_process(delta: float) -> void:
 		_after_physics(delta)
 		return
 
-	var input_vec = Input.get_vector("move_left", "move_right", "move_forward", "move_backward")
+	var input_vec = INSTANCE.input(self).get_vector("move_left", "move_right", "move_forward", "move_backward")
 	var local_dir = Vector3(input_vec.x, 0.0, input_vec.y)
 	var move_dir = (global_transform.basis * local_dir).normalized()
-	var wants_sprint := Input.is_action_pressed("move_sprint") and input_vec.length_squared() > 0.01
+	var wants_sprint = INSTANCE.input(self).is_action_pressed("move_sprint") and input_vec.length_squared() > 0.01
 	# A sprint gets you up off your knees (if there is room over you).
 	if wants_sprint and stance != 0 and is_on_floor():
 		_set_stance(0)
-	var sprinting := wants_sprint and stance == 0 and not _stamina_locked and stamina > 0.0
+	var sprinting = wants_sprint and stance == 0 and not _stamina_locked and stamina > 0.0
 	sprint_lower = move_toward(sprint_lower, 1.0 if sprinting else 0.0, delta * 3.0)
 	_update_stamina(delta, sprinting)
 	# What you walk in slows you (snow, mud, a puddle), and so does being out of breath.
@@ -535,7 +535,7 @@ func _physics_process(delta: float) -> void:
 
 	if not is_on_floor():
 		velocity.y -= gravity * delta
-	elif Input.is_action_just_pressed("move_jump"):
+	elif INSTANCE.input(self).is_action_just_pressed("move_jump"):
 		if stance != 0:
 			# Space gets you up first.
 			_set_stance(0)
@@ -1251,7 +1251,7 @@ func _update_head_motion(delta: float) -> void:
 		_yaw_rate = lerpf(_yaw_rate, wrapf(yaw - _yaw_last, -PI, PI) / delta, 1.0 - exp(-14.0 * delta))
 	_yaw_last = yaw
 	var lean_k := float(view.get("lean", 1.0))
-	var strafe := Input.get_axis("move_right", "move_left") * base_tilt_amount * clampf(_walk_amp * 1.6, 0.0, 1.0) if controls_enabled else 0.0
+	var strafe = INSTANCE.input(self).get_axis("move_right", "move_left") * base_tilt_amount * clampf(_walk_amp * 1.6, 0.0, 1.0) if controls_enabled else 0.0
 	var turn := clampf(_yaw_rate * rotation_tilt_amount, -0.045, 0.045)
 	_current_tilt = lerpf(_current_tilt, (strafe + turn) * lean_k, 1.0 - exp(-tilt_smoothing * delta))
 	# Hurt: the view sways and droops, and limps with the steps.

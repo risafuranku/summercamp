@@ -383,7 +383,7 @@ func _tick_desk(delta: float) -> void:
 	# The pointer is the look's stick, with a wide dead middle (the work fills the picture;
 	# a held button, writing or carrying, widens it further); W A S D turn the head as well.
 	look.dead = DESK_DEAD
-	var offset: Vector3 = look.update(delta, INTERIOR_LOOK.cursor_of(vp) if debug_pointer.x < 0.0 else Vector2(-1, -1), INTERIOR_LOOK.turn_axis())
+	var offset: Vector3 = look.update(delta, INTERIOR_LOOK.cursor_of(vp) if debug_pointer.x < 0.0 else Vector2(-1, -1), INTERIOR_LOOK.turn_axis(host), host)
 	# The label maker works on the keys' labels: the drawer comes out for it.
 	if desk.labels_mode():
 		_set_drawer(true)

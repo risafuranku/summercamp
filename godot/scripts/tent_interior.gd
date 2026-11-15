@@ -181,7 +181,7 @@ func open_tent(level: int = 1) -> void:
 	_facing_door = false
 	# The door as it was left (open if you came in through it).
 	_set_door_open(_tent_door_state(), false)
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 
 func close_tent() -> void:
@@ -199,7 +199,7 @@ func close_tent() -> void:
 	_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	_viewport.audio_listener_enable_3d = false
 	ONE_WORLD_ROOM.camp_view(get_tree(), true)
-	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	request_close.emit()
 
 
@@ -281,7 +281,7 @@ func _update_hover() -> void:
 func _apply_idle_mouse_look(delta: float) -> void:
 	if lodge_sleeping:
 		return
-	var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.turn_axis())
+	var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.turn_axis(self), self)
 	_interior_camera.rotation = _cam_base_rot + offset
 
 

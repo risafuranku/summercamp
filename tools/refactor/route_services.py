@@ -10,7 +10,7 @@ import sys
 
 os.chdir("C:/grimroot/summercamp/godot")
 CONST_LINE = 'const INSTANCE = preload("res://scripts/instance/instance.gd")'
-SERVICES = {"CoreRoot": "core", "EventBus": "bus", "GuestManager": "guests", "EmailManager": "mail", "Coop": "coop"}
+SERVICES = {"CoreRoot": "core", "EventBus": "bus", "GuestManager": "guests", "EmailManager": "mail", "Coop": "coop", "Input": "input"}
 OWNER = {
     "scripts/coop/coop_camp.gd": "main", "scripts/demo/demo_end.gd": "main",
     "scripts/night/director_feed.gd": "main", "scripts/night/night_roll.gd": "main",
@@ -27,7 +27,7 @@ OWNER = {
     "core/systems/maintenance_system.gd": "owner_node", "core/systems/time_system.gd": "owner_node",
 }
 BRAINS = "scripts/enemies/"
-SKIP = {"scripts/instance/instance.gd"}
+SKIP = {"scripts/instance/instance.gd", "scripts/instance/instance_input.gd", "scripts/instance/local_client.gd", "scripts/input/pad.gd", "scripts/main_debug.gd"}
 dry = "--dry" in sys.argv
 only = [a for a in sys.argv[1:] if not a.startswith("--")]
 services = {k: v for k, v in SERVICES.items() if not only or k in only}

@@ -307,7 +307,7 @@ func open_desk(guest: Dictionary, day: int) -> void:
 		_open_t = 0.0
 		_closing_t = -1.0
 		_layout()
-		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+		INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 		_play("book", -10.0)
 		_view_name = _pick_view()
 		_view_prev = ""

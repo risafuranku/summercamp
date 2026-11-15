@@ -627,7 +627,7 @@ func process(delta: float, hour: float) -> bool:
 	if where != "office":
 		var vp: Viewport = host.get_viewport()
 		var look = look_back if where == "back" else (look_bench if where == "bench" else (look_side if where == "side" else look_store))
-		var offset: Vector3 = look.update(delta, INTERIOR_LOOK.cursor_of(vp), INTERIOR_LOOK.turn_axis())
+		var offset: Vector3 = look.update(delta, INTERIOR_LOOK.cursor_of(vp), INTERIOR_LOOK.turn_axis(host), host)
 		var base: Vector3 = back_base_rot if where == "back" else (bench_base_rot if where == "bench" else (SIDE_ROT if where == "side" else STORE_ROOM.STAND_ROT))
 		var want: Vector3 = base + offset
 		# The yaw wraps round: follow it the short way.

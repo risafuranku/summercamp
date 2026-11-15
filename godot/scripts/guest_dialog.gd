@@ -1,5 +1,6 @@
 extends CanvasLayer
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal dialog_closed
 
 const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
@@ -28,7 +29,7 @@ func open_dialog(title_text: String, body_text: String) -> void:
 		_title_label.text = title_text
 	if _body_label != null:
 		_body_label.text = body_text
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 
 func close_dialog() -> void:

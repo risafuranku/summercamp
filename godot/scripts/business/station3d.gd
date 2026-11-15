@@ -982,8 +982,8 @@ func _tick_look(delta: float) -> void:
 	_look.dead = LOOK_DEAD
 	_look.keys_tilt = peek_up <= 0.0
 	if peek_up > 0.0:
-		peek_on = peek_on or LOOK.tilt_axis() > 0.0
-	_look.update(delta, cur, LOOK.turn_axis())
+		peek_on = peek_on or LOOK.tilt_axis(self) > 0.0
+	_look.update(delta, cur, LOOK.turn_axis(self))
 	var base := cam_pose()
 	# Turned away from the work the eyes come up off the counter to the horizon (a little
 	# under it), so the camp is what you see, not the grass at your feet.

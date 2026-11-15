@@ -59,6 +59,8 @@ const TITLE_CAMP = preload("res://scripts/ui/title/title_camp.gd")
 const LAND_WARMUP = preload("res://scripts/town/land_warmup.gd")
 const INSTANCE = preload("res://scripts/instance/instance.gd")
 const SCREEN_INPUT = preload("res://scripts/instance/screen_input.gd")
+const LOCAL_CLIENT = preload("res://scripts/instance/local_client.gd")
+const PAD_INPUT = preload("res://scripts/input/pad.gd")
 const START_DISSOLVE = preload("res://scripts/ui/door_transition.gd")
 const SAVE_CODEC = preload("res://scripts/save_codec.gd")
 const ELECTRICITY_BILLING_SCRIPT = preload("res://scripts/electricity_billing.gd")
@@ -275,6 +277,19 @@ func _enter_tree() -> void:
 ## client in the host's program. The window, its scale and the warden's profile are the
 ## host's; once up it calls the host on 127.0.0.1 instead of showing the title.
 var local_client := false
+## The second warden while it plays here (scripts/instance/local_client.gd).
+var _local_client: Node
+
+
+## A second pad's Menu out in the camp (scripts/input/pad.gd join_handler): the second warden
+## joins this camp as a co-op client in this program; true when it did.
+func _on_second_pad(device: int) -> bool:
+	if local_client or (_local_client != null and is_instance_valid(_local_client)):
+		return false
+	if not _gameplay_started or _menu_mode or _game_over_active or INSTANCE.coop(self).is_client():
+		return false
+	_local_client = LOCAL_CLIENT.start(self, device)
+	return _local_client != null
 
 
 func _ready() -> void:
@@ -289,6 +304,10 @@ func _ready() -> void:
 	heard.main = self
 	_screen.add_child(heard)
 	_screen.move_child(heard, 0)
+	# A second pad's Menu out in the camp: the second warden (a split screen).
+	var pad := PAD_INPUT.node()
+	if pad != null and not local_client:
+		pad.join_handler = _on_second_pad
 	_screen.add_child(HandCursor.new())
 	_show_startup_loading_screen()
 	await get_tree().process_frame
@@ -538,7 +557,7 @@ func _setup_night_jobs() -> void:
 				return
 			if _player != null and _player.has_method("set_controls_enabled"):
 				_player.set_controls_enabled(true)
-			Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+			INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 		)
 	if _interior_manager != null:
 		_interior_manager.structure_interact_override = Callable(self, "_on_structure_interact_override")
@@ -740,7 +759,7 @@ func _coop_books_closed() -> void:
 	if _hud_manager != null:
 		_hud_manager.set_world_hud_visible(true)
 	if not _is_any_interior_open():
-		Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+		INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
 
 ## Stay on: the week is closed, the camp runs on with no end (sandbox from here).
@@ -750,7 +769,7 @@ func _on_week_report_stay() -> void:
 	if _hud_manager != null:
 		_hud_manager.set_world_hud_visible(true)
 	if not _is_any_interior_open():
-		Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+		INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	if _hud_manager != null:
 		_hud_manager.push_status("Vera took the noon bus back to town. \"You know the way,\" she said.", 1)
 
@@ -1322,7 +1341,7 @@ func screen_input(event: InputEvent) -> void:
 	var mb := event as InputEventMouseButton
 	if mb == null or not mb.pressed or mb.button_index != MOUSE_BUTTON_LEFT:
 		return
-	if Input.get_mouse_mode() != Input.MOUSE_MODE_CAPTURED or not _gameplay_started or _menu_mode or _game_over_active or get_tree().paused:
+	if INSTANCE.input(self).get_mouse_mode() != Input.MOUSE_MODE_CAPTURED or not _gameplay_started or _menu_mode or _game_over_active or get_tree().paused:
 		return
 	if _is_any_interior_open() or _in_attraction() or (_lake_trip != null and _lake_trip.is_active()):
 		return
@@ -1473,7 +1492,7 @@ func _spawn_player() -> void:
 			building_manager,
 			economy_manager
 		)
-	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	call_deferred("_sync_active_camera")
 
 
@@ -2116,7 +2135,7 @@ func _finalize_game_over_sequence(delay_sec: float) -> void:
 		await get_tree().create_timer(delay_sec).timeout
 	if not _game_over_active:
 		return
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	_show_game_over_screen()
 
 
@@ -2892,7 +2911,7 @@ func _open_sewer_pipe_repair(coord: Vector2i, building_type: String) -> void:
 	if _sewer_pipe_minigame.is_open():
 		return
 	_sewer_pipe_minigame.open_repair(coord, building_type, "Sewer")
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	if _player != null and _player.has_method("set_controls_enabled"):
 		_player.set_controls_enabled(false)
 
@@ -2918,7 +2937,7 @@ func _open_utility_repair(coord: Vector2i, building_type: String) -> void:
 	if economy_manager != null and economy_manager.has_method("get_label"):
 		label = str(economy_manager.get_label(building_type))
 	_utility_repair_minigame.open_repair(coord, building_type, label)
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	if _player != null and _player.has_method("set_controls_enabled"):
 		_player.set_controls_enabled(false)
 
@@ -2931,13 +2950,13 @@ func _on_repair_completed(coord: Vector2i, _building_type: String) -> void:
 		economy_manager.add_repair_progress(coord, 1.0)
 	if _player != null and _player.has_method("set_controls_enabled"):
 		_player.set_controls_enabled(true)
-	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
 
 func _on_repair_cancelled() -> void:
 	if _player != null and _player.has_method("set_controls_enabled"):
 		_player.set_controls_enabled(true)
-	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
 
 func _time_of_day_string() -> String:
@@ -3023,7 +3042,7 @@ func _enter_main_menu() -> void:
 	_load_preview_world_for_menu()
 	_main_menu.open()
 	_start_menu_music()
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 
 ## The game's HUD off behind the main menu (it stayed over the title after Quit to menu),
@@ -3449,7 +3468,7 @@ func _ensure_runtime_started_after_menu_load() -> void:
 	_menu_mode = false
 	if _main_menu != null and not _revealing:
 		_main_menu.close()
-	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	if _player == null or not is_instance_valid(_player):
 		_spawn_player()
 		_apply_pending_loaded_player_state()
@@ -3686,7 +3705,7 @@ func _open_pause_menu() -> void:
 	_ensure_pause_menu()
 	# Resume gives back the pointer as it was (free in a room, hidden at the PC,
 	# captured outdoors).
-	_pause_prev_mouse = Input.mouse_mode
+	_pause_prev_mouse = INSTANCE.input(self).mouse_mode
 	_pause_menu.open(_pause_info_line())
 	# In co-op the camp goes on for the other warden: the menu is only over your view.
 	get_tree().paused = not INSTANCE.coop(self).is_active()
@@ -3750,7 +3769,7 @@ func _close_pause_menu(recapture_mouse: bool) -> void:
 	_pause_menu.close()
 	get_tree().paused = false
 	if recapture_mouse:
-		Input.set_mouse_mode(_pause_prev_mouse)
+		INSTANCE.input(self).set_mouse_mode(_pause_prev_mouse)
 
 
 ## Each piece looked up on its own: put together first, the lookup found the first piece

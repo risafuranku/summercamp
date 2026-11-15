@@ -19,9 +19,16 @@ extends Node
 ## A screen with keys of its own (a business's stations, the pipes) says which buttons
 ## stand for them while it is shown: screen_keys().
 ## `using_pad`: the last thing touched was the pad (prompt.gd shows its buttons then).
+## A split screen (TODO.md SPLITSCREEN): a local client's instance has a translator of its
+## own for its pad (`only_device`, its made events handed to `sink`: scripts/instance/
+## local_client.gd pushes them into its screen and its own input); the window's translator
+## leaves a pad another instance has alone (`_claimed`), its walk follows its own pad, and
+## another pad's Menu out in the camp asks `join_handler` for the second warden.
 ## rumble(): the body's knocks in the hands (the player's hurt and the ground shaking).
 
 signal device_changed(using_pad: bool)
+
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 
 ## Events made here are marked so (meta), not to be taken for the keyboard's; their device
 ## is the keyboard's and the mouse's (0): the actions made in code answer only that one.
@@ -62,6 +69,15 @@ const TRIGGERS := {JOY_AXIS_TRIGGER_LEFT: [KEY_SHIFT, "rmb"], JOY_AXIS_TRIGGER_R
 var using_pad := false
 ## The pad that spoke last (its sticks are read).
 var pad_device := -1
+## A local client's translator: only this pad, its events to `sink` (feed_event).
+var only_device := -1
+var sink: Node = null
+## The window's translator: pads another instance has, {device: true}.
+var _claimed: Dictionary = {}
+## Asked when a pad not the window's presses Menu: (device) -> true when it took a seat.
+var join_handler: Callable
+## The walk's stick events on the move actions (their device follows pad_device).
+var _walk_events: Array = []
 ## What each held button or trigger was made into, released with it.
 var _held: Dictionary = {}
 ## The cross picked a row since the pointer last moved: A is Enter.
@@ -122,10 +138,22 @@ func _shown(screen: Node) -> bool:
 
 
 func _ready() -> void:
-	name = "Pad"
+	if sink == null:
+		name = "Pad"
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	_take_pad_off_ui()
-	_walk_on_stick()
+	if sink == null:
+		_take_pad_off_ui()
+		_walk_on_stick()
+	else:
+		pad_device = only_device
+
+
+## A pad is another instance's now (true) or the window's again (false).
+func claim(device: int, on: bool) -> void:
+	if on:
+		_claimed[device] = true
+	else:
+		_claimed.erase(device)
 
 
 ## The engine's ui_* actions answer the pad themselves (A accept, B cancel, the cross):
@@ -150,6 +178,17 @@ func _walk_on_stick() -> void:
 		ev.device = -1
 		InputMap.action_add_event(action, ev)
 		InputMap.action_set_deadzone(action, DEAD)
+		_walk_events.append(ev)
+
+
+## The pad that speaks for this translator's warden now: its sticks, its walk (any pad's
+## until one is used; then that one alone: a second pad is another warden's).
+func _set_pad_device(device: int) -> void:
+	if device == pad_device:
+		return
+	pad_device = device
+	for ev in _walk_events:
+		(ev as InputEventJoypadMotion).device = device
 
 
 func _set_using(on: bool) -> void:
@@ -162,16 +201,26 @@ func _set_using(on: bool) -> void:
 func _input(event: InputEvent) -> void:
 	if event.has_meta(MADE):
 		return
+	var pad_event := event is InputEventJoypadButton or event is InputEventJoypadMotion
+	if pad_event and (only_device >= 0 and event.device != only_device or only_device < 0 and _claimed.has(event.device)):
+		return
+	if sink != null and not pad_event:
+		return
 	if event is InputEventJoypadButton:
-		pad_device = event.device
-		_set_using(true)
 		var b := event as InputEventJoypadButton
+		if sink == null and b.pressed and b.button_index == JOY_BUTTON_START and pad_device >= 0 \
+				and event.device != pad_device and join_handler.is_valid() and bool(join_handler.call(event.device)):
+			_claimed[event.device] = true
+			get_viewport().set_input_as_handled()
+			return
+		_set_pad_device(event.device)
+		_set_using(true)
 		_button(b.button_index, b.pressed)
 		get_viewport().set_input_as_handled()
 	elif event is InputEventJoypadMotion:
 		var m := event as InputEventJoypadMotion
 		if absf(m.axis_value) > DEAD:
-			pad_device = event.device
+			_set_pad_device(event.device)
 			_set_using(true)
 		if TRIGGERS.has(m.axis):
 			_trigger(m.axis, m.axis_value)
@@ -183,7 +232,15 @@ func _input(event: InputEvent) -> void:
 
 
 func _pointer_mode() -> bool:
-	return Input.get_mouse_mode() != Input.MOUSE_MODE_CAPTURED
+	return INSTANCE.input(self).get_mouse_mode() != Input.MOUSE_MODE_CAPTURED
+
+
+## A made event to where it goes: the window's (Input), or a local client's (its sink).
+func _send(ev: InputEvent) -> void:
+	if sink != null:
+		sink.feed_event(ev)
+	else:
+		Input.parse_input_event(ev)
 
 
 func _button(index: int, pressed: bool) -> void:
@@ -219,7 +276,7 @@ func _press(id: String, what) -> void:
 	if ev == null:
 		return
 	_held[id] = what
-	Input.parse_input_event(ev)
+	_send(ev)
 
 
 func _release(id: String) -> void:
@@ -228,7 +285,7 @@ func _release(id: String) -> void:
 	var ev := _make(_held[id], false)
 	_held.erase(id)
 	if ev != null:
-		Input.parse_input_event(ev)
+		_send(ev)
 
 
 ## A key (an int) or a mouse button ("lmb"/"rmb") pressed or let go, where the pointer is.
@@ -252,6 +309,10 @@ func _make(what, pressed: bool) -> InputEvent:
 
 ## A mouse event where the pointer is, in the window's pixels.
 func _place(ev: InputEventMouse) -> void:
+	if sink != null:
+		ev.position = sink.input.pointer
+		ev.global_position = sink.input.pointer
+		return
 	var vp := get_viewport()
 	var at := vp.get_mouse_position()
 	var win := vp.get_final_transform() * at
@@ -285,7 +346,7 @@ func _process(delta: float) -> void:
 			mm.relative = whole
 			mm.screen_relative = whole
 			mm.set_meta(MADE, true)
-			Input.parse_input_event(mm)
+			_send(mm)
 
 
 ## A stick past its dead zone, the rest eased in (a square curve: fine near the middle).
@@ -305,6 +366,18 @@ var pointer_at := Vector2(-1, -1)
 
 func _move_pointer(by_window_px: Vector2) -> void:
 	_rows = false
+	if sink != null:
+		# A local client's pointer: on its screen, drawn there (the window's mouse is the host's).
+		var size: Vector2 = sink.screen.size
+		var at: Vector2 = (sink.input.pointer + by_window_px).clamp(Vector2.ZERO, size - Vector2.ONE)
+		var mm := InputEventMouseMotion.new()
+		mm.position = at
+		mm.global_position = at
+		mm.relative = by_window_px
+		mm.screen_relative = by_window_px
+		mm.set_meta(MADE, true)
+		_send(mm)
+		return
 	var vp := get_viewport()
 	var xf := vp.get_final_transform()
 	var win := xf * vp.get_mouse_position() + by_window_px
@@ -319,7 +392,7 @@ func _move_pointer(by_window_px: Vector2) -> void:
 	mm.relative = by_window_px
 	mm.screen_relative = by_window_px
 	mm.set_meta(MADE, true)
-	Input.parse_input_event(mm)
+	_send(mm)
 
 
 func _wheel(button: int) -> void:
@@ -330,4 +403,4 @@ func _wheel(button: int) -> void:
 		mb.factor = 1.0
 		mb.set_meta(MADE, true)
 		_place(mb)
-		Input.parse_input_event(mb)
+		_send(mb)

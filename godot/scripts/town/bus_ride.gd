@@ -432,7 +432,7 @@ func open_ride(at_stop: String, hour: float, fog: float, raining: bool) -> void:
 		_stop_at = path_hamlet
 		if _stop_who == "":
 			_stop_who = "board"
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	_say("", 0.0)
 
 
@@ -499,7 +499,7 @@ func _shut() -> void:
 		if p != null:
 			p.stop()
 	_talk.clear()
-	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
 
 ## The cabin by the hour: the strip lights on after dark (the panes then all but
@@ -750,7 +750,7 @@ func _process(delta: float) -> void:
 	if _walking:
 		_glint.clear()
 		return
-	var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.turn_axis())
+	var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.turn_axis(self), self)
 	_cam.rotation = _cam_base + offset
 	_update_hover()
 	if _exit_hint == null:

@@ -90,3 +90,16 @@ static func guests(node: Node) -> Node:
 
 static func mail(node: Node) -> Node:
 	return service(node, "EmailManager")
+
+
+## The instance's input: the window's (Godot's Input) for the host, a local client's own
+## (scripts/instance/instance_input.gd: its pad's events), with the same calls.
+##   INSTANCE.input(self).is_action_pressed("interact")
+static func input(node: Node) -> Object:
+	var tree := Engine.get_main_loop() as SceneTree
+	var r := root_of(node)
+	if r != null and tree != null and r != tree.root:
+		var own = r.get("input")
+		if own != null:
+			return own
+	return Input

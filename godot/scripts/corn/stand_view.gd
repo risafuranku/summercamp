@@ -114,7 +114,7 @@ func open_for(key: String, structure: Node3D) -> void:
 	visible = true
 	_view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_layout()
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	# From where you stood out front, round behind the counter, in steps.
 	var front := structure.global_transform * Vector3(0, 1.6, 2.2)
 	_cam.global_transform = Transform3D(Basis(), front).looking_at(structure.global_transform * Vector3(0, 1.1, 0), Vector3.UP)

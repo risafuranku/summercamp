@@ -3,6 +3,7 @@ extends CanvasLayer
 ## Death or blackout. Red dither over the frozen frame, the cause in big letters, a
 ## one-line account of the run and two ways out.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal load_last_requested
 signal main_menu_requested
 
@@ -39,7 +40,7 @@ func _ready() -> void:
 	_root.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(_root)
 	_rebuild()
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 
 func _vp(v: float) -> float:

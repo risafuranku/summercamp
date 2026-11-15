@@ -659,7 +659,7 @@ func _on_corn_stand_interact(structure: Node3D) -> void:
 		add_child(_corn_stand)
 		_corn_stand.closed.connect(func():
 			_set_player_controls_enabled(true)
-			Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED))
+			INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_CAPTURED))
 	var origin = structure.get_meta("grid_origin", null)
 	var key := ""
 	if origin is Vector2i:
@@ -1043,7 +1043,7 @@ func _walk_body(body: CharacterBody3D, from: Vector3, to: Vector3, dir: Vector3,
 	var sec := (CRAWL_OUT_SEC if crawl else WALK_OUT_SEC) * dark
 	# W held through the way out: on at a walk, no stop at the porch's foot (playtest 13. 11.:
 	# "keep walking, do not stop"); else easing to a stand as before.
-	var walking_on := Input.is_action_pressed("move_forward") and not crawl
+	var walking_on = INSTANCE.input(self).is_action_pressed("move_forward") and not crawl
 	var gait: Dictionary = WALK_PATH.CRAWL if crawl else WALK_PATH.WALK
 	var v0: float = float(hand.speed) if hand != null else 0.0
 	var phase0: float = float(hand.phase) if hand != null else 0.0
@@ -1073,7 +1073,7 @@ func _walk_body(body: CharacterBody3D, from: Vector3, to: Vector3, dir: Vector3,
 		if is_instance_valid(body):
 			body.collision_mask = mask
 			var flat := Vector3(dir.x, 0.0, dir.z).normalized()
-			body.velocity = flat * float(body.get("move_speed")) if walking_on and Input.is_action_pressed("move_forward") and flat != Vector3.ZERO else Vector3.ZERO
+			body.velocity = flat * float(body.get("move_speed")) if walking_on and INSTANCE.input(self).is_action_pressed("move_forward") and flat != Vector3.ZERO else Vector3.ZERO
 		_set_player_controls_enabled(true)
 	)
 
@@ -1790,7 +1790,7 @@ func _setup_guest_dialog() -> void:
 
 func _on_guest_dialog_closed() -> void:
 	_set_player_controls_enabled(true)
-	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
 
 func _on_tent_upgrade_requested() -> void:
@@ -1890,7 +1890,7 @@ func _open_upgrade_menu(title_text: String, desc_text: String, cost_text: String
 			room = r
 			break
 	_building_upgrade_menu.open_menu(title_text, desc_text, cost_text, enabled, room)
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 
 func _on_upgrade_confirmed() -> void:
@@ -2080,7 +2080,7 @@ func _refund_upgrade_cost(cost: int) -> void:
 func _on_upgrade_menu_closed() -> void:
 	_pending_upgrade_context.clear()
 	var keep_visible_mouse = is_structure_open()
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE if keep_visible_mouse else Input.MOUSE_MODE_CAPTURED)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_VISIBLE if keep_visible_mouse else Input.MOUSE_MODE_CAPTURED)
 
 
 func _resolve_failed_utility_structure(node: Node) -> Node3D:

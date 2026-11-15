@@ -15,6 +15,7 @@ extends Node
 ## the window, like the rest of the 2D, and swapped into the system cursor (hardware,
 ## so it never lags behind the mouse).
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 enum { ARROW, LOOK, POINT, WALK, GRAB, RUB }
 
 const DIR := "res://assets/textury/ui/"
@@ -86,10 +87,10 @@ func _apply(kind: int) -> void:
 	_shown = kind
 	var img := _image(kind)
 	if img == null:
-		Input.set_custom_mouse_cursor(null, Input.CURSOR_ARROW)
+		INSTANCE.input(self).set_custom_mouse_cursor(null, Input.CURSOR_ARROW)
 		return
 	var hot: Vector2 = HOT.get(kind, Vector2.ZERO)
 	var spot := Vector2(floorf(hot.x * img.get_width()), floorf(hot.y * img.get_height()))
 	# Every Control shows the arrow shape, so the arrow's picture is what changes.
-	Input.set_custom_mouse_cursor(img, Input.CURSOR_ARROW, spot)
-	Input.set_custom_mouse_cursor(img, Input.CURSOR_POINTING_HAND, spot)
+	INSTANCE.input(self).set_custom_mouse_cursor(img, Input.CURSOR_ARROW, spot)
+	INSTANCE.input(self).set_custom_mouse_cursor(img, Input.CURSOR_POINTING_HAND, spot)

@@ -276,13 +276,13 @@ func _can_act(from_bag := false) -> bool:
 func _process(delta: float) -> void:
 	_tick += delta
 	var can := _can_act()
-	var c_held := can and Input.is_action_pressed("smoke") and not _typing()
-	var b_held := can and Input.is_action_pressed("drink") and not _typing()
+	var c_held = can and INSTANCE.input(self).is_action_pressed("smoke") and not _typing()
+	var b_held = can and INSTANCE.input(self).is_action_pressed("drink") and not _typing()
 	# A tap of X shorter than a frame is a frame of it held (then let go: a tap).
-	var x_held := can and (Input.is_action_pressed("habit_drop") or _x_tap) and not _typing()
+	var x_held = can and (INSTANCE.input(self).is_action_pressed("habit_drop") or _x_tap) and not _typing()
 	_x_tap = false
-	var c_pressed := (c_held and not _c_was) or (can and _c_tap)
-	var b_pressed := (b_held and not _b_was) or (can and _b_tap)
+	var c_pressed = (c_held and not _c_was) or (can and _c_tap)
+	var b_pressed = (b_held and not _b_was) or (can and _b_tap)
 	_c_tap = false
 	_b_tap = false
 	_c_was = c_held
@@ -849,7 +849,7 @@ func _layout_left(vp: Vector2, s: float, bar: float, bob: Vector2, step: float) 
 	if cig.state == CIG.THROW and frame != "hand5_cig_flick":
 		pos += (Vector2(-8.0, 6.0) if cig.t < 0.15 else Vector2(46.0, -34.0)) * s
 	# Drinking, the cigarette hand drops out of the way (and comes back up after).
-	if bottle.state == BOTTLE.DRINK or (bottle.state == BOTTLE.FOAM and Input.is_action_pressed("drink")):
+	if bottle.state == BOTTLE.DRINK or (bottle.state == BOTTLE.FOAM and INSTANCE.input(self).is_action_pressed("drink")):
 		if cig.state in [CIG.HOLD, CIG.EXHALE]:
 			pos += Vector2(-6.0 * s, _left.size.y * 0.42)
 	_left.position = pos.floor()

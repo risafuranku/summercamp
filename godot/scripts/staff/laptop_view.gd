@@ -13,6 +13,7 @@ extends CanvasLayer
 ## Co-op: one warden at the PC at a time (here or at the office); the others in the room
 ## see their screen on the laptop (partner_frame) and them on its chair.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const PIC := "res://assets/textury/closeup/laptop.png"
 const CORNERS := "res://assets/textury/closeup/laptop_screen.json"
 const PLAN = preload("res://scripts/staff/staffroom_plan.gd")
@@ -220,7 +221,7 @@ func close_now() -> void:
 			ui.close_panel()
 		if not bool(_bi.call("is_crt_view_active")):
 			_bi.call("_set_crt_viewport_live", false)
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 
 func _process(delta: float) -> void:
@@ -242,10 +243,10 @@ func _process(delta: float) -> void:
 	# The pointer: the machine's own over its screen, the glove below it (stand up).
 	var m := get_viewport().get_mouse_position()
 	if _to_os(m) == Vector2.INF:
-		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+		INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 		HandCursor.want(HandCursor.WALK if INTERIOR_LOOK.in_exit_zone(get_viewport()) else HandCursor.ARROW)
 	else:
-		Input.set_mouse_mode(Input.MOUSE_MODE_HIDDEN)
+		INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_HIDDEN)
 
 
 ## A window point to the OS's pixel (INF off the screen).

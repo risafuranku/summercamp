@@ -94,7 +94,7 @@ func _can_act() -> bool:
 		return false
 	if not bool(p.get("controls_enabled")) or bool(p.get("seated")):
 		return false
-	return Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED
+	return INSTANCE.input(self).get_mouse_mode() == Input.MOUSE_MODE_CAPTURED
 
 
 # ── what is under the crosshair ───────────────────────────────────────────────

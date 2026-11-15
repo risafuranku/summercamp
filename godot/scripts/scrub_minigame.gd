@@ -17,6 +17,7 @@ extends CanvasLayer
 ## comes off; the flush at the end swirls it round and away, clear. How clean stands over the
 ## picture's top left, out from under the hand.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal finished(task_id: String)
 signal closed
 
@@ -245,7 +246,7 @@ func open(task_id: String, seed: int) -> void:
 	_mat.set_shader_parameter("flip", Vector2(float(seed & 1), float((seed >> 1) & 1) * 0.0))
 	_mat.set_shader_parameter("fade", 1.0)
 	visible = true
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	_layout()
 	_scrub.play()
 	if _grit.stream != null:
@@ -386,9 +387,9 @@ func _process(delta: float) -> void:
 		_last_dir = dir
 	_speed = lerpf(_speed, moved / maxf(delta, 0.001), clampf(delta * 12.0, 0.0, 1.0))
 	# Not under the pause menu (a co-op camp is not paused).
-	var held := Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and not HandCursor.menu_over
+	var held = INSTANCE.input(self).is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and not HandCursor.menu_over
 	_hand.aim(m)
-	var scrubbing := held and _done_t < 0.0 and _over_dirt(m)
+	var scrubbing = held and _done_t < 0.0 and _over_dirt(m)
 	if scrubbing:
 		_wear(m, delta)
 	# Over the filth the pointer is the double arrow: to and fro is what it wants.
