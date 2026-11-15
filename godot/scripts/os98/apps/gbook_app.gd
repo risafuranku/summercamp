@@ -5,6 +5,7 @@ extends Control
 ## warden's PC the same in co-op) and stays on the page; what comes after it answers you by
 ## name (browser_app._guestbook).
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 var _shell
 var _win
 var _name: LineEdit
@@ -55,7 +56,7 @@ func _send() -> void:
 		_shell.play("ding", -8.0)
 		return
 	var rows: Array = (_shell.stored("guestbook_mine", []) as Array).duplicate(true)
-	rows.append({"name": who, "text": line, "day": CoreRoot.get_day() if CoreRoot != null else 1, "time": _clock()})
+	rows.append({"name": who, "text": line, "day": INSTANCE.core(self).get_day() if CoreRoot != null else 1, "time": _clock()})
 	_shell.store("guestbook_mine", rows)
 	_shell.play("click", -8.0)
 	_shell._close_window(_win)

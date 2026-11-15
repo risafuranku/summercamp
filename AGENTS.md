@@ -1179,6 +1179,17 @@ every night's sewer, toilets and frozen pipes the moment they broke).
 - **`_camp()` is triplanar, two metres a repeat:** a picture meant whole (a door) on a box shows a slice of it, its handle off the leaf. Give the leaf a `_side_quad` face, as the caravan and the cabins have (`DoorFace`, door_anim hangs it with the leaf).
 - **Render layer 1 << 14 is the corn stand's two back posts** (`stand_layout.BACK_LAYER`): every eye sees them but the stations', a hand from them.
 
+- **The game runs as instances** (TODO.md SPLITSCREEN, scripts/instance/instance.gd): a
+  split screen is a co-op host and a local co-op client in one program, each with its own
+  main and its own Coop, CoreRoot, EventBus, GuestManager and EmailManager (the host's are
+  the autoloads at /root, a local client's are children of its branch). In code that runs
+  for an instance never write the autoload's name before a member: `INSTANCE.core(self)`,
+  `INSTANCE.bus(self)`, `INSTANCE.guests(self)`, `INSTANCE.mail(self)`, `INSTANCE.coop(self)`
+  (a RefCounted helper: its owner node instead of self; an enemy brain: `_world_root`), and
+  never `get_tree().current_scene` for main: `INSTANCE.main_of(self)`. Constants stay
+  (`Coop.Role.HOST`). One instance costs nothing (`INSTANCE.count` is 1). The scripts that
+  routed the old calls: tools/refactor.
+
 - **Made input events need device 0.** An action made in code (`InputEventKey.new()` added to
   the InputMap) answers device 0 only; an event parsed with another device does nothing
   (15. 11.: the pad's Esc and F, sent as device 77, opened nothing). The pad's events are

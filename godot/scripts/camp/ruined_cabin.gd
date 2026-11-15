@@ -7,6 +7,7 @@ extends RefCounted
 ## (Out of main.gd 15. 11.: main places it in a new story camp, keeps `key` in the save and
 ## answers ruined_cabin_key() / debug_repair_ruined() with it.)
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const CONDITION := 0.06
 
 var main: Node
@@ -23,7 +24,7 @@ func key_now() -> String:
 	# checklist's steps about it are done, not waiting for good.
 	if not key.is_empty():
 		var parts := key.split(":")
-		var state = CoreRoot.get_state()
+		var state = INSTANCE.core(main).get_state()
 		if state != null and state.grid != null and state.grid.is_cell_free(Vector2i(int(parts[0]), int(parts[1]))):
 			return ""
 	return key
@@ -34,12 +35,12 @@ func debug_repair() -> bool:
 	if key.is_empty():
 		return false
 	var parts := key.split(":")
-	return CoreRoot.actions.service_building(Vector2i(int(parts[0]), int(parts[1])), 0)
+	return INSTANCE.core(main).actions.service_building(Vector2i(int(parts[0]), int(parts[1])), 0)
 
 
 func place() -> void:
 	key = ""
-	if main.grid_manager == null or CoreRoot == null or CoreRoot.get_state() == null:
+	if main.grid_manager == null or CoreRoot == null or INSTANCE.core(main).get_state() == null:
 		return
 	var office := Vector2i(-1, -1)
 	var structures_root: Node = main.building_manager.get_node_or_null("Structures") if main.building_manager != null else null
@@ -50,19 +51,19 @@ func place() -> void:
 	if office.x < 0:
 		return
 	var fp := Vector2i(2, 2)
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(main).get_state()
 	for off in [Vector2i(-3, 1), Vector2i(3, 1), Vector2i(-3, 3), Vector2i(3, 3), Vector2i(-4, 0), Vector2i(4, 0), Vector2i(-3, 5), Vector2i(3, 5)]:
 		var at: Vector2i = office + off
 		if not _clear_trees_for(at, fp):
 			continue
 		if not state.grid.can_place_footprint(at, fp):
 			continue
-		var money_before: int = CoreRoot.get_money()
+		var money_before: int = INSTANCE.core(main).get_money()
 		EventBus.RequestBuild.emit("cabin_1", at, 0)
 		if str((state.grid.cells.get(at, {}) as Dictionary).get("type", "")) != "cabin_1":
 			continue
 		# It was already here: what the build charged goes back.
-		CoreRoot.actions.add_money(money_before - CoreRoot.get_money())
+		INSTANCE.core(main).actions.add_money(money_before - INSTANCE.core(main).get_money())
 		var inst := str((state.grid.cells[at] as Dictionary).get("id", ""))
 		for c2 in state.grid.cells.keys():
 			var cell: Dictionary = state.grid.cells[c2]
@@ -75,8 +76,8 @@ func place() -> void:
 			for c3 in structures_root.get_children():
 				if c3.get_meta("grid_origin", Vector2i(-99, -99)) == at:
 					main.building_manager.set_structure_condition(c3, CONDITION)
-		if GuestManager != null and GuestManager.has_method("make_room_derelict"):
-			GuestManager.make_room_derelict(room_key)
+		if GuestManager != null and INSTANCE.guests(main).has_method("make_room_derelict"):
+			INSTANCE.guests(main).make_room_derelict(room_key)
 		key = room_key
 		dress()
 		return
@@ -102,7 +103,7 @@ func dress() -> void:
 	var cabin := _structure()
 	if cabin == null or cabin.get_node_or_null("Ruin") != null:
 		return
-	if not CoreRoot.get_state().failures.has(key):
+	if not INSTANCE.core(main).get_state().failures.has(key):
 		return
 	var ws: Vector3 = cabin.get_meta("wall_size", Vector3(6.24, 2.8, 6.24))
 	var front := ws.z * 0.5

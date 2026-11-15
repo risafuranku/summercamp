@@ -894,7 +894,7 @@ func _bag_has(id: String) -> bool:
 
 ## A ticket from the driver, with the surcharge: into the bag, to be punched.
 func _buy_from_driver() -> void:
-	if CoreRoot.get_money() < DRIVER_PRICE or not CoreRoot.actions.spend_money(DRIVER_PRICE):
+	if INSTANCE.core(self).get_money() < DRIVER_PRICE or not INSTANCE.core(self).actions.spend_money(DRIVER_PRICE):
 		_driver("d_no_money")
 		return
 	_play("coin.mp3", -6.0)
@@ -1554,7 +1554,7 @@ func _seat_passengers() -> void:
 		p.queue_free()
 	_passengers.clear()
 	_taken.clear()
-	var day := int(CoreRoot.get_day()) if CoreRoot != null else 1
+	var day := int(INSTANCE.core(self).get_day()) if CoreRoot != null else 1
 	var run := run_key if run_key != "" else "%s|%d|%d" % [stop, day, int(floorf(_hour_now * 2.0))]
 	_rng.seed = hash(run)
 	_life_rng.seed = hash(run + "|life")
@@ -1564,8 +1564,8 @@ func _seat_passengers() -> void:
 		if ResourceLoader.exists(NPC + "bus_%s_sit.png" % v["id"]) and ResourceLoader.exists(NPC + "bus_%s_back.png" % v["id"]):
 			villagers.append(v)
 	var riders: Array = []
-	if GuestManager != null and GuestManager.has_method("get_guest_life_snapshot"):
-		for g in GuestManager.get_guest_life_snapshot():
+	if GuestManager != null and INSTANCE.guests(self).has_method("get_guest_life_snapshot"):
+		for g in INSTANCE.guests(self).get_guest_life_snapshot():
 			var act: Dictionary = g.get("activity", {})
 			if str(act.get("kind", "")) == "away":
 				var sit := str(g.get("sprite_path", "")).replace(".png", "_sit.png")

@@ -3,6 +3,7 @@ extends Node
 ## Helper for accessing GameState as a singleton.
 ## Registers itself as an Autoload named "CoreRoot".
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal state_changed(changes: Dictionary)
 
 # The single source of truth for runtime state
@@ -35,14 +36,18 @@ func _ready() -> void:
 	
 	var GameActionsScript = load("res://core/state/actions.gd")
 	actions = GameActionsScript.new(_state, registry)
+	# (Its events and guests are this instance's: scripts/instance/instance.gd.)
+	actions.owner_node = self
 	
 	var MaintenanceSystemScript = load("res://core/systems/maintenance_system.gd")
 	maintenance_system = MaintenanceSystemScript.new(registry)
+	maintenance_system.owner_node = self
 	add_child(maintenance_system)
 	maintenance_system.setup(_state)
 	
 	var FailureSystemScript = load("res://core/systems/failure_system.gd")
 	failure_system = FailureSystemScript.new(registry)
+	failure_system.owner_node = self
 	add_child(failure_system)
 	failure_system.setup(_state)
 
@@ -74,13 +79,13 @@ func _ready() -> void:
 	await get_tree().process_frame
 	
 	# Connect signals
-	EventBus.day_tick.connect(_on_day_tick)
-	EventBus.building_placed.connect(func(_id, _o, _f, _r): recalculate_systems())
-	EventBus.building_removed.connect(func(_o): recalculate_systems())
+	INSTANCE.bus(self).day_tick.connect(_on_day_tick)
+	INSTANCE.bus(self).building_placed.connect(func(_id, _o, _f, _r): recalculate_systems())
+	INSTANCE.bus(self).building_removed.connect(func(_o): recalculate_systems())
 	
 	# Initial broadcast
 	recalculate_systems()
-	EventBus.state_changed.emit(get_state_snapshot())
+	INSTANCE.bus(self).state_changed.emit(get_state_snapshot())
 	state_changed.emit(get_state_snapshot())
 
 
@@ -143,9 +148,9 @@ func apply_changes(changes: Dictionary) -> void:
 			push_warning("CoreRoot: Attempted to set invalid state key '%s'" % key)
 
 	if has_changes:
-		if money_changed and EventBus.has_signal("money_changed"):
-			EventBus.money_changed.emit(int(_state.money))
-		EventBus.state_changed.emit(applied_changes)
+		if money_changed and INSTANCE.bus(self).has_signal("money_changed"):
+			INSTANCE.bus(self).money_changed.emit(int(_state.money))
+		INSTANCE.bus(self).state_changed.emit(applied_changes)
 		state_changed.emit(applied_changes)
 
 

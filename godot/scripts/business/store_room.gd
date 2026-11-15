@@ -10,6 +10,7 @@ extends RefCounted
 ## and on it stand that place's goods beyond its own shelf as boxes (business_rules.own_cap,
 ## RACK_PACKS packs a good at most), looked at again every couple of seconds while you are in.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const K = preload("res://scripts/interior_kit.gd")
 const PLAN = preload("res://scripts/service_plan.gd")
 const RULES = preload("res://core/systems/business_rules.gd")
@@ -172,10 +173,10 @@ func tick(delta: float) -> void:
 
 ## The books as they are now on the racks: the boards and the boxes.
 func refresh() -> void:
-	var state = CoreRoot.get_state() if CoreRoot != null else null
+	var state = INSTANCE.core(host).get_state() if CoreRoot != null else null
 	if state == null or key == "":
 		return
-	var given: Array = CoreRoot.actions.biz_store_racks(key)
+	var given: Array = INSTANCE.core(host).actions.biz_store_racks(key)
 	var sites: Dictionary = (state.biz as Dictionary).get("sites", {}) if state.biz is Dictionary else {}
 	# Each place's goods beyond its own shelf, shared out over its racks in turn.
 	var left := {}
@@ -283,13 +284,13 @@ func click() -> bool:
 func next_place(i: int) -> void:
 	if CoreRoot == null or key == "" or i < 0 or i >= racks.size():
 		return
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(host).get_state()
 	var sites: Array = ((state.biz as Dictionary).get("sites", {}) as Dictionary).keys() if state.biz is Dictionary else []
 	sites.sort()
-	var now := str(CoreRoot.actions.biz_store_racks(key)[i])
+	var now := str(INSTANCE.core(host).actions.biz_store_racks(key)[i])
 	var at_i := sites.find(now)
 	var next := str(sites[at_i + 1]) if at_i + 1 < sites.size() else ""
-	CoreRoot.actions.biz_set_rack(key, i, next)
+	INSTANCE.core(host).actions.biz_set_rack(key, i, next)
 	if ResourceLoader.exists(SFX_PICK):
 		_sfx.stream = load(SFX_PICK)
 		_sfx.volume_db = -10.0
@@ -299,14 +300,14 @@ func next_place(i: int) -> void:
 
 ## Shot driver: the places its racks are given to stocked to the full (racks too).
 func debug_fill() -> void:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(host).get_state()
 	var sites: Dictionary = (state.biz as Dictionary).get("sites", {})
-	for sk in CoreRoot.actions.biz_store_racks(key):
+	for sk in INSTANCE.core(host).actions.biz_store_racks(key):
 		var site: Dictionary = sites.get(str(sk), {})
 		if site.is_empty():
 			continue
 		var gifts := {}
 		for g in RULES.goods(str(site["kind"])):
 			gifts[g] = RULES.cap_of(str(site["kind"]), str(g), site)
-		CoreRoot.actions.biz_gift(str(sk), gifts)
+		INSTANCE.core(host).actions.biz_gift(str(sk), gifts)
 	refresh()

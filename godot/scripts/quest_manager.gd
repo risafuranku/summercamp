@@ -13,6 +13,7 @@ extends Node
 ##
 ## Persistence: export_state()/import_state() go into the save snapshot under "quests".
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal step_started(step_id: String)
 signal step_completed(step_id: String)
 
@@ -158,10 +159,10 @@ func setup(main_node: Node) -> void:
 		["room_prepared", "_on_room_prepared"],
 	]
 	for pair in bindings:
-		if EventBus.has_signal(pair[0]):
+		if INSTANCE.bus(self).has_signal(pair[0]):
 			var cb := Callable(self, pair[1])
-			if not EventBus.is_connected(pair[0], cb):
-				EventBus.connect(pair[0], cb)
+			if not INSTANCE.bus(self).is_connected(pair[0], cb):
+				INSTANCE.bus(self).connect(pair[0], cb)
 
 
 ## New game: schedule the story pool and start at step 0.
@@ -171,8 +172,8 @@ func begin_new_game() -> void:
 	_flags.clear()
 	_finished_all = false
 	_active = true
-	if EmailManager != null and EmailManager.has_method("load_story_pool"):
-		EmailManager.load_story_pool(STORY_SUBJECTS_OWNED)
+	if EmailManager != null and INSTANCE.mail(self).has_method("load_story_pool"):
+		INSTANCE.mail(self).load_story_pool(STORY_SUBJECTS_OWNED)
 	_advance()
 
 
@@ -304,8 +305,8 @@ func _advance() -> void:
 			_completed.append(skip_id)
 			# (Done before it was asked is done: its money all the same.)
 			var early := int(STEPS[_index].get("reward", 0))
-			if early > 0 and CoreRoot.actions != null and CoreRoot.actions.has_method("add_money"):
-				CoreRoot.actions.add_money(early)
+			if early > 0 and INSTANCE.core(self).actions != null and INSTANCE.core(self).actions.has_method("add_money"):
+				INSTANCE.core(self).actions.add_money(early)
 		_index += 1
 	if _index >= STEPS.size():
 		_finish_all()
@@ -345,8 +346,8 @@ func _complete_current() -> void:
 	if not _completed.has(id):
 		_completed.append(id)
 	var reward := int(step.get("reward", 0))
-	if reward > 0 and CoreRoot.actions != null and CoreRoot.actions.has_method("add_money"):
-		CoreRoot.actions.add_money(reward)
+	if reward > 0 and INSTANCE.core(self).actions != null and INSTANCE.core(self).actions.has_method("add_money"):
+		INSTANCE.core(self).actions.add_money(reward)
 	_announce_complete(step)
 	step_completed.emit(id)
 	_advance()
@@ -375,7 +376,7 @@ func _finish_all() -> void:
 		})
 	if EmailManager != null and not bool(_flags.get("final_mail_sent", false)):
 		_flags["final_mail_sent"] = true
-		EmailManager.push_system_mail({
+		INSTANCE.mail(self).push_system_mail({
 			"from": VERA, "sender": VERA, "type": "task",
 			"subject": "You did everything on my list",
 			"body": "Every box ticked. I did not expect that, and I mean it kindly.\n\nNow just keep them alive and keep them happy until the man from the district has been. Watch the forecast. Pay the bills. Crawl into the sewer if you must.\n\n- Teta Vera",
@@ -388,21 +389,21 @@ func _finish_all() -> void:
 func _is_satisfied(step_id: String) -> bool:
 	match step_id:
 		"read_vera":
-			var mail: Dictionary = EmailManager.find_mail("task_id", "read_vera") if EmailManager != null else {}
+			var mail: Dictionary = INSTANCE.mail(self).find_mail("task_id", "read_vera") if EmailManager != null else {}
 			return not mail.is_empty() and bool(mail.get("_read", false))
 		"install_builder":
 			return bool(_flags.get("builder_installed", false)) or _builder_unlocked()
 		"fix_cabin":
 			var key := _ruined_key()
-			return key.is_empty() or not CoreRoot.get_state().failures.has(key)
+			return key.is_empty() or not INSTANCE.core(self).get_state().failures.has(key)
 		"clean_cabin":
 			var key2 := _ruined_key()
-			return key2.is_empty() or str(GuestManager.get_room_state(key2).get("status", "")) == "ready"
+			return key2.is_empty() or str(INSTANCE.guests(self).get_room_state(key2).get("status", "")) == "ready"
 		"install_apps":
 			return (bool(_flags.get("builder_installed", false)) or _builder_unlocked()) and _program_unlocked("guestrack")
 		"build_housing":
 			# Beyond the old cabin (two beds): a tent or a cabin of your own.
-			return int(GuestManager.get_bed_metrics().get("capacity", 0)) > 2
+			return int(INSTANCE.guests(self).get_bed_metrics().get("capacity", 0)) > 2
 		"build_toilet":
 			return _count_buildings(["toilet_block"]) > 0
 		"accept_booking":
@@ -427,7 +428,7 @@ func _is_satisfied(step_id: String) -> bool:
 		"good_review":
 			return bool(_flags.get("good_review", false))
 		"grow_camp":
-			return int(GuestManager.get_bed_metrics().get("occupied", 0)) >= 6
+			return int(INSTANCE.guests(self).get_bed_metrics().get("occupied", 0)) >= 6
 	return false
 
 
@@ -456,7 +457,7 @@ func _on_room_prepared(_key: String) -> void:
 
 ## Whoever is on the way has a made-up room (made up before the step asked: no event comes).
 func _arrivals_rooms_ready() -> bool:
-	var rows: Array = GuestManager.get_arrivals()
+	var rows: Array = INSTANCE.guests(self).get_arrivals()
 	if rows.is_empty():
 		return false
 	for row in rows:
@@ -470,7 +471,7 @@ func _arrivals_rooms_ready() -> bool:
 
 
 func _first_guest_in() -> bool:
-	for g in GuestManager.get_guest_life_snapshot():
+	for g in INSTANCE.guests(self).get_guest_life_snapshot():
 		if str((g as Dictionary).get("status", "")) in ["active", "sleep"]:
 			return true
 	return false
@@ -510,7 +511,7 @@ func _crt_shell() -> Node:
 
 
 func _count_buildings(types: Array) -> int:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null or state.grid == null:
 		return 0
 	var n := 0
@@ -533,14 +534,14 @@ func _send_task_mail(step: Dictionary) -> void:
 	if EmailManager == null:
 		return
 	var id := str(step["id"])
-	if not EmailManager.find_mail("task_id", id).is_empty():
+	if not INSTANCE.mail(self).find_mail("task_id", id).is_empty():
 		return
 	var reward := int(step.get("reward", 0))
 	var body := str(step.get("mail_body", ""))
 	var task_line := "\n\n[TASK] %s" % str(step["text"])
 	if reward > 0:
 		task_line += "\n[REWARD] $%d" % reward
-	EmailManager.push_system_mail({
+	INSTANCE.mail(self).push_system_mail({
 		"from": VERA, "sender": VERA, "type": "task",
 		"subject": str(step["mail_subject"]),
 		"body": body + task_line,
@@ -579,7 +580,7 @@ func _keep_first_booking() -> void:
 	if EmailManager == null or not (current_step_id() in ["accept_booking", "make_up_room", "check_in_guest"]):
 		_rebook_t = 0.0
 		return
-	if not GuestManager.get_arrivals().is_empty() or _first_guest_in() or _booking_letter_open():
+	if not INSTANCE.guests(self).get_arrivals().is_empty() or _first_guest_in() or _booking_letter_open():
 		_rebook_t = 0.0
 		return
 	_rebook_t += POLL_SEC
@@ -589,17 +590,17 @@ func _keep_first_booking() -> void:
 
 
 func _booking_letter_open() -> bool:
-	for mail in EmailManager.inbox:
+	for mail in INSTANCE.mail(self).inbox:
 		if str(mail.get("task_id", "")) == "accept_booking" and not bool(mail.get("_actioned", false)) and str(mail.get("_folder", "inbox")) != "deleted":
 			return true
 	return false
 
 
 func _send_first_booking(again := false) -> void:
-	if EmailManager == null or (not again and not EmailManager.find_mail("task_id", "accept_booking").is_empty()):
+	if EmailManager == null or (not again and not INSTANCE.mail(self).find_mail("task_id", "accept_booking").is_empty()):
 		return
 	var sender := "%s <mirek.dvorak@seznam.cz>" % FIRST_BOOKING_NAME
-	EmailManager.push_system_mail({
+	INSTANCE.mail(self).push_system_mail({
 		"from": sender, "sender": sender, "type": "customer",
 		"subject": "One quiet night, one bed",
 		"body": "Hello reception,\n\nI walk the ridge trail and need one bed for one night. I do not snore and I do not drink. I pay cash.\n\nArchetype: Quiet Guy\nArrival: today\nTotal payment per day: $90\n\n- Mirek",
@@ -690,11 +691,11 @@ func _waypoint_position(kind: String) -> Vector3:
 				if door != Vector3.INF:
 					return door + Vector3(0.0, 2.4, 0.0)
 		"gate":
-			if GuestManager != null and GuestManager.has_method("get_gate_coord"):
-				return gm.grid_to_world(GuestManager.get_gate_coord()) + Vector3(0.0, 1.6, 0.0)
+			if GuestManager != null and INSTANCE.guests(self).has_method("get_gate_coord"):
+				return gm.grid_to_world(INSTANCE.guests(self).get_gate_coord()) + Vector3(0.0, 1.6, 0.0)
 		"unready_room":
 			# The first room a coming party is waiting for.
-			for row in GuestManager.get_arrivals():
+			for row in INSTANCE.guests(self).get_arrivals():
 				for r in (row as Dictionary).get("rooms", []):
 					if not bool((r as Dictionary).get("ready", true)):
 						var parts := str(r["key"]).split(":")
@@ -715,7 +716,7 @@ func _hud() -> Node:
 
 
 func _day() -> int:
-	return maxi(1, CoreRoot.get_day())
+	return maxi(1, INSTANCE.core(self).get_day())
 
 
 func _time_str() -> String:
@@ -726,7 +727,7 @@ func _time_str() -> String:
 
 
 func _is_night_now() -> bool:
-	return CoreRoot.is_night()
+	return INSTANCE.core(self).is_night()
 
 
 func _play_complete_sound() -> void:

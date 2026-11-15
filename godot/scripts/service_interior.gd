@@ -927,7 +927,7 @@ func _open_ledger() -> void:
 		_ledger.name = "Ledger"
 		add_child(_ledger)
 		_ledger.connect("want_zreport", func(key: String) -> void:
-			var site: Dictionary = (CoreRoot.get_state().biz.get("sites", {}) as Dictionary).get(key, {})
+			var site: Dictionary = (INSTANCE.core(self).get_state().biz.get("sites", {}) as Dictionary).get(key, {})
 			if not (site.get("zreport", {}) as Dictionary).is_empty():
 				_ledger.call("close_view")
 				_open_zreport(key, site["zreport"]))
@@ -2602,7 +2602,7 @@ func _build_upkeep_spots(block: String) -> void:
 		_upkeep_prep.add_spot("floor_r", r, Vector3(1.2, 0.01, -0.1))
 	_upkeep_prep.setup_tasks(self, _interior_camera, _viewport)
 	_upkeep_prep.task_completed.connect(_on_upkeep_task_done)
-	var st = CoreRoot.get_state()
+	var st = INSTANCE.core(self).get_state()
 	_upkeep_prep.tasks.set_scrub_seed(int(st.day) if st != null else 1)
 
 
@@ -2625,9 +2625,9 @@ func set_upkeep_target(coord: Vector2i, building_type: String) -> void:
 	if block.is_empty() or _room_root == null:
 		_free_upkeep_prep()
 		return
-	if not EventBus.building_serviced.is_connected(_on_block_serviced):
-		EventBus.building_serviced.connect(_on_block_serviced)
-	var state = CoreRoot.get_state()
+	if not INSTANCE.bus(self).building_serviced.is_connected(_on_block_serviced):
+		INSTANCE.bus(self).building_serviced.connect(_on_block_serviced)
+	var state = INSTANCE.core(self).get_state()
 	var cell: Dictionary = state.grid.cells.get(coord, {}) if state != null else {}
 	var cond_l := MAINT_RULES_S.side_condition(cell, "l")
 	var cond_r := MAINT_RULES_S.side_condition(cell, "r")
@@ -2666,7 +2666,7 @@ func set_upkeep_target(coord: Vector2i, building_type: String) -> void:
 ## "Toilets 17:4".
 func _block_label() -> String:
 	var label := tr("Toilets") if _upkeep_type == "toilet_block" else tr("Showers")
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	var grid = state.grid if state != null else null
 	if grid == null:
 		return label
@@ -2768,7 +2768,7 @@ func _side_done(entry: Dictionary) -> void:
 		if INSTANCE.coop(self).is_client():
 			INSTANCE.coop(self).send_request("service_side", [_upkeep_coord, side])
 		else:
-			CoreRoot.actions.service_side(_upkeep_coord, side)
+			INSTANCE.core(self).actions.service_side(_upkeep_coord, side)
 	entry["sides_done"] = sides
 
 
@@ -2776,8 +2776,8 @@ func _side_done(entry: Dictionary) -> void:
 ## breakdown the spare part (the same prices as the crew's, minus the crew).
 func _finish_upkeep() -> void:
 	var entry: Dictionary = _upkeep_cache.get(_upkeep_key, {})
-	var def = CoreRoot.registry.get_def(StringName(_upkeep_type)) if CoreRoot != null else null
-	var state = CoreRoot.get_state()
+	var def = INSTANCE.core(self).registry.get_def(StringName(_upkeep_type)) if CoreRoot != null else null
+	var state = INSTANCE.core(self).get_state()
 	var cell: Dictionary = state.grid.cells.get(_upkeep_coord, {}) if state != null else {}
 	var broken := bool(entry.get("broken", false))
 	var cost := UPKEEP_RULES.repair_cost(def) if broken else UPKEEP_RULES.service_cost(def, float(cell.get("maintenance", 1.0)))
@@ -2787,7 +2787,7 @@ func _finish_upkeep() -> void:
 		if _upkeep_prep != null:
 			_upkeep_prep.play_room_ready()
 		return
-	if not CoreRoot.actions.service_building(_upkeep_coord, cost):
+	if not INSTANCE.core(self).actions.service_building(_upkeep_coord, cost):
 		entry["note"] = "NO CASH FOR THE %s ($%d)" % ["SPARE PART" if broken else "SUPPLIES", cost]
 		_upkeep_cache[_upkeep_key] = entry
 		_refresh_upkeep_room()
@@ -3448,7 +3448,7 @@ func _tick_prepare(delta: float) -> void:
 
 ## The key ("x:y") of the first business of this room's kind on the plan, "" none.
 func _business_of_my_kind() -> String:
-	var state = CoreRoot.get_state() if CoreRoot != null else null
+	var state = INSTANCE.core(self).get_state() if CoreRoot != null else null
 	if state == null or state.grid == null:
 		return ""
 	var best := ""

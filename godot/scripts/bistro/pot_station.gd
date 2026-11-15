@@ -164,7 +164,7 @@ func _top_up() -> void:
 	if n <= 0:
 		sfx("tick", -14.0, 0.7)
 		return
-	if CoreRoot != null and CoreRoot.actions != null and not CoreRoot.actions.biz_take(building_key, {"goulash": n}):
+	if CoreRoot != null and INSTANCE.core(self).actions != null and not INSTANCE.core(self).actions.biz_take(building_key, {"goulash": n}):
 		return
 	var level := int(pot["level"])
 	# Cold goulash into hot: the pot comes off the boil for a while.
@@ -184,7 +184,7 @@ func _take_loaf() -> void:
 	if not kitchen.room_for(building_key, "dumpling", 1):
 		say("", "The pass is full of dumplings.")
 		return
-	if CoreRoot != null and CoreRoot.actions != null and not CoreRoot.actions.biz_take(building_key, {"dumplings": units}):
+	if CoreRoot != null and INSTANCE.core(self).actions != null and not INSTANCE.core(self).actions.biz_take(building_key, {"dumplings": units}):
 		return
 	kitchen.act(building_key, "loaf", [{"left": RULES.LOAF_SLICES * units / RULES.LOAF_UNITS}])
 	sfx("steam_lid", -8.0)

@@ -107,7 +107,7 @@ func _press(id: String) -> void:
 		if not kitchen.room_for(building_key, "cheese_raw", 1 + kitchen.prep(building_key, "cheese_bad")):
 			say("", "The tray is full. Fry some upstairs.")
 			return
-		if CoreRoot != null and CoreRoot.actions != null and not CoreRoot.actions.biz_take(building_key, {"cheese": 1}):
+		if CoreRoot != null and INSTANCE.core(self).actions != null and not INSTANCE.core(self).actions.biz_take(building_key, {"cheese": 1}):
 			sfx("tick", -14.0, 0.7)
 			return
 		_slice = true

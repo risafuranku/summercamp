@@ -925,7 +925,7 @@ func _hide_glass() -> void:
 ## Hide long enough and it is somebody else: a guest's night goes wrong (one of the
 ## Cheap Chicks first: she was one of them).
 func _visit_guest() -> void:
-	var state = CoreRoot.get_state() if CoreRoot != null else null
+	var state = INSTANCE.core(_world_root).get_state() if CoreRoot != null else null
 	if state == null or GuestManager == null:
 		return
 	var pick := {}
@@ -936,7 +936,7 @@ func _visit_guest() -> void:
 				break
 	if pick.is_empty():
 		return
-	GuestManager.apply_guest_event(int(pick.get("id", -1)), -18.0, "A woman stood outside all night, laughing at nothing. She knew my name.")
+	INSTANCE.guests(_world_root).apply_guest_event(int(pick.get("id", -1)), -18.0, "A woman stood outside all night, laughing at nothing. She knew my name.")
 
 
 ## Upside down (hanging from nothing, her feet up in the dark) or far too tall; else as a

@@ -259,15 +259,12 @@ var _lamp_grid_power_available: bool = true
 var _billing: RefCounted = ELECTRICITY_BILLING_SCRIPT.new()
 
 
-## Main is the root of its instance (scripts/instance/instance.gd): what is under it finds it
-## by INSTANCE.main_of(self), and its co-op side by INSTANCE.coop(self): `coop` is a local
-## client's own Coop node (null: the Coop autoload, the host's or a lone machine's).
-var coop: Node = null
-
+## Main is the main of its instance (scripts/instance/instance.gd): what is under it finds
+## it by INSTANCE.main_of(self), and the instance's co-op side, camp state, events, guests
+## and mail by INSTANCE.coop/core/bus/guests/mail(self).
 
 func _enter_tree() -> void:
-	add_to_group(INSTANCE.GROUP)
-	INSTANCE.count += 1
+	add_to_group(INSTANCE.MAIN_GROUP)
 
 
 func _ready() -> void:
@@ -332,7 +329,8 @@ func _bootstrap_runtime() -> void:
 	# The land's and the buses' pictures and sounds read on the loader's threads while the
 	# boot and the title are up (scripts/town/land_warmup.gd): a new camp's first frames.
 	add_child(LAND_WARMUP.new())
-	time_system = TIME_SYSTEM_SCRIPT.new(CoreRoot.get_state())
+	time_system = TIME_SYSTEM_SCRIPT.new(INSTANCE.core(self).get_state())
+	time_system.owner_node = self
 	weather_system = WEATHER_SYSTEM_SCRIPT.new()
 	if weather_system != null and weather_system.has_method("set_auto_cycle_enabled"):
 		weather_system.set_auto_cycle_enabled(true)
@@ -352,16 +350,16 @@ func _bootstrap_runtime() -> void:
 
 	if time_system:
 		var day_tick_cb := Callable(self, "_on_day_tick")
-		if not EventBus.day_tick.is_connected(day_tick_cb):
-			EventBus.day_tick.connect(day_tick_cb)
-	if EventBus.has_signal("night_tick"):
+		if not INSTANCE.bus(self).day_tick.is_connected(day_tick_cb):
+			INSTANCE.bus(self).day_tick.connect(day_tick_cb)
+	if INSTANCE.bus(self).has_signal("night_tick"):
 		var night_tick_cb := Callable(_night_roll, "on_night_tick")
-		if not EventBus.night_tick.is_connected(night_tick_cb):
-			EventBus.night_tick.connect(night_tick_cb)
-	if EventBus.has_signal("state_changed"):
+		if not INSTANCE.bus(self).night_tick.is_connected(night_tick_cb):
+			INSTANCE.bus(self).night_tick.connect(night_tick_cb)
+	if INSTANCE.bus(self).has_signal("state_changed"):
 		var state_changed_cb := Callable(self, "_on_eventbus_state_changed")
-		if not EventBus.state_changed.is_connected(state_changed_cb):
-			EventBus.state_changed.connect(state_changed_cb)
+		if not INSTANCE.bus(self).state_changed.is_connected(state_changed_cb):
+			INSTANCE.bus(self).state_changed.connect(state_changed_cb)
 
 	await _boot_step("Opening the office", 0.3)
 	_bind_or_create_managers()
@@ -397,7 +395,7 @@ func _bootstrap_runtime() -> void:
 	if visual_module != null and visual_module.has_method("setup_enemy_fx"):
 		visual_module.setup_enemy_fx(ENEMY_DISTORTION_SHADER)
 
-	_day_index = CoreRoot.get_day()
+	_day_index = INSTANCE.core(self).get_day()
 	_sync_runtime_state_from_systems(true)
 	_ensure_pause_menu()
 
@@ -493,8 +491,8 @@ func _setup_night_jobs() -> void:
 		add_child(_night_jobs)
 		_night_jobs.setup(self)
 		_night_jobs.changed.connect(_on_night_jobs_changed)
-		EventBus.building_failed.connect(func(_c, _t): _sync_dark_lamps())
-		EventBus.building_serviced.connect(func(_c, _t, _b, _cost): _sync_dark_lamps())
+		INSTANCE.bus(self).building_failed.connect(func(_c, _t): _sync_dark_lamps())
+		INSTANCE.bus(self).building_serviced.connect(func(_c, _t, _b, _cost): _sync_dark_lamps())
 	if _breaker_panel == null or not is_instance_valid(_breaker_panel):
 		_breaker_panel = BREAKER_PANEL_SCRIPT.new()
 		_breaker_panel.name = "BreakerPanel"
@@ -539,7 +537,7 @@ func _setup_night_jobs() -> void:
 		_week_ledger = WEEK_LEDGER_SCRIPT.new()
 		_week_ledger.name = "WeekLedger"
 		add_child(_week_ledger)
-		_week_ledger.reset(int(CoreRoot.get_state().money) if CoreRoot.get_state() != null else 0)
+		_week_ledger.reset(int(INSTANCE.core(self).get_state().money) if INSTANCE.core(self).get_state() != null else 0)
 	if not _pending_week_ledger.is_empty():
 		_week_ledger.import_state(_pending_week_ledger)
 		_pending_week_ledger.clear()
@@ -568,8 +566,8 @@ func _setup_night_jobs() -> void:
 		_bazaar.import_state(_pending_bazaar)
 		_pending_bazaar.clear()
 	_online.setup_goggle()
-	if not EventBus.guest_state_changed.is_connected(_online.on_guest_state):
-		EventBus.guest_state_changed.connect(_online.on_guest_state)
+	if not INSTANCE.bus(self).guest_state_changed.is_connected(_online.on_guest_state):
+		INSTANCE.bus(self).guest_state_changed.connect(_online.on_guest_state)
 	if _lake_trip == null or not is_instance_valid(_lake_trip):
 		_lake_trip = LAKE_TRIP_SCRIPT.new()
 		_lake_trip.name = "LakeTrip"
@@ -669,7 +667,7 @@ func _show_week_report() -> void:
 		return
 	_week_ledger.closed = true
 	_week_report_screen = WEEK_REPORT_SCREEN_SCRIPT.new()
-	_week_report_screen.setup(_week_ledger.report(CoreRoot.get_state(), _camp_value()))
+	_week_report_screen.setup(_week_ledger.report(INSTANCE.core(self).get_state(), _camp_value()))
 	_week_report_screen.stay_requested.connect(_on_week_report_stay)
 	_week_report_screen.main_menu_requested.connect(_on_week_report_menu)
 	add_child(_week_report_screen)
@@ -683,7 +681,7 @@ func _show_week_report() -> void:
 ## What stands in the camp, at what it costs to build (the month's books: what was put into the
 ## camp is not money lost).
 func _camp_value() -> int:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null or state.grid == null or economy_manager == null:
 		return 0
 	var total := 0
@@ -750,8 +748,8 @@ func _tick_day_events() -> void:
 	if _day_events != null and not camp_rule("events") and INSTANCE.coop(self).sim_here() and _gameplay_started and _day_index != _goods_day and _time_of_day_hours >= 8.0:
 		# No delivery van to sign for without them: what was ordered and paid comes all the same.
 		_goods_day = _day_index
-		if CoreRoot.actions != null:
-			CoreRoot.actions.biz_receive(_day_index)
+		if INSTANCE.core(self).actions != null:
+			INSTANCE.core(self).actions.biz_receive(_day_index)
 	if _day_events == null or not camp_rule("events"):
 		return
 	var minute_of_day := _clock_minutes_from_hours(_time_of_day_hours)
@@ -786,7 +784,7 @@ func _tick_test_sewer() -> void:
 	if _sewer_pipe_minigame != null and _sewer_pipe_minigame.is_open():
 		_test_sewer_wait = TEST_SEWER_REBREAK_SEC
 		return
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null or state.grid == null:
 		return
 	var coords: Array = state.grid.cells.keys()
@@ -803,7 +801,7 @@ func _tick_test_sewer() -> void:
 		if _test_sewer_wait > 0.0:
 			return
 		_test_sewer_wait = TEST_SEWER_REBREAK_SEC
-		CoreRoot.failure_system._trigger_failure(key, "sewer", coord)
+		INSTANCE.core(self).failure_system._trigger_failure(key, "sewer", coord)
 		state.failures[key]["night"] = true
 		if _hud_manager != null:
 			_hud_manager.push_pager("Pager: Sewer leaking. The sewer hatch: crawl in.", 2)
@@ -813,8 +811,8 @@ func _tick_test_sewer() -> void:
 func _on_night_jobs_changed() -> void:
 	var powered := _is_grid_powered()
 	_note_grid_power(powered)
-	if GuestManager != null and GuestManager.has_method("set_camp_power_available"):
-		GuestManager.set_camp_power_available(powered)
+	if GuestManager != null and INSTANCE.guests(self).has_method("set_camp_power_available"):
+		INSTANCE.guests(self).set_camp_power_available(powered)
 	_apply_time_from_clock(true, false)
 	_sync_dark_lamps()
 
@@ -834,18 +832,18 @@ func _is_grid_powered() -> bool:
 
 ## Tools: where the lamps are (the shot driver's Expression cannot reach autoloads).
 func _count_lamps_debug() -> Array:
-	return CoreRoot.get_state().grid.lamp_coords()
+	return INSTANCE.core(self).get_state().grid.lamp_coords()
 
 
 func _cell_debug(x: int, y: int) -> Dictionary:
-	return CoreRoot.get_state().grid.cells.get(Vector2i(x, y), {})
+	return INSTANCE.core(self).get_state().grid.cells.get(Vector2i(x, y), {})
 
 
 ## Lamps dark for their own reasons: a lamp breakdown, or the circuit left off.
 func _sync_dark_lamps() -> void:
 	if building_manager == null or not building_manager.has_method("set_broken_lamps"):
 		return
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	var dark: Array = []
 	var all_lamps: Array = []
 	for coord in state.grid.lamp_coords():
@@ -931,8 +929,8 @@ func _setup_maintenance() -> void:
 		_maintenance.name = "MaintenanceController"
 		add_child(_maintenance)
 	_maintenance.setup(_world_3d, building_manager, Callable(self, "_get_player_camera"), _hud_manager)
-	if CoreRoot.failure_system != null:
-		CoreRoot.failure_system.enabled = camp_rule("wear")
+	if INSTANCE.core(self).failure_system != null:
+		INSTANCE.core(self).failure_system.enabled = camp_rule("wear")
 
 
 ## Camp Status > Upkeep (CRT) reads and acts through these.
@@ -952,7 +950,7 @@ func request_maintenance_crew() -> Dictionary:
 			return {"ok": false, "reason": "night"}
 		if int(snap.get("crew_jobs", 0)) <= 0:
 			return {"ok": false, "reason": "nothing_to_do"}
-		if CoreRoot.get_money() < int(snap.get("crew_cost", 0)):
+		if INSTANCE.core(self).get_money() < int(snap.get("crew_cost", 0)):
 			return {"ok": false, "reason": "insufficient_funds", "amount": int(snap.get("crew_cost", 0))}
 		INSTANCE.coop(self).send_request("crew", [])
 		return {"ok": true, "jobs": int(snap.get("crew_jobs", 0)), "amount": int(snap.get("crew_cost", 0))}
@@ -964,7 +962,7 @@ func request_maintenance_crew_at(coord: Vector2i) -> Dictionary:
 	if _maintenance == null:
 		return {"ok": false, "reason": "unavailable"}
 	if INSTANCE.coop(self).is_client():
-		if CoreRoot.is_night():
+		if INSTANCE.core(self).is_night():
 			return {"ok": false, "reason": "night"}
 		INSTANCE.coop(self).send_request("crew_at", [coord])
 		return {"ok": true, "jobs": 1, "amount": 0}
@@ -1212,7 +1210,7 @@ func _process(delta: float) -> void:
 		if weather_system.current_weather != WEATHER_CLEAR:
 			weather_system.set_weather(WEATHER_CLEAR)
 	elif weather_system and sim:
-		var state = CoreRoot.get_state()
+		var state = INSTANCE.core(self).get_state()
 		if state != null:
 			weather_system.set_anomaly_pressure(float(state.hrotfaktor))
 		weather_system.season_day = _day_index
@@ -1371,7 +1369,7 @@ func _sync_runtime_state_from_systems(force: bool = false) -> void:
 	if weather_system:
 		_weather_state = weather_system.current_weather
 
-	_day_index = max(1, CoreRoot.get_day())
+	_day_index = max(1, INSTANCE.core(self).get_day())
 
 	var minute_changed = _clock_minutes_from_hours(previous_hour) != _clock_minutes_from_hours(_time_of_day_hours)
 	var time_changed = force or minute_changed or (previous_time_state != _time_state)
@@ -1634,10 +1632,10 @@ var _arrival_events_bound: bool = false
 func _poll_arrivals(delta: float) -> void:
 	if not _arrival_events_bound:
 		_arrival_events_bound = true
-		EventBus.guest_at_gate.connect(_on_guest_at_gate)
-		EventBus.guest_checked_in.connect(_on_guest_checked_in)
-		EventBus.guest_gave_up.connect(_on_guest_gave_up)
-		EventBus.room_prepared.connect(_on_room_prepared)
+		INSTANCE.bus(self).guest_at_gate.connect(_on_guest_at_gate)
+		INSTANCE.bus(self).guest_checked_in.connect(_on_guest_checked_in)
+		INSTANCE.bus(self).guest_gave_up.connect(_on_guest_gave_up)
+		INSTANCE.bus(self).room_prepared.connect(_on_room_prepared)
 	if _first_stand_up_pending and not _is_any_interior_open() and _hud_manager != null:
 		_first_stand_up_pending = false
 		_hud_manager.show_banner("THE CAMP", Season.date_long(_day_index).to_upper(), RETRO_UI.C_AMBER, 4.0)
@@ -1647,8 +1645,8 @@ func _poll_arrivals(delta: float) -> void:
 	_arrivals_poll = 0.5
 	if not INSTANCE.coop(self).sim_here():
 		# The host's guests by the host's clock (GuestManager keeps no time of its own here).
-		GuestManager._on_time_tick(int(_time_of_day_hours), int(fposmod(_time_of_day_hours, 1.0) * 60.0))
-	var arrivals: Array = GuestManager.get_arrivals()
+		INSTANCE.guests(self)._on_time_tick(int(_time_of_day_hours), int(fposmod(_time_of_day_hours, 1.0) * 60.0))
+	var arrivals: Array = INSTANCE.guests(self).get_arrivals()
 	# Who is at the desk has the guests at the counter (the same mark as the jobs' plates).
 	var at_desk := str(_troubles.taken().get("room:desk", ""))
 	if at_desk != "":
@@ -1668,7 +1666,7 @@ func _poll_arrivals(delta: float) -> void:
 		if van_row.has("ev"):
 			van_row["who"] = str(_troubles.taken().get("ev:%d" % int(van_row["ev"]), ""))
 		_hud_manager.set_van(van_row)
-	var state_now = CoreRoot.get_state()
+	var state_now = INSTANCE.core(self).get_state()
 	if _hud_manager.has_method("set_shift_bands") and state_now != null and state_now.biz is Dictionary:
 		_hud_manager.set_shift_bands(STAFF_RULES_M.day_bands(state_now.biz, _day_index, float(BIZ_RULES_M.LATE_CLOSE)))
 	var day_rows: Array = _day_events.hud_rows() if _day_events != null else []
@@ -1720,7 +1718,7 @@ func _on_guest_gave_up(row: Dictionary) -> void:
 
 func _on_room_prepared(key: String) -> void:
 	if _hud_manager != null:
-		_hud_manager.push_status("%s is ready." % GuestManager.room_label(key), 1, "rooms")
+		_hud_manager.push_status("%s is ready." % INSTANCE.guests(self).room_label(key), 1, "rooms")
 
 
 func _sync_hud_health() -> void:
@@ -1765,7 +1763,7 @@ func _corn_wanderers() -> Array:
 	var out: Array = []
 	if GuestManager == null:
 		return out
-	for g in GuestManager.get_guest_life_snapshot():
+	for g in INSTANCE.guests(self).get_guest_life_snapshot():
 		if CORN_WANDERERS.has(str(g.get("archetype", ""))) and str(g.get("status", "")) in ["active", "sleep"]:
 			out.append(g)
 	return out
@@ -1838,11 +1836,11 @@ func _on_corn_hunt_finished(rescued: bool) -> void:
 		return
 	if rescued:
 		_corn_job["rescued"] = true
-		GuestManager.apply_guest_event(int(hunt.guest_id), 15.0, "You came for me. In the dark. Thank you.")
+		INSTANCE.guests(self).apply_guest_event(int(hunt.guest_id), 15.0, "You came for me. In the dark. Thank you.")
 		if _hud_manager != null:
 			_hud_manager.push_status("%s is back in the camp, shaking. (mood +15)" % who, 1)
 	else:
-		GuestManager.apply_guest_event(int(hunt.guest_id), -18.0, "Nobody came. Something stood by me all night.")
+		INSTANCE.guests(self).apply_guest_event(int(hunt.guest_id), -18.0, "Nobody came. Something stood by me all night.")
 		if _hud_manager != null:
 			_hud_manager.push_status("At first light %s walked out of the corn alone. They won't say what they saw." % who, 3)
 	hunt.queue_free()
@@ -2154,7 +2152,7 @@ func _show_game_over_screen() -> void:
 	if _game_over_reason == GAME_OVER_REASON_UPS:
 		title = "POWER LOST"
 		reason = "The UPS ran dry. The camp went dark, and so did you."
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	var hosted := 0
 	var money := 0
 	if state != null:
@@ -2216,12 +2214,12 @@ func _bind_or_create_managers() -> void:
 	if _hud_manager != null and _hud_manager.has_method("on_money_changed"):
 		var cb = Callable(_hud_manager, "on_money_changed")
 		# Canonical money flow is emitted by GameActions via EventBus.
-		if EventBus.has_signal("money_changed") and not EventBus.money_changed.is_connected(cb):
-			EventBus.money_changed.connect(cb)
+		if INSTANCE.bus(self).has_signal("money_changed") and not INSTANCE.bus(self).money_changed.is_connected(cb):
+			INSTANCE.bus(self).money_changed.connect(cb)
 		# Legacy compatibility fallback.
 		if economy_manager.has_signal("money_changed") and not economy_manager.money_changed.is_connected(cb):
 			economy_manager.money_changed.connect(cb)
-		_hud_manager.on_money_changed(CoreRoot.get_money())
+		_hud_manager.on_money_changed(INSTANCE.core(self).get_money())
 
 
 func _resolve_manager_node(node_name: String, script_ref: Script, required_method: String) -> Node3D:
@@ -2345,12 +2343,12 @@ func _on_day_tick(day_index: int) -> void:
 	var income := 0
 	if economy_manager != null and economy_manager.has_method("calculate_day_income"):
 		income = int(economy_manager.calculate_day_income())
-	if income != 0 and CoreRoot.actions != null and CoreRoot.actions.has_method("add_money"):
-		CoreRoot.actions.add_money(income)
-		CoreRoot.actions.note_camp("facilities", income)
-	EventBus.day_advanced.emit(_day_index, income)
-	if EmailManager != null and EmailManager.has_method("settle_reputation"):
-		EmailManager.settle_reputation()
+	if income != 0 and INSTANCE.core(self).actions != null and INSTANCE.core(self).actions.has_method("add_money"):
+		INSTANCE.core(self).actions.add_money(income)
+		INSTANCE.core(self).actions.note_camp("facilities", income)
+	INSTANCE.bus(self).day_advanced.emit(_day_index, income)
+	if EmailManager != null and INSTANCE.mail(self).has_method("settle_reputation"):
+		INSTANCE.mail(self).settle_reputation()
 	if _hud_manager != null: _hud_manager.update_time(_time_of_day_string(), _day_index)
 	_sync_liminal_forecast_hud()
 	_refresh_liminal_debug_window()
@@ -2407,8 +2405,8 @@ func _bind_billing() -> void:
 		if _cut and _gameplay_started and _hud_manager != null:
 			_hud_manager.push_pager("Pager: CampGrid cut the mains, the bill is overdue. The UPS holds six minutes.", 2)
 		_note_grid_power(_is_grid_powered())
-		if GuestManager != null and GuestManager.has_method("set_camp_power_available"):
-			GuestManager.set_camp_power_available(_is_grid_powered())
+		if GuestManager != null and INSTANCE.guests(self).has_method("set_camp_power_available"):
+			INSTANCE.guests(self).set_camp_power_available(_is_grid_powered())
 		_apply_time_from_clock(true, false)
 	)
 	_billing.ups_expired.connect(func() -> void:
@@ -2444,7 +2442,7 @@ func request_pay_electricity_bill(bill_id: String) -> Dictionary:
 			var amount := maxi(0, int(bill.get("amount", 0)))
 			if str(bill.get("status", "unpaid")) == "paid":
 				return {"ok": false, "reason": "already_paid"}
-			if CoreRoot.get_money() < amount:
+			if INSTANCE.core(self).get_money() < amount:
 				return {"ok": false, "reason": "insufficient_funds", "amount": amount}
 			_billing.bills.remove_at(i)
 			INSTANCE.coop(self).send_request("pay_bill", [bill_id.strip_edges()])
@@ -2468,8 +2466,8 @@ func _apply_time_from_clock(force_interior_sync: bool = false, force_sky_snap: b
 	# at 18:22 with the lamps and the torch still off till seven).
 	var lamp_and_flashlight_active = _is_hour_in_window(season_hour(), LAMP_FLASHLIGHT_START_HOUR, float(BALANCE_CONFIG.DAY_START_HOUR))
 	var grid_power_available = _is_grid_powered()
-	if CoreRoot.is_night() != is_night:
-		CoreRoot.apply_changes({"is_night": is_night})
+	if INSTANCE.core(self).is_night() != is_night:
+		INSTANCE.core(self).apply_changes({"is_night": is_night})
 	# Night no longer throws you out of the office: only the Builder locks (its licence),
 	# mail, the web and the phone work, and the room behind the office is where you
 	# sleep (scripts/reception/camp_office.gd).
@@ -2527,8 +2525,8 @@ func _set_weather_state(new_state: int) -> void:
 		)
 	if _interior_manager != null and _interior_manager.has_method("sync_weather"):
 		_interior_manager.sync_weather(_weather_state)
-	if GuestManager != null and GuestManager.has_method("set_camp_weather"):
-		GuestManager.set_camp_weather(_weather_state)
+	if GuestManager != null and INSTANCE.guests(self).has_method("set_camp_weather"):
+		INSTANCE.guests(self).set_camp_weather(_weather_state)
 	# No line in the feed for it: the player sees the weather change (the user 30. 10.).
 
 
@@ -2679,8 +2677,8 @@ func ruined_cabin_key() -> String:
 
 
 func _update_torch_hand() -> void:
-	if not EventBus.building_serviced.is_connected(_ruin.on_serviced):
-		EventBus.building_serviced.connect(_ruin.on_serviced)
+	if not INSTANCE.bus(self).building_serviced.is_connected(_ruin.on_serviced):
+		INSTANCE.bus(self).building_serviced.connect(_ruin.on_serviced)
 	if _lodging_signs == null or not is_instance_valid(_lodging_signs):
 		_lodging_signs = load("res://scripts/lodging_signs.gd").new()
 		_lodging_signs.name = "LodgingSigns"
@@ -2940,9 +2938,9 @@ func _emit_state_update() -> void:
 		WEATHER_STORM: weather_name = "storm"
 		WEATHER_EVENT: weather_name = "event"
 
-	var current_money = CoreRoot.get_money()
+	var current_money = INSTANCE.core(self).get_money()
 
-	EventBus.state_changed.emit({
+	INSTANCE.bus(self).state_changed.emit({
 		"time": {
 			"day": _day_index,
 			"hour": _time_of_day_hours,
@@ -2970,8 +2968,8 @@ func _enter_main_menu() -> void:
 	# clicks (playtest 18. 10.: cleaning a tent behind the title screen).
 	_leave_everything(true)
 	_stop_active_enemy_brain()
-	if CoreRoot.failure_system != null:
-		CoreRoot.failure_system.enabled = false
+	if INSTANCE.core(self).failure_system != null:
+		INSTANCE.core(self).failure_system.enabled = false
 	if _maintenance != null:
 		_maintenance.stop()
 	if _quest_manager != null:
@@ -3153,7 +3151,7 @@ func _start_new_camp(sandbox: bool, test_enemy: String = "", camp_name: String =
 	_sandbox = sandbox
 	_camp_rules = CAMP_RULES.merged(rules, true) if sandbox else CAMP_RULES.duplicate()
 	if int(_camp_rules.get("money", 0)) > 0:
-		CoreRoot.apply_changes({"money": int(_camp_rules["money"])})
+		INSTANCE.core(self).apply_changes({"money": int(_camp_rules["money"])})
 		if _week_ledger != null:
 			_week_ledger.reset(int(_camp_rules["money"]))
 	_test_night = test_enemy
@@ -3192,7 +3190,7 @@ func _start_new_camp(sandbox: bool, test_enemy: String = "", camp_name: String =
 	if not sandbox and _quest_manager != null:
 		_quest_manager.begin_new_game()
 	elif sandbox and test_enemy.is_empty() and EmailManager != null:
-		EmailManager.sandbox_start(time_system.get_time_string() if time_system != null and time_system.has_method("get_time_string") else "09:00")
+		INSTANCE.mail(self).sandbox_start(time_system.get_time_string() if time_system != null and time_system.has_method("get_time_string") else "09:00")
 	# A new game always opens on the same song (Radio Jedna).
 	var bi = _interior_manager.get("_building_interior") if _interior_manager != null else null
 	if bi != null and bi.has_method("queue_first_radio_track"):
@@ -3779,7 +3777,6 @@ func _on_pause_quit_requested() -> void:
 
 
 func _exit_tree() -> void:
-	INSTANCE.count = maxi(0, INSTANCE.count - 1)
 	_stop_menu_music()
 	if _menu_music_player != null and is_instance_valid(_menu_music_player):
 		# free(), not queue_free(): on quit the deferred queue may never be flushed,

@@ -46,12 +46,12 @@ func wire() -> void:
 		if INSTANCE.coop(main).is_host():
 			INSTANCE.coop(main).send_fact("demolish", [rect])
 	)
-	EventBus.building_serviced.connect(func(at: Vector2i, _t: String, _broken: bool, _cost: int) -> void:
+	INSTANCE.bus(main).building_serviced.connect(func(at: Vector2i, _t: String, _broken: bool, _cost: int) -> void:
 		if INSTANCE.coop(main).is_host():
 			INSTANCE.coop(main).send_fact("service", [at])
 	)
-	EventBus.room_task_done.connect(func(key: String, _task: String) -> void: _send_room(key))
-	EventBus.accommodation_state_changed.connect(func(key: String, _status: String, _n: int) -> void: _send_room(key))
+	INSTANCE.bus(main).room_task_done.connect(func(key: String, _task: String) -> void: _send_room(key))
+	INSTANCE.bus(main).accommodation_state_changed.connect(func(key: String, _status: String, _n: int) -> void: _send_room(key))
 
 
 ## The pause menu is up in a co-op camp (the world goes on; you just stand there).
@@ -120,8 +120,8 @@ func _on_world_arrived(snapshot: Dictionary) -> void:
 	till_seq = 0
 	till_pending.clear()
 	main._start_game_from_menu()
-	if CoreRoot.failure_system != null:
-		CoreRoot.failure_system.enabled = false
+	if INSTANCE.core(main).failure_system != null:
+		INSTANCE.core(main).failure_system.enabled = false
 	_forward_builds(true)
 	call_deferred("_flush_facts")
 	# Who is about: once they have all said who they are (their hellos come a moment after).
@@ -133,8 +133,8 @@ func _on_world_arrived(snapshot: Dictionary) -> void:
 
 func _on_session_ended(reason: String) -> void:
 	_forward_builds(false)
-	if CoreRoot != null and CoreRoot.actions != null:
-		CoreRoot.actions.biz_remote = Callable()
+	if CoreRoot != null and INSTANCE.core(main).actions != null:
+		INSTANCE.core(main).actions.biz_remote = Callable()
 	if main._gameplay_started:
 		main._close_pause_menu(false)
 		main._enter_main_menu()
@@ -303,7 +303,7 @@ func names_said() -> String:
 
 
 func _biz_change(kind: String, a: Array) -> void:
-	var act = CoreRoot.actions if CoreRoot != null else null
+	var act = INSTANCE.core(main).actions if CoreRoot != null else null
 	if act == null or a.is_empty():
 		return
 	match kind:
@@ -347,7 +347,7 @@ func _biz_change(kind: String, a: Array) -> void:
 		# The staffroom's hands (actions.staff_*).
 		"s_hire":
 			if a[0] is Dictionary:
-				act.staff_hire(a[0], int(a[1]) if a.size() > 1 else CoreRoot.get_day())
+				act.staff_hire(a[0], int(a[1]) if a.size() > 1 else INSTANCE.core(main).get_day())
 		"s_fire":
 			act.staff_fire(str(a[0]))
 		"s_job":
@@ -384,7 +384,7 @@ func _ensure_night() -> void:
 ## there too), breakdowns, the buildings' condition (the lamps), the rooms, the mail, the
 ## shed key, the day's events and the night's faults that put lamps out.
 func camp_pulse() -> Dictionary:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(main).get_state()
 	if state == null:
 		return {}
 	var maint := {}
@@ -399,7 +399,7 @@ func camp_pulse() -> Dictionary:
 				halves[coord] = [float(cell["maint_l"]), float(cell.get("maint_r", cell["maint_l"]))]
 	var mail: Dictionary = {}
 	if EmailManager != null:
-		mail = {"inbox": EmailManager.inbox, "sent": EmailManager.sent, "rep": EmailManager.reputation}
+		mail = {"inbox": INSTANCE.mail(main).inbox, "sent": INSTANCE.mail(main).sent, "rep": INSTANCE.mail(main).reputation}
 	var key: bool = main.camp_office != null and is_instance_valid(main.camp_office) and main.camp_office.has_shed_key
 	var day: Dictionary = main._day_events.export_state() if main._day_events != null else {}
 	# The night's faults that put lamps out (the breaker, a dead circuit).
@@ -425,7 +425,7 @@ var till_acked: Dictionary = {}     # peer id -> the last change counted
 
 
 func _follow_till(host_money: int, acked: int) -> void:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(main).get_state()
 	if till_shown >= 0:
 		var here := int(state.money) - till_shown
 		if here != 0:
@@ -437,7 +437,7 @@ func _follow_till(host_money: int, acked: int) -> void:
 	for p in till_pending:
 		shown += int(p[1])
 	if int(state.money) != shown:
-		CoreRoot.apply_changes({"money": shown})
+		INSTANCE.core(main).apply_changes({"money": shown})
 	till_shown = shown
 
 
@@ -445,7 +445,7 @@ func _follow_till(host_money: int, acked: int) -> void:
 func apply_pulse(p: Dictionary) -> void:
 	if not INSTANCE.coop(main).is_client() or not main._gameplay_started or main._menu_mode:
 		return
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(main).get_state()
 	if state == null:
 		return
 	var was := {}
@@ -471,12 +471,12 @@ func apply_pulse(p: Dictionary) -> void:
 			else:
 				(state.grid.cells[coord] as Dictionary).erase("maint_l")
 				(state.grid.cells[coord] as Dictionary).erase("maint_r")
-	if GuestManager != null and GuestManager.has_method("_emit_guest_overview_state"):
-		GuestManager._emit_guest_overview_state(true)
+	if GuestManager != null and INSTANCE.guests(main).has_method("_emit_guest_overview_state"):
+		INSTANCE.guests(main)._emit_guest_overview_state(true)
 	# The businesses' books are the host's (what is on the shelves, the orders, the hands);
 	# what is done to them here goes there.
-	if CoreRoot.actions != null and not CoreRoot.actions.biz_remote.is_valid():
-		CoreRoot.actions.biz_remote = func(kind: String, args: Array) -> void:
+	if INSTANCE.core(main).actions != null and not INSTANCE.core(main).actions.biz_remote.is_valid():
+		INSTANCE.core(main).actions.biz_remote = func(kind: String, args: Array) -> void:
 			if INSTANCE.coop(main).is_client():
 				INSTANCE.coop(main).send_request("biz", [kind, args])
 	if p.get("biz", null) is Dictionary and not (p["biz"] as Dictionary).is_empty():
@@ -497,8 +497,8 @@ func apply_pulse(p: Dictionary) -> void:
 		last_day_hash = day_hash
 		main._day_events.import_state(day)
 	var mail: Dictionary = p.get("mail", {})
-	if not mail.is_empty() and EmailManager != null and EmailManager.has_method("coop_take"):
-		EmailManager.coop_take(mail)
+	if not mail.is_empty() and EmailManager != null and INSTANCE.mail(main).has_method("coop_take"):
+		INSTANCE.mail(main).coop_take(mail)
 	if main._quest_manager != null and is_instance_valid(main._quest_manager):
 		main._quest_manager.coop_follow(p.get("quest", {}))
 	# The back office is the host's: CampStat's reviews, takings and bills, the bazaar.
@@ -522,11 +522,11 @@ func apply_pulse(p: Dictionary) -> void:
 ## stayed down (the party walked through it), and no line, car or hello came: the same
 ## signals, from the change of status in the pulse. `was`: id -> the guest before it.
 func _tell_arrivals(was: Dictionary) -> void:
-	if GuestManager == null or not GuestManager.has_method("_arrival_row"):
+	if GuestManager == null or not INSTANCE.guests(main).has_method("_arrival_row"):
 		return
-	var now_abs: int = GuestManager._absolute_minutes(maxi(1, main._day_index), int(main._time_of_day_hours), int(fposmod(main._time_of_day_hours, 1.0) * 60.0))
+	var now_abs: int = INSTANCE.guests(main)._absolute_minutes(maxi(1, main._day_index), int(main._time_of_day_hours), int(fposmod(main._time_of_day_hours, 1.0) * 60.0))
 	var still := {}
-	for g in CoreRoot.get_state().guests:
+	for g in INSTANCE.core(main).get_state().guests:
 		if not (g is Dictionary):
 			continue
 		var id := int(g.get("id", -1))
@@ -536,16 +536,16 @@ func _tell_arrivals(was: Dictionary) -> void:
 		if before == now:
 			continue
 		if now == "waiting" and before != "waiting":
-			EventBus.guest_at_gate.emit(GuestManager._arrival_row(g, now_abs))
+			INSTANCE.bus(main).guest_at_gate.emit(INSTANCE.guests(main)._arrival_row(g, now_abs))
 		elif before == "waiting" and now == "active":
-			EventBus.guest_checked_in.emit((g as Dictionary).duplicate(true))
+			INSTANCE.bus(main).guest_checked_in.emit((g as Dictionary).duplicate(true))
 	# Waiting at reception for the full time and gone from the list: they gave up and drove
 	# off (sooner, the host turned them away at the desk).
 	for id in was.keys():
 		var old: Dictionary = was[id]
 		if str(old.get("status", "")) == "waiting" and not still.has(id) \
 				and now_abs - int(old.get("gate_since_abs", now_abs)) >= GuestManager.GATE_GIVE_UP_MINUTES - 2:
-			EventBus.guest_gave_up.emit(GuestManager._arrival_row(old, now_abs))
+			INSTANCE.bus(main).guest_gave_up.emit(INSTANCE.guests(main)._arrival_row(old, now_abs))
 
 
 ## What both machines keep alike, sent when it changes here (INSTANCE.coop(main).send_sync): the
@@ -733,7 +733,7 @@ func door(key: String, pick: int, seconds: float) -> void:
 func _send_room(key: String) -> void:
 	if not INSTANCE.coop(main).is_host() or not INSTANCE.coop(main).has_partner():
 		return
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(main).get_state()
 	if state != null and state.accommodation_states.has(key):
 		INSTANCE.coop(main).send_room_state(key, (state.accommodation_states[key] as Dictionary).duplicate(true))
 
@@ -743,7 +743,7 @@ func _send_room(key: String) -> void:
 func room_task(key: String, task_id: String) -> void:
 	if not INSTANCE.coop(main).is_host() or GuestManager == null:
 		return
-	GuestManager.complete_room_task(key, task_id)
+	INSTANCE.guests(main).complete_room_task(key, task_id)
 	if main._interior_manager != null and main._interior_manager.has_method("coop_refresh_room"):
 		main._interior_manager.coop_refresh_room(key)
 
@@ -760,7 +760,7 @@ func room_state(key: String, acc: Dictionary) -> void:
 	if not main._gameplay_started or main._menu_mode:
 		facts.append(["room", [key, acc]])
 		return
-	CoreRoot.get_state().accommodation_states[key] = acc.duplicate(true)
+	INSTANCE.core(main).get_state().accommodation_states[key] = acc.duplicate(true)
 	if main._interior_manager != null and main._interior_manager.has_method("coop_refresh_room"):
 		main._interior_manager.coop_refresh_room(key)
 
@@ -786,7 +786,7 @@ func apply_fact(kind: String, data: Array) -> void:
 	if kind == "books_shut":
 		main._coop_books_closed()
 		return
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(main).get_state()
 	var keep := int(state.money)
 	state.money = 1 << 30
 	match kind:
@@ -794,11 +794,11 @@ func apply_fact(kind: String, data: Array) -> void:
 		# The host built it at its PC: the god cursor brings it down here too.
 		"build":
 			_god_from_peer(true)
-			CoreRoot.builder_authority._on_request_build(str(data[0]), data[1], int(data[2]))
+			INSTANCE.core(main).builder_authority._on_request_build(str(data[0]), data[1], int(data[2]))
 			_god_from_peer(false)
 		"demolish":
 			_god_from_peer(true)
-			CoreRoot.builder_authority._on_request_demolish(data[0])
+			INSTANCE.core(main).builder_authority._on_request_demolish(data[0])
 			_god_from_peer(false)
 		"build_rejected":
 			EventBus.BuildRejected.emit(str(data[0]), data[1], int(data[2]), str(data[3]))
@@ -808,9 +808,9 @@ func apply_fact(kind: String, data: Array) -> void:
 			if main._interior_manager != null:
 				main._interior_manager._handle_replace_upgrade(data[0], str(data[1]), str(data[2]), 0)
 		"service":
-			CoreRoot.actions.service_building(data[0], 0)
+			INSTANCE.core(main).actions.service_building(data[0], 0)
 	state.money = keep
-	EventBus.money_changed.emit(keep)
+	INSTANCE.bus(main).money_changed.emit(keep)
 
 
 ## The host: what the other warden's hands ask of the camp (INSTANCE.coop(main).send_request). Done
@@ -824,8 +824,8 @@ func request(kind: String, data: Array) -> void:
 			main.ORDERS_SERVED._served[visit] = int(main.ORDERS_SERVED._served.get(visit, 0)) + 1
 		"meal":
 			# What the other warden served, for the guest's review (scripts/food/orders.gd).
-			if GuestManager != null and GuestManager.has_method("note_meal") and data.size() >= 3:
-				GuestManager.note_meal(int(data[0]), str(data[1]), int(data[2]))
+			if GuestManager != null and INSTANCE.guests(main).has_method("note_meal") and data.size() >= 3:
+				INSTANCE.guests(main).note_meal(int(data[0]), str(data[1]), int(data[2]))
 		"build":
 			var turned: Array = []
 			var cb := func(t: String, at: Vector2i, rot: int, reason: String) -> void: turned.append([t, at, rot, reason])
@@ -847,7 +847,7 @@ func request(kind: String, data: Array) -> void:
 			if not turned2.is_empty():
 				INSTANCE.coop(main).send_fact("demolish_rejected", turned2[0])
 		"money":
-			CoreRoot.actions.add_money(int(data[0]))
+			INSTANCE.core(main).actions.add_money(int(data[0]))
 		"till":
 			# Spent or taken on the other machine (the town, the pub, the pump...).
 			var seq := int(data[0])
@@ -855,13 +855,13 @@ func request(kind: String, data: Array) -> void:
 				till_acked[INSTANCE.coop(main).sender] = seq
 				var delta := int(data[1])
 				if delta >= 0:
-					CoreRoot.actions.add_money(delta)
+					INSTANCE.core(main).actions.add_money(delta)
 				else:
-					CoreRoot.actions.spend_money(mini(-delta, CoreRoot.get_money()))
+					INSTANCE.core(main).actions.spend_money(mini(-delta, INSTANCE.core(main).get_money()))
 		"service":
-			CoreRoot.actions.service_building(data[0], int(data[1]))
+			INSTANCE.core(main).actions.service_building(data[0], int(data[1]))
 		"service_side":
-			CoreRoot.actions.service_side(data[0], str(data[1]))
+			INSTANCE.core(main).actions.service_side(data[0], str(data[1]))
 		"upgrade":
 			if main._interior_manager != null and data[0] is Dictionary:
 				main._interior_manager.coop_upgrade(data[0])
@@ -888,9 +888,9 @@ func request(kind: String, data: Array) -> void:
 			if main._night_jobs != null:
 				main._night_jobs.on_breaker_fixed(int(data[0]))
 		"checkin":
-			GuestManager.request_check_in(int(data[0]))
+			INSTANCE.guests(main).request_check_in(int(data[0]))
 		"refuse":
-			GuestManager.refuse_at_desk(int(data[0]))
+			INSTANCE.guests(main).refuse_at_desk(int(data[0]))
 		"phone":
 			if main.camp_office != null:
 				main.camp_office.on_phone_effect(str(data[0]), str(data[1]))
@@ -898,8 +898,8 @@ func request(kind: String, data: Array) -> void:
 			if main.camp_office != null:
 				main.camp_office.take_shed_key()
 		"mail":
-			if EmailManager != null and EmailManager.has_method("coop_do"):
-				EmailManager.coop_do(data)
+			if EmailManager != null and INSTANCE.mail(main).has_method("coop_do"):
+				INSTANCE.mail(main).coop_do(data)
 		"pay_bill":
 			main.request_pay_electricity_bill(str(data[0]))
 		"crew":
@@ -917,12 +917,12 @@ func request(kind: String, data: Array) -> void:
 			# Paid on their machine (the till brings it); one of the kind already running
 			# (both wardens bought it at once): the fee back.
 			if not main._goggle.buy_ad(str(data[0]), int(data[1]), int(data[2])):
-				CoreRoot.actions.add_money(main._goggle.ad_cost(str(data[0]), int(data[1])))
+				INSTANCE.core(main).actions.add_money(main._goggle.ad_cost(str(data[0]), int(data[1])))
 		"builder98_mail":
 			# Builder 98 on the other machine: its registration key or the district's
 			# letter comes in the host's mail (the other machine gets it from there).
-			if EmailManager != null and EmailManager.has_method("schedule_pool_mail"):
-				EmailManager.schedule_pool_mail(preload("res://scripts/builder/shareware.gd").mail_for(str(data[0]), str(data[1]), main._day_index))
+			if EmailManager != null and INSTANCE.mail(main).has_method("schedule_pool_mail"):
+				INSTANCE.mail(main).schedule_pool_mail(preload("res://scripts/builder/shareware.gd").mail_for(str(data[0]), str(data[1]), main._day_index))
 
 
 ## A build or demolition from another warden's PC: the god cursor stages it here too.
@@ -937,7 +937,7 @@ var build_forwarding := false
 
 
 func _forward_builds(on: bool) -> void:
-	var auth = CoreRoot.builder_authority
+	var auth = INSTANCE.core(main).builder_authority
 	if auth == null or on == build_forwarding:
 		return
 	build_forwarding = on
@@ -964,7 +964,7 @@ func _send_build(t: String, at: Vector2i, rot: int) -> void:
 	if not INSTANCE.coop(main).is_client():
 		# Left the co-op camp without the end being heard: the builder is ours again.
 		_forward_builds(false)
-		CoreRoot.builder_authority._on_request_build(t, at, rot)
+		INSTANCE.core(main).builder_authority._on_request_build(t, at, rot)
 		return
 	INSTANCE.coop(main).send_request("build", [t, at, rot])
 
@@ -972,7 +972,7 @@ func _send_build(t: String, at: Vector2i, rot: int) -> void:
 func _send_demolish(rect: Rect2i) -> void:
 	if not INSTANCE.coop(main).is_client():
 		_forward_builds(false)
-		CoreRoot.builder_authority._on_request_demolish(rect)
+		INSTANCE.core(main).builder_authority._on_request_demolish(rect)
 		return
 	INSTANCE.coop(main).send_request("demolish", [rect])
 
@@ -1207,7 +1207,7 @@ func local_warden() -> Dictionary:
 
 ## The host's clock, weather, power and till for the other machine.
 func clock() -> Dictionary:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(main).get_state()
 	var night_passing: bool = main.camp_office != null and is_instance_valid(main.camp_office) and main.camp_office.is_fast_forwarding()
 	var c := {"d": main._day_index, "h": main._time_of_day_hours, "w": main._weather_state, "pw": main._is_grid_powered(), "m": int(state.money) if state != null else 0, "sl": night_passing, "mq": till_acked}
 	# The nights slept here, what keeps the others from sleeping (camp_office.gd).
@@ -1230,7 +1230,7 @@ func clock() -> Dictionary:
 func apply_clock(c: Dictionary) -> void:
 	if not INSTANCE.coop(main).is_client() or not main._gameplay_started or main._menu_mode:
 		return
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(main).get_state()
 	if state != null:
 		var day := maxi(1, int(c.get("d", main._day_index)))
 		if int(state.day) != day:

@@ -1017,7 +1017,7 @@ func _hidden_from_him() -> void:
 	_hidden_shots += 1
 	if _hidden_shots != HIDDEN_SHOTS:
 		return
-	var state = CoreRoot.get_state() if CoreRoot != null else null
+	var state = INSTANCE.core(_world_root).get_state() if CoreRoot != null else null
 	if state == null or GuestManager == null:
 		return
 	var pick := {}
@@ -1028,7 +1028,7 @@ func _hidden_from_him() -> void:
 				break
 	if pick.is_empty():
 		return
-	GuestManager.apply_guest_event(int(pick.get("id", -1)), -14.0, "Someone took pictures of us through the window all night. In the morning there was a photograph on the step: the two of us, asleep.")
+	INSTANCE.guests(_world_root).apply_guest_event(int(pick.get("id", -1)), -14.0, "Someone took pictures of us through the window all night. In the morning there was a photograph on the step: the two of us, asleep.")
 
 
 func _tick_flash(dt: float) -> void:

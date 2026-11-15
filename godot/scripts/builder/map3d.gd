@@ -211,7 +211,7 @@ func _ready() -> void:
 	_plates.extra_cull_margin = 16384.0
 	_vp.add_child(_plates)
 	_eye_only(_plates)
-	if EventBus.has_signal("BuildConfirmed"):
+	if INSTANCE.bus(self).has_signal("BuildConfirmed"):
 		EventBus.BuildConfirmed.connect(_on_built)
 	resized.connect(_fit)
 
@@ -788,7 +788,7 @@ func _update_plates() -> void:
 		var cost: int = panel._get_cost("path")
 		var afford := 1 << 30
 		if cost > 0:
-			afford = int(CoreRoot.get_money()) / cost
+			afford = int(INSTANCE.core(self).get_money()) / cost
 		var n_new := 0
 		for e in panel.get("_path_line"):
 			var kind := int(e[1])
@@ -862,8 +862,8 @@ func _footprint(o: Vector2i, fp: Vector2i) -> Array:
 
 func _fp_of(gm, o: Vector2i) -> Vector2i:
 	var cell: Dictionary = gm.cells.get(o, {}) if gm != null else {}
-	if cell.has("type") and CoreRoot != null and CoreRoot.registry != null:
-		var def = CoreRoot.registry.get_def(StringName(str(cell["type"])))
+	if cell.has("type") and CoreRoot != null and INSTANCE.core(self).registry != null:
+		var def = INSTANCE.core(self).registry.get_def(StringName(str(cell["type"])))
 		if def != null:
 			return gm.footprint_of(o, def.footprint)
 	return Vector2i.ONE
@@ -1273,18 +1273,18 @@ func _draw_fx(cv: Control) -> void:
 
 ## Every lodging's name over its roof (T1, C2, V1), as on the 2D map and its key.
 func _draw_badges(cv: Control) -> void:
-	if GuestManager == null or not GuestManager.has_method("room_short"):
+	if GuestManager == null or not INSTANCE.guests(self).has_method("room_short"):
 		return
-	var accs: Dictionary = GuestManager.get_accommodation_states()
+	var accs: Dictionary = INSTANCE.guests(self).get_accommodation_states()
 	for key in accs.keys():
 		var acc: Dictionary = accs[key]
-		var kind: String = GuestManager.lodging_kind(str(acc.get("building_type", "")))
+		var kind: String = INSTANCE.guests(self).lodging_kind(str(acc.get("building_type", "")))
 		if kind == "":
 			continue
 		var c: Vector2i = acc.get("coord", Vector2i(-1, -1)) if acc.get("coord", null) is Vector2i else panel.SAVE_CODEC.coord_from_key(str(key))
 		if c.x < 0:
 			continue
-		var def = CoreRoot.registry.get_def(StringName(str(acc.get("building_type", "")))) if CoreRoot != null else null
+		var def = INSTANCE.core(self).registry.get_def(StringName(str(acc.get("building_type", "")))) if CoreRoot != null else null
 		var fp: Vector2i = def.footprint if def != null else Vector2i.ONE
 		var info: Dictionary = panel.structure_at(c)
 		fp = info.get("footprint", fp) if info.get("footprint", null) is Vector2i else fp
@@ -1292,7 +1292,7 @@ func _draw_badges(cv: Control) -> void:
 		var p := screen_of(_foot_world(c, fp) + Vector3(0, top + 0.5, 0))
 		if p == Vector2.INF or not Rect2(Vector2.ZERO, size).has_point(p):
 			continue
-		var text: String = GuestManager.room_short(str(key))
+		var text: String = INSTANCE.guests(self).room_short(str(key))
 		var tw := T.FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
 		var r := Rect2((p - Vector2(tw * 0.5 + 3, 7)).floor(), Vector2(tw + 6, 13))
 		var col: Color = {"tent": Color8(48, 112, 54), "cabin": Color8(168, 38, 30), "caravan": Color8(42, 72, 150)}.get(kind, Color8(90, 90, 90))
@@ -1393,7 +1393,7 @@ func _draw_demolish_outline(cv: Control) -> void:
 			bad = true
 		else:
 			tag = LANG.f("%dx%d  clear %d  $%d", [rect.size.x, rect.size.y, int(sum["tiles"]), int(sum["fee"])])
-			if int(CoreRoot.get_money()) < int(sum["fee"]):
+			if int(INSTANCE.core(self).get_money()) < int(sum["fee"]):
 				bad = true
 	var top := pts[0]
 	for p in pts:
@@ -1412,7 +1412,7 @@ func _draw_tags() -> void:
 		var cost: int = panel._get_cost("path")
 		var afford := 1 << 30
 		if cost > 0:
-			afford = int(CoreRoot.get_money()) / cost
+			afford = int(INSTANCE.core(self).get_money()) / cost
 		var n_new := 0
 		var blocked := false
 		for e in line:
@@ -1436,7 +1436,7 @@ func _draw_tags() -> void:
 			if bool(e[1]):
 				n += 1
 		var each: int = panel._get_cost(sel)
-		var afford_all := int(CoreRoot.get_money()) >= n * each
+		var afford_all := int(INSTANCE.core(self).get_money()) >= n * each
 		var t2 := LANG.f("%d x $%d = $%d", [n, each, n * each]) if afford_all else LANG.f("$%d - no money for all", n * each)
 		_tag_at(_cell_world(Vector2((panel.get("_row_line") as Array).back()[0])), t2, not afford_all or n == 0)
 		return

@@ -159,18 +159,18 @@ var _life = GUEST_LIFE_SCRIPT.new()
 func _ready() -> void:
 	_rng.randomize()
 	_ensure_guest_state_defaults()
-	_last_known_day = max(1, CoreRoot.get_day())
+	_last_known_day = max(1, INSTANCE.core(self).get_day())
 	_last_income_abs_minute = -1
 
-	if EventBus.has_signal("customer_booking_confirmed"):
+	if INSTANCE.bus(self).has_signal("customer_booking_confirmed"):
 		var confirm_cb := Callable(self, "_on_customer_booking_confirmed")
-		if not EventBus.customer_booking_confirmed.is_connected(confirm_cb):
-			EventBus.customer_booking_confirmed.connect(confirm_cb)
+		if not INSTANCE.bus(self).customer_booking_confirmed.is_connected(confirm_cb):
+			INSTANCE.bus(self).customer_booking_confirmed.connect(confirm_cb)
 
-	if EventBus.has_signal("time_tick"):
+	if INSTANCE.bus(self).has_signal("time_tick"):
 		var tick_cb := Callable(self, "_on_time_tick")
-		if not EventBus.time_tick.is_connected(tick_cb):
-			EventBus.time_tick.connect(tick_cb)
+		if not INSTANCE.bus(self).time_tick.is_connected(tick_cb):
+			INSTANCE.bus(self).time_tick.connect(tick_cb)
 
 	_ensure_guest_lodging_assignments()
 	_sync_accommodation_states_from_guests(false)
@@ -193,7 +193,7 @@ func import_runtime_state(data: Dictionary) -> void:
 		reset_runtime_state()
 		return
 
-	_last_known_day = max(1, int(data.get("last_known_day", CoreRoot.get_day())))
+	_last_known_day = max(1, int(data.get("last_known_day", INSTANCE.core(self).get_day())))
 	_last_known_hour = clampi(int(data.get("last_known_hour", 9)), 0, 23)
 	_last_known_minute = clampi(int(data.get("last_known_minute", 0)), 0, 59)
 	var fallback_abs := _absolute_minutes(_last_known_day, _last_known_hour, _last_known_minute)
@@ -214,7 +214,7 @@ func reset_runtime_state() -> void:
 	_ensure_guest_state_defaults()
 	_last_tick_signature = ""
 	_last_guest_overview.clear()
-	_last_known_day = max(1, CoreRoot.get_day())
+	_last_known_day = max(1, INSTANCE.core(self).get_day())
 	_last_known_hour = 9
 	_last_known_minute = 0
 	_last_income_abs_minute = -1
@@ -228,7 +228,7 @@ func _runtime_signature() -> String:
 
 
 func _on_time_tick(hour: int, minute: int) -> void:
-	_last_known_day = max(1, CoreRoot.get_day())
+	_last_known_day = max(1, INSTANCE.core(self).get_day())
 	_last_known_hour = clampi(hour, 0, 23)
 	_last_known_minute = clampi(minute, 0, 59)
 	# Co-op: the guests live on the host's machine; this one only shows them (its
@@ -264,10 +264,10 @@ func _on_time_tick(hour: int, minute: int) -> void:
 # ── guest life (needs / mood / activities) ────────────────────────────────────
 
 func _advance_guest_life(now_abs: int) -> bool:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null:
 		return false
-	_life.refresh_world(state, CoreRoot.registry)
+	_life.refresh_world(state, INSTANCE.core(self).registry)
 	_life.set_dull(_dull_places())
 	var weirdness := clampf(float(state.hrotfaktor), 0.0, 1.0)
 	var changed: bool = _life.advance_all(state, now_abs, Callable(self, "_is_night_abs"), weirdness)
@@ -277,16 +277,16 @@ func _advance_guest_life(now_abs: int) -> bool:
 				_process_storm_off(int(event.get("guest_id", -1)))
 				changed = true
 			"bushes":
-				if CoreRoot.has_method("apply_changes"):
-					CoreRoot.apply_changes({"karma": float(state.karma) - 0.25})
+				if INSTANCE.core(self).has_method("apply_changes"):
+					INSTANCE.core(self).apply_changes({"karma": float(state.karma) - 0.25})
 			"visit":
 				# The toilets and showers get dirty with use (cleaned inside).
 				var used := str(event.get("facility", ""))
-				if MAINT_RULES.soils(used) and CoreRoot.actions != null:
-					CoreRoot.actions.soil_building(_life._parse_key(str(event.get("key", ""))), float(MAINT_RULES.SOILED_BY_USE[used]))
+				if MAINT_RULES.soils(used) and INSTANCE.core(self).actions != null:
+					INSTANCE.core(self).actions.soil_building(_life._parse_key(str(event.get("key", ""))), float(MAINT_RULES.SOILED_BY_USE[used]))
 			"storm_off":
-				if EventBus.has_signal("guest_state_changed"):
-					EventBus.guest_state_changed.emit(int(event.get("guest_id", -1)), STATUS_ACTIVE, "storming_off")
+				if INSTANCE.bus(self).has_signal("guest_state_changed"):
+					INSTANCE.bus(self).guest_state_changed.emit(int(event.get("guest_id", -1)), STATUS_ACTIVE, "storming_off")
 	return changed
 
 
@@ -297,7 +297,7 @@ func _is_night_abs(abs_minute: int) -> bool:
 
 ## A guest party that stormed off reaches the gate: no settlement, one-star review.
 func _process_storm_off(guest_id: int) -> void:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null:
 		return
 	for i in range(state.guests.size() - 1, -1, -1):
@@ -311,12 +311,12 @@ func _process_storm_off(guest_id: int) -> void:
 		review["stormed_off"] = true
 		state.guest_reviews.append(review)
 		_trim_array_history(state.guest_reviews, MAX_GUEST_REVIEW_HISTORY)
-		if EventBus.has_signal("guest_review_posted"):
-			EventBus.guest_review_posted.emit(review)
-		if CoreRoot.has_method("apply_changes"):
-			CoreRoot.apply_changes({"karma": float(state.karma) - 2.0})
-		if EventBus.has_signal("guest_state_changed"):
-			EventBus.guest_state_changed.emit(guest_id, str(guest.get("status", STATUS_ACTIVE)), "departed")
+		if INSTANCE.bus(self).has_signal("guest_review_posted"):
+			INSTANCE.bus(self).guest_review_posted.emit(review)
+		if INSTANCE.core(self).has_method("apply_changes"):
+			INSTANCE.core(self).apply_changes({"karma": float(state.karma) - 2.0})
+		if INSTANCE.bus(self).has_signal("guest_state_changed"):
+			INSTANCE.bus(self).guest_state_changed.emit(guest_id, str(guest.get("status", STATUS_ACTIVE)), "departed")
 		state.guests.remove_at(i)
 		_ensure_guest_lodging_assignments()
 		_sync_accommodation_states_from_guests()
@@ -356,7 +356,7 @@ func report_threat(tile: Vector2i, strength: float, minutes: int = 30) -> void:
 
 ## Per-party snapshot for visual agents, GuestRack and the HUD.
 func get_guest_life_snapshot() -> Array:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	var out: Array = []
 	if state == null:
 		return out
@@ -399,7 +399,7 @@ func get_guest_life_snapshot() -> Array:
 
 ## Camp-wide mood numbers for the HUD and the status apps.
 func get_camp_mood_summary() -> Dictionary:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	var total := 0.0
 	var count := 0
 	var unhappy := 0
@@ -466,7 +466,7 @@ func _on_customer_booking_confirmed(mail: Dictionary) -> void:
 		return
 
 	_ensure_guest_state_defaults()
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null:
 		return
 
@@ -521,8 +521,8 @@ func _on_customer_booking_confirmed(mail: Dictionary) -> void:
 	var created_guest = _get_guest_by_id(guest_id)
 	if created_guest.is_empty():
 		created_guest = guest
-	if EventBus.has_signal("guest_created"):
-		EventBus.guest_created.emit(created_guest.duplicate(true))
+	if INSTANCE.bus(self).has_signal("guest_created"):
+		INSTANCE.bus(self).guest_created.emit(created_guest.duplicate(true))
 
 	_emit_guest_overview_state(true)
 
@@ -532,7 +532,7 @@ func _on_customer_booking_confirmed(mail: Dictionary) -> void:
 ## Expected parties reach the barrier; waiting ones are let in once their rooms are
 ## ready, or give up after GATE_GIVE_UP_MINUTES.
 func _update_arrivals(now_abs: int) -> bool:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null:
 		return false
 	var changed := false
@@ -547,8 +547,8 @@ func _update_arrivals(now_abs: int) -> bool:
 			guest["gate_since_abs"] = now_abs
 			status = STATUS_WAITING
 			changed = true
-			if EventBus.has_signal("guest_at_gate"):
-				EventBus.guest_at_gate.emit(_arrival_row(guest, now_abs))
+			if INSTANCE.bus(self).has_signal("guest_at_gate"):
+				INSTANCE.bus(self).guest_at_gate.emit(_arrival_row(guest, now_abs))
 		if status != STATUS_WAITING:
 			continue
 		# They wait for the player to come and check them in (request_check_in).
@@ -579,7 +579,7 @@ func rooms_ready(guest: Dictionary) -> bool:
 
 
 func _rooms_ready_for(guest: Dictionary) -> bool:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	var slots: Array = guest.get("lodging_slots", []) if guest.get("lodging_slots", []) is Array else []
 	if slots.is_empty():
 		return false
@@ -594,7 +594,7 @@ func _rooms_ready_for(guest: Dictionary) -> bool:
 ## Something happened in the camp that guests noticed (scripts/day_events.gd): moves
 ## the mood of every guest in, or only of the given archetypes, and gives them `thought`.
 func apply_camp_event(mood_delta: float, thought: String, archetypes: Array = []) -> void:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null:
 		return
 	var now_abs := _absolute_minutes(max(1, _last_known_day), _last_known_hour, _last_known_minute)
@@ -616,7 +616,7 @@ func apply_camp_event(mood_delta: float, thought: String, archetypes: Array = []
 ## Something happened to one party (e.g. lost in the corn at night): their mood moves
 ## and they think `thought`. Checked-in guests only.
 func apply_guest_event(guest_id: int, mood_delta: float, thought: String) -> void:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null:
 		return
 	var now_abs := _absolute_minutes(max(1, _last_known_day), _last_known_hour, _last_known_minute)
@@ -637,7 +637,7 @@ func apply_guest_event(guest_id: int, mood_delta: float, thought: String) -> voi
 ## §7b: the businesses' ratings reach Goggle through the reviews): the best and the worst
 ## of the stay are kept, with their scores (scripts/food/orders.gd note_meal).
 func note_meal(guest_id: int, line: String, score: int) -> void:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null or line == "":
 		return
 	for i in state.guests.size():
@@ -669,7 +669,7 @@ func _review_meal(guest: Dictionary, rating: int) -> String:
 ## The player at the barrier, pressing E on a waiting party. Lets them in when every
 ## room they booked is made up. {ok, reason: "not_waiting" | "room_not_ready", rooms}
 func request_check_in(guest_id: int) -> Dictionary:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null:
 		return {"ok": false, "reason": "not_waiting"}
 	var now_abs := _absolute_minutes(max(1, _last_known_day), _last_known_hour, _last_known_minute)
@@ -709,7 +709,7 @@ func _check_in(guest: Dictionary, now_abs: int) -> void:
 	guest["checkout_day"] = int(out_parts.get("day", 1))
 	guest["checkout_minute_of_day"] = int(out_parts.get("minute_of_day", 0))
 	guest["waited_at_gate"] = waited
-	_life.refresh_world(CoreRoot.get_state(), CoreRoot.registry)
+	_life.refresh_world(INSTANCE.core(self).get_state(), INSTANCE.core(self).registry)
 	_life.init_guest(guest, now_abs)
 	guest["mood"] = clampf(float(guest.get("mood", 68.0)) - float(waited) / 5.0, 25.0, 100.0)
 	# What they make of the lodging they were given (GuestNeedsSystem.LODGING_TASTE): a
@@ -720,12 +720,12 @@ func _check_in(guest: Dictionary, now_abs: int) -> void:
 		var taste := GuestNeedsSystem.lodging_taste(arch, lodging)
 		guest["mood"] = clampf(float(guest["mood"]) + taste * 0.25, 5.0, 100.0)
 		_life._say(guest, GuestNeedsSystem.lodging_thought(arch, lodging), now_abs)
-	if EventBus.has_signal("guest_checked_in"):
-		EventBus.guest_checked_in.emit(guest.duplicate(true))
+	if INSTANCE.bus(self).has_signal("guest_checked_in"):
+		INSTANCE.bus(self).guest_checked_in.emit(guest.duplicate(true))
 
 
 func _give_up_at_gate(index: int, guest: Dictionary, now_abs: int) -> void:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	var review := {
 		"guest_id": int(guest.get("id", -1)),
 		"name": str(guest.get("name", "Guest")),
@@ -738,14 +738,14 @@ func _give_up_at_gate(index: int, guest: Dictionary, now_abs: int) -> void:
 	}
 	state.guest_reviews.append(review)
 	_trim_array_history(state.guest_reviews, MAX_GUEST_REVIEW_HISTORY)
-	if EventBus.has_signal("guest_review_posted"):
-		EventBus.guest_review_posted.emit(review)
-	if CoreRoot.has_method("apply_changes"):
-		CoreRoot.apply_changes({"karma": float(state.karma) - 2.0})
-	if EventBus.has_signal("guest_gave_up"):
-		EventBus.guest_gave_up.emit(_arrival_row(guest, now_abs))
-	if EventBus.has_signal("guest_state_changed"):
-		EventBus.guest_state_changed.emit(int(guest.get("id", -1)), STATUS_WAITING, "departed")
+	if INSTANCE.bus(self).has_signal("guest_review_posted"):
+		INSTANCE.bus(self).guest_review_posted.emit(review)
+	if INSTANCE.core(self).has_method("apply_changes"):
+		INSTANCE.core(self).apply_changes({"karma": float(state.karma) - 2.0})
+	if INSTANCE.bus(self).has_signal("guest_gave_up"):
+		INSTANCE.bus(self).guest_gave_up.emit(_arrival_row(guest, now_abs))
+	if INSTANCE.bus(self).has_signal("guest_state_changed"):
+		INSTANCE.bus(self).guest_state_changed.emit(int(guest.get("id", -1)), STATUS_WAITING, "departed")
 	state.guests.remove_at(index)
 	_ensure_guest_lodging_assignments()
 	_sync_accommodation_states_from_guests()
@@ -763,7 +763,7 @@ const CARD_FIRST := {"pepa": "JOSEF", "mirek": "MIROSLAV", "honza": "JAN", "fran
 ## booking (name, party, nights, rooms and whether each is made up), the identity card
 ## (the same every time for the same guest) and the sprite.
 func get_desk_queue() -> Array:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	var out: Array = []
 	if state == null:
 		return out
@@ -808,7 +808,7 @@ static func desk_card_for(guest_id: int, booking_name: String) -> Dictionary:
 ## A frost night: whoever slept under canvas (tents, caravans) froze. Returns how many
 ## parties it hit. `low` is the night's low in degrees C.
 func apply_cold_night(low: int) -> int:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null:
 		return 0
 	var now_abs := _absolute_minutes(max(1, _last_known_day), _last_known_hour, _last_known_minute)
@@ -846,7 +846,7 @@ func apply_cold_night(low: int) -> int:
 ## The key board behind the counter: every lodging, whether it is made up, and whether
 ## its key is out (someone checked in holds it).
 func get_key_board() -> Array:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	var out: Array = []
 	if state == null:
 		return out
@@ -888,7 +888,7 @@ func get_key_board() -> Array:
 
 ## Turned away at the desk (stamped REFUSED): they go home and say so.
 func refuse_at_desk(guest_id: int) -> bool:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null:
 		return false
 	var now_abs := _absolute_minutes(max(1, _last_known_day), _last_known_hour, _last_known_minute)
@@ -911,14 +911,14 @@ func refuse_at_desk(guest_id: int) -> bool:
 		}
 		state.guest_reviews.append(review)
 		_trim_array_history(state.guest_reviews, MAX_GUEST_REVIEW_HISTORY)
-		if EventBus.has_signal("guest_review_posted"):
-			EventBus.guest_review_posted.emit(review)
-		if CoreRoot.has_method("apply_changes"):
-			CoreRoot.apply_changes({"karma": float(state.karma) - 3.0})
-		if EventBus.has_signal("guest_gave_up"):
-			EventBus.guest_gave_up.emit(_arrival_row(guest, now_abs))
-		if EventBus.has_signal("guest_state_changed"):
-			EventBus.guest_state_changed.emit(guest_id, STATUS_WAITING, "departed")
+		if INSTANCE.bus(self).has_signal("guest_review_posted"):
+			INSTANCE.bus(self).guest_review_posted.emit(review)
+		if INSTANCE.core(self).has_method("apply_changes"):
+			INSTANCE.core(self).apply_changes({"karma": float(state.karma) - 3.0})
+		if INSTANCE.bus(self).has_signal("guest_gave_up"):
+			INSTANCE.bus(self).guest_gave_up.emit(_arrival_row(guest, now_abs))
+		if INSTANCE.bus(self).has_signal("guest_state_changed"):
+			INSTANCE.bus(self).guest_state_changed.emit(guest_id, STATUS_WAITING, "departed")
 		state.guests.remove_at(i)
 		_ensure_guest_lodging_assignments()
 		_sync_accommodation_states_from_guests()
@@ -930,7 +930,7 @@ func refuse_at_desk(guest_id: int) -> bool:
 ## Parties on the way or at the barrier, those at the barrier first, for the HUD and
 ## the terminal.
 func get_arrivals() -> Array:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	var out: Array = []
 	if state == null:
 		return out
@@ -943,7 +943,7 @@ func get_arrivals() -> Array:
 
 
 func _arrival_row(guest: Dictionary, now_abs: int) -> Dictionary:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	var status := str(guest.get("status", ""))
 	var rooms: Array = []
 	var slots: Array = guest.get("lodging_slots", []) if guest.get("lodging_slots", []) is Array else []
@@ -981,7 +981,7 @@ func _arrival_row(guest: Dictionary, now_abs: int) -> Dictionary:
 ## "Cabin 2", "Tent 1", "Caravan 3": every lodging is numbered within its kind in the
 ## order it was built (the lowest free number; a new one takes a demolished one's).
 func room_label(key: String) -> String:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	var acc: Dictionary = state.accommodation_states.get(key, {}) if state != null else {}
 	var kind := lodging_kind(str(acc.get("building_type", "")))
 	var no := int(acc.get("no", 0))
@@ -1004,7 +1004,7 @@ static func lodging_kind(building_type: String) -> String:
 
 ## The short name on a key fob and the plan: T1, C2, V3.
 func room_short(key: String) -> String:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	var acc: Dictionary = state.accommodation_states.get(key, {}) if state != null else {}
 	var kind := lodging_kind(str(acc.get("building_type", "")))
 	var letter := {"tent": "T", "cabin": "C", "caravan": "V"}.get(kind, "R") as String
@@ -1017,7 +1017,7 @@ func room_short(key: String) -> String:
 ## they have gone.
 func make_room_carnage(key: String) -> void:
 	_sync_accommodation_states_from_guests()
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null or not state.accommodation_states.has(key):
 		return
 	var acc: Dictionary = state.accommodation_states[key]
@@ -1030,14 +1030,14 @@ func make_room_carnage(key: String) -> void:
 		mess = {"seed": _rng.randi(), "level": 4, "archetypes": mess.get("archetypes", []) if mess.get("archetypes", []) is Array else [], "carnage": true}
 	acc["mess"] = mess
 	state.accommodation_states[key] = acc
-	if EventBus.has_signal("accommodation_state_changed"):
-		EventBus.accommodation_state_changed.emit(key, str(acc.get("status", "")), int(acc.get("occupied", 0)))
+	if INSTANCE.bus(self).has_signal("accommodation_state_changed"):
+		INSTANCE.bus(self).accommodation_state_changed.emit(key, str(acc.get("status", "")), int(acc.get("occupied", 0)))
 
 
 ## They lived through the night she came into their lodging: in the morning they storm
 ## off, one star, in their own words (`review_text`, one whole line for the catalogue).
 func shaken_leave(guest_id: int, review_text: String, thought: String) -> void:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null:
 		return
 	for i in state.guests.size():
@@ -1059,7 +1059,7 @@ func shaken_leave(guest_id: int, review_text: String, thought: String) -> void:
 ## mess at its worst; the bed has to be made up like any room.
 func make_room_derelict(key: String) -> void:
 	_sync_accommodation_states_from_guests()
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null or not state.accommodation_states.has(key):
 		return
 	var acc: Dictionary = state.accommodation_states[key]
@@ -1070,7 +1070,7 @@ func make_room_derelict(key: String) -> void:
 
 
 func room_number(key: String) -> int:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	var acc: Dictionary = state.accommodation_states.get(key, {}) if state != null else {}
 	return int(acc.get("no", 0))
 
@@ -1108,7 +1108,7 @@ func _number_lodgings(accs: Dictionary) -> void:
 ## Everything an interior needs to show a room's state.
 func get_room_state(key: String) -> Dictionary:
 	_sync_accommodation_states_from_guests(false)
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	var acc: Dictionary = state.accommodation_states.get(key, {}) if state != null else {}
 	if acc.is_empty():
 		return {}
@@ -1132,7 +1132,7 @@ func get_room_state(key: String) -> Dictionary:
 ## A preparation task finished inside the interior. Returns true if it changed anything.
 func complete_room_task(key: String, task_id: String) -> bool:
 	_sync_accommodation_states_from_guests(false)
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null or not state.accommodation_states.has(key):
 		return false
 	var acc: Dictionary = state.accommodation_states[key]
@@ -1146,15 +1146,15 @@ func complete_room_task(key: String, task_id: String) -> bool:
 	done.append(task_id)
 	acc["prep_done"] = done
 	state.accommodation_states[key] = acc
-	if EventBus.has_signal("room_task_done"):
-		EventBus.room_task_done.emit(key, task_id)
+	if INSTANCE.bus(self).has_signal("room_task_done"):
+		INSTANCE.bus(self).room_task_done.emit(key, task_id)
 	if ROOM_RULES.all_done(building_type, done, mess) and ROOM_RULES.normalize_status(str(acc.get("status", ""))) != ROOM_RULES.STATUS_READY:
 		acc["status"] = ROOM_RULES.STATUS_READY
 		state.accommodation_states[key] = acc
-		if EventBus.has_signal("room_prepared"):
-			EventBus.room_prepared.emit(key)
-		if EventBus.has_signal("accommodation_state_changed"):
-			EventBus.accommodation_state_changed.emit(key, ROOM_RULES.STATUS_READY, (acc.get("guest_ids", []) as Array).size())
+		if INSTANCE.bus(self).has_signal("room_prepared"):
+			INSTANCE.bus(self).room_prepared.emit(key)
+		if INSTANCE.bus(self).has_signal("accommodation_state_changed"):
+			INSTANCE.bus(self).accommodation_state_changed.emit(key, ROOM_RULES.STATUS_READY, (acc.get("guest_ids", []) as Array).size())
 		# Someone may be waiting at the barrier for exactly this room.
 		_update_arrivals(_absolute_minutes(max(1, _last_known_day), _last_known_hour, _last_known_minute))
 	_emit_guest_overview_state(true)
@@ -1162,7 +1162,7 @@ func complete_room_task(key: String, task_id: String) -> bool:
 
 
 func _update_stay_states(day: int, hour: int, minute: int) -> bool:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null:
 		return false
 
@@ -1206,7 +1206,7 @@ func _update_stay_states(day: int, hour: int, minute: int) -> bool:
 func _process_income_minutes(elapsed_minutes: int) -> bool:
 	if elapsed_minutes <= 0:
 		return false
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null:
 		return false
 
@@ -1230,18 +1230,18 @@ func _process_income_minutes(elapsed_minutes: int) -> bool:
 		if payout > 0:
 			guest["income_paid_total"] = int(guest.get("income_paid_total", 0)) + payout
 			total_income += payout
-			if EventBus.has_signal("guest_payment_received"):
-				EventBus.guest_payment_received.emit(payout, int(guest.get("id", -1)))
+			if INSTANCE.bus(self).has_signal("guest_payment_received"):
+				INSTANCE.bus(self).guest_payment_received.emit(payout, int(guest.get("id", -1)))
 
 		state.guests[i] = guest
 		any_change = true
 
 	if total_income > 0:
-		if CoreRoot.actions != null and CoreRoot.actions.has_method("add_money"):
-			CoreRoot.actions.add_money(total_income)
-			CoreRoot.actions.note_camp("lodging", total_income)
-		elif CoreRoot != null and CoreRoot.has_method("apply_changes") and CoreRoot.has_method("get_money"):
-			CoreRoot.apply_changes({"money": CoreRoot.get_money() + total_income})
+		if INSTANCE.core(self).actions != null and INSTANCE.core(self).actions.has_method("add_money"):
+			INSTANCE.core(self).actions.add_money(total_income)
+			INSTANCE.core(self).actions.note_camp("lodging", total_income)
+		elif CoreRoot != null and INSTANCE.core(self).has_method("apply_changes") and INSTANCE.core(self).has_method("get_money"):
+			INSTANCE.core(self).apply_changes({"money": INSTANCE.core(self).get_money() + total_income})
 
 	return any_change
 
@@ -1249,7 +1249,7 @@ func _process_income_minutes(elapsed_minutes: int) -> bool:
 ## Test nights (scripts/debug/test_camps.gd build_camp): a party booked and let in at once, rooms and the
 ## barrier skipped. Returns the guest id (-1 when there is no bed for them).
 func debug_check_in_party(guest_name: String, archetype: String, count: int, nights: int) -> int:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null:
 		return -1
 	var before := int(state.next_guest_id)
@@ -1271,7 +1271,7 @@ func debug_check_in_party(guest_name: String, archetype: String, count: int, nig
 ## Test camps (scripts/debug/test_camps.gd start_businesses): every guest in the camp hungry and thirsty
 ## somewhere between `lo` and `hi` (SEEK_THRESHOLD is 62), so the businesses fill up.
 func debug_want_food(lo: float, hi: float) -> void:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null:
 		return
 	var rng := RandomNumberGenerator.new()
@@ -1291,15 +1291,15 @@ func debug_want_food(lo: float, hi: float) -> void:
 ## without a word in the guest book. Announced as a departure first, so their things go to
 ## the lost and found like anyone's. True if they were here.
 func vanish_guest(guest_id: int) -> bool:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null:
 		return false
 	for i in state.guests.size():
 		var g = state.guests[i]
 		if g is Dictionary and int((g as Dictionary).get("id", -1)) == guest_id:
-			CoreRoot.actions.note_lost_guest(g, int(state.day))
-			if EventBus.has_signal("guest_state_changed"):
-				EventBus.guest_state_changed.emit(guest_id, str(g.get("status", STATUS_ACTIVE)), "departed")
+			INSTANCE.core(self).actions.note_lost_guest(g, int(state.day))
+			if INSTANCE.bus(self).has_signal("guest_state_changed"):
+				INSTANCE.bus(self).guest_state_changed.emit(guest_id, str(g.get("status", STATUS_ACTIVE)), "departed")
 			state.guests.remove_at(i)
 			_ensure_guest_lodging_assignments()
 			_sync_accommodation_states_from_guests()
@@ -1308,7 +1308,7 @@ func vanish_guest(guest_id: int) -> bool:
 
 
 func _process_guest_departure(guest: Dictionary, day: int, _hour: int, _minute: int) -> void:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null:
 		return
 
@@ -1320,12 +1320,12 @@ func _process_guest_departure(guest: Dictionary, day: int, _hour: int, _minute: 
 	var settlement = max(0, expected_total - already_paid)
 
 	if settlement > 0:
-		if CoreRoot.actions != null and CoreRoot.actions.has_method("add_money"):
-			CoreRoot.actions.add_money(settlement)
-		elif CoreRoot != null and CoreRoot.has_method("apply_changes") and CoreRoot.has_method("get_money"):
-			CoreRoot.apply_changes({"money": CoreRoot.get_money() + settlement})
-		if EventBus.has_signal("guest_payment_received"):
-			EventBus.guest_payment_received.emit(settlement, int(guest.get("id", -1)))
+		if INSTANCE.core(self).actions != null and INSTANCE.core(self).actions.has_method("add_money"):
+			INSTANCE.core(self).actions.add_money(settlement)
+		elif CoreRoot != null and INSTANCE.core(self).has_method("apply_changes") and INSTANCE.core(self).has_method("get_money"):
+			INSTANCE.core(self).apply_changes({"money": INSTANCE.core(self).get_money() + settlement})
+		if INSTANCE.bus(self).has_signal("guest_payment_received"):
+			INSTANCE.bus(self).guest_payment_received.emit(settlement, int(guest.get("id", -1)))
 
 	var tx = {
 		"guest_id": int(guest.get("id", -1)),
@@ -1340,11 +1340,11 @@ func _process_guest_departure(guest: Dictionary, day: int, _hour: int, _minute: 
 	var review = _build_review_for_guest(guest, day)
 	state.guest_reviews.append(review)
 	_trim_array_history(state.guest_reviews, MAX_GUEST_REVIEW_HISTORY)
-	if EventBus.has_signal("guest_review_posted"):
-		EventBus.guest_review_posted.emit(review)
+	if INSTANCE.bus(self).has_signal("guest_review_posted"):
+		INSTANCE.bus(self).guest_review_posted.emit(review)
 
-	if EventBus.has_signal("guest_state_changed"):
-		EventBus.guest_state_changed.emit(int(guest.get("id", -1)), str(guest.get("status", STATUS_ACTIVE)), "departed")
+	if INSTANCE.bus(self).has_signal("guest_state_changed"):
+		INSTANCE.bus(self).guest_state_changed.emit(int(guest.get("id", -1)), str(guest.get("status", STATUS_ACTIVE)), "departed")
 
 
 func _set_guest_status(guest: Dictionary, new_status: String, day: int, minute_of_day: int) -> bool:
@@ -1354,8 +1354,8 @@ func _set_guest_status(guest: Dictionary, new_status: String, day: int, minute_o
 	guest["status"] = new_status
 	guest["last_state_day"] = day
 	guest["last_state_minute_of_day"] = minute_of_day
-	if EventBus.has_signal("guest_state_changed"):
-		EventBus.guest_state_changed.emit(int(guest.get("id", -1)), old_status, new_status)
+	if INSTANCE.bus(self).has_signal("guest_state_changed"):
+		INSTANCE.bus(self).guest_state_changed.emit(int(guest.get("id", -1)), old_status, new_status)
 	return true
 
 
@@ -1380,13 +1380,13 @@ func _maybe_trigger_night_trouble(guest: Dictionary, day: int, hour: int, minute
 	guest["night_trouble_last_night_id"] = night_id
 	_life.start_night_out(guest, now_abs)
 
-	var state = CoreRoot.get_state()
-	if state != null and CoreRoot != null and CoreRoot.has_method("apply_changes"):
+	var state = INSTANCE.core(self).get_state()
+	if state != null and CoreRoot != null and INSTANCE.core(self).has_method("apply_changes"):
 		var difficulty = clampi(int(guest.get("booking_difficulty", 1)), 1, 5)
 		var sat_penalty = 0.35 + float(difficulty) * 0.30
 		var karma_penalty = 0.18 + float(difficulty) * 0.16
 		var hrot_boost = 0.03 + float(difficulty) * 0.03
-		CoreRoot.apply_changes({
+		INSTANCE.core(self).apply_changes({
 			"satisfaction": clampf(float(state.satisfaction) - sat_penalty, 0.0, 100.0),
 			"karma": float(state.karma) - karma_penalty,
 			"hrotfaktor": clampf(float(state.hrotfaktor) + hrot_boost, 0.0, 1.0),
@@ -1440,7 +1440,7 @@ func _default_trouble_time_for_archetype(archetype: String) -> String:
 
 
 func _ensure_guest_state_defaults() -> void:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null:
 		return
 	if state.guests == null:
@@ -1457,7 +1457,7 @@ func _ensure_guest_state_defaults() -> void:
 
 func get_bed_metrics() -> Dictionary:
 	_ensure_guest_state_defaults()
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null or state.grid == null:
 		return {
 			"capacity": 0,
@@ -1540,8 +1540,8 @@ func _capacity_for_building_type(building_type: String) -> int:
 	var t = building_type.to_lower().strip_edges()
 	if t == "tent":
 		t = "tent_1"
-	if CoreRoot != null and CoreRoot.registry != null:
-		var def = CoreRoot.registry.get_def(StringName(t))
+	if CoreRoot != null and INSTANCE.core(self).registry != null:
+		var def = INSTANCE.core(self).registry.get_def(StringName(t))
 		if def != null and str(def.category) == "housing":
 			return maxi(0, int(def.capacity))
 	if t.begins_with("tent"):
@@ -1556,12 +1556,12 @@ func _emit_guest_overview_state(force: bool = false) -> void:
 	if not force and overview == _last_guest_overview:
 		return
 	_last_guest_overview = overview
-	if EventBus.has_signal("state_changed"):
-		EventBus.state_changed.emit({"guests": overview})
+	if INSTANCE.bus(self).has_signal("state_changed"):
+		INSTANCE.bus(self).state_changed.emit({"guests": overview})
 
 
 func _build_guest_overview() -> Dictionary:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null:
 		return {}
 
@@ -1590,7 +1590,7 @@ func _build_guest_overview() -> Dictionary:
 
 func get_liminal_forecast_data() -> Dictionary:
 	_ensure_guest_state_defaults()
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null:
 		return {
 			"ok": false,
@@ -1656,7 +1656,7 @@ func _collect_active_archetype_counts() -> Dictionary:
 	for archetype in LIMINAL_ARCHETYPE_ORDER:
 		counts[archetype] = 0
 
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null:
 		return counts
 
@@ -1749,7 +1749,7 @@ func get_guestrack_overview_data() -> Dictionary:
 	_ensure_guest_state_defaults()
 	_ensure_guest_lodging_assignments()
 	_sync_accommodation_states_from_guests(false)
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null:
 		return {
 			"ok": false,
@@ -1848,7 +1848,7 @@ func get_guestrack_text() -> String:
 
 
 func get_recent_reviews(limit: int = 6) -> Array:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null:
 		return []
 	var max_items = max(0, limit)
@@ -1880,7 +1880,7 @@ func get_accommodation_guest_visuals_by_coord(coord: Vector2i) -> Array:
 func get_accommodation_states() -> Dictionary:
 	_ensure_guest_lodging_assignments()
 	_sync_accommodation_states_from_guests(false)
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null or not (state.accommodation_states is Dictionary):
 		return {}
 	return (state.accommodation_states as Dictionary).duplicate(true)
@@ -1924,7 +1924,7 @@ func _canonical_accommodation_building_type(building_type: String) -> String:
 
 func _collect_current_accommodations() -> Dictionary:
 	var out: Dictionary = {}
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null or state.grid == null:
 		return out
 
@@ -1957,7 +1957,7 @@ func _collect_current_accommodations() -> Dictionary:
 
 
 func _get_guest_by_id(guest_id: int) -> Dictionary:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null:
 		return {}
 	for guest_any in state.guests:
@@ -1970,7 +1970,7 @@ func _get_guest_by_id(guest_id: int) -> Dictionary:
 
 
 func _ensure_guest_lodging_assignments() -> bool:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null:
 		return false
 
@@ -2207,7 +2207,7 @@ func _normalize_guest_slot(slot: Dictionary, accommodations: Dictionary) -> Dict
 
 func _build_guest_slot_lookup(accommodations: Dictionary) -> Dictionary:
 	var out: Dictionary = {}
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null:
 		return out
 
@@ -2295,7 +2295,7 @@ func _mess_hint_for(slots: Array, guests_by_id: Dictionary, prev_hint: Dictionar
 
 
 func _sync_accommodation_states_from_guests(emit_signals: bool = true) -> bool:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null:
 		return false
 	if state.accommodation_states == null or not (state.accommodation_states is Dictionary):
@@ -2385,7 +2385,7 @@ func _sync_accommodation_states_from_guests(emit_signals: bool = true) -> bool:
 
 	state.accommodation_states = next
 
-	if emit_signals and changed and EventBus.has_signal("accommodation_state_changed"):
+	if emit_signals and changed and INSTANCE.bus(self).has_signal("accommodation_state_changed"):
 		for key_any in changed_keys:
 			var key = str(key_any)
 			if next.has(key):
@@ -2394,16 +2394,16 @@ func _sync_accommodation_states_from_guests(emit_signals: bool = true) -> bool:
 					var acc: Dictionary = acc_any
 					var guest_ids_any = acc.get("guest_ids", [])
 					var guest_ids: Array = guest_ids_any if guest_ids_any is Array else []
-					EventBus.accommodation_state_changed.emit(key, str(acc.get("status", ROOM_RULES.STATUS_UNPREPARED)), guest_ids.size())
+					INSTANCE.bus(self).accommodation_state_changed.emit(key, str(acc.get("status", ROOM_RULES.STATUS_UNPREPARED)), guest_ids.size())
 			else:
-				EventBus.accommodation_state_changed.emit(key, "removed", 0)
+				INSTANCE.bus(self).accommodation_state_changed.emit(key, "removed", 0)
 
 	return changed
 
 
 func _build_review_for_guest(guest: Dictionary, day: int) -> Dictionary:
 	var sat = 50.0
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state != null:
 		sat = float(state.satisfaction)
 	# The guest's own mood over the stay drives the stars; camp-wide satisfaction

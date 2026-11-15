@@ -280,7 +280,7 @@ func _fridge_line() -> String:
 	var lines := ["Three bottles of beer, a jar of pickles and somebody's lunch in a bag with a name on it.",
 		"Milk past its date. A paper bag of something soft. A note on the shelf: DO NOT TOUCH.",
 		"Cold air and the smell of salami. The light inside flickers when you shut it."]
-	return str(lines[(CoreRoot.get_day() if CoreRoot != null else 0) % lines.size()])
+	return str(lines[(INSTANCE.core(host).get_day() if CoreRoot != null else 0) % lines.size()])
 
 
 func _locker_click(i: int) -> void:
@@ -305,12 +305,12 @@ func _locker_name(i: int) -> String:
 
 
 func _crew() -> Array:
-	var st = CoreRoot.get_state().biz.get("staff", {}) if CoreRoot != null and CoreRoot.get_state() != null else {}
+	var st = INSTANCE.core(host).get_state().biz.get("staff", {}) if CoreRoot != null and INSTANCE.core(host).get_state() != null else {}
 	return st.get("crew", []) if st is Dictionary else []
 
 
 func _staff() -> Dictionary:
-	var st = CoreRoot.get_state().biz.get("staff", {}) if CoreRoot != null and CoreRoot.get_state() != null else {}
+	var st = INSTANCE.core(host).get_state().biz.get("staff", {}) if CoreRoot != null and INSTANCE.core(host).get_state() != null else {}
 	return st if st is Dictionary else {}
 
 

@@ -228,11 +228,11 @@ func debug_mouse_to_builder_cell(cell: Vector2i) -> Vector2:
 ## Shot driver: the till, and what the state says stands on a cell (autoloads are out of
 ## the driver's reach).
 func debug_money() -> int:
-	return int(CoreRoot.get_state().money)
+	return int(INSTANCE.core(self).get_state().money)
 
 
 func debug_cell_type(c: Vector2i) -> String:
-	return str((CoreRoot.get_state().grid.cells.get(c, {}) as Dictionary).get("type", "-"))
+	return str((INSTANCE.core(self).get_state().grid.cells.get(c, {}) as Dictionary).get("type", "-"))
 
 
 ## Shot driver: one line of how the night stands (time, director, place, health).
@@ -248,12 +248,12 @@ func debug_director_line() -> String:
 
 ## Shot driver: how many guests are in the camp, and set the day.
 func debug_guest_count() -> int:
-	return GuestManager.get_guest_life_snapshot().size()
+	return INSTANCE.guests(self).get_guest_life_snapshot().size()
 
 
 func debug_guest_statuses() -> Array:
 	var out: Array = []
-	for g in CoreRoot.get_state().guests:
+	for g in INSTANCE.core(self).get_state().guests:
 		if g is Dictionary:
 			out.append([str(g.get("name", "")), str(g.get("status", "")), str(g.get("archetype", "")), int(g.get("party_size", 0))])
 	return out
@@ -262,7 +262,7 @@ func debug_guest_statuses() -> Array:
 ## What stands on these grid cells (the visual occupants), for blocked builds.
 func debug_occupants(coords: Array) -> Array:
 	var out: Array = []
-	var g = CoreRoot.get_state().grid
+	var g = INSTANCE.core(self).get_state().grid
 	for c in coords:
 		var o = g.occupants.get(c, null)
 		out.append(str((o as Node).get_path()).right(70) + ":" + str((o as Node).get_child(0).name if (o as Node).get_child_count() > 0 else "") if o is Node else "-")
@@ -286,7 +286,7 @@ func debug_player_toward(node_name: String, frac: float) -> float:
 func debug_mark_saved_bits() -> void:
 	_director.ever["knock"] = 3
 	_director.last_log = [{"time": "01:12", "id": "guest_out", "who": "Pepa"}]
-	EmailManager.reputation = 0.17
+	INSTANCE.mail(self).reputation = 0.17
 	_day_events.haunted["10:6"] = 3
 	var os = _interior_manager._building_interior.get("_crt_ui")
 	if os != null:
@@ -298,7 +298,7 @@ func debug_mark_saved_bits() -> void:
 func debug_saved_bits() -> Array:
 	var os = _interior_manager._building_interior.get("_crt_ui")
 	var office: Dictionary = _interior_manager._building_interior.coop_office_state()
-	return [int(_director.ever.get("knock", 0)), _director.last_log.duplicate(true), snappedf(EmailManager.reputation, 0.01), _day_events.haunted.duplicate(),
+	return [int(_director.ever.get("knock", 0)), _director.last_log.duplicate(true), snappedf(INSTANCE.mail(self).reputation, 0.01), _day_events.haunted.duplicate(),
 		os.get_meta("datapunch_nights", {}) if os != null else "no os", {"lights": office.get("lights"), "lamp": office.get("lamp")}]
 
 
@@ -306,7 +306,7 @@ func debug_save_and_reload() -> String:
 	var path := request_manual_save("Roundtrip")
 	_director.ever.clear()
 	_director.last_log = []
-	EmailManager.reputation = 0.0
+	INSTANCE.mail(self).reputation = 0.0
 	_day_events.haunted.clear()
 	var os = _interior_manager._building_interior.get("_crt_ui")
 	if os != null:
@@ -344,7 +344,7 @@ func debug_browser_link(target: String) -> void:
 
 
 func debug_bazaar() -> Array:
-	return [_bazaar.in_box().map(func(i): return [i["id"], i["short"]]), _bazaar.listed().map(func(i): return i["short"]), _bazaar.sold().map(func(i): return [i["short"], i["price"]]), int(CoreRoot.get_state().money)]
+	return [_bazaar.in_box().map(func(i): return [i["id"], i["short"]]), _bazaar.listed().map(func(i): return i["short"]), _bazaar.sold().map(func(i): return [i["short"], i["price"]]), int(INSTANCE.core(self).get_state().money)]
 
 
 ## Shot driver: interior meshes whose box corners land in a screen rect of `cam`
@@ -386,17 +386,17 @@ func debug_parts(n: Node) -> Array:
 ## Shot driver: every checked-in party goes to the first `building_type` now and stays
 ## `minutes` there (the sim's own visit activity, already arrived).
 func debug_send_guests_to(building_type: String, minutes: int = 120, walk := false) -> int:
-	var life = GuestManager.get("_life")
+	var life = INSTANCE.guests(self).get("_life")
 	if life == null:
 		return 0
-	life.refresh_world(CoreRoot.get_state(), CoreRoot.registry)
+	life.refresh_world(INSTANCE.core(self).get_state(), INSTANCE.core(self).registry)
 	var fs: Array = (life.get("_facilities") as Array).filter(func(f): return str(f["type"]) == building_type)
 	if fs.is_empty():
 		return 0
 	var f: Dictionary = fs[0]
-	var now: int = GuestManager._absolute_minutes(maxi(1, GuestManager._last_known_day), GuestManager._last_known_hour, GuestManager._last_known_minute)
+	var now: int = INSTANCE.guests(self)._absolute_minutes(maxi(1, INSTANCE.guests(self)._last_known_day), INSTANCE.guests(self)._last_known_hour, INSTANCE.guests(self)._last_known_minute)
 	var n := 0
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	for i in state.guests.size():
 		var g: Dictionary = state.guests[i]
 		if not str(g.get("status", "")) in ["active", "sleep"]:
@@ -415,14 +415,14 @@ func debug_send_guests_to(building_type: String, minutes: int = 120, walk := fal
 
 func debug_guest_thoughts() -> Array:
 	var out: Array = []
-	for g in CoreRoot.get_state().guests:
+	for g in INSTANCE.core(self).get_state().guests:
 		if g is Dictionary:
 			out.append([str(g.get("name", "")), str(g.get("thought", ""))])
 	return out
 
 
 func debug_set_day(day: int) -> void:
-	CoreRoot.apply_changes({"day": maxi(1, day)})
+	INSTANCE.core(self).apply_changes({"day": maxi(1, day)})
 	_sync_runtime_state_from_systems(true)
 
 
@@ -519,15 +519,15 @@ func debug_input(kind: String) -> void:
 
 ## Parties on the way or at reception, and who waits at the desk (shot driver).
 func debug_arrivals() -> Array:
-	return [GuestManager.get_arrivals(), GuestManager.get_desk_queue().size(), GuestManager.get_key_board()]
+	return [INSTANCE.guests(self).get_arrivals(), INSTANCE.guests(self).get_desk_queue().size(), INSTANCE.guests(self).get_key_board()]
 
 
 ## What the core grid holds at these cells, and the money (shot driver).
 func debug_cells(coords: Array) -> Array:
 	var out: Array = []
 	for c in coords:
-		out.append(str(CoreRoot.get_state().grid.get_cell_data(c).get("type", "-")))
-	out.append(CoreRoot.get_money())
+		out.append(str(INSTANCE.core(self).get_state().grid.get_cell_data(c).get("type", "-")))
+	out.append(INSTANCE.core(self).get_money())
 	return out
 
 
@@ -544,7 +544,7 @@ func debug_fps() -> float:
 ## Tools: today's first applicant taken on at the staffroom (its slug, "" none).
 func debug_hire_hand() -> String:
 	var app: Array = load("res://core/systems/staff_rules.gd").applicants(_day_index, [], 7)
-	if app.is_empty() or CoreRoot.actions == null or not CoreRoot.actions.staff_hire(app[0], _day_index):
+	if app.is_empty() or INSTANCE.core(self).actions == null or not INSTANCE.core(self).actions.staff_hire(app[0], _day_index):
 		return ""
 	return str(app[0].get("slug", ""))
 
@@ -561,7 +561,7 @@ func debug_structure_of_type(building_type: String) -> Node3D:
 
 ## Debug/test entry: put the clock on `day` at `hours` (no nights are played in between).
 func debug_jump_to(day: int, hours: float) -> void:
-	CoreRoot.apply_changes({"day": maxi(1, day)})
+	INSTANCE.core(self).apply_changes({"day": maxi(1, day)})
 	if time_system != null:
 		time_system.set_time_hours(hours)
 	_sync_runtime_state_from_systems(true)
@@ -589,9 +589,9 @@ func _debug_damage_player() -> void:
 func _debug_add_money() -> void:
 	if not _gameplay_started or _menu_mode or _game_over_active:
 		return
-	if CoreRoot == null or CoreRoot.actions == null or not CoreRoot.actions.has_method("add_money"):
+	if CoreRoot == null or INSTANCE.core(self).actions == null or not INSTANCE.core(self).actions.has_method("add_money"):
 		return
-	CoreRoot.actions.add_money(DEBUG_MONEY_AMOUNT)
+	INSTANCE.core(self).actions.add_money(DEBUG_MONEY_AMOUNT)
 	_refresh_liminal_debug_window()
 
 

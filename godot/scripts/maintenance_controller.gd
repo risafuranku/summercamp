@@ -78,11 +78,11 @@ func setup(world: Node3D, building_manager: Node, camera_getter: Callable, hud: 
 		_tex_poor = _make_sign_texture(Color(1.0, 0.72, 0.18), Color(0.12, 0.08, 0.04))
 		_tex_broken = _make_sign_texture(Color(0.92, 0.14, 0.10), Color(1.0, 0.95, 0.85))
 	var failed_cb := Callable(self, "_on_building_failed")
-	if not EventBus.building_failed.is_connected(failed_cb):
-		EventBus.building_failed.connect(failed_cb)
+	if not INSTANCE.bus(self).building_failed.is_connected(failed_cb):
+		INSTANCE.bus(self).building_failed.connect(failed_cb)
 	var serviced_cb := Callable(self, "_on_building_serviced")
-	if not EventBus.building_serviced.is_connected(serviced_cb):
-		EventBus.building_serviced.connect(serviced_cb)
+	if not INSTANCE.bus(self).building_serviced.is_connected(serviced_cb):
+		INSTANCE.bus(self).building_serviced.connect(serviced_cb)
 	_active = true
 	_sync_t = 0.0
 
@@ -141,7 +141,7 @@ func hint_for_view(has_other_hint: bool) -> String:
 # ── world sync ────────────────────────────────────────────────────────────────
 
 func _sync_world() -> void:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null or state.grid == null or _building_manager == null:
 		return
 	_clear_old_wear(state)
@@ -204,10 +204,10 @@ func _sync_stink(state) -> void:
 ## [{key, coord, type, def, condition, broken, structure}].
 func _wear_rows() -> Array:
 	var out: Array = []
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null or state.grid == null:
 		return out
-	var lamp_def = CoreRoot.registry.get_def(&"lamp_post")
+	var lamp_def = INSTANCE.core(self).registry.get_def(&"lamp_post")
 	var lamps := {}
 	for n in get_tree().get_nodes_in_group("lamp_posts"):
 		var l := n as Node3D
@@ -226,7 +226,7 @@ func _wear_rows() -> Array:
 		var coord: Vector2i = f.get("coord", Vector2i.ZERO)
 		var cell: Dictionary = state.grid.cells.get(coord, {})
 		var type := str(cell.get("type", f.get("type", "")))
-		out.append({"key": str(key), "coord": coord, "type": type, "def": CoreRoot.registry.get_def(StringName(type)),
+		out.append({"key": str(key), "coord": coord, "type": type, "def": INSTANCE.core(self).registry.get_def(StringName(type)),
 			"condition": float(cell.get("maintenance", 0.2)), "broken": true, "structure": structures.get(str(key), null)})
 	return out
 
@@ -242,7 +242,7 @@ func _clear_old_wear(state) -> void:
 		var f: Dictionary = state.failures[key]
 		if lamp_keys.has(str(key)) or bool(f.get("derelict", false)) or bool(f.get("night", false)):
 			continue
-		CoreRoot.actions.clear_wear(f.get("coord", Vector2i.ZERO))
+		INSTANCE.core(self).actions.clear_wear(f.get("coord", Vector2i.ZERO))
 		var s: Node3D = _structures_by_key().get(str(key), null)
 		if s != null and _building_manager.has_method("set_structure_condition"):
 			_building_manager.set_structure_condition(s, 1.0)
@@ -255,7 +255,7 @@ func _clear_old_wear(state) -> void:
 		if RULES.soils(str(cell.get("type", ""))):
 			continue
 		if float(cell.get("maintenance", 1.0)) < 1.0 and not state.failures.has("%d:%d" % [coord.x, coord.y]):
-			CoreRoot.actions.clear_wear(coord)
+			INSTANCE.core(self).actions.clear_wear(coord)
 			var s2: Node3D = _structures_by_key().get("%d:%d" % [coord.x, coord.y], null)
 			if s2 != null and _building_manager.has_method("set_structure_condition"):
 				_building_manager.set_structure_condition(s2, 1.0)
@@ -395,7 +395,7 @@ func _update_work(delta: float, can_act: bool) -> void:
 	if key != _work_key:
 		_reset_work()
 		_work_key = key
-	if CoreRoot.get_money() < int(_target["cost"]):
+	if INSTANCE.core(self).get_money() < int(_target["cost"]):
 		if _denied_key != key and _hud != null:
 			_denied_key = key
 			_hud.push_status("Not enough cash: the %s needs $%d." % [str(_target["label"]).to_lower(), int(_target["cost"])], 3)
@@ -423,7 +423,7 @@ func _update_work(delta: float, can_act: bool) -> void:
 		if INSTANCE.coop(self).is_client():
 			INSTANCE.coop(self).send_request("service", [target["coord"], int(target["cost"])])
 		else:
-			CoreRoot.actions.service_building(target["coord"], int(target["cost"]))
+			INSTANCE.core(self).actions.service_building(target["coord"], int(target["cost"]))
 
 
 const GESTURE = preload("res://scripts/ui/gesture.gd")
@@ -475,7 +475,7 @@ func _on_building_failed(coord: Vector2i, building_type: String) -> void:
 
 func _on_building_serviced(_coord: Vector2i, building_type: String, was_broken: bool, cost: int) -> void:
 	_sync_t = 0.0
-	if not _active or _hud == null or CoreRoot.actions.quiet_service:
+	if not _active or _hud == null or INSTANCE.core(self).actions.quiet_service:
 		return
 	if was_broken:
 		_play(SFX_DONE, 1.0)
@@ -486,7 +486,7 @@ func _on_building_serviced(_coord: Vector2i, building_type: String, was_broken: 
 
 
 func _label_for(type: String) -> String:
-	var def = CoreRoot.registry.get_def(StringName(type)) if CoreRoot != null else null
+	var def = INSTANCE.core(self).registry.get_def(StringName(type)) if CoreRoot != null else null
 	return str(def.display_name).split(" (")[0] if def != null else type.capitalize()
 
 
@@ -524,12 +524,12 @@ func get_upkeep_snapshot() -> Dictionary:
 			return bool(a["broken"])
 		return float(a["condition"]) < float(b["condition"])
 	)
-	return {"rows": rows, "crew_cost": crew_cost, "crew_jobs": needs_crew, "night": CoreRoot.is_night()}
+	return {"rows": rows, "crew_cost": crew_cost, "crew_jobs": needs_crew, "night": INSTANCE.core(self).is_night()}
 
 
 ## The crew sent to one building (Builder's map: a click on it), at the same premium.
 func request_crew_at(coord: Vector2i) -> Dictionary:
-	if CoreRoot.is_night():
+	if INSTANCE.core(self).is_night():
 		return {"ok": false, "reason": "night"}
 	for row_any in get_upkeep_snapshot()["rows"]:
 		var row: Dictionary = row_any
@@ -538,9 +538,9 @@ func request_crew_at(coord: Vector2i) -> Dictionary:
 		if not bool(row["broken"]) and float(row["condition"]) >= 0.999:
 			return {"ok": false, "reason": "nothing_to_do"}
 		var cost := int(ceil(float(row["cost"]) * RULES.CREW_PREMIUM))
-		if CoreRoot.get_money() < cost:
+		if INSTANCE.core(self).get_money() < cost:
 			return {"ok": false, "reason": "insufficient_funds", "amount": cost}
-		if CoreRoot.actions.service_building(coord, cost):
+		if INSTANCE.core(self).actions.service_building(coord, cost):
 			return {"ok": true, "jobs": 1, "amount": cost}
 		return {"ok": false, "reason": "failed"}
 	return {"ok": false, "reason": "not_found"}
@@ -555,14 +555,14 @@ func request_maintenance_crew() -> Dictionary:
 	if int(snap["crew_jobs"]) <= 0:
 		return {"ok": false, "reason": "nothing_to_do"}
 	var total := int(snap["crew_cost"])
-	if CoreRoot.get_money() < total:
+	if INSTANCE.core(self).get_money() < total:
 		return {"ok": false, "reason": "insufficient_funds", "amount": total}
 	var done := 0
 	for row_any in snap["rows"]:
 		var row: Dictionary = row_any
 		if not bool(row["broken"]) and float(row["condition"]) >= RULES.WORN_CONDITION:
 			continue
-		if CoreRoot.actions.service_building(row["coord"], int(ceil(float(row["cost"]) * RULES.CREW_PREMIUM))):
+		if INSTANCE.core(self).actions.service_building(row["coord"], int(ceil(float(row["cost"]) * RULES.CREW_PREMIUM))):
 			done += 1
 	return {"ok": done > 0, "jobs": done, "amount": total}
 

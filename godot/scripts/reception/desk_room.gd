@@ -166,12 +166,12 @@ func build(host_node, extras_node, root: Node3D) -> void:
 	desk = DESK.new()
 	desk.mode_3d = true
 	desk.on_say = func(text: String): _say(text)
-	desk.key_board_provider = func(): return GuestManager.get_key_board() if GuestManager != null else []
+	desk.key_board_provider = func(): return INSTANCE.guests(host).get_key_board() if GuestManager != null else []
 	desk.check_in_call = func(id: int):
 		# Co-op: checked in for real in the host's camp; here at once, for the desk.
 		if INSTANCE.coop(host).is_client():
 			INSTANCE.coop(host).send_request("checkin", [id])
-		return GuestManager.request_check_in(id) if GuestManager != null else {"ok": false}
+		return INSTANCE.guests(host).request_check_in(id) if GuestManager != null else {"ok": false}
 	desk.next_guest_provider = _next_for_desk
 	# How bad tonight is, for what the desk sees across the counter at night.
 	desk.pressure_provider = func():
@@ -181,7 +181,7 @@ func build(host_node, extras_node, root: Node3D) -> void:
 		if INSTANCE.coop(host).is_client():
 			INSTANCE.coop(host).send_request("refuse", [id])
 		if GuestManager != null:
-			GuestManager.refuse_at_desk(id)
+			INSTANCE.guests(host).refuse_at_desk(id)
 		_poll = 0.0
 	)
 	desk.checked_in.connect(func(_id: int):
@@ -238,7 +238,7 @@ func open() -> void:
 	if desk == null:
 		return
 	_ring_t = 0.0
-	desk.open_desk(_front_info(), CoreRoot.get_day() if CoreRoot != null else 1)
+	desk.open_desk(_front_info(), INSTANCE.core(host).get_day() if CoreRoot != null else 1)
 	if desk.visible and not _at_desk:
 		_step_up()
 
@@ -852,7 +852,7 @@ func _next_for_desk() -> Dictionary:
 ## from inside and through the panes (playtest 13. 11.: "guests appear in the reception only
 ## when I go in, through the window they aren't there": inside it showed the whole queue).
 func present_queue() -> Array:
-	var q: Array = GuestManager.get_desk_queue() if GuestManager != null else []
+	var q: Array = INSTANCE.guests(host).get_desk_queue() if GuestManager != null else []
 	var scene: Node = INSTANCE.main_of(host) if host != null and host.is_inside_tree() else null
 	var agents = scene.get("_guest_agents") if scene != null else null
 	if agents == null or not agents.has_method("guest_world_position"):
@@ -889,7 +889,7 @@ func tick_unseen(delta: float, serving := -999) -> void:
 ## The hand at work behind the counter now ("" nobody), from the books (the same on every
 ## machine).
 func desk_hand() -> String:
-	var state = CoreRoot.get_state() if CoreRoot != null else null
+	var state = INSTANCE.core(host).get_state() if CoreRoot != null else null
 	var st = (state.biz as Dictionary).get("staff", {}) if state != null and state.biz is Dictionary else {}
 	if not (st is Dictionary):
 		return ""
@@ -977,7 +977,7 @@ func _place_people() -> void:
 		(hb as CollisionObject3D).collision_layer = 1 if not front.is_empty() else 0
 	# A desk that is open follows the queue: whoever is at the counter now.
 	if is_open() and desk.current_guest_id() == -999 and not front.is_empty():
-		desk.open_desk(front, CoreRoot.get_day() if CoreRoot != null else 1)
+		desk.open_desk(front, INSTANCE.core(host).get_day() if CoreRoot != null else 1)
 
 
 func _show(sprite: Sprite3D, info: Dictionary, at: Vector3) -> void:
@@ -1008,11 +1008,11 @@ func _tex(path: String) -> Texture2D:
 func _tick_stranger(step: float, in_office: bool) -> void:
 	if not _stranger.is_empty():
 		return
-	var day: int = CoreRoot.get_day() if CoreRoot != null else 1
+	var day: int = INSTANCE.core(host).get_day() if CoreRoot != null else 1
 	var hour := _hour()
 	var late := hour >= 22.5 or hour < 3.5
 	var night := day if hour >= 12.0 else day - 1
-	var waiting: Array = GuestManager.get_desk_queue() if GuestManager != null else []
+	var waiting: Array = INSTANCE.guests(host).get_desk_queue() if GuestManager != null else []
 	if not in_office or not late or day < 2 or not waiting.is_empty() or night == _stranger_night or is_open():
 		_stranger_wait = -1.0
 		return

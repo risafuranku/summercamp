@@ -3,6 +3,7 @@ extends Control
 ## Builder 98 in its window: the site planner (builder_module.gd) fills the client area.
 ## The shell refuses to start it at night and closes it when the night comes.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 var _shell
 var _win
 var _module: Control
@@ -29,7 +30,7 @@ func setup(shell, win, _args: Dictionary) -> void:
 	var sw = shell.stored("builder98", {}) if shell.has_method("stored") else {}
 	if not shell.has_meta("builder_nagged") and not (sw is Dictionary and bool((sw as Dictionary).get("registered", false))):
 		shell.set_meta("builder_nagged", true)
-		var left := maxi(1, 30 - CoreRoot.get_day())
+		var left := maxi(1, 30 - INSTANCE.core(self).get_day())
 		var nag := "Thank you for trying Builder 98!\n\nThis copy is not registered. You have %d days\nof your 30-day trial left.\n\nRegister for $99: Help > Register..." % left
 		_module.splash_finished.connect(func(): shell.message_box("Builder 98 - Unregistered", nag, "info", ["Continue"]), CONNECT_ONE_SHOT)
 

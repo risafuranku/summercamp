@@ -22,6 +22,7 @@ extends Control
 ## tables the system's own chrome. The same books as on the places' counters
 ## (scripts/business/ledger_closeup.gd) and in the staffroom (scripts/staff/staff_ledger.gd).
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const T = preload("res://scripts/os98/os_theme.gd")
 const LANG = preload("res://scripts/lang.gd")
 const RULES := preload("res://core/systems/business_rules.gd")
@@ -161,12 +162,12 @@ func badge() -> Array:
 # ── who and what there is ────────────────────────────────────────────────────
 
 func _biz() -> Dictionary:
-	var state = CoreRoot.get_state() if CoreRoot != null else null
+	var state = INSTANCE.core(self).get_state() if CoreRoot != null else null
 	return state.biz if state != null and state.biz is Dictionary else {}
 
 
 func _st() -> Dictionary:
-	return CoreRoot.actions.staff_state() if CoreRoot != null and CoreRoot.actions != null else {}
+	return INSTANCE.core(self).actions.staff_state() if CoreRoot != null and INSTANCE.core(self).actions != null else {}
 
 
 func _crew() -> Array:
@@ -181,9 +182,9 @@ func _has_room() -> bool:
 ## The businesses standing in the camp: their keys, by kind.
 func _biz_places() -> Array:
 	var out: Array = []
-	if CoreRoot == null or CoreRoot.get_state() == null:
+	if CoreRoot == null or INSTANCE.core(self).get_state() == null:
 		return out
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	var sites: Dictionary = state.biz.get("sites", {})
 	var keys := sites.keys()
 	keys.sort()
@@ -264,7 +265,7 @@ func _taken() -> Array:
 
 ## Who is asking today: anybody not working in the camp, five a day (the same on every machine).
 func _applicants() -> Array:
-	return RULES.applicants("camp", "camp", CoreRoot.get_day(), _taken(), BUSINESS.camp_seed())
+	return RULES.applicants("camp", "camp", INSTANCE.core(self).get_day(), _taken(), BUSINESS.camp_seed())
 
 
 ## The businesses anybody; the staffroom (its brooms, its lounge) those who ask for it.
@@ -280,7 +281,7 @@ func _wage_at(slug: String, place: String) -> int:
 
 func _status(e: Dictionary) -> String:
 	var p: Dictionary = e["p"]
-	var day: int = CoreRoot.get_day()
+	var day: int = INSTANCE.core(self).get_day()
 	if int(p.get("since", 0)) > day:
 		return "From tomorrow"
 	if int(p.get("absent", -1)) == day:
@@ -378,7 +379,7 @@ func _wants() -> Array:
 				out.append([LANG.f("%s: %s running out", [name, str(w["label"])]), 1, "nav:order"])
 		if _losing(s):
 			out.append([LANG.f("%s: a loss three days running", name), 1, "nav:books"])
-	var day: int = CoreRoot.get_day()
+	var day: int = INSTANCE.core(self).get_day()
 	for e in _everyone():
 		var p: Dictionary = e["p"]
 		var who := tr(str(p.get("name", "")))
@@ -407,7 +408,7 @@ func _order_goods() -> int:
 
 
 func _van_fee() -> int:
-	return CoreRoot.actions.van_fee(BUSINESS.van_day())
+	return INSTANCE.core(self).actions.van_fee(BUSINESS.van_day())
 
 
 func _order_total() -> int:
@@ -463,12 +464,12 @@ func _send() -> void:
 		return
 	var cost := _order_total()
 	var van_day: int = BUSINESS.van_day()
-	if not CoreRoot.actions.biz_order_all(_order, van_day):
-		_shell.message_box(tr("Boss 98"), LANG.f("The order of $%d could not be sent.\n\nThe camp has $%d.", [cost, CoreRoot.get_money()]), "error")
+	if not INSTANCE.core(self).actions.biz_order_all(_order, van_day):
+		_shell.message_box(tr("Boss 98"), LANG.f("The order of $%d could not be sent.\n\nThe camp has $%d.", [cost, INSTANCE.core(self).get_money()]), "error")
 		return
 	_order.clear()
 	_sheet = []
-	_say(LANG.f("Order sent: $%d. It goes on today's van." if van_day <= CoreRoot.get_day() else "Order sent: $%d. The van comes tomorrow.", cost), GREEN)
+	_say(LANG.f("Order sent: $%d. It goes on today's van." if van_day <= INSTANCE.core(self).get_day() else "Order sent: $%d. The van comes tomorrow.", cost), GREEN)
 	_shell.play("ding", -10.0)
 
 
@@ -480,13 +481,13 @@ func _show_order() -> void:
 
 func _take_on(person: Dictionary, place: String) -> bool:
 	var slug := str(person.get("slug", ""))
-	var day: int = CoreRoot.get_day() + 1
+	var day: int = INSTANCE.core(self).get_day() + 1
 	if place == "staff":
 		if not STAFF.can_hire(_st()):
 			_shell.message_box(tr("Boss 98"), tr("No locker is free. One locker, one hand."), "error")
 			return false
-		return CoreRoot.actions.staff_hire(RULES.person(slug, "staff", BUSINESS.camp_seed()), day)
-	return CoreRoot.actions.biz_hire(place, RULES.person(slug, _kind_of(place), BUSINESS.camp_seed()), day)
+		return INSTANCE.core(self).actions.staff_hire(RULES.person(slug, "staff", BUSINESS.camp_seed()), day)
+	return INSTANCE.core(self).actions.biz_hire(place, RULES.person(slug, _kind_of(place), BUSINESS.camp_seed()), day)
 
 
 ## Somebody working here moved to `place` (at once: they are in the camp already).
@@ -498,13 +499,13 @@ func _move(slug: String, place: String) -> void:
 		_shell.message_box(tr("Boss 98"), tr("No locker is free. One locker, one hand."), "error")
 		return
 	var p: Dictionary = e["p"]
-	var since := int(p.get("since", CoreRoot.get_day()))
+	var since := int(p.get("since", INSTANCE.core(self).get_day()))
 	var person := RULES.person(slug, _kind_of(place), BUSINESS.camp_seed())
 	if str(e["at"]) == "staff":
-		CoreRoot.actions.staff_fire(slug)
+		INSTANCE.core(self).actions.staff_fire(slug)
 	else:
-		CoreRoot.actions.biz_fire(str(e["at"]), slug)
-	var ok: bool = CoreRoot.actions.staff_hire(person, since) if place == "staff" else CoreRoot.actions.biz_hire(place, person, since)
+		INSTANCE.core(self).actions.biz_fire(str(e["at"]), slug)
+	var ok: bool = INSTANCE.core(self).actions.staff_hire(person, since) if place == "staff" else INSTANCE.core(self).actions.biz_hire(place, person, since)
 	if ok:
 		_say(LANG.f("Moved: %s -> %s.", [tr(str(p.get("name", ""))), _label(place)]), GREEN)
 		_shell.play("ding", -10.0)
@@ -512,7 +513,7 @@ func _move(slug: String, place: String) -> void:
 
 func _buy_licence() -> void:
 	_shell.play("click", -10.0)
-	if CoreRoot.actions.biz_has_licence("boss"):
+	if INSTANCE.core(self).actions.biz_has_licence("boss"):
 		_shell.install_program(PROGRAM, false)
 		queue_redraw()
 		return
@@ -520,12 +521,12 @@ func _buy_licence() -> void:
 	_shell.message_box("SoftSklad", LANG.f("Buy a licence for %s for $%d?\n\nThe money is taken from the camp's account.", [tr("Boss 98"), price]), "question", ["Buy", "Cancel"], func(b: String):
 		if b != "Buy" or not is_instance_valid(self):
 			return
-		if CoreRoot.actions.biz_buy_licence("boss"):
+		if INSTANCE.core(self).actions.biz_buy_licence("boss"):
 			_shell.play("ding", -8.0)
 			_shell.install_program(PROGRAM, false)
 			queue_redraw()
 		else:
-			_shell.message_box("SoftSklad", LANG.f("The payment was refused.\n\nThe camp has $%d.", CoreRoot.get_money()), "error")
+			_shell.message_box("SoftSklad", LANG.f("The payment was refused.\n\nThe camp has $%d.", INSTANCE.core(self).get_money()), "error")
 	)
 
 
@@ -624,7 +625,7 @@ func _click(id: String) -> void:
 		var e := _entry(_pick)
 		if e.is_empty() or str(e["at"]) != "staff":
 			return
-		CoreRoot.actions.staff_set_job(_pick, id.substr(4), not STAFF.does(e["p"], id.substr(4)))
+		INSTANCE.core(self).actions.staff_set_job(_pick, id.substr(4), not STAFF.does(e["p"], id.substr(4)))
 		_shell.play("click", -12.0)
 		return
 	if id.begins_with("role:") or id == "late_shift":
@@ -635,14 +636,14 @@ func _click(id: String) -> void:
 		var shift3 := str(p3.get("shift", "day"))
 		if id == "late_shift":
 			shift3 = "late" if shift3 == "day" else "day"
-		CoreRoot.actions.biz_set_job(str(e3["at"]), _pick, id.substr(5) if id != "late_shift" else str(p3.get("role", "")), shift3)
+		INSTANCE.core(self).actions.biz_set_job(str(e3["at"]), _pick, id.substr(5) if id != "late_shift" else str(p3.get("role", "")), shift3)
 		_shell.play("click", -12.0)
 		return
 	if id.begins_with("menu:"):
 		var kind := _kind_of(_place)
 		var s := BUSINESS.site(_place)
 		var item := id.substr(5)
-		CoreRoot.actions.biz_set_menu(_place, item, not RULES.menu_on(kind, s, item))
+		INSTANCE.core(self).actions.biz_set_menu(_place, item, not RULES.menu_on(kind, s, item))
 		_shell.play("click", -12.0)
 		return
 	if id.begins_with("gear:"):
@@ -671,10 +672,10 @@ func _click(id: String) -> void:
 		"people_on":
 			_people_page += 1
 		"auto":
-			CoreRoot.actions.biz_set_auto(_place, not bool(BUSINESS.site(_place).get("auto_order", true)))
+			INSTANCE.core(self).actions.biz_set_auto(_place, not bool(BUSINESS.site(_place).get("auto_order", true)))
 			_shell.play("click", -12.0)
 		"late":
-			CoreRoot.actions.biz_set_late(_place, not bool(BUSINESS.site(_place).get("late", false)))
+			INSTANCE.core(self).actions.biz_set_late(_place, not bool(BUSINESS.site(_place).get("late", false)))
 			_shell.play("click", -12.0)
 		"hire_here":
 			_nav = "people"
@@ -694,9 +695,9 @@ func _fire() -> void:
 	_shell.message_box(tr("Boss 98"), LANG.f("Let %s go?", name), "question", [tr("Yes"), tr("No")], func(b: String):
 		if b == tr("Yes"):
 			if at == "staff":
-				CoreRoot.actions.staff_fire(slug)
+				INSTANCE.core(self).actions.staff_fire(slug)
 			else:
-				CoreRoot.actions.biz_fire(at, slug)
+				INSTANCE.core(self).actions.biz_fire(at, slug)
 			_pick = ""
 			_say(LANG.f("%s has been let go.", name), T.TEXT_DISABLED)
 			queue_redraw())
@@ -709,11 +710,11 @@ func _buy_gear(gid: String) -> void:
 	_shell.message_box(tr("Boss 98"), LANG.f("Buy %s for $%d?", [tr(str(gd.get("label", ""))), int(gd.get("price", 0))]), "question", [tr("Yes"), tr("No")], func(b: String):
 		if b != tr("Yes"):
 			return
-		if CoreRoot.actions.biz_buy_gear(key, gid):
+		if INSTANCE.core(self).actions.biz_buy_gear(key, gid):
 			_say(LANG.f("%s bought.", tr(str(gd.get("label", "")))), GREEN)
 			_shell.play("ding", -10.0)
 		else:
-			_shell.message_box(tr("Boss 98"), LANG.f("The purchase of $%d could not be made.\n\nThe camp has $%d.", [int(gd.get("price", 0)), CoreRoot.get_money()]), "error")
+			_shell.message_box(tr("Boss 98"), LANG.f("The purchase of $%d could not be made.\n\nThe camp has $%d.", [int(gd.get("price", 0)), INSTANCE.core(self).get_money()]), "error")
 		queue_redraw())
 
 
@@ -723,11 +724,11 @@ func _buy_staff_gear(gid: String) -> void:
 	_shell.message_box(tr("Boss 98"), LANG.f("Buy a %s for $%d?", [label.to_lower(), price]), "question", [tr("Yes"), tr("No")], func(b: String):
 		if b != tr("Yes"):
 			return
-		if CoreRoot.actions.staff_buy_gear(gid):
+		if INSTANCE.core(self).actions.staff_buy_gear(gid):
 			_say(LANG.f("%s bought: it is in the staffroom.", label), GREEN)
 			_shell.play("ding", -10.0)
 		else:
-			_shell.message_box(tr("Boss 98"), LANG.f("The purchase of $%d could not be made.\n\nThe camp has $%d.", [price, CoreRoot.get_money()]), "error")
+			_shell.message_box(tr("Boss 98"), LANG.f("The purchase of $%d could not be made.\n\nThe camp has $%d.", [price, INSTANCE.core(self).get_money()]), "error")
 		queue_redraw())
 
 
@@ -941,14 +942,14 @@ func _draw_top() -> void:
 		draw_texture_rect(chair, Rect2(4, 2, 32, 32), false)
 	draw_string(T.FONT_BOLD, Vector2(41, 26), tr("Boss 98"), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE * 2, Color8(8, 18, 12))
 	draw_string(T.FONT_BOLD, Vector2(40, 25), tr("Boss 98"), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE * 2, GOLD)
-	var cash := _money(CoreRoot.get_money())
+	var cash := _money(INSTANCE.core(self).get_money())
 	var cw := T.FONT_MONO.get_string_size(cash, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_MONO_SIZE).x + 14.0
 	var box := Rect2(size.x - cw - 6, 5, cw, 25)
 	draw_style_box(T.box("field", LCD_BG, Vector4.ZERO), box)
 	draw_string(T.FONT_MONO, box.position + Vector2(7, 18), cash, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_MONO_SIZE, LCD_ON)
-	_tr(box.position.x - 10, 22, LANG.f("Day %d", CoreRoot.get_day()), GOLD)
+	_tr(box.position.x - 10, 22, LANG.f("Day %d", INSTANCE.core(self).get_day()), GOLD)
 	var guests := 0
-	for g_any in CoreRoot.get_state().guests:
+	for g_any in INSTANCE.core(self).get_state().guests:
 		if g_any is Dictionary and str(g_any.get("status", "")).to_lower() in ["active", "sleep"]:
 			guests += 1
 	_t(Vector2(SIDE_W + 8, 22), LANG.f("Guests in the camp: %d", guests), IVORY)
@@ -962,7 +963,7 @@ func _badge(id: String) -> Array:
 				return [str(n), Color8(190, 40, 30)]
 		"people":
 			var bad := 0
-			var day: int = CoreRoot.get_day()
+			var day: int = INSTANCE.core(self).get_day()
 			for e in _everyone():
 				if int((e["p"] as Dictionary).get("owed", 0)) > 0 or int((e["p"] as Dictionary).get("absent", -1)) == day:
 					bad += 1
@@ -997,7 +998,7 @@ func _draw_side() -> void:
 	y += 14.0
 	var places := _places()
 	var rh := minf(25.0, floorf((size.y - STATUS_H - y - 4.0) / maxf(1.0, float(places.size()))))
-	var day: int = CoreRoot.get_day()
+	var day: int = INSTANCE.core(self).get_day()
 	for place in places:
 		var key := str(place)
 		var r2 := Rect2(4, y, SIDE_W - 10, rh - 1)
@@ -1063,7 +1064,7 @@ func _draw_buy() -> void:
 	var tw := T.FONT_BOLD.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE * 3).x
 	draw_string(T.FONT_BOLD, Vector2(mid - tw * 0.5 + 2, 182), title, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE * 3, Color8(8, 18, 12))
 	draw_string(T.FONT_BOLD, Vector2(mid - tw * 0.5, 180), title, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE * 3, GOLD)
-	var licensed: bool = CoreRoot != null and CoreRoot.actions != null and CoreRoot.actions.biz_has_licence("boss")
+	var licensed: bool = CoreRoot != null and INSTANCE.core(self).actions != null and INSTANCE.core(self).actions.biz_has_licence("boss")
 	var line: String = tr("Every place you run and everybody who works there, at one desk.")
 	_t(Vector2(mid - _w(line) * 0.5, 210), line, IVORY)
 	var b := Rect2(mid - 120, 240, 240, 28)
@@ -1081,7 +1082,7 @@ func _costs(d: Dictionary) -> int:
 ## The last seven days of all the businesses, oldest first.
 func _week_rows() -> Array:
 	var biz := _biz()
-	var day: int = CoreRoot.get_day()
+	var day: int = INSTANCE.core(self).get_day()
 	var out: Array = []
 	for back in range(6, -1, -1):
 		if day - back >= 1:
@@ -1091,7 +1092,7 @@ func _week_rows() -> Array:
 
 func _draw_overview(m: Rect2) -> void:
 	var rows := _week_rows()
-	var d0: Dictionary = rows[rows.size() - 1] if not rows.is_empty() else RULES.camp_day(_biz(), 0, CoreRoot.get_day())
+	var d0: Dictionary = rows[rows.size() - 1] if not rows.is_empty() else RULES.camp_day(_biz(), 0, INSTANCE.core(self).get_day())
 	var week := 0
 	for d in rows:
 		week += int(d["takings"]) - _costs(d)
@@ -1104,7 +1105,7 @@ func _draw_overview(m: Rect2) -> void:
 	var rh := minf(ROW_H, floorf(144.0 / maxf(1.0, float(places.size()))))
 	var tm := Rect2(m.position.x + 6, top.end.y + 6, m.size.x - 12, 22 + maxf(1.0, float(places.size())) * rh + 4)
 	_list(tm, cols)
-	var day: int = CoreRoot.get_day()
+	var day: int = INSTANCE.core(self).get_day()
 	if places.is_empty():
 		_t(Vector2(tm.position.x + 20, tm.position.y + 35), tr("No business in the camp yet."), T.SHADOW)
 	for i in places.size():
@@ -1296,7 +1297,7 @@ func _order_foot(foot: Rect2) -> void:
 	_t(foot.position + Vector2(12, 21), _clip(text, foot.size.x - 288.0), T.SHADOW)
 	var cost := _order_total()
 	var fee := _van_fee() if cost > 0 else 0
-	_t(foot.position + Vector2(12, 40), _clip(LANG.f("One van $%d   Total $%d", [fee, cost]), foot.size.x - 288.0, true), RED if cost > CoreRoot.get_money() else T.TEXT, true)
+	_t(foot.position + Vector2(12, 40), _clip(LANG.f("One van $%d   Total $%d", [fee, cost]), foot.size.x - 288.0, true), RED if cost > INSTANCE.core(self).get_money() else T.TEXT, true)
 	var by := foot.position.y + 16
 	_button(Rect2(foot.end.x - 272, by, 86, 26), tr("Fill up"), "fill")
 	_button(Rect2(foot.end.x - 182, by, 82, 26), tr("Clear"), "clear", cost > 0)
@@ -1456,7 +1457,7 @@ func _draw_hire(left: Rect2, right: Rect2, ap: Array) -> void:
 
 func _period_money(key: String) -> Dictionary:
 	var s := BUSINESS.site(key)
-	var day: int = CoreRoot.get_day()
+	var day: int = INSTANCE.core(self).get_day()
 	match _period:
 		"today":
 			return RULES.today_money(s, day)
@@ -1473,7 +1474,7 @@ func _period_money(key: String) -> Dictionary:
 
 func _staff_wages() -> int:
 	var biz := _biz()
-	var day: int = CoreRoot.get_day()
+	var day: int = INSTANCE.core(self).get_day()
 	match _period:
 		"today":
 			return int(RULES.camp_day(biz, 0, day)["staff_wages"])
@@ -1556,7 +1557,7 @@ func _draw_books(m: Rect2) -> void:
 	var days := _week_rows()
 	var values: Array = []
 	var labels: Array = []
-	var day: int = CoreRoot.get_day()
+	var day: int = INSTANCE.core(self).get_day()
 	var d_no: int = day - days.size() + 1
 	for i in days.size():
 		values.append(int(days[i]["takings"]) - _costs(days[i]))
@@ -1675,7 +1676,7 @@ func _draw_goods(r: Rect2, s: Dictionary, kind: String) -> void:
 	_check(Vector2(r.position.x + 2, fy + 1), tr("Hands order"), bool(s.get("auto_order", true)), "auto")
 	var cost := _order_total()
 	var fee := _van_fee() if cost > 0 else 0
-	_t(Vector2(r.position.x + 2, fy + 34), _clip(LANG.f("Total $%d", cost), r.size.x - 172.0, true), RED if cost > CoreRoot.get_money() else T.TEXT, true)
+	_t(Vector2(r.position.x + 2, fy + 34), _clip(LANG.f("Total $%d", cost), r.size.x - 172.0, true), RED if cost > INSTANCE.core(self).get_money() else T.TEXT, true)
 	_button(Rect2(r.end.x - 164, fy + 16, 80, 24), tr("Fill up"), "fill_here")
 	_button(Rect2(r.end.x - 80, fy + 16, 80, 24), tr("Send order"), "send", cost > fee)
 
@@ -1711,13 +1712,13 @@ func _draw_gear(r: Rect2, s: Dictionary, kind: String) -> void:
 			var needs := RULES.gear_needs(kind, id)
 			var blocked := needs != "" and not RULES.has_gear(s, needs)
 			_tr(r.end.x - 66, y + 15, _money(int(g["price"])), T.TEXT)
-			_button(Rect2(r.end.x - 60, y + 2, 54, 18), tr("Buy"), "gear:" + id, not blocked and CoreRoot.get_money() >= int(g["price"]))
+			_button(Rect2(r.end.x - 60, y + 2, 54, 18), tr("Buy"), "gear:" + id, not blocked and INSTANCE.core(self).get_money() >= int(g["price"]))
 		i += 1
 
 
 ## The right half of a place: its day against yesterday, the last shift's mark, who works there.
 func _draw_place_day(r: Rect2, s: Dictionary, kind: String) -> void:
-	var day: int = CoreRoot.get_day()
+	var day: int = INSTANCE.core(self).get_day()
 	var a: Dictionary = RULES.today_money(s, day)
 	var b: Dictionary = RULES.day_money(s.get("yesterday", {}))
 	var cols := [["", 64], ["Today", 54, true], ["Yesterday", r.size.x - 4 - 64 - 54, true]]
@@ -1784,7 +1785,7 @@ func _draw_staffroom(m: Rect2) -> void:
 	var band := _band(m, "staff", tr("Staffroom"), LANG.f("Lockers %d / %d", [crew.size(), STAFF.gear_count(st, "locker")]))
 	var y0 := band.end.y + 6
 	var left := Rect2(m.position.x + 6, y0, 304, m.end.y - y0 - 6)
-	var day: int = CoreRoot.get_day()
+	var day: int = INSTANCE.core(self).get_day()
 	_list(left, [["At", 50], ["Today", left.size.x - 54]])
 	var rows: Array = []
 	for e in st.get("log", []):
@@ -1820,7 +1821,7 @@ func _draw_staffroom(m: Rect2) -> void:
 		var price := STAFF.gear_price(st, id)
 		if price > 0:
 			_t(Vector2(tx, r.position.y + 44), _money(price), T.TEXT)
-			_button(Rect2(tx, r.position.y + 52, 66, 22), tr("Buy"), "sgear:" + id, CoreRoot.get_money() >= price and _has_room())
+			_button(Rect2(tx, r.position.y + 52, 66, 22), tr("Buy"), "sgear:" + id, INSTANCE.core(self).get_money() >= price and _has_room())
 		else:
 			_t(Vector2(tx, r.position.y + 44), tr("No room for more."), GREEN)
 		i += 1

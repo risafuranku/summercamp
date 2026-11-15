@@ -5,6 +5,7 @@ extends Node3D
 ## round, as if somebody knocked it. Now and then it is looking straight at the office.
 ## (Checked when the day changes; it then stays put for the day.)
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const LOOKS_AT_OFFICE := 0.3
 
 var _day := -1
@@ -16,9 +17,9 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
-	if CoreRoot == null or not CoreRoot.has_method("get_day"):
+	if CoreRoot == null or not INSTANCE.core(self).has_method("get_day"):
 		return
-	var day: int = CoreRoot.get_day()
+	var day: int = INSTANCE.core(self).get_day()
 	if day == _day:
 		return
 	var first := _day < 0

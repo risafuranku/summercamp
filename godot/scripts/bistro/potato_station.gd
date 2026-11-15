@@ -150,8 +150,8 @@ func _stop() -> void:
 		_:
 			# Worn down to marbles: one of them is gone.
 			var lost := 1 if _drum > 0 else 0
-			if lost > 0 and CoreRoot != null and CoreRoot.actions != null:
-				CoreRoot.actions.biz_take(building_key, {"potatoes": 1})
+			if lost > 0 and CoreRoot != null and INSTANCE.core(self).actions != null:
+				INSTANCE.core(self).actions.biz_take(building_key, {"potatoes": 1})
 			_peeled += _drum - lost
 			_drum = 0
 			pop("-%d" % lost, DRUM.get_center(), RETRO_UI.C_RED_LIGHT)
@@ -183,7 +183,7 @@ func _chop() -> void:
 	if not _in_cutter:
 		return
 	_in_cutter = false
-	if CoreRoot != null and CoreRoot.actions != null and not CoreRoot.actions.biz_take(building_key, {"potatoes": 1}):
+	if CoreRoot != null and INSTANCE.core(self).actions != null and not INSTANCE.core(self).actions.biz_take(building_key, {"potatoes": 1}):
 		say("", "That was the last of the sack.")
 		return
 	kitchen.act(building_key, "prep", ["chips_raw", 1])

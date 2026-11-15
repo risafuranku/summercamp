@@ -6,6 +6,7 @@ extends Node
 ## Whatever is out there is in it: the guests by day, the lamps at night, and what walks
 ## between them. Grey and grainy, a line dark in two, as a cheap camera on a phone line sent it.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const SIZE := Vector2i(160, 120)
 ## On the reception (MainBuilding, front +Z): where it hangs, where it looks (its own space).
 const AT := Vector3(3.2, 4.3, 3.4)
@@ -64,7 +65,7 @@ func request_aerial(px: Vector2i) -> void:
 	# Over the tents' pitches, with a margin: there they can be told and counted.
 	var lo := Vector2i(gm.grid_width, gm.grid_height)
 	var hi := Vector2i(-1, -1)
-	var st = CoreRoot.get_state() if CoreRoot != null else null
+	var st = INSTANCE.core(self).get_state() if CoreRoot != null else null
 	if st != null and st.grid != null:
 		for coord in st.grid.cells:
 			var tp := str((st.grid.cells[coord] as Dictionary).get("type", ""))

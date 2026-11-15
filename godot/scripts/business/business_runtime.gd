@@ -76,19 +76,19 @@ func _process(delta: float) -> void:
 	if _t < 1.0:
 		return
 	_t = 0.0
-	if CoreRoot == null or CoreRoot.actions == null or CoreRoot.get_state() == null:
+	if CoreRoot == null or INSTANCE.core(self).actions == null or INSTANCE.core(self).get_state() == null:
 		return
 	var sites := _live_sites()
 	_watch_waiting(sites)
 	# In co-op the host runs the camp.
 	if not INSTANCE.coop(self).sim_here():
 		return
-	CoreRoot.actions.biz_prune(sites.keys())
+	INSTANCE.core(self).actions.biz_prune(sites.keys())
 	# The warehouses standing (their racks: scripts/business/store_room.gd): a demolished one's racks go.
-	CoreRoot.actions.biz_store_prune(_live_stores())
+	INSTANCE.core(self).actions.biz_store_prune(_live_stores())
 	for key in sites:
-		CoreRoot.actions.biz_site(key, sites[key])
-	var day := CoreRoot.get_day()
+		INSTANCE.core(self).actions.biz_site(key, sites[key])
+	var day = INSTANCE.core(self).get_day()
 	if _day < 0:
 		_day = day
 	elif day != _day:
@@ -106,7 +106,7 @@ func _process(delta: float) -> void:
 ## The business buildings standing now: "x:y" -> building type.
 func _live_sites() -> Dictionary:
 	var out := {}
-	var grid = CoreRoot.get_state().grid
+	var grid = INSTANCE.core(self).get_state().grid
 	if grid == null:
 		return out
 	for coord in grid.cells:
@@ -123,7 +123,7 @@ func _live_sites() -> Dictionary:
 ## The warehouses on the plan: their keys.
 func _live_stores() -> Array:
 	var out: Array = []
-	var grid = CoreRoot.get_state().grid
+	var grid = INSTANCE.core(self).get_state().grid
 	if grid == null:
 		return out
 	for coord in grid.cells:
@@ -142,15 +142,15 @@ func _live_stores() -> Array:
 ## Midnight passed: the hands are paid for yesterday (the dishonest ones first help
 ## themselves), what was left owed; then the morning: who comes in today, and whatever the one who was not on the books did in the night.
 func _new_day(was: int, day: int) -> void:
-	var act = CoreRoot.actions
-	for key in (CoreRoot.get_state().biz.get("sites", {}) as Dictionary):
+	var act = INSTANCE.core(self).actions
+	for key in (INSTANCE.core(self).get_state().biz.get("sites", {}) as Dictionary):
 		_thieves(str(key), was)
 	var closed: Dictionary = act.biz_close_day(was)
 	if int(closed.get("wages", 0)) > 0:
 		_say("Wages paid to the hands: -$%d." % int(closed["wages"]))
 	for who in closed.get("left", []):
 		_say("%s has left. Two days without pay." % str(who), 2)
-	for key in (CoreRoot.get_state().biz.get("sites", {}) as Dictionary):
+	for key in (INSTANCE.core(self).get_state().biz.get("sites", {}) as Dictionary):
 		_attendance(str(key), day)
 		_night_hand(str(key))
 
@@ -165,7 +165,7 @@ func _attendance(key: String, day: int) -> void:
 		var h := absi(hash("%s|%s|%d" % [key, str(p.get("slug", "")), day])) % 1000
 		var chance := 50 + (40 if str(p.get("temper", "")) == "sour" else 0) + (30 if int(p.get("speed", 1)) == 0 else 0)
 		if h < chance:
-			CoreRoot.actions.biz_crew_note(key, str(p.get("slug", "")), {"absent": day})
+			INSTANCE.core(self).actions.biz_crew_note(key, str(p.get("slug", "")), {"absent": day})
 			_say("%s did not come in to the %s today. A note on the door." % [str(p.get("name", "A hand")), _place_name(str(s.get("kind", ""))).to_lower()], 1)
 
 
@@ -180,14 +180,14 @@ func _thieves(key: String, day: int) -> void:
 		if h % 2 != 0:
 			continue
 		if (h / 2) % 2 == 0:
-			CoreRoot.actions.biz_short(key, 2 + (h / 4) % 5)
+			INSTANCE.core(self).actions.biz_short(key, 2 + (h / 4) % 5)
 		else:
 			var goods: Array = []
 			for g in (s.get("stock", {}) as Dictionary):
 				if int(s["stock"][g]) >= 2:
 					goods.append(g)
 			if not goods.is_empty():
-				CoreRoot.actions.biz_short(key, 0, str(goods[(h / 4) % goods.size()]), 1 + (h / 8) % 2)
+				INSTANCE.core(self).actions.biz_short(key, 0, str(goods[(h / 4) % goods.size()]), 1 + (h / 8) % 2)
 
 
 ## The one who has worked here before washes up in the night when the place was shut
@@ -251,9 +251,9 @@ func _watch_shifts(sites: Dictionary) -> void:
 			continue
 		var wages := 0
 		for p in s.get("crew", []):
-			if int(p.get("absent", -1)) != CoreRoot.get_day():
+			if int(p.get("absent", -1)) != INSTANCE.core(self).get_day():
 				wages += RULES.shift_pay(p)
-		var z: Dictionary = CoreRoot.actions.biz_close_shift(key, wages, CoreRoot.get_day(), was == "late")
+		var z: Dictionary = INSTANCE.core(self).actions.biz_close_shift(key, wages, INSTANCE.core(self).get_day(), was == "late")
 		if int(z.get("orders", 0)) > 0 or int(z.get("takings", 0)) > 0:
 			_say_all("%s shut for the day. The Z report is in the books." % _place_name(str(s.get("kind", ""))), 0, "biz_z:" + str(key))
 			zreport.emit(key, z)
@@ -268,7 +268,7 @@ var _called: Dictionary = {}
 ## Last orders (the brief of 21. 10.): the bell and a line in the feed when the time comes;
 ## the frame at a station rings its own bell (station_hud).
 func _watch_last_call(key: String, s: Dictionary) -> void:
-	var day := CoreRoot.get_day()
+	var day = INSTANCE.core(self).get_day()
 	var left := to_last_orders(key)
 	if left > 0 or left < -30 or int(_called.get(key, -1)) == day or shift_now(s) == "closed":
 		return
@@ -358,7 +358,7 @@ func _watch_late(sites: Dictionary) -> void:
 			var n := _place_name(str(s.get("kind", ""))).to_upper()
 			if not names.has(n):
 				names.append(n)
-	var life = GuestManager.get("_life") if GuestManager != null else null
+	var life = INSTANCE.guests(self).get("_life") if GuestManager != null else null
 	if life != null and "late_keys" in life:
 		life.late_keys = keys
 	if life != null and "order_hours" in life:
@@ -370,11 +370,11 @@ func _watch_late(sites: Dictionary) -> void:
 		life.order_hours = hours
 	var main := INSTANCE.main_of(self)
 	var hud = main.get("_hud_manager") if main != null else null
-	var h := int(GuestManager._last_known_hour) if GuestManager != null else 12
+	var h := int(INSTANCE.guests(self)._last_known_hour) if GuestManager != null else 12
 	if hud != null and hud.has_method("set_open_late"):
 		hud.set_open_late(str(names[0]) if not names.is_empty() and h >= 14 and h < RULES.LATE_CLOSE else "")
-	if not names.is_empty() and h >= 17 and _late_told != CoreRoot.get_day():
-		_late_told = CoreRoot.get_day()
+	if not names.is_empty() and h >= 17 and _late_told != INSTANCE.core(self).get_day():
+		_late_told = INSTANCE.core(self).get_day()
 		_say("Open late tonight: %s. The night will come into it." % ", ".join(names).to_lower(), 1, "biz_late")
 
 
@@ -436,7 +436,7 @@ func _watch_crew(sites: Dictionary) -> void:
 				who = str(p.get("name", ""))
 				break
 		if (who != "") != bool(s.get("staff", false)) or who != str(s.get("staff_name", "")):
-			CoreRoot.actions.biz_staffed(key, who != "", who)
+			INSTANCE.core(self).actions.biz_staffed(key, who != "", who)
 
 
 static func has_gear(key: String, id: String) -> bool:
@@ -497,7 +497,7 @@ func _watch_visits(sites: Dictionary) -> void:
 			var kind := RULES.kind_of(str(sites[key]))
 			var rec := {"key": key, "kind": kind, "v": v, "served": false}
 			_visits[str(v["visit"])] = rec
-			var s: Dictionary = CoreRoot.get_state().biz["sites"].get(key, {})
+			var s: Dictionary = INSTANCE.core(self).get_state().biz["sites"].get(key, {})
 			# The bistro's hands work its kitchen ticket by ticket (kitchen.gd), the pub's
 			# pour at its bar order by order (taproom.gd), the stand's husk and boil
 			# (cornstand.gd), the Jednota's stock its rack and ring its till (jednota.gd).
@@ -511,7 +511,7 @@ func _watch_visits(sites: Dictionary) -> void:
 		_visits.erase(id)
 		var by_hand := int(ORDERS._served.get(id, 0)) > 0
 		if not rec["served"] and not by_hand:
-			CoreRoot.actions.biz_lost(str(rec["key"]))
+			INSTANCE.core(self).actions.biz_lost(str(rec["key"]))
 			var v: Dictionary = rec["v"]
 			ORDERS.mood(int(v["id"]), -3.0, _complaint(str(rec["kind"])))
 
@@ -677,8 +677,8 @@ func _watch_goods(sites: Dictionary) -> void:
 	if lines.is_empty():
 		return
 	var van := van_day()
-	total += int(CoreRoot.actions.van_fee(van))
-	if CoreRoot.get_money() < total + RESERVE or not CoreRoot.actions.biz_order_all(lines, van):
+	total += int(INSTANCE.core(self).actions.van_fee(van))
+	if INSTANCE.core(self).get_money() < total + RESERVE or not INSTANCE.core(self).actions.biz_order_all(lines, van):
 		return
 	var places: Array = []
 	for key in lines:
@@ -690,8 +690,8 @@ func _watch_goods(sites: Dictionary) -> void:
 
 ## What the hands do between customers: the barman washes up (the old washer's mugs).
 func _hands_work() -> void:
-	for key in CoreRoot.get_state().biz["sites"]:
-		var s: Dictionary = CoreRoot.get_state().biz["sites"][key]
+	for key in INSTANCE.core(self).get_state().biz["sites"]:
+		var s: Dictionary = INSTANCE.core(self).get_state().biz["sites"][key]
 		if not bool(s.get("staff", false)):
 			continue
 		if s.has("glasses"):
@@ -709,22 +709,22 @@ func _hand_serves(rec: Dictionary) -> void:
 	var b := RULES.basket(kind, maxi(1, appetite), _rng.randf())
 	var needs := RULES.needs_for(kind, b)
 	var key: String = rec["key"]
-	if not CoreRoot.actions.biz_take(key, needs):
+	if not INSTANCE.core(self).actions.biz_take(key, needs):
 		# Whatever there is of it, then.
 		var part := {}
-		var stock: Dictionary = CoreRoot.get_state().biz["sites"][key]["stock"]
+		var stock: Dictionary = INSTANCE.core(self).get_state().biz["sites"][key]["stock"]
 		for g in b:
 			var n := mini(int(b[g]), int(stock.get(g, 0)))
 			if n > 0:
 				part[g] = n
 		needs = RULES.needs_for(kind, part)
-		if part.is_empty() or not CoreRoot.actions.biz_take(key, needs):
+		if part.is_empty() or not INSTANCE.core(self).actions.biz_take(key, needs):
 			return
 		b = part
 	var units := 0
 	for g in b:
 		units += int(b[g])
-	CoreRoot.actions.biz_sale(key, int(round(RULES.basket_price(kind, b) * price_k(key))), units, false)
+	INSTANCE.core(self).actions.biz_sale(key, int(round(RULES.basket_price(kind, b) * price_k(key))), units, false)
 	rec["served"] = true
 	for i in units:
 		ORDERS.note_served(v)
@@ -839,4 +839,4 @@ func debug_hire(key: String, slug: String, role := "", shift := "day") -> bool:
 	if role != "":
 		p["role"] = role
 	p["shift"] = shift
-	return CoreRoot.actions.biz_hire(key, p, CoreRoot.get_day())
+	return INSTANCE.core(self).actions.biz_hire(key, p, INSTANCE.core(self).get_day())

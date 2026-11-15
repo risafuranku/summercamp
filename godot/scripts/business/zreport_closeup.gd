@@ -11,6 +11,7 @@ extends "res://scripts/closeup/closeup_view.gd"
 ## The picture is the dark counter (assets/textury/closeup/ledger.png darkened) with the
 ## receipt drawn over it: thermal paper, purple-grey ink, torn at the top.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const RULES := preload("res://core/systems/business_rules.gd")
 const LANG := preload("res://scripts/lang.gd")
 const SFX_PRINT := "res://assets/sfx/bistro/till.mp3"
@@ -47,8 +48,8 @@ func _opened() -> void:
 	else:
 		var avg := int(round(float(report.get("score", 0)) / float(n)))
 		say("", ["A quiet shift.", "That was a shift.", "The till is warm."][clampi(n / 8, 0, 2)] if avg >= 60 else "The till prints slowly, as if it did not want to.")
-	if CoreRoot != null and CoreRoot.get_state() != null:
-		var site: Dictionary = (CoreRoot.get_state().biz.get("sites", {}) as Dictionary).get(building_key, {})
+	if CoreRoot != null and INSTANCE.core(self).get_state() != null:
+		var site: Dictionary = (INSTANCE.core(self).get_state().biz.get("sites", {}) as Dictionary).get(building_key, {})
 		if not site.is_empty():
 			site["zreport_read"] = true
 
@@ -134,8 +135,8 @@ func _lines() -> Array:
 	out.append([LANG.f("NET\t%s$%d", ["-" if net < 0 else "", absi(net)]), Color(0.6, 0.15, 0.2) if net < 0 else INK])
 	# All the camp's places today, to set this one against.
 	var all := 0
-	if CoreRoot != null and CoreRoot.get_state() != null:
-		var sites: Dictionary = CoreRoot.get_state().biz.get("sites", {})
+	if CoreRoot != null and INSTANCE.core(self).get_state() != null:
+		var sites: Dictionary = INSTANCE.core(self).get_state().biz.get("sites", {})
 		for k in sites:
 			all += int(((sites[k] as Dictionary).get("today", {}) as Dictionary).get("takings", 0))
 	out.append([LANG.f("ALL PLACES\t$%d", all), FADED])

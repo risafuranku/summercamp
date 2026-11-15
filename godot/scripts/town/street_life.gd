@@ -9,6 +9,7 @@ extends Node3D
 ## warden sees the same from their own clock. In the village's frame (town_lesna's: x east,
 ## z south, the road at z = 0); town_trip calls `update` every frame.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const NPC := "res://assets/textury/npc/"
 const TOWN := "res://assets/textury/town/"
 const SFX := "res://assets/sfx/"
@@ -219,8 +220,8 @@ func _along(way: Array, metres: float) -> Vector3:
 
 func update(h: float, delta: float) -> void:
 	_t += delta
-	if _day_seen != CoreRoot.get_day():
-		_day_seen = CoreRoot.get_day()
+	if _day_seen != INSTANCE.core(self).get_day():
+		_day_seen = INSTANCE.core(self).get_day()
 		var wd := str(Season.WEEKDAYS[int(Season.date_of(_day_seen)["wd"])])
 		_bread_day = BREAD_DAYS.has(wd)
 	_tick_guests(h)

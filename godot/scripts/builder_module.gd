@@ -225,7 +225,7 @@ func _ready() -> void:
 	mouse_filter = MOUSE_FILTER_STOP
 	theme = T.get_theme()
 	_build_ui()
-	EventBus.money_changed.connect(_on_money_changed)
+	INSTANCE.bus(self).money_changed.connect(_on_money_changed)
 	_refresh_info()
 
 
@@ -259,7 +259,7 @@ var _night_view := false
 
 
 func _tick_night() -> void:
-	var n: bool = CoreRoot != null and CoreRoot.is_night()
+	var n: bool = CoreRoot != null and INSTANCE.core(self).is_night()
 	if n == _night_view:
 		return
 	_night_view = n
@@ -295,7 +295,7 @@ func _build_ui() -> void:
 	move_child(_catalogue, _map_panel.get_index())
 	_map_panel.map3d = _map3d
 	_map3d.left_3d.connect(func(): _grip.queue_redraw())
-	if EventBus.has_signal("BuildConfirmed"):
+	if INSTANCE.bus(self).has_signal("BuildConfirmed"):
 		EventBus.BuildConfirmed.connect(_on_build_for_nag)
 	_build_status()
 	_ticker = TICKER.new()
@@ -1010,9 +1010,9 @@ func _close_guest_card() -> void:
 
 
 func _guest_row(id: int) -> Dictionary:
-	if GuestManager == null or not GuestManager.has_method("get_guest_life_snapshot"):
+	if GuestManager == null or not INSTANCE.guests(self).has_method("get_guest_life_snapshot"):
 		return {}
-	for g in GuestManager.get_guest_life_snapshot():
+	for g in INSTANCE.guests(self).get_guest_life_snapshot():
 		if g is Dictionary and int(g.get("id", -2)) == id:
 			return g
 	return {}
@@ -1054,7 +1054,7 @@ func _doing(g: Dictionary) -> String:
 
 ## Their stay from the books: nights booked, what they have paid so far.
 func _stay_line(id: int) -> String:
-	var st = CoreRoot.get_state()
+	var st = INSTANCE.core(self).get_state()
 	if st == null:
 		return ""
 	for g in st.guests:
@@ -1087,7 +1087,7 @@ func _draw_guest_card() -> void:
 	var room := ""
 	var lodg = g.get("lodging", null)
 	if lodg is Vector2i and (lodg as Vector2i).x >= 0 and GuestManager != null:
-		room = GuestManager.room_label("%d:%d" % [lodg.x, lodg.y])
+		room = INSTANCE.guests(self).room_label("%d:%d" % [lodg.x, lodg.y])
 	var stay := _stay_line(_gcard_id)
 	c.draw_string(T.FONT, Vector2(x, y), (tr(room) if room != "" else tr("No room")) + ("  -  " + stay if stay != "" else ""), HORIZONTAL_ALIGNMENT_LEFT, s.x - x - 26, T.FONT_SIZE, Color8(60, 60, 110))
 	c.draw_string(T.FONT_BOLD, Vector2(x, y + 14), "%s, %s" % [tr(str(g.get("mood_label", ""))), tr(_doing(g))], HORIZONTAL_ALIGNMENT_LEFT, s.x - x - 8, T.FONT_SIZE, Color8(40, 70, 170))
@@ -1136,7 +1136,7 @@ func _refresh_inspector() -> void:
 	var t := str(_insp["type"])
 	var o: Vector2i = _insp["origin"]
 	var fp: Vector2i = _insp.get("footprint", Vector2i.ONE)
-	var def = CoreRoot.registry.get_def(StringName(t)) if CoreRoot.registry != null else null
+	var def = INSTANCE.core(self).registry.get_def(StringName(t)) if INSTANCE.core(self).registry != null else null
 	var key := "%d:%d" % [o.x, o.y]
 	var v := {"title": _nice_type(t, def), "sub": "", "lines": [], "icon": _texture(str(ITEM_ICONS.get(_base_type(t), ""))), "type": t}
 	var lines: Array = []
@@ -1144,8 +1144,8 @@ func _refresh_inspector() -> void:
 	# Lodgings: the room, who is in it, how many beds, what is still to do.
 	var lodging := t.begins_with("tent") or t.begins_with("cabin") or t.begins_with("caravan")
 	if lodging and GuestManager != null:
-		v["sub"] = tr(GuestManager.room_label(key))
-		var rs: Dictionary = GuestManager.get_room_state(key)
+		v["sub"] = tr(INSTANCE.guests(self).room_label(key))
+		var rs: Dictionary = INSTANCE.guests(self).get_room_state(key)
 		var st := str(rs.get("status", ""))
 		var who := _guests_in(key)
 		var beds := int(def.capacity) if def != null else 0
@@ -1164,11 +1164,11 @@ func _refresh_inspector() -> void:
 		v["sub"] = tr(str(BLURBS[_base_type(t)]))
 	# A toilet or shower block: how clean it is (the guests' use soils it).
 	if t == "toilet_block" or t == "shower_block":
-		var cell: Dictionary = CoreRoot.get_state().grid.cells.get(o, {})
+		var cell: Dictionary = INSTANCE.core(self).get_state().grid.cells.get(o, {})
 		var clean := float(cell.get("maintenance", 1.0))
 		lines.append([tr("Clean"), tr("FILTHY") if clean < UPKEEP_RULES.FILTHY else "%d%%" % int(round(clean * 100.0)), Color8(170, 0, 0) if clean < UPKEEP_RULES.FILTHY else (Color8(150, 100, 0) if clean < 0.7 else Color8(0, 110, 0))])
 	# A business: today in its books (what it took, how many it served).
-	var biz: Dictionary = (CoreRoot.get_state().biz.get("sites", {}) as Dictionary).get(key, {}) if CoreRoot.get_state().biz is Dictionary else {}
+	var biz: Dictionary = (INSTANCE.core(self).get_state().biz.get("sites", {}) as Dictionary).get(key, {}) if INSTANCE.core(self).get_state().biz is Dictionary else {}
 	if not biz.is_empty():
 		var today: Dictionary = biz.get("today", {})
 		lines.append([tr("Today"), LANG.f("$%d, %d served", [int(today.get("takings", 0)), int(today.get("sold", 0))]), Color8(0, 110, 0)])
@@ -1205,7 +1205,7 @@ func _refresh_inspector() -> void:
 		ub.tooltip_text = "Opens when the camp has had %d guests at once" % int(up["locked"])
 	elif not up.is_empty() and not bool(up.get("max", false)):
 		ub.text = "Upgrade  $%d" % int(up["cost"])
-		ub.disabled = CoreRoot.get_money() < int(up["cost"])
+		ub.disabled = INSTANCE.core(self).get_money() < int(up["cost"])
 		ub.tooltip_text = "To %s" % str(up.get("label", ""))
 	else:
 		ub.text = "Top level"
@@ -1214,9 +1214,9 @@ func _refresh_inspector() -> void:
 	var cb: Button = _insp_btns["crew"]
 	cb.visible = worn
 	cb.text = "Send the crew  $%d" % crew_cost
-	cb.disabled = CoreRoot.is_night() or CoreRoot.get_money() < crew_cost
-	cb.tooltip_text = "The crew does not come out after dark." if CoreRoot.is_night() else ""
-	var sum: Dictionary = CoreRoot.builder_authority.summarize_demolish(Rect2i(o, fp)) if CoreRoot.builder_authority != null and CoreRoot.builder_authority.has_method("summarize_demolish") else {}
+	cb.disabled = INSTANCE.core(self).is_night() or INSTANCE.core(self).get_money() < crew_cost
+	cb.tooltip_text = "The crew does not come out after dark." if INSTANCE.core(self).is_night() else ""
+	var sum: Dictionary = INSTANCE.core(self).builder_authority.summarize_demolish(Rect2i(o, fp)) if INSTANCE.core(self).builder_authority != null and INSTANCE.core(self).builder_authority.has_method("summarize_demolish") else {}
 	var db: Button = _insp_btns["demolish"]
 	var net := int(sum.get("refund", 0)) - int(sum.get("fee", 0))
 	db.text = "Demolish  %s$%d" % ["+" if net >= 0 else "-", absi(net)]
@@ -1229,7 +1229,7 @@ func _refresh_inspector() -> void:
 	var lb: Button = _insp_btns["lamp"]
 	lb.visible = t == "path" and not bool(_insp.get("lamp", false))
 	lb.text = "Put a lamp here  $%d" % _cost("lamp_post")
-	lb.disabled = CoreRoot.get_money() < _cost("lamp_post")
+	lb.disabled = INSTANCE.core(self).get_money() < _cost("lamp_post")
 	lb.visible = lb.visible and not _night_view
 	# The buttons that are there, two to a row from the bottom up, no gaps.
 	var shown: Array = []
@@ -1271,7 +1271,7 @@ func _nice_type(t: String, def) -> String:
 ## The names of the guests sleeping in a room (by their lodging slots).
 func _guests_in(key: String) -> Array:
 	var out: Array = []
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null:
 		return out
 	for g in state.guests:
@@ -1306,7 +1306,7 @@ func _insp_action(id: String) -> void:
 					_map_panel.inspect_footprint = again.get("footprint", Vector2i.ONE)
 				).call_deferred()
 			else:
-				message_requested.emit("Builder 98", "The upgrade could not be done.\n\nThe camp has $%d." % CoreRoot.get_money(), "error")
+				message_requested.emit("Builder 98", "The upgrade could not be done.\n\nThe camp has $%d." % INSTANCE.core(self).get_money(), "error")
 		"crew":
 			var res: Dictionary = m.request_maintenance_crew_at(o) if m != null and m.has_method("request_maintenance_crew_at") else {}
 			if bool(res.get("ok", false)):
@@ -1416,7 +1416,7 @@ func _make_card(type: String, w: int = CARD_W) -> Control:
 			var k := minf(box.x / isz.x, box.y / isz.y)
 			var d := (isz * k).floor()
 			c.draw_texture_rect(icon, Rect2(Vector2(5, 6 + (46.0 - box_side) * 0.5) + o + ((box - d) * 0.5).floor(), d), false)
-		var afford := CoreRoot.get_money() >= _cost(type)
+		var afford = INSTANCE.core(self).get_money() >= _cost(type)
 		var lock := _locked(type)
 		if lock.is_empty() and _fresh_has(type):
 			_draw_unlock(c, type, text_x, text_w, label, o, afford)
@@ -1456,7 +1456,7 @@ static func _fit_line(line: String, w: float) -> String:
 
 ## One short line under the price: beds, power, size.
 func _stat_line(type: String) -> String:
-	var def = CoreRoot.registry.get_def(StringName(type)) if CoreRoot.registry != null else null
+	var def = INSTANCE.core(self).registry.get_def(StringName(type)) if INSTANCE.core(self).registry != null else null
 	if def == null:
 		return ""
 	var bits: Array = []
@@ -1488,7 +1488,7 @@ func _build_splash() -> void:
 	_splash.registered = _sw != null and _sw.registered
 	_splash.serial = _sw.key if _sw != null else ""
 	_splash.licensee = _licensee()
-	_splash.days_left = maxi(1, 30 - CoreRoot.get_day())
+	_splash.days_left = maxi(1, 30 - INSTANCE.core(self).get_day())
 	_splash.gui_input.connect(func(e):
 		if e is InputEventMouseButton and e.pressed:
 			_splash_t = SPLASH_SEC
@@ -1541,7 +1541,7 @@ func _draw_info() -> void:
 	_info.draw_string(T.FONT_BOLD, Vector2(x, 17), tr(str(SHORT_NAMES.get(t, t))), HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, T.TEXT)
 	var cost := _cost(t)
 	if cost > 0:
-		var afford := CoreRoot.get_money() >= cost
+		var afford = INSTANCE.core(self).get_money() >= cost
 		var ct := LANG.money("$%d" % cost)
 		var cw := T.FONT_BOLD.get_string_size(ct, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE).x
 		_info.draw_string(T.FONT_BOLD, Vector2(_info.size.x - cw - 8, 17), ct, HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, Color8(0, 110, 0) if afford else Color8(170, 0, 0))
@@ -1552,7 +1552,7 @@ func _draw_info() -> void:
 
 
 func _tooltip(type: String) -> String:
-	var def = CoreRoot.registry.get_def(StringName(type)) if CoreRoot.registry != null else null
+	var def = INSTANCE.core(self).registry.get_def(StringName(type)) if INSTANCE.core(self).registry != null else null
 	var t := "%s  -  $%d\n%s" % [SHORT_NAMES.get(type, type), _cost(type), BLURBS.get(type, "")]
 	if def != null:
 		var bits: Array = []
@@ -1570,7 +1570,7 @@ func _tooltip(type: String) -> String:
 
 
 func _cost(type: String) -> int:
-	var def = CoreRoot.registry.get_def(StringName(type)) if CoreRoot.registry != null else null
+	var def = INSTANCE.core(self).registry.get_def(StringName(type)) if INSTANCE.core(self).registry != null else null
 	return int(def.cost) if def != null else 0
 
 
@@ -1635,7 +1635,7 @@ func _process(delta: float) -> void:
 func _tick_odo(delta: float) -> void:
 	if _odo == null:
 		return
-	var target := float(CoreRoot.get_money())
+	var target := float(INSTANCE.core(self).get_money())
 	if _odo_v < 0.0:
 		# The first look: the sum as it is (it was drawn once before it knew it: "$0").
 		_odo_v = target
@@ -1688,7 +1688,7 @@ func _draw_odo() -> void:
 func _on_guest_paid(amount: int, guest_id: int) -> void:
 	if not is_visible_in_tree() or amount <= 0:
 		return
-	var st = CoreRoot.get_state()
+	var st = INSTANCE.core(self).get_state()
 	if st == null:
 		return
 	for g in st.guests:
@@ -1711,13 +1711,13 @@ func _tick_coins(delta: float) -> void:
 		_coin_layer.z_index = 50
 		_coin_layer.draw.connect(_draw_coins)
 		add_child(_coin_layer)
-		if EventBus.has_signal("guest_payment_received"):
-			EventBus.guest_payment_received.connect(_on_guest_paid)
+		if INSTANCE.bus(self).has_signal("guest_payment_received"):
+			INSTANCE.bus(self).guest_payment_received.connect(_on_guest_paid)
 	# The businesses' takings since the last look (their books in GameState.biz).
 	_coin_scan -= delta
 	if _coin_scan <= 0.0:
 		_coin_scan = 0.6
-		var st = CoreRoot.get_state()
+		var st = INSTANCE.core(self).get_state()
 		var sites: Dictionary = st.biz.get("sites", {}) if st != null and st.biz is Dictionary else {}
 		for key in sites:
 			var today: Dictionary = (sites[key] as Dictionary).get("today", {}) if sites[key] is Dictionary else {}
@@ -1874,8 +1874,8 @@ func _on_build_for_nag(_type: String, _pos: Vector2i, _rot: int) -> void:
 func _mail_tomorrow(kind: String, extra: String) -> void:
 	if INSTANCE.coop(self).is_client():
 		INSTANCE.coop(self).send_request("builder98_mail", [kind, extra])
-	elif EmailManager != null and EmailManager.has_method("schedule_pool_mail"):
-		EmailManager.schedule_pool_mail(load("res://scripts/builder/shareware.gd").mail_for(kind, extra, CoreRoot.get_day()))
+	elif EmailManager != null and INSTANCE.mail(self).has_method("schedule_pool_mail"):
+		INSTANCE.mail(self).schedule_pool_mail(load("res://scripts/builder/shareware.gd").mail_for(kind, extra, INSTANCE.core(self).get_day()))
 
 
 func _register_dialog() -> void:
@@ -1890,7 +1890,7 @@ func _register_dialog() -> void:
 	# a mail till the next day"). A copy ordered the old way, its key still in the post,
 	# is registered the same at once.
 	var done := func():
-		var key: String = _sw.order(CoreRoot.get_day())
+		var key: String = _sw.order(INSTANCE.core(self).get_day())
 		_sw.register(key)
 		_save_sw()
 		_map_panel._play("diploma", -9.0)
@@ -1900,7 +1900,7 @@ func _register_dialog() -> void:
 		done.call()
 		return
 	confirm_requested.emit("Register Builder 98", "Register Builder 98 for $99?", func():
-		if not CoreRoot.actions.spend_money(load("res://scripts/builder/shareware.gd").PRICE):
+		if not INSTANCE.core(self).actions.spend_money(load("res://scripts/builder/shareware.gd").PRICE):
 			message_requested.emit("Register Builder 98", "The camp has not got $99.", "error")
 			return
 		done.call())
@@ -1928,7 +1928,7 @@ func _after_cheat(before: Array, cheat: String) -> void:
 	_open_category(str(before[2]))
 	match cheat:
 		"BOHEMIA":
-			CoreRoot.actions.add_money(5000)
+			INSTANCE.core(self).actions.add_money(5000)
 			_map_panel._emit_status("BOHEMIA: +$5,000.", 1)
 			_map_panel._play("coins", -8.0)
 			_mail_tomorrow("bohemia", "")
@@ -1951,7 +1951,7 @@ func _about_dialog() -> void:
 	win.can_minimize = false
 	var c: Control = win.content
 	var l := Label.new()
-	var reg := "Registered to: Camp Cerne Jezero" if _sw != null and _sw.registered else "UNREGISTERED SHAREWARE  -  %d days of the trial left" % maxi(0, 30 - CoreRoot.get_day())
+	var reg := "Registered to: Camp Cerne Jezero" if _sw != null and _sw.registered else "UNREGISTERED SHAREWARE  -  %d days of the trial left" % maxi(0, 30 - INSTANCE.core(self).get_day())
 	l.text = "Builder 98  version 1.2\n(c) 1996-98 Stavitel software, Jihlava\n%s\n\nPlanning: Ing. Pavel Stavitel\nPictures: Jana Stavitelova\nMusic: the Sound Blaster\nThe game around it: UNDO LABS" % reg
 	l.position = Vector2(12, 8)
 	c.add_child(l)
@@ -2007,15 +2007,15 @@ func _camp_facts() -> Dictionary:
 		if t != "path" and t != "lamp_post":
 			buildings += 1
 	var m := _main()
-	var day := CoreRoot.get_day() if CoreRoot != null else 1
+	var day = INSTANCE.core(self).get_day() if CoreRoot != null else 1
 	var g = m.get("_goggle") if m != null else null
 	var people := 0
-	if GuestManager != null and GuestManager.has_method("get_guest_life_snapshot"):
-		for x in GuestManager.get_guest_life_snapshot():
+	if GuestManager != null and INSTANCE.guests(self).has_method("get_guest_life_snapshot"):
+		for x in INSTANCE.guests(self).get_guest_life_snapshot():
 			people += int((x as Dictionary).get("party_size", 1)) if x is Dictionary else 0
 	var mood := 0.0
-	if GuestManager != null and GuestManager.has_method("get_camp_mood_summary"):
-		mood = float((GuestManager.get_camp_mood_summary() as Dictionary).get("avg_mood", 0.0))
+	if GuestManager != null and INSTANCE.guests(self).has_method("get_camp_mood_summary"):
+		mood = float((INSTANCE.guests(self).get_camp_mood_summary() as Dictionary).get("avg_mood", 0.0))
 	var repair := 0.0
 	if m != null and m.has_method("get_upkeep_snapshot"):
 		var rows: Array = (m.get_upkeep_snapshot() as Dictionary).get("rows", [])
@@ -2299,10 +2299,10 @@ func turn_view(step: int) -> void:
 func _refresh_info() -> void:
 	if _money == null:
 		return
-	_money.text = "$%s" % _group(CoreRoot.get_money())
+	_money.text = "$%s" % _group(INSTANCE.core(self).get_money())
 	var main = INSTANCE.main_of(self)
 	var clock := str(main.call("_time_of_day_string")) if main != null and main.has_method("_time_of_day_string") else "--:--"
-	_clock.text = "Day %d   %s" % [CoreRoot.get_day(), clock]
+	_clock.text = "Day %d   %s" % [INSTANCE.core(self).get_day(), clock]
 	_refresh_cost()
 	if _inspect != null and _inspect.visible:
 		_refresh_inspector()
@@ -2352,11 +2352,11 @@ func _site_report() -> String:
 				var k := str(root.get_meta("building_type", ""))
 				if not k.is_empty():
 					counts[k] = int(counts.get(k, 0)) + 1
-	var beds: Dictionary = GuestManager.get_bed_metrics() if GuestManager != null else {}
-	var t := "Site: Kemp Cerne jezero\nDay %d\n\nBeds: %d (%d free)\nCash: $%s" % [CoreRoot.get_day(), int(beds.get("capacity", 0)), int(beds.get("free", 0)), _group(CoreRoot.get_money())]
+	var beds: Dictionary = INSTANCE.guests(self).get_bed_metrics() if GuestManager != null else {}
+	var t := "Site: Kemp Cerne jezero\nDay %d\n\nBeds: %d (%d free)\nCash: $%s" % [INSTANCE.core(self).get_day(), int(beds.get("capacity", 0)), int(beds.get("free", 0)), _group(INSTANCE.core(self).get_money())]
 	var guests := 0
-	if GuestManager != null and GuestManager.has_method("get_guest_life_snapshot"):
-		for g in GuestManager.get_guest_life_snapshot():
+	if GuestManager != null and INSTANCE.guests(self).has_method("get_guest_life_snapshot"):
+		for g in INSTANCE.guests(self).get_guest_life_snapshot():
 			guests += int((g as Dictionary).get("party_size", 1)) if g is Dictionary else 0
 	var m := _main()
 	var h := float(m.get("_time_of_day_hours")) if m != null and m.get("_time_of_day_hours") != null else 12.0

@@ -17,6 +17,7 @@ extends Node
 ## merged so nothing goes backwards); the bus pulls in for whichever warden waits by the
 ## pole and stands for one getting on (town_trip._line_keep).
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const PLACE = preload("res://scripts/town/hamlet_podlesi.gd")
 const BUS_MODEL = preload("res://scripts/town/bus_model.gd")
 const TIMES = preload("res://scripts/town/bus_timetable.gd")
@@ -228,7 +229,7 @@ func _talk() -> void:
 
 func _pay() -> void:
 	state["paid"] = true
-	CoreRoot.actions.add_money(PAY)
+	INSTANCE.core(self).actions.add_money(PAY)
 	trip._quote("Vondra", "Listen to her! Here, fifty, as I said. And when you go back up to that camp: not the last bus. The one before.")
 	trip._say("+$%d" % PAY)
 

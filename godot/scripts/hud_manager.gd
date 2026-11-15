@@ -584,8 +584,8 @@ func _process(delta: float) -> void:
 	_poll_money -= delta
 	if _poll_money <= 0.0:
 		_poll_money = 0.5
-		if CoreRoot != null and CoreRoot.has_method("get_money"):
-			_apply_money(int(CoreRoot.get_money()))
+		if CoreRoot != null and INSTANCE.core(self).has_method("get_money"):
+			_apply_money(int(INSTANCE.core(self).get_money()))
 	_poll_guests -= delta
 	if _poll_guests <= 0.0:
 		_poll_guests = 1.5
@@ -1654,11 +1654,11 @@ func _update_money_flash(delta: float) -> void:
 func _poll_guest_state() -> void:
 	if GuestManager == null:
 		return
-	if GuestManager.has_method("get_bed_metrics"):
-		var beds: Dictionary = GuestManager.get_bed_metrics()
+	if INSTANCE.guests(self).has_method("get_bed_metrics"):
+		var beds: Dictionary = INSTANCE.guests(self).get_bed_metrics()
 		_beds = Vector2i(int(beds.get("in_camp", beds.get("occupied", 0))), int(beds.get("capacity", 0)))
-	if GuestManager.has_method("get_camp_mood_summary"):
-		_mood = GuestManager.get_camp_mood_summary()
+	if INSTANCE.guests(self).has_method("get_camp_mood_summary"):
+		_mood = INSTANCE.guests(self).get_camp_mood_summary()
 	_refresh_guests()
 
 
@@ -1797,10 +1797,10 @@ func _draw_chevron(tip: Vector2, dir: Vector2, c: Color, dark: Color) -> void:
 func _ensure_email_binding() -> void:
 	if _mail_bound or EmailManager == null:
 		return
-	if EmailManager.has_signal("unread_count_changed"):
+	if INSTANCE.mail(self).has_signal("unread_count_changed"):
 		var callback := Callable(self, "_on_unread_count_changed")
-		if not EmailManager.unread_count_changed.is_connected(callback):
-			EmailManager.unread_count_changed.connect(callback)
+		if not INSTANCE.mail(self).unread_count_changed.is_connected(callback):
+			INSTANCE.mail(self).unread_count_changed.connect(callback)
 		_mail_bound = true
 
 
@@ -1817,12 +1817,12 @@ const STAFF_RULES_H := preload("res://core/systems/staff_rules.gd")
 
 ## The newest letter a booking, and somebody at the desk answers those.
 func _desk_has_the_letter() -> bool:
-	var state = CoreRoot.get_state() if CoreRoot != null else null
-	if state == null or not (state.biz is Dictionary) or EmailManager == null or EmailManager.inbox.is_empty():
+	var state = INSTANCE.core(self).get_state() if CoreRoot != null else null
+	if state == null or not (state.biz is Dictionary) or EmailManager == null or INSTANCE.mail(self).inbox.is_empty():
 		return false
-	var newest = EmailManager.inbox[-1]
+	var newest = INSTANCE.mail(self).inbox[-1]
 	var staff = (state.biz as Dictionary).get("staff", {})
-	return newest is Dictionary and EmailManager._is_customer_mail(newest) and staff is Dictionary and STAFF_RULES_H.letters_covered(staff, CoreRoot.get_day())
+	return newest is Dictionary and INSTANCE.mail(self)._is_customer_mail(newest) and staff is Dictionary and STAFF_RULES_H.letters_covered(staff, INSTANCE.core(self).get_day())
 
 
 ## The mail already there as a camp starts or loads is not paged (Vera's first lands as you
@@ -1856,8 +1856,8 @@ func page() -> void:
 
 
 func _get_unread_count() -> int:
-	if EmailManager != null and EmailManager.has_method("get_unread_count"):
-		return int(EmailManager.call("get_unread_count"))
+	if EmailManager != null and INSTANCE.mail(self).has_method("get_unread_count"):
+		return int(INSTANCE.mail(self).call("get_unread_count"))
 	return 0
 
 

@@ -56,6 +56,7 @@ extends Node3D
 ##   guest_point(t) -> Vector3    where the guest of ticket t is (global; INF unknown): the
 ##                         stars and the tip fly up over them
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal closed
 ## Another station of this room was asked for (the bar's tab, a number key, Tab).
 signal switch_to(station: String)
@@ -1058,8 +1059,8 @@ func score_card(v: Dictionary, what := "", t := {}) -> void:
 		var bonus := RULES_BIZ.combo_bonus(run, price)
 		if bonus > 0:
 			v2["bonus"] = bonus
-			if CoreRoot != null and CoreRoot.actions != null:
-				CoreRoot.actions.add_money(bonus)
+			if CoreRoot != null and INSTANCE.core(self).actions != null:
+				INSTANCE.core(self).actions.add_money(bonus)
 	if hud != null and is_instance_valid(hud) and hud.has_method("serve_card"):
 		hud.call("serve_card", v2, what)
 	if hud != null and is_instance_valid(hud) and hud.has_method("serve_pop"):

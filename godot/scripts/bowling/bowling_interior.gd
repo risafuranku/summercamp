@@ -351,8 +351,8 @@ func open_bowling(p_key: String) -> void:
 	_viewport.audio_listener_enable_3d = true
 	_go("hall", true)
 	_apply_light()
-	if CoreRoot != null and CoreRoot.actions != null:
-		CoreRoot.actions.biz_site(key, "bowling")
+	if CoreRoot != null and INSTANCE.core(self).actions != null:
+		INSTANCE.core(self).actions.biz_site(key, "bowling")
 	_sync_guests()
 	_sync_lanes()
 	if _hall.stream != null:
@@ -542,8 +542,8 @@ func _visitors() -> Array:
 	var out: Array = []
 	if GuestManager == null or key == "":
 		return out
-	var now: int = GuestManager._absolute_minutes(maxi(1, GuestManager._last_known_day), GuestManager._last_known_hour, GuestManager._last_known_minute)
-	for g in GuestManager.get_guest_life_snapshot():
+	var now: int = INSTANCE.guests(self)._absolute_minutes(maxi(1, INSTANCE.guests(self)._last_known_day), INSTANCE.guests(self)._last_known_hour, INSTANCE.guests(self)._last_known_minute)
+	for g in INSTANCE.guests(self).get_guest_life_snapshot():
 		var act: Dictionary = g.get("activity", {}) if g.get("activity", {}) is Dictionary else {}
 		if str(act.get("kind", "")) != "visit" or str(act.get("target_key", "")) != key or bool(act.get("queued", false)):
 			continue

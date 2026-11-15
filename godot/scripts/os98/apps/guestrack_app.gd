@@ -10,6 +10,7 @@ extends Control
 ##
 ## On some evenings the register has one row more than the camp has guests.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const T = preload("res://scripts/os98/os_theme.gd")
 const LANG = preload("res://scripts/lang.gd")
 const PLAN = preload("res://scripts/os98/apps/camp_plan.gd")
@@ -176,7 +177,7 @@ func _tell(c: Vector2i) -> void:
 		return
 	var rs: Dictionary = b.get("room", {})
 	if rs.is_empty():
-		var def = CoreRoot.registry.get_def(StringName(str(b["type"]))) if CoreRoot != null and CoreRoot.registry != null else null
+		var def = INSTANCE.core(self).registry.get_def(StringName(str(b["type"]))) if CoreRoot != null and INSTANCE.core(self).registry != null else null
 		var nm := str(def.display_name).split(" (")[0] if def != null else str(b["type"]).capitalize()
 		var cond := float(b.get("condition", -1.0))
 		_status.text = "%s: BROKEN, it serves no one until it is repaired." % nm if bool(b["broken"]) else ("%s: %d%% condition." % [nm, int(round(cond * 100.0))] if cond >= 0.0 else nm + ".")
@@ -275,17 +276,17 @@ func _process(delta: float) -> void:
 func refresh() -> void:
 	if _tabs == null or GuestManager == null:
 		return
-	var data: Dictionary = GuestManager.get_guestrack_overview_data()
+	var data: Dictionary = INSTANCE.guests(self).get_guestrack_overview_data()
 	if not bool(data.get("ok", false)):
 		_status.text = "The register is not available."
 		return
 	var day := int(data.get("day", 1))
 	var hour := int(data.get("hour", 0))
 	var ov: Dictionary = data.get("overview", {}) if data.get("overview", {}) is Dictionary else {}
-	var arrivals: Array = GuestManager.get_arrivals()
+	var arrivals: Array = INSTANCE.guests(self).get_arrivals()
 	var to_do := 0
-	for key in GuestManager.get_accommodation_states():
-		var rs: Dictionary = GuestManager.get_room_state(str(key))
+	for key in INSTANCE.guests(self).get_accommodation_states():
+		var rs: Dictionary = INSTANCE.guests(self).get_room_state(str(key))
 		if not rs.is_empty() and str(rs.get("status", "")) != "ready":
 			to_do += 1
 	_counter_values = [
@@ -315,7 +316,7 @@ func refresh() -> void:
 func _fill_guests(guests: Array, day: int, hour: int) -> void:
 	var rooms := _rooms_by_guest()
 	var life := {}
-	for g in GuestManager.get_guest_life_snapshot():
+	for g in INSTANCE.guests(self).get_guest_life_snapshot():
 		life[int(g.get("id", -1))] = g
 	var keep_id := int(_card_guest.get("id", -1))
 	_guests.clear()
@@ -480,7 +481,7 @@ func _fill_arrivals(rows: Array) -> void:
 					it.set_metadata(0, Vector2i(int(kp[0]), int(kp[1])))
 			if not ok:
 				# What is still to do in it, as the room's own list has it.
-				for t in GuestManager.get_room_state(str(room.get("key", ""))).get("remaining", []):
+				for t in INSTANCE.guests(self).get_room_state(str(room.get("key", ""))).get("remaining", []):
 					todo.append(str(t.get("label", t.get("id", ""))))
 		it.set_text(4, ", ".join(labels.map(func(x) -> String: return tr(str(x)))))
 		it.set_text(5, "yes" if ready else "NO")
@@ -498,13 +499,13 @@ func _fill_arrivals(rows: Array) -> void:
 func _fill_rooms() -> void:
 	_rooms.clear()
 	var root := _rooms.create_item()
-	var states: Dictionary = GuestManager.get_accommodation_states()
+	var states: Dictionary = INSTANCE.guests(self).get_accommodation_states()
 	var keys := states.keys()
 	keys.sort()
 	var to_do := 0
 	var i := 0
 	for key in keys:
-		var rs: Dictionary = GuestManager.get_room_state(str(key))
+		var rs: Dictionary = INSTANCE.guests(self).get_room_state(str(key))
 		if rs.is_empty():
 			continue
 		var it := _rooms.create_item(root)
@@ -708,7 +709,7 @@ func _dot_icon(col: Color) -> Texture2D:
 ## Guest id -> "Tent 4:7" (the first room they sleep in).
 func _rooms_by_guest() -> Dictionary:
 	var out := {}
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null:
 		return out
 	for g_any in state.guests:
@@ -717,7 +718,7 @@ func _rooms_by_guest() -> Dictionary:
 		var slots: Array = g_any.get("lodging_slots", []) if g_any.get("lodging_slots", []) is Array else []
 		for s in slots:
 			if s is Dictionary and not str(s.get("accommodation_key", "")).is_empty():
-				out[int(g_any.get("id", -1))] = GuestManager.room_label(str(s["accommodation_key"]))
+				out[int(g_any.get("id", -1))] = INSTANCE.guests(self).room_label(str(s["accommodation_key"]))
 				break
 	return out
 
@@ -737,7 +738,7 @@ func _room_coord_of(g: Dictionary) -> Variant:
 func shown() -> void:
 	if _tabs == null or GuestManager == null:
 		return
-	for r in GuestManager.get_arrivals():
+	for r in INSTANCE.guests(self).get_arrivals():
 		if r is Dictionary and bool(r.get("at_gate", false)):
 			_tabs.current_tab = 1
 			break

@@ -329,8 +329,8 @@ func serve_now() -> void:
 		return
 	var r := RULES_BIZ.reward(int(v["score"]), maxi(1, int(v["amount"])))
 	var tip := int(r["tip"])
-	if tip > 0 and CoreRoot != null and CoreRoot.actions != null:
-		CoreRoot.actions.biz_sale(building_key, tip, 0, true)
+	if tip > 0 and CoreRoot != null and INSTANCE.core(self).actions != null:
+		INSTANCE.core(self).actions.biz_sale(building_key, tip, 0, true)
 	var line: String = LINES["good"]
 	if float(v["fit"]) < 1.0:
 		line = LINES["wrong"]

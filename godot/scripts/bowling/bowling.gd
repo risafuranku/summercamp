@@ -174,7 +174,7 @@ func _process(delta: float) -> void:
 		return
 	var dt := _acc
 	_acc = 0.0
-	var st = CoreRoot.get_state() if CoreRoot != null else null
+	var st = INSTANCE.core(self).get_state() if CoreRoot != null else null
 	# A new camp (the books' stamp changes with it): the alleys start afresh.
 	var sid: int = (st.get_instance_id() + int((st.biz as Dictionary).get("stamp", 0))) if st != null and st.biz is Dictionary else 0
 	if sid != _state_id:
@@ -203,7 +203,7 @@ func _process(delta: float) -> void:
 ## The camp's bowling alleys (their keys).
 func _bowling_keys() -> Array:
 	var out: Array = []
-	var state = CoreRoot.get_state() if CoreRoot != null else null
+	var state = INSTANCE.core(self).get_state() if CoreRoot != null else null
 	if state == null or state.grid == null:
 		return out
 	for c in state.grid.cells.keys():
@@ -465,9 +465,9 @@ func check_in(key: String, visit: String, by_hand: bool, li := -1, pairs: Array 
 			wrong += 1
 	var heads := sizes.size()
 	var amount := int(round(float(heads * (GAME_PRICE + SHOES_PRICE)) * BUSINESS.price_k(key)))
-	if CoreRoot != null and CoreRoot.actions != null:
-		CoreRoot.actions.biz_site(key, "bowling")
-		CoreRoot.actions.biz_sale(key, amount, heads, by_hand)
+	if CoreRoot != null and INSTANCE.core(self).actions != null:
+		INSTANCE.core(self).actions.biz_site(key, "bowling")
+		INSTANCE.core(self).actions.biz_sale(key, amount, heads, by_hand)
 	ORDERS.note_served(v)
 	if BUSINESS.has_gear(key, "scoreboard"):
 		ORDERS.mood(int(v.get("id", 0)), 2.0, "The scores up on screens over the lanes, like abroad.")
@@ -511,8 +511,8 @@ func shelve_returned(key: String, idx := 0) -> int:
 		return -1
 	idx = clampi(idx, 0, back.size() - 1)
 	var size := int(back[idx])
-	if CoreRoot != null and CoreRoot.actions != null and not BUSINESS.has_gear(key, "dryer"):
-		CoreRoot.actions.biz_take(key, {"spray": 1})
+	if CoreRoot != null and INSTANCE.core(self).actions != null and not BUSINESS.has_gear(key, "dryer"):
+		INSTANCE.core(self).actions.biz_take(key, {"spray": 1})
 	act(key, "shelve", [idx])
 	return size
 
@@ -922,8 +922,8 @@ func serve_bufet(key: String, id: String, built: Array, quality: float, by_hand:
 	var speed := 1.0 - clampf((age - 5.0) / (BUFET_GONE - 5.0), 0.0, 1.0)
 	var pts := BIZ_RULES.score(speed, fit * clampf(quality, 0.0, 1.0))
 	ORDERS.mood(int(order.get("guest", 0)), -2.0 + float(pts) / 100.0 * 5.0, "A cold beer brought over to the lane. That's a bowling alley." if pts >= 70 else "The snack bar got the order wrong.")
-	if CoreRoot != null and CoreRoot.actions != null:
-		CoreRoot.actions.biz_score(key, {"score": pts, "tip": 0, "what": "Snack bar", "who": str(order.get("name", "")), "hand": not by_hand})
+	if CoreRoot != null and INSTANCE.core(self).actions != null:
+		INSTANCE.core(self).actions.biz_score(key, {"score": pts, "tip": 0, "what": "Snack bar", "who": str(order.get("name", "")), "hand": not by_hand})
 	return {"ok": true, "amount": amount, "fit": fit, "speed": speed, "score": pts, "order": order}
 
 

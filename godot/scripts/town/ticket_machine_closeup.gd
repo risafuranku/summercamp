@@ -11,6 +11,7 @@ extends "res://scripts/closeup/closeup_view.gd"
 ## it (into the bag, to be punched on the bus). Now and then it keeps the money and
 ## thinks about it: thump it. The LCD speaks Czech; the strip under says it in English.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal ticket_taken(to: String)
 
 const PIC := "res://assets/textury/town/closeup_stop_machine.png"
@@ -133,7 +134,7 @@ func _pay() -> void:
 		say("", "No room in your bag for a ticket.", false)
 		return
 	var price := _price()
-	if CoreRoot.get_money() < price or not CoreRoot.actions.spend_money(price):
+	if INSTANCE.core(self).get_money() < price or not INSTANCE.core(self).actions.spend_money(price):
 		say("", "Not enough in your pockets.", false)
 		return
 	play(SFX + "coin.mp3", -4.0)

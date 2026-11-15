@@ -2061,7 +2061,7 @@ func click(id: String, hour: float) -> bool:
 			var act := func():
 				if id == "rope":
 					_ring()
-				elif CoreRoot.get_money() >= 1 and CoreRoot.actions.spend_money(1):
+				elif INSTANCE.core(room).get_money() >= 1 and INSTANCE.core(room).actions.spend_money(1):
 					_play("chapel/coin_box.mp3", -4.0)
 			if _walker.here == "door":
 				act.call()
@@ -2121,7 +2121,7 @@ func _make_closeup() -> void:
 
 
 func _light_candle() -> void:
-	if free_cups().is_empty() or CoreRoot.get_money() < 1 or not CoreRoot.actions.spend_money(1):
+	if free_cups().is_empty() or INSTANCE.core(room).get_money() < 1 or not INSTANCE.core(room).actions.spend_money(1):
 		_play("director/knock_wrong.mp3", -14.0)
 		return
 	_play("chapel/coin_box.mp3", -6.0)

@@ -38,16 +38,16 @@ func _ready() -> void:
 	_texture_style = TEXTURE_STYLE_SCRIPT.new()
 	_lamp_rng.randomize()
 	var placed_cb := Callable(self, "_on_building_placed_event")
-	if EventBus.has_signal("building_placed") and not EventBus.building_placed.is_connected(placed_cb):
-		EventBus.building_placed.connect(placed_cb)
+	if INSTANCE.bus(self).has_signal("building_placed") and not INSTANCE.bus(self).building_placed.is_connected(placed_cb):
+		INSTANCE.bus(self).building_placed.connect(placed_cb)
 	var removed_cb := Callable(self, "_on_building_removed_event")
-	if EventBus.has_signal("building_removed") and not EventBus.building_removed.is_connected(removed_cb):
-		EventBus.building_removed.connect(removed_cb)
+	if INSTANCE.bus(self).has_signal("building_removed") and not INSTANCE.bus(self).building_removed.is_connected(removed_cb):
+		INSTANCE.bus(self).building_removed.connect(removed_cb)
 	var torn_cb := Callable(self, "_on_room_torn_check")
-	if EventBus.has_signal("accommodation_state_changed") and not EventBus.accommodation_state_changed.is_connected(torn_cb):
-		EventBus.accommodation_state_changed.connect(torn_cb)
-	if EventBus.has_signal("room_task_done"):
-		EventBus.room_task_done.connect(func(key: String, _task: String) -> void: _on_room_torn_check(key, "", 0))
+	if INSTANCE.bus(self).has_signal("accommodation_state_changed") and not INSTANCE.bus(self).accommodation_state_changed.is_connected(torn_cb):
+		INSTANCE.bus(self).accommodation_state_changed.connect(torn_cb)
+	if INSTANCE.bus(self).has_signal("room_task_done"):
+		INSTANCE.bus(self).room_task_done.connect(func(key: String, _task: String) -> void: _on_room_torn_check(key, "", 0))
 
 
 func _process(delta: float) -> void:
@@ -574,14 +574,14 @@ func _on_room_torn_check(key: String, _status: String, _guests: int) -> void:
 ## CARNAGE_WALL) and nobody has mended it: while the guests she left are still in
 ## (carnage_pending), then while that task is not done.
 func _carnage_open(key: String, kind: String) -> bool:
-	var st = CoreRoot.get_state() if CoreRoot != null else null
+	var st = INSTANCE.core(self).get_state() if CoreRoot != null else null
 	var acc: Dictionary = st.accommodation_states.get(key, {}) if st != null else {}
 	var mess: Dictionary = acc.get("mess", {}) if acc.get("mess", {}) is Dictionary else {}
 	if bool(mess.get("carnage_pending", false)):
 		return true
 	if not bool(mess.get("carnage", false)):
 		return false
-	var room: Dictionary = GuestManager.get_room_state(key)
+	var room: Dictionary = INSTANCE.guests(self).get_room_state(key)
 	for t in room.get("tasks", []):
 		if str(t.get("mess", "")) == kind and not (room.get("done", []) as Array).has(t.get("id", "")):
 			return true

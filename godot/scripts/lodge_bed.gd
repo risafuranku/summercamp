@@ -133,7 +133,7 @@ func _detach() -> void:
 func _room() -> Dictionary:
 	var node = im.call("_open_room_node", _it)
 	var key := str(im.call("_room_key_for", node))
-	return {"key": key, "state": GuestManager.get_room_state(key) if key != "" else {}}
+	return {"key": key, "state": INSTANCE.guests(self).get_room_state(key) if key != "" else {}}
 
 
 func _bed_made() -> bool:

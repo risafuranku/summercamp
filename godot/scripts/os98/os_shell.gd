@@ -280,15 +280,15 @@ func _ready() -> void:
 	add_child(top)
 	top.add_child(_cursor)
 	# Installed from elsewhere (tools, the quest's debug): show it here too.
-	EventBus.program_installed.connect(func(id: String):
+	INSTANCE.bus(self).program_installed.connect(func(id: String):
 		if PROGRAMS.has(id) and not _is_program_unlocked(id):
 			install_program(id, false)
 	)
 	if EmailManager != null:
-		EmailManager.email_received.connect(_on_email_received)
-		EmailManager.unread_count_changed.connect(func(_c): _refresh_badges())
-		if EmailManager.has_signal("coop_synced"):
-			EmailManager.coop_synced.connect(_refresh_mail_windows)
+		INSTANCE.mail(self).email_received.connect(_on_email_received)
+		INSTANCE.mail(self).unread_count_changed.connect(func(_c): _refresh_badges())
+		if INSTANCE.mail(self).has_signal("coop_synced"):
+			INSTANCE.mail(self).coop_synced.connect(_refresh_mail_windows)
 	_apply_state()
 
 
@@ -633,13 +633,13 @@ func earn(amount: int) -> void:
 		return
 	if INSTANCE.coop(self).is_client():
 		INSTANCE.coop(self).send_request("money", [amount])
-	elif CoreRoot != null and CoreRoot.actions != null:
-		CoreRoot.actions.add_money(amount)
+	elif CoreRoot != null and INSTANCE.core(self).actions != null:
+		INSTANCE.core(self).actions.add_money(amount)
 
 
 ## The day a job's count belongs to: before noon the night is still the day before's.
 func work_day() -> int:
-	var day := CoreRoot.get_day() if CoreRoot != null else 1
+	var day = INSTANCE.core(self).get_day() if CoreRoot != null else 1
 	var m := main_node()
 	var h := float(m.get("_time_of_day_hours")) if m != null and m.get("_time_of_day_hours") != null else 14.0
 	return day - (1 if h < 6.0 else 0)
@@ -663,7 +663,7 @@ func job_add(job: String, n: int) -> void:
 func scores(game: String) -> Array:
 	var s = _store.get("scores_" + game, null)
 	var rows: Array = (s as Array).duplicate(true) if s is Array and not (s as Array).is_empty() else (SCORE_SEEDS.get(game, []) as Array).duplicate(true)
-	var state = CoreRoot.get_state() if CoreRoot != null else null
+	var state = INSTANCE.core(self).get_state() if CoreRoot != null else null
 	var lost: Array = state.lost_guests if state != null else []
 	if not lost.is_empty() and IMPOSSIBLE.has(game):
 		var who := str((lost[lost.size() - 1] as Dictionary).get("name", ""))
@@ -814,8 +814,8 @@ func start_download(file: String, _from_url: String = "") -> void:
 func finish_download(file: String) -> void:
 	if not _downloads.has(file):
 		_downloads.append(file)
-	if EventBus.has_signal("file_downloaded"):
-		EventBus.file_downloaded.emit(file)
+	if INSTANCE.bus(self).has_signal("file_downloaded"):
+		INSTANCE.bus(self).file_downloaded.emit(file)
 	_refresh_folders()
 
 
@@ -888,8 +888,8 @@ func install_program(app_id: String, from_setup := true) -> void:
 			a.program_installed(app_id)
 	_refresh_folders()
 	_refresh_badges()
-	if EventBus.has_signal("program_installed"):
-		EventBus.program_installed.emit(app_id)
+	if INSTANCE.bus(self).has_signal("program_installed"):
+		INSTANCE.bus(self).program_installed.emit(app_id)
 
 
 ## A small dialog. kind: info / warning / error / question. `cb` gets the button text.
@@ -1734,7 +1734,7 @@ func _enter_desktop() -> void:
 	# CampMail is in the startup group (OKNA.INI: run=CAMPMAIL.EXE): with unread mail the
 	# panel opens on it, else where you left it.
 	var first := _last_tab
-	if EmailManager != null and EmailManager.get_unread_count() > 0:
+	if EmailManager != null and INSTANCE.mail(self).get_unread_count() > 0:
 		first = "mail"
 	_tab = ""
 	_tab2 = ""
@@ -1898,8 +1898,8 @@ func _tick_desktop(delta: float) -> void:
 		_poll = 1.0
 		var m := main_node()
 		_clock.text = _clock_text()
-		_clock.tooltip_text = "%s 1998" % Season.date_long(CoreRoot.get_day()) if CoreRoot != null else ""
-		_money.text = "$%s" % _group(CoreRoot.get_money() if CoreRoot != null else 0)
+		_clock.tooltip_text = "%s 1998" % Season.date_long(INSTANCE.core(self).get_day()) if CoreRoot != null else ""
+		_money.text = "$%s" % _group(INSTANCE.core(self).get_money() if CoreRoot != null else 0)
 		_clock2.text = _clock.text
 		_money2.text = _money.text
 		_refresh_ups(m)
@@ -2158,7 +2158,7 @@ func _pixel_text(c: CanvasItem, s: String, at: Vector2, fg: Color, bg: Color) ->
 ## What each tab wants of you, polled once a second.
 func _refresh_badges() -> void:
 	var b := {}
-	var unread := EmailManager.get_unread_count() if EmailManager != null else 0
+	var unread = INSTANCE.mail(self).get_unread_count() if EmailManager != null else 0
 	if unread > 0:
 		b["mail"] = [str(mini(unread, 99)), Color8(200, 0, 0)]
 	var m := main_node()
@@ -2170,10 +2170,10 @@ func _refresh_badges() -> void:
 			b["camp_status"] = [str(maxi(1, od)), Color8(200, 0, 0)]
 		elif un > 0:
 			b["camp_status"] = [str(un), Color8(176, 112, 0)]
-	if GuestManager != null and GuestManager.has_method("get_arrivals"):
+	if GuestManager != null and INSTANCE.guests(self).has_method("get_arrivals"):
 		var at_gate := 0
 		var coming := 0
-		for r in GuestManager.get_arrivals():
+		for r in INSTANCE.guests(self).get_arrivals():
 			if r is Dictionary:
 				if bool(r.get("at_gate", false)):
 					at_gate += 1

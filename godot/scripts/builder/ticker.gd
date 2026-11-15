@@ -8,6 +8,7 @@ extends Control
 ## The camp's own news, read from the camp (EventBus, GuestManager, the grid), never made
 ## up here. builder_module.gd owns it and lays it out.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal go_to(coord: Vector2i)
 signal follow(guest_id: int)
 
@@ -53,17 +54,17 @@ func _ready() -> void:
 		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
 			_jump(_pop)
 			popup.visible = false)
-	EventBus.guest_at_gate.connect(func(g: Dictionary): add(LANG.f("%s is at the gate." if int(g.get("party_size", 1)) <= 1 else "%s and party are at the gate.", _first(g)), "guest"))
-	EventBus.guest_checked_in.connect(func(g: Dictionary): add(LANG.f("%s moved into %s.", [_first(g), _room_of(g)]), "cabin", _lodging(g)))
-	EventBus.guest_gave_up.connect(func(g: Dictionary): add(LANG.f("%s gave up waiting and drove off.", _first(g)), "warning", Vector2i(-1, -1), -1, true, true))
-	EventBus.guest_review_posted.connect(func(r: Dictionary):
+	INSTANCE.bus(self).guest_at_gate.connect(func(g: Dictionary): add(LANG.f("%s is at the gate." if int(g.get("party_size", 1)) <= 1 else "%s and party are at the gate.", _first(g)), "guest"))
+	INSTANCE.bus(self).guest_checked_in.connect(func(g: Dictionary): add(LANG.f("%s moved into %s.", [_first(g), _room_of(g)]), "cabin", _lodging(g)))
+	INSTANCE.bus(self).guest_gave_up.connect(func(g: Dictionary): add(LANG.f("%s gave up waiting and drove off.", _first(g)), "warning", Vector2i(-1, -1), -1, true, true))
+	INSTANCE.bus(self).guest_review_posted.connect(func(r: Dictionary):
 		var stars := int(r.get("stars", r.get("rating", 0)))
 		add(LANG.f("%s wrote a review: %d out of 5.", [str(r.get("name", r.get("author", "A guest"))).split(" ")[0], stars]), "guest", Vector2i(-1, -1), -1, stars <= 2, stars <= 1 or stars >= 5))
-	EventBus.accommodation_state_changed.connect(func(key: String, status: String, _n: int):
+	INSTANCE.bus(self).accommodation_state_changed.connect(func(key: String, status: String, _n: int):
 		if status == "dirty" and key.contains(":"):
 			add(LANG.f("%s needs cleaning.", _room_label(key)), "cabin", _coord(key)))
-	EventBus.building_failed.connect(func(c: Vector2i, t: String): add(LANG.f("The %s has broken down.", tr(_name(t))), "warning", c, -1, true, true))
-	EventBus.building_serviced.connect(func(c: Vector2i, t: String, was_broken: bool, _cost: int):
+	INSTANCE.bus(self).building_failed.connect(func(c: Vector2i, t: String): add(LANG.f("The %s has broken down.", tr(_name(t))), "warning", c, -1, true, true))
+	INSTANCE.bus(self).building_serviced.connect(func(c: Vector2i, t: String, was_broken: bool, _cost: int):
 		if was_broken:
 			add(LANG.f("The %s works again.", tr(_name(t))), "warning", c))
 	_snd = AudioStreamPlayer.new()
@@ -122,8 +123,8 @@ func _shell_db() -> float:
 ## What the camp says without a signal for it: the guests' new thoughts, a block gone
 ## filthy.
 func _poll_camp() -> void:
-	if GuestManager != null and GuestManager.has_method("get_guest_life_snapshot"):
-		for g in GuestManager.get_guest_life_snapshot():
+	if GuestManager != null and INSTANCE.guests(self).has_method("get_guest_life_snapshot"):
+		for g in INSTANCE.guests(self).get_guest_life_snapshot():
 			if not (g is Dictionary):
 				continue
 			var id := int(g.get("id", -1))
@@ -134,7 +135,7 @@ func _poll_camp() -> void:
 				continue
 			var mood := float(g.get("mood", 50.0))
 			add("%s: %s" % [str(g.get("name", "Guest")).split(" ")[0], tr(th)], "guest", Vector2i(-1, -1), id, mood < 35.0)
-	var st = CoreRoot.get_state() if CoreRoot != null else null
+	var st = INSTANCE.core(self).get_state() if CoreRoot != null else null
 	if st == null:
 		return
 	for c in st.grid.cells:
@@ -213,8 +214,8 @@ func _room_of(g: Dictionary) -> String:
 
 
 func _room_label(key: String) -> String:
-	if GuestManager != null and GuestManager.has_method("room_label"):
-		var l := str(GuestManager.room_label(key))
+	if GuestManager != null and INSTANCE.guests(self).has_method("room_label"):
+		var l := str(INSTANCE.guests(self).room_label(key))
 		if l != "":
 			return tr(l)
 	return tr("a room")

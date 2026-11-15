@@ -1551,8 +1551,8 @@ func _try_play_morning_chime(previous_hour: float, current_hour: float) -> void:
 
 
 func _is_after_first_night() -> bool:
-	if CoreRoot != null and CoreRoot.has_method("get_day"):
-		return int(CoreRoot.get_day()) > 1
+	if CoreRoot != null and INSTANCE.core(self).has_method("get_day"):
+		return int(INSTANCE.core(self).get_day()) > 1
 	return true
 
 

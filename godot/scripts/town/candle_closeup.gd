@@ -28,6 +28,7 @@ extends "res://scripts/closeup/closeup_view.gd"
 ## A tool drives it through debug_at / debug_press / debug_stroke (the same way as a hand:
 ## the head along the striker, the flame held to a wick), debug_strike, debug_flame_to.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const CAMP := "res://assets/textury/camp/"
 const SFX := "res://assets/sfx/"
 const INVENTORY = preload("res://scripts/ui/inventory.gd")
@@ -335,14 +336,14 @@ func _set_candle(cup: int) -> void:
 func _fetch() -> void:
 	var coin: bool = _chapel.set_cup < 0
 	_stage = "fetch"
-	if coin and CoreRoot.get_money() < 1:
+	if coin and INSTANCE.core(self).get_money() < 1:
 		_way(SLOT, 0.3, func(): _sound("director/knock_wrong.mp3", -14.0))
 		_way_back(0.3, func(): _stage = "free")
 		return
 	if coin:
 		_holding = "coin"
 		_way(SLOT + Vector2(0, -2), 0.3, func():
-			if CoreRoot.actions.spend_money(1):
+			if INSTANCE.core(self).actions.spend_money(1):
 				_chapel.paid_match = true
 				_sound("chapel/coin_box.mp3", -6.0)
 			_holding = "")

@@ -325,7 +325,7 @@ func _tick_ring(delta: float) -> void:
 		_ring_t = AFTER_BELL
 		return
 	_ringing = false
-	if CoreRoot.get_money() < _total:
+	if INSTANCE.core(self).get_money() < _total:
 		room._npc_nod = 0.5
 		if _lines.has("short_cigs") and _to_pay.size() == 1 and str(_to_pay[0]["id"]) == "cigs":
 			_say("short_cigs")
@@ -348,7 +348,7 @@ func _tick_ring(delta: float) -> void:
 
 ## She has swept the money off the mat: it is hers now. False: it is not there any more.
 func _on_paid() -> void:
-	_paid = CoreRoot.actions.spend_money(_total)
+	_paid = INSTANCE.core(self).actions.spend_money(_total)
 
 
 func _on_pay_closed() -> void:
@@ -500,12 +500,12 @@ func _draw_bill() -> void:
 		yy += 4.0 * s
 		_bill.draw_string(font, Vector2(x + 6.0 * s, yy + 9.0 * s), "= $%d" % total, HORIZONTAL_ALIGNMENT_RIGHT, w - 12.0 * s, fs, BILL_INK)
 		yy += row
-		var short := CoreRoot.get_money() < total
+		var short = INSTANCE.core(self).get_money() < total
 		_bill_pay = Rect2(x + 6.0 * s, yy, w - 12.0 * s, 16.0 * s)
 		_bill.draw_rect(_bill_pay, Color(0.55, 0.2, 0.15) if short else BILL_PAY)
 		_bill.draw_string(font, Vector2(_bill_pay.position.x, yy + 11.5 * s), tr("Pay"), HORIZONTAL_ALIGNMENT_CENTER, _bill_pay.size.x, fs, BILL_PAPER)
 		return
-	_bill.draw_string(font, Vector2(x + 6.0 * s, yy + 9.0 * s), "$%d" % CoreRoot.get_money(), HORIZONTAL_ALIGNMENT_RIGHT, w - 12.0 * s, fs, BILL_INK)
+	_bill.draw_string(font, Vector2(x + 6.0 * s, yy + 9.0 * s), "$%d" % INSTANCE.core(self).get_money(), HORIZONTAL_ALIGNMENT_RIGHT, w - 12.0 * s, fs, BILL_INK)
 
 
 ## She goes to `x`; back to her place when it has been quiet for `stay` seconds.

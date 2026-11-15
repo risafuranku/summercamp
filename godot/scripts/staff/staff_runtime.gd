@@ -85,9 +85,9 @@ func _hour() -> float:
 
 
 func _st() -> Dictionary:
-	if CoreRoot == null or CoreRoot.get_state() == null:
+	if CoreRoot == null or INSTANCE.core(self).get_state() == null:
 		return {}
-	var st = CoreRoot.get_state().biz.get("staff", {})
+	var st = INSTANCE.core(self).get_state().biz.get("staff", {})
 	return st if st is Dictionary else {}
 
 
@@ -153,7 +153,7 @@ func _rebuild_nav() -> void:
 	_astar.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_ONLY_IF_NO_OBSTACLES
 	_astar.default_compute_heuristic = AStarGrid2D.HEURISTIC_OCTILE
 	_astar.update()
-	var cells: Dictionary = CoreRoot.get_state().grid.cells if CoreRoot != null and CoreRoot.get_state() != null else {}
+	var cells: Dictionary = INSTANCE.core(self).get_state().grid.cells if CoreRoot != null and INSTANCE.core(self).get_state() != null else {}
 	for y in size.y:
 		for x in size.x:
 			var c := Vector2i(x, y)
@@ -262,7 +262,7 @@ func _process(delta: float) -> void:
 		elif staffroom() == null and not _acts().is_empty() and INSTANCE.coop(self).sim_here():
 			# The staffroom was pulled down: everybody home.
 			for slug in _acts().keys():
-				CoreRoot.actions.staff_act(str(slug), {})
+				INSTANCE.core(self).actions.staff_act(str(slug), {})
 		_update_camp_side()
 	_draw()
 
@@ -277,12 +277,12 @@ func _run() -> void:
 		for p in crew:
 			known = known or str(p.get("slug", "")) == str(slug)
 		if not known:
-			CoreRoot.actions.staff_act(str(slug), {})
+			INSTANCE.core(self).actions.staff_act(str(slug), {})
 	for i in crew.size():
 		var p: Dictionary = crew[i]
 		var slug := str(p.get("slug", ""))
 		var act: Dictionary = acts.get(slug, {})
-		var on := RULES.on_duty(p, hour, i, CoreRoot.get_day())
+		var on := RULES.on_duty(p, hour, i, INSTANCE.core(self).get_day())
 		var doing := str(act.get("do", "home"))
 		match doing:
 			"home":
@@ -316,7 +316,7 @@ func _overtime(act: Dictionary, hour: float) -> bool:
 		return false
 	match str(act.get("what", "")):
 		"desk":
-			return not GuestManager.get_desk_queue().is_empty()
+			return not INSTANCE.guests(self).get_desk_queue().is_empty()
 		"rooms":
 			return int(_lodgings_wanted().get(str(act.get("room", "")), 1)) == 0
 	return false
@@ -344,24 +344,24 @@ func _walk(slug: String, a: Vector3, b: Vector3, next: Dictionary, extra := {}) 
 	var act := {"do": "walk", "a": _a(a), "b": _a(b), "t0": now, "t1": now + d / RULES.WALK_M_PER_MIN, "next": next}
 	for k in extra:
 		act[k] = extra[k]
-	CoreRoot.actions.staff_act(slug, act)
+	INSTANCE.core(self).actions.staff_act(slug, act)
 
 
 func _arrive(slug: String, p: Dictionary, act: Dictionary, now: float) -> void:
 	var next: Dictionary = (act.get("next", {}) as Dictionary).duplicate(true)
 	match str(next.get("do", "")):
 		"home":
-			CoreRoot.actions.staff_act(slug, {"do": "home"})
+			INSTANCE.core(self).actions.staff_act(slug, {"do": "home"})
 		"coffee":
 			var seat := _free_seat(slug)
 			if seat == "":
 				_lie_down(slug, p, act, now)
 				return
-			CoreRoot.actions.staff_act(slug, {"do": "coffee", "spot": seat, "t0": now, "t1": now + RULES.COFFEE_MIN})
+			INSTANCE.core(self).actions.staff_act(slug, {"do": "coffee", "spot": seat, "t0": now, "t1": now + RULES.COFFEE_MIN})
 		"rest":
 			_lie_down(slug, p, act, now)
 		"bed":
-			CoreRoot.actions.staff_act(slug, {"do": "rest", "spot": "bed:" + str(next.get("room", "")), "room": str(next.get("room", "")), "t0": now, "t1": now + RULES.REST_MIN, "at": act.get("b")})
+			INSTANCE.core(self).actions.staff_act(slug, {"do": "rest", "spot": "bed:" + str(next.get("room", "")), "room": str(next.get("room", "")), "t0": now, "t1": now + RULES.REST_MIN, "at": act.get("b")})
 		"work":
 			next["t0"] = now
 			next["at"] = act.get("b")
@@ -381,7 +381,7 @@ func _arrive(slug: String, p: Dictionary, act: Dictionary, now: float) -> void:
 				next["each"] = RULES.DESK_EACH_MIN * float(RULES.SPEED_K[clampi(int(p.get("speed", 1)), 0, 2)])
 				next["last"] = now
 			next["t1"] = now + minutes
-			CoreRoot.actions.staff_act(slug, next)
+			INSTANCE.core(self).actions.staff_act(slug, next)
 
 
 ## Back in the staffroom (or off to a guest's bed): a seat in the lounge if there is one
@@ -389,12 +389,12 @@ func _arrive(slug: String, p: Dictionary, act: Dictionary, now: float) -> void:
 func _lie_down(slug: String, p: Dictionary, act: Dictionary, now: float) -> void:
 	var spot := _free_seat(slug)
 	if spot != "":
-		CoreRoot.actions.staff_act(slug, {"do": "rest", "spot": spot, "t0": now, "t1": now + RULES.REST_MIN})
+		INSTANCE.core(self).actions.staff_act(slug, {"do": "rest", "spot": spot, "t0": now, "t1": now + RULES.REST_MIN})
 		return
 	var bed := _guest_bed(slug)
 	if bed.is_empty():
 		# Nowhere at all: standing about in the lounge.
-		CoreRoot.actions.staff_act(slug, {"do": "rest", "spot": "stand", "t0": now, "t1": now + RULES.REST_MIN})
+		INSTANCE.core(self).actions.staff_act(slug, {"do": "rest", "spot": "stand", "t0": now, "t1": now + RULES.REST_MIN})
 		return
 	var from := _door()
 	_walk(slug, from, bed["pos"], {"do": "bed", "room": bed["key"]})
@@ -419,7 +419,7 @@ func _free_seat(slug: String) -> String:
 
 ## A made-up lodging with nobody in it and nobody's hand on it: {key, pos}.
 func _guest_bed(slug: String) -> Dictionary:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	var taken := {}
 	var acts := _acts()
 	for s in acts:
@@ -509,7 +509,7 @@ func _find_work(slug: String, p: Dictionary, act: Dictionary, now: float, streak
 				best_d = d4
 				best = w
 	if bool(jobs.get("rooms", true)) and best_d >= 0.0:
-		var state = CoreRoot.get_state()
+		var state = INSTANCE.core(self).get_state()
 		var wanted := _lodgings_wanted()
 		for key in state.accommodation_states:
 			var acc: Dictionary = state.accommodation_states[key]
@@ -605,10 +605,10 @@ func _work(slug: String, p: Dictionary, act: Dictionary, now: float, on: bool) -
 		var due := int((now - float(act.get("t0", now))) / each)
 		var done := int(act.get("done", 0))
 		while done < due and acc_ok and _room_left(key) > 0:
-			var left: Array = GuestManager.get_room_state(key).get("remaining", [])
+			var left: Array = INSTANCE.guests(self).get_room_state(key).get("remaining", [])
 			if left.is_empty():
 				break
-			GuestManager.complete_room_task(key, str(left[0].get("id", "")))
+			INSTANCE.guests(self).complete_room_task(key, str(left[0].get("id", "")))
 			done += 1
 		act["done"] = done
 		if not acc_ok or _room_left(key) <= 0 or not on:
@@ -667,8 +667,8 @@ func _desk() -> Vector3:
 func _desk_check_in(name: String) -> void:
 	if GuestManager == null:
 		return
-	var state = CoreRoot.get_state()
-	var now_abs: int = GuestManager._absolute_minutes(maxi(1, GuestManager._last_known_day), GuestManager._last_known_hour, GuestManager._last_known_minute)
+	var state = INSTANCE.core(self).get_state()
+	var now_abs: int = INSTANCE.guests(self)._absolute_minutes(maxi(1, INSTANCE.guests(self)._last_known_day), INSTANCE.guests(self)._last_known_hour, INSTANCE.guests(self)._last_known_minute)
 	var best := {}
 	for g in state.guests:
 		if not (g is Dictionary) or str((g as Dictionary).get("status", "")) != GuestManager.STATUS_WAITING:
@@ -678,13 +678,13 @@ func _desk_check_in(name: String) -> void:
 			continue
 		# (Waiting for a lodging still to be made up: the next one is seen to meanwhile. The
 		# one at the head of the line held up everybody behind them for good.)
-		if not GuestManager.rooms_ready(g):
+		if not INSTANCE.guests(self).rooms_ready(g):
 			continue
 		if best.is_empty() or since < int(best.get("gate_since_abs", 0)):
 			best = g
 	if best.is_empty():
 		return
-	var res: Dictionary = GuestManager.request_check_in(int(best.get("id", -1)))
+	var res: Dictionary = INSTANCE.guests(self).request_check_in(int(best.get("id", -1)))
 	if bool(res.get("ok", false)):
 		var rooms: Array = []
 		for r in res.get("rooms", []):
@@ -704,23 +704,23 @@ func _desk_check_in(name: String) -> void:
 func _desk_letter(name: String, now: float) -> void:
 	if EmailManager == null:
 		return
-	for m_any in EmailManager.inbox:
+	for m_any in INSTANCE.mail(self).inbox:
 		if not (m_any is Dictionary):
 			continue
 		var m: Dictionary = m_any
-		if not EmailManager._is_customer_mail(m) or bool(m.get("_actioned", false)):
+		if not INSTANCE.mail(self)._is_customer_mail(m) or bool(m.get("_actioned", false)):
 			continue
 		if not m.has("_at_desk"):
 			m["_at_desk"] = now
-		if EmailManager.can_accept_customer_booking(m):
-			if EmailManager.confirm_customer_booking(m):
-				EmailManager.mark_read(m)
+		if INSTANCE.mail(self).can_accept_customer_booking(m):
+			if INSTANCE.mail(self).confirm_customer_booking(m):
+				INSTANCE.mail(self).mark_read(m)
 				m["_by_hand"] = name
 				_log(tr("Reception (%s): %s booked.") % [name, str(m.get("guest_name", ""))])
 			return
 		if now - float(m["_at_desk"]) >= RULES.LETTER_NO_BED_MIN:
 			_log(tr("Reception (%s): no room for %s.") % [name, str(m.get("guest_name", ""))])
-			EmailManager.reject_customer_booking(m)
+			INSTANCE.mail(self).reject_customer_booking(m)
 			return
 
 
@@ -745,9 +745,9 @@ func _desk_bills(name: String) -> void:
 
 ## Done by a hand: no sound of it at your ear and no line (the log has it).
 func _service(c: Vector2i, cost: int) -> bool:
-	CoreRoot.actions.quiet_service = true
-	var ok: bool = CoreRoot.actions.service_building(c, cost)
-	CoreRoot.actions.quiet_service = false
+	INSTANCE.core(self).actions.quiet_service = true
+	var ok: bool = INSTANCE.core(self).actions.service_building(c, cost)
+	INSTANCE.core(self).actions.quiet_service = false
 	return ok
 
 
@@ -756,7 +756,7 @@ func _lodgings_wanted() -> Dictionary:
 	var out := {}
 	if GuestManager == null:
 		return out
-	for row_any in GuestManager.get_arrivals():
+	for row_any in INSTANCE.guests(self).get_arrivals():
 		var row: Dictionary = row_any
 		var mins := 0 if bool(row.get("at_gate", false)) else int(row.get("minutes", 0))
 		if mins > RULES.WANTED_WITHIN_MIN:
@@ -776,7 +776,7 @@ func _night_jobs():
 ## The main at the generator too, in the morning (the fault in a circuit stays).
 func _mending() -> Array:
 	var out: Array = []
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	var seen := {}
 	var nj = _night_jobs()
 	if nj != null and bool(nj.breaker_tripped):
@@ -827,7 +827,7 @@ func _fix_coord(room: String) -> Vector2i:
 
 
 func _wants_mending(c: Vector2i) -> bool:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state.failures.has("%d:%d" % [c.x, c.y]):
 		return true
 	var cell: Dictionary = state.grid.cells.get(c, {})
@@ -836,19 +836,19 @@ func _wants_mending(c: Vector2i) -> bool:
 
 ## What it costs, as when you do it: the broken a repair's, a worn lamp its service.
 func _mend_cost(c: Vector2i) -> int:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	var cell: Dictionary = state.grid.cells.get(c, {})
 	var t := str(cell.get("type", ""))
 	if t == "path":
 		t = "lamp_post"
-	var def = CoreRoot.registry.get_def(StringName(t)) if CoreRoot.registry != null else null
+	var def = INSTANCE.core(self).registry.get_def(StringName(t)) if INSTANCE.core(self).registry != null else null
 	if state.failures.has("%d:%d" % [c.x, c.y]):
 		return MAINT_RULES.repair_cost(def)
 	return MAINT_RULES.service_cost(def, MAINT_RULES.lamp_condition(cell))
 
 
 func _mend_label(c: Vector2i) -> String:
-	match str(CoreRoot.get_state().grid.cells.get(c, {}).get("type", "")):
+	match str(INSTANCE.core(self).get_state().grid.cells.get(c, {}).get("type", "")):
 		"toilet_block":
 			return "Toilets"
 		"shower_block":
@@ -861,7 +861,7 @@ func _mend_label(c: Vector2i) -> String:
 ## The toilet and shower blocks wanting a clean, not broken: [{what, room, pos}].
 func _blocks_dirty() -> Array:
 	var out: Array = []
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	var dirty_at: float = MAINT_RULES.DIRTY_AT
 	for coord in state.grid.cells.keys():
 		var cell: Dictionary = state.grid.cells[coord]
@@ -881,7 +881,7 @@ func _blocks_dirty() -> Array:
 
 
 func _block_wants(c: Vector2i) -> bool:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	var cell: Dictionary = state.grid.cells.get(c, {})
 	return not cell.is_empty() and float(cell.get("maintenance", 1.0)) < MAINT_RULES.DIRTY_AT and not state.failures.has("%d:%d" % [c.x, c.y])
 
@@ -892,7 +892,7 @@ func _block_coord(room: String) -> Vector2i:
 
 
 func _block_label(c: Vector2i) -> String:
-	return "Toilets" if str(CoreRoot.get_state().grid.cells.get(c, {}).get("type", "")) == "toilet_block" else "Showers"
+	return "Toilets" if str(INSTANCE.core(self).get_state().grid.cells.get(c, {}).get("type", "")) == "toilet_block" else "Showers"
 
 
 func _back(slug: String, from: Vector3) -> void:
@@ -921,7 +921,7 @@ func _unmake_bed(slug: String, act: Dictionary) -> void:
 	if str(act.get("do", "")) != "rest" or not spot.begins_with("bed:"):
 		return
 	var key := spot.substr(4)
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null or not state.accommodation_states.has(key):
 		return
 	var acc: Dictionary = state.accommodation_states[key]
@@ -935,8 +935,8 @@ func _unmake_bed(slug: String, act: Dictionary) -> void:
 		if str(p.get("slug", "")) == slug:
 			name = str(p.get("name", ""))
 	_say(tr("%s got up from the bed in %s. It is unmade.") % [name, _room_label(key)], 2)
-	if EventBus.has_signal("accommodation_state_changed"):
-		EventBus.accommodation_state_changed.emit(key, ROOM_RULES.STATUS_DIRTY, 0)
+	if INSTANCE.bus(self).has_signal("accommodation_state_changed"):
+		INSTANCE.bus(self).accommodation_state_changed.emit(key, ROOM_RULES.STATUS_DIRTY, 0)
 
 
 func _events_open(id: int) -> bool:
@@ -947,12 +947,12 @@ func _events_open(id: int) -> bool:
 func _room_left(key: String) -> int:
 	if key == "" or GuestManager == null:
 		return 0
-	var rs: Dictionary = GuestManager.get_room_state(key)
+	var rs: Dictionary = INSTANCE.guests(self).get_room_state(key)
 	return (rs.get("remaining", []) as Array).size()
 
 
 func _room_free(key: String) -> bool:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null or not state.accommodation_states.has(key):
 		return false
 	# (Nobody checked in. A lodging booked by a party still on the road has their name on it
@@ -961,7 +961,7 @@ func _room_free(key: String) -> bool:
 
 
 func _room_label(key: String) -> String:
-	var label := str(GuestManager.room_label(key)) if GuestManager != null and GuestManager.has_method("room_label") else key
+	var label := str(INSTANCE.guests(self).room_label(key)) if GuestManager != null and INSTANCE.guests(self).has_method("room_label") else key
 	return _room_said(label)
 
 
@@ -997,7 +997,7 @@ func _day_events():
 
 
 func _log(text: String) -> void:
-	CoreRoot.actions.staff_log(text, int(_now()))
+	INSTANCE.core(self).actions.staff_log(text, int(_now()))
 
 
 ## What a hand did away from you: on the belt pager (hud_manager.push_pager).
@@ -1066,7 +1066,7 @@ func _draw() -> void:
 	var acts := _acts()
 	var seen := {}
 	var room := staffroom()
-	var state = CoreRoot.get_state() if CoreRoot != null else null
+	var state = INSTANCE.core(self).get_state() if CoreRoot != null else null
 	var failures: Dictionary = state.failures if state != null else {}
 	for p in _crew():
 		var slug := str(p.get("slug", ""))

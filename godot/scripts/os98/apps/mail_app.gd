@@ -13,6 +13,7 @@ extends Control
 ## F5 gets mail. New / Reply / Forward open the composer over the reader; what you send
 ## goes to Sent Items.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const T = preload("res://scripts/os98/os_theme.gd")
 const ICONS = preload("res://scripts/os98/apps/browser_icons.gd")
 const LANG = preload("res://scripts/lang.gd")
@@ -397,9 +398,9 @@ func _refresh_folders() -> void:
 
 func _folder_rows(folder: String) -> Array:
 	if folder == "sent":
-		return EmailManager.sent.duplicate()
+		return INSTANCE.mail(self).sent.duplicate()
 	var out: Array = []
-	for m in EmailManager.inbox:
+	for m in INSTANCE.mail(self).inbox:
 		var f := str(m.get("_folder", "inbox"))
 		if f == folder:
 			out.append(m)
@@ -416,7 +417,7 @@ func _sort_value(mail: Dictionary, col: int):
 
 
 func _update_status() -> void:
-	var unread_n := EmailManager.get_unread_count()
+	var unread_n = INSTANCE.mail(self).get_unread_count()
 	var label: String = {"inbox": "Inbox", "sent": "Sent Items", "deleted": "Deleted Items"}.get(_folder, "Inbox")
 	_status.text = "%s: %d message(s), %d unread        Working Online" % [label, _rows.size(), unread_n if _folder == "inbox" else 0]
 	_win.title = "%s - CampMail" % label + (" (%d)" % unread_n if unread_n > 0 and _folder == "inbox" else "")
@@ -434,7 +435,7 @@ func _on_selected() -> void:
 	var id := int(it.get_metadata(0))
 	for mail in _rows:
 		if int(mail.get("_runtime_id", -1)) == id:
-			EmailManager.mark_read(mail)
+			INSTANCE.mail(self).mark_read(mail)
 			_show_message(mail)
 			for c in 4:
 				it.set_custom_font(c, T.FONT)
@@ -551,7 +552,7 @@ func _show_message(mail: Dictionary) -> void:
 		_card.text = _review_card(mail)
 	if _is_booking(mail):
 		_card.text = _booking_card(mail)
-		var can := EmailManager.can_accept_customer_booking(mail)
+		var can = INSTANCE.mail(self).can_accept_customer_booking(mail)
 		_accept.disabled = not can
 		_accept.text = "Accept" if can else "No free beds"
 	_layout()
@@ -689,7 +690,7 @@ func _delete_current() -> void:
 	# The next message down the list takes its place, as in Outlook Express (playtest 25. 10.:
 	# "after deleting a mail select the next one, so they are quick to clear").
 	var at := _rows.find(_current)
-	EmailManager.delete_mail(_current)
+	INSTANCE.mail(self).delete_mail(_current)
 	_shell.play("click", -12.0)
 	_current = {}
 	refresh()
@@ -744,7 +745,7 @@ func _review_card(mail: Dictionary) -> String:
 func _answer_review(reply_id: String) -> void:
 	if _current.is_empty():
 		return
-	var change := EmailManager.reply_to_review(_current, reply_id)
+	var change = INSTANCE.mail(self).reply_to_review(_current, reply_id)
 	_shell.play("click")
 	_status.text = "Reply posted to the guest book." + (" It goes down well." if change > 0.015 else (" It will not win anyone over." if change < 0.0 else ""))
 	refresh()
@@ -754,13 +755,13 @@ func _answer_review(reply_id: String) -> void:
 func _on_accept() -> void:
 	if _current.is_empty():
 		return
-	var guest_name := str(EmailManager.get_customer_panel_data(_current).get("guest_name", ""))
-	if not EmailManager.confirm_customer_booking(_current):
+	var guest_name := str(INSTANCE.mail(self).get_customer_panel_data(_current).get("guest_name", ""))
+	if not INSTANCE.mail(self).confirm_customer_booking(_current):
 		_shell.message_box("CampMail", "The booking could not be accepted.\nThere are not enough free beds.", "error")
 		return
 	_shell.play("click")
 	refresh()
-	for row in GuestManager.get_arrivals():
+	for row in INSTANCE.guests(self).get_arrivals():
 		if str(row.get("name", "")) == guest_name:
 			var mins := int(row.get("minutes", 60))
 			_status.text = "Accepted. %s arrives in about %d:%02d - make up the room." % [guest_name, mins / 60, mins % 60]
@@ -770,7 +771,7 @@ func _on_accept() -> void:
 func _on_refuse() -> void:
 	if _current.is_empty():
 		return
-	EmailManager.reject_customer_booking(_current)
+	INSTANCE.mail(self).reject_customer_booking(_current)
 	_current = {}
 	refresh()
 	_show_message({})
@@ -859,9 +860,9 @@ func _send() -> void:
 		_shell.message_box("CampMail", "There must be at least one name in the To box.", "warning")
 		return
 	var m: Node = _shell.main_node()
-	var day: int = CoreRoot.get_day() if CoreRoot != null else 1
+	var day: int = INSTANCE.core(self).get_day() if CoreRoot != null else 1
 	var time := str(m.call("_time_of_day_string")) if m != null and m.has_method("_time_of_day_string") else "--:--"
-	EmailManager.send_mail(_c_to.text.strip_edges(), _c_subject.text.strip_edges(), _c_body.text, day, time)
+	INSTANCE.mail(self).send_mail(_c_to.text.strip_edges(), _c_subject.text.strip_edges(), _c_body.text, day, time)
 	_compose.visible = false
 	_shell.play("hdd", -14.0)
 	_status.text = "Message sent."
@@ -871,11 +872,11 @@ func _send() -> void:
 # ── bits ─────────────────────────────────────────────────────────────────────
 
 func _booking_card(mail: Dictionary) -> String:
-	var p: Dictionary = EmailManager.get_customer_panel_data(mail)
+	var p: Dictionary = INSTANCE.mail(self).get_customer_panel_data(mail)
 	var party: int = maxi(1, int(p.get("party_size", mail.get("guests", 1))))
 	var nights: int = maxi(1, int(p.get("stay_nights", mail.get("nights", 1))))
 	var pay: int = maxi(0, int(p.get("daily_total", mail.get("daily_total", 0))))
-	var beds: Dictionary = GuestManager.get_bed_metrics()
+	var beds: Dictionary = INSTANCE.guests(self).get_bed_metrics()
 	# Line by line through the catalogue (S6: the card was English in Czech).
 	var t := "[b]%s[/b]\n" % tr("BOOKING REQUEST")
 	t += LANG.f("%s, party of %d", [_esc(str(p.get("guest_name", "Guest"))), party]) + "\n"
@@ -893,7 +894,7 @@ func _booking_card(mail: Dictionary) -> String:
 func _risk_lines(archetype: String, party: int) -> String:
 	if archetype.is_empty():
 		return ""
-	var impact: Dictionary = GuestManager.get_liminal_booking_impact(archetype, party)
+	var impact: Dictionary = INSTANCE.guests(self).get_liminal_booking_impact(archetype, party)
 	var label := tr(str(impact.get("label", archetype)))
 	var t := "[b]%s[/b]\n" % tr("NIGHT RISK") + LANG.f("%s in camp: %d -> %d (safe up to %d)", [label, int(impact.get("current_count", 0)), int(impact.get("after_count", 0)), int(impact.get("safe_count", 3))]) + "\n"
 	var after: Dictionary = impact.get("after", {}) if impact.get("after", {}) is Dictionary else {}

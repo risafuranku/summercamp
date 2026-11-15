@@ -21,6 +21,7 @@ extends RefCounted
 ##   ["tap"]                             a tap at the office's front window (shell.knock_glass)
 ##   ["gone"]                            her account no longer exists
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const NICK := "jana_k"
 const KAREL := "karel_cj"
 const FROM_H := 20.0
@@ -289,8 +290,8 @@ func _fill(text: String) -> String:
 	if text.find("{guest}") < 0:
 		return text
 	var who := tr("somebody")
-	if GuestManager != null and GuestManager.has_method("get_guest_life_snapshot"):
-		var rows: Array = GuestManager.get_guest_life_snapshot()
+	if GuestManager != null and INSTANCE.guests(shell).has_method("get_guest_life_snapshot"):
+		var rows: Array = INSTANCE.guests(shell).get_guest_life_snapshot()
 		if not rows.is_empty():
 			who = str((rows[0] as Dictionary).get("name", who))
 	return text.replace("{guest}", who)
@@ -307,7 +308,7 @@ func _hour() -> float:
 
 
 func _day() -> int:
-	return CoreRoot.get_day() if CoreRoot != null else 1
+	return INSTANCE.core(shell).get_day() if CoreRoot != null else 1
 
 
 func _clock() -> String:

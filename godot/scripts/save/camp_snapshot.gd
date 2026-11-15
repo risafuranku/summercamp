@@ -19,7 +19,7 @@ func _init(main_node: Node) -> void:
 
 
 func build(slot_name: String, kind: String) -> Dictionary:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(main).get_state()
 	if state == null or state.grid == null:
 		return {}
 	main._structures.sync_guest_counts()
@@ -134,18 +134,18 @@ func _crt_desktop() -> Dictionary:
 
 
 func _email_runtime() -> Dictionary:
-	if EmailManager == null or not EmailManager.has_method("export_runtime_state"):
+	if EmailManager == null or not INSTANCE.mail(main).has_method("export_runtime_state"):
 		return {}
-	var data_any = EmailManager.export_runtime_state()
+	var data_any = INSTANCE.mail(main).export_runtime_state()
 	if data_any is Dictionary:
 		return (data_any as Dictionary).duplicate(true)
 	return {}
 
 
 func _guest_runtime() -> Dictionary:
-	if GuestManager == null or not GuestManager.has_method("export_runtime_state"):
+	if GuestManager == null or not INSTANCE.guests(main).has_method("export_runtime_state"):
 		return {}
-	var data_any = GuestManager.export_runtime_state()
+	var data_any = INSTANCE.guests(main).export_runtime_state()
 	if data_any is Dictionary:
 		return (data_any as Dictionary).duplicate(true)
 	return {}
@@ -214,7 +214,7 @@ func apply(snapshot: Dictionary, preview_only: bool) -> bool:
 	else:
 		main._generate_grid_world()
 
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(main).get_state()
 	if state == null or state.grid == null:
 		return false
 	state.grid.cells.clear()
@@ -317,10 +317,10 @@ func apply(snapshot: Dictionary, preview_only: bool) -> bool:
 	var state_data_any = snapshot.get("state", {})
 	if state_data_any is Dictionary:
 		var state_data := state_data_any as Dictionary
-		CoreRoot.apply_changes({
-			"money": int(state_data.get("money", CoreRoot.get_money())),
-			"day": max(1, int(state_data.get("day", CoreRoot.get_day()))),
-			"is_night": bool(state_data.get("is_night", CoreRoot.is_night())),
+		INSTANCE.core(main).apply_changes({
+			"money": int(state_data.get("money", INSTANCE.core(main).get_money())),
+			"day": max(1, int(state_data.get("day", INSTANCE.core(main).get_day()))),
+			"is_night": bool(state_data.get("is_night", INSTANCE.core(main).is_night())),
 			"karma": float(state_data.get("karma", state.karma)),
 			"satisfaction": float(state_data.get("satisfaction", state.satisfaction)),
 			"hrotfaktor": float(state_data.get("hrotfaktor", state.hrotfaktor)),
@@ -339,7 +339,7 @@ func apply(snapshot: Dictionary, preview_only: bool) -> bool:
 		var ledger_any = snapshot.get("week_ledger", {})
 		var nights_any = (ledger_any as Dictionary).get("nights", {}) if ledger_any is Dictionary else {}
 		var visited_old: int = (nights_any as Dictionary).size() if nights_any is Dictionary else 0
-		CoreRoot.actions.set_night_swell(float(state_data.get("night_swell", main.NIGHT_SWELL.from_nights_visited(visited_old))))
+		INSTANCE.core(main).actions.set_night_swell(float(state_data.get("night_swell", main.NIGHT_SWELL.from_nights_visited(visited_old))))
 		var kinds_any = state_data.get("last_night_kinds", [])
 		main._night_roll.last_night_kinds = (kinds_any as Array).duplicate() if kinds_any is Array else []
 		main._night_roll.night_lost = int(state_data.get("night_lost", 0))
@@ -387,7 +387,7 @@ func apply(snapshot: Dictionary, preview_only: bool) -> bool:
 		main._pending_week_ledger = (week_any as Dictionary).duplicate(true) if week_any is Dictionary else {}
 		if main._pending_week_ledger.is_empty():
 			# Saves from before the ledger: the week is counted from the load on.
-			main._pending_week_ledger = {"start_money": int(CoreRoot.get_state().money) if CoreRoot.get_state() != null else 0}
+			main._pending_week_ledger = {"start_money": int(INSTANCE.core(main).get_state().money) if INSTANCE.core(main).get_state() != null else 0}
 		if main._week_ledger != null and main._gameplay_started:
 			main._week_ledger.import_state(main._pending_week_ledger)
 			main._pending_week_ledger.clear()
@@ -423,18 +423,18 @@ func apply(snapshot: Dictionary, preview_only: bool) -> bool:
 			main._import_quests(main._pending_quest_state)
 			main._pending_quest_state_loaded = false
 	var email_runtime_any = snapshot.get("email_runtime", {})
-	if email_runtime_any is Dictionary and EmailManager != null and EmailManager.has_method("import_runtime_state"):
-		EmailManager.import_runtime_state((email_runtime_any as Dictionary).duplicate(true))
-	elif EmailManager != null and EmailManager.has_method("reset_runtime"):
-		EmailManager.reset_runtime(not preview_only)
+	if email_runtime_any is Dictionary and EmailManager != null and INSTANCE.mail(main).has_method("import_runtime_state"):
+		INSTANCE.mail(main).import_runtime_state((email_runtime_any as Dictionary).duplicate(true))
+	elif EmailManager != null and INSTANCE.mail(main).has_method("reset_runtime"):
+		INSTANCE.mail(main).reset_runtime(not preview_only)
 	var guest_runtime_any = snapshot.get("guest_runtime", {})
-	if guest_runtime_any is Dictionary and GuestManager != null and GuestManager.has_method("import_runtime_state"):
-		GuestManager.import_runtime_state((guest_runtime_any as Dictionary).duplicate(true))
+	if guest_runtime_any is Dictionary and GuestManager != null and INSTANCE.guests(main).has_method("import_runtime_state"):
+		INSTANCE.guests(main).import_runtime_state((guest_runtime_any as Dictionary).duplicate(true))
 	elif GuestManager != null:
-		if GuestManager.has_method("reset_runtime_state"):
-			GuestManager.reset_runtime_state()
-		elif GuestManager.has_method("import_runtime_state"):
-			GuestManager.import_runtime_state({})
+		if INSTANCE.guests(main).has_method("reset_runtime_state"):
+			INSTANCE.guests(main).reset_runtime_state()
+		elif INSTANCE.guests(main).has_method("import_runtime_state"):
+			INSTANCE.guests(main).import_runtime_state({})
 	main._structures.sync_guest_counts()
 	main._sync_runtime_state_from_systems(true)
 	if not preview_only:
@@ -466,7 +466,7 @@ func reset_for_new_game() -> void:
 	main._lamp_grid_power_available = true
 	main._active_save_path = ""
 	main._clear_blood_fx()
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(main).get_state()
 	if state == null:
 		return
 	main._pending_week_ledger.clear()
@@ -487,7 +487,7 @@ func reset_for_new_game() -> void:
 	main._goggle_fresh = true
 	if main._director_fx != null:
 		main._director_fx.clear()
-	CoreRoot.apply_changes({
+	INSTANCE.core(main).apply_changes({
 		"money": main.BALANCE_CONFIG.STARTING_MONEY,
 		"day": 1,
 		"is_night": false,
@@ -514,10 +514,10 @@ func reset_for_new_game() -> void:
 	# The businesses' books too (the menu's preview of the last save left them in: its
 	# places, stock, orders and licences); actions._biz starts them anew with a new stamp.
 	state.biz = {}
-	if EmailManager != null and EmailManager.has_method("reset_runtime"):
-		EmailManager.reset_runtime(true)
-	if GuestManager != null and GuestManager.has_method("reset_runtime_state"):
-		GuestManager.reset_runtime_state()
+	if EmailManager != null and INSTANCE.mail(main).has_method("reset_runtime"):
+		INSTANCE.mail(main).reset_runtime(true)
+	if GuestManager != null and INSTANCE.guests(main).has_method("reset_runtime_state"):
+		INSTANCE.guests(main).reset_runtime_state()
 	if main._guest_agents != null:
 		main._guest_agents.clear_agents()
 	if main.time_system != null and main.time_system.has_method("set_time_hours"):

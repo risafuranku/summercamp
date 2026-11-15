@@ -1802,7 +1802,7 @@ var _derelict := false
 
 
 func _is_derelict(key: String) -> bool:
-	var state = CoreRoot.get_state() if CoreRoot != null else null
+	var state = INSTANCE.core(self).get_state() if CoreRoot != null else null
 	if state == null or key.is_empty():
 		return false
 	return bool((state.failures.get(key, {}) as Dictionary).get("derelict", false))

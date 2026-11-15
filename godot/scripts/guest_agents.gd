@@ -85,10 +85,10 @@ func setup(grid_manager: Node, now_provider: Callable) -> void:
 	_now_provider = now_provider
 	name = "GuestAgents"
 	_nav_dirty = true
-	if EventBus.has_signal("building_placed") and not EventBus.building_placed.is_connected(_on_building_changed):
-		EventBus.building_placed.connect(_on_building_changed)
-	if EventBus.has_signal("building_removed") and not EventBus.building_removed.is_connected(_on_building_removed):
-		EventBus.building_removed.connect(_on_building_removed)
+	if INSTANCE.bus(self).has_signal("building_placed") and not INSTANCE.bus(self).building_placed.is_connected(_on_building_changed):
+		INSTANCE.bus(self).building_placed.connect(_on_building_changed)
+	if INSTANCE.bus(self).has_signal("building_removed") and not INSTANCE.bus(self).building_removed.is_connected(_on_building_removed):
+		INSTANCE.bus(self).building_removed.connect(_on_building_removed)
 
 
 func clear_agents() -> void:
@@ -219,9 +219,9 @@ func get_visible_guest_positions() -> Array:
 # ── snapshot → parties ─────────────────────────────────────────────────────────
 
 func _refresh_snapshot() -> void:
-	if GuestManager == null or not GuestManager.has_method("get_guest_life_snapshot"):
+	if GuestManager == null or not INSTANCE.guests(self).has_method("get_guest_life_snapshot"):
 		return
-	_snapshot = GuestManager.get_guest_life_snapshot()
+	_snapshot = INSTANCE.guests(self).get_guest_life_snapshot()
 	var seen: Dictionary = {}
 	for entry_any in _snapshot:
 		var entry: Dictionary = entry_any
@@ -889,7 +889,7 @@ func _is_walkable(c: Vector2i) -> bool:
 
 
 func _is_path_tile(c: Vector2i) -> bool:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null or state.grid == null:
 		return false
 	var cell: Dictionary = state.grid.cells.get(c, {})
@@ -945,7 +945,7 @@ func _in_sight(p: Vector3) -> bool:
 func _stand_tile(tile: Vector2i, near: Vector2i) -> Vector2i:
 	if _astar.is_in_boundsv(tile) and not _astar.is_point_solid(tile):
 		return tile
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	var cells: Array[Vector2i] = [tile]
 	if state != null and state.grid != null and state.grid.cells.has(tile):
 		var cell: Dictionary = state.grid.cells[tile]

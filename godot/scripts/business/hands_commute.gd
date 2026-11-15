@@ -102,7 +102,7 @@ func _place_of(key: String, role: String) -> Dictionary:
 ## Today's comings and goings at the hour `h`: [{id, slug, path, k (0..1 along), standing}].
 func _now_walking(h: float) -> Array:
 	var out: Array = []
-	var st = CoreRoot.get_state() if CoreRoot != null else null
+	var st = INSTANCE.core(self).get_state() if CoreRoot != null else null
 	if st == null or not (st.biz is Dictionary):
 		return out
 	var sr := _staff_runtime()
@@ -111,7 +111,7 @@ func _now_walking(h: float) -> Array:
 	var road: Vector3 = sr.road_spot()
 	if road == Vector3.INF:
 		return out
-	var day := int(CoreRoot.get_day())
+	var day := int(INSTANCE.core(self).get_day())
 	var sites: Dictionary = st.biz.get("sites", {})
 	for key in sites:
 		var s: Dictionary = sites[key]

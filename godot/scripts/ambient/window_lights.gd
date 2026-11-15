@@ -284,9 +284,9 @@ func _drop(rec: Dictionary) -> void:
 
 func _poll_guests() -> void:
 	_in.clear()
-	if GuestManager == null or not GuestManager.has_method("get_guest_life_snapshot"):
+	if GuestManager == null or not INSTANCE.guests(self).has_method("get_guest_life_snapshot"):
 		return
-	for g in GuestManager.get_guest_life_snapshot():
+	for g in INSTANCE.guests(self).get_guest_life_snapshot():
 		var act: Dictionary = g.get("activity", {}) if g.get("activity", {}) is Dictionary else {}
 		var kind := str(act.get("kind", ""))
 		if kind != "rest" and kind != "sleep":

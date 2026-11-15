@@ -10,6 +10,7 @@ extends "res://scripts/os98/apps/program_shelf.gd"
 ##                  ones that are not adverts you close
 ##   SectiTo 98     the district counts things on aerial photographs: tents, cows, boats
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 func _entries() -> Array:
 	return [
 		{"id": "datapunch", "script": "datapunch_app"},
@@ -36,7 +37,7 @@ func _card_status(id: String) -> String:
 
 ## DataPunch counts by its own night (datapunch_app._night_key).
 func _dp_night_key() -> String:
-	var day := CoreRoot.get_day() if CoreRoot != null else 1
+	var day = INSTANCE.core(self).get_day() if CoreRoot != null else 1
 	var m: Node = _shell.main_node()
 	var h := float(m.get("_time_of_day_hours")) if m != null and m.get("_time_of_day_hours") != null else 22.0
 	return str(day - (1 if h < 12.0 else 0))

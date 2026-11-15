@@ -113,7 +113,7 @@ func _draw() -> void:
 
 
 func _night_key() -> String:
-	var day := CoreRoot.get_day() if CoreRoot != null else 1
+	var day = INSTANCE.core(self).get_day() if CoreRoot != null else 1
 	var main = INSTANCE.main_of(_shell) if _shell != null else null
 	var h := float(main.get("_time_of_day_hours")) if main != null and main.get("_time_of_day_hours") != null else 22.0
 	# Before 06:00 the night belongs to the day before.
@@ -170,7 +170,7 @@ func _new_card() -> void:
 				_cur["Stayed at"] = "KEMP CERNE JEZERO"
 				_cur["note"] = "DID NOT LEAVE"
 				# One of yours, when the night has taken one (GameState.lost_guests).
-				var st = CoreRoot.get_state() if CoreRoot != null else null
+				var st = INSTANCE.core(self).get_state() if CoreRoot != null else null
 				if st != null and not st.lost_guests.is_empty():
 					var g: Dictionary = st.lost_guests[_rng.randi_range(0, st.lost_guests.size() - 1)]
 					var parts := _plain(str(g.get("name", ""))).to_upper().split(" ", false)
@@ -206,8 +206,8 @@ func _file() -> void:
 	if pay > 0 and INSTANCE.coop(self).is_client():
 		# Co-op: the till is the host's.
 		INSTANCE.coop(self).send_request("money", [pay])
-	elif pay > 0 and CoreRoot.actions != null:
-		CoreRoot.actions.add_money(pay)
+	elif pay > 0 and INSTANCE.core(self).actions != null:
+		INSTANCE.core(self).actions.add_money(pay)
 	_add_done(1)
 	_stamp = "FILED" if pay == RATE else ("FILED -%d" % (RATE - pay) if pay > 0 else "REJECTED")
 	_stamp_t = 1.2

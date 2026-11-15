@@ -625,7 +625,7 @@ func debug_dress_right() -> void:
 
 ## A piece of gear bought for the stand.
 func debug_buy(id: String) -> bool:
-	return CoreRoot.actions.biz_buy_gear(building_key, id)
+	return INSTANCE.core(self).actions.biz_buy_gear(building_key, id)
 
 
 ## Every cob in the pot out (the board, then aside).

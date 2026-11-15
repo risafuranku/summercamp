@@ -232,14 +232,14 @@ const REVIEW_REPLIES := [
 
 
 func _ready() -> void:
-	if EventBus.has_signal("guest_review_posted") and not EventBus.guest_review_posted.is_connected(_on_review_posted):
-		EventBus.guest_review_posted.connect(_on_review_posted)
+	if INSTANCE.bus(self).has_signal("guest_review_posted") and not INSTANCE.bus(self).guest_review_posted.is_connected(_on_review_posted):
+		INSTANCE.bus(self).guest_review_posted.connect(_on_review_posted)
 	_rng.randomize()
 	reset_runtime(false)
-	if EventBus.has_signal("time_tick"):
+	if INSTANCE.bus(self).has_signal("time_tick"):
 		var tick_cb := Callable(self, "_on_time_tick")
-		if not EventBus.time_tick.is_connected(tick_cb):
-			EventBus.time_tick.connect(tick_cb)
+		if not INSTANCE.bus(self).time_tick.is_connected(tick_cb):
+			INSTANCE.bus(self).time_tick.connect(tick_cb)
 
 
 func reset_runtime(clear_inbox: bool = true) -> void:
@@ -273,16 +273,16 @@ func push_system_mail(seed_data: Dictionary) -> Dictionary:
 		mail["subject"] = "(no subject)"
 	mail["body"] = str(mail.get("body", "")).strip_edges()
 	var fallback_day := 1
-	if CoreRoot != null and CoreRoot.has_method("get_day"):
-		fallback_day = max(1, int(CoreRoot.get_day()))
+	if CoreRoot != null and INSTANCE.core(self).has_method("get_day"):
+		fallback_day = max(1, int(INSTANCE.core(self).get_day()))
 	mail["day"] = max(1, int(mail.get("day", fallback_day)))
 	var raw_time := str(mail.get("time", "00:00")).strip_edges()
 	mail["time"] = raw_time if not raw_time.is_empty() else "00:00"
 	mail["_delivered"] = true
 	inbox.append(mail)
 	email_received.emit(mail)
-	if EventBus.has_signal("email_received"):
-		EventBus.email_received.emit(mail)
+	if INSTANCE.bus(self).has_signal("email_received"):
+		INSTANCE.bus(self).email_received.emit(mail)
 	unread_count_changed.emit(get_unread_count())
 	return mail
 
@@ -443,7 +443,7 @@ func _max_runtime_mail_id(inbox_items: Array[Dictionary], scheduled_items: Array
 
 
 func _on_time_tick(hour: int, minute: int) -> void:
-	var day: int = max(1, int(CoreRoot.get_day()))
+	var day: int = max(1, int(INSTANCE.core(self).get_day()))
 	var safe_hour := clampi(hour, 0, 23)
 	var safe_minute := clampi(minute, 0, 59)
 	var tick_signature = "%d:%02d:%02d" % [day, safe_hour, safe_minute]
@@ -555,8 +555,8 @@ func _run_hourly_roll(day: int, hour: int, base_abs: int) -> void:
 
 
 func _collect_bed_metrics() -> Dictionary:
-	if GuestManager != null and GuestManager.has_method("get_bed_metrics"):
-		var metrics_any = GuestManager.get_bed_metrics()
+	if GuestManager != null and INSTANCE.guests(self).has_method("get_bed_metrics"):
+		var metrics_any = INSTANCE.guests(self).get_bed_metrics()
 		if metrics_any is Dictionary:
 			var metrics: Dictionary = metrics_any
 			if metrics.has("capacity") and metrics.has("occupied"):
@@ -570,7 +570,7 @@ func _collect_bed_metrics() -> Dictionary:
 					"occupied_ratio": occupancy_ratio,
 				}
 
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null or state.grid == null:
 		return {
 			"capacity": 0,
@@ -631,7 +631,7 @@ func _capacity_for_building_type(building_type: String) -> int:
 
 
 func _refresh_hrotfaktor(bed_metrics: Dictionary) -> float:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null:
 		return 0.0
 
@@ -648,13 +648,13 @@ func _refresh_hrotfaktor(bed_metrics: Dictionary) -> float:
 		1.0
 	)
 	var next_hrot = clampf(lerpf(current_hrot, target_hrot, 0.52), 0.0, 1.0)
-	if absf(next_hrot - current_hrot) > 0.004 and CoreRoot != null and CoreRoot.has_method("apply_changes"):
-		CoreRoot.apply_changes({"hrotfaktor": next_hrot})
+	if absf(next_hrot - current_hrot) > 0.004 and CoreRoot != null and INSTANCE.core(self).has_method("apply_changes"):
+		INSTANCE.core(self).apply_changes({"hrotfaktor": next_hrot})
 	return next_hrot
 
 
 func _active_guest_difficulty_pressure() -> float:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null:
 		return 0.0
 	var sum_norm := 0.0
@@ -1006,8 +1006,8 @@ func _deliver_due_mails(now_abs: int) -> void:
 					mail["_delivered"] = true
 					inbox.append(mail)
 					email_received.emit(mail)
-					if EventBus.has_signal("email_received"):
-						EventBus.email_received.emit(mail)
+					if INSTANCE.bus(self).has_signal("email_received"):
+						INSTANCE.bus(self).email_received.emit(mail)
 					delivered_any = true
 		else:
 			pending.append(entry)
@@ -1215,7 +1215,7 @@ func delete_mail(mail: Dictionary) -> void:
 ## A guest's review arrives as a guest book entry to answer (EventBus.guest_review_posted).
 func _on_review_posted(review: Dictionary) -> void:
 	var stars := clampi(int(review.get("rating", 3)), 1, 5)
-	var day := maxi(1, int(review.get("day", CoreRoot.get_day() if CoreRoot != null and CoreRoot.has_method("get_day") else 1)))
+	var day := maxi(1, int(review.get("day", INSTANCE.core(self).get_day() if CoreRoot != null and INSTANCE.core(self).has_method("get_day") else 1)))
 	var star_txt := "*".repeat(stars) + "-".repeat(5 - stars)
 	push_system_mail({
 		"type": "review",
@@ -1284,8 +1284,8 @@ func mark_read(mail: Dictionary) -> void:
 func can_accept_customer_booking(mail: Dictionary) -> bool:
 	if not _is_customer_mail(mail):
 		return false
-	if GuestManager != null and GuestManager.has_method("can_accept_booking"):
-		return bool(GuestManager.can_accept_booking(mail))
+	if GuestManager != null and INSTANCE.guests(self).has_method("can_accept_booking"):
+		return bool(INSTANCE.guests(self).can_accept_booking(mail))
 	var bed_metrics = _collect_bed_metrics()
 	var free_beds = max(0, int(bed_metrics.get("free", 0)))
 	var requested_beds = max(1, int(mail.get("guests", mail.get("party_size", 1))))
@@ -1306,8 +1306,8 @@ func confirm_customer_booking(mail: Dictionary) -> bool:
 
 	mail["_actioned"] = true
 	customer_booking_confirmed.emit(mail)
-	if EventBus.has_signal("customer_booking_confirmed"):
-		EventBus.customer_booking_confirmed.emit(mail)
+	if INSTANCE.bus(self).has_signal("customer_booking_confirmed"):
+		INSTANCE.bus(self).customer_booking_confirmed.emit(mail)
 	return true
 
 
@@ -1322,8 +1322,8 @@ func reject_customer_booking(mail: Dictionary) -> void:
 		return
 	mail["_actioned"] = true
 	customer_booking_rejected.emit(mail)
-	if EventBus.has_signal("customer_booking_rejected"):
-		EventBus.customer_booking_rejected.emit(mail)
+	if INSTANCE.bus(self).has_signal("customer_booking_rejected"):
+		INSTANCE.bus(self).customer_booking_rejected.emit(mail)
 	if inbox.has(mail):
 		inbox.erase(mail)
 	unread_count_changed.emit(get_unread_count())

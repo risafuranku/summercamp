@@ -6,6 +6,7 @@ extends CanvasLayer
 ## menu opens outdoors (or is shut from anywhere). The time, the weather and the money
 ## are read live at the top.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 const WEATHER := ["Clear", "Windy", "Fog", "Light rain", "Rain", "Storm", "Event"]
 ## Key, what it says, what it calls (a method of this script).
@@ -125,7 +126,7 @@ func _refresh() -> void:
 		return
 	var h := float(main.get("_time_of_day_hours")) if main.get("_time_of_day_hours") != null else 0.0
 	var w := int(main.get("_weather_state")) if main.get("_weather_state") != null else 0
-	var money: int = CoreRoot.get_money() if CoreRoot != null else 0
+	var money: int = INSTANCE.core(self).get_money() if CoreRoot != null else 0
 	var line := "%02d:%02d  %s  $%d" % [int(h) % 24, int(fposmod(h, 1.0) * 60.0), str(WEATHER[clampi(w, 0, WEATHER.size() - 1)]).to_upper(), money]
 	if _perf_on and main.has_method("debug_perf"):
 		var p: Array = main.call("debug_perf")

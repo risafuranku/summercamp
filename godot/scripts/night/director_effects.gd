@@ -198,7 +198,7 @@ func _process(delta: float) -> void:
 func clear() -> void:
 	# The guest who stood outside in the night slept, they say, the whole night through.
 	if not guest_seen.is_empty():
-		GuestManager.apply_guest_event(int(guest_seen.get("id", -1)), -3.0, "Slept right through. Never got up once. Why do you ask?")
+		INSTANCE.guests(self).apply_guest_event(int(guest_seen.get("id", -1)), -3.0, "Slept right through. Never got up once. Why do you ask?")
 		guest_seen = {}
 	var bi = _office()
 	if bi != null and bi.has_method("undo_disturbances"):

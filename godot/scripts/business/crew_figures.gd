@@ -8,6 +8,7 @@ extends Node3D
 ## and dark, and nobody asked him to be. One who did not come in today left a note where
 ## they would stand (a click reads it). Made by scripts/service_interior.gd for a room.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const BUSINESS := preload("res://scripts/business/business_runtime.gd")
 ## Seen from eight sides as in Doom (scripts/figures/doom_figure.gd): a hand with a set
 ## faces their station (its mark over it) at work, in their work pose from every side, and
@@ -248,7 +249,7 @@ func clear() -> void:
 
 ## Notes where the hands away today would stand (not where somebody else works the job).
 func _show_notes(s: Dictionary, working: Dictionary) -> void:
-	var day := int(CoreRoot.get_day()) if CoreRoot != null else -1
+	var day := int(INSTANCE.core(self).get_day()) if CoreRoot != null else -1
 	var want := {}
 	for p in s.get("crew", []):
 		var role := str(p.get("role", ""))

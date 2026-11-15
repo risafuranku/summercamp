@@ -15,6 +15,7 @@ extends Control
 ## Tabs (the user 20. 10.): the middle button on a link opens it in a tab behind; the
 ## strip shows from the second tab, a click picks one, the middle button or its x closes it.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const T = preload("res://scripts/os98/os_theme.gd")
 const LANG = preload("res://scripts/lang.gd")
 const OS_KEYS = preload("res://scripts/os98/os_keys.gd")
@@ -1096,7 +1097,7 @@ func _page_for(key: String) -> Dictionary:
 func _softsklad() -> String:
 	var price: int = load("res://core/systems/business_rules.gd").licence_price("boss")
 	var t := "[b]%s[/b] - %s\n" % [tr("Boss 98"), tr("every place you run and everybody who works there: goods, orders, hands, the money")]
-	if CoreRoot != null and CoreRoot.actions != null and CoreRoot.actions.biz_has_licence("boss"):
+	if CoreRoot != null and INSTANCE.core(self).actions != null and INSTANCE.core(self).actions.biz_has_licence("boss"):
 		t += LANG.f(" [color=#006600]Licensed.[/color] {download://%s|%s}\n\n", ["SEF98.EXE", "SEF98.EXE"])
 	else:
 		t += LANG.money(LANG.f(" {licence://%s|Buy a licence - $%d}\n\n", ["boss", price]))
@@ -1131,7 +1132,7 @@ func _on_link(target: String) -> void:
 				_load(_url, false)
 				_shell.message_box("PC Servis Hlubocany", LANG.f("Thank you. Order no. %d.\n\nThe post brings it in a few hours.", post.order_no()), "info")
 			else:
-				_shell.message_box("PC Servis Hlubocany", LANG.f("The payment was refused.\n\nThe camp has $%d.", CoreRoot.get_money()), "error")
+				_shell.message_box("PC Servis Hlubocany", LANG.f("The payment was refused.\n\nThe camp has $%d.", INSTANCE.core(self).get_money()), "error")
 		)
 		return
 	# A SoftSklad licence: paid from the camp's money, the download appears.
@@ -1141,11 +1142,11 @@ func _on_link(target: String) -> void:
 		_shell.message_box("SoftSklad", LANG.f("Buy a licence for %s for $%d?\n\nThe money is taken from the camp's account.", [tr("Boss 98"), price]), "question", ["Buy", "Cancel"], func(b: String):
 			if b != "Buy":
 				return
-			if CoreRoot.actions.biz_buy_licence(kind):
+			if INSTANCE.core(self).actions.biz_buy_licence(kind):
 				_shell.play("click", -8.0)
 				_load(_url, false)
 			else:
-				_shell.message_box("SoftSklad", "The payment was refused.\n\nThe camp has $%d." % CoreRoot.get_money(), "error")
+				_shell.message_box("SoftSklad", "The payment was refused.\n\nThe camp has $%d." % INSTANCE.core(self).get_money(), "error")
 		)
 		return
 	# Radio Hlubocany's listeners' wishes (radio://cheerful|dance|night): the next song on the
@@ -1403,7 +1404,7 @@ func _pad_marquees(t: String) -> String:
 
 
 func _day() -> int:
-	return CoreRoot.get_day() if CoreRoot != null else 1
+	return INSTANCE.core(self).get_day() if CoreRoot != null else 1
 
 
 func _time() -> String:
@@ -1428,7 +1429,7 @@ func _counter(key: String) -> String:
 
 func _in_camp() -> int:
 	var n := 0
-	var state = CoreRoot.get_state() if CoreRoot != null else null
+	var state = INSTANCE.core(self).get_state() if CoreRoot != null else null
 	if state != null:
 		for g in state.guests:
 			if g is Dictionary and str(g.get("status", "")) in ["active", "sleep"]:
@@ -1738,7 +1739,7 @@ func _news_items() -> Array:
 
 ## The camp's lost guests, as the district knows them (GameState.lost_guests).
 func _lost_guests() -> Array:
-	var state = CoreRoot.get_state() if CoreRoot != null else null
+	var state = INSTANCE.core(self).get_state() if CoreRoot != null else null
 	return state.lost_guests if state != null else []
 
 

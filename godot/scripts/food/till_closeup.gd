@@ -9,6 +9,7 @@ extends "res://scripts/closeup/closeup_view.gd"
 ## so; too little, or too much change, and it is the camp's money gone. Quick and exact:
 ## they leave you the small change (scripts/food/orders.gd).
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const ORDERS = preload("res://scripts/food/orders.gd")
 const BUSINESS = preload("res://scripts/business/business_runtime.gd")
 const PIC := "res://assets/textury/closeup/shop_till.png"
@@ -255,8 +256,8 @@ func _ring() -> void:
 		needs[str(b)] = int(needs.get(str(b), 0)) + 1
 	if not BUSINESS.sell(building_key, needs, typed, false):
 		say(who, "You haven't got it on the shelf? Then I'll go to Liblice.")
-		if CoreRoot != null and CoreRoot.actions != null:
-			CoreRoot.actions.biz_lost(building_key)
+		if CoreRoot != null and INSTANCE.core(self).actions != null:
+			INSTANCE.core(self).actions.biz_lost(building_key)
 		ORDERS.note_served(_who)
 		_reset("wait")
 		return

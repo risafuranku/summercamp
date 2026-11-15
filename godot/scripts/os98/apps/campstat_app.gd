@@ -142,12 +142,12 @@ func refresh() -> void:
 		return
 	_snap = _snapshot()
 	if CoreRoot != null and _shell.has_method("store"):
-		_shell.store("cash_d%d" % CoreRoot.get_day(), CoreRoot.get_money())
+		_shell.store("cash_d%d" % INSTANCE.core(self).get_day(), INSTANCE.core(self).get_money())
 	var m: Node = _shell.main_node()
 	_upkeep = m.get_upkeep_snapshot() if m != null and m.has_method("get_upkeep_snapshot") else {}
 	_forecast = {}
-	if GuestManager != null and GuestManager.has_method("get_liminal_forecast_data"):
-		var p = GuestManager.get_liminal_forecast_data()
+	if GuestManager != null and INSTANCE.guests(self).has_method("get_liminal_forecast_data"):
+		var p = INSTANCE.guests(self).get_liminal_forecast_data()
 		_forecast = p if p is Dictionary else {}
 	_head.queue_redraw()
 	_nav.queue_redraw()
@@ -188,7 +188,7 @@ func _draw_head() -> void:
 	var unpaid := int(_snap.get("unpaid_count", 0))
 	var wells := [
 		[tr("BILLS"), LANG.f("%d DUE", unpaid) if overdue == 0 else LANG.f("%d LATE", overdue), RED if overdue > 0 else (AMBER if unpaid > 0 else GREEN)],
-		[LANG.f("DAY %d", int(_snap.get("day", CoreRoot.get_day() if CoreRoot != null else 0))), str(_snap.get("time", "--:--")), Color8(0, 0, 0, 0)],
+		[LANG.f("DAY %d", int(_snap.get("day", INSTANCE.core(self).get_day() if CoreRoot != null else 0))), str(_snap.get("time", "--:--")), Color8(0, 0, 0, 0)],
 		[tr("GRID"), tr("ON") if grid_on else (tr("NO LINK") if _snap.is_empty() else tr("OFF")), GREEN if grid_on else RED],
 	]
 	for wl in wells:
@@ -603,14 +603,14 @@ func _glyph(c: Control, id: String, p: Vector2, _k: float) -> void:
 ## the feed's lines are gone in seconds): the feed's own lines as they came, what the
 ## hands did today in between.
 func _page_log(y: float) -> float:
-	y = _title(y, tr("LOG"), LANG.f("day %d", CoreRoot.get_day()))
+	y = _title(y, tr("LOG"), LANG.f("day %d", INSTANCE.core(self).get_day()))
 	var m: Node = _shell.main_node()
 	var hud = m.get("_hud_manager") if m != null else null
 	var lines: Array = []
 	if hud != null:
 		for e in hud.get("feed_log"):
 			lines.append({"at": int(e["at"]), "t": str(e["text"]), "k": int(e["kind"])})
-	var st = CoreRoot.get_state().biz.get("staff", {}) if CoreRoot != null and CoreRoot.get_state() != null else {}
+	var st = INSTANCE.core(self).get_state().biz.get("staff", {}) if CoreRoot != null and INSTANCE.core(self).get_state() != null else {}
 	if st is Dictionary:
 		for e2 in st.get("log", []):
 			lines.append({"at": (int(e2.get("day", 1)) - 1) * 1440 + (int(e2.get("t", 0)) % 1440), "t": str(e2.get("text", "")), "k": 0})
@@ -638,15 +638,15 @@ const LED_OF := {0: Color8(40, 170, 60), 1: Color8(224, 160, 20), 2: Color8(220,
 
 
 func _page_today(y: float) -> float:
-	y = _title(y, tr("TODAY"), LANG.f("day %d, %s", [int(_snap.get("day", CoreRoot.get_day() if CoreRoot != null else 1)), str(_snap.get("time", "--:--"))]))
+	y = _title(y, tr("TODAY"), LANG.f("day %d, %s", [int(_snap.get("day", INSTANCE.core(self).get_day() if CoreRoot != null else 1)), str(_snap.get("time", "--:--"))]))
 	var unpaid := int(_snap.get("unpaid_total", 0))
 	var guests := 0
-	var state = CoreRoot.get_state() if CoreRoot != null else null
+	var state = INSTANCE.core(self).get_state() if CoreRoot != null else null
 	if state != null:
 		for g in state.guests:
 			if g is Dictionary and str(g.get("status", "")) in ["active", "sleep"]:
 				guests += maxi(1, int(g.get("party_size", 1)))
-	var cells: Array = [["Cash", LANG.money("$" + _shell._group(CoreRoot.get_money() if CoreRoot != null else 0))], ["Bills to pay", LANG.money("$%d" % unpaid), Color8(255, 90, 70) if int(_snap.get("overdue_count", 0)) > 0 else LCD_ON], ["Guests in camp", str(guests)]]
+	var cells: Array = [["Cash", LANG.money("$" + _shell._group(INSTANCE.core(self).get_money() if CoreRoot != null else 0))], ["Bills to pay", LANG.money("$%d" % unpaid), Color8(255, 90, 70) if int(_snap.get("overdue_count", 0)) > 0 else LCD_ON], ["Guests in camp", str(guests)]]
 	var yest: Variant = _yesterday()
 	if yest != null:
 		cells.append(["Yesterday", ("+" if int(yest) >= 0 else "-") + LANG.money("$" + _shell._group(absi(int(yest)))), LCD_ON if int(yest) >= 0 else Color8(255, 90, 70)])
@@ -670,7 +670,7 @@ func _yesterday() -> Variant:
 	var g = m.get("_day_graph") if m != null else null
 	if g == null:
 		return null
-	var d := CoreRoot.get_day() - 1
+	var d = INSTANCE.core(self).get_day() - 1
 	var days: Dictionary = g.get("days")
 	if not days.has(d) or not days.has(d - 1):
 		return null
@@ -958,14 +958,14 @@ const COST_ROWS := [["Staffroom wages", "staff_wages"], ["Electricity", "power"]
 
 
 func _page_money(y: float) -> float:
-	y = _title(y, tr("MONEY"), LANG.f("day %d", int(_snap.get("day", CoreRoot.get_day()))))
-	var state = CoreRoot.get_state()
+	y = _title(y, tr("MONEY"), LANG.f("day %d", int(_snap.get("day", INSTANCE.core(self).get_day()))))
+	var state = INSTANCE.core(self).get_state()
 	var biz: Dictionary = state.biz if state != null and state.biz is Dictionary else {}
 	var days: Array = []
 	for back in 7:
-		days.append(BIZ_RULES.camp_day(biz, back, int(_snap.get("day", CoreRoot.get_day()))))
+		days.append(BIZ_RULES.camp_day(biz, back, int(_snap.get("day", INSTANCE.core(self).get_day()))))
 	var week := _week_sum(days, func(d: Dictionary) -> int: return int(d["profit"]))
-	y = _lcd(y, [["Cash", LANG.money("$" + _shell._group(CoreRoot.get_money()))], _lcd_profit("Today", int(days[0]["profit"])), _lcd_profit("Yesterday", int(days[1]["profit"])), _lcd_profit("7 days", week)])
+	y = _lcd(y, [["Cash", LANG.money("$" + _shell._group(INSTANCE.core(self).get_money()))], _lcd_profit("Today", int(days[0]["profit"])), _lcd_profit("Yesterday", int(days[1]["profit"])), _lcd_profit("7 days", week)])
 	var rows: Array = []
 	for r in INCOME_ROWS:
 		var key := str(r[1])
@@ -1052,15 +1052,15 @@ func _lcd_profit(label: String, v: int) -> Array:
 ## end (the line), as the utility's software drew its graphs.
 func _week_chart(r: Rect2, sums: Array) -> void:
 	var c := _canvas
-	var today := CoreRoot.get_day() if CoreRoot != null else 1
+	var today = INSTANCE.core(self).get_day() if CoreRoot != null else 1
 	var days: Array = []
 	for i in range(6, -1, -1):
 		if today - i >= 1:
 			days.append(today - i)
 	var cash := {}
 	for d3 in days:
-		var back := today - int(d3)
-		var v: int = CoreRoot.get_money() if back == 0 else int((sums[back] as Dictionary).get("cash", -1))
+		var back = today - int(d3)
+		var v: int = INSTANCE.core(self).get_money() if back == 0 else int((sums[back] as Dictionary).get("cash", -1))
 		if v >= 0:
 			cash[d3] = v
 	var top := 1.0

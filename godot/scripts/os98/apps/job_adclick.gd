@@ -12,6 +12,7 @@ extends Control
 ##
 ## Now and then a notice comes up that is neither, and will not close.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const T = preload("res://scripts/os98/os_theme.gd")
 const LANG = preload("res://scripts/lang.gd")
 const SHIFT_SEC := 40.0
@@ -178,7 +179,7 @@ func _add_pop() -> void:
 
 ## The camp's last lost guest's name ("" none).
 func _last_lost() -> String:
-	var st = CoreRoot.get_state() if CoreRoot != null else null
+	var st = INSTANCE.core(self).get_state() if CoreRoot != null else null
 	if st == null or st.lost_guests.is_empty():
 		return ""
 	return str((st.lost_guests[st.lost_guests.size() - 1] as Dictionary).get("name", ""))

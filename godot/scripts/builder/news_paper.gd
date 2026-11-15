@@ -37,7 +37,7 @@ func _gui_input(e: InputEvent) -> void:
 
 
 func _day() -> int:
-	return CoreRoot.get_day() if CoreRoot != null else 1
+	return INSTANCE.core(self).get_day() if CoreRoot != null else 1
 
 
 func _draw() -> void:

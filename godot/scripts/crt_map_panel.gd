@@ -530,10 +530,10 @@ func _ready() -> void:
 	_dyn_layer.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	add_child(_dyn_layer)
 	_zoom_target = _zoom_level
-	if EventBus.has_signal("building_placed"):
-		EventBus.building_placed.connect(_on_world_placed)
-	if EventBus.has_signal("building_removed"):
-		EventBus.building_removed.connect(_on_world_removed)
+	if INSTANCE.bus(self).has_signal("building_placed"):
+		INSTANCE.bus(self).building_placed.connect(_on_world_placed)
+	if INSTANCE.bus(self).has_signal("building_removed"):
+		INSTANCE.bus(self).building_removed.connect(_on_world_removed)
 	_preload_icons()
 	_load_views()
 	_load_peeps()
@@ -1034,7 +1034,7 @@ func _end_row() -> void:
 		_deny_fx(_row_start, "Blocked")
 		return
 	var cost := _get_cost(selected_building)
-	var n := todo.size() if cost <= 0 else mini(todo.size(), int(CoreRoot.get_money()) / cost)
+	var n := todo.size() if cost <= 0 else mini(todo.size(), int(INSTANCE.core(self).get_money()) / cost)
 	if n <= 0:
 		_emit_status("Not enough money: %s costs $%d." % [_display_name(selected_building), cost], STATUS_DENY)
 		_deny_fx(todo[0], "$%d" % cost)
@@ -1173,7 +1173,7 @@ func _end_path_drag() -> void:
 	var cost := _get_cost("path")
 	var n := todo.size()
 	if cost > 0:
-		n = mini(n, int(CoreRoot.get_money()) / cost)
+		n = mini(n, int(INSTANCE.core(self).get_money()) / cost)
 	if n <= 0:
 		_emit_status("Not enough money: a path tile costs $%d." % cost, STATUS_DENY)
 		_deny_fx(todo[0], "$%d" % cost)
@@ -1262,7 +1262,7 @@ func _send_build_request(building_type: String, coord: Vector2i, rot: int) -> vo
 	_pending_build_type = building_type
 	_pending_build_coord = coord
 	_pending_build_rot = wrapi(rot, 0, 4)
-	if EventBus.has_signal("RequestBuild"):
+	if INSTANCE.bus(self).has_signal("RequestBuild"):
 		EventBus.RequestBuild.emit(building_type, coord, _pending_build_rot)
 		_emit_status("Build request: %s [%d,%d]" % [_display_name(building_type), coord.x, coord.y])
 	else:
@@ -1274,7 +1274,7 @@ func _send_demolish_request(rect: Rect2i) -> void:
 	_pending_demolish_wait = true
 	_pending_demolish_rect = rect
 	_demolish_removed.clear()
-	if EventBus.has_signal("RequestDemolish"):
+	if INSTANCE.bus(self).has_signal("RequestDemolish"):
 		EventBus.RequestDemolish.emit(rect)
 		_emit_status("Demolish request: %dx%d" % [rect.size.x, rect.size.y])
 	else:
@@ -1285,12 +1285,12 @@ func _send_demolish_request(rect: Rect2i) -> void:
 ## Takes back the last thing built today (all of a path drag), paying the price back.
 func undo_last() -> bool:
 	# (At night Builder only looks: builder_module._tick_night.)
-	if CoreRoot != null and CoreRoot.is_night():
+	if CoreRoot != null and INSTANCE.core(self).is_night():
 		return false
-	var st = CoreRoot.get_state()
+	var st = INSTANCE.core(self).get_state()
 	var today := int(st.day) if st != null else 1
 	_undo = _undo.filter(func(u): return int(u["day"]) == today)
-	if _undo.is_empty() or CoreRoot.actions == null:
+	if _undo.is_empty() or INSTANCE.core(self).actions == null:
 		_emit_status("Nothing to undo today.", STATUS_DENY)
 		return false
 	# Co-op: on the other warden's machine the camp is the host's; take it down instead.
@@ -1307,9 +1307,9 @@ func undo_last() -> bool:
 		if str(cell.get("type", "")) != str(u["type"]) or cell.get("root_coord", u["coord"]) != u["coord"]:
 			continue
 		var m0: int = st.money
-		if CoreRoot.actions.remove_building(u["coord"]):
+		if INSTANCE.core(self).actions.remove_building(u["coord"]):
 			var refunded: int = st.money - m0
-			CoreRoot.actions.add_money(maxi(0, int(u["cost"]) - refunded))
+			INSTANCE.core(self).actions.add_money(maxi(0, int(u["cost"]) - refunded))
 			taken += 1
 			back += int(u["cost"])
 	if taken == 0:
@@ -1328,7 +1328,7 @@ func _rotate_building(step: int) -> void:
 	# (An oblong one stands across on a quarter turn: its footprint turns with it.)
 	_rotation_steps = wrapi(_rotation_steps + step, 0, 4)
 	_ghost_locked = false
-	if EventBus.has_signal("RequestRotate"):
+	if INSTANCE.bus(self).has_signal("RequestRotate"):
 		EventBus.RequestRotate.emit(1 if step >= 0 else -1)
 	_emit_status("Direction: %s" % ROTATION_LABELS[_rotation_steps])
 	queue_redraw()
@@ -1346,19 +1346,19 @@ func _cancel_tool_selection() -> void:
 
 
 func _connect_event_bus() -> void:
-	if EventBus.has_signal("BuildConfirmed"):
+	if INSTANCE.bus(self).has_signal("BuildConfirmed"):
 		var ok_cb := Callable(self, "_on_build_confirmed")
 		if not EventBus.BuildConfirmed.is_connected(ok_cb):
 			EventBus.BuildConfirmed.connect(ok_cb)
-	if EventBus.has_signal("BuildRejected"):
+	if INSTANCE.bus(self).has_signal("BuildRejected"):
 		var rej_cb := Callable(self, "_on_build_rejected")
 		if not EventBus.BuildRejected.is_connected(rej_cb):
 			EventBus.BuildRejected.connect(rej_cb)
-	if EventBus.has_signal("DemolishConfirmed"):
+	if INSTANCE.bus(self).has_signal("DemolishConfirmed"):
 		var dem_ok_cb := Callable(self, "_on_demolish_confirmed")
 		if not EventBus.DemolishConfirmed.is_connected(dem_ok_cb):
 			EventBus.DemolishConfirmed.connect(dem_ok_cb)
-	if EventBus.has_signal("DemolishRejected"):
+	if INSTANCE.bus(self).has_signal("DemolishRejected"):
 		var dem_rej_cb := Callable(self, "_on_demolish_rejected")
 		if not EventBus.DemolishRejected.is_connected(dem_rej_cb):
 			EventBus.DemolishRejected.connect(dem_rej_cb)
@@ -1367,7 +1367,7 @@ func _connect_event_bus() -> void:
 func _on_build_confirmed(building_type: String, pos: Vector2i, rot: int) -> void:
 	if building_type == "path" and _path_batch.has(pos):
 		_path_batch.erase(pos)
-		var st0 = CoreRoot.get_state()
+		var st0 = INSTANCE.core(self).get_state()
 		_undo.append({"type": "path", "coord": pos, "cost": _get_cost("path"), "group": _undo_group, "day": int(st0.day) if st0 != null else 1})
 		while _undo.size() > 40:
 			_undo.remove_at(0)
@@ -1380,7 +1380,7 @@ func _on_build_confirmed(building_type: String, pos: Vector2i, rot: int) -> void
 		return
 	if _row_batch.has(pos) and str(_row_batch[pos]) == building_type:
 		_row_batch.erase(pos)
-		var st_r = CoreRoot.get_state()
+		var st_r = INSTANCE.core(self).get_state()
 		_undo.append({"type": building_type, "coord": pos, "cost": _get_cost(building_type), "group": _undo_group, "day": int(st_r.day) if st_r != null else 1})
 		while _undo.size() > 40:
 			_undo.remove_at(0)
@@ -1394,7 +1394,7 @@ func _on_build_confirmed(building_type: String, pos: Vector2i, rot: int) -> void
 	var mine := _pending_build_wait and building_type == _pending_build_type and pos == _pending_build_coord
 	# A lamp on a path belongs to the path: not something undo can take off it.
 	if mine and not (building_type == "lamp_post" and _path_cell(pos)):
-		var st = CoreRoot.get_state()
+		var st = INSTANCE.core(self).get_state()
 		_undo.append({"type": building_type, "coord": pos, "cost": _get_cost(building_type), "group": _undo_group, "day": int(st.day) if st != null else 1})
 		while _undo.size() > 40:
 			_undo.remove_at(0)
@@ -1594,7 +1594,7 @@ func _draw_static() -> void:
 
 
 func _grid_model():
-	var st = CoreRoot.get_state() if CoreRoot != null else null
+	var st = INSTANCE.core(self).get_state() if CoreRoot != null else null
 	return st.grid if st != null else null
 
 
@@ -1860,24 +1860,24 @@ func _draw_dynamic() -> void:
 ## Every lodging's name over its roof, small: T1, C2, V1 (as on its key at the desk and
 ## on Vera's plan), so you know which is which without walking in.
 func _draw_lodging_badges(origin: Vector2, tile_w: float, tile_h: float) -> void:
-	if GuestManager == null or not GuestManager.has_method("room_short"):
+	if GuestManager == null or not INSTANCE.guests(self).has_method("room_short"):
 		return
-	var accs: Dictionary = GuestManager.get_accommodation_states()
+	var accs: Dictionary = INSTANCE.guests(self).get_accommodation_states()
 	for key in accs.keys():
 		var acc: Dictionary = accs[key]
-		var kind: String = GuestManager.lodging_kind(str(acc.get("building_type", "")))
+		var kind: String = INSTANCE.guests(self).lodging_kind(str(acc.get("building_type", "")))
 		if kind == "":
 			continue
 		var c: Vector2i = acc.get("coord", Vector2i(-1, -1)) if acc.get("coord", null) is Vector2i else SAVE_CODEC.coord_from_key(str(key))
 		if c.x < 0:
 			continue
-		var def = CoreRoot.registry.get_def(StringName(str(acc.get("building_type", "")))) if CoreRoot != null else null
+		var def = INSTANCE.core(self).registry.get_def(StringName(str(acc.get("building_type", "")))) if CoreRoot != null else null
 		var gm0 = _grid_model()
 		var fp: Vector2i = def.footprint if def != null else Vector2i.ONE
 		if gm0 != null:
 			fp = gm0.footprint_of(c, fp)
 		var p := _cell_to_iso_f(Vector2(c) + Vector2(fp) * 0.5 - Vector2(0.5, 0.5), origin, tile_w, tile_h) - Vector2(0, tile_h * 1.25)
-		var text: String = GuestManager.room_short(str(key))
+		var text: String = INSTANCE.guests(self).room_short(str(key))
 		var fs := T.FONT_SIZE
 		var tw := T.FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 		var r := Rect2((p - Vector2(tw * 0.5 + 3, 7)).floor(), Vector2(tw + 6, 13))
@@ -1966,8 +1966,8 @@ func _refresh_overlay() -> void:
 						_ov_data[c] = [kwh / top, "%.1f kWh" % kwh, Color8(255, 200, 40).lerp(Color8(255, 80, 20), kwh / top)]
 		"rooms":
 			if GuestManager != null:
-				for key in GuestManager.get_accommodation_states():
-					var rs: Dictionary = GuestManager.get_room_state(str(key))
+				for key in INSTANCE.guests(self).get_accommodation_states():
+					var rs: Dictionary = INSTANCE.guests(self).get_room_state(str(key))
 					if rs.is_empty():
 						continue
 					var st := str(rs.get("status", ""))
@@ -2000,7 +2000,7 @@ func _draw_overlay(origin: Vector2, tile_w: float, tile_h: float, lights: Array)
 			var v: Array = _ov_data[o]
 			var fp := Vector2i.ONE
 			var cell: Dictionary = gm.cells.get(o, {}) if gm != null else {}
-			var def = CoreRoot.registry.get_def(StringName(str(cell.get("type", "")))) if CoreRoot != null and CoreRoot.registry != null and cell.has("type") else null
+			var def = INSTANCE.core(self).registry.get_def(StringName(str(cell.get("type", "")))) if CoreRoot != null and INSTANCE.core(self).registry != null and cell.has("type") else null
 			if def != null:
 				fp = gm.footprint_of(o, def.footprint)
 			var cells: Array = []
@@ -2191,7 +2191,7 @@ func _world_signature() -> String:
 			n = root.get_child_count()
 	var trees := get_tree().get_nodes_in_group("trees").size() if get_tree() != null else 0
 	var corn := get_tree().get_nodes_in_group("corn").size() if get_tree() != null else 0
-	var day: int = CoreRoot.get_day() if CoreRoot != null else 1
+	var day: int = INSTANCE.core(self).get_day() if CoreRoot != null else 1
 	var snow := Season.snow_cover(day, 12.0) >= 0.2
 	return "%d|%d|%d|%d|%s" % [n, trees, corn, day if day < 10 else 10, snow]
 
@@ -2201,7 +2201,7 @@ func _world_signature() -> String:
 ## The minimap's open ground in the map's season (the late-summer meadow, the autumn's
 ## leaves, the snow), as the big map's ground picture is.
 func _mini_ground() -> Color:
-	var day: int = CoreRoot.get_day() if CoreRoot != null else 1
+	var day: int = INSTANCE.core(self).get_day() if CoreRoot != null else 1
 	if Season.snow_cover(day, 12.0) >= 0.2:
 		return Color(0.82, 0.84, 0.86)
 	if day >= 10:
@@ -2210,7 +2210,7 @@ func _mini_ground() -> Color:
 
 
 func _season_ground_texture() -> Texture2D:
-	var day: int = CoreRoot.get_day() if CoreRoot != null else 1
+	var day: int = INSTANCE.core(self).get_day() if CoreRoot != null else 1
 	var path := GROUND_TEX_SUMMER
 	if Season.snow_cover(day, 12.0) >= 0.2 and ResourceLoader.exists(GROUND_TEX_SNOW):
 		path = GROUND_TEX_SNOW
@@ -2313,9 +2313,9 @@ func _update_guests(delta: float) -> void:
 func _update_minds() -> void:
 	_guest_minds.clear()
 	_sleepers.clear()
-	if GuestManager == null or not GuestManager.has_method("get_guest_life_snapshot"):
+	if GuestManager == null or not INSTANCE.guests(self).has_method("get_guest_life_snapshot"):
 		return
-	for g in GuestManager.get_guest_life_snapshot():
+	for g in INSTANCE.guests(self).get_guest_life_snapshot():
 		if not (g is Dictionary):
 			continue
 		var think := ""
@@ -2421,7 +2421,7 @@ func _update_mate() -> void:
 func _update_extra_guest() -> void:
 	if _guest_time < _extra_guest_until or _guests.is_empty():
 		return
-	var state = CoreRoot.get_state() if CoreRoot != null else null
+	var state = INSTANCE.core(self).get_state() if CoreRoot != null else null
 	if state == null:
 		return
 	var hour := 0.0
@@ -2969,7 +2969,7 @@ func _draw_path_drag_preview(origin: Vector2, tile_w: float, tile_h: float) -> v
 	var cost := _get_cost("path")
 	var afford := 1 << 30
 	if cost > 0:
-		afford = int(CoreRoot.get_money()) / cost
+		afford = int(INSTANCE.core(self).get_money()) / cost
 	var groups := [[], [], [], []]   # new, already path, blocked, new but no money
 	var n_new := 0
 	for e in _path_line:
@@ -3007,7 +3007,7 @@ func _draw_row_preview(origin: Vector2, tile_w: float, tile_h: float) -> void:
 			if icon_key != "":
 				_draw_building_icon(_footprint_center_iso(c, Vector2i.ONE, origin, tile_w, tile_h), Vector2i.ONE, icon_key, _rotation_steps, Color(0.62, 0.82, 1.0, 0.7), tile_w, tile_h)
 	var cost := n * _get_cost(selected_building)
-	var afford := int(CoreRoot.get_money()) >= cost
+	var afford := int(INSTANCE.core(self).get_money()) >= cost
 	var last: Vector2i = _row_line.back()[0]
 	var tag := LANG.f("%d x $%d = $%d", [n, _get_cost(selected_building), cost]) if afford else LANG.f("$%d - no money for all", cost)
 	_draw_tag(_footprint_center_iso(last, Vector2i.ONE, origin, tile_w, tile_h) + Vector2(tile_w * 0.45, -tile_h * 1.4), tag, not afford or n == 0)
@@ -3079,7 +3079,7 @@ func _draw_demolish_rect(rect: Rect2i, origin: Vector2, tile_w: float, tile_h: f
 			tag = LANG.f("%dx%d  clear %d  $%d", [rect.size.x, rect.size.y, int(sum["tiles"]), int(sum["fee"])])
 			if int(sum["refund"]) > 0:
 				tag += LANG.f("  +$%d back", int(sum["refund"]))
-			if int(CoreRoot.get_money()) < int(sum["fee"]):
+			if int(INSTANCE.core(self).get_money()) < int(sum["fee"]):
 				tag += tr(" - no money")
 				bad = true
 		if chosen and not bad:
@@ -3094,7 +3094,7 @@ func _draw_demolish_rect(rect: Rect2i, origin: Vector2, tile_w: float, tile_h: f
 func _demolish_summary(rect: Rect2i) -> Dictionary:
 	if rect != _demolish_sum_rect or _demolish_sum.is_empty():
 		_demolish_sum_rect = rect
-		var auth = CoreRoot.builder_authority if CoreRoot != null else null
+		var auth = INSTANCE.core(self).builder_authority if CoreRoot != null else null
 		_demolish_sum = auth.summarize_demolish(rect) if auth != null and auth.has_method("summarize_demolish") else {}
 	return _demolish_sum
 
@@ -3472,7 +3472,7 @@ func _resolve_economy_manager() -> Node:
 func _get_footprint(building_type: String) -> Vector2i:
 	if building_manager != null and building_manager.has_method("get_footprint_for_building"):
 		return building_manager.get_footprint_for_building(building_type)
-	var def = CoreRoot.registry.get_def(StringName(building_type)) if CoreRoot != null and CoreRoot.registry != null else null
+	var def = INSTANCE.core(self).registry.get_def(StringName(building_type)) if CoreRoot != null and INSTANCE.core(self).registry != null else null
 	if def != null:
 		return def.footprint
 	return Vector2i.ONE
@@ -4149,19 +4149,19 @@ func _describe(coord: Vector2i) -> String:
 			elif root != null:
 				what = _display_name(str(root.get_meta("building_type", "")))
 				var o = root.get_meta("grid_origin", null)
-				if o is Vector2i and GuestManager != null and GuestManager.room_number("%d:%d" % [o.x, o.y]) > 0:
+				if o is Vector2i and GuestManager != null and INSTANCE.guests(self).room_number("%d:%d" % [o.x, o.y]) > 0:
 					# The room and how it stands: ready, dirty, taken.
 					var key := "%d:%d" % [o.x, o.y]
-					var rs: Dictionary = GuestManager.get_room_state(key)
+					var rs: Dictionary = INSTANCE.guests(self).get_room_state(key)
 					var st := "guests" if bool(rs.get("occupied", false)) else ({"ready": "ready", "dirty": "dirty", "unprepared": "not made up"}.get(str(rs.get("status", "")), "") as String)
-					return tr(GuestManager.room_label(key)) + (("  -  " + tr(st)) if st != "" else "")
+					return tr(INSTANCE.guests(self).room_label(key)) + (("  -  " + tr(st)) if st != "" else "")
 	if coord == _buried_tile() and (what == "Forest floor" or what == "Pine tree"):
 		return LANG.f("%d:%d  %s  -  Something is buried here", [coord.x, coord.y, tr(what)])
 	return "%d:%d  %s" % [coord.x, coord.y, tr(what)]
 
 
 func _path_cell(coord: Vector2i) -> bool:
-	var state = CoreRoot.get_state() if CoreRoot != null else null
+	var state = INSTANCE.core(self).get_state() if CoreRoot != null else null
 	return state != null and str((state.grid.cells.get(coord, {}) as Dictionary).get("type", "")) == "path"
 
 
@@ -4175,16 +4175,16 @@ func _path_lamp_point(coord: Vector2i, center: Vector2, tile_w: float, tile_h: f
 
 
 func _path_has_lamp(coord: Vector2i) -> bool:
-	var state = CoreRoot.get_state() if CoreRoot != null else null
+	var state = INSTANCE.core(self).get_state() if CoreRoot != null else null
 	return state != null and bool((state.grid.cells.get(coord, {}) as Dictionary).get("lamp", false))
 
 
 ## A bench standing on this path tile (the cell's "bench": its turn).
 func _path_has_bench(coord: Vector2i) -> bool:
-	var state = CoreRoot.get_state() if CoreRoot != null else null
+	var state = INSTANCE.core(self).get_state() if CoreRoot != null else null
 	return state != null and (state.grid.cells.get(coord, {}) as Dictionary).has("bench")
 
 
 func _path_bench_turn(coord: Vector2i) -> int:
-	var state = CoreRoot.get_state() if CoreRoot != null else null
+	var state = INSTANCE.core(self).get_state() if CoreRoot != null else null
 	return int((state.grid.cells.get(coord, {}) as Dictionary).get("bench", 0)) if state != null else 0

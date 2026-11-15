@@ -7,6 +7,7 @@ extends RefCounted
 ## (Out of main.gd 15. 11.: main routes the title's L page here and keeps the camp's flag,
 ## main._test_night.)
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const MAIN_MENU_SCRIPT = preload("res://scripts/ui/main_menu.gd")
 const BALANCE_CONFIG = preload("res://core/balance/balance_config.gd")
 const BUS_TIMES = preload("res://scripts/town/bus_timetable.gd")
@@ -95,7 +96,7 @@ func start_bus() -> void:
 		await main.get_tree().process_frame
 	await main.get_tree().process_frame
 	await main.get_tree().process_frame
-	CoreRoot.actions.add_money(300)
+	INSTANCE.core(main).actions.add_money(300)
 	# A few seconds before it pulls up (it comes in over town_trip.IN_HOURS).
 	main.debug_jump_to(1, BUS_TIMES.CAMP_ARRIVE[1] - 0.17)
 	var trip = main._interior_manager.town_trip() if main._interior_manager != null else null
@@ -133,7 +134,7 @@ func start_businesses(quiet := false) -> void:
 	await main.get_tree().process_frame
 	await main.get_tree().process_frame
 	main.debug_jump_to(1, 10.5)
-	CoreRoot.actions.add_money(60000)
+	INSTANCE.core(main).actions.add_money(60000)
 	var g: Vector2i = main.world_generator.gate_tile() if main.world_generator != null and main.world_generator.has_method("gate_tile") else Vector2i(12, 0)
 	for x0 in range(g.x - 9, g.x + 9, 5):
 		for y0 in range(4, 19, 5):
@@ -168,8 +169,8 @@ func start_businesses(quiet := false) -> void:
 		["Kecal", "tramp", 2], ["Mrs Benesova", "picker", 2], ["Horak family", "family", 3], ["Vesely", "drunk", 2], ["Marek", "drunk", 2], ["Jana", "cheap_chick", 2],
 		["Fiala family", "family", 3], ["Zeman", "quiet_guy", 2]]
 	for p in parties:
-		GuestManager.debug_check_in_party(str(p[0]), str(p[1]), int(p[2]), 3)
-	GuestManager.debug_want_food(55.0, 85.0)
+		INSTANCE.guests(main).debug_check_in_party(str(p[0]), str(p[1]), int(p[2]), 3)
+	INSTANCE.guests(main).debug_want_food(55.0, 85.0)
 	# On the path just in from the gate, the businesses ahead.
 	if main._player != null and is_instance_valid(main._player) and main.grid_manager != null:
 		main._player.global_position = main.grid_manager.grid_to_world(Vector2i(g.x, 5)) + Vector3(0, 0.2, 0)
@@ -193,7 +194,7 @@ const TEST_NIGHT_GUESTS := {"silent_man": "quiet_guy", "tourist": "drunk", "girl
 func build_camp(enemy_id: String) -> void:
 	if main.world_generator == null or not main.world_generator.has_method("gate_tile"):
 		return
-	CoreRoot.actions.add_money(60000)
+	INSTANCE.core(main).actions.add_money(60000)
 	var g: Vector2i = main.world_generator.gate_tile()
 	for r in [Rect2i(g.x - 7, 4, 5, 5), Rect2i(g.x - 2, 4, 5, 5), Rect2i(g.x + 3, 4, 5, 5), Rect2i(g.x - 7, 9, 5, 5), Rect2i(g.x - 2, 9, 5, 5), Rect2i(g.x + 3, 9, 5, 5)]:
 		EventBus.RequestDemolish.emit(r)
@@ -218,5 +219,5 @@ func build_camp(enemy_id: String) -> void:
 		return
 	var names := {"quiet_guy": ["Novak", "Dvorak"], "drunk": ["Pepa", "Lojza"], "cheap_chick": ["Kristyna", "Denisa"], "tramp": ["Bobr", "Kecal"], "family": ["Svoboda family", "Kral family"], "picker": ["Mr Prochazka", "Mrs Benesova"]}
 	for n in names.get(arch, ["Guest"]):
-		GuestManager.debug_check_in_party(str(n), arch, 1, 3)
-	GuestManager.debug_check_in_party("Mr Vesely", "quiet_guy" if arch != "quiet_guy" else "drunk", 1, 3)
+		INSTANCE.guests(main).debug_check_in_party(str(n), arch, 1, 3)
+	INSTANCE.guests(main).debug_check_in_party("Mr Vesely", "quiet_guy" if arch != "quiet_guy" else "drunk", 1, 3)

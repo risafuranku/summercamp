@@ -205,7 +205,7 @@ func staff_open(id: int) -> bool:
 ## The name of the hand going to event `id` ("" nobody), from the staff's own record
 ## (so the other warden's list shows it too).
 func staff_on(id: int) -> String:
-	var st = CoreRoot.get_state().biz.get("staff", {}) if CoreRoot != null and CoreRoot.get_state() != null else {}
+	var st = INSTANCE.core(self).get_state().biz.get("staff", {}) if CoreRoot != null and INSTANCE.core(self).get_state() != null else {}
 	if not (st is Dictionary):
 		return ""
 	var acts: Dictionary = st.get("act", {})
@@ -239,8 +239,8 @@ func seen_to(ev: Dictionary) -> bool:
 	var kind := str(ev["kind"])
 	if STAFF_RULES.LATE_KINDS.has(kind) or not STAFF_KINDS.has(kind):
 		return false
-	var st = CoreRoot.get_state().biz.get("staff", {}) if CoreRoot != null and CoreRoot.get_state() != null else {}
-	return st is Dictionary and STAFF_RULES.covered(st, kind, float(posmod(_last_abs, 1440)) / 60.0, CoreRoot.get_day())
+	var st = INSTANCE.core(self).get_state().biz.get("staff", {}) if CoreRoot != null and INSTANCE.core(self).get_state() != null else {}
+	return st is Dictionary and STAFF_RULES.covered(st, kind, float(posmod(_last_abs, 1440)) / 60.0, INSTANCE.core(self).get_day())
 
 
 ## The van waiting at the gate: its note is in the folder on the reception desk (the user
@@ -276,7 +276,7 @@ func next_van_day(day: int) -> int:
 
 
 func _orders_waiting() -> bool:
-	var st = CoreRoot.get_state() if CoreRoot != null else null
+	var st = INSTANCE.core(self).get_state() if CoreRoot != null else null
 	return st != null and st.biz is Dictionary and not ((st.biz as Dictionary).get("orders", []) as Array).is_empty()
 
 
@@ -308,7 +308,7 @@ func van_hud_row(abs_minute: int) -> Dictionary:
 	# Ordered, the van not sent yet (tomorrow's, or this morning's before its plan): the bar
 	# against the latest it can come.
 	var due := 1 << 30
-	for o in CoreRoot.get_state().biz.get("orders", []):
+	for o in INSTANCE.core(self).get_state().biz.get("orders", []):
 		due = mini(due, int((o as Dictionary).get("due_day", 0)))
 	# Not today: TOMORROW on the plate, no bar (playtest 13. 11.: the bar ran from the order
 	# through the night and the van came the next day).
@@ -330,11 +330,11 @@ func _van_day_word(day: int, abs_minute: int) -> Dictionary:
 
 ## How many orders the van has brought (due today or before), for the driver's word.
 func delivery_orders() -> int:
-	var st = CoreRoot.get_state() if CoreRoot != null else null
+	var st = INSTANCE.core(self).get_state() if CoreRoot != null else null
 	var biz: Dictionary = st.biz if st != null and st.get("biz") is Dictionary else {}
 	var n := 0
 	for o in biz.get("orders", []):
-		if int((o as Dictionary).get("due_day", 0)) <= CoreRoot.get_day():
+		if int((o as Dictionary).get("due_day", 0)) <= INSTANCE.core(self).get_day():
 			n += 1
 	return n
 
@@ -582,7 +582,7 @@ func _available_kinds(guests: Array) -> Array:
 		out.append("noise")
 	if not _coords_of(["path"]).is_empty() and (_rng.randf() < 0.45 or _windy()):
 		out.append("tree")
-	var day := int(CoreRoot.get_state().day) if CoreRoot.get_state() != null else 1
+	var day := int(INSTANCE.core(self).get_state().day) if INSTANCE.core(self).get_state() != null else 1
 	var lodged := guests.filter(func(g): return _lodging_of(g).x >= 0)
 	if day >= 3 and not lodged.is_empty() and _rng.randf() < 0.5:
 		var c := _lodging_of(lodged[_rng.randi_range(0, lodged.size() - 1)])
@@ -722,12 +722,12 @@ func _resolve(ev: Dictionary, by := "") -> void:
 			text = "The raccoons are gone. For now."
 			_sfx_at("shoo.mp3", _event_pos(ev), 0.0)
 		"delivery":
-			var n: int = CoreRoot.actions.biz_receive(CoreRoot.get_day()) if CoreRoot.actions != null else 0
+			var n: int = INSTANCE.core(self).actions.biz_receive(INSTANCE.core(self).get_day()) if INSTANCE.core(self).actions != null else 0
 			text = "Signed for the delivery: %d order(s) unloaded onto the shelves." % n if n > 0 else "Signed for the delivery."
 		"lost_kid":
 			text = "Found the boy. %s: \"Thank God. Here, for your trouble.\" +$%d" % [str(ev.get("family", "The family")), int(rules.get("tip", 0))]
-			if CoreRoot.actions != null:
-				CoreRoot.actions.add_money(int(rules.get("tip", 0)))
+			if INSTANCE.core(self).actions != null:
+				INSTANCE.core(self).actions.add_money(int(rules.get("tip", 0)))
 			_mood_for(float(rules["ok_mood"]), "They found him. Good staff here.", ["family"])
 		"noise":
 			text = "The noise is down. For tonight."
@@ -752,13 +752,13 @@ func _fail(ev: Dictionary) -> void:
 		"raccoons":
 			text = "The raccoons got into the stores: -$%d." % int(rules.get("fail_money", 0))
 			thought = "Something got into the food. Lovely."
-			if CoreRoot.actions != null:
-				CoreRoot.actions.add_money(-int(rules.get("fail_money", 0)))
+			if INSTANCE.core(self).actions != null:
+				INSTANCE.core(self).actions.add_money(-int(rules.get("fail_money", 0)))
 		"delivery":
 			text = "The van left without anybody signing. It comes back tomorrow morning."
 			thought = "No bread at the shop. In a camp. Unbelievable."
-			if CoreRoot.actions != null:
-				CoreRoot.actions.biz_postpone(CoreRoot.get_day())
+			if INSTANCE.core(self).actions != null:
+				INSTANCE.core(self).actions.biz_postpone(INSTANCE.core(self).get_day())
 		"lost_kid":
 			text = "The boy came back by himself at dusk. He will not say where he was."
 			thought = "He came back by himself. He keeps humming something."
@@ -1427,17 +1427,17 @@ func _edge_spot() -> Vector2i:
 
 
 func _label_at(c: Vector2i) -> String:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null or not state.grid.cells.has(c):
 		return "path"
 	var type := str(state.grid.cells[c].get("type", ""))
-	var def = CoreRoot.registry.get_def(StringName(type))
+	var def = INSTANCE.core(self).registry.get_def(StringName(type))
 	return (str(def.display_name).split(" (")[0] if def != null else type.capitalize()).to_lower()
 
 
 func _coords_of(types: Array) -> Array[Vector2i]:
 	var out: Array[Vector2i] = []
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null or state.grid == null:
 		return out
 	for coord in state.grid.cells.keys():
@@ -1456,7 +1456,7 @@ func _pick(types: Array) -> Vector2i:
 
 func _active_guests() -> Array:
 	var out: Array = []
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null:
 		return out
 	for g in state.guests:
@@ -1467,7 +1467,7 @@ func _active_guests() -> Array:
 
 ## Everyone checked in, up or still asleep (guests asleep are "sleep", not "active").
 func _guests_in_camp() -> int:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null:
 		return 0
 	var n := 0
@@ -1511,9 +1511,9 @@ func _guest_pos(id: int) -> Vector3:
 
 ## Moves the mood of the guests (all, or those of `archetypes`) and gives them a line.
 func _mood_for(delta: float, thought: String, archetypes: Array) -> void:
-	if delta == 0.0 or GuestManager == null or not GuestManager.has_method("apply_camp_event"):
+	if delta == 0.0 or GuestManager == null or not INSTANCE.guests(self).has_method("apply_camp_event"):
 		return
-	GuestManager.apply_camp_event(delta, thought, archetypes)
+	INSTANCE.guests(self).apply_camp_event(delta, thought, archetypes)
 
 
 func _windy() -> bool:

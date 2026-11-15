@@ -239,7 +239,7 @@ func _poll(here: Vector3) -> void:
 ## only: inside, the room is its own), the more guests the fuller.
 func _rooms_leak(main: Node) -> void:
 	var inside: bool = main != null and main.has_method("_is_any_interior_open") and bool(main.call("_is_any_interior_open"))
-	var state = CoreRoot.get_state() if CoreRoot != null else null
+	var state = INSTANCE.core(self).get_state() if CoreRoot != null else null
 	var sites: Dictionary = state.biz.get("sites", {}) if state != null and state.get("biz") is Dictionary else {}
 	for id in _rooms.keys():
 		var r: Dictionary = _rooms[id]
@@ -257,7 +257,7 @@ func _rooms_leak(main: Node) -> void:
 ## The business key ("x:y", its root cell) of the building standing at `b`.
 func _site_key(b: Node3D, root: Node) -> String:
 	var gm = root.get("grid_manager")
-	var state = CoreRoot.get_state() if CoreRoot != null else null
+	var state = INSTANCE.core(self).get_state() if CoreRoot != null else null
 	if gm == null or state == null or state.grid == null:
 		return ""
 	var coord: Vector2i = gm.world_to_grid(b.global_position)

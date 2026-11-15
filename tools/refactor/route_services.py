@@ -23,6 +23,8 @@ OWNER = {
     "scripts/camp/camp_structures.gd": "main", "scripts/camp/ruined_cabin.gd": "main",
     "scripts/debug/test_camps.gd": "main", "scripts/os98/icu_story.gd": "shell",
     "scripts/staff/staffroom.gd": "host", "scripts/ui/trouble_board.gd": "main",
+    "core/state/actions.gd": "owner_node", "core/systems/failure_system.gd": "owner_node",
+    "core/systems/maintenance_system.gd": "owner_node", "core/systems/time_system.gd": "owner_node",
 }
 BRAINS = "scripts/enemies/"
 SKIP = {"scripts/instance/instance.gd"}
@@ -66,6 +68,9 @@ for p in files:
             in_static = True
         elif re.match(r"^func ", line):
             in_static = False
+        if line.lstrip().startswith("#"):
+            out.append(line)
+            continue
         hit = any(r.search(line) for r in res.values())
         if hit and (in_static or in_inner):
             left.append((p, "static" if in_static else "inner class", line.strip()[:90]))

@@ -87,7 +87,7 @@ func _fresh(key: String) -> Dictionary:
 		"mugs": {"clean": int(saved.get("clean", old.get("clean", RULES.MUGS))), "dirty": int(saved.get("dirty", old.get("dirty", 0)))},
 		"keg": {"line": int(saved.get("line", mini(RULES.KEG_PINTS, beer))), "coupled": bool(saved.get("coupled", true)),
 			"pallet": str(saved.get("pallet", "full")), "gas": float(saved.get("gas", RULES.GAS_START)),
-			"tapped": int(saved.get("tapped", CoreRoot.get_day() if CoreRoot != null else 1))},
+			"tapped": int(saved.get("tapped", INSTANCE.core(self).get_day() if CoreRoot != null else 1))},
 		"pints": int(saved.get("pints", 0)),
 		"fun": {"slot": {}, "darts": {}, "guest": {}, "played": {}},
 	}
@@ -211,17 +211,17 @@ func settle(key: String, b: Dictionary, given: int, by_hand := false) -> Diction
 	_take_money(key, kept, by_hand)
 	act(key, "served", [str(b["id"]), {"bill": true, "at": now_min(), "kept": kept, "over": int(v["over"]), "left": false}])
 	ORDERS.mood(int(b.get("guest_id", -1)), 0.5 if int(v["over"]) == 0 else 0.2, "")
-	if CoreRoot != null and CoreRoot.actions != null and CoreRoot.actions.has_method("biz_score"):
-		CoreRoot.actions.biz_score(key, {"score": pts, "tip": 0, "what": "The bill", "who": str(b.get("name", "")), "hand": by_hand})
+	if CoreRoot != null and INSTANCE.core(self).actions != null and INSTANCE.core(self).actions.has_method("biz_score"):
+		INSTANCE.core(self).actions.biz_score(key, {"score": pts, "tip": 0, "what": "The bill", "who": str(b.get("name", "")), "hand": by_hand})
 	return v
 
 
 ## The money for a tab into the till (the books' takings; a sale of nothing).
 func _take_money(key: String, amount: int, by_hand: bool) -> void:
-	if amount <= 0 or CoreRoot == null or CoreRoot.actions == null:
+	if amount <= 0 or CoreRoot == null or INSTANCE.core(self).actions == null:
 		return
-	if (CoreRoot.get_state().biz.get("sites", {}) as Dictionary).has(key):
-		CoreRoot.actions.biz_sale(key, amount, 0, by_hand)
+	if (INSTANCE.core(self).get_state().biz.get("sites", {}) as Dictionary).has(key):
+		INSTANCE.core(self).actions.biz_sale(key, amount, 0, by_hand)
 	else:
 		ORDERS.pay(amount)
 
@@ -381,8 +381,8 @@ func cards_done(key: String, guest_id: int, r: int) -> void:
 		_take_money(key, FUN.STAKE, true)
 		ORDERS.mood(guest_id, 0.2, "Lost two dollars to the warden at cards. Good game.")
 	elif r < 0:
-		if CoreRoot != null and CoreRoot.actions != null:
-			CoreRoot.actions.spend_money(FUN.STAKE)
+		if CoreRoot != null and INSTANCE.core(self).actions != null:
+			INSTANCE.core(self).actions.spend_money(FUN.STAKE)
 		ORDERS.mood(guest_id, 1.0, "Won two dollars off the warden at cards.")
 
 
@@ -468,8 +468,8 @@ func serve(key: String, t: Dictionary, verdict: Dictionary) -> Dictionary:
 		act(key, "keg", [k])
 	act(key, "served", [str(t["id"]), {"drink": drink, "at": now_min(), "stars": int(verdict.get("stars", 0)), "amount": amount, "tip": int(verdict.get("tip", 0))}])
 	ORDERS.note_meal(int(t["guest_id"]), _thought(drink, verdict), pts)
-	if CoreRoot != null and CoreRoot.actions != null and CoreRoot.actions.has_method("biz_score"):
-		CoreRoot.actions.biz_score(key, {"score": pts, "tip": int(verdict["tip"]), "what": RULES.label(drink), "who": str(t.get("name", "")), "hand": bool(verdict.get("hand", false))})
+	if CoreRoot != null and INSTANCE.core(self).actions != null and INSTANCE.core(self).actions.has_method("biz_score"):
+		INSTANCE.core(self).actions.biz_score(key, {"score": pts, "tip": int(verdict["tip"]), "what": RULES.label(drink), "who": str(t.get("name", "")), "hand": bool(verdict.get("hand", false))})
 	return verdict
 
 
@@ -488,7 +488,7 @@ func _thought(drink: String, verdict: Dictionary) -> String:
 func _process(delta: float) -> void:
 	if get_tree().paused:
 		return
-	var st = CoreRoot.get_state() if CoreRoot != null else null
+	var st = INSTANCE.core(self).get_state() if CoreRoot != null else null
 	# The state object may stay the same from camp to camp: the books' stamp does not
 	# (actions._biz).
 	var sid: int = (st.get_instance_id() + int((st.biz as Dictionary).get("stamp", 0))) if st != null and st.biz is Dictionary else 0
@@ -608,9 +608,9 @@ func _feed(text: String) -> void:
 
 func _pub_sites() -> Array:
 	var out: Array = []
-	if CoreRoot == null or CoreRoot.get_state() == null:
+	if CoreRoot == null or INSTANCE.core(self).get_state() == null:
 		return out
-	var sites: Dictionary = CoreRoot.get_state().biz.get("sites", {})
+	var sites: Dictionary = INSTANCE.core(self).get_state().biz.get("sites", {})
 	for key in sites:
 		if str((sites[key] as Dictionary).get("kind", "")) == "pub":
 			out.append(str(key))
@@ -619,11 +619,11 @@ func _pub_sites() -> Array:
 
 ## The keg, the gas and the mugs into the books (they are saved with the camp).
 func _save(key: String) -> void:
-	if CoreRoot == null or CoreRoot.actions == null or not CoreRoot.actions.has_method("biz_tap"):
+	if CoreRoot == null or INSTANCE.core(self).actions == null or not INSTANCE.core(self).actions.has_method("biz_tap"):
 		return
 	var s := site(key)
 	var k: Dictionary = s["keg"]
-	CoreRoot.actions.biz_tap(key, {"line": int(k["line"]), "coupled": bool(k["coupled"]), "pallet": str(k["pallet"]),
+	INSTANCE.core(self).actions.biz_tap(key, {"line": int(k["line"]), "coupled": bool(k["coupled"]), "pallet": str(k["pallet"]),
 		"gas": float(k["gas"]), "clean": int(s["mugs"]["clean"]), "dirty": int(s["mugs"]["dirty"]), "pints": int(s["pints"]),
 		"tapped": int(k.get("tapped", 0))})
 
@@ -759,7 +759,7 @@ func _crew_cellar(key: String) -> bool:
 	var k: Dictionary = keg(key)
 	var beer := maxi(0, BUSINESS.stock_of(key, "beer"))
 	if (str(k["pallet"]) != "full" or int(k["line"]) <= 0) and beer > 0:
-		set_keg(key, {"pallet": "full", "line": mini(RULES.KEG_PINTS, beer), "coupled": true, "gas": RULES.GAS_START, "tapped": CoreRoot.get_day()})
+		set_keg(key, {"pallet": "full", "line": mini(RULES.KEG_PINTS, beer), "coupled": true, "gas": RULES.GAS_START, "tapped": INSTANCE.core(self).get_day()})
 		return true
 	if float(k["gas"]) < RULES.GAS_LOW or float(k["gas"]) > RULES.GAS_HIGH:
 		set_keg(key, {"gas": RULES.GAS_START})

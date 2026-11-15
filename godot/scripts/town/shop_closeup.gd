@@ -9,6 +9,7 @@ extends "res://scripts/closeup/closeup_view.gd"
 ##
 ## What you buy goes into the pockets (scripts/town/pockets.gd) via `bought`.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal bought(item: String)
 
 const PIC := "res://assets/textury/town/closeup_shop.png"
@@ -101,7 +102,7 @@ func _clicked(id: String) -> void:
 	if price <= 0:
 		say("Mrs Novotna", str(item["say"]))
 		return
-	if CoreRoot.get_money() < price or not CoreRoot.actions.spend_money(price):
+	if INSTANCE.core(self).get_money() < price or not INSTANCE.core(self).actions.spend_money(price):
 		say("Mrs Novotna", "That's %d dollars. You have not got %d dollars." % [price, price])
 		return
 	play(SFX_TILL, -6.0)
@@ -209,7 +210,7 @@ func _check_card() -> void:
 	var syms: Array = _card["symbols"]
 	for s in SYMBOLS:
 		if syms.count(s) >= 3 and int(PRIZE[s]) > 0:
-			CoreRoot.actions.add_money(int(PRIZE[s]))
+			INSTANCE.core(self).actions.add_money(int(PRIZE[s]))
 			play(SFX_TILL, -4.0)
 			say("Mrs Novotna", "Three %s. Well. %d dollars. Do not tell anybody where you bought it." % [_sym_name(s), int(PRIZE[s])])
 			return

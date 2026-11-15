@@ -31,6 +31,7 @@ extends Node
 ## Lamp, sewer and toilet jobs are ordinary breakdowns (FailureSystem); the director
 ## only decides when they happen. The breaker is its own state, read by main.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal changed
 
 const ELECTRICIAN_FEE := 60
@@ -97,8 +98,8 @@ func tick(abs_minute: int, is_night: bool, night_index: int) -> void:
 func on_dawn() -> void:
 	# A frost night in a tent: they say so.
 	var night := _planned_night
-	if night >= 1 and Season.temp_low(night) <= 0 and GuestManager != null and GuestManager.has_method("apply_cold_night"):
-		var n: int = GuestManager.apply_cold_night(Season.temp_low(night))
+	if night >= 1 and Season.temp_low(night) <= 0 and GuestManager != null and INSTANCE.guests(self).has_method("apply_cold_night"):
+		var n: int = INSTANCE.guests(self).apply_cold_night(Season.temp_low(night))
 		if n > 0:
 			_report("A frost in the night. The people in the tents are not happy (%d)." % n, 2)
 	# Nobody comes by themselves: the main stays off until you reset it at the board, and
@@ -193,8 +194,8 @@ func hud_rows() -> Array:
 func _seen_to(job: Dictionary) -> bool:
 	if not (str(job.get("kind", "")) in ["lamp", "toilet", "frozen", "breaker"]) or _last_minute < 0:
 		return false
-	var st = CoreRoot.get_state().biz.get("staff", {}) if CoreRoot != null and CoreRoot.get_state() != null else {}
-	return st is Dictionary and STAFF_RULES.covered(st, "repairs", float(posmod(_last_minute, 1440)) / 60.0, CoreRoot.get_day())
+	var st = INSTANCE.core(self).get_state().biz.get("staff", {}) if CoreRoot != null and INSTANCE.core(self).get_state() != null else {}
+	return st is Dictionary and STAFF_RULES.covered(st, "repairs", float(posmod(_last_minute, 1440)) / 60.0, INSTANCE.core(self).get_day())
 
 
 ## Where the nearest open job is (for the waypoint), or Vector3.INF.
@@ -478,7 +479,7 @@ func _make(kind: String, at: int) -> Dictionary:
 					f = c
 					break
 			var what := "The pipes"
-			var state = CoreRoot.get_state()
+			var state = INSTANCE.core(self).get_state()
 			if f.x >= 0 and state != null and state.grid.cells.has(f):
 				what = {"water_pump": "The water pump", "shower_block": "The showers", "toilet_block": "The toilets"}.get(str(state.grid.cells[f].get("type", "")), "The pipes")
 			job.merge({"title": "%s froze" % what, "short": "Frozen", "where": "Thaw the pipes", "coord": [f.x, f.y]}, true)
@@ -503,13 +504,13 @@ func _start(job: Dictionary) -> void:
 				job["state"] = "cancelled"
 				return
 		"lamp", "sewer", "toilet", "frozen":
-			var state = CoreRoot.get_state()
+			var state = INSTANCE.core(self).get_state()
 			var key := "%d:%d" % [c.x, c.y]
 			if c.x < 0 or state.failures.has(key) or not state.grid.cells.has(c):
 				job["state"] = "cancelled"
 				return
 			var type := str(state.grid.cells[c].get("type", ""))
-			CoreRoot.failure_system._trigger_failure(key, type, c)
+			INSTANCE.core(self).failure_system._trigger_failure(key, type, c)
 			# Not wear: maintenance_controller._clear_old_wear must leave it broken.
 			state.failures[key]["night"] = true
 	job["state"] = "open"
@@ -526,14 +527,14 @@ func _is_resolved(job: Dictionary) -> bool:
 			return job.has("rescued")
 		_:
 			var c: Array = job["coord"]
-			return not CoreRoot.get_state().failures.has("%d:%d" % [int(c[0]), int(c[1])])
+			return not INSTANCE.core(self).get_state().failures.has("%d:%d" % [int(c[0]), int(c[1])])
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 func _coords_of(types: Array) -> Array[Vector2i]:
 	var out: Array[Vector2i] = []
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	if state == null or state.grid == null:
 		return out
 	for coord in state.grid.cells.keys():

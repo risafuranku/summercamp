@@ -8,6 +8,7 @@ extends Node
 ## The fee comes off the till when he is done: day rate, double after nine.
 ## He is a sprite like the guests (assets/textury/npc/npc_electrician.png).
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal finished
 
 const BOOK = preload("res://scripts/closeup/phone_book.gd")
@@ -120,8 +121,8 @@ func _finish_work() -> void:
 	if _main.has_method("_sync_dark_lamps"):
 		_main._sync_dark_lamps()
 	var fee := BOOK.FEE_NIGHT if night else BOOK.FEE_DAY
-	if CoreRoot != null and CoreRoot.actions != null:
-		CoreRoot.actions.add_money(-fee)
+	if CoreRoot != null and INSTANCE.core(self).actions != null:
+		INSTANCE.core(self).actions.add_money(-fee)
 	_say("Novotny: \"That was %s. Water in a junction box. %d, I'll put it on Vera's account.\"  -$%d" % [what, fee, fee], 3)
 	var gate := get_tree().get_first_node_in_group("camp_gate")
 	if _body != null and gate != null:

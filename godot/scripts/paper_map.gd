@@ -9,6 +9,7 @@ extends CanvasLayer
 ## are. It shows what needs you: broken things in red, tonight's jobs circled in red, who waits
 ## at the gate, and beside the plan what to do next.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 const LANG = preload("res://scripts/lang.gd")
 const ROOM_RULES = preload("res://core/systems/room_rules.gd")
@@ -150,7 +151,7 @@ func _allowed() -> bool:
 # ── what is on the plan ──────────────────────────────────────────────────────
 
 func _collect() -> Dictionary:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(self).get_state()
 	var grid = _main.get("grid_manager")
 	if state == null or grid == null:
 		return {}
@@ -185,7 +186,7 @@ func _collect() -> Dictionary:
 			continue
 		seen[id] = true
 		var fp := Vector2i.ONE
-		var def = CoreRoot.registry.get_def(StringName(t)) if CoreRoot.registry != null else null
+		var def = INSTANCE.core(self).registry.get_def(StringName(t)) if INSTANCE.core(self).registry != null else null
 		if def != null:
 			fp = def.footprint
 		fp = cell.get("fp", fp)
@@ -195,8 +196,8 @@ func _collect() -> Dictionary:
 	if reception != null and reception.has_meta("grid_origin"):
 		buildings.append({"type": "main_building", "at": reception.get_meta("grid_origin"), "fp": reception.get_meta("grid_footprint", Vector2i(2, 2))})
 	var rooms := {}
-	for key in GuestManager.get_accommodation_states():
-		var rs: Dictionary = GuestManager.get_room_state(str(key))
+	for key in INSTANCE.guests(self).get_accommodation_states():
+		var rs: Dictionary = INSTANCE.guests(self).get_room_state(str(key))
 		if not rs.is_empty():
 			rooms[str(key)] = rs
 	var broken := {}
@@ -208,7 +209,7 @@ func _collect() -> Dictionary:
 		jobs = nj.open_jobs()
 	var waiting := 0
 	var coming := 0
-	for a in GuestManager.get_arrivals():
+	for a in INSTANCE.guests(self).get_arrivals():
 		if bool(a.get("at_gate", false)):
 			waiting += int(a.get("party_size", 1))
 		else:
@@ -220,7 +221,7 @@ func _collect() -> Dictionary:
 	if de != null and de.has_method("open_events"):
 		for ev in de.open_events():
 			if bool(ev.get("gate", false)):
-				var gc: Vector2i = _reception_coord() if str(ev.get("kind", "")) == "delivery" else GuestManager.get_gate_coord()
+				var gc: Vector2i = _reception_coord() if str(ev.get("kind", "")) == "delivery" else INSTANCE.guests(self).get_gate_coord()
 				ev["coord"] = [gc.x, gc.y]
 			jobs.append(ev)
 	var im = _main.get("_interior_manager")
@@ -232,7 +233,7 @@ func _collect() -> Dictionary:
 		todo.append("%s - %s" % [tr(str(j.get("title", ""))), tr(str(j.get("where", "")))])
 	return {"w": w, "h": h, "lake": lake, "trees": trees, "paths": paths, "buildings": buildings,
 		"rooms": rooms, "broken": broken, "jobs": jobs, "waiting": waiting, "coming": coming,
-		"gate": GuestManager.get_gate_coord(), "todo": todo, "corn_gate": _corn_gate_coord(grid),
+		"gate": INSTANCE.guests(self).get_gate_coord(), "todo": todo, "corn_gate": _corn_gate_coord(grid),
 		"title": _title()}
 
 
@@ -461,8 +462,8 @@ func _draw_map() -> void:
 			_canvas.draw_texture_rect(drawn["tex"], box, false, Color(1.0, 0.98, 0.92))
 		taken.append(box)
 		var is_broken := broken.has(key)
-		if t in ROOM_TYPES and GuestManager != null and GuestManager.room_number(key) > 0:
-			tags.append([str(GuestManager.room_number(key)), box, _room_colour(rooms.get(key, {})), is_broken])
+		if t in ROOM_TYPES and GuestManager != null and INSTANCE.guests(self).room_number(key) > 0:
+			tags.append([str(INSTANCE.guests(self).room_number(key)), box, _room_colour(rooms.get(key, {})), is_broken])
 		elif is_broken:
 			labels.append([tr("BROKEN"), box, INK_RED])
 		elif NAMES.has(t):

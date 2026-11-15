@@ -11,6 +11,7 @@ extends Control
 ##
 ## Some photographs the district counted one more on than there is.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const T = preload("res://scripts/os98/os_theme.gd")
 const LANG = preload("res://scripts/lang.gd")
 const PAY := 3
@@ -124,7 +125,7 @@ var _own_tex: ImageTexture
 
 func _new_photo() -> void:
 	_shell.play("hdd", -14.0)
-	_photo_no = 400 + _shell.job_done("census") * 7 + (CoreRoot.get_day() if CoreRoot != null else 1) * 31
+	_photo_no = 400 + _shell.job_done("census") * 7 + (INSTANCE.core(self).get_day() if CoreRoot != null else 1) * 31
 	_rng.seed = hash("census%d" % _photo_no)
 	_subject = ["tents", "cows", "boats"][_rng.randi_range(0, 2)]
 	_build_photo()
@@ -171,7 +172,7 @@ func _finish() -> void:
 
 ## The tents on the camp's plan now (the answer when the photograph is the camp's own).
 func _camp_tents() -> int:
-	var st = CoreRoot.get_state() if CoreRoot != null else null
+	var st = INSTANCE.core(self).get_state() if CoreRoot != null else null
 	if st == null or st.grid == null:
 		return 0
 	var n := 0

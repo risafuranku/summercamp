@@ -138,8 +138,8 @@ func _setup() -> void:
 	_seats = seats()
 	_stick_mat = StandardMaterial3D.new()
 	_stick_mat.albedo_color = Color(0.46, 0.34, 0.22)
-	if EventBus.has_signal("time_tick") and not EventBus.time_tick.is_connected(_on_time_tick):
-		EventBus.time_tick.connect(_on_time_tick)
+	if INSTANCE.bus(self).has_signal("time_tick") and not INSTANCE.bus(self).time_tick.is_connected(_on_time_tick):
+		INSTANCE.bus(self).time_tick.connect(_on_time_tick)
 	_apply(true)
 
 

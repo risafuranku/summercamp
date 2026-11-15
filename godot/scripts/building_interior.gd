@@ -3916,7 +3916,7 @@ func _greetings_at(hour: float) -> float:
 func _try_play_station() -> bool:
 	if _time_state != TIME_NIGHT:
 		return false
-	var day := int(CoreRoot.get_day()) if CoreRoot != null else 1
+	var day := int(INSTANCE.core(self).get_day()) if CoreRoot != null else 1
 	if day < 2 or _station_heard_day == day:
 		return false
 	if _radio_rng.randf() > STATION_CHANCE_PER_TRACK:
@@ -3968,9 +3968,9 @@ func debug_play_station() -> void:
 
 
 func _count_guests_in_camp() -> int:
-	if CoreRoot == null or CoreRoot.get_state() == null:
+	if CoreRoot == null or INSTANCE.core(self).get_state() == null:
 		return 0
-	return int(CoreRoot.get_state().guests.size())
+	return int(INSTANCE.core(self).get_state().guests.size())
 
 
 func _on_radio_finished() -> void:
@@ -4356,7 +4356,7 @@ func _radio_dread_context(delta: float) -> Dictionary:
 	_dread_risk_poll -= delta
 	if _dread_risk_poll <= 0.0:
 		_dread_risk_poll = RADIO_DREAD_RISK_POLL_SEC
-		var forecast = GuestManager.get_liminal_forecast_data() if GuestManager != null and GuestManager.has_method("get_liminal_forecast_data") else {}
+		var forecast = INSTANCE.guests(self).get_liminal_forecast_data() if GuestManager != null and INSTANCE.guests(self).has_method("get_liminal_forecast_data") else {}
 		_dread_risk = clampf(float((forecast as Dictionary).get("hud_level", 0)) / 4.0, 0.0, 1.0) if forecast is Dictionary else 0.0
 	var night := _time_state == TIME_NIGHT
 	var main := _resolve_main_for_radio()
@@ -4382,8 +4382,8 @@ func _radio_dread_context(delta: float) -> Dictionary:
 		"risk": _dread_risk,
 		"hours": hours,
 		"night": night,
-		"day": int(CoreRoot.get_day()) if CoreRoot != null else 1,
-		"swell": float(CoreRoot.get_state().night_swell) if CoreRoot != null and CoreRoot.get_state() != null else 0.0,
+		"day": int(INSTANCE.core(self).get_day()) if CoreRoot != null else 1,
+		"swell": float(INSTANCE.core(self).get_state().night_swell) if CoreRoot != null and INSTANCE.core(self).get_state() != null else 0.0,
 		"tonight": tonight,
 		"nearest": nearest,
 		"guests": _count_guests_in_camp(),

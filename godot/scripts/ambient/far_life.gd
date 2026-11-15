@@ -175,8 +175,8 @@ func _bell(day: int, hour: float, here: Vector3) -> void:
 func _guests() -> Dictionary:
 	var about := 0
 	var family := false
-	if GuestManager != null and GuestManager.has_method("get_guest_life_snapshot"):
-		for g in GuestManager.get_guest_life_snapshot():
+	if GuestManager != null and INSTANCE.guests(self).has_method("get_guest_life_snapshot"):
+		for g in INSTANCE.guests(self).get_guest_life_snapshot():
 			if str(g.get("archetype", "")) == "family":
 				family = true
 			var act: Dictionary = g.get("activity", {}) if g.get("activity", {}) is Dictionary else {}

@@ -1,5 +1,6 @@
 extends Node
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const BALANCE_CONFIG = preload("res://core/balance/balance_config.gd")
 
 ## The bulldozer is paid by the tile it clears (a tree, corn, a building's footprint),
@@ -63,16 +64,16 @@ func _ready() -> void:
 
 
 func _connect_event_bus() -> void:
-	if not EventBus.has_signal("RequestBuild"):
+	if not INSTANCE.bus(self).has_signal("RequestBuild"):
 		return
 	var build_cb := Callable(self, "_on_request_build")
 	if not EventBus.RequestBuild.is_connected(build_cb):
 		EventBus.RequestBuild.connect(build_cb)
 	var demolish_cb := Callable(self, "_on_request_demolish")
-	if EventBus.has_signal("RequestDemolish") and not EventBus.RequestDemolish.is_connected(demolish_cb):
+	if INSTANCE.bus(self).has_signal("RequestDemolish") and not EventBus.RequestDemolish.is_connected(demolish_cb):
 		EventBus.RequestDemolish.connect(demolish_cb)
 	var rotate_cb := Callable(self, "_on_request_rotate")
-	if EventBus.has_signal("RequestRotate") and not EventBus.RequestRotate.is_connected(rotate_cb):
+	if INSTANCE.bus(self).has_signal("RequestRotate") and not EventBus.RequestRotate.is_connected(rotate_cb):
 		EventBus.RequestRotate.connect(rotate_cb)
 
 
@@ -93,13 +94,13 @@ func _on_request_build(building_type: String, pos: Vector2i, rot: int) -> void:
 			EventBus.BuildRejected.emit(normalized_type, pos, normalized_rot, "blocked_or_out_of_bounds")
 			return
 		var lamp_cost = _get_build_cost(normalized_type)
-		if CoreRoot.get_money() < lamp_cost or not _actions.spend_money(lamp_cost):
+		if INSTANCE.core(self).get_money() < lamp_cost or not _actions.spend_money(lamp_cost):
 			EventBus.BuildRejected.emit(normalized_type, pos, normalized_rot, "insufficient_funds")
 			return
 		_actions.note_camp("invest", int(lamp_cost))
 		cell["lamp"] = true
 		_state.grid.cells[pos] = cell
-		EventBus.building_placed.emit("lamp_post", pos, Vector2i.ONE, normalized_rot)
+		INSTANCE.bus(self).building_placed.emit("lamp_post", pos, Vector2i.ONE, normalized_rot)
 		EventBus.BuildConfirmed.emit(normalized_type, pos, normalized_rot)
 		return
 
@@ -111,13 +112,13 @@ func _on_request_build(building_type: String, pos: Vector2i, rot: int) -> void:
 			EventBus.BuildRejected.emit(normalized_type, pos, normalized_rot, "blocked_or_out_of_bounds")
 			return
 		var bench_cost = _get_build_cost(normalized_type)
-		if CoreRoot.get_money() < bench_cost or not _actions.spend_money(bench_cost):
+		if INSTANCE.core(self).get_money() < bench_cost or not _actions.spend_money(bench_cost):
 			EventBus.BuildRejected.emit(normalized_type, pos, normalized_rot, "insufficient_funds")
 			return
 		_actions.note_camp("invest", int(bench_cost))
 		pcell["bench"] = normalized_rot
 		_state.grid.cells[pos] = pcell
-		EventBus.building_placed.emit("bench", pos, Vector2i.ONE, normalized_rot)
+		INSTANCE.bus(self).building_placed.emit("bench", pos, Vector2i.ONE, normalized_rot)
 		EventBus.BuildConfirmed.emit(normalized_type, pos, normalized_rot)
 		return
 
@@ -132,7 +133,7 @@ func _on_request_build(building_type: String, pos: Vector2i, rot: int) -> void:
 		return
 
 	var cost = _get_build_cost(normalized_type)
-	if CoreRoot.get_money() < cost:
+	if INSTANCE.core(self).get_money() < cost:
 		EventBus.BuildRejected.emit(normalized_type, pos, normalized_rot, "insufficient_funds")
 		return
 
@@ -173,7 +174,7 @@ func _on_request_demolish(area: Rect2i) -> void:
 		return
 
 	var fee = int(summary.get("fee", 0))
-	if CoreRoot.get_money() < fee:
+	if INSTANCE.core(self).get_money() < fee:
 		EventBus.DemolishRejected.emit(rect, "insufficient_funds")
 		return
 

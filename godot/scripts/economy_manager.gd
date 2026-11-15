@@ -1,5 +1,6 @@
 extends Node
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal money_changed(new_amount: int)
 signal day_advanced(day: int, income: int)
 @warning_ignore("unused_signal")
@@ -54,27 +55,27 @@ var _rng := RandomNumberGenerator.new()
 
 
 func get_failed_count() -> int:
-	return CoreRoot.state.failures.size()
+	return INSTANCE.core(self).state.failures.size()
 
 
 func get_failed_entries() -> Array:
-	return CoreRoot.state.failures.values()
+	return INSTANCE.core(self).state.failures.values()
 
 
 func _ready() -> void:
 	_rng.randomize()
 	var money_cb = Callable(self, "_on_eventbus_money_changed")
-	if EventBus.has_signal("money_changed") and not EventBus.money_changed.is_connected(money_cb):
-		EventBus.money_changed.connect(money_cb)
+	if INSTANCE.bus(self).has_signal("money_changed") and not INSTANCE.bus(self).money_changed.is_connected(money_cb):
+		INSTANCE.bus(self).money_changed.connect(money_cb)
 	var day_cb = Callable(self, "_on_eventbus_day_advanced")
-	if EventBus.has_signal("day_advanced") and not EventBus.day_advanced.is_connected(day_cb):
-		EventBus.day_advanced.connect(day_cb)
+	if INSTANCE.bus(self).has_signal("day_advanced") and not INSTANCE.bus(self).day_advanced.is_connected(day_cb):
+		INSTANCE.bus(self).day_advanced.connect(day_cb)
 
 
 func _def(building_type: String):
-	if CoreRoot == null or CoreRoot.registry == null:
+	if CoreRoot == null or INSTANCE.core(self).registry == null:
 		return null
-	return CoreRoot.registry.get_def(StringName(building_type))
+	return INSTANCE.core(self).registry.get_def(StringName(building_type))
 
 
 func _on_eventbus_money_changed(new_amount: int) -> void:
@@ -89,7 +90,7 @@ func can_afford(building_type: String) -> bool:
 	var def = _def(building_type)
 	if def == null:
 		return building_type == DEMOLISH_TYPE
-	return CoreRoot.get_money() >= int(def.cost)
+	return INSTANCE.core(self).get_money() >= int(def.cost)
 
 
 func get_cost(building_type: String) -> int:
@@ -124,9 +125,9 @@ func get_builder_categories() -> Array[String]:
 
 func get_builder_catalog(category: String) -> Array:
 	var items: Array = []
-	if CoreRoot == null or CoreRoot.registry == null:
+	if CoreRoot == null or INSTANCE.core(self).registry == null:
 		return items
-	for def in CoreRoot.registry.get_all_defs():
+	for def in INSTANCE.core(self).registry.get_all_defs():
 		var type := str(def.id)
 		if str(def.category) != category or UPGRADE_ONLY_TYPES.has(type):
 			continue
@@ -144,7 +145,7 @@ func can_build_from_builder(building_type: String) -> bool:
 		return true
 	
 	# Try Registry first
-	var def = CoreRoot.registry.get_def(building_type)
+	var def = INSTANCE.core(self).registry.get_def(building_type)
 	if def:
 		return not def.id in UPGRADE_ONLY_TYPES # Check id in dictionary
 		
@@ -152,7 +153,7 @@ func can_build_from_builder(building_type: String) -> bool:
 
 
 func get_money() -> int:
-	return CoreRoot.get_money()
+	return INSTANCE.core(self).get_money()
 
 
 func purchase(_building_type: String) -> bool:
@@ -161,10 +162,10 @@ func purchase(_building_type: String) -> bool:
 	return false
 
 func spend_money(amount: int) -> bool:
-	return CoreRoot.actions.spend_money(amount)
+	return INSTANCE.core(self).actions.spend_money(amount)
 
 func add_money(amount: int) -> void:
-	CoreRoot.actions.add_money(amount)
+	INSTANCE.core(self).actions.add_money(amount)
 
 
 func get_refund(building_type: String) -> int:
@@ -193,7 +194,7 @@ func calculate_day_income() -> int:
 			continue
 		# Try Registry first
 		var income = 0
-		var def = CoreRoot.registry.get_def(btype)
+		var def = INSTANCE.core(self).registry.get_def(btype)
 		if def:
 			income = int(round(float(def.passive_income)))
 			
@@ -209,13 +210,13 @@ func calculate_day_income() -> int:
 
 func end_day() -> void:
 	# Legacy compatibility path: route through the canonical day_tick flow.
-	var next_day := CoreRoot.get_day() + 1
-	CoreRoot.apply_changes({"day": next_day})
-	EventBus.day_tick.emit(next_day)
+	var next_day = INSTANCE.core(self).get_day() + 1
+	INSTANCE.core(self).apply_changes({"day": next_day})
+	INSTANCE.bus(self).day_tick.emit(next_day)
 
 
 func get_building_at(coord: Vector2i) -> Dictionary:
-	var data = CoreRoot.state.grid.get_building_at(coord)
+	var data = INSTANCE.core(self).state.grid.get_building_at(coord)
 	if data.is_empty(): return {}
 	return {
 		"type": data.type,
@@ -240,7 +241,7 @@ func get_utility_balance() -> Dictionary:
 		var power_use: int = _resolve_power_use_for_type(btype)
 		
 		# Get data from Registry or Legacy dict
-		var def = CoreRoot.registry.get_def(btype)
+		var def = INSTANCE.core(self).registry.get_def(btype)
 		if def:
 			capacity_total += def.capacity
 			if not (is_failed and def.category == CATEGORY_UTILITIES):
@@ -268,8 +269,8 @@ func get_utility_balance() -> Dictionary:
 func _get_placed_buildings() -> Array:
 	var list = []
 	var seen_ids = {}
-	for coord in CoreRoot.state.grid.cells:
-		var data = CoreRoot.state.grid.cells[coord]
+	for coord in INSTANCE.core(self).state.grid.cells:
+		var data = INSTANCE.core(self).state.grid.cells[coord]
 		var id = data.get("id", "")
 		if id != "" and not seen_ids.has(id):
 			seen_ids[id] = true
@@ -308,8 +309,8 @@ func _format_metric_line(label: String, used_value: int, provided_value: int) ->
 
 func _collect_placeholder_alerts() -> Array:
 	var alerts: Array = []
-	for key in CoreRoot.state.failures.keys():
-		var entry = CoreRoot.state.failures[key]
+	for key in INSTANCE.core(self).state.failures.keys():
+		var entry = INSTANCE.core(self).state.failures[key]
 		var btype = str(entry.get("type", ""))
 		var coord = entry.get("coord", _coord_from_key_string(str(key)))
 		alerts.append("FAILURE: %s [%d,%d] -> repair minigame" % [get_label(btype), coord.x, coord.y])
@@ -317,19 +318,19 @@ func _collect_placeholder_alerts() -> Array:
 
 
 func has_failed_utility_at(coord: Vector2i) -> bool:
-	return CoreRoot.state.failures.has(_coord_key(coord))
+	return INSTANCE.core(self).state.failures.has(_coord_key(coord))
 
 
 func get_failed_entry_at(coord: Vector2i) -> Dictionary:
 	var key = _coord_key(coord)
-	return CoreRoot.state.failures.get(key, {})
+	return INSTANCE.core(self).state.failures.get(key, {})
 
 
 func add_repair_progress(coord: Vector2i, amount: float) -> Dictionary:
 	var key = _coord_key(coord)
-	var success = CoreRoot.actions.repair_building(coord, amount)
+	var success = INSTANCE.core(self).actions.repair_building(coord, amount)
 	
-	var failure = CoreRoot.state.failures.get(key, {})
+	var failure = INSTANCE.core(self).state.failures.get(key, {})
 	if failure.is_empty() and success:
 		return {"valid": true, "done": true, "progress": 1.0, "type": ""} # Type is lost on erase but usually not needed for UI return here
 	
@@ -350,7 +351,7 @@ func decay_repair_progress(_coord: Vector2i, _amount: float) -> float:
 
 
 func _is_failed_coord(coord: Vector2i) -> bool:
-	return CoreRoot.state.failures.has(_coord_key(coord))
+	return INSTANCE.core(self).state.failures.has(_coord_key(coord))
 
 
 func _coord_key(coord: Vector2i) -> String:
@@ -432,7 +433,7 @@ func _resolve_power_use_for_type(building_type: String) -> int:
 		return 0
 	if normalized == "path" or normalized == "demolish":
 		return 0
-	var def = CoreRoot.registry.get_def(building_type)
+	var def = INSTANCE.core(self).registry.get_def(building_type)
 	if def:
 		var def_power_use: int = maxi(0, int(def.power_use))
 		if def_power_use > 0:
@@ -467,7 +468,7 @@ func get_total_capacity() -> int:
 	var total := 0
 	for entry in _get_placed_buildings():
 		var btype = str(entry.get("type", ""))
-		var def = CoreRoot.registry.get_def(btype)
+		var def = INSTANCE.core(self).registry.get_def(btype)
 		if def:
 			total += def.capacity
 	return total

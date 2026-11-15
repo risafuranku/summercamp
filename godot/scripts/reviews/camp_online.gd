@@ -18,9 +18,9 @@ func _init(main_node: Node) -> void:
 
 ## A party checked out: what they left behind goes to the lost and found.
 func on_guest_state(guest_id: int, _old: String, new_state: String) -> void:
-	if new_state != "departed" or not main._gameplay_started or CoreRoot.get_state() == null or not INSTANCE.coop(main).sim_here():
+	if new_state != "departed" or not main._gameplay_started or INSTANCE.core(main).get_state() == null or not INSTANCE.coop(main).sim_here():
 		return
-	for g in CoreRoot.get_state().guests:
+	for g in INSTANCE.core(main).get_state().guests:
 		if g is Dictionary and int((g as Dictionary).get("id", -1)) == guest_id:
 			var where := ""
 			var where_shown := ""
@@ -43,8 +43,8 @@ func on_guest_state(guest_id: int, _old: String, new_state: String) -> void:
 func settle_bazaar() -> void:
 	var r: Dictionary = main._bazaar.settle(main._day_index)
 	for it in r["sold"]:
-		if CoreRoot.actions != null and int(it["price"]) > 0:
-			CoreRoot.actions.add_money(int(it["price"]))
+		if INSTANCE.core(main).actions != null and int(it["price"]) > 0:
+			INSTANCE.core(main).actions.add_money(int(it["price"]))
 		if main._hud_manager != null:
 			if bool(it.get("uncanny", false)):
 				main._hud_manager.push_status("Bazaar: the red shoe sold for $1. The buyer left no name.", 2)
@@ -67,7 +67,7 @@ func setup_goggle() -> void:
 		main._pending_goggle.clear()
 	elif main._goggle_fresh:
 		main._goggle.reset(main.world_generator.world_seed if main.world_generator != null else 0)
-		var state = CoreRoot.get_state()
+		var state = INSTANCE.core(main).get_state()
 		if state != null:
 			for r in state.guest_reviews:
 				if r is Dictionary:
@@ -79,8 +79,8 @@ func setup_goggle() -> void:
 	elif main._goggle_fresh:
 		main._day_graph.reset()
 	main._goggle_fresh = false
-	if not EventBus.guest_review_posted.is_connected(_on_review):
-		EventBus.guest_review_posted.connect(_on_review)
+	if not INSTANCE.bus(main).guest_review_posted.is_connected(_on_review):
+		INSTANCE.bus(main).guest_review_posted.connect(_on_review)
 
 
 func _on_review(review: Dictionary) -> void:
@@ -114,7 +114,7 @@ func _pop_blueprints(tier: int) -> void:
 	if opened.is_empty():
 		return
 	var price := func(t: String) -> int:
-		var def = CoreRoot.registry.get_def(StringName(t)) if CoreRoot != null and CoreRoot.registry != null else null
+		var def = INSTANCE.core(main).registry.get_def(StringName(t)) if CoreRoot != null and INSTANCE.core(main).registry != null else null
 		return int(def.cost) if def != null and "cost" in def else 0
 	opened.sort_custom(func(a, b): return price.call(a) > price.call(b))
 	var rows: Array = []
@@ -170,8 +170,8 @@ func tick_blueprint_guests(delta: float) -> void:
 ## People staying in the camp now (each party's size; not the ones still at the gate).
 func guests_in_camp() -> int:
 	var n := 0
-	if GuestManager.has_method("get_guest_life_snapshot"):
-		for g in GuestManager.get_guest_life_snapshot():
+	if INSTANCE.guests(main).has_method("get_guest_life_snapshot"):
+		for g in INSTANCE.guests(main).get_guest_life_snapshot():
 			if g is Dictionary and str(g.get("status", "")) in ["active", "sleep"]:
 				n += int(g.get("party_size", 1))
 	return n
@@ -201,13 +201,13 @@ func atlas_hour() -> int:
 ## running from this hour. {ok, cost, reason}.
 func atlas_buy_ad(kind: String, days: int) -> Dictionary:
 	var cost: int = main._goggle.ad_cost(kind, days)
-	if CoreRoot.get_money() < cost:
+	if INSTANCE.core(main).get_money() < cost:
 		return {"ok": false, "reason": "money", "cost": cost}
 	var now := atlas_hour()
 	if not main._goggle.buy_ad(kind, days, now):
 		return {"ok": false, "reason": "no", "cost": cost}
-	CoreRoot.actions.spend_money(cost)
-	CoreRoot.actions.note_camp("ads", cost)
+	INSTANCE.core(main).actions.spend_money(cost)
+	INSTANCE.core(main).actions.note_camp("ads", cost)
 	if INSTANCE.coop(main).is_client():
 		# The host's page runs it (the fee goes with the till).
 		INSTANCE.coop(main).send_request("atlas_ad", [kind, days, now])
@@ -229,9 +229,9 @@ func tick_ads(delta: float) -> void:
 		var what: String = str(main._goggle.ADS[str(a["kind"])]["name"])
 		if main._hud_manager != null:
 			main._hud_manager.push_status("Atlas: your campaign (%s) has ended." % what, 1)
-		if EmailManager != null and EmailManager.has_method("schedule_pool_mail"):
+		if EmailManager != null and INSTANCE.mail(main).has_method("schedule_pool_mail"):
 			var at: int = main._day_index * 1440 + int(main._time_of_day_hours * 60.0) + 10
-			EmailManager.schedule_pool_mail({"day": at / 1440, "time": "%02d:%02d" % [(at % 1440) / 60, at % 60],
+			INSTANCE.mail(main).schedule_pool_mail({"day": at / 1440, "time": "%02d:%02d" % [(at % 1440) / 60, at % 60],
 				"from": "Atlas s.r.o. <reklama@atlas.cz>", "sender": "Atlas s.r.o.", "type": "system",
 				"subject": "Your campaign on Atlas has ended",
 				"body": "Dear customer,\n\nyour campaign %s (%s) has ended.\n\nShown: %d times\nClicked: %d times\nBooking letters while it ran: %d\n\nThank you for advertising on Atlas. Another campaign can be ordered at any time on Atlas, under Advertise.\n\nAtlas s.r.o., advertising\nNa Porici 12, Praha 1" % [
@@ -241,12 +241,12 @@ func tick_ads(delta: float) -> void:
 ## Reviews tab: have a review taken down by the morning. {ok, cost, reason}.
 func goggle_remove(id: int) -> Dictionary:
 	var cost: int = main._goggle.removal_cost()
-	if CoreRoot.get_money() < cost:
+	if INSTANCE.core(main).get_money() < cost:
 		return {"ok": false, "reason": "money", "cost": cost}
 	if INSTANCE.coop(main).is_client():
 		# The host's page; the fee goes with the till.
-		CoreRoot.actions.spend_money(cost)
-		CoreRoot.actions.note_camp("ads", cost)
+		INSTANCE.core(main).actions.spend_money(cost)
+		INSTANCE.core(main).actions.note_camp("ads", cost)
 		var e: Dictionary = main._goggle.by_id(id)
 		if not e.is_empty():
 			e["removing"] = main._day_index
@@ -254,8 +254,8 @@ func goggle_remove(id: int) -> Dictionary:
 		return {"ok": true, "cost": cost}
 	if not main._goggle.request_removal(id, main._day_index):
 		return {"ok": false, "reason": "no", "cost": cost}
-	CoreRoot.actions.spend_money(cost)
-	CoreRoot.actions.note_camp("ads", cost)
+	INSTANCE.core(main).actions.spend_money(cost)
+	INSTANCE.core(main).actions.note_camp("ads", cost)
 	return {"ok": true, "cost": cost}
 
 
@@ -266,22 +266,22 @@ func _record_day_graph(day: int) -> void:
 		return
 	var people := 0
 	var mood := 0.0
-	if GuestManager != null and GuestManager.has_method("get_guest_life_snapshot"):
-		for g in GuestManager.get_guest_life_snapshot():
+	if GuestManager != null and INSTANCE.guests(main).has_method("get_guest_life_snapshot"):
+		for g in INSTANCE.guests(main).get_guest_life_snapshot():
 			if g is Dictionary:
 				people += int(g.get("party_size", 1))
-	if GuestManager != null and GuestManager.has_method("get_camp_mood_summary"):
-		mood = float((GuestManager.get_camp_mood_summary() as Dictionary).get("avg_mood", 0.0))
+	if GuestManager != null and INSTANCE.guests(main).has_method("get_camp_mood_summary"):
+		mood = float((INSTANCE.guests(main).get_camp_mood_summary() as Dictionary).get("avg_mood", 0.0))
 	# The businesses' takings of the day that closed (each site's "yesterday" by now).
 	var takings := {}
-	var st = CoreRoot.get_state()
+	var st = INSTANCE.core(main).get_state()
 	var sites: Dictionary = st.biz.get("sites", {}) if st != null and st.biz is Dictionary else {}
 	for key in sites:
 		var site: Dictionary = sites[key] if sites[key] is Dictionary else {}
 		var kind := str(site.get("kind", ""))
 		if kind != "":
 			takings[kind] = int(takings.get(kind, 0)) + int((site.get("yesterday", {}) as Dictionary).get("takings", 0))
-	main._day_graph.record(day, CoreRoot.get_money(), people, mood, main._goggle.rating(day), takings)
+	main._day_graph.record(day, INSTANCE.core(main).get_money(), people, mood, main._goggle.rating(day), takings)
 
 
 ## The morning: yesterday in a line on the feed (and so in CampStat's Log): what it made,
@@ -308,10 +308,10 @@ func goggle_reply(id: int, kind: String) -> void:
 		return
 	if not main._goggle.reply(id, kind, main._day_index):
 		return
-	if EmailManager != null and EmailManager.has_method("reply_to_review") and int(e["guest_id"]) >= 0:
-		for m in EmailManager.inbox:
+	if EmailManager != null and INSTANCE.mail(main).has_method("reply_to_review") and int(e["guest_id"]) >= 0:
+		for m in INSTANCE.mail(main).inbox:
 			if m is Dictionary and str(m.get("type", "")) == "review" and int((m.get("review", {}) as Dictionary).get("guest_id", -2)) == int(e["guest_id"]):
-				EmailManager.reply_to_review(m, "sorry" if kind == "sorry" else "defend")
+				INSTANCE.mail(main).reply_to_review(m, "sorry" if kind == "sorry" else "defend")
 				break
 
 

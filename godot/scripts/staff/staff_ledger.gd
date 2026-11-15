@@ -13,6 +13,7 @@ extends "res://scripts/closeup/closeup_view.gd"
 ##   DAY     what the hands did today, their wages tonight
 ## The same is on the office PC in Boss 98 (os98/apps/boss_app.gd).
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const RULES := preload("res://core/systems/staff_rules.gd")
 const BRT := preload("res://core/systems/business_rules.gd")
 const BUSINESS := preload("res://scripts/business/business_runtime.gd")
@@ -66,7 +67,7 @@ func _opened() -> void:
 
 
 func _st() -> Dictionary:
-	return CoreRoot.actions.staff_state() if CoreRoot != null and CoreRoot.actions != null else {}
+	return INSTANCE.core(self).actions.staff_state() if CoreRoot != null and INSTANCE.core(self).actions != null else {}
 
 
 func _crew() -> Array:
@@ -84,11 +85,11 @@ func _applicants() -> Array:
 	var taken: Array = []
 	for p in _crew():
 		taken.append(str(p.get("slug", "")))
-	if CoreRoot != null and CoreRoot.get_state() != null:
-		for k in CoreRoot.get_state().biz.get("sites", {}):
-			for p in CoreRoot.get_state().biz["sites"][k].get("crew", []):
+	if CoreRoot != null and INSTANCE.core(self).get_state() != null:
+		for k in INSTANCE.core(self).get_state().biz.get("sites", {}):
+			for p in INSTANCE.core(self).get_state().biz["sites"][k].get("crew", []):
 				taken.append(str(p.get("slug", "")))
-	return RULES.applicants(CoreRoot.get_day(), taken, BUSINESS.camp_seed())
+	return RULES.applicants(INSTANCE.core(self).get_day(), taken, BUSINESS.camp_seed())
 
 
 ## Where a hand is now, in a word (staff_runtime's act).
@@ -185,7 +186,7 @@ func _clicked(id: String) -> void:
 		if p.is_empty():
 			return
 		var on := not RULES.does(p, job)
-		CoreRoot.actions.staff_set_job(_picked, job, on)
+		INSTANCE.core(self).actions.staff_set_job(_picked, job, on)
 		play(SFX_PAGE, -14.0)
 		return
 	if id.begins_with("card:"):
@@ -198,7 +199,7 @@ func _clicked(id: String) -> void:
 			var p2 := _who(_picked)
 			if p2.is_empty():
 				return
-			CoreRoot.actions.staff_fire(_picked)
+			INSTANCE.core(self).actions.staff_fire(_picked)
 			_stamp(tr("PAID OFF"))
 			var lines := ["Suit yourself.", "And who sweeps up now? You?", "I'll leave the key on the boiler."]
 			say(tr(str(p2.get("name", ""))), tr(str(lines[absi(hash(_picked)) % lines.size()])))
@@ -214,7 +215,7 @@ func _clicked(id: String) -> void:
 			if not RULES.can_hire(_st()):
 				say("", tr("No locker free. One locker, one hand: buy one on the LOCKERS page."))
 				return
-			if CoreRoot.actions.staff_hire(who, CoreRoot.get_day() + 1):
+			if INSTANCE.core(self).actions.staff_hire(who, INSTANCE.core(self).get_day() + 1):
 				_stamp(tr("HIRED"))
 				_picked = str(who["slug"])
 				var lines := ["Tomorrow at seven, then.", "Where's my locker?", "I bring my own broom.", "Cash on Fridays."]
@@ -225,7 +226,7 @@ func _clicked(id: String) -> void:
 				say(tr(str(who["name"])), tr(str(lines[absi(hash(str(who["slug"]))) % lines.size()])))
 		"buy":
 			var g: Dictionary = RULES.GEAR.get(_gear_pick, {})
-			if CoreRoot.actions.staff_buy_gear(_gear_pick):
+			if INSTANCE.core(self).actions.staff_buy_gear(_gear_pick):
 				_stamp(tr("BOUGHT"))
 				say("", LANG.f("%s. It is in.", tr(str(g.get("label", "")))))
 			else:
@@ -325,7 +326,7 @@ func _paint(c: Control) -> void:
 		if hovered() == "tab:" + PAGES[i]:
 			c.draw_rect(rr, Color(1, 0.9, 0.5, 0.18))
 	_text(c, LEFT.position + Vector2(0, 8), tr("STAFFROOM"), INK, 10, RETRO_UI.FONT_BIG)
-	_right(c, LEFT.end.x, LEFT.position.y + 8, LANG.f("Day %d", CoreRoot.get_day()), PENCIL)
+	_right(c, LEFT.end.x, LEFT.position.y + 8, LANG.f("Day %d", INSTANCE.core(self).get_day()), PENCIL)
 	match _page:
 		"staff":
 			_paint_staff(c)
@@ -450,7 +451,7 @@ func _paint_room(c: Control) -> void:
 func _paint_day(c: Control) -> void:
 	var st := _st()
 	_text(c, LEFT.position + Vector2(0, 21), tr("Done today"), PENCIL)
-	var day := CoreRoot.get_day()
+	var day = INSTANCE.core(self).get_day()
 	var y := TOP
 	var lines: Array = []
 	for e in st.get("log", []):

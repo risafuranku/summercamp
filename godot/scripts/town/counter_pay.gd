@@ -13,6 +13,7 @@ extends "res://scripts/closeup/closeup_view.gd"
 ## Nothing is said about any of this on the screen: a wallet, a mat, a sum on a till.
 
 ## She has taken the money: spend it now (counter_shop.gd).
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal paid
 
 const GOODS = preload("res://scripts/town/counter_goods.gd")
@@ -110,7 +111,7 @@ func open_pay(lines: Dictionary, total: int, ids: Array, line: String) -> void:
 
 func _fill_wallet() -> void:
 	_pieces.clear()
-	var have: Dictionary = GOODS.wallet(CoreRoot.get_money())
+	var have: Dictionary = GOODS.wallet(INSTANCE.core(self).get_money())
 	for v in [5, 10, 20, 50]:
 		for i in int(have.get(v, 0)):
 			_pieces.append(_piece(int(v), PILES[v] + PILE_STEP * float(i)))

@@ -276,7 +276,7 @@ func open_repair(coord: Vector2i, building_type: String, _label_text: String = "
 	_coord = coord
 	_building_type = building_type
 	var since_day := 1
-	var state = CoreRoot.get_state() if CoreRoot != null else null
+	var state = INSTANCE.core(self).get_state() if CoreRoot != null else null
 	if state != null:
 		since_day = int((state.failures.get("%d:%d" % [coord.x, coord.y], {}) as Dictionary).get("since_day", state.day))
 		explore = not state.failures.has("%d:%d" % [coord.x, coord.y])
@@ -290,7 +290,7 @@ func open_repair(coord: Vector2i, building_type: String, _label_text: String = "
 	_since_day = since_day
 	_backing = false
 	_rng.seed = hash("%d:%d:%d" % [coord.x, coord.y, since_day])
-	_night = CoreRoot != null and CoreRoot.is_night()
+	_night = CoreRoot != null and INSTANCE.core(self).is_night()
 	_visit = _next_visit()
 	night_pressure = _read_night_pressure()
 	raccoon_level = debug_level if debug_level > 0 else DIRECTOR.mischief_level(night_pressure, _night, _visit)
@@ -1939,7 +1939,7 @@ func _mark_fixed(i: int) -> void:
 ## {links, entry, leaks [[a, b, fixed]], explore, level}.
 func preview_network(coord: Vector2i) -> Dictionary:
 	if not _active:
-		var state = CoreRoot.get_state() if CoreRoot != null else null
+		var state = INSTANCE.core(self).get_state() if CoreRoot != null else null
 		var key := "%d:%d" % [coord.x, coord.y]
 		var since_day := int(state.day) if state != null else 1
 		var broken := false
@@ -1952,7 +1952,7 @@ func preview_network(coord: Vector2i) -> Dictionary:
 		if not other.is_empty():
 			since_day = int(other.get("sd", since_day))
 		_rng.seed = hash("%d:%d:%d" % [coord.x, coord.y, since_day])
-		var night := CoreRoot != null and CoreRoot.is_night()
+		var night = CoreRoot != null and INSTANCE.core(self).is_night()
 		var office = get_parent().get("camp_office") if get_parent() != null else null
 		var visit := int(office.get("pipe_visits")) + 1 if office != null else 3
 		raccoon_level = debug_level if debug_level > 0 else DIRECTOR.mischief_level(_read_night_pressure(), night, visit)

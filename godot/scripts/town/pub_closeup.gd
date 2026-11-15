@@ -8,6 +8,7 @@ extends "res://scripts/closeup/closeup_view.gd"
 ##   - Mr Kubat: talk.
 ## Open 10:00-23:00.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal drank
 
 const PIC := "res://assets/textury/town/closeup_pub.png"
@@ -91,7 +92,7 @@ func _clicked(id: String) -> void:
 			if _mug > 0:
 				say("Mr Kubat", "Finish that one first.")
 				return
-			if CoreRoot.get_money() < 1 or not CoreRoot.actions.spend_money(1):
+			if INSTANCE.core(self).get_money() < 1 or not INSTANCE.core(self).actions.spend_money(1):
 				say("Mr Kubat", "A dollar. I do not run a tab for the camp. Not any more.")
 				return
 			play(SFX_PUB + "tap_pour.mp3", -4.0)
@@ -117,7 +118,7 @@ func _clicked(id: String) -> void:
 func _spin() -> void:
 	if _spin_t >= 0.0:
 		return
-	if CoreRoot.get_money() < 1 or not CoreRoot.actions.spend_money(1):
+	if INSTANCE.core(self).get_money() < 1 or not INSTANCE.core(self).actions.spend_money(1):
 		say("", "The machine wants a dollar.")
 		return
 	play(SFX_COIN, -6.0)
@@ -154,7 +155,7 @@ func _pay() -> void:
 		win = 1
 	_won = win
 	if win > 0:
-		CoreRoot.actions.add_money(win)
+		INSTANCE.core(self).actions.add_money(win)
 		play(SFX_PUB + "coins_bar.mp3", -2.0)
 		say("", "The machine rattles out %d dollar%s." % [win, "" if win == 1 else "s"])
 	else:

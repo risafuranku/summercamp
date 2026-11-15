@@ -81,8 +81,8 @@ func build(gate_world: Vector3, fence_z_world: float, texture_style) -> void:
 	_build_bins()
 	_build_player_block()
 	# The barrier goes up for a party when it arrives (they walk in to the reception).
-	if EventBus.has_signal("guest_at_gate"):
-		EventBus.guest_at_gate.connect(_on_guest_at_gate_row)
+	if INSTANCE.bus(self).has_signal("guest_at_gate"):
+		INSTANCE.bus(self).guest_at_gate.connect(_on_guest_at_gate_row)
 
 
 ## Where the i-th waiting party stands: at the reception's door, in a line down the side of

@@ -132,7 +132,7 @@ func _refill() -> void:
 	if n <= 0:
 		say("", "No tins left.")
 		return
-	if CoreRoot != null and CoreRoot.actions != null and not CoreRoot.actions.biz_take(building_key, {"soup": n}):
+	if CoreRoot != null and INSTANCE.core(self).actions != null and not INSTANCE.core(self).actions.biz_take(building_key, {"soup": n}):
 		return
 	kitchen.act(building_key, "soup", [{"level": mini(RULES.SOUP_CAP, int(soup["level"]) + n)}])
 	sfx("pour", -8.0)

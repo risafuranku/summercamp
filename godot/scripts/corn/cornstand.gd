@@ -229,8 +229,8 @@ func serve(key: String, t: Dictionary, cook: float, butter: float, salt: int, by
 	ORDERS.mood(int(t["guest_id"]), float(r["mood"]) + (BUSINESS.hand_mood(key, "counter") if by_hand else 0.0), thought)
 	ORDERS.note_meal(int(t["guest_id"]), thought, pts)
 	act(key, "served", [str(t["id"]), {"at": now_min(), "stars": int(v["stars"]), "amount": amount}])
-	if CoreRoot != null and CoreRoot.actions != null and CoreRoot.actions.has_method("biz_score"):
-		CoreRoot.actions.biz_score(key, {"score": pts, "tip": int(v["tip"]), "what": "Corn", "who": str(t.get("name", "")), "hand": by_hand})
+	if CoreRoot != null and INSTANCE.core(self).actions != null and INSTANCE.core(self).actions.has_method("biz_score"):
+		INSTANCE.core(self).actions.biz_score(key, {"score": pts, "tip": int(v["tip"]), "what": "Corn", "who": str(t.get("name", "")), "hand": by_hand})
 	return v
 
 
@@ -256,8 +256,8 @@ func serve_drink(key: String, t: Dictionary, made: String, fill: float, tied: bo
 	ORDERS.note_served({"id": int(t["guest_id"]), "visit": str(t["visit"])})
 	ORDERS.mood(int(t["guest_id"]), float(r["mood"]) * 0.5 + (BUSINESS.hand_mood(key, "drinks") if by_hand else 0.0), "")
 	act(key, "served", [str(t["id"]), {"at": now_min(), "stars": int(v["stars"]), "amount": amount}])
-	if CoreRoot != null and CoreRoot.actions != null and CoreRoot.actions.has_method("biz_score"):
-		CoreRoot.actions.biz_score(key, {"score": pts, "tip": int(v["tip"]), "what": str(RULES.DRINKS[made]["label"]), "who": str(t.get("name", "")), "hand": by_hand})
+	if CoreRoot != null and INSTANCE.core(self).actions != null and INSTANCE.core(self).actions.has_method("biz_score"):
+		INSTANCE.core(self).actions.biz_score(key, {"score": pts, "tip": int(v["tip"]), "what": str(RULES.DRINKS[made]["label"]), "who": str(t.get("name", "")), "hand": by_hand})
 	return v
 
 
@@ -276,7 +276,7 @@ func _thought(v: Dictionary) -> String:
 func _process(delta: float) -> void:
 	if get_tree().paused:
 		return
-	var st = CoreRoot.get_state() if CoreRoot != null else null
+	var st = INSTANCE.core(self).get_state() if CoreRoot != null else null
 	# The state object may stay the same from camp to camp: the books' stamp does not
 	# (actions._biz).
 	var sid: int = (st.get_instance_id() + int((st.biz as Dictionary).get("stamp", 0))) if st != null and st.biz is Dictionary else 0
@@ -317,9 +317,9 @@ func _process(delta: float) -> void:
 
 func _stand_sites() -> Array:
 	var out: Array = []
-	if CoreRoot == null or CoreRoot.get_state() == null:
+	if CoreRoot == null or INSTANCE.core(self).get_state() == null:
 		return out
-	var sites: Dictionary = CoreRoot.get_state().biz.get("sites", {})
+	var sites: Dictionary = INSTANCE.core(self).get_state().biz.get("sites", {})
 	for key in sites:
 		if str((sites[key] as Dictionary).get("kind", "")) == "corn":
 			out.append(str(key))
@@ -328,10 +328,10 @@ func _stand_sites() -> Array:
 
 ## The pot and the bowl into the books (they are saved with the camp).
 func _save(key: String) -> void:
-	if CoreRoot == null or CoreRoot.actions == null or not CoreRoot.actions.has_method("biz_keep"):
+	if CoreRoot == null or INSTANCE.core(self).actions == null or not INSTANCE.core(self).actions.has_method("biz_keep"):
 		return
 	var s := site(key)
-	CoreRoot.actions.biz_keep(key, "corn", {"pot": s["pot"], "bowl": int(s["bowl"])})
+	INSTANCE.core(self).actions.biz_keep(key, "corn", {"pot": s["pot"], "bowl": int(s["bowl"])})
 
 
 ## The hands at the stand (DESIGN.md §7b, the hands), one piece of work at a time as their
@@ -440,7 +440,7 @@ func _crew_husk(key: String, slip: bool) -> bool:
 	var n := mini(HUSK_AT_ONCE, mini(8 - bowl(key), BUSINESS.stock_of(key, "cobs")))
 	if n <= 0:
 		return false
-	if CoreRoot == null or CoreRoot.actions == null or not CoreRoot.actions.biz_take(key, {"cobs": n}):
+	if CoreRoot == null or INSTANCE.core(self).actions == null or not INSTANCE.core(self).actions.biz_take(key, {"cobs": n}):
 		return false
 	if slip and _rng.randf() < 0.3:
 		# One dropped in the dirt.

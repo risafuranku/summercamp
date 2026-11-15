@@ -96,8 +96,8 @@ func coop_room() -> Dictionary:
 func open_for(key: String, structure: Node3D) -> void:
 	building_key = key
 	_structure = structure
-	if CoreRoot != null and CoreRoot.actions != null and key != "":
-		CoreRoot.actions.biz_site(key, "corn_stand")
+	if CoreRoot != null and INSTANCE.core(self).actions != null and key != "":
+		INSTANCE.core(self).actions.biz_site(key, "corn_stand")
 	var life := structure.get_node_or_null("Use")
 	if life != null and life.has_method("make_stations"):
 		_stations = life.call("make_stations", key)

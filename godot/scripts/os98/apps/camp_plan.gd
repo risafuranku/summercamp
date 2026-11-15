@@ -85,7 +85,7 @@ func rebuild() -> void:
 	if grid_manager == null:
 		queue_redraw()
 		return
-	var st = CoreRoot.get_state() if CoreRoot != null else null
+	var st = INSTANCE.core(self).get_state() if CoreRoot != null else null
 	if st != null and st.grid != null:
 		for c in st.grid.tile_types:
 			if int(st.grid.tile_types[c]) == int(grid_manager.TILE_LAKE):
@@ -111,14 +111,14 @@ func rebuild() -> void:
 				continue
 			var og: Vector2i = root.get_meta("grid_origin", Vector2i(x, y))
 			var key := "%d:%d" % [og.x, og.y]
-			var rs: Dictionary = GuestManager.get_room_state(key) if GuestManager != null else {}
+			var rs: Dictionary = INSTANCE.guests(self).get_room_state(key) if GuestManager != null else {}
 			var row := {"type": t, "origin": og, "footprint": root.get_meta("grid_footprint", Vector2i.ONE),
 				"col": SERVICE, "label": str(SHORT.get(t, "")), "lodging": not rs.is_empty(), "broken": bool((wear.get(og, {}) as Dictionary).get("broken", false)),
 				"condition": float((wear.get(og, {}) as Dictionary).get("condition", -1.0)), "room": rs}
 			if not rs.is_empty():
 				var s := str(rs.get("status", ""))
 				row["col"] = TAKEN if bool(rs.get("occupied", false)) else ({"ready": READY, "dirty": DIRTY}.get(s, UNMADE) as Color)
-				row["label"] = GuestManager.room_short(key)
+				row["label"] = INSTANCE.guests(self).room_short(key)
 			buildings.append(row)
 	_view = _bounds()
 	queue_redraw()

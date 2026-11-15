@@ -9,6 +9,7 @@ extends "res://core/systems/system_base.gd"
 ## main menu too, breaking the preview camp, and it rolled a flat 5% even on buildings
 ## in perfect condition, so neglect and bad luck were indistinguishable.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const RULES = preload("res://core/systems/maintenance_rules.gd")
 const ROLL_EVERY_MINUTES := 60.0
 
@@ -56,5 +57,5 @@ func _trigger_failure(key: String, type: String, coord: Vector2i) -> void:
 		"since_day": game_state.day,
 		"repair_progress": 0.0,
 	}
-	EventBus.state_changed.emit({"failures": "new_failure"})
-	EventBus.building_failed.emit(coord, type)
+	INSTANCE.bus(owner_node).state_changed.emit({"failures": "new_failure"})
+	INSTANCE.bus(owner_node).building_failed.emit(coord, type)

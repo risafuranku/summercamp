@@ -326,18 +326,18 @@ func setup(
 func _bind_guest_visual_event_handlers() -> void:
 	if EventBus == null:
 		return
-	if EventBus.has_signal("guest_created"):
+	if INSTANCE.bus(self).has_signal("guest_created"):
 		var created_cb := Callable(self, "_on_guest_roster_changed")
-		if not EventBus.guest_created.is_connected(created_cb):
-			EventBus.guest_created.connect(created_cb)
-	if EventBus.has_signal("guest_state_changed"):
+		if not INSTANCE.bus(self).guest_created.is_connected(created_cb):
+			INSTANCE.bus(self).guest_created.connect(created_cb)
+	if INSTANCE.bus(self).has_signal("guest_state_changed"):
 		var state_cb := Callable(self, "_on_guest_state_transition")
-		if not EventBus.guest_state_changed.is_connected(state_cb):
-			EventBus.guest_state_changed.connect(state_cb)
-	if EventBus.has_signal("accommodation_state_changed"):
+		if not INSTANCE.bus(self).guest_state_changed.is_connected(state_cb):
+			INSTANCE.bus(self).guest_state_changed.connect(state_cb)
+	if INSTANCE.bus(self).has_signal("accommodation_state_changed"):
 		var acc_cb := Callable(self, "_on_accommodation_changed")
-		if not EventBus.accommodation_state_changed.is_connected(acc_cb):
-			EventBus.accommodation_state_changed.connect(acc_cb)
+		if not INSTANCE.bus(self).accommodation_state_changed.is_connected(acc_cb):
+			INSTANCE.bus(self).accommodation_state_changed.connect(acc_cb)
 
 
 func _on_guest_roster_changed(_guest: Dictionary) -> void:
@@ -388,12 +388,12 @@ func _room_guests_now(room: Node, structure: Node) -> Array:
 func _guest_visuals_for_structure(structure: Node) -> Array:
 	if structure == null or not is_instance_valid(structure):
 		return []
-	if GuestManager == null or not GuestManager.has_method("get_accommodation_guest_visuals_by_coord"):
+	if GuestManager == null or not INSTANCE.guests(self).has_method("get_accommodation_guest_visuals_by_coord"):
 		return []
 	var coord_any = structure.get_meta("grid_origin", null)
 	if not (coord_any is Vector2i):
 		return []
-	var visuals_any = GuestManager.get_accommodation_guest_visuals_by_coord(coord_any as Vector2i)
+	var visuals_any = INSTANCE.guests(self).get_accommodation_guest_visuals_by_coord(coord_any as Vector2i)
 	return visuals_any if visuals_any is Array else []
 
 
@@ -706,7 +706,7 @@ func get_hint_for_structure(structure: Node3D) -> String:
 	var hint := _hint_for_building_type(building_type)
 	# The toilets and showers get dirty with use and are cleaned inside.
 	if MAINT_RULES.soils(building_type) and not hint.is_empty():
-		var state = CoreRoot.get_state()
+		var state = INSTANCE.core(self).get_state()
 		var origin: Vector2i = structure.get_meta("grid_origin", Vector2i(-999, -999))
 		var cell: Dictionary = state.grid.cells.get(origin, {}) if state != null and state.grid != null else {}
 		var condition := float(cell.get("maintenance", 1.0))
@@ -1471,7 +1471,7 @@ func _refuse_if_occupied(structure: Node3D, kind: String) -> bool:
 	var key := _room_key_for(structure)
 	if key.is_empty() or GuestManager == null:
 		return false
-	if not bool(GuestManager.get_room_state(key).get("occupied", false)):
+	if not bool(INSTANCE.guests(self).get_room_state(key).get("occupied", false)):
 		return false
 	var knock := AudioStreamPlayer3D.new()
 	knock.stream = load(KNOCK_SFX)
@@ -1496,18 +1496,18 @@ func _push_room_state(interior: Object, structure: Node3D) -> void:
 	var key := _room_key_for(structure)
 	if interior == null or key.is_empty() or not interior.has_method("set_room"):
 		return
-	interior.set_room(GuestManager.get_room_state(key))
+	interior.set_room(INSTANCE.guests(self).get_room_state(key))
 
 
 func _on_room_task_completed(interior: Object, structure: Node3D, task_id: String) -> void:
 	var key := _room_key_for(structure)
 	if key.is_empty():
 		return
-	var was_ready := str(GuestManager.get_room_state(key).get("status", "")) == "ready"
-	GuestManager.complete_room_task(key, task_id)
+	var was_ready := str(INSTANCE.guests(self).get_room_state(key).get("status", "")) == "ready"
+	INSTANCE.guests(self).complete_room_task(key, task_id)
 	# Co-op: done here at once, and for real in the host's camp (which sends it back).
 	INSTANCE.coop(self).send_room_task(key, task_id)
-	var room: Dictionary = GuestManager.get_room_state(key)
+	var room: Dictionary = INSTANCE.guests(self).get_room_state(key)
 	interior.set_room(room)
 	if not was_ready and str(room.get("status", "")) == "ready" and interior.has_method("play_room_ready"):
 		interior.play_room_ready()
@@ -1587,7 +1587,7 @@ func _on_service_interact(service_node: Node) -> void:
 	call_deferred("_restore_curtains")
 	if _service_interior.has_method("set_sewer_broken"):
 		var origin: Vector2i = structure.get_meta("grid_origin", Vector2i(-999, -999))
-		var state = CoreRoot.get_state() if CoreRoot != null else null
+		var state = INSTANCE.core(self).get_state() if CoreRoot != null else null
 		_service_interior.set_sewer_broken(state != null and state.failures.has("%d:%d" % [origin.x, origin.y]))
 	if not on_foot and _audio_manager != null and _audio_manager.has_method("play_door_open"):
 		_audio_manager.play_door_open()
@@ -1914,7 +1914,7 @@ func _on_upgrade_confirmed() -> void:
 		if _building_upgrade_menu != null:
 			_building_upgrade_menu.close_menu()
 		return
-	CoreRoot.actions.note_camp("invest", int(cost))
+	INSTANCE.core(self).actions.note_camp("invest", int(cost))
 
 	if mode == "replace":
 		var origin = _pending_upgrade_context.get("origin", Vector2i.ZERO)
@@ -1977,7 +1977,7 @@ func map_upgrade(origin: Vector2i, current_type: String) -> bool:
 		return true
 	if not _economy_manager.has_method("spend_money") or not _economy_manager.spend_money(int(offer["cost"])):
 		return false
-	CoreRoot.actions.note_camp("invest", int(offer["cost"]))
+	INSTANCE.core(self).actions.note_camp("invest", int(offer["cost"]))
 	# The replace points the open room at the new building; from the map no room is
 	# open on it, so whatever was open stays as it was.
 	var keep := [_active_tent_node, _active_cabin_node, _active_caravan_node]
@@ -1995,7 +1995,7 @@ func coop_upgrade(ctx: Dictionary) -> void:
 	var cost := int(ctx.get("cost", 0))
 	if not _economy_manager.spend_money(cost):
 		return
-	CoreRoot.actions.note_camp("invest", cost)
+	INSTANCE.core(self).actions.note_camp("invest", cost)
 	match str(ctx.get("mode", "")):
 		"replace":
 			_handle_replace_upgrade(ctx.get("origin", Vector2i.ZERO), str(ctx.get("old_type", "")), str(ctx.get("new_type", "")), cost)
@@ -2031,8 +2031,8 @@ func _handle_replace_upgrade(origin: Vector2i, old_type: String, new_type: Strin
 		return
 
 	# The core grid is what guests, rooms and saves read: it must know the new type.
-	if CoreRoot != null and CoreRoot.actions != null:
-		CoreRoot.actions.retype_building(origin, new_type)
+	if CoreRoot != null and INSTANCE.core(self).actions != null:
+		INSTANCE.core(self).actions.retype_building(origin, new_type)
 	# Co-op: the other warden's camp gets the same upgrade.
 	INSTANCE.coop(self).send_fact("upgrade", [origin, old_type, new_type])
 	var removed_registered = _economy_manager.unregister_building_at(origin, old_type)
@@ -2171,7 +2171,7 @@ func _tent_zip_under() -> Node3D:
 	if best == null:
 		return null
 	var key := _room_key_for(resolve_interactable_structure(best))
-	if key == "" or bool(GuestManager.get_room_state(key).get("occupied", false)):
+	if key == "" or bool(INSTANCE.guests(self).get_room_state(key).get("occupied", false)):
 		return null
 	return best
 
@@ -2239,7 +2239,7 @@ func _tick_tent_doors(delta: float) -> void:
 		return
 	_tent_doors_t = 1.0
 	for key in tent_doors.keys():
-		if GuestManager != null and bool(GuestManager.get_room_state(str(key)).get("occupied", false)) \
+		if GuestManager != null and bool(INSTANCE.guests(self).get_room_state(str(key)).get("occupied", false)) \
 				and not (_tent_interior != null and _tent_interior.is_open() and _room_key_for(_active_tent_node) == str(key)):
 			set_tent_door(str(key), false)
 		else:

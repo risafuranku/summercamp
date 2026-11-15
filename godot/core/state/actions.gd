@@ -4,10 +4,13 @@ extends RefCounted
 ## Validates and executes actions that modify game state.
 ## Acts as a command pattern / transaction script.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const BALANCE_CONFIG = preload("res://core/balance/balance_config.gd")
 
 var _state
 var _registry
+## The CoreRoot that made it: its instance's events and guests (scripts/instance/instance.gd).
+var owner_node: Node
 var _warned_legacy_end_day: bool = false
 # Cached because _get_building_cost() runs once per cell during demolish previews;
 # an uncached find_child(recursive) there walks the whole scene tree per building.
@@ -46,8 +49,8 @@ func place_building(building_id: String, origin: Vector2i, footprint: Vector2i =
 	
 	# 4. Notify
 	# EventBus should be global
-	EventBus.building_placed.emit(building_id, origin, footprint, rotation)
-	EventBus.money_changed.emit(_state.money)
+	INSTANCE.bus(owner_node).building_placed.emit(building_id, origin, footprint, rotation)
+	INSTANCE.bus(owner_node).money_changed.emit(_state.money)
 	
 	return true
 
@@ -105,8 +108,8 @@ func remove_building(cell: Vector2i) -> bool:
 	_state.money += refund
 	
 	# Notify
-	EventBus.building_removed.emit(root)
-	EventBus.money_changed.emit(_state.money)
+	INSTANCE.bus(owner_node).building_removed.emit(root)
+	INSTANCE.bus(owner_node).money_changed.emit(_state.money)
 	
 	return true
 
@@ -144,8 +147,8 @@ func maintenance_shift(amount: float) -> bool:
 			data["maintenance"] = min(1.0, current + amount)
 			_state.grid.cells[coord] = data
 			
-	EventBus.state_changed.emit({"maintenance" : "shifted"})
-	EventBus.money_changed.emit(_state.money)
+	INSTANCE.bus(owner_node).state_changed.emit({"maintenance" : "shifted"})
+	INSTANCE.bus(owner_node).money_changed.emit(_state.money)
 	
 	return true
 
@@ -174,13 +177,13 @@ func spend_money(amount: int) -> bool:
 	if _state.money < amount:
 		return false
 	_state.money -= amount
-	EventBus.money_changed.emit(_state.money)
+	INSTANCE.bus(owner_node).money_changed.emit(_state.money)
 	return true
 
 
 func add_money(amount: int) -> void:
 	_state.money += amount
-	EventBus.money_changed.emit(_state.money)
+	INSTANCE.bus(owner_node).money_changed.emit(_state.money)
 
 
 # ── the businesses (core/systems/business_rules.gd) ──────────────────────────
@@ -288,7 +291,7 @@ func biz_set_rack(store: String, i: int, site_key: String) -> void:
 	stores[store] = st
 	b["stores"] = stores
 	_count_store_racks()
-	EventBus.state_changed.emit({"biz": "racks"})
+	INSTANCE.bus(owner_node).state_changed.emit({"biz": "racks"})
 	_biz_tell("rack", [store, i, site_key])
 
 
@@ -330,7 +333,7 @@ func _count_store_racks() -> void:
 ## camp's record for whoever asks after them.
 func note_lost_guest(guest: Dictionary, day: int) -> void:
 	_state.lost_guests.append({"name": str(guest.get("name", "")), "day": day, "archetype": str(guest.get("archetype", "")), "party": int(guest.get("party_size", 1))})
-	EventBus.state_changed.emit({"lost_guests": _state.lost_guests.size()})
+	INSTANCE.bus(owner_node).state_changed.emit({"lost_guests": _state.lost_guests.size()})
 
 
 func biz_prune(live_keys: Array) -> void:
@@ -447,7 +450,7 @@ func biz_order(key: String, order: Dictionary, due_day: int) -> bool:
 		return false
 	site["today"]["van"] = int(site["today"].get("van", 0)) + fee_one
 	_biz()["orders"].append({"key": key, "goods": clean, "cost": cost, "due_day": due_day})
-	EventBus.state_changed.emit({"biz": "ordered"})
+	INSTANCE.bus(owner_node).state_changed.emit({"biz": "ordered"})
 	_biz_tell("order", [key, clean, cost, due_day])
 	return true
 
@@ -484,7 +487,7 @@ func biz_order_all(orders: Dictionary, due_day: int) -> bool:
 	for l in lines:
 		_biz()["orders"].append({"key": str(l[0]), "goods": l[1], "cost": int(l[2]), "due_day": due_day})
 		_biz_tell("order", [str(l[0]), l[1], int(l[2]), due_day])
-	EventBus.state_changed.emit({"biz": "ordered"})
+	INSTANCE.bus(owner_node).state_changed.emit({"biz": "ordered"})
 	return true
 
 
@@ -499,7 +502,7 @@ func biz_add_order(key: String, goods: Dictionary, cost: int, due_day: int) -> v
 	var fee := cost - BIZ_RULES.goods_cost(str(site["kind"]), goods)
 	if fee > 0:
 		site["today"]["van"] = int(site["today"].get("van", 0)) + fee
-	EventBus.state_changed.emit({"biz": "ordered"})
+	INSTANCE.bus(owner_node).state_changed.emit({"biz": "ordered"})
 
 
 ## The van is unloaded: every order due by `day` goes on its shelves, a lot dated today.
@@ -531,7 +534,7 @@ func biz_receive(day: int) -> int:
 		n += 1
 	b["orders"] = keep
 	if n > 0:
-		EventBus.state_changed.emit({"biz": "delivered"})
+		INSTANCE.bus(owner_node).state_changed.emit({"biz": "delivered"})
 	return n
 
 
@@ -553,7 +556,7 @@ func biz_gift(key: String, goods: Dictionary) -> void:
 		var lots: Array = site["lots"].get(g, [])
 		lots.append([after - before, day])
 		site["lots"][g] = lots
-	EventBus.state_changed.emit({"biz": "gift"})
+	INSTANCE.bus(owner_node).state_changed.emit({"biz": "gift"})
 	_biz_tell("gift", [key, goods])
 
 
@@ -583,7 +586,7 @@ func biz_waste(key: String, goods: Dictionary) -> int:
 		return 0
 	site["today"]["waste"] = int(site["today"].get("waste", 0)) + n
 	site["shift"]["waste"] = int(site["shift"].get("waste", 0)) + n
-	EventBus.state_changed.emit({"biz": "binned"})
+	INSTANCE.bus(owner_node).state_changed.emit({"biz": "binned"})
 	_biz_tell("waste", [key, goods])
 	return n
 
@@ -608,7 +611,7 @@ func biz_buy_gear(key: String, id: String) -> bool:
 	site["total"] = tot
 	note_camp("invest", int(g["price"]))
 	site["gear"].append(id)
-	EventBus.state_changed.emit({"biz": "gear"})
+	INSTANCE.bus(owner_node).state_changed.emit({"biz": "gear"})
 	_biz_tell("gear", [key, id])
 	return true
 
@@ -621,7 +624,7 @@ func biz_add_gear(key: String, id: String) -> void:
 	_biz_upgrade(site)
 	if not (site["gear"] as Array).has(id):
 		site["gear"].append(id)
-		EventBus.state_changed.emit({"biz": "gear"})
+		INSTANCE.bus(owner_node).state_changed.emit({"biz": "gear"})
 
 
 ## Takes a person on (one of the day's applicants: BusinessRules.person) for a job and a
@@ -641,7 +644,7 @@ func biz_hire(key: String, person: Dictionary, day: int) -> bool:
 	if not p2.has("shift"):
 		p2["shift"] = "day"
 	site["crew"].append(p2)
-	EventBus.state_changed.emit({"biz": "hired"})
+	INSTANCE.bus(owner_node).state_changed.emit({"biz": "hired"})
 	_biz_tell("hire", [key, p2, day])
 	return true
 
@@ -668,7 +671,7 @@ func biz_fire(key: String, slug := "") -> void:
 		if slug == "" or str(crew[i].get("slug", "")) == slug:
 			crew.remove_at(i)
 			break
-	EventBus.state_changed.emit({"biz": "fired"})
+	INSTANCE.bus(owner_node).state_changed.emit({"biz": "fired"})
 	_biz_tell("fire", [key, slug])
 
 
@@ -682,7 +685,7 @@ func biz_set_job(key: String, slug: String, role: String, shift: String) -> void
 		if str(p.get("slug", "")) == slug:
 			p["role"] = role
 			p["shift"] = shift
-	EventBus.state_changed.emit({"biz": "job"})
+	INSTANCE.bus(owner_node).state_changed.emit({"biz": "job"})
 	_biz_tell("job", [key, slug, role, shift])
 
 
@@ -704,7 +707,7 @@ func biz_set_late(key: String, on: bool) -> void:
 	if site.is_empty():
 		return
 	site["late"] = on
-	EventBus.state_changed.emit({"biz": "late"})
+	INSTANCE.bus(owner_node).state_changed.emit({"biz": "late"})
 	_biz_tell("late", [key, on])
 
 
@@ -714,7 +717,7 @@ func biz_set_auto(key: String, on: bool) -> void:
 	if site.is_empty():
 		return
 	site["auto_order"] = on
-	EventBus.state_changed.emit({"biz": "auto"})
+	INSTANCE.bus(owner_node).state_changed.emit({"biz": "auto"})
 	_biz_tell("auto", [key, on])
 
 
@@ -729,7 +732,7 @@ func biz_set_menu(key: String, item: String, on: bool) -> void:
 	if not on:
 		off.append(item)
 	site["menu_off"] = off
-	EventBus.state_changed.emit({"biz": "menu"})
+	INSTANCE.bus(owner_node).state_changed.emit({"biz": "menu"})
 	_biz_tell("menu", [key, item, on])
 
 
@@ -799,7 +802,7 @@ func biz_short(key: String, money: int, good := "", n := 0) -> void:
 	if money > 0:
 		_state.money -= money
 		site["today"]["short_money"] = int(site["today"].get("short_money", 0)) + money
-		EventBus.money_changed.emit(_state.money)
+		INSTANCE.bus(owner_node).money_changed.emit(_state.money)
 	if good != "" and n > 0 and int(site["stock"].get(good, 0)) >= n:
 		site["stock"][good] = int(site["stock"][good]) - n
 		site["lots"][good] = BIZ_RULES.lots_take(site["lots"].get(good, []), n)
@@ -884,7 +887,7 @@ func biz_close_day(day := -1) -> Dictionary:
 	st["done_y"] = int(st.get("done_n", 0))
 	st["done_n"] = 0
 	if wages > 0:
-		EventBus.money_changed.emit(_state.money)
+		INSTANCE.bus(owner_node).money_changed.emit(_state.money)
 	# The camp's own day goes in its book (the places' went in theirs above).
 	var camp: Dictionary = _biz().get("camp", {}) if _biz().get("camp", {}) is Dictionary else {}
 	camp["staff_total"] = int(camp.get("staff_total", 0)) + staff_wages
@@ -939,7 +942,7 @@ func staff_hire(person: Dictionary, day: int) -> bool:
 	if not (p2.get("jobs") is Dictionary):
 		p2["jobs"] = STAFF_RULES.default_jobs()
 	st["crew"].append(p2)
-	EventBus.state_changed.emit({"biz": "staff_hired"})
+	INSTANCE.bus(owner_node).state_changed.emit({"biz": "staff_hired"})
 	_biz_tell("s_hire", [p2, day])
 	return true
 
@@ -951,7 +954,7 @@ func staff_fire(slug: String) -> void:
 		if str(crew[i].get("slug", "")) == slug:
 			crew.remove_at(i)
 	(st["act"] as Dictionary).erase(slug)
-	EventBus.state_changed.emit({"biz": "staff_fired"})
+	INSTANCE.bus(owner_node).state_changed.emit({"biz": "staff_fired"})
 	_biz_tell("s_fire", [slug])
 
 
@@ -962,7 +965,7 @@ func staff_set_job(slug: String, job: String, on: bool) -> void:
 			if not (p.get("jobs") is Dictionary):
 				p["jobs"] = STAFF_RULES.default_jobs()
 			p["jobs"][job] = on
-	EventBus.state_changed.emit({"biz": "staff_job"})
+	INSTANCE.bus(owner_node).state_changed.emit({"biz": "staff_job"})
 	_biz_tell("s_job", [slug, job, on])
 
 
@@ -974,7 +977,7 @@ func staff_buy_gear(id: String) -> bool:
 		return false
 	note_camp("invest", price)
 	st["gear"][id] = STAFF_RULES.gear_count(st, id) + 1
-	EventBus.state_changed.emit({"biz": "staff_gear"})
+	INSTANCE.bus(owner_node).state_changed.emit({"biz": "staff_gear"})
 	_biz_tell("s_gear", [id])
 	return true
 
@@ -984,7 +987,7 @@ func staff_add_gear(id: String) -> void:
 	var st := _staff()
 	if STAFF_RULES.gear_price(st, id) > 0:
 		st["gear"][id] = STAFF_RULES.gear_count(st, id) + 1
-		EventBus.state_changed.emit({"biz": "staff_gear"})
+		INSTANCE.bus(owner_node).state_changed.emit({"biz": "staff_gear"})
 
 
 ## Where a hand is and what they are at (the running side, on the machine that runs the
@@ -1050,20 +1053,20 @@ func aid_used(id: String, morning: int) -> void:
 		aid = {}
 	(aid as Dictionary)[id] = morning
 	_biz()["aid"] = aid
-	EventBus.state_changed.emit({"biz": "aid"})
+	INSTANCE.bus(owner_node).state_changed.emit({"biz": "aid"})
 	_biz_tell("aid", [id, morning])
 
 
 func end_day(income: int) -> void:
 	if not _warned_legacy_end_day:
 		_warned_legacy_end_day = true
-		push_warning("GameActions.end_day() is legacy and bypasses canonical day_tick flow. Prefer EventBus.day_tick path.")
+		push_warning("GameActions.end_day() is legacy and bypasses canonical day_tick flow. Prefer INSTANCE.bus(owner_node).day_tick path.")
 	_state.day += 1
 	_state.money += income
 	
-	EventBus.day_advanced.emit(_state.day, income)
-	EventBus.money_changed.emit(_state.money)
-	EventBus.state_changed.emit({"day": _state.day, "money": _state.money})
+	INSTANCE.bus(owner_node).day_advanced.emit(_state.day, income)
+	INSTANCE.bus(owner_node).money_changed.emit(_state.money)
+	INSTANCE.bus(owner_node).state_changed.emit({"day": _state.day, "money": _state.money})
 
 
 ## UI Helper: Calculates consequences of demolishing a rectangle.
@@ -1139,9 +1142,9 @@ func service_building(coord: Vector2i, cost: int) -> bool:
 		var lamp_cell: Dictionary = _state.grid.cells[root]
 		lamp_cell["lamp_maintenance"] = 1.0
 		_state.grid.cells[root] = lamp_cell
-		EventBus.money_changed.emit(_state.money)
-		EventBus.state_changed.emit({"maintenance": "serviced", "failures": "repaired" if was_broken else ""})
-		EventBus.building_serviced.emit(root, "lamp_post", was_broken, cost)
+		INSTANCE.bus(owner_node).money_changed.emit(_state.money)
+		INSTANCE.bus(owner_node).state_changed.emit({"maintenance": "serviced", "failures": "repaired" if was_broken else ""})
+		INSTANCE.bus(owner_node).building_serviced.emit(root, "lamp_post", was_broken, cost)
 		return true
 	for c in _state.grid.cells:
 		var cell_data = _state.grid.cells[c] as Dictionary
@@ -1150,9 +1153,9 @@ func service_building(coord: Vector2i, cost: int) -> bool:
 			cell_data.erase("maint_l")
 			cell_data.erase("maint_r")
 			_state.grid.cells[c] = cell_data
-	EventBus.money_changed.emit(_state.money)
-	EventBus.state_changed.emit({"maintenance": "serviced", "failures": "repaired" if was_broken else ""})
-	EventBus.building_serviced.emit(root, type, was_broken, cost)
+	INSTANCE.bus(owner_node).money_changed.emit(_state.money)
+	INSTANCE.bus(owner_node).state_changed.emit({"maintenance": "serviced", "failures": "repaired" if was_broken else ""})
+	INSTANCE.bus(owner_node).building_serviced.emit(root, type, was_broken, cost)
 	return true
 
 
@@ -1183,7 +1186,7 @@ func soil_building(coord: Vector2i, amount: float) -> void:
 			cell_data["maint_r"] = r
 			cell_data["maintenance"] = minf(l, r)
 			_state.grid.cells[c] = cell_data
-	EventBus.state_changed.emit({"maintenance": "soiled"})
+	INSTANCE.bus(owner_node).state_changed.emit({"maintenance": "soiled"})
 
 
 ## One half of a toilet or shower block cleaned inside (its list done there): that half is
@@ -1204,7 +1207,7 @@ func service_side(coord: Vector2i, side: String) -> void:
 			cell_data["maint_" + side] = 1.0
 			cell_data["maintenance"] = minf(float(cell_data["maint_l"]), float(cell_data["maint_r"]))
 			_state.grid.cells[c] = cell_data
-	EventBus.state_changed.emit({"maintenance": "serviced"})
+	INSTANCE.bus(owner_node).state_changed.emit({"maintenance": "serviced"})
 
 
 ## Takes the wear off a building that no longer wears (old saves, from before only the
@@ -1220,7 +1223,7 @@ func clear_wear(coord: Vector2i) -> void:
 		if inst_id != "" and str(cell_data.get("id", "")) == inst_id:
 			cell_data["maintenance"] = 1.0
 			_state.grid.cells[c] = cell_data
-	EventBus.state_changed.emit({"maintenance": "cleared"})
+	INSTANCE.bus(owner_node).state_changed.emit({"maintenance": "cleared"})
 
 
 func repair_building(coord: Vector2i, amount: float) -> bool:
@@ -1242,9 +1245,9 @@ func repair_building(coord: Vector2i, amount: float) -> bool:
 					cell_data["maintenance"] = 1.0
 					_state.grid.cells[c] = cell_data
 					
-		EventBus.state_changed.emit({"failures": "repaired"})
+		INSTANCE.bus(owner_node).state_changed.emit({"failures": "repaired"})
 	else:
-		EventBus.state_changed.emit({"failures": "progress"})
+		INSTANCE.bus(owner_node).state_changed.emit({"failures": "progress"})
 		
 	return true
 

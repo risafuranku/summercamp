@@ -65,11 +65,11 @@ func tick(delta: float) -> void:
 func _send_mails(delta: float) -> void:
 	if EmailManager == null:
 		return
-	var sister: Dictionary = EmailManager.find_mail("demo_end", "sister")
+	var sister: Dictionary = INSTANCE.mail(main).find_mail("demo_end", "sister")
 	if sister.is_empty():
 		_push("sister", GRANDSON, SISTER_MAIL)
 		return
-	if not bool(sister.get("_read", false)) or not EmailManager.find_mail("demo_end", "answer").is_empty():
+	if not bool(sister.get("_read", false)) or not INSTANCE.mail(main).find_mail("demo_end", "answer").is_empty():
 		return
 	_answer_t += delta
 	if _answer_t >= ANSWER_AFTER:
@@ -77,7 +77,7 @@ func _send_mails(delta: float) -> void:
 
 
 func _push(id: String, sender: String, mail: Dictionary) -> void:
-	EmailManager.push_system_mail({
+	INSTANCE.mail(main).push_system_mail({
 		"from": sender, "sender": sender, "type": "story",
 		"subject": str(mail["subject"]), "body": str(mail["body"]),
 		"demo_end": id,
@@ -109,7 +109,7 @@ func _tick_nag(delta: float) -> void:
 func _story_told() -> bool:
 	if main._sandbox:
 		return true
-	var answer: Dictionary = EmailManager.find_mail("demo_end", "answer") if EmailManager != null else {}
+	var answer: Dictionary = INSTANCE.mail(main).find_mail("demo_end", "answer") if EmailManager != null else {}
 	return not answer.is_empty() and bool(answer.get("_read", false))
 
 
@@ -132,7 +132,7 @@ func quit_to_title() -> void:
 
 ## What the order form fills in: the warden, the camp, its days, its guests and its lost.
 func form() -> Dictionary:
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(main).get_state()
 	var lost: int = (state.lost_guests as Array).size() if state != null and state.get("lost_guests") is Array else 0
 	var warden := ""
 	var shell := pc()

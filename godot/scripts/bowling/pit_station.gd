@@ -258,10 +258,10 @@ func _check_done(li: int) -> void:
 	var pts := RULES_BIZ.score(speed, 1.0)
 	var r := RULES_BIZ.reward(pts, 2)
 	var tip := 1 if int(r["stars"]) >= COIN_FROM else 0
-	if tip > 0 and CoreRoot != null and CoreRoot.actions != null:
-		CoreRoot.actions.biz_sale(building_key, tip, 0, true)
-	if CoreRoot != null and CoreRoot.actions != null:
-		CoreRoot.actions.biz_score(building_key, {"score": pts, "tip": tip, "what": "Pins", "who": who, "hand": false})
+	if tip > 0 and CoreRoot != null and INSTANCE.core(self).actions != null:
+		INSTANCE.core(self).actions.biz_sale(building_key, tip, 0, true)
+	if CoreRoot != null and INSTANCE.core(self).actions != null:
+		INSTANCE.core(self).actions.biz_score(building_key, {"score": pts, "tip": tip, "what": "Pins", "who": who, "hand": false})
 	var v = _view_of(li)
 	if tip > 0 and v != null:
 		# The coin rolled down the lane to the pin boy.

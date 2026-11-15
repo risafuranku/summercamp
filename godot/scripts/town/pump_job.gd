@@ -11,6 +11,7 @@ extends Node3D
 ## in now and then by day, fill up themselves and go; nobody needs you there.
 ## The cars are Build boxes in a few colours with somebody's head in them.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal paid(amount: int, line: String)
 
 const PUMP_CLOSEUP = preload("res://scripts/town/pump_closeup.gd")
@@ -178,10 +179,10 @@ func serve(pump: int) -> bool:
 func _on_served(result: Dictionary) -> void:
 	var money := int(result["fee"]) + int(result["tip"])
 	if money > 0:
-		CoreRoot.actions.add_money(money)
+		INSTANCE.core(self).actions.add_money(money)
 		earned += money
 	if int(result["fine"]) > 0:
-		CoreRoot.actions.spend_money(mini(int(result["fine"]), CoreRoot.get_money()))
+		INSTANCE.core(self).actions.spend_money(mini(int(result["fine"]), INSTANCE.core(self).get_money()))
 		earned -= int(result["fine"])
 	paid.emit(money - int(result["fine"]), str(result["line"]))
 	if _serving >= 0 and _serving < _cars.size():

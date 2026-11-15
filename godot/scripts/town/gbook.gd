@@ -19,6 +19,7 @@ extends CanvasLayer
 ## cold. P and F10 are the pause menu's, P a letter while gOS takes words (_typing), and
 ## the room's closing ends this whichever way it goes.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 signal closed
 
 const OS_SCRIPT = preload("res://scripts/town/gbook_os.gd")
@@ -253,7 +254,7 @@ func hour() -> float:
 
 
 func day() -> int:
-	return CoreRoot.get_day()
+	return INSTANCE.core(self).get_day()
 
 
 ## Shut Down: the drive stops, the fan with it, then the close-up ends.

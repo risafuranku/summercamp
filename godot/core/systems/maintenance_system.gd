@@ -4,13 +4,14 @@ extends "res://core/systems/system_base.gd"
 ## The daily wear: only the lamps (MaintenanceRules.WEARS) grow weaker, by lamp_post's
 ## maintenance_decay a day, the lamps on paths too (their path cell's lamp_maintenance).
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 var _registry
 
 func _init(registry) -> void:
 	_registry = registry
 
 func _on_setup() -> void:
-	EventBus.day_tick.connect(_on_day_tick)
+	INSTANCE.bus(owner_node).day_tick.connect(_on_day_tick)
 
 func _on_day_tick(_day: int) -> void:
 	process_daily_costs()
@@ -26,4 +27,4 @@ func process_daily_costs() -> void:
 		else:
 			cell["lamp_maintenance"] = maxf(0.0, float(cell.get("lamp_maintenance", 1.0)) - decay)
 		grid.cells[coord] = cell
-	EventBus.state_changed.emit({"maintenance": "decayed"})
+	INSTANCE.bus(owner_node).state_changed.emit({"maintenance": "decayed"})

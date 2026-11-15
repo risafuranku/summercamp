@@ -10,6 +10,7 @@ extends RefCounted
 ## The same on every co-op machine (all of it is the host's state). main.gd asks for it
 ## twice a second (_poll_arrivals).
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const STAFF_RULES_M = preload("res://core/systems/staff_rules.gd")
 const CREW_PLACES_M = preload("res://scripts/business/crew_places.gd")
 const BIZ_RULES_M = preload("res://core/systems/business_rules.gd")
@@ -29,7 +30,7 @@ func _init(main_node: Node) -> void:
 
 ## Who has which job on now (STAFF_RULES.taken: "room:<key>", "ev:<id>", "room:desk"...).
 func taken() -> Dictionary:
-	var state = CoreRoot.get_state() if CoreRoot != null else null
+	var state = INSTANCE.core(main).get_state() if CoreRoot != null else null
 	if state == null or not (state.biz is Dictionary):
 		return {}
 	var staff = (state.biz as Dictionary).get("staff", {})
@@ -42,7 +43,7 @@ func taken() -> Dictionary:
 ## and the ones only to know about (a face: somebody away, gone, owed) between the two.
 func mark_taken(rows: Array) -> Array:
 	var held := taken()
-	var state = CoreRoot.get_state() if CoreRoot != null else null
+	var state = INSTANCE.core(main).get_state() if CoreRoot != null else null
 	var staff = (state.biz as Dictionary).get("staff", {}) if state != null and state.biz is Dictionary else {}
 	var free: Array = []
 	var told: Array = []
@@ -143,7 +144,7 @@ func rows(biz) -> Array:
 ## see to them: it is the letters' plate that goes, not the letters.
 func _office_rows() -> Array:
 	var rows: Array = []
-	var state = CoreRoot.get_state() if CoreRoot != null else null
+	var state = INSTANCE.core(main).get_state() if CoreRoot != null else null
 	if state == null or not (state.biz is Dictionary):
 		return rows
 	var crew: Array = ((state.biz as Dictionary).get("staff", {}) as Dictionary).get("crew", [])
@@ -155,8 +156,8 @@ func _office_rows() -> Array:
 			letters = letters or STAFF_RULES_M.does(p, "letters")
 	if not letters and EmailManager != null:
 		var n := 0
-		for m in EmailManager.inbox:
-			if m is Dictionary and EmailManager._is_customer_mail(m) and not bool(m.get("_actioned", false)):
+		for m in INSTANCE.mail(main).inbox:
+			if m is Dictionary and INSTANCE.mail(main)._is_customer_mail(m) and not bool(m.get("_actioned", false)):
 				n += 1
 		if n > 0:
 			rows.append({"id": "mletters", "kind": "mail", "word": "Bookings", "cat": "desk", "left": -1.0, "n": n})
@@ -176,7 +177,7 @@ func _office_rows() -> Array:
 ## their pay (today), owed. Neutral words: they come out the same for anybody.
 func _people_rows() -> Array:
 	var rows: Array = []
-	var state = CoreRoot.get_state() if CoreRoot != null else null
+	var state = INSTANCE.core(main).get_state() if CoreRoot != null else null
 	if state == null or not (state.biz is Dictionary):
 		return rows
 	var biz: Dictionary = state.biz
@@ -208,7 +209,7 @@ func _people_rows() -> Array:
 
 func _stock_rows(biz) -> Array:
 	var rows: Array = []
-	var state = CoreRoot.get_state() if CoreRoot != null else null
+	var state = INSTANCE.core(main).get_state() if CoreRoot != null else null
 	if state == null or not (state.biz is Dictionary):
 		return rows
 	var sites: Dictionary = (state.biz as Dictionary).get("sites", {})
@@ -246,13 +247,13 @@ func _stock_rows(biz) -> Array:
 
 func work_rows() -> Array:
 	var rows: Array = []
-	var state = CoreRoot.get_state() if CoreRoot != null else null
+	var state = INSTANCE.core(main).get_state() if CoreRoot != null else null
 	if state == null or GuestManager == null:
 		return rows
 	# Who is coming for which lodging (key -> minutes till they are here, 0 at the desk): its
 	# plate has their time under its word and goes to the top (Richard 8. 11.).
 	var wanted := {}
-	for row_any in GuestManager.get_arrivals():
+	for row_any in INSTANCE.guests(main).get_arrivals():
 		var row: Dictionary = row_any
 		var mins := 0 if bool(row.get("at_gate", false)) else int(row.get("minutes", 0))
 		for room_any in row.get("rooms", []):
@@ -262,14 +263,14 @@ func work_rows() -> Array:
 	var keys: Array = state.accommodation_states.keys()
 	keys.sort_custom(func(a, b): return int(wanted.get(str(a), 1 << 20)) < int(wanted.get(str(b), 1 << 20)))
 	for key in keys:
-		var rs: Dictionary = GuestManager.get_room_state(str(key))
+		var rs: Dictionary = INSTANCE.guests(main).get_room_state(str(key))
 		if rs.is_empty() or bool(rs.get("occupied", false)):
 			continue
 		var st := str(rs.get("status", ""))
 		if st != "dirty" and st != "unprepared":
 			continue
-		var kind := GuestManager.lodging_kind(str(rs.get("building_type", "")))
-		var no: int = GuestManager.room_number(str(key))
+		var kind = INSTANCE.guests(main).lodging_kind(str(rs.get("building_type", "")))
+		var no: int = INSTANCE.guests(main).room_number(str(key))
 		var word := tr(kind.capitalize()) + (" %d" % no if no > 0 else "")
 		var r2 := {"id": "w%s" % str(key), "kind": "clean" if st == "dirty" else "bed", "word": word, "cat": "work", "left": -1.0, "job": "rooms"}
 		if wanted.has(str(key)):
@@ -338,7 +339,7 @@ func _wc_no(wcs: Array, coord: Vector2i) -> int:
 
 
 func _wc_blocks() -> Array:
-	var state = CoreRoot.get_state() if CoreRoot != null else null
+	var state = INSTANCE.core(main).get_state() if CoreRoot != null else null
 	var out: Array = []
 	if state == null:
 		return out

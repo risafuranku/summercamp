@@ -91,7 +91,7 @@ func has_rail() -> bool:
 func _state() -> Dictionary:
 	if kitchen != null and building_key != "" and kitchen.has_method("proto_state"):
 		return kitchen.proto_state(building_key)
-	var h := int(GuestManager._last_known_hour) if GuestManager != null else 12
+	var h := int(INSTANCE.guests(self)._last_known_hour) if GuestManager != null else 12
 	return {"awake": h >= 21 or h < 5, "sack": false, "fed": false, "running": false, "meat": false}
 
 

@@ -21,6 +21,7 @@ extends "res://scripts/closeup/closeup_view.gd"
 ## the paper tabs, the pencilled boxes (nine-sliced), the pencil hatching of the bars, the
 ## rubber stamp's frame; only the writing is set here.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const RULES := preload("res://core/systems/business_rules.gd")
 const BUSINESS := preload("res://scripts/business/business_runtime.gd")
 const LANG := preload("res://scripts/lang.gd")
@@ -79,8 +80,8 @@ func open_for(key: String, btype: String, page := "") -> void:
 	_order = {}
 	_picked = ""
 	_gear_pick = ""
-	if CoreRoot != null and CoreRoot.actions != null:
-		CoreRoot.actions.biz_site(key, btype)
+	if CoreRoot != null and INSTANCE.core(self).actions != null:
+		INSTANCE.core(self).actions.biz_site(key, btype)
 	open_view()
 
 
@@ -298,8 +299,8 @@ func _clicked(id: String) -> void:
 	if id.begins_with("menu:"):
 		var item := id.substr(5)
 		var on := not RULES.menu_on(kind, site, item)
-		if CoreRoot != null and CoreRoot.actions != null:
-			CoreRoot.actions.biz_set_menu(building_key, item, on)
+		if CoreRoot != null and INSTANCE.core(self).actions != null:
+			INSTANCE.core(self).actions.biz_set_menu(building_key, item, on)
 		play(SFX_PAGE, -14.0)
 		say("", "On the menu." if on else "Off the menu: nobody orders it.")
 		return
@@ -320,7 +321,7 @@ func _clicked(id: String) -> void:
 	if id.begins_with("role:"):
 		var w0 := _crew_of(_picked)
 		if not w0.is_empty():
-			CoreRoot.actions.biz_set_job(building_key, _picked, id.substr(5), str(w0.get("shift", "day")))
+			INSTANCE.core(self).actions.biz_set_job(building_key, _picked, id.substr(5), str(w0.get("shift", "day")))
 			play(SFX_PAGE, -14.0)
 		return
 	if id.begins_with("gearrow:"):
@@ -338,7 +339,7 @@ func _clicked(id: String) -> void:
 				coming[g2] = BUSINESS.on_order(building_key, g2)
 			_order = RULES.fill_order(kind, site, coming)
 			play(SFX_PAGE, -14.0)
-			say("", "The shelves are full." if _order.is_empty() else LANG.f("Written in: $%d with the van.", RULES.goods_cost(kind, _order) + int(CoreRoot.actions.van_fee(BUSINESS.van_day()))), false)
+			say("", "The shelves are full." if _order.is_empty() else LANG.f("Written in: $%d with the van.", RULES.goods_cost(kind, _order) + int(INSTANCE.core(self).actions.van_fee(BUSINESS.van_day()))), false)
 		"asking":
 			_picked = ""
 			play(SFX_PAGE, -16.0)
@@ -347,15 +348,15 @@ func _clicked(id: String) -> void:
 			if RULES.goods_cost(kind, _order) <= 0:
 				say("", "Nothing written on the order.")
 				return
-			var cost: int = RULES.goods_cost(kind, _order) + CoreRoot.actions.van_fee(van_day)
-			if not CoreRoot.actions.biz_order(building_key, _order, van_day):
+			var cost: int = RULES.goods_cost(kind, _order) + INSTANCE.core(self).actions.van_fee(van_day)
+			if not INSTANCE.core(self).actions.biz_order(building_key, _order, van_day):
 				say("", LANG.f("That is $%d. The camp has not got it.", cost))
 				return
 			_order = {}
 			_stamp("ORDERED")
-			say("", "It goes on today's van." if van_day <= CoreRoot.get_day() else "The van comes tomorrow.")
+			say("", "It goes on today's van." if van_day <= INSTANCE.core(self).get_day() else "The van comes tomorrow.")
 		"auto":
-			CoreRoot.actions.biz_set_auto(building_key, not bool(_site().get("auto_order", true)))
+			INSTANCE.core(self).actions.biz_set_auto(building_key, not bool(_site().get("auto_order", true)))
 			play(SFX_PAGE, -14.0)
 		"next":
 			_candidate += 1
@@ -366,7 +367,7 @@ func _clicked(id: String) -> void:
 				return
 			var p: Dictionary = ap[_candidate % ap.size()]
 			# In the next morning (the user 4. 11.: "hired and at work at once?").
-			if CoreRoot.actions.biz_hire(building_key, p, CoreRoot.get_day() + 1):
+			if INSTANCE.core(self).actions.biz_hire(building_key, p, INSTANCE.core(self).get_day() + 1):
 				_stamp("HIRED")
 				_picked = str(p["slug"])
 				var lines := ["Tomorrow at seven, then.", "I'll need the keys.", "Fine. Cash on Fridays.", "Where do I put my coat?"]
@@ -380,7 +381,7 @@ func _clicked(id: String) -> void:
 			if who2.is_empty():
 				return
 			var to := "late" if str(who2.get("shift", "day")) == "day" else "day"
-			CoreRoot.actions.biz_set_job(building_key, _picked, str(who2.get("role", "")), to)
+			INSTANCE.core(self).actions.biz_set_job(building_key, _picked, str(who2.get("role", "")), to)
 			if to == "late" and not bool(site.get("late", false)):
 				say(tr(str(who2.get("name", ""))), "Evenings? You shut at eight.")
 			play(SFX_PAGE, -14.0)
@@ -388,7 +389,7 @@ func _clicked(id: String) -> void:
 			var who3 := _crew_of(_picked)
 			if who3.is_empty():
 				return
-			CoreRoot.actions.biz_fire(building_key, _picked)
+			INSTANCE.core(self).actions.biz_fire(building_key, _picked)
 			_stamp("PAID OFF")
 			var line := "Suit yourself."
 			match str(who3.get("strange", "")):
@@ -408,13 +409,13 @@ func _clicked(id: String) -> void:
 			if needs != "" and not RULES.has_gear(site, needs):
 				say("", LANG.f("Needs: %s", tr(str(RULES.gear_list(kind)[needs]["label"]))))
 				return
-			if CoreRoot.actions.biz_buy_gear(building_key, _gear_pick):
+			if INSTANCE.core(self).actions.biz_buy_gear(building_key, _gear_pick):
 				_stamp("BOUGHT")
 				say("", LANG.f("%s. It is in.", tr(str(gd2["label"]))))
 			else:
 				say("", LANG.f("That is $%d. The camp has not got it.", int(gd2["price"])))
 		"late":
-			CoreRoot.actions.biz_set_late(building_key, not bool(site.get("late", false)))
+			INSTANCE.core(self).actions.biz_set_late(building_key, not bool(site.get("late", false)))
 			_stamp("OPEN LATE" if bool(site.get("late", false)) else "SHUT AT 8")
 		"zreport":
 			if want_zreport.get_connections().is_empty():
@@ -429,7 +430,7 @@ var _zreport: Node
 
 
 func _open_zreport() -> void:
-	var site: Dictionary = (CoreRoot.get_state().biz.get("sites", {}) as Dictionary).get(building_key, {})
+	var site: Dictionary = (INSTANCE.core(self).get_state().biz.get("sites", {}) as Dictionary).get(building_key, {})
 	var z: Dictionary = site.get("zreport", {})
 	if z.is_empty():
 		return
@@ -582,7 +583,7 @@ func _paint(c: Control) -> void:
 	if kind == "corn" and title.length() > 12:
 		title = tr("Corn").to_upper()
 	_text(c, LEFT.position + Vector2(0, 8), title, INK, 10, RETRO_UI.FONT_BIG)
-	_right(c, LEFT.end.x, LEFT.position.y + 8, LANG.f("Day %d", CoreRoot.get_day()), PENCIL)
+	_right(c, LEFT.end.x, LEFT.position.y + 8, LANG.f("Day %d", INSTANCE.core(self).get_day()), PENCIL)
 	match _page:
 		"menu":
 			_paint_menu(c, site, kind)
@@ -637,7 +638,7 @@ func _paint_menu(c: Control, site: Dictionary, kind: String) -> void:
 func _paint_goods(c: Control, site: Dictionary, kind: String) -> void:
 	var gd: Dictionary = RULES.goods(kind)
 	var keys: Array = _goods_keys()
-	var van_fee: int = CoreRoot.actions.van_fee(BUSINESS.van_day())
+	var van_fee: int = INSTANCE.core(self).actions.van_fee(BUSINESS.van_day())
 	_right(c, 116, LEFT.position.y + 21, tr("Shelf"), PENCIL)
 	_right(c, LEFT.end.x, LEFT.position.y + 21, tr("Days"), PENCIL)
 	for i in keys.size():
@@ -672,7 +673,7 @@ func _paint_goods(c: Control, site: Dictionary, kind: String) -> void:
 	var goods_cost: int = RULES.goods_cost(kind, _order)
 	var cost: int = goods_cost + (van_fee if goods_cost > 0 else 0)
 	_text(c, RIGHT.position + Vector2(0, 10), LANG.f("Total $%d", cost), INK, 10, RETRO_UI.FONT_BIG)
-	_text(c, RIGHT.position + Vector2(0, 22), _cash(CoreRoot.get_money()), RED if cost > CoreRoot.get_money() else PENCIL)
+	_text(c, RIGHT.position + Vector2(0, 22), _cash(INSTANCE.core(self).get_money()), RED if cost > INSTANCE.core(self).get_money() else PENCIL)
 	_pencil_button(c, _fill_rect(), "FILL", INK, "fill")
 	var auto := _auto_rect()
 	if hovered() == "auto":
@@ -720,7 +721,7 @@ func _fit(s: String, room: float) -> String:
 func _paint_staff(c: Control, site: Dictionary, kind: String) -> void:
 	var crew: Array = site.get("crew", [])
 	_text(c, LEFT.position + Vector2(0, 21), tr("Working here"), PENCIL)
-	var day := CoreRoot.get_day()
+	var day = INSTANCE.core(self).get_day()
 	var wages := 0
 	if crew.is_empty():
 		_text(c, Vector2(LEFT.position.x, TOP + 4), tr("Nobody."), RED, 10, RETRO_UI.FONT_BIG)
@@ -735,7 +736,7 @@ func _paint_staff(c: Control, site: Dictionary, kind: String) -> void:
 			c.draw_rect(row, Color(1, 0.9, 0.5, 0.35))
 		elif hovered() == "crew:" + slug:
 			c.draw_rect(row, Color(1, 0.9, 0.5, 0.15))
-		var away := int(p.get("absent", -1)) == day
+		var away = int(p.get("absent", -1)) == day
 		_text(c, Vector2(LEFT.position.x, y), _fit(hand_name(str(p.get("name", ""))), 52.0), RED if away else INK)
 		var tag := _fit(tr(RULES.role_label(kind, str(p.get("role", "")))), 34.0)
 		tag += " L" if str(p.get("shift", "day")) == "late" else ""
@@ -848,7 +849,7 @@ func _paint_gear(c: Control, site: Dictionary, kind: String) -> void:
 ## The money (Richard 8. 11.: "some stats of profit and costs"): today against yesterday on
 ## the left, the last week's profit as a pencil chart on the right, the whole run under it.
 func _paint_books(c: Control, site: Dictionary, _kind_of: String) -> void:
-	var today_n: int = CoreRoot.get_day()
+	var today_n: int = INSTANCE.core(self).get_day()
 	var t: Dictionary = RULES.today_money(site, today_n)
 	var yd: Dictionary = RULES.day_money(site["yesterday"])
 	_right(c, 108, LEFT.position.y + 21, tr("Today"), PENCIL)

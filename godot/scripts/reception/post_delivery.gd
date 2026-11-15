@@ -106,11 +106,11 @@ func has_monitor() -> bool:
 ## The web page's order (scripts/os98/apps/browser_app.gd "order://monitor2"): paid now
 ## from the camp's money. False when it cannot be (bought already, no money).
 func order() -> bool:
-	if stage() != "" or CoreRoot == null or CoreRoot.actions == null:
+	if stage() != "" or CoreRoot == null or INSTANCE.core(self).actions == null:
 		return false
-	if CoreRoot.get_money() < PRICE:
+	if INSTANCE.core(self).get_money() < PRICE:
 		return false
-	CoreRoot.actions.add_money(-PRICE)
+	INSTANCE.core(self).actions.add_money(-PRICE)
 	var now := _now()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = int(now) * 7919 + 17

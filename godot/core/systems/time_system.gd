@@ -1,6 +1,7 @@
 extends RefCounted
 class_name TimeSystem
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const BALANCE_CONFIG = preload("res://core/balance/balance_config.gd")
 const DAY_START_HOUR: float = BALANCE_CONFIG.DAY_START_HOUR
 const EVENING_START_HOUR: float = 18.0
@@ -8,6 +9,8 @@ const NIGHT_START_HOUR: float = BALANCE_CONFIG.NIGHT_START_HOUR
 
 # Dependencies
 var _state
+## Whose events it sends (main: scripts/instance/instance.gd).
+var owner_node: Node
 
 # Configuration
 # Derived from BalanceConfig
@@ -47,11 +50,11 @@ func _advance_time(delta: float) -> void:
 	
 	# Emit Tick for UI
 	var minute = int((time_of_day_hours - floor(time_of_day_hours)) * 60.0)
-	EventBus.time_tick.emit(int(time_of_day_hours), minute)
+	INSTANCE.bus(owner_node).time_tick.emit(int(time_of_day_hours), minute)
 
 func _advance_day() -> void:
 	_state.day += 1
-	EventBus.day_tick.emit(_state.day)
+	INSTANCE.bus(owner_node).day_tick.emit(_state.day)
 
 func _update_time_state() -> void:
 	var is_night = false
@@ -69,7 +72,7 @@ func _update_time_state() -> void:
 	if _state.is_night != is_night:
 		_state.is_night = is_night
 		if is_night:
-			EventBus.night_tick.emit(_state.day)
+			INSTANCE.bus(owner_node).night_tick.emit(_state.day)
 
 # Debug/Control methods
 func step_time_hours(hours: float) -> void:
@@ -82,7 +85,7 @@ func step_time_hours(hours: float) -> void:
 		_advance_day()
 	_update_time_state()
 	var minute = int((time_of_day_hours - floor(time_of_day_hours)) * 60.0)
-	EventBus.time_tick.emit(int(time_of_day_hours), minute)
+	INSTANCE.bus(owner_node).time_tick.emit(int(time_of_day_hours), minute)
 	
 func set_time_hours(hours: float) -> void:
 	time_of_day_hours = fposmod(hours, 24.0)

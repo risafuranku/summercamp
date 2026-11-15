@@ -19,6 +19,7 @@ extends Control
 ##     where it was bought for: the camp first under Camps with a TIP, its banner over the
 ##     camps, its banner over the catalogue (goggle.ADS: the prices, how much more mail).
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const T = preload("res://scripts/os98/os_theme.gd")
 const LANG = preload("res://scripts/lang.gd")
 const GOGGLE = preload("res://scripts/reviews/goggle.gd")
@@ -194,7 +195,7 @@ func _g():
 
 
 func _day() -> int:
-	return CoreRoot.get_day() if CoreRoot != null else 1
+	return INSTANCE.core(self).get_day() if CoreRoot != null else 1
 
 
 ## The hour now from day 0 (main's; Atlas's campaigns run from hour to hour).

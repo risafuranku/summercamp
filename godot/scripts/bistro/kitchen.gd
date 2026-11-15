@@ -60,8 +60,8 @@ var burnt_flash: Dictionary = {}
 func _ready() -> void:
 	name = "Kitchens"
 	add_to_group("kitchens")
-	if not EventBus.guest_state_changed.is_connected(_on_guest_state):
-		EventBus.guest_state_changed.connect(_on_guest_state)
+	if not INSTANCE.bus(self).guest_state_changed.is_connected(_on_guest_state):
+		INSTANCE.bus(self).guest_state_changed.connect(_on_guest_state)
 
 
 static func of(tree: SceneTree) -> Node:
@@ -504,8 +504,8 @@ func serve(key: String, t: Dictionary, parts: Dictionary, cook := -1.0, hand := 
 	ORDERS.mood(int(t["guest_id"]), float(verdict["mood"]) + (BUSINESS.hand_mood(key, role) if hand != "" else 0.0), line)
 	ORDERS.note_meal(int(t["guest_id"]), line, pts)
 	act(key, "served", [str(t["id"]), {"dish": str(t["dish"]), "at": now_min(), "parts": parts, "stars": int(verdict["stars"]), "amount": amount, "score": pts}])
-	if CoreRoot != null and CoreRoot.actions != null and CoreRoot.actions.has_method("biz_score"):
-		CoreRoot.actions.biz_score(key, {"score": pts, "tip": int(verdict["tip"]), "what": RULES.dish_label(str(t["dish"])), "who": str(t.get("name", "")), "hand": hand != ""})
+	if CoreRoot != null and INSTANCE.core(self).actions != null and INSTANCE.core(self).actions.has_method("biz_score"):
+		INSTANCE.core(self).actions.biz_score(key, {"score": pts, "tip": int(verdict["tip"]), "what": RULES.dish_label(str(t["dish"])), "who": str(t.get("name", "")), "hand": hand != ""})
 	return verdict
 
 
@@ -553,7 +553,7 @@ func _process(delta: float) -> void:
 	if get_tree().paused:
 		return
 	# Another camp (a new game, a load, a co-op camp arriving): its own kitchens.
-	var st = CoreRoot.get_state() if CoreRoot != null else null
+	var st = INSTANCE.core(self).get_state() if CoreRoot != null else null
 	# The state object may stay the same from camp to camp: the books' stamp does not
 	# (actions._biz).
 	var sid: int = (st.get_instance_id() + int((st.biz as Dictionary).get("stamp", 0))) if st != null and st.biz is Dictionary else 0
@@ -690,15 +690,15 @@ func _prepared(key: String) -> void:
 		var good := str(pair[0])
 		var tray := str(pair[1])
 		if prep(key, tray) < int(pair[2]) and room_for(key, tray) and BUSINESS.stock_of(key, good) > 0:
-			if CoreRoot.actions.biz_take(key, {good: 1}):
+			if INSTANCE.core(self).actions.biz_take(key, {good: 1}):
 				act(key, "prep", [tray, 1])
 
 
 func _rest_sites() -> Array:
 	var out: Array = []
-	if CoreRoot == null or CoreRoot.get_state() == null:
+	if CoreRoot == null or INSTANCE.core(self).get_state() == null:
 		return out
-	var sites: Dictionary = CoreRoot.get_state().biz.get("sites", {})
+	var sites: Dictionary = INSTANCE.core(self).get_state().biz.get("sites", {})
 	for key in sites:
 		if str((sites[key] as Dictionary).get("kind", "")) == "rest":
 			out.append(str(key))
@@ -713,8 +713,8 @@ func _proto(key: String) -> void:
 	if GuestManager == null:
 		return
 	var p: Dictionary = site(key)["proto"]
-	var day := maxi(1, int(GuestManager._last_known_day))
-	var hour := int(GuestManager._last_known_hour)
+	var day := maxi(1, int(INSTANCE.guests(self)._last_known_day))
+	var hour := int(INSTANCE.guests(self)._last_known_hour)
 	var late := BUSINESS.shift_now(BUSINESS.site(key)) == "late"
 	var night := RULES.proto_night(day, hour)
 	if RULES.proto_awake(hour, late):
@@ -722,22 +722,22 @@ func _proto(key: String) -> void:
 			act(key, "proto", [{"sack": night}])
 	elif hour >= 6 and hour < 20 and int(p["fed"]) == day - 1 and int(p["tray"]) < day:
 		act(key, "proto", [{"tray": day}])
-		if CoreRoot != null and CoreRoot.actions != null and CoreRoot.actions.has_method("biz_gift"):
-			CoreRoot.actions.biz_gift(key, {"goulash": RULES.PROTO_MEAT})
+		if CoreRoot != null and INSTANCE.core(self).actions != null and INSTANCE.core(self).actions.has_method("biz_gift"):
+			INSTANCE.core(self).actions.biz_gift(key, {"goulash": RULES.PROTO_MEAT})
 
 
 ## Tonight's sack there now (tools/proto_shots.gd).
 func debug_proto_sack(key: String) -> void:
-	var day := maxi(1, int(GuestManager._last_known_day)) if GuestManager != null else 1
-	var hour := int(GuestManager._last_known_hour) if GuestManager != null else 22
+	var day := maxi(1, int(INSTANCE.guests(self)._last_known_day)) if GuestManager != null else 1
+	var hour := int(INSTANCE.guests(self)._last_known_hour) if GuestManager != null else 22
 	act(key, "proto", [{"taken": RULES.proto_night(day, hour)}])
 	_proto(key)
 
 
 ## Fed tonight: the sack into its hopper (from the machine's station, either warden).
 func proto_feed(key: String) -> void:
-	var day := maxi(1, int(GuestManager._last_known_day)) if GuestManager != null else 1
-	var hour := int(GuestManager._last_known_hour) if GuestManager != null else 22
+	var day := maxi(1, int(INSTANCE.guests(self)._last_known_day)) if GuestManager != null else 1
+	var hour := int(INSTANCE.guests(self)._last_known_hour) if GuestManager != null else 22
 	act(key, "proto", [{"fed": RULES.proto_night(day, hour)}])
 
 
@@ -745,8 +745,8 @@ func proto_feed(key: String) -> void:
 ## running, meat (in the tray now)}.
 func proto_state(key: String) -> Dictionary:
 	var p: Dictionary = site(key)["proto"]
-	var day := maxi(1, int(GuestManager._last_known_day)) if GuestManager != null else 1
-	var hour := int(GuestManager._last_known_hour) if GuestManager != null else 12
+	var day := maxi(1, int(INSTANCE.guests(self)._last_known_day)) if GuestManager != null else 1
+	var hour := int(INSTANCE.guests(self)._last_known_hour) if GuestManager != null else 12
 	var late := BUSINESS.shift_now(BUSINESS.site(key)) == "late"
 	var awake := RULES.proto_awake(hour, late)
 	var night := RULES.proto_night(day, hour)
@@ -760,10 +760,10 @@ func proto_state(key: String) -> Dictionary:
 func _on_guest_state(_id: int, _old: String, new_state: String) -> void:
 	if new_state != "departed" or GuestManager == null or not INSTANCE.coop(self).sim_here():
 		return
-	var hour := int(GuestManager._last_known_hour)
+	var hour := int(INSTANCE.guests(self)._last_known_hour)
 	if hour < 3 or hour >= 8:
 		return
-	var day := maxi(1, int(GuestManager._last_known_day))
+	var day := maxi(1, int(INSTANCE.guests(self)._last_known_day))
 	for key in _rest_sites():
 		act(str(key), "proto", [{"taken": day}])
 
@@ -774,10 +774,10 @@ func _note_save(key: String) -> void:
 
 ## The trays, the pot and the plates into the books (they are saved with the camp).
 func _save(key: String) -> void:
-	if CoreRoot == null or CoreRoot.actions == null or not CoreRoot.actions.has_method("biz_kitchen"):
+	if CoreRoot == null or INSTANCE.core(self).actions == null or not INSTANCE.core(self).actions.has_method("biz_kitchen"):
 		return
 	var s := site(key)
-	CoreRoot.actions.biz_kitchen(key, {"prep": (s["prep"] as Dictionary).duplicate(), "pot": int(s["pot"]["level"]),
+	INSTANCE.core(self).actions.biz_kitchen(key, {"prep": (s["prep"] as Dictionary).duplicate(), "pot": int(s["pot"]["level"]),
 		"loaf": int(s["loaf"].get("left", 0)), "clean": int(s["plates"]["clean"]), "dirty": int(s["plates"]["dirty"]),
 		"washer_n": int(s["washer"].get("n", 0)), "washer_t": float(s["washer"].get("t", 0.0)),
 		"proto_sack": int(s["proto"]["sack"]), "proto_fed": int(s["proto"]["fed"]), "proto_tray": int(s["proto"]["tray"]),
@@ -1007,7 +1007,7 @@ func _crew_grill(key: String, slip: bool) -> bool:
 		wanted += int((t["parts"] as Dictionary).get("sausage", 0))
 	if prep(key, "sausage") + on < mini(3, wanted + 1) and BUSINESS.stock_of(key, "sausage") > 0:
 		for i in g.size():
-			if (g[i] as Dictionary).is_empty() and CoreRoot.actions.biz_take(key, {"sausage": 1}):
+			if (g[i] as Dictionary).is_empty() and INSTANCE.core(self).actions.biz_take(key, {"sausage": 1}):
 				act(key, "grill", [i, {"down": 0, "t": [0.0, 0.0]}])
 				return true
 	return false
@@ -1019,7 +1019,7 @@ func _crew_bufet(key: String, p: Dictionary, slip: bool, floor_hand := false) ->
 	var soup: Dictionary = site(key)["soup"]
 	if int(soup["level"]) < 3 and BUSINESS.stock_of(key, "soup") > 0:
 		var n := mini(RULES.SOUP_REFILL, BUSINESS.stock_of(key, "soup"))
-		if CoreRoot.actions.biz_take(key, {"soup": n}):
+		if INSTANCE.core(self).actions.biz_take(key, {"soup": n}):
 			act(key, "soup", [{"level": int(soup["level"]) + n}])
 			return true
 	for t in tickets(key, "bufet") + ([] if floor_hand else tickets(key, "floor").filter(func(x) -> bool: return RULES.DRINKS.has(str(x["dish"])))):
@@ -1041,12 +1041,12 @@ func _crew_bufet(key: String, p: Dictionary, slip: bool, floor_hand := false) ->
 
 func _crew_cellar(key: String, slip: bool) -> bool:
 	if prep(key, "chips_raw") < 6 and room_for(key, "chips_raw") and BUSINESS.stock_of(key, "potatoes") > 0:
-		if CoreRoot.actions.biz_take(key, {"potatoes": 1}):
+		if INSTANCE.core(self).actions.biz_take(key, {"potatoes": 1}):
 			act(key, "prep", ["chips_raw", 1])
 			return true
 	var raw := prep(key, "cheese_raw") + prep(key, "cheese_bad")
 	if raw < 4 and room_for(key, "cheese_raw", 1 + prep(key, "cheese_bad")) and BUSINESS.stock_of(key, "cheese") > 0:
-		if CoreRoot.actions.biz_take(key, {"cheese": 1}):
+		if INSTANCE.core(self).actions.biz_take(key, {"cheese": 1}):
 			act(key, "prep", ["cheese_bad" if slip else "cheese_raw", 1])
 			return true
 	return false
@@ -1122,7 +1122,7 @@ func _crew_stove(key: String, slip: bool) -> bool:
 		return true
 	if int(pot["level"]) < 4:
 		var g := mini(RULES.POT_REFILL, maxi(0, BUSINESS.stock_of(key, "goulash")))
-		if g > 0 and CoreRoot.actions.biz_take(key, {"goulash": g}):
+		if g > 0 and INSTANCE.core(self).actions.biz_take(key, {"goulash": g}):
 			act(key, "pot", [{"level": int(pot["level"]) + g, "heat": clampf(float(pot["heat"]) * float(pot["level"]) / float(int(pot["level"]) + g), 0.0, 1.0) * 0.6, "catch": 0.0}])
 			return true
 	return false
@@ -1136,7 +1136,7 @@ func _crew_dumplings(key: String) -> bool:
 	var loaf: Dictionary = (site(key)["loaf"] as Dictionary).duplicate()
 	if int(loaf.get("left", 0)) <= 0:
 		var units := mini(RULES.LOAF_UNITS, maxi(0, BUSINESS.stock_of(key, "dumplings")))
-		if units <= 0 or not CoreRoot.actions.biz_take(key, {"dumplings": units}):
+		if units <= 0 or not INSTANCE.core(self).actions.biz_take(key, {"dumplings": units}):
 			return false
 		act(key, "loaf", [{"left": RULES.LOAF_SLICES * units / RULES.LOAF_UNITS}])
 		return true
@@ -1177,7 +1177,7 @@ func _crew_pass(key: String, p: Dictionary, slip: bool, floor_minded := false) -
 				"dumpling":
 					take(key, "dumpling", n2)
 				"bread":
-					CoreRoot.actions.biz_take(key, {"bread": n2})
+					INSTANCE.core(self).actions.biz_take(key, {"bread": n2})
 		act(key, "plates", [-1, 0])
 		if slip:
 			# Not quite: the dumplings miscounted, or the tartar forgotten.

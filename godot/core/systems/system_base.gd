@@ -5,6 +5,8 @@ extends Node
 ## Handles localized logic and data processing.
 
 # Reference to shared state (dependency injection)
+## The CoreRoot that made it: its instance's events and guests (scripts/instance/instance.gd).
+var owner_node: Node
 var game_state
 
 func setup(state) -> void:

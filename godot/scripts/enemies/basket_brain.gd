@@ -1015,7 +1015,7 @@ func _tick_eat(dt: float) -> void:
 		return
 	# Gone: nothing left of them but what the cleaning will find.
 	var id := int(g.get("id", -1))
-	if id >= 0 and GuestManager != null and GuestManager.vanish_guest(id):
+	if id >= 0 and GuestManager != null and INSTANCE.guests(_world_root).vanish_guest(id):
 		_eaten += maxi(1, int(g.get("party", 1)))
 		_eaten_guests.append(g)
 		_set_stage(_stage_for(_eaten))
@@ -1056,8 +1056,8 @@ func _raid(path: String, at: Vector3, cue: String, db := 0.0, pitch := 1.0) -> A
 func _finish_lodging() -> void:
 	var key := str(_target.get("key", ""))
 	_ate_in[key] = true
-	if GuestManager != null and GuestManager.has_method("make_room_carnage"):
-		GuestManager.make_room_carnage(key)
+	if GuestManager != null and INSTANCE.guests(_world_root).has_method("make_room_carnage"):
+		INSTANCE.guests(_world_root).make_room_carnage(key)
 	_force_window(key, "")
 	_work.stop()
 	_relay(false)
@@ -1078,8 +1078,8 @@ func _come_out() -> void:
 		# She had begun: what she did in there stays for the cleaning.
 		if _phase == "eat" and (int(_target.get("i", 0)) > 0 or float(_target.get("t", 0.0)) > 2.5):
 			_ate_in[str(_target.get("key", ""))] = true
-			if GuestManager != null and GuestManager.has_method("make_room_carnage"):
-				GuestManager.make_room_carnage(str(_target.get("key", "")))
+			if GuestManager != null and INSTANCE.guests(_world_root).has_method("make_room_carnage"):
+				INSTANCE.guests(_world_root).make_room_carnage(str(_target.get("key", "")))
 		_force_window(str(_target.get("key", "")), "")
 	_body.visible = true
 	_interrupt_t = 0.0
@@ -1098,7 +1098,7 @@ func _spare_current() -> void:
 		if id >= 0 and not _cut_ids.has(id):
 			_cut_ids.append(id)
 			if GuestManager != null:
-				GuestManager.apply_guest_event(id, -60.0, {
+				INSTANCE.guests(_world_root).apply_guest_event(id, -60.0, {
 					"tent": "Something came into the tent in the night. It had a knife. I can't stop shaking.",
 					"cabin": "Something came into the cabin in the night. It had a knife. I can't stop shaking.",
 					"caravan": "Something came into the caravan in the night. It had a knife. I can't stop shaking.",
@@ -1110,7 +1110,7 @@ func _spare_current() -> void:
 func _guests_in(key: String) -> Array:
 	var out: Array = []
 	var me := int((_night_entry.get("guest", {}) as Dictionary).get("id", -2)) if _night_entry.get("guest", {}) is Dictionary else -2
-	for g in GuestManager.get_guest_life_snapshot():
+	for g in INSTANCE.guests(_world_root).get_guest_life_snapshot():
 		var c = g.get("lodging", Vector2i(-1, -1))
 		if not (c is Vector2i) or "%d:%d" % [c.x, c.y] != key:
 			continue
@@ -1133,10 +1133,10 @@ func _lodgings() -> Array:
 	var out: Array = []
 	if GuestManager == null or _grid_manager == null or not _grid_manager.has_method("grid_to_world"):
 		return out
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(_world_root).get_state()
 	var seen := {}
 	var me := int((_night_entry.get("guest", {}) as Dictionary).get("id", -2)) if _night_entry.get("guest", {}) is Dictionary else -2
-	for g in GuestManager.get_guest_life_snapshot():
+	for g in INSTANCE.guests(_world_root).get_guest_life_snapshot():
 		var c = g.get("lodging", Vector2i(-1, -1))
 		if not (c is Vector2i) or (c as Vector2i).x < 0 or int(g.get("id", -1)) == me:
 			continue
@@ -1718,15 +1718,15 @@ func dawn() -> Array:
 	var lines: Array = []
 	var leaving: Array = _cut_ids.duplicate()
 	var lodged := {}
-	for g in GuestManager.get_guest_life_snapshot():
+	for g in INSTANCE.guests(_world_root).get_guest_life_snapshot():
 		var c = g.get("lodging", Vector2i(-1, -1))
 		if c is Vector2i:
 			lodged[int(g.get("id", -1))] = "%d:%d" % [c.x, c.y]
 		if c is Vector2i and _ate_in.has("%d:%d" % [c.x, c.y]) and not leaving.has(int(g.get("id", -1))):
 			leaving.append(int(g.get("id", -1)))
 	for id in leaving:
-		if GuestManager.has_method("shaken_leave"):
-			GuestManager.shaken_leave(int(id), {
+		if INSTANCE.guests(_world_root).has_method("shaken_leave"):
+			INSTANCE.guests(_world_root).shaken_leave(int(id), {
 				"tent": "Something came into our tent in the night and took the others. Nobody came. Never again.",
 				"cabin": "Something came into our cabin in the night and took the others. Nobody came. Never again.",
 				"caravan": "Something came into our caravan in the night and took the others. Nobody came. Never again.",
@@ -1735,8 +1735,8 @@ func dawn() -> Array:
 	var day := int(main.get("_day_index")) if main != null and main.get("_day_index") != null else 1
 	for g in _eaten_guests:
 		var name := str((g as Dictionary).get("name", ""))
-		if EmailManager != null and EmailManager.has_method("schedule_pool_mail"):
-			EmailManager.schedule_pool_mail(_relative_mail(g, day + _rng.randi_range(1, 2)))
+		if EmailManager != null and INSTANCE.mail(_world_root).has_method("schedule_pool_mail"):
+			INSTANCE.mail(_world_root).schedule_pool_mail(_relative_mail(g, day + _rng.randi_range(1, 2)))
 		lines.append("Morning: %s is gone. Their lodging is not fit to be seen." % name)
 	return lines
 
@@ -1775,7 +1775,7 @@ func _relative_mail(g: Dictionary, day: int) -> Dictionary:
 
 ## "tent", "cabin" or "caravan": the lodging at `key` ("x:y").
 func _kind_of(key: String) -> String:
-	var st = CoreRoot.get_state() if CoreRoot != null else null
+	var st = INSTANCE.core(_world_root).get_state() if CoreRoot != null else null
 	var acc: Dictionary = st.accommodation_states.get(key, {}) if st != null else {}
 	var t := str(acc.get("building_type", ""))
 	return "cabin" if t.contains("cabin") else ("caravan" if t.contains("caravan") else "tent")

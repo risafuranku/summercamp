@@ -345,7 +345,7 @@ func _hard_ground(at: Vector3) -> bool:
 	var gm = main.get("grid_manager") if main != null else null
 	if gm != null and gm.has_method("world_to_grid"):
 		var c: Vector2i = gm.world_to_grid(at)
-		var st = CoreRoot.get_state() if CoreRoot != null and CoreRoot.has_method("get_state") else null
+		var st = INSTANCE.core(self).get_state() if CoreRoot != null and INSTANCE.core(self).has_method("get_state") else null
 		if st != null and st.grid != null and st.grid.cells.has(c):
 			var ty := str(st.grid.cells[c].get("type", ""))
 			return ty.contains("path") or ty.contains("road") or ty.contains("concrete")

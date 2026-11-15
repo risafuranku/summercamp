@@ -167,7 +167,7 @@ func _lay() -> void:
 		if BUSINESS.stock_of(building_key, "sausage") == 0:
 			say("", "The box is empty.")
 			return
-		if CoreRoot != null and CoreRoot.actions != null and not CoreRoot.actions.biz_take(building_key, {"sausage": 1}):
+		if CoreRoot != null and INSTANCE.core(self).actions != null and not INSTANCE.core(self).actions.biz_take(building_key, {"sausage": 1}):
 			return
 		kitchen.act(building_key, "grill", [i, {"down": 0, "t": [0.0, 0.0]}])
 		sfx("sizzle_in", -8.0, randf_range(0.95, 1.08))

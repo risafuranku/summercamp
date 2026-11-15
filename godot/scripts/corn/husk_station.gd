@@ -222,8 +222,8 @@ func _take() -> void:
 		say("", "The crate is empty.")
 		sfx("tick", -14.0, 0.7)
 		return
-	if CoreRoot != null and CoreRoot.actions != null and BUSINESS.stock_of(building_key, "cobs") > 0:
-		if not CoreRoot.actions.biz_take(building_key, {"cobs": 1}):
+	if CoreRoot != null and INSTANCE.core(self).actions != null and BUSINESS.stock_of(building_key, "cobs") > 0:
+		if not INSTANCE.core(self).actions.biz_take(building_key, {"cobs": 1}):
 			return
 	_cob = {"leaves": int(stand.leaves(building_key)), "silk": CORN.SILK}
 	sfx("plate_down", -12.0, 0.8)

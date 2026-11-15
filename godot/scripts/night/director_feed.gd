@@ -82,7 +82,7 @@ func context() -> Dictionary:
 	return {
 		"night": night and main._gameplay_started and not main._game_over_active,
 		"quiet": main._day_index <= main.QUIET_NIGHTS,
-		"swell": float(CoreRoot.get_state().night_swell),
+		"swell": float(INSTANCE.core(main).get_state().night_swell),
 		"build": NIGHT_SWELL.build(hour),
 		"hour": hour,
 		"place": where,
@@ -143,12 +143,12 @@ func slow_context() -> Dictionary:
 	var by_arch := {}
 	var sleepers: Array = []
 	# Everyone checked in, awake or asleep: at night they are all "sleep".
-	for g in CoreRoot.get_state().guests:
+	for g in INSTANCE.core(main).get_state().guests:
 		if g is Dictionary and str((g as Dictionary).get("status", "")) in ["active", "sleep"]:
 			var a := str((g as Dictionary).get("archetype", ""))
 			by_arch[a] = int(by_arch.get(a, 0)) + 1
 			if str((g as Dictionary).get("status", "")) == "sleep":
-				sleepers.append({"id": int(g.get("id", -1)), "name": str(g.get("name", "")), "sprite_path": GuestManager._sprite_path_for_archetype(a)})
+				sleepers.append({"id": int(g.get("id", -1)), "name": str(g.get("name", "")), "sprite_path": INSTANCE.guests(main)._sprite_path_for_archetype(a)})
 	return {"base": base, "by_arch": by_arch, "sleepers": sleepers, "pressure": OMENS_SCRIPT.pressure(base)}
 
 
@@ -197,7 +197,7 @@ func caretaker_context() -> Dictionary:
 
 ## What the night presses on the camp with, for scripts/omens.gd.
 func omen_context() -> Dictionary:
-	var mood: Dictionary = GuestManager.get_camp_mood_summary() if GuestManager != null and GuestManager.has_method("get_camp_mood_summary") else {}
+	var mood: Dictionary = INSTANCE.guests(main).get_camp_mood_summary() if GuestManager != null and INSTANCE.guests(main).has_method("get_camp_mood_summary") else {}
 	var hunting := 0
 	for b in main._enemy_brains:
 		if b != null and b.get("_night_active") != false:

@@ -149,7 +149,7 @@ func _minibar() -> void:
 	if bottles <= 0:
 		_set_bar(false)
 		return
-	if CoreRoot.get_money() < BOTTLE_PRICE or not CoreRoot.actions.spend_money(BOTTLE_PRICE):
+	if INSTANCE.core(room).get_money() < BOTTLE_PRICE or not INSTANCE.core(room).actions.spend_money(BOTTLE_PRICE):
 		view._play("director/knock_wrong.mp3", -14.0)
 		return
 	bottles -= 1

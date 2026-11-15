@@ -418,8 +418,8 @@ func serve_now() -> void:
 	var price := int(sale["amount"])
 	var r := RULES_BIZ.reward(pts, price)
 	var tip := int(r["tip"])
-	if tip > 0 and CoreRoot != null and CoreRoot.actions != null:
-		CoreRoot.actions.biz_sale(building_key, tip, 0, true)
+	if tip > 0 and CoreRoot != null and INSTANCE.core(self).actions != null:
+		INSTANCE.core(self).actions.biz_sale(building_key, tip, 0, true)
 	var line: String = LINES["good"]
 	if small and fit < 1.0:
 		line = LINES["small"]
@@ -441,8 +441,8 @@ func serve_now() -> void:
 		thought = "Queued forever for bowling shoes."
 	ORDERS.mood(guest, float(r["mood"]) + (1.0 if fit >= 1.0 else -2.0), thought)
 	ORDERS.note_meal(guest, thought, pts)
-	if CoreRoot != null and CoreRoot.actions != null:
-		CoreRoot.actions.biz_score(building_key, {"score": pts, "tip": tip, "what": "Lane and shoes", "who": str(t.get("name", "")), "hand": false})
+	if CoreRoot != null and INSTANCE.core(self).actions != null:
+		INSTANCE.core(self).actions.biz_score(building_key, {"score": pts, "tip": tip, "what": "Lane and shoes", "who": str(t.get("name", "")), "hand": false})
 	pop("+$%d" % (price + tip), SLOTS[1] + Vector2(34, -40), RETRO_UI.C_GREEN if int(r["stars"]) >= 2 else RETRO_UI.C_AMBER)
 	score_card({"ok": true, "score": pts, "stars": int(r["stars"]), "tip": tip, "amount": price + tip, "speed": speed, "build": fit}, "Lane and shoes", t)
 

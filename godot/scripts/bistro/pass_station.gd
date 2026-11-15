@@ -381,7 +381,7 @@ func _add(part: String) -> void:
 		"bread":
 			if int(counts.get("bread", 0)) >= 2:
 				return
-			if CoreRoot != null and CoreRoot.actions != null and not CoreRoot.actions.biz_take(building_key, {"bread": 1}):
+			if CoreRoot != null and INSTANCE.core(self).actions != null and not INSTANCE.core(self).actions.biz_take(building_key, {"bread": 1}):
 				sfx("tick", -14.0, 0.7)
 				return
 			sfx("plate_down", -14.0, 1.4)

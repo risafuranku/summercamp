@@ -998,7 +998,7 @@ func _write_from(what: String) -> void:
 
 ## A hand took them in: the same line in the book as yours (Richard 8. 11.).
 func add_by_hand(guest: Dictionary, rooms: Array) -> void:
-	var card: Dictionary = GuestManager.desk_card_for(int(guest.get("id", 0)), str(guest.get("name", "Guest")))
+	var card: Dictionary = INSTANCE.guests(self).desk_card_for(int(guest.get("id", 0)), str(guest.get("name", "Guest")))
 	var labels: Array = []
 	for r in rooms:
 		labels.append(str((r as Dictionary).get("label", "")).to_upper().replace("TENT ", "T").replace("CABIN ", "C").replace("CARAVAN ", "V"))
@@ -1012,7 +1012,7 @@ func add_by_hand(guest: Dictionary, rooms: Array) -> void:
 		"nights": str(int(guest.get("stay_nights", 1))),
 		"lodging": ", ".join(labels),
 		"key": "OK",
-		"day": CoreRoot.get_day(),
+		"day": INSTANCE.core(self).get_day(),
 		"red": false,
 	})
 

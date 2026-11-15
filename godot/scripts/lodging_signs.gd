@@ -13,6 +13,7 @@ extends Node
 ## to make up), bobbing in steps, so you see from outside which ones need you without
 ## the map (the user 20. 10.). None over a ready or a taken room.
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const FONT := preload("res://assets/fonts/silkscreen.fnt")
 const POLL := 1.0
 const CAMP := "res://assets/textury/camp/"
@@ -50,13 +51,13 @@ func _process(delta: float) -> void:
 
 
 func _sync(s: Node3D) -> void:
-	var kind: String = GuestManager.lodging_kind(str(s.get_meta("building_type", "")))
+	var kind: String = INSTANCE.guests(self).lodging_kind(str(s.get_meta("building_type", "")))
 	var o = s.get_meta("grid_origin", null)
 	if kind.is_empty() or not (o is Vector2i):
 		return
 	var key := "%d:%d" % [(o as Vector2i).x, (o as Vector2i).y]
 	_sync_marker(s, key)
-	var no: int = GuestManager.room_number(key)
+	var no: int = INSTANCE.guests(self).room_number(key)
 	var sign := s.get_node_or_null("NumberSign") as Node3D
 	if no <= 0:
 		if sign != null:
@@ -78,7 +79,7 @@ func _sync(s: Node3D) -> void:
 
 ## The marker over a room that wants doing (empty and dirty, or not made up).
 func _sync_marker(s: Node3D, key: String) -> void:
-	var rs: Dictionary = GuestManager.get_room_state(key)
+	var rs: Dictionary = INSTANCE.guests(self).get_room_state(key)
 	var want := ""
 	if not rs.is_empty() and not bool(rs.get("occupied", false)):
 		var st := str(rs.get("status", ""))
@@ -106,7 +107,7 @@ func _sync_marker(s: Node3D, key: String) -> void:
 	# Over the roof, in the middle of the footprint (higher if the upkeep's warning is
 	# there for the same building, so they do not cover each other).
 	var top := _top_of(s)
-	var st2 = CoreRoot.get_state() if CoreRoot != null else null
+	var st2 = INSTANCE.core(self).get_state() if CoreRoot != null else null
 	var warned: bool = st2 != null and st2.failures.has(key)
 	m.set_meta("base", s.to_local(Vector3(top.x, top.y + SIGN_OVER + (0.95 if warned else 0.0), top.z)))
 	m.texture = tex

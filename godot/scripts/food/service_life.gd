@@ -21,6 +21,7 @@ extends Node3D
 ## Seated people are the *_sit / *_drink / *_eat poses (scripts/attractions/poses.gd).
 ## Stepped like the rest of the game (8 frames a second).
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 const POSES = preload("res://scripts/attractions/poses.gd")
 ## Guests with a set seen from eight sides (scripts/figures/doom_figure.gd): walking in
 ## frames to their seat, facing their table, the till, the rack.
@@ -223,8 +224,8 @@ func _visitors() -> Array:
 	var out: Array = []
 	if GuestManager == null:
 		return out
-	var now: int = GuestManager._absolute_minutes(maxi(1, GuestManager._last_known_day), GuestManager._last_known_hour, GuestManager._last_known_minute)
-	for g in GuestManager.get_guest_life_snapshot():
+	var now: int = INSTANCE.guests(self)._absolute_minutes(maxi(1, INSTANCE.guests(self)._last_known_day), INSTANCE.guests(self)._last_known_hour, INSTANCE.guests(self)._last_known_minute)
+	for g in INSTANCE.guests(self).get_guest_life_snapshot():
 		var act: Dictionary = g.get("activity", {}) if g.get("activity", {}) is Dictionary else {}
 		if str(act.get("kind", "")) != "visit" or str(act.get("target_key", "")) != key or bool(act.get("queued", false)):
 			continue

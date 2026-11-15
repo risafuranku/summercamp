@@ -7,6 +7,7 @@ extends RefCounted
 ## cell), the office and a sewer put back if a loaded camp has none (ensure_landmarks), and
 ## how many guests each lodging holds written onto it for its windows (sync_guest_counts).
 
+const INSTANCE = preload("res://scripts/instance/instance.gd")
 var main: Node
 
 
@@ -120,7 +121,7 @@ func root_at(origin: Vector2i) -> Node3D:
 func rebuild_cells() -> void:
 	if main.building_manager == null:
 		return
-	var state = CoreRoot.get_state()
+	var state = INSTANCE.core(main).get_state()
 	if state == null or state.grid == null:
 		return
 	state.grid.cells.clear()
@@ -179,7 +180,7 @@ func sync_guest_counts() -> void:
 	var structures_root: Node = main.building_manager.get_node_or_null("Structures")
 	if structures_root == null:
 		return
-	var states: Dictionary = GuestManager.get_accommodation_states()
+	var states: Dictionary = INSTANCE.guests(main).get_accommodation_states()
 	for child in structures_root.get_children():
 		var structure := child as Node3D
 		if structure == null:

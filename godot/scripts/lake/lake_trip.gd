@@ -929,8 +929,8 @@ func _land() -> void:
 		# Co-op: the till is the host's.
 		INSTANCE.coop(self).send_request("money", [money])
 		_caught_today += 1
-	elif money > 0 and CoreRoot != null and CoreRoot.actions != null:
-		CoreRoot.actions.add_money(money)
+	elif money > 0 and CoreRoot != null and INSTANCE.core(self).actions != null:
+		INSTANCE.core(self).actions.add_money(money)
 		_caught_today += 1
 	_say(str(_catch["text"]))
 	_ensure_overlay()

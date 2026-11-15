@@ -1031,7 +1031,7 @@ func _pub_click(id: String) -> void:
 			if _mug > 0:
 				say("Mr Kubat", "Finish that one first.")
 				return
-			if CoreRoot.get_money() < 1 or not CoreRoot.actions.spend_money(1):
+			if INSTANCE.core(self).get_money() < 1 or not INSTANCE.core(self).actions.spend_money(1):
 				say("Mr Kubat", "A dollar. I do not run a tab for the camp. Not any more.")
 				return
 			_play(SFX_PUB + "tap_pour.mp3", -4.0)
@@ -1074,7 +1074,7 @@ func _motel_click(id: String) -> void:
 			_npc_nod = 0.5
 			wants_closeup.emit("motel_room")
 		"machine":
-			if CoreRoot.get_money() < 1 or not CoreRoot.actions.spend_money(1):
+			if INSTANCE.core(self).get_money() < 1 or not INSTANCE.core(self).actions.spend_money(1):
 				say("", "The machine wants a dollar.")
 				return
 			_play(SFX_TOWN + "bottle_down.mp3", -4.0)

@@ -426,7 +426,7 @@ func _fill_can() -> void:
 		"empty":
 			if not _open("kiosk"):
 				_say("The pump is locked for the night. A card on it: 6 - 21.")
-			elif CoreRoot.get_money() < CAN_PRICE or not CoreRoot.actions.spend_money(CAN_PRICE):
+			elif INSTANCE.core(self).get_money() < CAN_PRICE or not INSTANCE.core(self).actions.spend_money(CAN_PRICE):
 				_say("Ten litres of Natural is $%d at the kiosk window. You have not got it." % CAN_PRICE)
 			else:
 				has["canister"] = "full"
@@ -702,7 +702,7 @@ func _room_closeup(kind: String) -> void:
 		if h >= 6.0 and h < MOTEL_FROM:
 			_room.say("Mr Simek", "Rooms from seven in the evening. Sit on the bench if you are tired.")
 			return
-		if CoreRoot.get_money() < MOTEL_PRICE:
+		if INSTANCE.core(self).get_money() < MOTEL_PRICE:
 			_room.say("Mr Simek", "Fifteen dollars. The bench by the pond is free.")
 			return
 		_room.close()
@@ -867,7 +867,7 @@ func rent(n: int) -> bool:
 	if spare:
 		n = _party_room
 		price = 0
-	if price > 0 and (CoreRoot.get_money() < price or not CoreRoot.actions.spend_money(price)):
+	if price > 0 and (INSTANCE.core(self).get_money() < price or not INSTANCE.core(self).actions.spend_money(price)):
 		_simek("That money is not on the counter. The bench by the pond is free.")
 		return false
 	if price > 0:
@@ -1007,7 +1007,7 @@ func _update_watcher(block: Node3D, h: float, night: int) -> void:
 ## The picture of the last guest to leave the camp (its reviews keep who they were).
 func _last_departed_sprite() -> String:
 	var gm = get_node_or_null("/root/GuestManager")
-	var st = CoreRoot.get("state")
+	var st = INSTANCE.core(self).get("state")
 	if gm == null or st == null:
 		return ""
 	var reviews = st.get("guest_reviews")
@@ -1028,7 +1028,7 @@ func _motel() -> void:
 	if h >= 6.0 and h < MOTEL_FROM:
 		_quote("Mr Simek", "Rooms from seven in the evening. Sit on the bench if you are tired.")
 		return
-	if CoreRoot.get_money() < MOTEL_PRICE or not CoreRoot.actions.spend_money(MOTEL_PRICE):
+	if INSTANCE.core(self).get_money() < MOTEL_PRICE or not INSTANCE.core(self).actions.spend_money(MOTEL_PRICE):
 		_quote("Mr Simek", "Fifteen dollars. The bench by the pond is free.")
 		return
 	var office = _main().get("camp_office") if _main() != null else null
@@ -1557,7 +1557,7 @@ func _place_on(bus: Node3D, path: PackedVector3Array, e: float) -> void:
 
 ## Game hours since the first day began (the line's clock).
 func abs_hour() -> float:
-	return float(CoreRoot.get_day()) * 24.0 + hour()
+	return float(INSTANCE.core(self).get_day()) * 24.0 + hour()
 
 
 ## Puts every round near you where the clock has it: on the road, standing at a stop

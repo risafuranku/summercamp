@@ -182,7 +182,7 @@ func add_item(id: String, n := -1) -> bool:
 		return false
 	# A paper is the day's: bought today, it says what today's says, always.
 	if id == "newspaper" and n < 0:
-		n = CoreRoot.get_day()
+		n = INSTANCE.core(self).get_day()
 	var it := {"id": id, "x": 0, "y": 0, "r": false, "n": n if n >= 0 else int(KINDS[id].get("n", 1))}
 	var spot := _free_spot(it)
 	if spot.x < 0:

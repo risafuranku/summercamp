@@ -59,7 +59,7 @@ func reset() -> void:
 
 
 func sync_forecast(force: bool = false) -> void:
-	if GuestManager == null or not GuestManager.has_method("get_liminal_forecast_data") or not main.camp_rule("threats"):
+	if GuestManager == null or not INSTANCE.guests(main).has_method("get_liminal_forecast_data") or not main.camp_rule("threats"):
 		if force or not forecast.is_empty():
 			forecast.clear()
 			hud_level = 0
@@ -68,7 +68,7 @@ func sync_forecast(force: bool = false) -> void:
 			main._refresh_liminal_debug_window()
 		return
 
-	var payload_any = GuestManager.call("get_liminal_forecast_data")
+	var payload_any = INSTANCE.guests(main).call("get_liminal_forecast_data")
 	if not (payload_any is Dictionary):
 		return
 	var payload: Dictionary = payload_any
@@ -98,7 +98,7 @@ func _lamps(forecast: Dictionary, level: int) -> int:
 		return 1
 	if level <= 1 or not main.camp_rule("threats"):
 		return level
-	return mini(level, NIGHT_SWELL.lamps_cap(NIGHT_SWELL.next(float(CoreRoot.get_state().night_swell), guests_reading(kinds))))
+	return mini(level, NIGHT_SWELL.lamps_cap(NIGHT_SWELL.next(float(INSTANCE.core(main).get_state().night_swell), guests_reading(kinds))))
 
 
 ## How many kinds of guest are in the camp, in the forecast's rows or the roll's.
@@ -112,7 +112,7 @@ func kinds_in_camp(rows: Array) -> int:
 
 ## What the guests are like tonight, for the fear to move toward (night_swell.reading).
 func guests_reading(kinds: int) -> float:
-	var mood: Dictionary = GuestManager.get_camp_mood_summary() if GuestManager != null and GuestManager.has_method("get_camp_mood_summary") else {}
+	var mood: Dictionary = INSTANCE.guests(main).get_camp_mood_summary() if GuestManager != null and INSTANCE.guests(main).has_method("get_camp_mood_summary") else {}
 	return NIGHT_SWELL.reading(int(mood.get("guests", 0)), int(mood.get("unhappy", 0)), kinds, night_lost)
 
 
@@ -120,7 +120,7 @@ func guests_reading(kinds: int) -> float:
 ## (time_system), and a save comes back at night already: no tick, nothing out there till
 ## morning and a death undone for free. After midnight it is still yesterday's night.
 func resume_after_load() -> void:
-	if CoreRoot.is_night():
+	if INSTANCE.core(main).is_night():
 		on_night_tick(main._day_index if main._time_of_day_hours >= 12.0 else main._day_index - 1)
 
 
@@ -215,11 +215,11 @@ func activate(night_index: int) -> void:
 	var rolled: Array = entries_any if entries_any is Array else []
 	# The fear in the camp moves on toward what the guests are like tonight, and it says what the
 	# night may have of what they bring (the nights follow on: night_swell.gd). Once a night.
-	var swell := float(CoreRoot.get_state().night_swell)
+	var swell := float(INSTANCE.core(main).get_state().night_swell)
 	if night_index != swell_moved:
 		swell_moved = night_index
 		swell = NIGHT_SWELL.next(swell, guests_reading(kinds_in_camp(rolled)))
-		CoreRoot.actions.set_night_swell(swell)
+		INSTANCE.core(main).actions.set_night_swell(swell)
 		night_lost = 0
 	var entries: Array = NIGHT_SWELL.shape(rolled, swell, last_night_kinds, main.ENEMY_FOR_ARCHETYPE, rng.randf())
 	var came: Array = []
@@ -273,7 +273,7 @@ func _antlered_comes(kinds_turned: int) -> bool:
 	if kinds_turned >= 3:
 		return true
 	var guests := 0
-	for g in CoreRoot.get_state().guests:
+	for g in INSTANCE.core(main).get_state().guests:
 		if g is Dictionary and str((g as Dictionary).get("status", "")) in ["active", "sleep"]:
 			guests += 1
 	return kinds_turned >= 1 and guests >= ANTLERED_GUESTS
@@ -283,7 +283,7 @@ func _antlered_comes(kinds_turned: int) -> bool:
 ## ({id, name}; empty when none is there, as in a debug spawn).
 func pick_turned_guest(archetype: String, not_these: Array = []) -> Dictionary:
 	var pool: Array = []
-	for g in CoreRoot.get_state().guests:
+	for g in INSTANCE.core(main).get_state().guests:
 		if not (g is Dictionary) or not_these.has(int((g as Dictionary).get("id", -1))):
 			continue
 		if str((g as Dictionary).get("archetype", "")) == archetype and str((g as Dictionary).get("status", "")) in ["active", "sleep"]:
@@ -306,7 +306,7 @@ func claim_turned_guests() -> void:
 		var id := int(guest.get("id", -1))
 		if id < 0:
 			continue
-		if GuestManager.vanish_guest(id):
+		if INSTANCE.guests(main).vanish_guest(id):
 			night_lost += 1
 			if main._hud_manager != null:
 				main._hud_manager.push_status("Morning: %s is gone. The bed was not slept in." % str(guest.get("name", "a guest")), 2)

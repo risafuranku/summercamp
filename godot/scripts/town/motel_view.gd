@@ -1193,7 +1193,7 @@ func _lobby_click(id: String, hour: float) -> bool:
 		"book":
 			_walker.go("desk", func(): _play("motel/newspaper.mp3", -13.0))
 		"machine":
-			if CoreRoot.get_money() < 1 or not CoreRoot.actions.spend_money(1):
+			if INSTANCE.core(room).get_money() < 1 or not INSTANCE.core(room).actions.spend_money(1):
 				_play("director/knock_wrong.mp3", -14.0)
 				return true
 			_play("jednota/coin.mp3", -8.0)

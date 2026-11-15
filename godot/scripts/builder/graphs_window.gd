@@ -57,27 +57,27 @@ func _lines() -> Array:
 	var g = m.get("_day_graph") if m != null else null
 	if g == null:
 		return []
-	var today := CoreRoot.get_day() if CoreRoot != null else 1
+	var today = INSTANCE.core(self).get_day() if CoreRoot != null else 1
 	match page:
 		"money":
-			return [["Cash", LINE["money"], g.series("money", today, CoreRoot.get_money())]]
+			return [["Cash", LINE["money"], g.series("money", today, INSTANCE.core(self).get_money())]]
 		"guests":
 			var people := 0
-			if GuestManager != null and GuestManager.has_method("get_guest_life_snapshot"):
-				for x in GuestManager.get_guest_life_snapshot():
+			if GuestManager != null and INSTANCE.guests(self).has_method("get_guest_life_snapshot"):
+				for x in INSTANCE.guests(self).get_guest_life_snapshot():
 					people += int((x as Dictionary).get("party_size", 1)) if x is Dictionary else 0
 			return [["People staying", LINE["guests"], g.series("guests", today, people)]]
 		"mood":
 			var mood := 0.0
-			if GuestManager != null and GuestManager.has_method("get_camp_mood_summary"):
-				mood = float((GuestManager.get_camp_mood_summary() as Dictionary).get("avg_mood", 0.0))
+			if GuestManager != null and INSTANCE.guests(self).has_method("get_camp_mood_summary"):
+				mood = float((INSTANCE.guests(self).get_camp_mood_summary() as Dictionary).get("avg_mood", 0.0))
 			return [["Mood", LINE["mood"], g.series("mood", today, mood)]]
 		"rating":
 			var gg = m.get("_goggle")
 			return [["Atlas", LINE["rating"], g.series("rating", today, gg.rating(today) if gg != null else null)]]
 		"takings":
 			var out: Array = []
-			var st = CoreRoot.get_state()
+			var st = INSTANCE.core(self).get_state()
 			var sites: Dictionary = st.biz.get("sites", {}) if st != null and st.biz is Dictionary else {}
 			for k in KINDS:
 				var live := 0

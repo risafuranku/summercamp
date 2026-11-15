@@ -1218,7 +1218,7 @@ func _room_2d(file: String, db: float, pitch: float, wall: bool) -> void:
 
 ## The night you hid from him: a Tramp's (or anyone's) is played to instead.
 func _play_to_guest() -> void:
-	var state = CoreRoot.get_state() if CoreRoot != null else null
+	var state = INSTANCE.core(_world_root).get_state() if CoreRoot != null else null
 	if state == null or GuestManager == null:
 		return
 	var pick := {}
@@ -1229,7 +1229,7 @@ func _play_to_guest() -> void:
 				break
 	if pick.is_empty():
 		return
-	GuestManager.apply_guest_event(int(pick.get("id", -1)), -16.0, "Someone played the guitar outside our tent all night. When I turned over, he stopped. He was listening to me breathe.")
+	INSTANCE.guests(_world_root).apply_guest_event(int(pick.get("id", -1)), -16.0, "Someone played the guitar outside our tent all night. When I turned over, he stopped. He was listening to me breathe.")
 
 
 func get_tree_timer(seconds: float, f: Callable) -> void:
