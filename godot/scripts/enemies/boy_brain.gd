@@ -7,8 +7,8 @@ extends "res://scripts/enemies/child_brain.gd"
 ## (DESIGN §5 "The boy"):
 ##   corn     hide and seek: he whispers cold, warmer, burning; found, you lead him out by
 ##            the hand and you must not look back at him (scripts/corn_hunt.gd, boy mode)
-##   breaker  "Cukr, kava, limonada ... BUM!" at the board (to come)
-##   sewer    tag in the pipes (to come; the raccoon stays the pipes' other thing)
+##   breaker  "Cukr, kava, limonada ... BUM!" at the board (breaker_panel.gd, the boy)
+##   sewer    tag in the pipes (pipes/pipe_boy.gd in sewer_pipe_minigame.gd; the raccoon stays the pipes' other thing)
 ## How hard the family presses (the night's difficulty) is how far gone he is: light he
 ## plays fair, medium he cheats (the hints lie now and then), heavy he is all nightmare.
 ##

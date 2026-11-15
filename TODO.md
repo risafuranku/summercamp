@@ -32,7 +32,7 @@ Plan (in this order; tick with the commit):
   - the checklist's 15 steps all come within the three days (day 1: the cabin, the programs, the tent, the toilets, Mirek; the first bill at 20:00 is paid on day 2, Mirek's review on day 2, six guests by day 3): nothing to cut
 - [ ] D2 Half-done things finished (list from PRODUCT.md 🔨/🟡 and the open TODO points). The list (15. 11.), in the order the demo's three days meet them:
   - in the first hour: your hands (`ui/hands.gd`), work by gesture, doors without a seam, the world answers, the god cursor, people seen from eight sides
-  - the first nights: the Whistler, the Boy, the Granny (rows say 🔨: check them against the game before calling them half-done; the polish of 8. 11. went over all three)
+  - [x] the first nights: the Whistler, the Boy, the Granny: checked against the code 15. 11., everything their rows promise is in (2076b615 of 8. 11.; the boy's board and pipes since be6a2522): ✅ in PRODUCT.md
   - co-op 2–4 (stage 1, parts of 2 and 4)
   - the businesses' polish (podniky), the economy's balance pass
   - out of the camp: the barrier, the road, the 380 and its people, the ride, Pristoupim, the map round the camp, on foot out of the camp (the land round the camp is the colleague's: ask before touching `scripts/geo`, `tools/geo`)
