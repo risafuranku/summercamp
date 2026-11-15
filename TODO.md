@@ -22,6 +22,8 @@ Plan (in this order; tick with the commit):
 - [ ] D1 The demo's 3 days: the checklist trimmed, picture guides, night 3 built up, Vera's cliffhanger mail, the Wishlist end screen, losing back to the morning, co-op 2–4 through all of it
   - [x] losing back to the morning (15. 11.): a "morning" save at each dawn and when a camp is made (the last three kept), the game over's button "Back to the morning" loads that day's (dying after midnight: the day before's); bankruptcy and a failed inspection are no game overs yet (the inspection's books are the month's end, not in the demo)
   - one ~200 ms hitch the first time you get up from the desk or go out (it moves between the two from run to run; tools/pruchod_check "up from the desk" / "out into the camp"); the boot under its screen 2.7-3.4 s
+  - a new camp's first 5 s compile ~200 shader pipelines (tools/trhnuti_check --part=start: 626 → 834), most under the loading card, three of 0.1-0.3 s after it as the desk fades in: a proposal: draw the title's showcase camp from a hidden camera for a few frames while the title is up (the same building types, their pipelines then ready), or Godot's pipeline cache/ubershaders
+  - co-op for four: coop4_check PASS (15. 11.)
 - [ ] D2 Half-done things finished (list from PRODUCT.md 🔨/🟡 and the open TODO points). The list (15. 11.), in the order the demo's three days meet them:
   - in the first hour: your hands (`ui/hands.gd`), work by gesture, doors without a seam, the world answers, the god cursor, people seen from eight sides
   - the first nights: the Whistler, the Boy, the Granny (rows say 🔨: check them against the game before calling them half-done; the polish of 8. 11. went over all three)
