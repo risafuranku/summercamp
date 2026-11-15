@@ -122,7 +122,13 @@ func _ready() -> void:
 			["coop_signal", "host_at_pc"], ["coop_wait_file", "client_saw_pc"], ["shot", "h8_at_pc"],
 			["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
 			# A guest at the host's camp: on the other machine too (the camp pulse).
-			["prep_all"], ["book", "Lads", "drunk", 1, 1, 0], ["hours", 0.05], ["eval", "debug_arrivals()"], ["checkin"], ["hours", 0.3],
+			# (Let in at once: a booking now comes by the timetable, ten hours off, and the
+			# guest was never there to walk about on either machine.)
+			["prep_all"], ["eval", "get_node('/root/GuestManager').debug_check_in_party('Lads', 'drunk', 1, 1)"], ["hours", 0.3],
+			# Two bad reviews on the camp's Atlas page for the other warden to see to (a new
+			# camp's page starts empty since 14. 11.: the old reviews it had are gone).
+			["eval", "_goggle.add_guest_review({'name': 'Novak', 'archetype': 'quiet_guy', 'rating': 1, 'text': 'Mud everywhere.'}, 1)"],
+			["eval", "_goggle.add_guest_review({'name': 'Pepa', 'archetype': 'drunk', 'rating': 2, 'text': 'No beer.'}, 1)"],
 			# Two things in the lost and found (the back office is the host's).
 			["eval", "debug_bazaar_fill(2)"], ["wait", 3.0],
 			["coop_fingerprint", "host_guests"], ["coop_signal", "host_guests"],
@@ -130,7 +136,8 @@ func _ready() -> void:
 			["coop_wait_file", "client_spent"], ["coop_fingerprint", "host_till"],
 			["eval", "_day_events.debug_start('delivery')"], ["wait", 2.0], ["coop_signal", "host_day_event"],
 			["coop_wait_file", "client_day_done"], ["wait", 2.0], ["coop_fingerprint", "host_day_done"],
-			["eval", "camp_office.on_phone_effect('electrician', '')"], ["hours", 0.6], ["wait", 3.0], ["coop_signal", "host_electrician"],
+			# (At night he is an hour coming: electrician_visit.ARRIVE_NIGHT; the camp is at 23:00 here.)
+			["eval", "camp_office.on_phone_effect('electrician', '')"], ["hours", 1.2], ["wait", 3.0], ["coop_signal", "host_electrician"],
 			["coop_wait_file", "client_saw_electrician"], ["eval", "camp_office.electrician._leave() if camp_office.electrician != null else null"], ["wait", 1.0],
 			["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('power_generator'))"], ["wait", 2.0], ["coop_signal", "host_in_shed"],
 			["coop_wait_file", "client_in_shed"], ["wait", 2.0], ["shot", "h9_shed_other"], ["coop_fingerprint", "host_shed"], ["coop_signal", "host_shed_seen"],
@@ -163,7 +170,10 @@ func _ready() -> void:
 			["eval", "_interior_manager._building_interior._extras._try_sleep()"], ["wait", 8.0], ["coop_fingerprint", "host_waiting"],
 			["coop_signal", "host_in_bed"], ["coop_wait", "morning"], ["wait", 1.0], ["coop_fingerprint", "host_morning"],
 			# The next day goes on a while: is it still one camp?
-			["hours", 3.0], ["wait", 4.0], ["coop_signal", "host_day2"], ["coop_wait_file", "client_day2_seen"], ["coop_fingerprint", "host_day2"],
+			# (The clock held while both are read: a guest in the camp spends between the two
+			# readings, the host's was taken seconds after the other's.)
+			["hours", 3.0], ["wait", 4.0], ["eval", "set('clock_scale', 0.0)"], ["wait", 1.0], ["coop_fingerprint", "host_day2"],
+			["coop_signal", "host_day2"], ["coop_wait_file", "client_day2_seen"], ["eval", "set('clock_scale', 1.0)"],
 			# The 13:20 bus at the camp stop, for both.
 			["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0], ["coop_to_bus_stop"],
 			["eval", "debug_jump_to(2, 13.42)"], ["wait", 3.0], ["coop_signal", "host_bus_here"], ["coop_wait_file", "client_aboard"],
