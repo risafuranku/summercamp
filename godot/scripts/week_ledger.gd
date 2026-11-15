@@ -95,12 +95,24 @@ func is_due(day: int, hours: float) -> bool:
 	return not closed and (day > RETURN_DAY or (day == RETURN_DAY and hours >= RETURN_HOUR))
 
 
+## Guests the camp has had: every one that left a review (not those who gave up at the
+## gate) and those staying now.
+static func hosted_count(state) -> int:
+	if state == null:
+		return 0
+	var n := 0
+	for r_any in state.guest_reviews:
+		if r_any is Dictionary and not bool((r_any as Dictionary).get("gave_up", false)):
+			n += 1
+	return n + (state.guests as Array).size()
+
+
 ## Everything the report screen needs. `state` is the GameState, `built` what stands in the
 ## camp now at what it costs to build.
 func report(state, built := 0) -> Dictionary:
 	var money := int(state.money) if state != null else 0
 	var reviews: Array = state.guest_reviews if state != null else []
-	var hosted := 0
+	var hosted := hosted_count(state)
 	var rated := 0
 	var stars := 0.0
 	var gave_up := 0
@@ -112,14 +124,11 @@ func report(state, built := 0) -> Dictionary:
 		if bool(r.get("gave_up", false)):
 			gave_up += 1
 			continue
-		hosted += 1
 		if bool(r.get("stormed_off", false)):
 			stormed += 1
 		if r.has("rating"):
 			rated += 1
 			stars += float(r.get("rating", 0))
-	if state != null:
-		hosted += (state.guests as Array).size()
 	var avg := stars / float(rated) if rated > 0 else 0.0
 
 	var tally: Dictionary = {}

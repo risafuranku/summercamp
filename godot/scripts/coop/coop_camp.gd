@@ -1213,8 +1213,9 @@ func clock() -> Dictionary:
 		c["sln"] = main.camp_office.nights_passed
 		if main.camp_office.kept_awake_here():
 			c["ka"] = true
-	if main.clock_scale != 1.0:
-		c["cs"] = main.clock_scale
+	var pace: float = main.clock_pace()
+	if pace != 1.0:
+		c["cs"] = pace
 	var build: float = main.weather_system.storm_build() if main.weather_system != null else 0.0
 	if build > 0.0:
 		c["sb"] = snappedf(build, 0.01)

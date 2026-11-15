@@ -103,6 +103,10 @@ godot/
                               # down, the menu's co-op), coop_night, warden_looks, ...
     debug/                    # liminal_window (the night forecast's debug window),
                               # test_camps (the title's secret L page)
+    demo/                     # demo (the demo build: feature tag "demo" or `-- --demo`,
+                              # DAYS, the Steam page), demo_end (the morning after day 3:
+                              # the clock stops at 07:12, the grandson's mail, "Vera"
+                              # answers, the trial's nag on the PC: os98/apps/trial_app)
     os98/                     # the camp computer "Okna 98" at 640x480: os_shell (the panel:
                               # tabs, pages, taskbar, boot, installs), os_page, os_theme,
                               # os_window (dialogs), os_files (the disk), web_pages (the

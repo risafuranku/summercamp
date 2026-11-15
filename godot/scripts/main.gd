@@ -192,6 +192,14 @@ var _game_over_active: bool = false
 ## The game clock's pace against its usual (1): town_trip.gd slows it while a warden
 ## rides the bus through the real land.
 var clock_scale := 1.0
+## The demo's end (scripts/demo/demo_end.gd): it stops the clock on the morning after.
+const DEMO_END = preload("res://scripts/demo/demo_end.gd")
+var _demo_end: RefCounted = DEMO_END.new(self)
+
+
+## How fast the clock runs now: the bus ride's pace, nothing once the demo is over.
+func clock_pace() -> float:
+	return 0.0 if _demo_end.holds_clock() else clock_scale
 var _game_over_reason: String = GAME_OVER_REASON_DEATH
 var _game_over_screen: CanvasLayer
 ## The night forecast's debug window (scripts/debug/liminal_window.gd), made when asked for.
@@ -1185,7 +1193,7 @@ func _process(delta: float) -> void:
 	if time_system and sim:
 		# Slower while a warden rides the 380 through the real land (town_trip.gd):
 		# its thirteen minutes take the real road's five.
-		time_system.process(delta * clock_scale)
+		time_system.process(delta * clock_pace())
 	elif time_system and Coop.is_client() and _gameplay_started and not _menu_mode:
 		_coop_camp.run_clock(delta)
 	if weather_system and sim and not camp_rule("weather"):
@@ -1196,7 +1204,7 @@ func _process(delta: float) -> void:
 		if state != null:
 			weather_system.set_anomaly_pressure(float(state.hrotfaktor))
 		weather_system.season_day = _day_index
-		weather_system.process(delta * clock_scale * BALANCE_CONFIG.GAME_MINUTES_PER_SECOND, _time_of_day_hours)
+		weather_system.process(delta * clock_pace() * BALANCE_CONFIG.GAME_MINUTES_PER_SECOND, _time_of_day_hours)
 	_sync_runtime_state_from_systems()
 	_sync_season()
 	if sim:
@@ -1267,6 +1275,7 @@ func _process(delta: float) -> void:
 	_tick_day_events()
 	if _maintenance != null:
 		_maintenance.tick(delta, not _is_any_interior_open() and not _game_over_active)
+	_demo_end.tick(delta)
 	if visual_module != null and visual_module.has_method("sync_enemy_distortion_fx"):
 		visual_module.sync_enemy_distortion_fx(_time_state)
 	if sim:

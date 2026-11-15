@@ -988,6 +988,14 @@ func open_app(app_id: String, args: Dictionary = {}, _new_instance := false) -> 
 	return page
 
 
+## The demo's end (scripts/demo/demo_end.gd): the trial's nag over whatever is open.
+func open_trial() -> Control:
+	if _state != Boot.DESKTOP:
+		return null
+	_close_start_menu()
+	return _open_dialog_app("trial", "Cursed Camp Manager Simulator - Trial Version", Vector2(440, 330))
+
+
 ## A building shown (CampStat's dirty rooms and upkeep, GuestRack's lists): GuestRack's
 ## plan of the camp, the building blinking. Not Builder, which is for building (the user
 ## 20. 10.).
