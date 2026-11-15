@@ -40,7 +40,7 @@ func start(enemy_id: String) -> void:
 	# The jump runs the night's start (its roll stops every brain), so the thing comes after;
 	# a test night after a test night is the same night 2 again.
 	main._stop_active_enemy_brain()
-	main._liminal_last_rolled_night_id = -99999
+	main._night_roll.last_rolled_night_id = -99999
 	main.debug_jump_to(2, BALANCE_CONFIG.NIGHT_START_HOUR)
 	if enemy_id == main.TEST_SEWER:
 		main._test_sewer_wait = 0.0
@@ -55,7 +55,7 @@ func start(enemy_id: String) -> void:
 	if not main._enemy_brains.is_empty():
 		var nb = main._enemy_brains.back()
 		var ne: Dictionary = nb.get("_night_entry")
-		ne["guest"] = main._pick_turned_guest(str(TEST_NIGHT_GUESTS.get(enemy_id, "")))
+		ne["guest"] = main._night_roll.pick_turned_guest(str(TEST_NIGHT_GUESTS.get(enemy_id, "")))
 		# The boy's job at once, not an hour into the night; his places in turn.
 		if nb.get("soon") != null:
 			nb.set("soon", true)

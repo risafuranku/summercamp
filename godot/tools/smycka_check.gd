@@ -141,13 +141,13 @@ func queue() -> void:
 
 
 func night_load() -> void:
-	_main.set("_liminal_last_rolled_night_id", -99999)
-	var before := int(_main.get("_liminal_last_rolled_night_id"))
+	_main._night_roll.last_rolled_night_id = -99999
+	var before := int(_main._night_roll.last_rolled_night_id)
 	_main.call("debug_jump_to", 4, 23.0)
-	_main.set("_liminal_last_rolled_night_id", -99999)
+	_main._night_roll.last_rolled_night_id = -99999
 	_main.call("_stop_active_enemy_brain")
-	_main.call("_resume_night_after_load")
-	_ok("a night loaded goes on", int(_main.get("_liminal_last_rolled_night_id")) == 4, "night %d (was %d), %d out" % [int(_main.get("_liminal_last_rolled_night_id")), before, (_main.get("_enemy_brains") as Array).size()])
+	_main._night_roll.resume_after_load()
+	_ok("a night loaded goes on", int(_main._night_roll.last_rolled_night_id) == 4, "night %d (was %d), %d out" % [int(_main._night_roll.last_rolled_night_id), before, (_main.get("_enemy_brains") as Array).size()])
 
 
 func click_door() -> void:

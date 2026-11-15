@@ -18,7 +18,7 @@ extends "res://scripts/enemies/child_brain.gd"
 ## at your ear (Richard 8. 11.: "ve stylu holky, tichomě": he stands as the Silent Man does).
 ##
 ## Found and out: he is back in the tent by morning, remembering nothing. Not found by
-## dawn: the family is gone (`claimed`, main._claim_turned_guests).
+## dawn: the family is gone (`claimed`, night_roll.claim_turned_guests).
 ## No place for him in this camp (no corn, no generator, no sewer): the old Extra Child
 ## among the tents (child_brain.gd).
 

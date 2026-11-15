@@ -97,7 +97,7 @@ func _reset() -> void:
 	main._stop_active_enemy_brain()
 	main._despawn_all_runtime_enemies()
 	main._set_player_health(100, false)
-	main.set("_liminal_last_rolled_night_id", -99999)
+	main._night_roll.last_rolled_night_id = -99999
 	var g = main.get("_god_cursor")
 	if g != null and is_instance_valid(g):
 		g.set("debug_force", false)
@@ -257,4 +257,4 @@ func _night(hours: float, weather: int, enemy: String, archetype: String) -> voi
 	if brains != null and not brains.is_empty():
 		var ne = brains.back().get("_night_entry")
 		if ne is Dictionary:
-			ne["guest"] = main._pick_turned_guest(archetype)
+			ne["guest"] = main._night_roll.pick_turned_guest(archetype)

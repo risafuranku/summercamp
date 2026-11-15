@@ -37,6 +37,8 @@ IGNORE = {"light_color", "light_energy", "omni_range", "position", "tscn"}
 DECL = re.compile(r"^(?:@\w+(?:\([^)]*\))?\s+)*(?:static\s+)?(?:var|func|const|signal|enum)\s+(\w+)", re.M)
 USE = re.compile(r"(?<![\w.])_?main\.(\w+)")
 LIT = re.compile(r"(?<![\w.])_?main\.(?:call|call_deferred|get|set|has_method|has_signal)\(\s*\"(\w+)\"")
+# Callable(main, "name"): a method of main's handed on.
+CALLABLE = re.compile(r"Callable\(\s*_?main\s*,\s*\"(\w+)\"")
 # Names the screenshot driver's eval strings call on main (they run with main as base).
 EVAL = re.compile(r"\[\s*\"eval[s]?\"\s*,\s*\"([^\"]*)\"")
 CALL_STEP = re.compile(r"\[\s*\"call\"\s*,\s*\"(\w+)\"")
@@ -71,7 +73,7 @@ def main():
         for n, line in enumerate(text.split("\n"), 1):
             if line.lstrip().startswith("#"):
                 continue
-            for name in USE.findall(line) + LIT.findall(line):
+            for name in USE.findall(line) + LIT.findall(line) + CALLABLE.findall(line):
                 if name not in have:
                     bad.setdefault(name, []).append("%s:%d" % (os.path.relpath(path, ROOT), n))
             if path.endswith("shot_driver.gd") or "check" in os.path.basename(path):

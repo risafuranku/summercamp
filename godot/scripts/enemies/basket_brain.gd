@@ -34,7 +34,7 @@ extends "res://scripts/enemies/enemy_base.gd"
 ##           bloodier, quicker).
 ##   out     step outside and she leaves the ones she was on (cut, alive: gone in the
 ##           morning with one star) and comes for you.
-## Morning (dawn(), from main._claim_turned_guests): where she ate the lodging is hers to
+## Morning (dawn(), from night_roll.claim_turned_guests): where she ate the lodging is hers to
 ## clean (GuestManager.make_room_carnage), those who lived through it leave, and a
 ## relative writes a day or two later.
 
@@ -1711,7 +1711,7 @@ func _update_senses(_dt: float, out: bool) -> void:
 
 # ── the morning ──────────────────────────────────────────────────────────────
 
-## The night's account (main._claim_turned_guests): those she was on and their room-mates
+## The night's account (night_roll.claim_turned_guests): those she was on and their room-mates
 ## leave, shaken, with one star; a relative writes about each one she ate; the lines for
 ## the morning.
 func dawn() -> Array:

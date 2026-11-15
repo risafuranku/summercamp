@@ -1286,7 +1286,7 @@ func debug_want_food(lo: float, hi: float) -> void:
 		state.guests[i] = g
 
 
-## A guest the night took (main._claim_turned_guests): gone by morning, without paying,
+## A guest the night took (night_roll.claim_turned_guests): gone by morning, without paying,
 ## without a word in the guest book. Announced as a departure first, so their things go to
 ## the lost and found like anyone's. True if they were here.
 func vanish_guest(guest_id: int) -> bool:

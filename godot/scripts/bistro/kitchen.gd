@@ -754,7 +754,7 @@ func proto_state(key: String) -> Dictionary:
 		"meat": not awake and int(p["tray"]) == day}
 
 
-## A guest gone at dawn (the night took them; main._claim_turned_guests) or before it: the
+## A guest gone at dawn (the night took them; night_roll.claim_turned_guests) or before it: the
 ## machine's next night has its sack. The host's.
 func _on_guest_state(_id: int, _old: String, new_state: String) -> void:
 	if new_state != "departed" or GuestManager == null or not Coop.sim_here():

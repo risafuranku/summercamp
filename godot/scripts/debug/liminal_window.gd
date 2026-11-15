@@ -91,13 +91,13 @@ func refresh() -> void:
 		state_name = "night"
 	lines.append("Liminal Forecast Debug [L]")
 	lines.append("Day %d | %s | phase=%s" % [int(main._day_index), main._time_of_day_string(), state_name])
-	_forecast_lines(lines, main._liminal_forecast_snapshot)
-	_roll_lines(lines, main._liminal_night_roll_snapshot)
+	_forecast_lines(lines, main._night_roll.forecast)
+	_roll_lines(lines, main._night_roll.roll_snapshot)
 	var active_enemy_count := get_tree().get_nodes_in_group("enemies").size() if get_tree() != null else 0
-	var virtual_count := int(main._liminal_virtual_enemy_count)
+	var virtual_count := int(main._night_roll.virtual_count)
 	lines.append("")
 	lines.append("Runtime Enemies Active=%d (virtual=%d, scene=%d)" % [virtual_count + active_enemy_count, virtual_count, active_enemy_count])
-	lines.append("Runtime target this night (quiet guy): %d" % int(main._active_enemy_spawned_this_night))
+	lines.append("Runtime target this night (quiet guy): %d" % int(main._night_roll.spawned_this_night))
 	var brain = main._active_enemy_brain
 	if brain != null and is_instance_valid(brain) and brain.has_method("get_debug_snapshot"):
 		var snap_any = brain.get_debug_snapshot()
@@ -108,8 +108,8 @@ func refresh() -> void:
 			int(snap.get("close_peeks", 0)), int(snap.get("damage_hits", 0))])
 		lines.append("- footsteps=%d | visual_spawns=%d | entity_visible=%s" % [
 			int(snap.get("footstep_bursts", 0)), int(snap.get("visual_spawns", 0)), str(bool(snap.get("entity_visible", false)))])
-	if int(main._liminal_last_despawn_day) > 0:
-		lines.append("Last day-start despawn: day %d -> removed %d enemies" % [int(main._liminal_last_despawn_day), int(main._liminal_last_despawn_count)])
+	if int(main._night_roll.last_despawn_day) > 0:
+		lines.append("Last day-start despawn: day %d -> removed %d enemies" % [int(main._night_roll.last_despawn_day), int(main._night_roll.last_despawn_count)])
 	_text.text = "\n".join(lines)
 
 
@@ -122,7 +122,7 @@ func _forecast_lines(lines: Array[String], forecast: Dictionary) -> void:
 	lines.append("Forecast Summary:")
 	lines.append("Guests=%d | expected transforms=%.2f | guaranteed=%d | pressure archetypes=%d | HUD=%d/4" % [
 		int(totals.get("guests", 0)), float(totals.get("expected_spawns", 0.0)), int(totals.get("guaranteed_spawns", 0)),
-		int(totals.get("pressure_archetypes", 0)), int(main._liminal_forecast_hud_level)])
+		int(totals.get("pressure_archetypes", 0)), int(main._night_roll.hud_level)])
 	lines.append("Archetypes:")
 	var entries: Array = forecast.get("archetypes", []) if forecast.get("archetypes", []) is Array else []
 	for entry_any in entries:
@@ -155,7 +155,7 @@ func _roll_lines(lines: Array[String], roll: Dictionary) -> void:
 			str(rolled.get("label", "Unknown")), int(rolled.get("spawned", 0)), int(rolled.get("guaranteed_spawns", 0)),
 			int(round(clampf(float(rolled.get("chance_probability", 0.0)), 0.0, 1.0) * 100.0)),
 			"-" if roll_value < 0.0 else "%.3f" % roll_value])
-	var history: Array = main._liminal_spawn_history
+	var history: Array = main._night_roll.spawn_history
 	if not history.is_empty():
 		lines.append("Recent nights:")
 		for i in range(history.size() - 1, maxi(history.size() - 4, -1), -1):

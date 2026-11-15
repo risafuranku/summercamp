@@ -233,7 +233,7 @@ func _aim(brain, who: String) -> void:
 		brain.set("_player", main.get("_player"))
 		brain.set("_damage_callable", Callable(main, "damage_player"))
 		brain.set("_allow_actions_callable", Callable(main, "_can_enemy_runtime_actions"))
-		brain.set("_notify_callable", Callable(main, "_on_enemy_notice"))
+		brain.set("_notify_callable", Callable(main._night_roll, "on_enemy_notice"))
 
 
 func _hurt_other(amount: int, who: String) -> void:
@@ -1032,7 +1032,7 @@ func on_event(kind: String, data: Array) -> void:
 		"hurt":
 			main.damage_player(int(data[0]))
 		"feed":
-			main._on_enemy_notice(str(data[0]))
+			main._night_roll.on_enemy_notice(str(data[0]))
 		"heard":
 			_heard(int(data[0]) if not data.is_empty() else 1)
 		"fx":

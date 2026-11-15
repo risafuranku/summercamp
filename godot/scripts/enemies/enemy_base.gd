@@ -30,7 +30,7 @@ var _body: Sprite3D
 var _eyes: Node3D
 var _announced: bool = false
 var _cue_pos: Vector3 = Vector3.INF
-## It got you tonight: the guest it was is gone in the morning (main._claim_turned_guests).
+## It got you tonight: the guest it was is gone in the morning (night_roll.claim_turned_guests).
 var claimed := false
 var _cue_time: float = -999.0
 
