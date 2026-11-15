@@ -161,6 +161,8 @@ func _build() -> void:
 	_body = RichTextLabel.new()
 	_body.bbcode_enabled = true
 	# Links in a mail: Vera's download the file, a program's name opens it.
+	# (The links underline themselves, [u]: a photo held as a link got a line through it.)
+	_body.meta_underlined = false
 	_body.meta_clicked.connect(_on_link)
 	_body.meta_hover_started.connect(func(m):
 		_shell.pointer_hand = true
@@ -529,14 +531,19 @@ func _show_message(mail: Dictionary) -> void:
 		_body.append_text("\n")
 		_body.add_image(tex, mini(tex.get_width(), 280), 0)
 		_body.append_text("\n")
-	# Photos sent with it (Vera's polaroids): side by side under the text.
+	# Photos sent with it (Vera's polaroids): side by side under the text, each held up
+	# when clicked (os_shell.open_photo), named as on the Attach line (FOTO1.JPG...).
 	var pics: Array = mail.get("images", [])
 	if not pics.is_empty():
 		_body.append_text("\n")
+		var n := 0
 		for p in pics:
 			var path := IMG_DIR + str(p) + ".png"
 			if ResourceLoader.exists(path):
+				n += 1
+				_body.push_meta("photo:%s|FOTO%d.JPG" % [path, n])
 				_body.add_image(load(path), PHOTO_W, 0)
+				_body.pop()
 				_body.append_text("  ")
 		_body.append_text("\n")
 	_body.scroll_to_line(0)
@@ -559,6 +566,10 @@ func refresh_tools() -> void:
 
 func _on_link(meta) -> void:
 	var m := str(meta)
+	if m.begins_with("photo:") and _shell != null:
+		_shell.pointer_hand = false
+		_shell.open_photo(m.substr(6).get_slice("|", 0), m.get_slice("|", 1))
+		return
 	if m.begins_with("app:") and _shell != null:
 		_shell.play("click", -10.0)
 		_shell.pointer_hand = false
@@ -574,6 +585,8 @@ func _on_link(meta) -> void:
 
 ## The status bar while the pointer is on a link, as Outlook Express said where it went.
 func _link_status(meta: String) -> String:
+	if meta.begins_with("photo:"):
+		return meta.get_slice("|", 1)
 	if meta.begins_with("app:"):
 		var id := meta.substr(4)
 		var title := str((_shell.PROGRAMS.get(id, {}) as Dictionary).get("title", _shell.TAB_TITLES.get(id, id)))
@@ -980,14 +993,23 @@ func _text_of(mail: Dictionary, key: String) -> String:
 	return _body_in_language(str(mail.get("body", "")))
 
 
+## Her letter, then the task's lines quest_manager put after it ("\n\n[TASK] %s", "\n[REWARD] $%d"),
+## each looked up apart: whole, the letter found nothing in the catalogue, and a short
+## template ("%s and %s") turned its every "and" into "a" (15. 11.). A P.S. the mail got
+## after it was filled (email_manager: where they would like to sleep) apart too.
 func _body_in_language(body: String) -> String:
-	var ps := body.rfind("
-
-P.S. ")
+	var task := body.find("\n\n[TASK] ")
+	if task >= 0:
+		var line := body.substr(task + 9)
+		var reward := ""
+		var r := line.find("\n[REWARD] $")
+		if r >= 0:
+			reward = LANG.money(tr("\n[REWARD] $%d") % int(line.substr(r + 11)))
+			line = line.substr(0, r)
+		return _body_in_language(body.substr(0, task)) + tr("\n\n[TASK] %s") % tr(line) + reward
+	var ps := body.rfind("\n\nP.S. ")
 	if ps >= 0:
-		return tr(body.substr(0, ps)) + "
-
-P.S. " + tr(body.substr(ps + 7))
+		return tr(body.substr(0, ps)) + "\n\nP.S. " + tr(body.substr(ps + 7))
 	return tr(body)
 
 

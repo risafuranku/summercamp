@@ -1497,7 +1497,18 @@ func _make_dialog(app_id: String, p_title: String, p_icon: Texture2D, rect: Rect
 	return win
 
 
-func _open_dialog_app(id: String, p_title: String, sz: Vector2) -> Control:
+## A photo sent with a mail held up (photo_app.gd; CampMail's polaroids): `path` a picture,
+## `name` its file's name in the window's title. One window: another photo is shown in it.
+func open_photo(path: String, name: String) -> Control:
+	var win := _open_dialog_app("photo", LANG.f("Imaging - %s", [name]), Vector2(306, 380), {"path": path})
+	var app = win.content.get_child(0) if win != null and win.content.get_child_count() > 0 else null
+	if app != null and app.has_method("show_photo"):
+		app.show_photo(path)
+		win.title = LANG.f("Imaging - %s", [name])
+	return win
+
+
+func _open_dialog_app(id: String, p_title: String, sz: Vector2, args := {}) -> Control:
 	for w in _dialogs.get_children():
 		if w != _dialog_catch and str(w.get("app_id")) == id and not w.is_queued_for_deletion():
 			w.move_to_front()
@@ -1509,7 +1520,7 @@ func _open_dialog_app(id: String, p_title: String, sz: Vector2) -> Control:
 	win.content.add_child(app)
 	app.size = win.client_size()
 	if app.has_method("setup"):
-		app.setup(self, win, {})
+		app.setup(self, win, args)
 	play("click", -8.0)
 	return win
 

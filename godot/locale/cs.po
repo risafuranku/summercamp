@@ -34088,3 +34088,11 @@ msgstr "Kříž  nebo  LT + levá páčka"
 #. manual
 msgid "B = BACK"
 msgstr "B = ZPĚT"
+
+#. manual
+msgid "Ondrej Blaha"
+msgstr "Ondřej Bláha"
+
+#. manual
+msgid "Imaging - %s"
+msgstr "Imaging - %s"
