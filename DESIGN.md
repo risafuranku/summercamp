@@ -2280,11 +2280,12 @@ frames, really like Doom... the people must look the same all the time, no artef
 ## 12. Wardens together (co-op, up to four)
 
 Decided with the user on 2026-10-17 for two, widened to four on 2026-10-19 ("chceme cílit
-na 4 hráče"). Up to four players run one camp together; only in a
-**sandbox** camp (no month, no checklist, but the district's mail on how to start and a
-first booking sure to come once a bed stands; the story is for one warden, and NEW CAMP says
-so when STORY is chosen). Built and tested in stages, each mechanic gone
-through for two (TODO.md, CO-OP).
+na 4 hráče"). Up to four players run one camp together, a story camp or a sandbox (the
+Q&A of 15. 11. for the demo: "the story in co-op too"). In a story camp Vera's mails and
+her checklist are the host's: the mails come to every machine, the checklist is checked
+and paid on the host and shown on every machine (`quest_manager.coop_state` /
+`coop_follow` in the pulse), a step ticked is announced to all. Built and tested in
+stages, each mechanic gone through for two (TODO.md, CO-OP).
 
 - **One camp, one keeper of it.** The host's machine runs the camp exactly as a single
   player's does; the other machine is a window onto it and sends what its warden does.

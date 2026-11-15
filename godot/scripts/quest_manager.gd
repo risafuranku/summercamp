@@ -211,7 +211,52 @@ func import_state(data: Dictionary) -> void:
 
 func stop() -> void:
 	_active = false
+	_following = false
 	_hide_waypoint()
+
+
+# ── co-op: one checklist, the host's ──────────────────────────────────────────
+
+## The other wardens' machines show the host's checklist (coop_camp's pulse): nothing is
+## checked or paid there.
+var _following := false
+
+
+## The host: where its checklist stands, for the pulse ({} when it runs none).
+func coop_state() -> Dictionary:
+	if not _active:
+		return {}
+	return {"i": _index, "c": _completed.size(), "f": _finished_all}
+
+
+## The other warden's machine: the host's checklist shown here; a step it ticked is
+## announced here too.
+func coop_follow(d: Dictionary) -> void:
+	if d.is_empty():
+		if _following:
+			_following = false
+			_index = -1
+			_completed.clear()
+			var hud := _hud()
+			if hud != null:
+				hud.clear_objective()
+			_hide_waypoint()
+		return
+	var i := int(d.get("i", -1))
+	var c := int(d.get("c", 0))
+	var f := bool(d.get("f", false))
+	if _following and i == _index and c == _completed.size() and f == _finished_all:
+		return
+	if _following and c > _completed.size() and _index >= 0 and _index < STEPS.size():
+		_announce_complete(STEPS[_index])
+	_following = true
+	_active = false
+	_index = i
+	_completed.clear()
+	for k in mini(c, STEPS.size()):
+		_completed.append(str(STEPS[k]["id"]))
+	_finished_all = f
+	_push_tracker()
 
 
 ## Events forwarded by main (a flag the step conditions can read).
@@ -227,6 +272,12 @@ func current_step_id() -> String:
 
 
 func _process(delta: float) -> void:
+	if _following:
+		_poll -= delta
+		if _poll <= 0.0:
+			_poll = POLL_SEC
+			_sync_waypoint()
+		return
 	if not _active:
 		return
 	_poll -= delta
@@ -291,14 +342,20 @@ func _complete_current() -> void:
 	var reward := int(step.get("reward", 0))
 	if reward > 0 and CoreRoot.actions != null and CoreRoot.actions.has_method("add_money"):
 		CoreRoot.actions.add_money(reward)
+	_announce_complete(step)
+	step_completed.emit(id)
+	_advance()
+
+
+## A step ticked: the banner, the line and the sound (on every warden's machine).
+func _announce_complete(step: Dictionary) -> void:
+	var reward := int(step.get("reward", 0))
 	var hud := _hud()
 	if hud != null:
 		var sub := "+$%d" % reward if reward > 0 else ""
 		hud.show_banner("TASK COMPLETE", sub, Color(0.46, 0.86, 0.36), 2.6)
 		hud.push_status("Checklist: %s" % str(step["text"]).split(".")[0], 1)
 	_play_complete_sound()
-	step_completed.emit(id)
-	_advance()
 
 
 func _finish_all() -> void:

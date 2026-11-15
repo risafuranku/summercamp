@@ -3112,7 +3112,7 @@ func _on_menu_new_camp(camp_name: String, seed: int, coop: bool, sandbox: bool, 
 		if _main_menu != null:
 			_main_menu.show_coop_notice("Port %d is taken." % Coop.port)
 		return
-	await _start_new_camp(sandbox or coop, "", camp_name, seed, coop, rules)
+	await _start_new_camp(sandbox, "", camp_name, seed, coop, rules)
 
 
 ## The title's secret L page: test nights, the bus, the businesses' camp, the content reel
@@ -3132,7 +3132,7 @@ func _build_test_camp(enemy_id: String) -> void:
 
 
 ## A fresh camp. `sandbox`: no month, no checklist and no story mails, the programs
-## already on the PC, `rules` its switches (CAMP_RULES; co-op camps are sandbox camps).
+## already on the PC, `rules` its switches (CAMP_RULES). Co-op camps are either.
 ## `test_enemy`: a test night's camp (`_on_menu_test_night`), not opened at the desk.
 func _start_new_camp(sandbox: bool, test_enemy: String = "", camp_name: String = "", seed: int = 0, coop: bool = false, rules: Dictionary = {}) -> void:
 	var started := Time.get_ticks_msec()
@@ -3199,7 +3199,8 @@ func _start_new_camp(sandbox: bool, test_enemy: String = "", camp_name: String =
 
 # ── co-op (scripts/coop/coop.gd) ────────────────────────────────────────────
 
-## A sandbox camp (DESIGN.md §12): no month and no checklist. Co-op camps are sandbox.
+## A sandbox camp (DESIGN.md §12): no month and no checklist. A co-op camp may be either
+## (the story's mails and checklist are the host's: quest_manager.coop_state).
 var _sandbox := false
 ## A sandbox camp's switches (NEW CAMP): the night's things (brains, director, omens),
 ## weather (off: always clear), day events, breakdowns (wear and the night's jobs), the

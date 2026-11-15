@@ -487,7 +487,7 @@ func _hour_signature(abs_minute: int) -> String:
 	return "%d:%02d" % [int(at["day"]), int(at["hour"])]
 
 
-## A sandbox camp (co-op camps too) has no checklist and no story: one mail from the
+## A sandbox camp has no checklist and no story: one mail from the
 ## district says how a camp starts, and the first booking does not wait on the dice.
 var _first_booking_due := false
 

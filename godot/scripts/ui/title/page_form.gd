@@ -5,8 +5,8 @@ extends RefCounted
 ## paper of the day (assets/textury/desk/booking.png, twice its pixels), the camp's name
 ## and its seed written into it, STORY or SANDBOX circled in red, a sandbox camp's rules
 ## ticked in pencil boxes. The rubber stamp beside it makes the camp: it comes down on
-## the form, APPROVED in red, and the camp is made (main_menu.new_camp_requested). Two
-## wardens play a sandbox camp: for co-op STORY cannot be circled.
+## the form, APPROVED in red, and the camp is made (main_menu.new_camp_requested). For
+## co-op either: a story camp's mails and checklist are the host's, everyone sees them.
 
 const PAPER := "res://assets/textury/desk/booking.png"
 const STAMP := "res://assets/textury/desk/stamp.png"
@@ -43,7 +43,7 @@ func _init(main_menu, title_desk) -> void:
 
 
 func opened() -> void:
-	sandbox = menu.for_coop
+	sandbox = false
 	rules = {"threats": true, "weather": true, "events": true, "wear": true, "money": 0}
 	_stamped = -1.0
 	_name = desk.field(Rect2(X + 58, Y0 + PITCH * 1 - 8, 96, 10))
@@ -78,7 +78,7 @@ func _make() -> void:
 		seed = (seed & 0x7fffffff) | 1
 	_name.release_focus()
 	_seed.release_focus()
-	var sb: bool = sandbox or menu.for_coop
+	var sb: bool = sandbox
 	menu.new_camp_requested.emit(name, seed, menu.for_coop, sb, rules.duplicate() if sb else {})
 
 
@@ -105,9 +105,8 @@ func click(id: String) -> void:
 		return
 	match id:
 		"story":
-			if not menu.for_coop:
-				sandbox = false
-				desk.play(SFX_PEN, -10.0)
+			sandbox = false
+			desk.play(SFX_PEN, -10.0)
 		"sandbox":
 			sandbox = true
 			desk.play(SFX_PEN, -10.0)
@@ -142,7 +141,7 @@ func paint(d, c: Control) -> void:
 	for i in [1, 2]:
 		c.draw_rect(Rect2(X + 58, _row(i) + 2, 96, 1), Color(d.PENCIL, 0.5))
 	d.text(c, Vector2(X, _row(4)), tr("Mode").to_upper(), d.PENCIL)
-	_choice(d, c, Vector2(X + 32, _row(4)), tr("Story").to_upper(), not sandbox, menu.for_coop, "story")
+	_choice(d, c, Vector2(X + 32, _row(4)), tr("Story").to_upper(), not sandbox, false, "story")
 	_choice(d, c, Vector2(X + 86, _row(4)), tr("Sandbox").to_upper(), sandbox, false, "sandbox")
 	if sandbox:
 		for i in RULES.size():

@@ -69,11 +69,8 @@ func on_menu_host() -> void:
 
 ## Host the camp last hosted for two (its newest save), for the other warden to join.
 func on_menu_host_saved(path: String) -> void:
-	# A story camp is one warden's (its mails, checklist and month are not for two).
-	if str(SaveManager.read_save(path).get("mode", "")) != "sandbox":
-		if main._main_menu != null:
-			main._main_menu.show_coop_notice("A story camp cannot be hosted. Only sandbox camps are for two.")
-		return
+	# (A story camp too: its mails and checklist are the host's, shown to everyone; the
+	# Q&A of 15. 11.)
 	if not Coop.host():
 		if main._main_menu != null:
 			main._main_menu.show_coop_notice("Port %d is taken." % Coop.port)
@@ -410,7 +407,9 @@ func camp_pulse() -> Dictionary:
 	# lost and found.
 	var books := {"rev": state.guest_reviews, "tx": state.guest_transactions, "sat": float(state.satisfaction), "karma": float(state.karma),
 		"hrot": float(state.hrotfaktor), "elec": main._billing.export_state(), "baz": main._bazaar.export_state(), "gog": main._goggle.export_state()}
-	return {"guests": state.guests, "failures": state.failures, "maint": maint, "maint_lr": halves, "rooms": state.accommodation_states, "mail": mail, "shed_key": key, "day": day, "nj": nj, "biz": state.biz, "books": books, "lost": state.lost_guests}
+	# Vera's checklist, the host's (a story camp's): shown on every machine.
+	var quest: Dictionary = main._quest_manager.coop_state() if main._quest_manager != null and is_instance_valid(main._quest_manager) else {}
+	return {"guests": state.guests, "failures": state.failures, "maint": maint, "maint_lr": halves, "rooms": state.accommodation_states, "mail": mail, "shed_key": key, "day": day, "nj": nj, "biz": state.biz, "books": books, "lost": state.lost_guests, "quest": quest}
 
 
 var last_day_hash := 0
@@ -499,6 +498,8 @@ func apply_pulse(p: Dictionary) -> void:
 	var mail: Dictionary = p.get("mail", {})
 	if not mail.is_empty() and EmailManager != null and EmailManager.has_method("coop_take"):
 		EmailManager.coop_take(mail)
+	if main._quest_manager != null and is_instance_valid(main._quest_manager):
+		main._quest_manager.coop_follow(p.get("quest", {}))
 	# The back office is the host's: CampStat's reviews, takings and bills, the bazaar.
 	var books: Dictionary = p.get("books", {})
 	if not books.is_empty():

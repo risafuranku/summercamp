@@ -1,6 +1,6 @@
 extends Node
 
-## Up to four wardens, one camp: co-op, sandbox camps only (DESIGN.md §12, autoload
+## Up to four wardens, one camp: co-op, a story camp or a sandbox (DESIGN.md §12, autoload
 ## "Coop"). The host runs the camp exactly as one player would; each other machine is a
 ## window onto it. When one joins it is sent the whole camp (the save snapshot,
 ## main.coop_world_snapshot()), then the clock and the weather, and every machine streams
