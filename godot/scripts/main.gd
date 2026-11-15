@@ -223,7 +223,6 @@ var _goggle_fresh := true
 ## Builder 98's Graphs: what each day ended with (scripts/builder/day_graph.gd).
 var _day_graph = preload("res://scripts/builder/day_graph.gd").new()
 var _pending_graph: Dictionary = {}
-var _director_was_inside := false
 var _night_jobs: Node
 var _paper_map: Node
 const PAPER_MAP_SCRIPT = preload("res://scripts/paper_map.gd")
@@ -595,196 +594,26 @@ func _tick_week_ledger() -> void:
 		_show_week_report()
 
 
-## The night director: what it sees of the night and of you, then what it does.
+## What the night director sees, and what the omens and the caretaker read of the camp
+## (scripts/night/director_feed.gd).
+const DIRECTOR_FEED = preload("res://scripts/night/director_feed.gd")
+var _night_feed: RefCounted = DIRECTOR_FEED.new(self)
+
+
 func _tick_director() -> void:
-	if _director == null or _director_fx == null or get_tree().paused:
-		return
-	var ctx := _director_context()
-	# Co-op: the night presses on one warden at a time (scripts/coop/coop_night.gd); what
-	# it does to another happens on their machine, and to those with them too.
-	var target := "host"
-	if Coop.is_host() and Coop.has_partner() and _coop_night != null:
-		target = _coop_night.director_target()
-		if target != "host":
-			ctx = _director_context_other(ctx, _coop_night.peer_of(target))
-	var id: String = _director.tick(get_process_delta_time(), ctx)
-	if id != "" and target != "host":
-		var peer: int = _coop_night.peer_of(target)
-		Coop.send_night_event("fx", [id], peer)
-		for with_them in _coop_night.near(target):
-			if int(with_them) == 1:
-				_director_fx.run(id, _director_context())
-			elif int(with_them) != peer:
-				Coop.send_night_event("fx", [id], int(with_them))
-		_director.watch(id, ctx["pos"])
-		return
-	if id != "":
-		var at: Vector3 = _director_fx.run(id, ctx)
-		_director.watch(id, at)
-		if Coop.is_host() and Coop.has_partner() and _coop_night != null:
-			for with_you in _coop_night.near("host"):
-				Coop.send_night_event("fx", [id], int(with_you))
-		# The log names the guest who stood outside.
-		if id == "guest_out" and not _director.log.is_empty():
-			if at == Vector3.INF:
-				_director.log.pop_back()
-			else:
-				_director.log.back()["who"] = str(_director_fx.guest_seen.get("name", "A guest"))
+	_night_feed.tick()
 
 
 func _director_context() -> Dictionary:
-	var hour := _time_of_day_hours
-	var night := hour >= 21.0 or hour < 5.5
-	# The camp's side (guests, pressure) changes slowly: twice a second is plenty.
-	var now := Time.get_ticks_msec()
-	if now - _dir_slow_at > 500 or _dir_slow.is_empty():
-		_dir_slow_at = now
-		_dir_slow = _director_slow_context()
-	var base: Dictionary = _dir_slow["base"]
-	var place := _director_place()
-	var inside := place == "office" or place == "back_room"
-	var entering := inside and not _director_was_inside
-	_director_was_inside = inside or place == "modal"
-	var pos: Vector3 = _player.global_position if _player != null else Vector3.ZERO
-	var vel: Vector3 = _player.velocity if _player != null else Vector3.ZERO
-	var bi = _interior_manager.get("_building_interior") if _interior_manager != null else null
-	var curtain = bi.get("_office_curtain") if bi != null else null
-	var by_arch: Dictionary = _dir_slow["by_arch"]
-	return {
-		"night": night and _gameplay_started and not _game_over_active,
-		"quiet": _day_index <= QUIET_NIGHTS,
-		"swell": float(CoreRoot.get_state().night_swell),
-		"build": NIGHT_SWELL.build(hour),
-		"hour": hour,
-		"place": place,
-		"pos": pos,
-		"pressure": float(_dir_slow["pressure"]),
-		"guests_by_arch": by_arch,
-		"sleepers": _dir_slow.get("sleepers", []),
-		"guest_sleeping": not (_dir_slow.get("sleepers", []) as Array).is_empty(),
-		"admitted": int(base.get("admitted", 0)),
-		"hunting": int(base.get("hunting", 0)),
-		"hunter_near_m": float(_senses.nearest),
-		"dark": bool(base.get("dark", false)),
-		"lamp_near": building_manager != null and float(building_manager.get_light_level_at(pos)) > 0.2,
-		"haunted_near": _day_events != null and place.begins_with("out") and _day_events.haunted_near(pos, 14.0) != Vector3.INF,
-		"walking": Vector2(vel.x, vel.z).length() > 0.8,
-		# (Not with you at the PC, your back to it: the office's strongest scare went by unseen.)
-		"window_open": (curtain == null or float(curtain.get("open")) > 0.5) and not _is_crt_desktop_active(),
-		"looking_at_window": bi != null and bi.has_method("is_looking_at_window") and bi.is_looking_at_window(),
-		"entering": entering,
-		# A run of things may end in the breaker going (night_director.RUNS).
-		"can_trip": _night_jobs != null and _night_jobs.has_method("can_trip_breaker") and _night_jobs.can_trip_breaker(),
-	}
+	return _night_feed.context()
 
 
-var _dir_slow: Dictionary = {}
-var _dir_slow_at := 0
-var _coop_dir_other_inside := false
-
-
-## Co-op: the night's context as another warden (`peer`) is in it (where they are, in the
-## light or the dark, walking), the camp's side as it is.
-func _director_context_other(ctx: Dictionary, peer: int) -> Dictionary:
-	var s: Dictionary = Coop.state_of(peer)
-	var room: Dictionary = s.get("room", {})
-	var pos: Vector3 = s.get("p", Vector3.ZERO)
-	var place := "out_dark"
-	if s.has("boat") or s.has("boat_at") or s.has("ride"):
-		place = "lake"
-	elif str(room.get("t", "")) == "office":
-		place = "back_room" if str(room.get("s", "")) == "back" else "office"
-	elif bool(s.get("in", false)):
-		place = "room"
-	elif building_manager != null and float(building_manager.get_light_level_at(pos)) > 0.2:
-		place = "out_lit"
-	var inside := place == "office" or place == "back_room"
-	var out := ctx.duplicate()
-	out["place"] = place
-	out["pos"] = pos
-	out["walking"] = float(s.get("v", 0.0)) > 0.8
-	out["lamp_near"] = place == "out_lit"
-	out["haunted_near"] = _day_events != null and place.begins_with("out") and _day_events.haunted_near(pos, 14.0) != Vector3.INF
-	out["looking_at_window"] = false
-	out["hunter_near_m"] = 99.0
-	out["entering"] = inside and not _coop_dir_other_inside
-	_coop_dir_other_inside = inside
-	return out
-
-
-func _director_slow_context() -> Dictionary:
-	var base := _omen_context()
-	var by_arch := {}
-	var sleepers: Array = []
-	# Everyone checked in, awake or asleep: at night they are all "sleep".
-	for g in CoreRoot.get_state().guests:
-		if g is Dictionary and str((g as Dictionary).get("status", "")) in ["active", "sleep"]:
-			var a := str((g as Dictionary).get("archetype", ""))
-			by_arch[a] = int(by_arch.get(a, 0)) + 1
-			if str((g as Dictionary).get("status", "")) == "sleep":
-				sleepers.append({"id": int(g.get("id", -1)), "name": str(g.get("name", "")), "sprite_path": GuestManager._sprite_path_for_archetype(a)})
-	return {"base": base, "by_arch": by_arch, "sleepers": sleepers, "pressure": OMENS_SCRIPT.pressure(base)}
-
-
-## Where you are, for the director: office, back_room, out_lit, out_dark, or somewhere
-## it leaves alone (modal: a close-up or the desk; job; lake; room: a guest's room).
-func _director_place() -> String:
-	if _lake_trip != null and _lake_trip.is_active():
-		return "lake"
-	if _away_in_town():
-		return "away"
-	if (_sewer_pipe_minigame != null and _sewer_pipe_minigame.is_open()) or (_utility_repair_minigame != null and _utility_repair_minigame.is_open()):
-		return "job"
-	if _breaker_panel != null and is_instance_valid(_breaker_panel) and _breaker_panel.visible:
-		return "job"
-	var bi = _interior_manager.get("_building_interior") if _interior_manager != null else null
-	if bi != null and bi.is_open():
-		var ex = bi.get("_extras")
-		if ex != null and ex.is_modal():
-			return "modal"
-		return "back_room" if ex != null and ex.in_back_room() else "office"
-	if _is_any_interior_open():
-		return "room"
-	var pos: Vector3 = _player.global_position if _player != null else Vector3.ZERO
-	return "out_lit" if building_manager != null and float(building_manager.get_light_level_at(pos)) > 0.2 else "out_dark"
-
-
-## What the song at the end of the world asks (scripts/audio/caretaker.gd): not the
-## director's context, which is its own to read (it notices you coming in).
 func caretaker_context() -> Dictionary:
-	var hour := _time_of_day_hours
-	var place := _director_place()
-	var bi = _interior_manager.get("_building_interior") if _interior_manager != null else null
-	var set_dread = bi.get("_dread") if bi != null else null
-	var vel: Vector3 = _player.velocity if _player != null else Vector3.ZERO
-	return {
-		"night": (hour >= 21.0 or hour < 5.5) and _gameplay_started and not _game_over_active,
-		"quiet": _day_index <= QUIET_NIGHTS,
-		"place": place,
-		"dread": float(set_dread.get("dread")) if set_dread != null else 0.0,
-		"tension": float(_director.tension),
-		"near_m": float(_senses.nearest),
-		"walking": Vector2(vel.x, vel.z).length() > 0.8,
-		"set_beside": (place == "office" or place == "back_room") and bi != null and bi.get("_radio_power_on") == true and bi.get("_grid_power_available") == true,
-	}
+	return _night_feed.caretaker_context()
 
 
-## What the night presses on the camp with, for scripts/omens.gd.
 func _omen_context() -> Dictionary:
-	var mood: Dictionary = GuestManager.get_camp_mood_summary() if GuestManager != null and GuestManager.has_method("get_camp_mood_summary") else {}
-	var hunting := 0
-	for b in _enemy_brains:
-		if b != null and b.get("_night_active") != false:
-			hunting += 1
-	return {
-		"guests": int(mood.get("guests", 0)),
-		"unhappy": int(mood.get("unhappy", 0)),
-		"kinds_seen": _week_ledger.kinds_seen() if _week_ledger != null else 0,
-		"nights_visited": _week_ledger.nights_visited() if _week_ledger != null else 0,
-		"hunting": hunting,
-		"dark": not _is_grid_powered(),
-		"admitted": _desk_strangers_admitted(),
-	}
+	return _night_feed.omen_context()
 
 
 ## The evening before the night (scripts/night/evening_unease.gd), read off the warden:
@@ -2600,8 +2429,8 @@ func debug_director_line() -> String:
 	if not (sn["recent"] as Array).is_empty():
 		last = str((sn["recent"] as Array).back()["id"])
 	var aw: Array = _director.arch_weights
-	return "%s %s t=%.2f b=%.1f place=%s last=%s hp=%d hunters=%d near=%.0f p=%.2f arch=[%.2f %.2f %.2f %.2f] guests=%s" % [_time_of_day_string(), sn["state"], sn["tension"], sn["budget"], _director_place(), last, int(_player_health), _enemy_brains.size(), float(_senses.nearest),
-		float(_dir_slow.get("pressure", 0.0)), aw[0], aw[1], aw[2], aw[3], str(_dir_slow.get("by_arch", {}))]
+	return "%s %s t=%.2f b=%.1f place=%s last=%s hp=%d hunters=%d near=%.0f p=%.2f arch=[%.2f %.2f %.2f %.2f] guests=%s" % [_time_of_day_string(), sn["state"], sn["tension"], sn["budget"], _night_feed.place(), last, int(_player_health), _enemy_brains.size(), float(_senses.nearest),
+		float(_night_feed.slow.get("pressure", 0.0)), aw[0], aw[1], aw[2], aw[3], str(_night_feed.slow.get("by_arch", {}))]
 
 
 ## Shot driver: how many guests are in the camp, and set the day.

@@ -2167,7 +2167,7 @@ const SCENARIOS := {
 		["prep_all"], ["book", "Lojza", "drunk", 2, 3], ["wait", 0.5], ["eval", "debug_guest_statuses()"],
 		["prep_all"], ["book", "Vlasta", "quiet_guy", 1, 3], ["wait", 0.5], ["eval", "debug_guest_statuses()"],
 		["hours", 0.4], ["eval", "debug_arrivals()"], ["checkin"], ["wait", 1.0], ["eval", "debug_guest_statuses()"],
-		["hours", 12.0], ["wait", 2.0], ["eval", "debug_guest_statuses()"], ["eval", "_director_slow_context()"],
+		["hours", 12.0], ["wait", 2.0], ["eval", "debug_guest_statuses()"], ["eval", "_night_feed.slow_context()"],
 	],
 	"fullnight": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"],
