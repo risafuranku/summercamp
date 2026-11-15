@@ -403,7 +403,7 @@ func apply(snapshot: Dictionary, preview_only: bool) -> bool:
 		main._pending_graph = (graph_any as Dictionary).duplicate(true) if graph_any is Dictionary else {}
 		main._goggle_fresh = true
 		if main._gameplay_started:
-			main._setup_goggle()
+			main._online.setup_goggle()
 		var baz_any = snapshot.get("bazaar", {})
 		main._bazaar.reset()
 		main._pending_bazaar = (baz_any as Dictionary).duplicate(true) if baz_any is Dictionary else {}
