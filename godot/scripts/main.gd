@@ -1012,26 +1012,6 @@ func _poll_guest_quotes(delta: float) -> void:
 		break
 
 
-## Checking a party in at the barrier, by hand: the room has to be made up first.
-func _check_in_guest(info: Dictionary) -> void:
-	var res: Dictionary = GuestManager.request_check_in(int(info.get("id", -1)))
-	var name_text := str(info.get("name", "Guest"))
-	if _hud_manager == null:
-		return
-	if bool(res.get("ok", false)):
-		var rooms: Array = []
-		for r in res.get("rooms", []):
-			rooms.append(str(r.get("label", "")))
-		_hud_manager.push_status("Checked in: %s -> %s" % [name_text, ", ".join(rooms)])
-		return
-	if str(res.get("reason", "")) == "room_not_ready":
-		var todo: Array = []
-		for r in res.get("rooms", []):
-			if not bool(r.get("ready", false)):
-				todo.append(str(r.get("label", "")))
-		_hud_manager.push_status("%s: \"Our room is not ready.\" Make up %s first." % [name_text, ", ".join(todo)])
-
-
 func _talk_to_guest(info: Dictionary) -> void:
 	if _quest_manager != null:
 		_quest_manager.notify("talked_to_guest", info)
@@ -2299,6 +2279,8 @@ func _furnish_rooms_stepped() -> void:
 
 
 func _menu_step(text: String, _progress: float) -> void:
+	if _title_stage != null:
+		_title_stage.let_go()
 	if _main_menu != null:
 		_main_menu.show_loading(text)
 	await get_tree().process_frame
@@ -3017,6 +2999,9 @@ func _set_hud_shown(on: bool) -> void:
 
 
 func _show_menu_loading_for(label: String) -> void:
+	# A game is coming: the title lets go of its dusk (it set the hour back every frame).
+	if _title_stage != null:
+		_title_stage.let_go()
 	if _main_menu != null:
 		_main_menu.show_loading(label)
 	await get_tree().process_frame

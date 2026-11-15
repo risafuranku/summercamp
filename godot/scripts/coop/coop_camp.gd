@@ -92,6 +92,8 @@ func on_menu_host_saved(path: String) -> void:
 
 ## Join: call the camp at `address`; it comes back as world_arrived or join_failed.
 func on_menu_join(address: String) -> void:
+	if main._title_stage != null:
+		main._title_stage.let_go()
 	if main._main_menu != null:
 		main._main_menu.show_loading("Calling the camp...")
 	Coop.join(address)

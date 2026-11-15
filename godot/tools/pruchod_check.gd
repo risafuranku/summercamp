@@ -3,7 +3,8 @@ extends "res://tools/shot_driver.gd"
 ## A first day and night played as a new warden would (the polish pass of 4. 11.): the
 ## title, a new camp at the desk, Vera's mail and Builder, a tent and the toilets, up from
 ## the desk and out into the camp, a walk, the first guests, the evening, the PC's lock,
-## the quiet first night, the second night with a thing out, the morning. A picture at
+## the quiet first night, the second night with a thing out, the morning; the third day,
+## its night as the clock brings it and the fourth morning (the demo's three days). A picture at
 ## every turn and the worst frame of each stretch ("PRUCHOD frames <tag> worst N ms,
 ## >50 ms: n, >100 ms: n, fps a"). Lines "PRUCHOD ...".
 ##   godot --path godot --audio-driver Dummy --resolution 1280x720 res://tools/pruchod_check.tscn -- --out=DIR
@@ -140,6 +141,23 @@ func _ready() -> void:
 		["eval", "_stop_active_enemy_brain()"],
 		["eval", "debug_jump_to(3, 6.6)"], ["wait", 3.0], ["eval", C + ".watch(true, 'morning')"],
 		["wait", 3.0], ["shot", "j0_morning"], ["eval", C + ".probe('morning')"],
+		["eval", C + ".watch(false)"],
+		# The demo's third day (TODO.md "DEMO AND STEAM"): the day with the guests, the
+		# evening, the third night as the clock brings it (rolled from the guests, nothing
+		# forced), the fourth morning.
+		["eval", C + ".watch(true, 'third day')"],
+		["timescale", 3.0], ["wait", 10.0], ["shot", "k0_day3"], ["eval", C + ".probe('day 3')"],
+		["timescale", 1.0], ["eval", C + ".watch(false)"],
+		["eval", "debug_jump_to(3, 19.9)"], ["wait", 2.0],
+		["eval", C + ".watch(true, 'third night')"],
+		["eval", "debug_jump_to(3, 20.6)"], ["wait", 4.0], ["shot", "k1_night3"],
+		["eval", "[_night_roll.last_rolled_night_id, _night_roll.spawned_this_night, _enemy_brains.size(), _night_roll.hud_level, _night_roll.last_night_kinds]"],
+		["eval", C + ".probe('night 3')"],
+		["eval", "debug_jump_to(3, 23.0)"], ["wait", 4.0], ["shot", "k2_night3_late"],
+		["eval", C + ".watch(false)"],
+		["eval", "debug_jump_to(4, 6.6)"], ["wait", 3.0], ["eval", C + ".watch(true, 'fourth morning')"],
+		["wait", 3.0], ["shot", "k3_morning4"], ["eval", C + ".probe('morning 4')"],
+		["eval", "[_enemy_brains.size(), _night_roll.night_lost, _day_index]"],
 		["eval", C + ".watch(false)"],
 		["eval", "get_tree().quit()"],
 	]

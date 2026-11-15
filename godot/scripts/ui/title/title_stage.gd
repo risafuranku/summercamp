@@ -27,6 +27,8 @@ const SWAY_SEC := 9.0
 var main: Node
 var _bi
 var _open := false
+## Holding the clock and the weather at dusk (until a game is started: let_go).
+var _hold := true
 var _t := 0.0
 var _snap := 0
 
@@ -45,6 +47,7 @@ func open() -> void:
 	_bi = im.get("_building_interior") if im != null else null
 	if _bi == null or not _bi.has_method("set_title_view"):
 		return
+	_hold = true
 	_hold_light()
 	# The clock stopped there (a jump back of it burnt the bonfire's whole day away).
 	main.set("clock_scale", 0.0)
@@ -66,13 +69,20 @@ func close() -> void:
 		weather_system.set_auto_cycle_enabled(true)
 
 
+## A game is being made or loaded behind the loading card: the clock and the weather are the
+## game's from now (held at dusk every frame, a new camp started at 19:41: found 15. 11. by
+## the three days' run, tools/pruchod_check). The view stays till close().
+func let_go() -> void:
+	_hold = false
+
+
 ## One frame of the title (main calls it in menu mode).
 func update(delta: float) -> void:
 	if not _open or _bi == null or not is_instance_valid(_bi):
 		return
 	_t += delta
 	var ts = main.get("time_system")
-	if ts != null and absf(float(ts.time_of_day_hours) - HOURS) > 0.02:
+	if _hold and ts != null and absf(float(ts.time_of_day_hours) - HOURS) > 0.02:
 		_hold_light()
 	if _snap > 0:
 		_snap -= 1

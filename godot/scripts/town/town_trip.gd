@@ -2031,26 +2031,6 @@ func _door_out(bus_xf: Transform3D) -> Transform3D:
 	return Transform3D(Basis.looking_at(face.normalized(), Vector3.UP), p)
 
 
-## The stop's machine: a ticket for the 380 into the bag (punch it on the bus).
-func _buy_ticket() -> void:
-	if inventory != null and not inventory.room_for("ticket"):
-		_say("No room in the bag for a ticket.")
-		return
-	if CoreRoot.get_money() < TICKET_MACHINE.PRICE or not CoreRoot.actions.spend_money(TICKET_MACHINE.PRICE):
-		_say("Two dollars. You have not got two dollars.")
-		return
-	var a := AudioStreamPlayer.new()
-	a.stream = load("res://assets/sfx/bus/ticket_print.mp3")
-	a.volume_db = -6.0
-	add_child(a)
-	a.play()
-	a.finished.connect(a.queue_free)
-	if inventory != null:
-		inventory.add_item("ticket")
-	_bought_to = ""
-	_say("A ticket for the 380. Punch it on the bus, in the orange box.")
-
-
 ## On a bench: down onto it looking the way it faces, the eye lower, the mouse still
 ## looks round; walking (or E) gets you up again (_process).
 var _seated_on: Node3D
@@ -2135,7 +2115,9 @@ func _ensure_country() -> bool:
 ## has its own (hamlet_trip.gd).
 func _update_ride_clock() -> void:
 	var main := _main()
-	if main == null:
+	# (Not under the title: it stops the clock at dusk, and this set it going again every
+	# frame once a camp had been played, 15. 11.)
+	if main == null or main.get("_menu_mode") == true:
 		return
 	var scale := 1.0
 	if _hamlet != null and _hamlet.driving():
