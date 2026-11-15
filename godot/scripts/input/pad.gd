@@ -16,7 +16,10 @@ extends Node
 ## a row last; B is Esc, LT the right button, X still R (a room's repairs), LB/RB A and D
 ## (a room's last and next).
 ## Either way: Menu is Esc, View is Tab. With a pointer the cross is the arrows.
+## A screen with keys of its own (a business's stations, the pipes) says which buttons
+## stand for them while it is shown: screen_keys().
 ## `using_pad`: the last thing touched was the pad (prompt.gd shows its buttons then).
+## rumble(): the body's knocks in the hands (the player's hurt and the ground shaking).
 
 signal device_changed(using_pad: bool)
 
@@ -39,8 +42,8 @@ const BUTTONS := {
 	JOY_BUTTON_B: [KEY_SPACE, KEY_ESCAPE],
 	JOY_BUTTON_X: [KEY_R, KEY_R],
 	JOY_BUTTON_Y: [KEY_F, KEY_F],
-	JOY_BUTTON_LEFT_SHOULDER: [KEY_G, KEY_A],
-	JOY_BUTTON_RIGHT_SHOULDER: [KEY_V, KEY_D],
+	JOY_BUTTON_LEFT_SHOULDER: ["@megaphone_talk", KEY_A],
+	JOY_BUTTON_RIGHT_SHOULDER: ["@radio_talk", KEY_D],
 	JOY_BUTTON_LEFT_STICK: [KEY_CTRL, KEY_CTRL],
 	JOY_BUTTON_RIGHT_STICK: [KEY_X, KEY_X],
 	JOY_BUTTON_START: [KEY_ESCAPE, KEY_ESCAPE],
@@ -50,6 +53,9 @@ const BUTTONS := {
 	JOY_BUTTON_DPAD_LEFT: [KEY_L, KEY_LEFT],
 	JOY_BUTTON_DPAD_RIGHT: [KEY_Q, KEY_RIGHT],
 }
+## The keys the warden may change (GameSettings.REBINDABLE), "@action" above: the button
+## stands for whatever key it has now.
+const ACTIONS := {"megaphone_talk": JOY_BUTTON_LEFT_SHOULDER, "radio_talk": JOY_BUTTON_RIGHT_SHOULDER}
 ## The triggers as buttons: [in the camp, with a pointer].
 const TRIGGERS := {JOY_AXIS_TRIGGER_LEFT: [KEY_SHIFT, "rmb"], JOY_AXIS_TRIGGER_RIGHT: ["lmb", "lmb"]}
 
@@ -62,6 +68,57 @@ var _held: Dictionary = {}
 var _rows := false
 var _scroll_t := 0.0
 var _look_rest := Vector2.ZERO
+## [[screen, {JOY_BUTTON_*: KEY_*}]], the newest last.
+var _screens: Array = []
+var _rumble_at := -99.0
+var _rumble_power := 0.0
+
+
+## The pad's node (GameSettings makes it); null before.
+static func node() -> Node:
+	var tree := Engine.get_main_loop() as SceneTree
+	return tree.root.get_node_or_null("GameSettings/Pad") if tree != null else null
+
+
+## The pad shaken in the hands, while it is the pad in use: the light and the heavy motor
+## (0..1) for `sec`. A stronger one cuts over a weaker one still going.
+func rumble(weak: float, strong: float, sec: float) -> void:
+	if not using_pad or pad_device < 0 or maxf(weak, strong) < 0.05:
+		return
+	var now := Time.get_ticks_msec() / 1000.0
+	var left := Input.get_joy_vibration_duration(pad_device) - (now - _rumble_at)
+	if left > 0.0 and maxf(weak, strong) < _rumble_power:
+		return
+	_rumble_at = now
+	_rumble_power = maxf(weak, strong)
+	Input.start_joy_vibration(pad_device, clampf(weak, 0.0, 1.0), clampf(strong, 0.0, 1.0), sec)
+
+
+## While `screen` is in the tree and shown, these buttons stand for its keys (the rest as
+## everywhere). Called once (its _ready); it is let go when it is freed.
+func screen_keys(screen: Node, keys: Dictionary) -> void:
+	for i in range(_screens.size() - 1, -1, -1):
+		if not is_instance_valid(_screens[i][0]) or _screens[i][0] == screen:
+			_screens.remove_at(i)
+	_screens.append([screen, keys])
+
+
+## The keys of the screen shown now (the newest), {} for none.
+func shown_screen_keys() -> Dictionary:
+	for i in range(_screens.size() - 1, -1, -1):
+		var screen = _screens[i][0]
+		if not is_instance_valid(screen):
+			_screens.remove_at(i)
+			continue
+		if _shown(screen):
+			return _screens[i][1]
+	return {}
+
+
+func _shown(screen: Node) -> bool:
+	if not screen.is_inside_tree() or not bool(screen.get("visible")):
+		return false
+	return not (screen is CanvasItem) or (screen as CanvasItem).is_visible_in_tree()
 
 
 func _ready() -> void:
@@ -132,11 +189,14 @@ func _pointer_mode() -> bool:
 func _button(index: int, pressed: bool) -> void:
 	var id := "b%d" % index
 	if pressed:
-		if not BUTTONS.has(index):
+		var own: Dictionary = shown_screen_keys()
+		if not BUTTONS.has(index) and not own.has(index):
 			return
-		if _pointer_mode() and index in [JOY_BUTTON_DPAD_UP, JOY_BUTTON_DPAD_DOWN, JOY_BUTTON_DPAD_LEFT, JOY_BUTTON_DPAD_RIGHT]:
+		var what = own[index] if own.has(index) else BUTTONS[index][1 if _pointer_mode() else 0]
+		if _pointer_mode() and typeof(what) == TYPE_INT and what in [KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT]:
 			_rows = true
-		var what = BUTTONS[index][1 if _pointer_mode() else 0]
+		if typeof(what) == TYPE_STRING and what.begins_with("@"):
+			what = GameSettings.get_key(what.substr(1))
 		if typeof(what) == TYPE_STRING and what == "accept":
 			what = KEY_ENTER if _rows else "lmb"
 		_press(id, what)
@@ -153,6 +213,8 @@ func _trigger(axis: int, value: float) -> void:
 
 
 func _press(id: String, what) -> void:
+	# (Never two keys down for one button: what it held goes up first.)
+	_release(id)
 	var ev := _make(what, true)
 	if ev == null:
 		return

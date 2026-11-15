@@ -105,9 +105,14 @@ godot/
                               # test_camps (the title's secret L page)
     input/                    # pad (the gamepad turned into the keys and the mouse the game
                               # is played with: GameSettings' child "Pad", the one way a pad
-                              # comes in; walk/look/pointer/buttons), prompt (a hint's "[E]"
-                              # as the pad's "[A]" when the pad is in hand: hud.set_hint_text
-                              # swaps after the lookup; write hints with their keys as ever)
+                              # comes in; walk/look/pointer/buttons; a screen with keys of
+                              # its own registers them, screen_keys(self, {JOY_BUTTON_*:
+                              # KEY_*}): the stations, the pipes; rumble() for the body's
+                              # knocks), prompt (a hint's "[E]" as the pad's "[A]" when the
+                              # pad is in hand: hud.set_hint_text and the rooms' edge hints
+                              # swap after the lookup; write hints with their keys as ever;
+                              # redraw_on_change for drawn ones). The controls sheet's lines
+                              # (keys and pad buttons) are settings_panel.control_lines
     demo/                     # demo (the demo build: feature tag "demo" or `-- --demo`,
                               # DAYS, the Steam page), demo_end (the morning after day 3:
                               # the clock stops at 07:12, the grandson's mail, "Vera"

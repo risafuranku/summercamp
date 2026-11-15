@@ -32,6 +32,12 @@ signal repair_cancelled
 signal player_hurt(amount: int)
 
 const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
+const PAD = preload("res://scripts/input/pad.gd")
+const PROMPT = preload("res://scripts/input/prompt.gd")
+## The pad's X is the chalk here (scripts/input/pad.gd; the rest as on any screen with a
+## pointer: the stick the head, A on, the cross the ways, LT a look back, Y the torch,
+## View the map, B out).
+const PAD_KEYS := {JOY_BUTTON_X: KEY_C}
 const RETRO_RENDER = preload("res://scripts/retro_render.gd")
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 
@@ -256,6 +262,9 @@ func _ready() -> void:
 	layer = 128
 	visible = false
 	_build_shell()
+	var pad := PAD.node()
+	if pad != null:
+		pad.screen_keys(self, PAD_KEYS)
 
 
 func is_open() -> bool:
@@ -1417,6 +1426,8 @@ func _build_hud_nodes() -> void:
 	_one.bus = audio_bus()
 	add_child(_one)
 	_hud_status = Label.new()
+	# (Its lines come in the warden's language, the pad's buttons swapped in: _set_status.)
+	_hud_status.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_root.add_child(_hud_status)
 	_map = ColorRect.new()
 	_map.color = Color(0, 0, 0, 0.55)
@@ -1467,7 +1478,7 @@ func _rebuild_hud() -> void:
 
 func _set_status(text: String) -> void:
 	if _hud_status != null:
-		_hud_status.text = text
+		_hud_status.text = PROMPT.swap(tr(text))
 
 
 ## The paper map: the pipes as the last worker drew them, in pen, slightly wobbly.
@@ -1884,7 +1895,7 @@ func _blocked_by_mate() -> void:
 	if not m.is_empty():
 		var their: int = int(m.get("f", 0))
 		facing_you = (their + 2) % 4 == _facing
-	_set_status(("%s's torch in your face. One of you backs up  [S]" if facing_you else "%s's boots, right in front of you.") % who)
+	_set_status((tr("%s's torch in your face. One of you backs up  [S]") if facing_you else tr("%s's boots, right in front of you.")) % who)
 	mate.bumped_into()
 
 
@@ -1894,7 +1905,7 @@ func coop_bumped() -> void:
 		return
 	_bump_t = 0.0
 	_play_one("bump.mp3", -2.0)
-	_set_status("Something knocks against you. %s." % Coop.sender_name())
+	_set_status(tr("Something knocks against you. %s.") % Coop.sender_name())
 
 
 ## The other machine: they clamped hole `i`.
@@ -2127,7 +2138,7 @@ func _update_clamp(delta: float) -> void:
 			_clank()
 			if _director != null:
 				_director.heard(_node, 2)
-		_set_status("Clamping... %d%%" % int(clampf(_clamp, 0.0, 1.0) * 100.0))
+		_set_status(tr("Clamping... %d%%") % int(clampf(_clamp, 0.0, 1.0) * 100.0))
 		if _clamp >= 1.0:
 			_play_one("clamp.mp3", -3.0)
 			_leak_done()

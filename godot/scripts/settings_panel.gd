@@ -8,28 +8,31 @@ const MODE_LABELS := [
 	"Fullscreen (Borderless)",
 ]
 
-## [label, keys] pairs. Kept in sync by hand with `main._ensure_input_actions()`,
-## `player_controller.gd` and the interior scripts.
+const PAD = preload("res://scripts/input/pad.gd")
+const PROMPT = preload("res://scripts/input/prompt.gd")
+
+## [label, keys, the pad's buttons] (the pad's: scripts/input/pad.gd). Kept in sync by hand
+## with `main._ensure_input_actions()`, `player_controller.gd` and the interior scripts.
 const CONTROL_REFERENCE := [
-	["Move", "W A S D"],
-	["Sprint", "Shift"],
-	["Jump", "Space"],
-	["Crouch (twice: crawl)", "Ctrl"],
-	["Pick up / put down", "E"],
-	["Throw what you hold", "Left Mouse"],
-	["Look", "Mouse"],
-	["Interact / use", "E  or  Left Mouse"],
-	["Service / repair building (hold)", "R"],
-	["Pause", "Esc, P  or  F10"],
-	["Leave a room or a job", "Esc  or  Space"],
-	["Leave the PC", "Esc"],
-	["Pause", "P  or  F10"],
-	["Look in rooms and jobs", "W A S D  or  the pointer"],
-	["Office lights (reception)", "L"],
-	["Service room: previous / next", "A / D"],
-	["Builder: rotate", "R"],
-	["Builder: pan", "W A S D  or  Right-drag"],
-	["Builder: zoom", "Mouse wheel  or  + / -"],
+	["Move", "W A S D", "Left stick"],
+	["Sprint", "Shift", "LT"],
+	["Jump", "Space", "B"],
+	["Crouch (twice: crawl)", "Ctrl", "L3"],
+	["Pick up / put down", "E", "A"],
+	["Throw what you hold", "Left Mouse", "RT"],
+	["Look", "Mouse", "Right stick"],
+	["Interact / use", "E  or  Left Mouse", "A  or  RT"],
+	["Service / repair building (hold)", "R", "X"],
+	["Pause", "Esc, P  or  F10", "Menu"],
+	["Leave a room or a job", "Esc  or  Space", "B"],
+	["Leave the PC", "Esc", "B"],
+	["Pause", "P  or  F10", "Menu"],
+	["Look in rooms and jobs", "W A S D  or  the pointer", "Left stick  or  the cross"],
+	["Office lights (reception)", "L", "A on the switch"],
+	["Service room: previous / next", "A / D", "LB / RB"],
+	["Builder: rotate", "R", "X"],
+	["Builder: pan", "W A S D  or  Right-drag", "The cross  or  LT + left stick"],
+	["Builder: zoom", "Mouse wheel  or  + / -", "Right stick"],
 ]
 
 ## How many of those are for out in the camp, the rest for indoors (the menu's two pages).
@@ -42,6 +45,28 @@ const DEBUG_CONTROL_REFERENCE := [
 	["Add money", "K"],
 	["Liminal forecast window", "L"],
 ]
+
+
+## A page of the controls sheet (the title's and the pause menu's): 0 out in the camp, 1
+## indoors, 2 debug. Lines [what, keys], a key that can be changed with its action third
+## ("PRESS A KEY..." while `waiting` for it); with the pad in hand its buttons, none to change.
+static func control_lines(part: int, waiting := "", pad := false) -> Array:
+	var out: Array = []
+	if part == 2:
+		for e in DEBUG_CONTROL_REFERENCE:
+			out.append(["(debug) " + str(e[0]), e[1]])
+		return out
+	var rows: Array = CONTROL_REFERENCE.slice(0, OUTDOOR_ROWS) if part == 0 else CONTROL_REFERENCE.slice(OUTDOOR_ROWS)
+	for r in rows:
+		out.append([r[0], r[2] if pad else r[1]])
+	if part == 1:
+		for action in GameSettings.REBINDABLE.keys():
+			var what := str(GameSettings.REBINDABLE[action][0])
+			if pad:
+				out.append([what, str(PROMPT.NAMES.get(PAD.ACTIONS.get(action, -1), ""))])
+			else:
+				out.append([what, "PRESS A KEY..." if waiting == action else GameSettings.key_name(action), action])
+	return out
 
 var _mode_option: OptionButton
 var _resolution_option: OptionButton

@@ -13,6 +13,8 @@ extends RefCounted
 ## Limits are soft: the turn slows down before it stops. (Till 4. 11. the cursor was a
 ## stick from the middle: the whole screen turned.)
 
+const PROMPT = preload("res://scripts/input/prompt.gd")
+
 ## Outer share of the screen width that holds a turn at its end (the tent's old dwell).
 const EDGE_BAND := 0.20
 ## The bands along the screen's sides that turn the head (a share of the width / height),
@@ -336,7 +338,7 @@ static func make_exit_hint(layer: CanvasLayer, text := "Turn round and leave   [
 			hint.draw_rect(Rect2(0, s.y - h * (1.0 - i / 8.0), s.x, h / 8.0), Color(0, 0, 0, 0.08 + i * 0.06))
 		var font := hint.get_theme_default_font()
 		var fs := int(maxf(14.0, s.y * 0.026))
-		var shown := hint.tr(text)
+		var shown := PROMPT.swap(hint.tr(text))
 		var w := font.get_string_size(shown, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 		var y := s.y - h * 0.35
 		# A small arrow pointing back over your shoulder.
@@ -345,6 +347,7 @@ static func make_exit_hint(layer: CanvasLayer, text := "Turn round and leave   [
 		hint.draw_string(font, Vector2(s.x * 0.5 - w * 0.5 + 2, y + 2), shown, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0, 0, 0, 0.8))
 		hint.draw_string(font, Vector2(s.x * 0.5 - w * 0.5, y), shown, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.95, 0.88, 0.62))
 	)
+	PROMPT.redraw_on_change(hint)
 	layer.add_child(hint)
 	return hint
 
@@ -364,7 +367,7 @@ static func make_side_hints(layer: CanvasLayer) -> Control:
 		var font := hint.get_theme_default_font()
 		var fs := int(maxf(13.0, s.y * 0.022))
 		for side in ["left", "right"]:
-			var text := hint.tr(str(hint.get_meta(side, "")))
+			var text := PROMPT.swap(hint.tr(str(hint.get_meta(side, ""))))
 			if text == "":
 				continue
 			var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
@@ -386,6 +389,7 @@ static func make_side_hints(layer: CanvasLayer) -> Control:
 				hint.draw_colored_polygon(PackedVector2Array([Vector2(ax, cy), Vector2(ax - arrow * 0.6, cy - fs * 0.45), Vector2(ax - arrow * 0.6, cy + fs * 0.45)]), Color(0.95, 0.88, 0.62))
 				hint.draw_string(font, Vector2(x + pad, ty), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.95, 0.88, 0.62))
 	)
+	PROMPT.redraw_on_change(hint)
 	layer.add_child(hint)
 	return hint
 

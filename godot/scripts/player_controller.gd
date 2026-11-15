@@ -6,6 +6,7 @@ signal foot_fell(left: bool)
 const FAR_TREES := preload("res://scripts/ambient/far_trees.gd")
 const PROFILES = preload("res://scripts/profiles.gd")
 const WORLD_GEN = preload("res://scripts/world_generator.gd")
+const PAD = preload("res://scripts/input/pad.gd")
 const YAW_SENSITIVITY_FACTOR := 2.0
 ## Stamina: a full bar is ~7.5 s of sprinting (6 was too short: the user 20. 10., +25 %);
 ## it refills in ~9 s and, once empty, sprinting stays locked until it is back to
@@ -947,6 +948,9 @@ func play_damage_feedback(tier: int, _damage_amount: int, fatal: bool = false) -
 		_damage_fov_push = maxf(_damage_fov_push, 4.8)
 
 	_sync_damage_overlay_visual()
+	# The hit in the hands too (a pad): a small one a knock, the worst the heavy motor long.
+	var k := float(clamped_tier) / float(DAMAGE_TIER_LETHAL)
+	_rumble(0.3 + 0.5 * k, 0.15 + 0.85 * k if not fatal else 1.0, 0.14 + 0.32 * k if not fatal else 0.7)
 
 
 ## Something heavy landing near (the god cursor's drops): the view shakes, nothing hurts.
@@ -955,6 +959,13 @@ func ground_shake(amount: float) -> void:
 		return
 	_damage_shake_intensity = maxf(_damage_shake_intensity, amount)
 	_damage_shake_decay_speed = 0.9
+	_rumble(0.0, clampf(amount * 12.0, 0.0, 0.8), 0.35)
+
+
+func _rumble(weak: float, strong: float, sec: float) -> void:
+	var pad := PAD.node()
+	if pad != null:
+		pad.rumble(weak, strong, sec)
 
 
 func play_death_fall() -> float:

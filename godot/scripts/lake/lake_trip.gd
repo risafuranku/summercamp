@@ -27,6 +27,7 @@ extends Node
 ## and ride with you face to face, go ashore with you and come back with you.
 
 const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
+const PROMPT = preload("res://scripts/input/prompt.gd")
 const HOVER_GLINT = preload("res://scripts/ui/hover_glint.gd")
 const LOGBOOK = preload("res://scripts/lake/logbook_closeup.gd")
 const NIGHT_ROW = preload("res://scripts/lake/night_row.gd")
@@ -184,7 +185,7 @@ func active_hint() -> String:
 		ROWING:
 			if _docking:
 				return ""
-			var keys := tr("W row  -  A / D turn  -  S back water")
+			var keys := tr("Row with the left stick") if PROMPT.pad() else tr("W row  -  A / D turn  -  S back water")
 			if _can_step_out():
 				return tr("[E] Get out") + "    " + keys
 			if _trip_t < 9.0 or _idle_t > 5.0:
@@ -400,10 +401,11 @@ func _update_rowing(delta: float) -> void:
 ## A turns to the left: the right oar drives, the left backs; with W only the right one
 ## rows. [left, right].
 func _steer() -> Array:
-	var w := Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP)
-	var s := Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN)
-	var a := Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT)
-	var d := Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT)
+	# (The walk's actions: the keys as the warden set them and the pad's left stick.)
+	var w := Input.is_action_pressed("move_forward") or Input.is_physical_key_pressed(KEY_UP)
+	var s := Input.is_action_pressed("move_backward") or Input.is_physical_key_pressed(KEY_DOWN)
+	var a := Input.is_action_pressed("move_left") or Input.is_physical_key_pressed(KEY_LEFT)
+	var d := Input.is_action_pressed("move_right") or Input.is_physical_key_pressed(KEY_RIGHT)
 	if a and d:
 		a = false
 		d = false

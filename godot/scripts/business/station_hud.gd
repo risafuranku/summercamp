@@ -37,6 +37,11 @@ const BUSINESS := preload("res://scripts/business/business_runtime.gd")
 const RULES := preload("res://core/systems/business_rules.gd")
 const PROFILES := preload("res://scripts/profiles.gd")
 const LANG := preload("res://scripts/lang.gd")
+const PAD := preload("res://scripts/input/pad.gd")
+## The pad at a station (scripts/input/pad.gd; key_action below): the cross's sides the
+## station beside this one (Q, E), its foot the books (B). A serves by a click, View is the
+## next station, B (Esc) back, LB/RB look about (A, D).
+const PAD_KEYS := {JOY_BUTTON_DPAD_LEFT: KEY_Q, JOY_BUTTON_DPAD_RIGHT: KEY_E, JOY_BUTTON_DPAD_DOWN: KEY_B}
 const W := 640
 const H := 360
 const BAR_H := 24
@@ -112,6 +117,9 @@ func _ready() -> void:
 	layer = 96
 	visible = false
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	var pad := PAD.node()
+	if pad != null:
+		pad.screen_keys(self, PAD_KEYS)
 	# Your hands are on the station (scripts/town/pockets.gd keeps them down).
 	add_to_group("closeup")
 	add_to_group("station_frame")

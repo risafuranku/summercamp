@@ -4,13 +4,18 @@ extends "res://tools/shot_driver.gd"
 ## as a pad would (device 0). At the desk the left stick moves the pointer and B stands you
 ## up; out in the camp the right stick turns the head, the left stick walks, Y lights the
 ## torch, Menu opens the pause menu and B shuts it; the prompts show the pad's buttons
-## after it is touched and the keys' after a key. Prints "PAD ok|FAIL ..." and "PAD: PASS".
+## after it is touched and the keys' after a key; a screen with keys of its own (a station's,
+## the pipes': pad.gd screen_keys) has the cross as its keys while shown, and its prompts
+## name them by their buttons; a hit shakes the pad. Prints "PAD ok|FAIL ..." and "PAD: PASS".
 ##   godot --path godot --audio-driver Dummy --resolution 1280x720 res://tools/pad_check.tscn -- --out=DIR
 
 const C := "get_tree().root.get_node('PadCheck')"
 
 var _fails := 0
 var _mark: Dictionary = {}
+## The keys the pad made, as they came.
+var _made: Array = []
+var _screen: CanvasLayer
 
 
 func _ready() -> void:
@@ -31,6 +36,15 @@ func _ready() -> void:
 		["eval", C + ".check('the pad is the device', get_node('/root/GameSettings/Pad').using_pad)"],
 		["eval", C + ".check_prompt(true)"], ["eval", C + ".check_hint(true)"],
 		["eval", C + ".mark_torch()"], ["pad_button", JOY_BUTTON_Y], ["wait", 0.5], ["eval", C + ".check_torch()"],
+		# A screen's own keys: the cross's left is its Q while it is up, the camp's L after.
+		["eval", C + ".screen_up(true)"], ["eval", C + ".clear_made()"], ["pad_button", JOY_BUTTON_DPAD_LEFT, 0.4], ["wait", 0.1],
+		["eval", C + ".check_made(%d, 'the cross is a shown screen own key (Q)')" % KEY_Q], ["wait", 0.8],
+		["eval", C + ".check_swap('[Q] Station', '[LEFT] Station')"],
+		["eval", C + ".screen_up(false)"], ["eval", C + ".clear_made()"], ["pad_button", JOY_BUTTON_DPAD_LEFT, 0.4], ["wait", 0.1],
+		["eval", C + ".check_made(%d, 'the screen gone, the cross is the camp again (L)')" % KEY_L], ["wait", 0.8],
+		["eval", C + ".check_swap('Back   [Esc]', 'Back   [MENU]')"],
+		# A hit: the pad shakes.
+		["eval", "_set_player_health(_player_health - 12)"], ["eval", C + ".check_rumble()"], ["wait", 1.0],
 		["pad_button", JOY_BUTTON_START], ["wait", 1.0], ["eval", C + ".check('Menu opens the pause menu', _pause_menu != null and _pause_menu.is_open())"], ["shot", "p2_pause"],
 		["pad_button", JOY_BUTTON_START], ["wait", 1.0], ["eval", C + ".check('Menu again shuts it', _pause_menu == null or not _pause_menu.is_open())"],
 		["key_tap", KEY_W], ["wait", 0.3], ["eval", C + ".check('a key makes the keyboard the device', not get_node('/root/GameSettings/Pad').using_pad)"],
@@ -55,7 +69,7 @@ func _run_step(step: Array) -> void:
 			b.button_index = int(step[1])
 			b.pressed = true
 			Input.parse_input_event(b)
-			get_tree().create_timer(0.15).timeout.connect(func() -> void:
+			get_tree().create_timer(float(step[2]) if step.size() > 2 else 0.15).timeout.connect(func() -> void:
 				var up := b.duplicate() as InputEventJoypadButton
 				up.pressed = false
 				Input.parse_input_event(up))
@@ -68,6 +82,43 @@ func _run_step(step: Array) -> void:
 				Input.parse_input_event(k)
 		_:
 			super._run_step(step)
+
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and event.has_meta("pad"):
+		_made.append((event as InputEventKey).keycode)
+
+
+func clear_made() -> void:
+	_made.clear()
+
+
+## (What the pad holds down now, its made keys; what reached this node too: a key the game
+## answers, L a room's light, is taken before it comes here.)
+func check_made(key: int, what: String) -> void:
+	var held: Array = (get_node("/root/GameSettings/Pad").get("_held") as Dictionary).values()
+	check("%s %s" % [what, held.map(func(k): return OS.get_keycode_string(k) if typeof(k) == TYPE_INT else str(k))], _made.has(key) or held.has(key))
+
+
+## A screen with keys of its own, up or gone (shown and hidden as a station's is).
+func screen_up(up: bool) -> void:
+	if _screen == null:
+		_screen = CanvasLayer.new()
+		_screen.name = "PadProbeScreen"
+		get_tree().root.add_child(_screen)
+		get_node("/root/GameSettings/Pad").screen_keys(_screen, {JOY_BUTTON_DPAD_LEFT: KEY_Q})
+	_screen.visible = up
+
+
+func check_rumble() -> void:
+	var w := Input.get_joy_vibration_strength(0)
+	check("a hit shakes the pad (%s)" % w, w.length() > 0.2)
+
+
+## A prompt with the pad in hand, as the HUD shows it.
+func check_swap(text: String, want: String) -> void:
+	var got: String = load("res://scripts/input/prompt.gd").swap(text)
+	check("%s reads %s (%s)" % [text, want, got], got == want)
 
 
 func check(what: String, ok: bool) -> void:

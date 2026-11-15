@@ -9,6 +9,7 @@ extends RefCounted
 
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 const SETTINGS_PANEL = preload("res://scripts/settings_panel.gd")
+const PROMPT = preload("res://scripts/input/prompt.gd")
 const RETRO_RENDER = preload("res://scripts/retro_render.gd")
 const LANG = preload("res://scripts/lang.gd")
 
@@ -756,7 +757,7 @@ class CreditsPage:
 			who.offset_bottom = y + 11.0 * s
 			add_child(who)
 			y += 11.0 * s
-		var hint := RETRO_UI.label("ESC / CLICK TO GO BACK", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_BONE_DIM, ui_scale)
+		var hint := RETRO_UI.label("B = BACK" if PROMPT.pad() else "ESC / CLICK TO GO BACK", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_BONE_DIM, ui_scale)
 		hint.position = Vector2(6.0 * s, y + 6.0 * s)
 		add_child(hint)
 		custom_minimum_size = Vector2(0.0, y + 18.0 * s)
@@ -798,6 +799,10 @@ class ControlsPage:
 		if ResourceLoader.exists(SFX_MOVE_PATH):
 			_sfx.stream = load(SFX_MOVE_PATH)
 		add_child(_sfx)
+		# The keys' names or the pad's buttons, whichever is in hand.
+		var pad := PROMPT.PAD_SCRIPT.node()
+		if pad != null:
+			pad.device_changed.connect(func(_on: bool) -> void: build())
 
 	func build() -> void:
 		for child in get_children():
@@ -807,18 +812,16 @@ class ControlsPage:
 			child.queue_free()
 		var s := float(ui_scale)
 		var y := 0.0
-		var rows: Array = SETTINGS_PANEL.CONTROL_REFERENCE
-		var pages: Array = [rows.slice(0, SETTINGS_PANEL.OUTDOOR_ROWS), rows.slice(SETTINGS_PANEL.OUTDOOR_ROWS)]
+		# (With the pad in hand its buttons: SETTINGS_PANEL.control_lines.)
+		var pad := PROMPT.pad()
+		var pages: Array = [SETTINGS_PANEL.control_lines(0, _waiting, pad), SETTINGS_PANEL.control_lines(1, _waiting, pad)]
 		var names: Array = ["Outdoors", "Indoors"]
 		# The keys you can change: click one, then press the new key.
-		for action in GameSettings.REBINDABLE.keys():
-			var shown := "PRESS A KEY..." if _waiting == action else "%s  [CHANGE]" % GameSettings.key_name(action)
-			(pages[1] as Array).append([str(GameSettings.REBINDABLE[action][0]), shown, action])
+		for e in pages[1]:
+			if e.size() > 2 and _waiting != str(e[2]):
+				e[1] = tr("%s  [CHANGE]") % e[1]
 		if OS.is_debug_build():
-			var debug: Array = []
-			for e in SETTINGS_PANEL.DEBUG_CONTROL_REFERENCE:
-				debug.append(["(debug) " + str(e[0]), e[1]])
-			pages.append(debug)
+			pages.append(SETTINGS_PANEL.control_lines(2))
 			names.append("Debug")
 		_tabs = pages.size()
 		_tab = clampi(_tab, 0, _tabs - 1)
@@ -860,7 +863,7 @@ class ControlsPage:
 			note.position = Vector2(6.0 * s, y + 2.0 * s)
 			add_child(note)
 			y += 10.0 * s
-		var hint := RETRO_UI.label("ESC / CLICK TO GO BACK", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_BONE_DIM, ui_scale)
+		var hint := RETRO_UI.label("B = BACK" if PROMPT.pad() else "ESC / CLICK TO GO BACK", RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_BONE_DIM, ui_scale)
 		hint.position = Vector2(6.0 * s, y + 6.0 * s)
 		add_child(hint)
 		custom_minimum_size = Vector2(0.0, y + 18.0 * s)

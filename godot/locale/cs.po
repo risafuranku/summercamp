@@ -34056,3 +34056,35 @@ msgstr "[center][font_size=26][b][color=#ff3333]RÁDIO[/color] HLUBOČANY[/b][/f
 #. gone
 msgid "Give the rack to a place"
 msgstr "Dát regál podniku"
+
+#. manual
+msgid "Row with the left stick"
+msgstr "Vesluj levou páčkou"
+
+#. manual
+msgid "Left stick"
+msgstr "Levá páčka"
+
+#. manual
+msgid "Right stick"
+msgstr "Pravá páčka"
+
+#. manual
+msgid "A  or  RT"
+msgstr "A  nebo  RT"
+
+#. manual
+msgid "Left stick  or  the cross"
+msgstr "Levá páčka, kříž"
+
+#. manual
+msgid "A on the switch"
+msgstr "A na vypínači"
+
+#. manual
+msgid "The cross  or  LT + left stick"
+msgstr "Kříž  nebo  LT + levá páčka"
+
+#. manual
+msgid "B = BACK"
+msgstr "B = ZPĚT"

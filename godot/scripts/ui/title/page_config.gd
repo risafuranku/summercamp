@@ -9,6 +9,7 @@ extends RefCounted
 ## scripts/ui/settings_rows.gd (the pause menu's plate does the same with them).
 
 const ROWS = preload("res://scripts/ui/settings_rows.gd")
+const PROMPT = preload("res://scripts/input/prompt.gd")
 const SETTINGS_PANEL = preload("res://scripts/settings_panel.gd")
 const RETRO_MENU = preload("res://scripts/ui/retro_menu.gd")
 const SFX_STEP := "res://assets/sfx/desk/pen.mp3"
@@ -81,19 +82,7 @@ func _parts() -> Array:
 
 ## The controls sheet's lines: [what, keys] and for a key that can be changed its action.
 func _control_lines() -> Array:
-	var rows: Array = SETTINGS_PANEL.CONTROL_REFERENCE
-	if _part == 0:
-		return rows.slice(0, SETTINGS_PANEL.OUTDOOR_ROWS)
-	if _part == 2:
-		var debug: Array = []
-		for e in SETTINGS_PANEL.DEBUG_CONTROL_REFERENCE:
-			debug.append(["(debug) " + str(e[0]), e[1]])
-		return debug
-	var out: Array = rows.slice(SETTINGS_PANEL.OUTDOOR_ROWS)
-	for action in GameSettings.REBINDABLE.keys():
-		var shown := tr("PRESS A KEY...") if _waiting == action else GameSettings.key_name(action)
-		out.append([str(GameSettings.REBINDABLE[action][0]), shown, action])
-	return out
+	return SETTINGS_PANEL.control_lines(_part, _waiting, PROMPT.pad())
 
 
 func _tapes() -> Array:
