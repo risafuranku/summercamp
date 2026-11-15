@@ -6,6 +6,9 @@ const SAVE_DIR := "user://saves"
 const SAVE_FILE_SUFFIX := ".ccs2save.json"
 const SAVE_VERSION := 2
 const MAX_AUTOSAVES := 18
+## The camp at its last few mornings (main writes one at each dawn and when a camp starts):
+## where a death goes back to (the game over's "Back to the morning").
+const MAX_MORNINGS := 3
 
 
 ## The active camp's saves (scripts/profiles.gd activate_camp); "" = none chosen.
@@ -140,8 +143,19 @@ func write_save(snapshot: Dictionary, slot_name: String = "", kind: String = "ma
 
 	_write_manifest_latest(path)
 	if safe_kind == "autosave":
-		_prune_old_autosaves()
+		_prune_kind("autosave", MAX_AUTOSAVES)
+	elif safe_kind == "morning":
+		_prune_kind("morning", MAX_MORNINGS)
 	return path
+
+
+## The latest morning save of the camp's whose day is `day` or before (a morning of a later
+## day is another run's: a save from before was loaded); "" when there is none.
+func morning_for(day: int) -> String:
+	for item in list_saves():
+		if str(item.get("kind", "")) == "morning" and int(item.get("day", 0)) <= day:
+			return str(item.get("path", ""))
+	return ""
 
 
 func _extract_meta(parsed: Dictionary, path: String, file_name: String) -> Dictionary:
@@ -185,14 +199,15 @@ func latest_coop_save() -> Dictionary:
 	return {}
 
 
-func _prune_old_autosaves() -> void:
+## Saves of `kind` beyond the newest `keep` thrown away.
+func _prune_kind(kind: String, keep: int) -> void:
 	var autos: Array[Dictionary] = []
 	for item in list_saves():
-		if str(item.get("kind", "")) == "autosave":
+		if str(item.get("kind", "")) == kind:
 			autos.append(item)
-	if autos.size() <= MAX_AUTOSAVES:
+	if autos.size() <= keep:
 		return
-	for i in range(MAX_AUTOSAVES, autos.size()):
+	for i in range(keep, autos.size()):
 		var path := str(autos[i].get("path", ""))
 		if path.is_empty():
 			continue

@@ -170,7 +170,7 @@ func paint(d, c: Control) -> void:
 	for i in range(_first, mini(_first + PER_SHEET, _saves.size())):
 		var e: Dictionary = _saves[i]
 		var y := _row_y(i)
-		var name := str(e.get("slot_name", "Save"))
+		var name := tr(str(e.get("slot_name", "Save")))
 		var lit := hover == "save:%d" % i or (hover == "" and i == _sel)
 		d.text(c, Vector2(X, y), name, d.INK)
 		var ago := CAMP_TEXT.ago(int(e.get("updated_unix", 0)))

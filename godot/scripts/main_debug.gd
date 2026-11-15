@@ -598,3 +598,20 @@ func _debug_add_money() -> void:
 ## Shot driver: patch the old cabin up as hold R would (no charge).
 func debug_repair_ruined() -> bool:
 	return _ruin.debug_repair()
+
+
+## Lambdas hooked to the autoloads' signals (the title after a game logged "Lambda capture
+## at index 0 was freed": a lambda left connected after what it holds was freed): the
+## autoload, the signal and the lambda as Godot names it.
+func debug_lambda_hooks() -> Array:
+	var out: Array = []
+	for auto in ["EventBus", "CoreRoot", "GuestManager", "EmailManager", "Coop", "GameSettings", "SaveManager"]:
+		var n := get_node_or_null("/root/" + auto)
+		if n == null:
+			continue
+		for sig in n.get_signal_list():
+			for c in n.get_signal_connection_list(str(sig["name"])):
+				var cb: Callable = c["callable"]
+				if cb.is_custom():
+					out.append("%s.%s %s" % [auto, str(sig["name"]), str(cb)])
+	return out

@@ -33828,3 +33828,9 @@ msgstr "Smazat uložení"
 
 msgid "Delete warden"
 msgstr "Smazat správce"
+
+msgid "Back to the morning"
+msgstr "Zpět do rána"
+
+msgid "Morning"
+msgstr "Ráno"

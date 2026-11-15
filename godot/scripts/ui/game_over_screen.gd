@@ -89,7 +89,7 @@ func _rebuild() -> void:
 	_list.ui_scale = _scale
 	_list.row_height_vp = 22
 	var items: Array[Dictionary] = [
-		{"id": "load", "text": "Load last save", "enabled": _has_save},
+		{"id": "load", "text": "Back to the morning", "enabled": _has_save},
 		{"id": "menu", "text": "Main menu"},
 	]
 	_list.set_items(items)

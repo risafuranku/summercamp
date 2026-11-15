@@ -1918,6 +1918,8 @@ func _on_day_phase_started() -> void:
 	_night_roll.last_despawn_count = removed_scene_enemies + removed_virtual
 	_night_roll.last_despawn_day = _day_index
 	_refresh_liminal_debug_window()
+	# The camp as the day starts: where a death goes back to.
+	call_deferred("_write_morning_save")
 
 
 func _despawn_all_runtime_enemies() -> int:
@@ -2156,11 +2158,16 @@ func _on_game_over_load_save_pressed() -> void:
 	_game_over_active = false
 	_clear_game_over_screen()
 	var shared := Coop.is_active()
+	# That day's morning (the night after midnight is still the day before's: the latest
+	# morning up to today), or the last save when the camp has none yet.
+	var morning := SaveManager.morning_for(_day_index)
 	_enter_main_menu()
 	if shared:
 		_main_menu.show_page("load")
 		return
-	# The button says the last save: straight back into it, not the list of them.
+	if morning != "":
+		await _on_menu_load_requested(morning)
+		return
 	await _on_menu_continue_pressed()
 
 
@@ -3154,6 +3161,8 @@ func _start_new_camp(sandbox: bool, test_enemy: String = "", camp_name: String =
 	if sandbox:
 		_pending_loaded_crt_state = {"unlock_registry": {"builder": true, "camp_status": true, "guestrack": true, "datapunch": true}}
 	_start_game_from_menu()
+	# The first morning: where a death on the first nights goes back to.
+	call_deferred("_write_morning_save")
 	if _week_ledger != null:
 		_week_ledger.start_built = _camp_value()
 	# A sandbox camp has no story: no mails from Vera or Nela, no checklist. The district
@@ -3486,6 +3495,19 @@ func request_manual_save(slot_name: String = "") -> String:
 	_after_save(snapshot)
 	_active_save_path = path
 	return path
+
+
+## The camp at the start of a day (at dawn, and when a camp is made): the game over's "Back
+## to the morning" (TODO.md "DEMO AND STEAM": losing goes back to that day's morning).
+func _write_morning_save() -> void:
+	if not _gameplay_started or not Coop.sim_here() or not _test_night.is_empty():
+		return
+	var snapshot := _build_save_snapshot("Morning", "morning")
+	if snapshot.is_empty():
+		return
+	var path := SaveManager.write_save(snapshot, "Morning", "morning")
+	if not path.is_empty():
+		_after_save(snapshot)
 
 
 func _write_autosave(slot_name: String) -> void:
