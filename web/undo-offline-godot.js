@@ -24,6 +24,13 @@
  * Jakmile se ukládá, stránka požádá prohlížeč o trvalé úložiště (`navigator.storage.persist`), ať data při nedostatku
  * místa nezahodí. Hláška a animace stahování počítají jen bajty, které opravdu jdou ze sítě.
  *
+ * Verze 4.1 (17. 11. 2026, Richard: „stahování se seklo na 30 MB a furt to tam glitchuje ten panel“): jeden stahovač
+ * (`download`) pro engine, soubory před startem, části i balíky hry (`window.__undoOffline.download`). Spojení, které
+ * 15 s nepošle data, zahodí a stahuje znovu (s Range od místa, kde skončil, jinak od začátku), nejvýš 5 pokusů;
+ * selhání se ukáže jako chyba se Zkusit znovu, nikdy nekonečné čekání. Průběh posílá katalogu sám a jednou za sekundu
+ * i během zaseknutí (panel drží, nebliká); stránka čte `net()` pro svůj pruh. Soubor je Blob z kousků: do paměti
+ * prohlížeče i hře bez kopií navíc (dřív `tee()` a `TransformStream`).
+ *
  * Stránka hry:
  *   if (window.__undoOffline.command) { …bez hry a opony…; window.__undoOffline.ready(GODOT_CONFIG, volby); return; }
  *   window.__undoOffline.ready(GODOT_CONFIG, volby).then(() => engine.startGame({ onProgress(c, t) { text = window.__undoOffline.status(c, t); } }))
@@ -35,7 +42,8 @@
  *                                                   enginu je stránka jednou stáhne celé; jdou i do install,
  *   prepare: () => Promise                         — co ještě udělat při stažení předem (DRIVAH: grafické programy
  *                                                   předem do mezipaměti prohlížeče); `installed` přijde až po něm,
- *   parts: () => Promise<[část]>                   — verze 3, viz níž.
+ *   parts: () => Promise<[část]>                   — verze 3, viz níž,
+ *   quality: 'perf' | 'hd'                         — verze 4.1: hra má jen tuhle kvalitu (katalog nekreslí volbu).
  *
  * Dotaz katalogu (Richard 16. 11.: „při prvním načítání se zeptej, jestli uložit data natrvalo“): stránka
  * pošle `undo:offline-hello {version, bytes}`, katalog hned odpoví `undo:offline-keep {keep: true | false | null}`
@@ -135,7 +143,9 @@
     return null;
   }
   function savePlan() { try { localStorage.setItem(PLAN, JSON.stringify(plan)); } catch (e) { /* bez úložiště */ } }
-  function quality() { return (plan && plan.quality) || autoQuality(); }
+  // v4.1: hra s jednou kvalitou (volba `quality: 'perf' | 'hd'`, DRIVAH lite na webu) jinou nebere
+  function fixedQuality() { return options && (options.quality === 'perf' || options.quality === 'hd') ? options.quality : null; }
+  function quality() { return fixedQuality() || (plan && plan.quality) || autoQuality(); }
   function wanted(part) { return part.base || !(plan && Array.isArray(plan.parts)) || plan.parts.indexOf(part.id) >= 0; }
 
   // Části hry, základ s enginem a hlavním balíkem; jednou za běh.
@@ -185,7 +195,7 @@
           });
         }));
       }).then(function (report) {
-        post({ type: 'undo:data-parts', version: version(), quality: quality(), parts: report });
+        post({ type: 'undo:data-parts', version: version(), quality: quality(), fixed: fixedQuality(), parts: report });
       });
     }).catch(function () { /* bez úložiště */ });
   }
@@ -273,11 +283,103 @@
     }).catch(function () { return false; });
   }
 
-  // Engine a hlavní balík: z paměti, jinak ze sítě a cestou kopie do paměti (pokud hráč ukládání neodmítl).
+  // ---------------------------------------------------------------- stahovač (v4.1)
+  // Jeden stahovač pro engine, datový balík, balíky hry a části (Richard 17. 11.: „stahování se seklo na 30 MB a furt
+  // to tam glitchuje ten panel“). Mobilní připojení umí spojení nechat viset bez chyby a prohlížeč pak čeká navždy:
+  // když 15 s nepřijdou data, pokus se zahodí a stahuje se znovu (od místa, kde skončil, když server posílá soubor
+  // beze změny a umí Range, jinak od začátku), nejvýš 5 pokusů. Hotový soubor je Blob z kousků (bez skládání do
+  // jednoho bufferu a bez kopií navíc: na iPhonu jde o paměť).
+  //   download(url, {total, onBytes(have, total), gate: () => Promise | null, signal}) → Promise<{blob, headers}>
+  // `onBytes` přijde po každém kousku a jednou za sekundu i bez dat (panel stahování v katalogu nezhasne a nebliká),
+  // `gate` pozdrží čtení (stahování na pozadí čeká na hru), zaseknutí se během čekání nepočítá.
+  var STALL = 15000;
+  var TRIES = 5;
   var netFetch = null;
+  function download(url, opts) {
+    opts = opts || {};
+    var chunks = [], have = 0, total = opts.total || 0, tries = 0, headers = null, resumable = false;
+    var outer = opts.signal || null;
+    var beat = opts.onBytes ? setInterval(function () { opts.onBytes(have, total); }, 1000) : null;
+    function attempt() {
+      tries += 1;
+      var ctrl = new AbortController();
+      var stop = function () { ctrl.abort(); };
+      if (outer) {
+        if (outer.aborted) return Promise.reject(new Error('aborted'));
+        outer.addEventListener('abort', stop);
+      }
+      var timer = null;
+      var arm = function () { clearTimeout(timer); timer = setTimeout(stop, STALL); };
+      var settle = function () { clearTimeout(timer); if (outer) outer.removeEventListener('abort', stop); };
+      var init = { signal: ctrl.signal };
+      if (tries > 1) init.cache = 'no-store';
+      if (have > 0 && resumable) init.headers = { Range: 'bytes=' + have + '-' };
+      else { chunks = []; have = 0; }
+      arm();
+      return (netFetch || window.fetch).call(window, url, init).then(function (response) {
+        if (!response.ok || !response.body) throw new Error('HTTP ' + response.status);
+        if (have > 0 && response.status !== 206) { chunks = []; have = 0; }
+        headers = headers || response.headers;
+        var encoded = !!response.headers.get('content-encoding');
+        resumable = !encoded && response.headers.get('accept-ranges') === 'bytes';
+        if (!total && !encoded) total = have + (Number(response.headers.get('content-length')) || 0);
+        var reader = response.body.getReader();
+        var pump = function () {
+          var wait = opts.gate ? opts.gate() : null;
+          if (wait) clearTimeout(timer);
+          var read = function () { arm(); return reader.read(); };
+          return (wait ? wait.then(read) : read()).then(function (part) {
+            if (part.done) return;
+            chunks.push(part.value);
+            have += part.value.length;
+            if (opts.onBytes) opts.onBytes(have, total);
+            return pump();
+          });
+        };
+        return pump();
+      }).then(function () {
+        settle();
+        if (total && have < total) throw new Error('short ' + have + '/' + total);
+      }).catch(function (error) {
+        settle();
+        if ((outer && outer.aborted) || tries >= TRIES) throw error;
+        return new Promise(function (resolve) { setTimeout(resolve, Math.min(6000, 700 * tries)); }).then(attempt);
+      });
+    }
+    return attempt().then(function () {
+      clearInterval(beat);
+      var blob = new Blob(chunks);
+      chunks = [];
+      return { blob: blob, headers: headers };
+    }, function (error) {
+      clearInterval(beat);
+      throw error;
+    });
+  }
+  // Odpověď ze staženého souboru (pro hru i pro paměť prohlížeče): bez komprese, se skutečnou délkou.
+  function blobResponse(got) {
+    var headers = new Headers(got.headers);
+    headers.delete('content-encoding');
+    headers.set('content-length', String(got.blob.size));
+    return new Response(got.blob, { status: 200, headers: headers });
+  }
+
+  // Engine, hlavní balík a soubory před startem: z paměti, jinak stahovačem ze sítě a do paměti (pokud hráč ukládání
+  // neodmítl). Co jde při startu ze sítě, hlásí sada katalogu sama (velká animace) a stránka z toho plní pruh.
   var fetched = {};
-  // co jde při startu opravdu ze sítě (hláška a animace stahování)
-  var net = { loaded: 0, total: 0, files: 0 };
+  var net = { loaded: 0, total: 0, files: [], told: false };
+  function netActive() { return net.files.some(function (f) { return !f.done; }); }
+  function netTell() {
+    if (!net.files.length) return;
+    var active = netActive();
+    urgentAt = overlayAt = Date.now();
+    overlay = hub && active;
+    if (active) post({ type: 'undo:data-progress', part: 'base', quality: quality(), loaded: Math.min(net.loaded, net.total), total: net.total, state: 'download', blocking: true });
+    else if (!net.told) {
+      net.told = true;
+      post({ type: 'undo:data-progress', part: 'base', quality: quality(), loaded: net.total, total: net.total, state: 'done', blocking: true });
+    }
+  }
   function wrapFetch() {
     var original = netFetch = window.fetch;
     var files = fetched;
@@ -288,26 +390,30 @@
       var file = files[url];
       if (!file) return original.apply(self, args);
       return caches.open(CACHE).then(function (cache) {
-        return cache.match(url, { ignoreVary: true }).then(function (hit) {
+        return cache.match(url, { ignoreVary: true }).catch(function () { return null; }).then(function (hit) {
           if (hit) { hits[file] = true; return hit; }
-          net.files += 1;
-          net.total += config.fileSizes[file] || 0;
-          return original.apply(self, args).then(function (response) {
-            if (!response.ok || !response.body) return response;
-            var counted = response.body.pipeThrough(new TransformStream({ transform: function (chunk, controller) { net.loaded += chunk.length; controller.enqueue(chunk); } }));
-            if (keep === false) return new Response(counted, { status: response.status, statusText: response.statusText, headers: response.headers });
-            persist();
-            var pair = counted.tee();
-            var headers = new Headers(response.headers);
-            headers.delete('content-encoding');
-            headers.delete('content-length');
-            cache.put(url, new Response(pair[1], { status: 200, headers: headers }))
-              .then(function () { if (keep === false) return cache.delete(url); })
-              .then(report, function () { /* plná paměť: příště se stáhne znovu */ });
-            return new Response(pair[0], { status: response.status, statusText: response.statusText, headers: response.headers });
+          var size = config.fileSizes[file] || 0;
+          var mine = { loaded: 0, done: false };
+          net.files.push(mine);
+          net.total += size;
+          netTell();
+          return download(url, { total: size, onBytes: function (have) { net.loaded += have - mine.loaded; mine.loaded = have; netTell(); } }).then(function (got) {
+            mine.done = true;
+            netTell();
+            if (keep !== false) {
+              persist();
+              cache.put(url, blobResponse(got))
+                .then(function () { if (keep === false) return cache.delete(url); })
+                .then(report, function () { /* plná paměť: příště se stáhne znovu */ });
+            }
+            return blobResponse(got);
+          }, function (error) {
+            mine.done = true;
+            netTell();
+            throw error;
           });
         });
-      }).catch(function () { return original.apply(self, args); });
+      }, function () { return original.apply(self, args); });
     };
   }
 
@@ -348,21 +454,15 @@
   // (`background`) se čtení zastaví, dokud hra stahuje něco naléhavého: prohlížeč pak přestane brát data a linka
   // patří hře.
   function store(cache, url, onBytes, background) {
-    // mimo obal fetch: engine by se jinak ukládal dvakrát
+    // stahovač jde mimo obal fetch: engine by se jinak ukládal dvakrát
     var abort = background && window.AbortController ? new AbortController() : null;
     if (abort) bgAbort = abort;
-    return (netFetch || fetch).call(window, url, abort ? { signal: abort.signal } : undefined).then(function (response) {
-      if (!response.ok || !response.body) throw new Error(String(response.status));
-      var loaded = 0;
-      var counted = response.body.pipeThrough(new TransformStream({ transform: function (chunk, controller) {
-        var go = function () { loaded += chunk.length; if (onBytes) onBytes(loaded); controller.enqueue(chunk); };
-        if (background && Date.now() - urgentAt <= 1500) return idle().then(go);
-        go();
-      } }));
-      var headers = new Headers(response.headers);
-      headers.delete('content-encoding');
-      headers.delete('content-length');
-      return cache.put(key(url), new Response(counted, { status: 200, headers: headers })).then(function () { return loaded; });
+    return download(url, {
+      signal: abort ? abort.signal : null,
+      onBytes: onBytes ? function (have) { onBytes(have); } : null,
+      gate: background ? function () { return Date.now() - urgentAt <= 1500 ? idle() : null; } : null,
+    }).then(function (got) {
+      return cache.put(key(url), blobResponse(got)).then(function () { return got.blob.size; });
     });
   }
   function warm() {
@@ -415,7 +515,7 @@
       return caches.open(CACHE).then(function (cache) {
         return files.reduce(function (chain, url) {
           return chain.then(function () {
-            return cache.match(url, { ignoreVary: true }).then(function (hit) {
+            return cache.match(url, { ignoreVary: true }).catch(function () { return null; }).then(function (hit) {
               if (hit) return hit.blob().then(function (blob) { return blob.size; });
               return store(cache, url, function (loaded) {
                 post({ type: 'undo:offline-progress', done: Math.min(total, done + loaded), total: total });
@@ -475,7 +575,7 @@
       // rozstahovaný soubor části, kterou hráč zrušil (nebo jiné kvality), se utne; pozadí pak jede podle nového plánu
       if (bgAbort) bgAbort.abort();
       var removed = Array.isArray(data.remove) ? data.remove : [];
-      (removed.length || was !== plan.quality ? prune(removed, plan.quality) : Promise.resolve()).then(fill);
+      (removed.length || was !== quality() ? prune(removed, quality()) : Promise.resolve()).then(fill);
     }
   });
 
@@ -517,6 +617,7 @@
     quality: quality,
     // v3: hráč přepnul kvalitu v nastavení hry; katalog upraví plán a správce.
     setQuality: function (q) {
+      if (fixedQuality()) return;
       if ((q !== 'perf' && q !== 'hd') || q === quality()) return;
       plan = { quality: q, parts: plan && Array.isArray(plan.parts) ? plan.parts : null };
       savePlan();
@@ -541,21 +642,18 @@
     // v3: hra stahuje něco, na co hráč nečeká (fotky aut do menu), nebo něco načítá (obrazovka načítání: stahování
     // a ukládání na pozadí by jí bralo hlavní vlákno): pozadí počká, katalog nic neukazuje.
     busy: function () { urgentAt = Date.now(); },
-    // Stavová hláška pod ukazatelem načítání (průběh z onProgress enginu). v3: první stažení enginu je naléhavé.
-    // v4: stahování = jen soubory, které v paměti nebyly (aktualizace kódu: pár MB, ne celý engine); start z paměti
-    // katalog neukazuje vůbec.
+    // Stavová hláška pod ukazatelem načítání (`current`/`total` = průběh enginu z onProgress). v4: stahování = jen
+    // soubory, které v paměti nebyly (aktualizace kódu: pár MB, ne celý engine); start z paměti katalog neukazuje.
+    // v4.1: průběh stahování hlásí katalogu stahovač sám (i během zaseknutí, panel nebliká), tady jen text.
     status: function (current, total) {
       var czech = cs();
-      var downloading = net.files > 0 && net.loaded < net.total;
-      overlay = false;
-      if (net.files > 0 && net.total > 0) {
-        urgentAt = overlayAt = Date.now();
-        overlay = hub && downloading;
-        post({ type: 'undo:data-progress', part: 'base', quality: quality(), loaded: Math.min(net.loaded, net.total), total: net.total, state: downloading ? 'download' : 'done', blocking: true });
-      }
-      if (!(total > 0 && current < total)) return czech ? 'Spouštím hru…' : 'Starting the game…';
-      if (!downloading) return czech ? 'Načítám z paměti zařízení' : 'Loading from this device';
-      return (czech ? 'Stahuji data · ' : 'Downloading · ') + mb(net.loaded) + ' / ' + mb(net.total) + ' MB';
+      if (netActive()) return (czech ? 'Stahuji data · ' : 'Downloading · ') + mb(net.loaded) + ' / ' + mb(net.total) + ' MB';
+      if (total > 0 && current < total) return czech ? 'Načítám z paměti zařízení' : 'Loading from this device';
+      return czech ? 'Spouštím hru…' : 'Starting the game…';
     },
+    // v4.1: stahování při startu pro pruh stránky: {loaded, total, active} (Godot vidí soubor až celý)
+    net: function () { return { loaded: net.loaded, total: net.total, active: netActive() }; },
+    // v4.1: stahovač sady pro balíky hry (web_packs.js, map-packs.js): zaseknutí → nový pokus, Blob bez kopií
+    download: download,
   };
 })();
