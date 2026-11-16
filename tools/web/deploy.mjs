@@ -3,9 +3,9 @@
 //   1. the release export, locked to the UNDO.games catalogue (node tools/web/export.mjs --release),
 //   2. build/release: the engine and the game's data under /assets/ with a print of their content in
 //      the name (/assets/index.<hash>.wasm, .pck, .js, the audio worklets), index.html pointing at
-//      them; the offline kit's worker (/undo-offline-sw.js, the copy undogames/docs/offline-kit
-//      keeps): it keeps /assets/ for good and never fetches it again, so a player downloads the
-//      300 MB once per version (undogames docs: OFFLINE_GAMES.md, the Godot games' agreement);
+//      them; the page keeps them in the browser itself (web/undo-offline-godot.js, the UNDO.games kit),
+//      so a player downloads the 300 MB once per version (undogames docs: OFFLINE_GAMES.md); at the
+//      old worker's address (/undo-offline-sw.js) the kit's empty worker that unregisters itself;
 //      web/vercel.json (frame-ancestors, noindex, /assets/ cached for a year); no .br (Vercel
 //      compresses itself),
 //   3. .vercel/project.json written by hand (vercel link would pull env files),
@@ -22,7 +22,9 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const WEB = path.join(ROOT, 'build/web');
 const OUT = path.join(ROOT, 'build/release');
-const KIT_WORKER = 'C:/grimroot/undogames/docs/offline-kit/undo-offline-sw.js';
+// The kit's empty worker at the old worker's address (16. 11.): browsers that registered that one swap it and it
+// unregisters itself. The page keeps the data itself now (web/undo-offline-godot.js).
+const KIT_WORKER = `${process.env.UNDO_OFFLINE_KIT || 'C:/grimroot/undogames/docs/offline-kit'}/undo-offline-sw-retire.js`;
 const PROJECT = { projectId: 'prj_N7WT2rOrN5qkb1RbTponm7Ozbw4Z', orgId: 'team_cgugJ8lxk1eNvjsulOTv8OZ3', projectName: 'cursed-camp-demo' };
 const LIVE = 'https://cursed-camp-demo.vercel.app';
 const ENGINE = ['js', 'wasm', 'pck', 'audio.worklet.js', 'audio.position.worklet.js'];
