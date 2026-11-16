@@ -3,7 +3,7 @@ import os
 import re
 import sys
 
-os.chdir("C:/grimroot/summercamp/godot")
+os.chdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "godot"))
 log = open(sys.argv[1], encoding="utf-8", errors="replace").read().split("\n")
 todo = {}
 for i, line in enumerate(log):

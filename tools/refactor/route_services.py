@@ -8,7 +8,7 @@ import os
 import re
 import sys
 
-os.chdir("C:/grimroot/summercamp/godot")
+os.chdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "godot"))
 CONST_LINE = 'const INSTANCE = preload("res://scripts/instance/instance.gd")'
 SERVICES = {"CoreRoot": "core", "EventBus": "bus", "GuestManager": "guests", "EmailManager": "mail", "Coop": "coop", "Input": "input"}
 OWNER = {

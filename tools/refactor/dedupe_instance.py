@@ -3,7 +3,7 @@ import glob
 import os
 import re
 
-os.chdir("C:/grimroot/summercamp/godot")
+os.chdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "godot"))
 LINE = 'const INSTANCE = preload("res://scripts/instance/instance.gd")\n'
 files = glob.glob("scripts/**/*.gd", recursive=True) + glob.glob("core/**/*.gd", recursive=True) + glob.glob("tools/*.gd")
 files = [f.replace("\\", "/") for f in files]

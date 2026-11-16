@@ -3,7 +3,7 @@ Seat1/Screen): the world's view moved under it, everything main adds put on `_sc
 own input heard inside the screen (scripts/instance/screen_input.gd). Run once."""
 import os
 
-os.chdir("C:/grimroot/summercamp/godot")
+os.chdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "godot"))
 p = "scripts/main.gd"
 raw = open(p, "rb").read()
 crlf = b"\r\n" in raw

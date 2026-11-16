@@ -5,7 +5,7 @@ import glob
 import os
 import re
 
-os.chdir("C:/grimroot/summercamp/godot")
+os.chdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "godot"))
 
 
 def split_args(s, start):
