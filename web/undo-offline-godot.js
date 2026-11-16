@@ -31,8 +31,8 @@
  * (null = ještě se neptal, ukáže dotaz a odpoví znovu, až hráč vybere). Do odpovědi se stahuje a ukládá;
  * „ne“ uložené smaže a dál se neukládá. Hra si stav přečte přes `keep()` (vlastní balíky ukládá jen, když
  * není false). Katalog dál slyší `undo:offline-status` (po spuštění, po změně a na `undo:offline-status-request`).
- * Pokyny katalogu ve skrytém rámečku (`?undo_offline=install|remove`): všechno stáhnout předem (průběh
- * po bajtech), nebo smazat. Engine se pak nespouští.
+ * Pokyny katalogu ve skrytém rámečku (`?undo_offline=install|remove|parts`): všechno stáhnout předem (průběh
+ * po bajtech), smazat, nebo jen ohlásit části (`undo:data-parts`, pak `undo:offline-parts`). Engine se pak nespouští.
  *
  * Verze 3 (16. 11. 2026, undogames docs/GODOT_DATA.md): data po částech a kvalita Výkon / HD; výběr, animaci
  * a správce kreslí katalog. Část = {id, name: {cs, en}, base, files: {perf: [{url, bytes}], hd: [...]}} (základ
@@ -72,6 +72,7 @@
   var urgentAt = 0;
   var running = false;
   var hub = false;
+  var bgAbort = null;
   var overlay = false;
   var overlayAt = 0;
 
@@ -173,6 +174,7 @@
             var fetched = false;
             return files.reduce(function (inner, f) {
               return inner.then(function () {
+                if (!wanted(part) || q !== quality()) throw new Error('plan');
                 return cache.match(key(f.url), { ignoreVary: true }).then(function (hit) {
                   if (hit) { have += f.bytes || 0; return; }
                   fetched = true;
@@ -188,7 +190,8 @@
             }, Promise.resolve()).then(function () {
               if (fetched) post({ type: 'undo:data-progress', part: part.id, quality: q, loaded: total, total: total, state: 'done', blocking: false });
             }, function () {
-              post({ type: 'undo:data-progress', part: part.id, quality: q, loaded: have, total: total, state: 'error', blocking: false });
+              // zrušená část (nebo jiná kvalita) není chyba
+              if (wanted(part) && q === quality()) post({ type: 'undo:data-progress', part: part.id, quality: q, loaded: have, total: total, state: 'error', blocking: false });
             });
           });
         }, Promise.resolve());
@@ -306,7 +309,9 @@
   // patří hře.
   function store(cache, url, onBytes, background) {
     // mimo obal fetch: engine by se jinak ukládal dvakrát
-    return (netFetch || fetch).call(window, url).then(function (response) {
+    var abort = background && window.AbortController ? new AbortController() : null;
+    if (abort) bgAbort = abort;
+    return (netFetch || fetch).call(window, url, abort ? { signal: abort.signal } : undefined).then(function (response) {
       if (!response.ok || !response.body) throw new Error(String(response.status));
       var loaded = 0;
       var counted = response.body.pipeThrough(new TransformStream({ transform: function (chunk, controller) {
@@ -420,10 +425,12 @@
     }
     if (data.type === 'undo:data-plan') {
       hub = true;
-      if (data.quality !== 'perf' && data.quality !== 'hd') return;
+      // bez volby kvality zůstává automatická; části platí vždy (katalog: na začátku jen základ)
       var was = quality();
-      plan = { quality: data.quality === 'hd' ? 'hd' : 'perf', parts: Array.isArray(data.parts) ? data.parts.slice() : null };
+      plan = { quality: data.quality === 'hd' || data.quality === 'perf' ? data.quality : was, parts: Array.isArray(data.parts) ? data.parts.slice() : null };
       savePlan();
+      // rozstahovaný soubor části, kterou hráč zrušil (nebo jiné kvality), se utne; pozadí pak jede podle nového plánu
+      if (bgAbort) bgAbort.abort();
       var removed = Array.isArray(data.remove) ? data.remove : [];
       (removed.length || was !== plan.quality ? prune(removed, plan.quality) : Promise.resolve()).then(fill);
     }
@@ -433,18 +440,20 @@
 
   window.__undoOffline = {
     // Stránka je pokyn katalogu, ne hra ke spuštění.
-    command: mode === 'install' || mode === 'remove',
+    command: mode === 'install' || mode === 'remove' || mode === 'parts',
     // Před stažením enginu: pryč se starým workerem, pokyn katalogu, nebo ukládání a dotaz katalogu.
     ready: function (cfg, opts) {
       config = cfg;
       options = opts || {};
       if (!kept(cfg)) {
-        if (mode === 'install' || mode === 'remove') post({ type: 'undo:offline-failed', error: 'unsupported' });
+        if (mode === 'install' || mode === 'remove' || mode === 'parts') post({ type: 'undo:offline-failed', error: 'unsupported' });
         return Promise.resolve();
       }
       return retireWorker().then(function (reloading) {
         if (reloading) return new Promise(function () {});
         if (mode === 'install') { install(); return new Promise(function () {}); }
+        // v3: katalog chce znát části (správce v detailu hry, hra tu ještě neběžela)
+        if (mode === 'parts') { post({ type: 'undo:offline-start' }); reportParts().then(function () { post({ type: 'undo:offline-parts' }); }); return new Promise(function () {}); }
         if (mode === 'remove') { remove(); return new Promise(function () {}); }
         wrapFetch();
         // v3: části katalogu ještě před dotazem, ať při prvním spuštění může nabídnout jejich výběr
