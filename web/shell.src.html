@@ -13,6 +13,9 @@
 		<script>/*UNDO_BRIDGE*/</script>
 		<!-- The shader variants Godot translates and never draws get an empty program (web/gl-skip.js). -->
 		<script>/*GL_SKIP*/</script>
+		<!-- The game's shader programs compiled ahead in the background (web/shader-warm.js): no compile stalls the
+		     first time. -->
+		<script>/*SHADER_WARM*/</script>
 		<!-- The game's data kept for good in the browser and told to the catalogue (web/undo-offline-godot.js, the
 		     UNDO.games kit's copy, unchanged): the page keeps the engine and the data itself, no service worker. -->
 		<script>/*UNDO_OFFLINE*/</script>
@@ -103,7 +106,9 @@ const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
 (function () {
 	const cs = (navigator.language || '').toLowerCase().startsWith('cs') || (navigator.language || '').toLowerCase().startsWith('sk');
 	// The catalogue's command in a hidden frame (download ahead, delete): no game, no curtain.
-	if (window.__undoOffline.command) { document.getElementById('curtain').remove(); window.__undoOffline.ready(GODOT_CONFIG); return; }
+	// Downloading ahead from the catalogue compiles the shader programs too (web/shader-warm.js).
+	const offline = { prepare: () => window.__undoShaderWarm.run() };
+	if (window.__undoOffline.command) { document.getElementById('curtain').remove(); window.__undoOffline.ready(GODOT_CONFIG, offline); return; }
 	// A touch device without a mouse: the computer picture and the link, no 300 MB download.
 	if (matchMedia('(hover: none) and (pointer: coarse)').matches && !/[?&]phone=play/.test(location.search)) {
 		document.body.classList.add('phone');
@@ -153,6 +158,19 @@ const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
 	window.alert = (message) => fail(new Error(String(message)));
 	retry.addEventListener('click', () => location.reload());
 	state.textContent = cs ? 'Připravuji…' : 'Preparing…';
+	// The shader programs at once, in the background beside the download; after the download the line tells how many
+	// are left.
+	const warm = window.__undoShaderWarm.run(true);
+	let warmed = false;
+	warm.then(() => { warmed = true; });
+	const graphics = () => {
+		const { done, total } = window.__undoShaderWarm.state;
+		return total && done < total ? `${cs ? 'Připravuji grafiku' : 'Preparing graphics'} · ${done} / ${total}` : '';
+	};
+	const ticker = setInterval(() => {
+		if (ready || warmed) { clearInterval(ticker); if (!ready && download >= 1) state.textContent = window.__undoOffline.status(1, 1); return; }
+		if (download >= 1) state.textContent = graphics() || window.__undoOffline.status(1, 1);
+	}, 250);
 	// The bar: the download is its first half, the game's boot (scripts/web/page.gd) the second.
 	let download = 0, boot = 0, ready = false, splashDone = false;
 	const show = () => {
@@ -191,12 +209,12 @@ const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
 	const missing = Engine.getMissingFeatures({ threads: GODOT_THREADS_ENABLED });
 	if (missing.length) { fail(missing.join('\n')); return; }
 	// The kit first (keeping the data, the catalogue's question): what the engine downloads is then kept for good.
-	window.__undoOffline.ready(GODOT_CONFIG).then(() => new Engine(GODOT_CONFIG).startGame({
+	window.__undoOffline.ready(GODOT_CONFIG, offline).then(() => new Engine(GODOT_CONFIG).startGame({
 		onProgress(current, total) {
 			if (current > 0 && total > 0) { download = Math.min(1, current / total); show(); }
-			if (!ready) state.textContent = window.__undoOffline.status(current, total);
+			if (!ready && download < 1) state.textContent = window.__undoOffline.status(current, total);
 		},
-	})).then(() => { download = 1; show(); if (!ready) state.textContent = window.__undoOffline.status(1, 1); window.__undoOffline.started(); }, fail);
+	})).then(() => { download = 1; show(); if (!ready) state.textContent = graphics() || window.__undoOffline.status(1, 1); window.__undoOffline.started(); }, fail);
 }());
 		</script>
 	</body>

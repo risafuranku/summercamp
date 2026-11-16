@@ -25,6 +25,7 @@ const shell = read('shell.src.html')
   .replace('/*UNDO_LOCK*/', () => (release ? read('undo-lock.js') : ''))
   .replace('/*UNDO_BRIDGE*/', () => read('undo-bridge.js'))
   .replace('/*GL_SKIP*/', () => read('gl-skip.js'))
+  .replace('/*SHADER_WARM*/', () => read('shader-warm.js'))
   .replace('/*UNDO_OFFLINE*/', () => read('undo-offline-godot.js'));
 fs.writeFileSync(path.join(ROOT, 'godot/.web_shell.html'), shell);
 

@@ -21,7 +21,10 @@
 		'ADDITIVE_OMNI', 'ADDITIVE_SPOT', 'RENDER_MATERIAL', 'SECOND_REFLECTION_PROBE', 'LIGHTMAP_BICUBIC_FILTER', 'RENDER_MOTION_VECTORS'];
 	const DEFAULTS = 'APPLY_TONEMAPPING BASE_PASS DISABLE_REFLECTION_PROBE USE_RADIANCE_MAP';
 	// Barevná varianta scénového shaderu (globální define MAX_FORWARD_LIGHTS) v přesně výchozí specializaci.
-	const unused = (source) => {
+	// Specializace a globální define jsou v hlavičce zdroje (do ~1,5 kB z ~90 kB), hledá se jen v ní: regulární
+	// výraz přes celý zdroj stál při prvním hraní DRIVAHu 0,85 s hlavního vlákna (17. 11., profil Chromu).
+	const unused = (full) => {
+		const source = full.slice(0, 8192);
 		if (!source.includes('\n#define MAX_FORWARD_LIGHTS ') || /^#define MODE_RENDER_DEPTH\b/m.test(source)) return false;
 		const defines = new Set(source.match(/^#define [A-Z0-9_]+$/gm) || []);
 		return SPECIALIZATIONS.filter((name) => defines.has('#define ' + name)).join(' ').split(' ').sort().join(' ') === DEFAULTS;
