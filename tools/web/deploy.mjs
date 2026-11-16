@@ -30,7 +30,7 @@ const OUT = path.join(ROOT, 'build/release');
 const KIT_WORKER = `${process.env.UNDO_OFFLINE_KIT || 'C:/grimroot/undogames/docs/offline-kit'}/undo-offline-sw-retire.js`;
 const PROJECT = { projectId: 'prj_N7WT2rOrN5qkb1RbTponm7Ozbw4Z', orgId: 'team_cgugJ8lxk1eNvjsulOTv8OZ3', projectName: 'cursed-camp-demo' };
 const LIVE = 'https://cursed-camp-demo.vercel.app';
-const ENGINE = ['js', 'wasm', 'pck', 'audio.worklet.js', 'audio.position.worklet.js'];
+const ENGINE = ['js', 'wasm', 'audio.worklet.js', 'audio.position.worklet.js'];
 
 if (!process.argv.includes('--skip-export')) {
   execFileSync(process.execPath, [path.join(ROOT, 'tools/web/export.mjs'), '--release'], { stdio: 'inherit' });
@@ -43,18 +43,22 @@ if (!fs.existsSync(SHADERS) || fs.statSync(SHADERS).mtimeMs < fs.statSync(path.j
   throw new Error('build/web/shaders.json missing or older than the build: node tools/web/record-shaders.mjs');
 }
 
-// One print for the whole set: the engine's files belong together.
+// One print for the engine (its files belong together and change only with the Godot version), its own for the
+// main pack (the game's code and data): GODOT_CONFIG.mainPack, UNDO.games offline kit v4. Until 16. 11. they shared
+// one print and every deploy made players download the engine again.
 const hash = createHash('sha256');
 for (const ext of ENGINE) hash.update(fs.readFileSync(path.join(WEB, `index.${ext}`)));
 const stamp = hash.digest('hex').slice(0, 12);
 const base = `assets/index.${stamp}`;
+const mainPack = `assets/index.${createHash('sha256').update(fs.readFileSync(path.join(WEB, 'index.pck'))).digest('hex').slice(0, 12)}.pck`;
 
 fs.rmSync(OUT, { recursive: true, force: true });
 fs.mkdirSync(path.join(OUT, 'assets'), { recursive: true });
 fs.mkdirSync(path.join(OUT, '.vercel'), { recursive: true });
 for (const ext of ENGINE) fs.copyFileSync(path.join(WEB, `index.${ext}`), path.join(OUT, `${base}.${ext}`));
+fs.copyFileSync(path.join(WEB, 'index.pck'), path.join(OUT, mainPack));
 for (const name of fs.readdirSync(WEB)) {
-  if (name.endsWith('.br') || name === 'index.html' || name === 'shaders.json' || /^index_/.test(name) || ENGINE.some((ext) => name === `index.${ext}`)) continue;
+  if (name.endsWith('.br') || name === 'index.html' || name === 'index.pck' || name === 'shaders.json' || /^index_/.test(name) || ENGINE.some((ext) => name === `index.${ext}`)) continue;
   if (fs.statSync(path.join(WEB, name)).isDirectory()) continue;
   fs.copyFileSync(path.join(WEB, name), path.join(OUT, name));
 }
@@ -89,7 +93,8 @@ fs.writeFileSync(path.join(OUT, keysFile), JSON.stringify(capture.programs.map((
 const match = html.match(/const GODOT_CONFIG = (.*);\r?\n/);
 const config = JSON.parse(match[1]);
 config.executable = base;
-config.fileSizes = Object.fromEntries(Object.entries(config.fileSizes).map(([name, size]) => [name.replace(/^index\./, `${base}.`), size]));
+config.mainPack = mainPack;
+config.fileSizes = Object.fromEntries(Object.entries(config.fileSizes).map(([name, size]) => [name === 'index.pck' ? mainPack : name.replace(/^index\./, `${base}.`), size]));
 html = html.replace(match[0], () => `window.__undoShaders = ${JSON.stringify(shaderFiles)};\nwindow.__undoShaderKeys = ${JSON.stringify(keysFile)};\nwindow.__undoShadersTotal = ${capture.programs.length};\nconst GODOT_CONFIG = ${JSON.stringify(config)};\n`);
 html = html.replace('<script src="index.js"></script>', `<script src="${base}.js"></script>`);
 if (!html.includes(`${base}.js`)) throw new Error('the page has no engine script to point at');
@@ -106,10 +111,10 @@ let live = '';
 let pck = null;
 for (let i = 0; i < 20; i++) {
   live = await (await fetch(`${LIVE}/index.html?check=${Date.now()}`, { cache: 'no-store' })).text();
-  pck = await fetch(`${LIVE}/${base}.pck`, { method: 'HEAD' });
+  pck = await fetch(`${LIVE}/${mainPack}`, { method: 'HEAD' });
   if (live === html && pck.ok) break;
   await new Promise((resolve) => setTimeout(resolve, 3000));
 }
 const ok = live === html && pck.ok;
-console.log(`${LIVE}: index.html ${live === html ? 'new' : 'OLD'}, ${base}.pck ${pck.status} ${pck.headers.get('cache-control')}, ${ok ? 'deployed' : 'NOT VERIFIED'}`);
+console.log(`${LIVE}: index.html ${live === html ? 'new' : 'OLD'}, ${mainPack} ${pck.status} ${pck.headers.get('cache-control')}, ${ok ? 'deployed' : 'NOT VERIFIED'}`);
 if (!ok) process.exit(1);

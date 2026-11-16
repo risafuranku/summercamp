@@ -13,6 +13,17 @@
  * Nasazení dá engine pod `/assets/` se jménem s otiskem (`assets/index.<otisk>.*`, `GODOT_CONFIG.executable`).
  * Testovací build (engine mimo `/assets/`) nedrží nic.
  *
+ * Verze 4 (16. 11. 2026, Richard: „pořádný stahování herních dat pro mobilní hru, šetřit data z webhostingu“):
+ * aktualizace stáhne jen to, co se změnilo. Engine (.wasm, mění se jen s verzí Godotu) a hlavní balík (.pck, kód hry)
+ * mají každý vlastní otisk: hlavní balík je `GODOT_CONFIG.mainPack` (`assets/index.<otisk>.pck`), bez něj
+ * `<executable>.pck` jako dřív. Do 16. 11. měly jeden společný otisk a každé nasazení přejmenovalo i 40 MB enginu.
+ * Soubory, které stránka dá enginu před startem (`boot(url)`, třeba datový balík hry), patří k enginu: ukládají se
+ * stejně, počítají se do „uloženo“ a starší verze (`/assets/index.*` mimo aktuální) se uklidí. Hra s částmi (v3)
+ * uložená data nikdy nemaže kvůli odpovědi `keep: false` (dřívější „ne“ v dotazu katalogu by jinak při každém
+ * spuštění smazalo všechno a hra by se stahovala pořád dokola); maže jen správce (plán `remove`, `?undo_offline=remove`).
+ * Jakmile se ukládá, stránka požádá prohlížeč o trvalé úložiště (`navigator.storage.persist`), ať data při nedostatku
+ * místa nezahodí. Hláška a animace stahování počítají jen bajty, které opravdu jdou ze sítě.
+ *
  * Stránka hry:
  *   if (window.__undoOffline.command) { …bez hry a opony…; window.__undoOffline.ready(GODOT_CONFIG, volby); return; }
  *   window.__undoOffline.ready(GODOT_CONFIG, volby).then(() => engine.startGame({ onProgress(c, t) { text = window.__undoOffline.status(c, t); } }))
@@ -76,15 +87,35 @@
   var overlay = false;
   var overlayAt = 0;
 
+  // Průběh stahování nejvýš 10× za sekundu na část (konec a chyba hned): po každém kousku dat to byly stovky zpráv
+  // za sekundu a hra i katalog se zpomalily (16. 11.: závod se se stahováním na pozadí načítal 3× déle).
+  var told = {};
   function post(message) {
     if (window.parent === window) return;
+    if (message.type === 'undo:data-progress' && message.state === 'download') {
+      var k = message.part + (message.blocking ? '!' : '');
+      var now = Date.now();
+      if (now - (told[k] || 0) < 100) return;
+      told[k] = now;
+    }
     try { window.parent.postMessage(Object.assign({ v: 1 }, message), '*'); } catch (e) { /* rodič zmizel */ }
   }
   function kept(cfg) { return /^assets\//.test(cfg.executable) && 'caches' in window; }
-  function engineFiles(cfg) { return [cfg.executable + '.wasm', cfg.executable + '.pck']; }
+  function engineFiles(cfg) { return [cfg.executable + '.wasm', cfg.mainPack || cfg.executable + '.pck']; }
+  // engine, hlavní balík a soubory, které stránka dá enginu před startem (boot)
+  var boots = [];
+  function coreFiles() { return engineFiles(config).concat(boots.filter(function (file) { return engineFiles(config).indexOf(file) < 0; })); }
   function key(file) { var url = new URL(file, location.href); return url.origin + url.pathname; }
-  function version() { return config.executable.split('.').pop(); }
-  function engineBytes() { return engineFiles(config).reduce(function (sum, file) { return sum + (config.fileSizes[file] || 0); }, 0); }
+  // verze hry = otisk hlavního balíku (engine se mezi verzemi nemění)
+  function version() { return (config.mainPack || config.executable).replace(/\.pck$/, '').split('.').pop(); }
+  function engineBytes() { return coreFiles().reduce(function (sum, file) { return sum + (config.fileSizes[file] || 0); }, 0); }
+  // Trvalé úložiště: bez něj prohlížeč při nedostatku místa data zahodí (Chrome nejdřív u stránek v rámečku).
+  var persisted = false;
+  function persist() {
+    if (persisted || !navigator.storage || !navigator.storage.persist) return;
+    persisted = true;
+    navigator.storage.persisted().then(function (yes) { return yes || navigator.storage.persist(); }).catch(function () { /* nejde */ });
+  }
   function list(option) { return option ? Promise.resolve().then(typeof option === 'function' ? option : function () { return option; }).catch(function () { return []; }) : Promise.resolve([]); }
   function cs() { return /^(cs|sk)/i.test(navigator.language || ''); }
   function mb(bytes) { return Math.round(bytes / 1048576); }
@@ -112,12 +143,14 @@
     if (parts) return Promise.resolve(parts);
     return list(options.parts).then(function (got) {
       var engine = engineFiles(config).map(function (file) { return { url: file, bytes: config.fileSizes[file] || 0 }; });
+      var engineKeys = engineFiles(config).map(key);
+      var notEngine = function (f) { return engineKeys.indexOf(key(f.url)) < 0; };
       if (!got.some(function (part) { return part.base; })) got.unshift({ id: 'base', name: { cs: 'Základ', en: 'Base' }, base: true, files: { perf: [], hd: [] } });
       got.forEach(function (part) {
         part.files = part.files || {};
         if (part.base) {
-          part.files.perf = engine.concat(part.files.perf || []);
-          part.files.hd = engine.concat(part.files.hd || []);
+          part.files.perf = engine.concat((part.files.perf || []).filter(notEngine));
+          part.files.hd = engine.concat((part.files.hd || []).filter(notEngine));
         }
       });
       parts = got;
@@ -243,6 +276,8 @@
   // Engine a hlavní balík: z paměti, jinak ze sítě a cestou kopie do paměti (pokud hráč ukládání neodmítl).
   var netFetch = null;
   var fetched = {};
+  // co jde při startu opravdu ze sítě (hláška a animace stahování)
+  var net = { loaded: 0, total: 0, files: 0 };
   function wrapFetch() {
     var original = netFetch = window.fetch;
     var files = fetched;
@@ -255,9 +290,14 @@
       return caches.open(CACHE).then(function (cache) {
         return cache.match(url, { ignoreVary: true }).then(function (hit) {
           if (hit) { hits[file] = true; return hit; }
+          net.files += 1;
+          net.total += config.fileSizes[file] || 0;
           return original.apply(self, args).then(function (response) {
-            if (keep === false || !response.ok || !response.body) return response;
-            var pair = response.body.tee();
+            if (!response.ok || !response.body) return response;
+            var counted = response.body.pipeThrough(new TransformStream({ transform: function (chunk, controller) { net.loaded += chunk.length; controller.enqueue(chunk); } }));
+            if (keep === false) return new Response(counted, { status: response.status, statusText: response.statusText, headers: response.headers });
+            persist();
+            var pair = counted.tee();
             var headers = new Headers(response.headers);
             headers.delete('content-encoding');
             headers.delete('content-length');
@@ -275,7 +315,7 @@
   function report() {
     if (!config || !kept(config)) return Promise.resolve(false);
     return caches.open(CACHE).then(function (cache) {
-      var files = engineFiles(config);
+      var files = coreFiles();
       var match = function (file) { return cache.match(key(file), { ignoreVary: true }); };
       return Promise.all([Promise.all(files.map(match)), list(options.packs)]).then(function (found) {
         var installed = found[0].every(Boolean);
@@ -350,6 +390,7 @@
   function install() {
     post({ type: 'undo:offline-start' });
     keep = true;
+    persist();
     if (params.get('undo_quality')) {
       plan = { quality: params.get('undo_quality') === 'hd' ? 'hd' : 'perf', parts: params.get('undo_parts') !== null ? (params.get('undo_parts') || '').split(',').filter(Boolean) : null };
       savePlan();
@@ -361,14 +402,14 @@
     }) : Promise.resolve(null);
     Promise.all([list(options.files), list(options.keep), list(options.packs), planned]).then(function (got) {
       var sizes = {};
-      engineFiles(config).forEach(function (file) { sizes[key(file)] = config.fileSizes[file] || 0; });
+      coreFiles().forEach(function (file) { sizes[key(file)] = config.fileSizes[file] || 0; });
       got[2].forEach(function (pack) { sizes[key(pack.url)] = pack.bytes || 0; });
       var extra = got[0];
       if (got[3]) {
         got[3].forEach(function (f) { sizes[key(f.url)] = f.bytes || 0; });
         extra = got[3].map(function (f) { return f.url; });
       }
-      var files = engineFiles(config).concat(extra, got[1]).map(key).filter(function (url, i, all) { return all.indexOf(url) === i; });
+      var files = coreFiles().concat(extra, got[1]).map(key).filter(function (url, i, all) { return all.indexOf(url) === i; });
       var total = files.reduce(function (sum, url) { return sum + (sizes[url] || 1048576); }, 0);
       var done = 0, bytes = 0, failed = 0;
       return caches.open(CACHE).then(function (cache) {
@@ -418,10 +459,12 @@
     if (data.type === 'undo:offline-keep') {
       var before = keep;
       keep = data.keep === true ? true : data.keep === false ? false : null;
+      // v4: hra s částmi data drží vždy; „ne“ z dřívějšího dotazu (katalog si ho pamatuje) nic nemaže
+      if (keep === false && options.parts) keep = true;
       waiting.splice(0).forEach(function (resolve) { resolve(); });
       // „Ne“: co se do té doby uložilo, pryč (i balíky hry), dál se neukládá.
       if (keep === false && before !== false && config && kept(config)) caches.delete(CACHE).then(report, function () {}).then(reportParts);
-      if (keep === true && before !== true && config && kept(config)) { report(); polls = 0; watch(); fill(); }
+      if (keep === true && before !== true && config && kept(config)) { persist(); report(); polls = 0; watch(); fill(); }
     }
     if (data.type === 'undo:data-plan') {
       hub = true;
@@ -494,22 +537,25 @@
     catalog: function () { return hub; },
     // v3: soubor, který stránka dá enginu před startem (`engine.preloadFile`, Stickwound: textury podle kvality):
     // jde stejnou cestou jako engine (z paměti, jinak ze sítě a cestou do paměti).
-    boot: function (url) { fetched[key(url)] = url; },
-    // v3: hra stahuje něco, na co hráč nečeká (fotky aut do menu): pozadí počká, katalog nic neukazuje.
+    boot: function (url) { fetched[key(url)] = url; if (boots.indexOf(url) < 0) boots.push(url); },
+    // v3: hra stahuje něco, na co hráč nečeká (fotky aut do menu), nebo něco načítá (obrazovka načítání: stahování
+    // a ukládání na pozadí by jí bralo hlavní vlákno): pozadí počká, katalog nic neukazuje.
     busy: function () { urgentAt = Date.now(); },
     // Stavová hláška pod ukazatelem načítání (průběh z onProgress enginu). v3: první stažení enginu je naléhavé.
+    // v4: stahování = jen soubory, které v paměti nebyly (aktualizace kódu: pár MB, ne celý engine); start z paměti
+    // katalog neukazuje vůbec.
     status: function (current, total) {
       var czech = cs();
-      var fromDevice = config && engineFiles(config).some(function (file) { return hits[file]; });
+      var downloading = net.files > 0 && net.loaded < net.total;
       overlay = false;
-      if (total > 0 && !fromDevice) {
+      if (net.files > 0 && net.total > 0) {
         urgentAt = overlayAt = Date.now();
-        overlay = hub && current < total;
-        post({ type: 'undo:data-progress', part: 'base', quality: quality(), loaded: Math.min(current, total), total: total, state: current >= total ? 'done' : 'download', blocking: true });
+        overlay = hub && downloading;
+        post({ type: 'undo:data-progress', part: 'base', quality: quality(), loaded: Math.min(net.loaded, net.total), total: net.total, state: downloading ? 'download' : 'done', blocking: true });
       }
       if (!(total > 0 && current < total)) return czech ? 'Spouštím hru…' : 'Starting the game…';
-      if (fromDevice) return czech ? 'Načítám z paměti zařízení' : 'Loading from this device';
-      return (czech ? 'Stahuji data · ' : 'Downloading · ') + mb(current) + ' / ' + mb(total) + ' MB';
+      if (!downloading) return czech ? 'Načítám z paměti zařízení' : 'Loading from this device';
+      return (czech ? 'Stahuji data · ' : 'Downloading · ') + mb(net.loaded) + ' / ' + mb(net.total) + ' MB';
     },
   };
 })();
