@@ -39,6 +39,7 @@ Coop="*res://scripts/coop/coop.gd"
 window/size/viewport_width=1280
 window/size/viewport_height=720
 window/size/mode=3
+window/size/mode.web=0
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 
