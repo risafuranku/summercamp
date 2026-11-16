@@ -14,7 +14,7 @@
 //   3. .vercel/project.json written by hand (vercel link would pull env files),
 //   4. vercel deploy --prod and the live address checked.
 // The catalogue points at this address: only on Richard's word once players are in.
-//   node tools/web/deploy.mjs [--skip-export] [--stage-only]
+//   node tools/web/deploy.mjs [--skip-export] [--stage-only] [--new-engine]
 
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
@@ -46,10 +46,29 @@ if (!fs.existsSync(SHADERS) || fs.statSync(SHADERS).mtimeMs < fs.statSync(path.j
 // One print for the engine (its files belong together and change only with the Godot version), its own for the
 // main pack (the game's code and data): GODOT_CONFIG.mainPack, UNDO.games offline kit v4. Until 16. 11. they shared
 // one print and every deploy made players download the engine again.
+// An unchanged engine (script and worklets byte for byte, .wasm the same size) keeps the live version's name, so
+// players who hold it don't download it again (also an engine named by the old shared print); --new-engine overrides.
+async function liveEngine() {
+  try {
+    const page = await (await fetch(`${LIVE}/index.html?check=${Date.now()}`, { cache: 'no-store' })).text();
+    const live = JSON.parse(page.match(/const GODOT_CONFIG = (.*);\r?\n/)[1]).executable;
+    if (!/^assets\/index\.[0-9a-f]{12}$/.test(live)) return null;
+    for (const ext of ENGINE.filter((e) => e !== 'wasm')) {
+      const r = await fetch(`${LIVE}/${live}.${ext}`);
+      if (!r.ok || !Buffer.from(await r.arrayBuffer()).equals(fs.readFileSync(path.join(WEB, `index.${ext}`)))) return null;
+    }
+    const wasm = await fetch(`${LIVE}/${live}.wasm`, { method: 'HEAD', headers: { 'Accept-Encoding': 'identity' } });
+    return wasm.ok && Number(wasm.headers.get('content-length')) === fs.statSync(path.join(WEB, 'index.wasm')).size ? live : null;
+  } catch {
+    return null;
+  }
+}
 const hash = createHash('sha256');
 for (const ext of ENGINE) hash.update(fs.readFileSync(path.join(WEB, `index.${ext}`)));
-const stamp = hash.digest('hex').slice(0, 12);
+const kept = process.argv.includes('--new-engine') ? null : await liveEngine();
+const stamp = kept ? kept.split('.').pop() : hash.digest('hex').slice(0, 12);
 const base = `assets/index.${stamp}`;
+if (kept) console.log(`unchanged engine keeps the live name: ${kept}`);
 const mainPack = `assets/index.${createHash('sha256').update(fs.readFileSync(path.join(WEB, 'index.pck'))).digest('hex').slice(0, 12)}.pck`;
 
 fs.rmSync(OUT, { recursive: true, force: true });
