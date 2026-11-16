@@ -21,7 +21,9 @@
  *   files: [adresy] nebo () => Promise<[adresy]>  — co stáhnout navíc při `?undo_offline=install` (balíky dat),
  *   packs: () => Promise<[{id, url, bytes}]>      — balíky, které hra drží ve stejné paměti, do hlášení katalogu,
  *   keep: () => Promise<[adresy]>                  — soubory, které hra přehrává po kouscích (`<audio>`): po uložení
- *                                                   enginu je stránka jednou stáhne celé; jdou i do install.
+ *                                                   enginu je stránka jednou stáhne celé; jdou i do install,
+ *   prepare: () => Promise                         — co ještě udělat při stažení předem (DRIVAH: grafické programy
+ *                                                   předem do mezipaměti prohlížeče); `installed` přijde až po něm.
  *
  * Dotaz katalogu (Richard 17. 11.: „při prvním načítání se zeptej, jestli uložit data natrvalo“): stránka
  * pošle `undo:offline-hello {version, bytes}`, katalog hned odpoví `undo:offline-keep {keep: true | false | null}`
@@ -172,6 +174,7 @@
   function install() {
     post({ type: 'undo:offline-start' });
     keep = true;
+    var prepared = typeof options.prepare === 'function' ? Promise.resolve().then(options.prepare).catch(function () {}) : Promise.resolve();
     Promise.all([list(options.files), list(options.keep), list(options.packs)]).then(function (got) {
       var sizes = {};
       engineFiles(config).forEach(function (file) { sizes[key(file)] = config.fileSizes[file] || 0; });
@@ -193,7 +196,7 @@
             });
           });
         }, Promise.resolve());
-      }).then(function () {
+      }).then(function () { return prepared; }).then(function () {
         if (failed) { post({ type: 'undo:offline-failed', error: 'files' }); return; }
         report().then(function () { post({ type: 'undo:offline-installed', bytes: bytes, files: files.length, version: version() }); });
       });
