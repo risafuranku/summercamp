@@ -58,6 +58,8 @@ for (const name of fs.readdirSync(WEB)) {
   if (fs.statSync(path.join(WEB, name)).isDirectory()) continue;
   fs.copyFileSync(path.join(WEB, name), path.join(OUT, name));
 }
+// The long tracks the browser plays (tools/web/export.mjs, web/long-tracks.json): their names carry their print.
+if (fs.existsSync(path.join(WEB, 'assets/audio'))) fs.cpSync(path.join(WEB, 'assets/audio'), path.join(OUT, 'assets/audio'), { recursive: true });
 fs.copyFileSync(KIT_WORKER, path.join(OUT, 'undo-offline-sw.js'));
 // The list in chunks of CHUNK programs, each with the texts it uses: the page parses one at a time (80 MB at once
 // would stop it); in the order of the recording, so the programs the game needs first come first.

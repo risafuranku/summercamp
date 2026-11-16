@@ -97,6 +97,8 @@ const PROFILES = preload("res://scripts/profiles.gd")
 ## The seed NEW CAMP asked for (0: a new one), used by the next generation.
 var _pending_world_seed := 0
 const MENU_THEME_PATH := "res://assets/music/title.mp3"
+## On the web the menu's theme plays in the browser, off the engine's one thread (scripts/audio/long_player.gd).
+const LONG_PLAYER = preload("res://scripts/audio/long_player.gd")
 const MENU_THEME_VOLUME_DB := -2.5
 const SAVE_VERSION := 3
 const AUTOSAVE_INTERVAL_SEC := 60.0
@@ -3517,12 +3519,17 @@ func _load_preview_world_for_menu() -> void:
 
 func _start_menu_music() -> void:
 	if _menu_music_player == null:
-		_menu_music_player = AudioStreamPlayer.new()
+		_menu_music_player = LONG_PLAYER.make(MENU_THEME_PATH, true)
+		if _menu_music_player == null:
+			_menu_music_player = AudioStreamPlayer.new()
 		_menu_music_player.name = "MenuMusic"
 		_menu_music_player.bus = MIXER.MUSIC
 		_menu_music_player.volume_db = MENU_THEME_VOLUME_DB
 		_screen.add_child(_menu_music_player)
 	if _menu_music_player.playing:
+		return
+	if _menu_music_player.get_script() == LONG_PLAYER:
+		_menu_music_player.play()
 		return
 	if not ResourceLoader.exists(MENU_THEME_PATH):
 		push_warning("Menu theme missing: %s" % MENU_THEME_PATH)
@@ -3555,8 +3562,10 @@ func _stop_menu_music() -> void:
 		if _menu_music_player.playing:
 			_menu_music_player.stop()
 		# Drop the stream reference too. Holding it kept ambience3A.mp3 alive past
-		# shutdown, which surfaced as "resources still in use at exit".
-		_menu_music_player.stream = null
+		# shutdown, which surfaced as "resources still in use at exit". (The browser's
+		# player holds only its silent stream.)
+		if _menu_music_player.get_script() != LONG_PLAYER:
+			_menu_music_player.stream = null
 	_menu_music_retry_pending = false
 
 

@@ -19,6 +19,10 @@
 		<!-- The game's data kept for good in the browser and told to the catalogue (web/undo-offline-godot.js, the
 		     UNDO.games kit's copy, unchanged): the page keeps the engine and the data itself, no service worker. -->
 		<script>/*UNDO_OFFLINE*/</script>
+		<!-- Long tracks (insects, ambience, wind, rain, the camp's music) played by the browser off the engine's
+		     thread (web/stream-audio.js, godot/scripts/audio/long_player.gd); their files from tools/web/export.mjs. -->
+		<script>/*CC_AUDIO*/</script>
+		<script>/*STREAM_AUDIO*/</script>
 		<style>
 html, body, #canvas { margin: 0; padding: 0; border: 0; }
 html, body {
@@ -33,6 +37,8 @@ html, body {
    transform or opacity: the compositor draws it while the engine holds the page's one thread. */
 #curtain { position: fixed; inset: 0; background: #030202; transition: opacity .45s ease-out; }
 #curtain.gone { opacity: 0; pointer-events: none; }
+#curtain.hub #bar, #curtain.hub #state { opacity: 0; }
+#bar, #state { transition: opacity .25s ease-out; }
 #splash { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; transition: opacity .6s ease-in; }
 #curtain.card #splash { opacity: 0; }
 #card { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(var(--s) * 9px); opacity: 0; transition: opacity .6s ease-out .25s; }
@@ -107,7 +113,18 @@ const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
 	const cs = (navigator.language || '').toLowerCase().startsWith('cs') || (navigator.language || '').toLowerCase().startsWith('sk');
 	// The catalogue's command in a hidden frame (download ahead, delete): no game, no curtain.
 	// Downloading ahead from the catalogue compiles the shader programs too (web/shader-warm.js).
-	const offline = { prepare: () => window.__undoShaderWarm.run() };
+	// The game's parts for UNDO.games (kit 3, undogames docs/GODOT_DATA.md): the base (engine and pack, the kit adds
+	// them) and the long tracks the browser plays (web/long-tracks.json): the camp's music, the weather and the
+	// ambience. They stream while not kept; kept, they play from the browser's storage. The same in both qualities.
+	const tracks = (test) => Object.entries(window.__ccAudio || {}).filter(([res]) => test(res))
+		.map(([, url]) => ({ url, bytes: (window.__ccAudioBytes || {})[url] || 0 }));
+	const both = (files) => ({ perf: files, hd: files });
+	const parts = () => Promise.resolve([
+		{ id: 'base', name: { cs: 'Základ', en: 'Base' }, base: true, files: both([]) },
+		{ id: 'music', name: { cs: 'Hudba', en: 'Music' }, files: both(tracks((res) => res.startsWith('res://assets/music/'))) },
+		{ id: 'ambience', name: { cs: 'Počasí a okolí', en: 'Weather and ambience' }, files: both(tracks((res) => !res.startsWith('res://assets/music/'))) },
+	]);
+	const offline = { parts, prepare: () => window.__undoShaderWarm.run() };
 	if (window.__undoOffline.command) { document.getElementById('curtain').remove(); window.__undoOffline.ready(GODOT_CONFIG, offline); return; }
 	// A touch device without a mouse: the computer picture and the link, no 300 MB download.
 	if (matchMedia('(hover: none) and (pointer: coarse)').matches && !/[?&]phone=play/.test(location.search)) {
@@ -213,6 +230,8 @@ const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
 		onProgress(current, total) {
 			if (current > 0 && total > 0) { download = Math.min(1, current / total); show(); }
 			if (!ready && download < 1) state.textContent = window.__undoOffline.status(current, total);
+			// the download drawn by UNDO.games (its animation over the game): the page's own bar would be a second one
+			document.getElementById('curtain').classList.toggle('hub', !!window.__undoOffline.overlay && window.__undoOffline.overlay());
 		},
 	})).then(() => { download = 1; show(); if (!ready) state.textContent = graphics() || window.__undoOffline.status(1, 1); window.__undoOffline.started(); }, fail);
 }());

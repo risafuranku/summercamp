@@ -3,12 +3,12 @@
  * dohoda her stickwoundgodot/docs/OFFLINE_STATUS.md). Kopíruje se do hry beze změny, stránka hry ho vloží
  * do hlavičky. Používají ho DRIVAH, Stickwound a Cursed Camp.
  *
- * Verze 2 (17. 11. 2026): bez servisního workeru. Do 16. 11. ukládal data worker sady, jenže Chrome workeru
+ * Verze 2 (16. 11. 2026): bez servisního workeru. Do 16. 11. ráno ukládal data worker sady, jenže Chrome workeru
  * ukončí každou akci delší než 5 minut: na pomalejším připojení se 300 MB Cursed Campu utrhlo uprostřed
- * a Godot hlásil „Couldn't load project data“ (Richard 17. 11.). Teď ukládá stránka sama: engine (.wasm)
- * a hlavní balík (.pck) stahuje přes `fetch` stránky a cestou kopii zapíše do Cache Storage `undo-offline-v1`.
- * Příště je podá z ní, nestahuje nic. Worker z 16. 11. se při spuštění odregistruje (jednou se stránka
- * obnoví, aby ho už nepoužívala) a nasazení ho na stejné adrese nahradí prázdným (`undo-offline-sw-retire.js`).
+ * a Godot hlásil „Couldn't load project data“. Teď ukládá stránka sama: engine (.wasm) a hlavní balík (.pck)
+ * stahuje přes `fetch` stránky a cestou kopii zapíše do Cache Storage `undo-offline-v1`. Příště je podá z ní,
+ * nestahuje nic. Worker se při spuštění odregistruje (jednou se stránka obnoví, aby ho už nepoužívala) a nasazení
+ * ho na stejné adrese nahradí prázdným (`undo-offline-sw-retire.js`).
  *
  * Nasazení dá engine pod `/assets/` se jménem s otiskem (`assets/index.<otisk>.*`, `GODOT_CONFIG.executable`).
  * Testovací build (engine mimo `/assets/`) nedrží nic.
@@ -23,21 +23,40 @@
  *   keep: () => Promise<[adresy]>                  — soubory, které hra přehrává po kouscích (`<audio>`): po uložení
  *                                                   enginu je stránka jednou stáhne celé; jdou i do install,
  *   prepare: () => Promise                         — co ještě udělat při stažení předem (DRIVAH: grafické programy
- *                                                   předem do mezipaměti prohlížeče); `installed` přijde až po něm.
+ *                                                   předem do mezipaměti prohlížeče); `installed` přijde až po něm,
+ *   parts: () => Promise<[část]>                   — verze 3, viz níž.
  *
- * Dotaz katalogu (Richard 17. 11.: „při prvním načítání se zeptej, jestli uložit data natrvalo“): stránka
+ * Dotaz katalogu (Richard 16. 11.: „při prvním načítání se zeptej, jestli uložit data natrvalo“): stránka
  * pošle `undo:offline-hello {version, bytes}`, katalog hned odpoví `undo:offline-keep {keep: true | false | null}`
  * (null = ještě se neptal, ukáže dotaz a odpoví znovu, až hráč vybere). Do odpovědi se stahuje a ukládá;
  * „ne“ uložené smaže a dál se neukládá. Hra si stav přečte přes `keep()` (vlastní balíky ukládá jen, když
  * není false). Katalog dál slyší `undo:offline-status` (po spuštění, po změně a na `undo:offline-status-request`).
  * Pokyny katalogu ve skrytém rámečku (`?undo_offline=install|remove`): všechno stáhnout předem (průběh
  * po bajtech), nebo smazat. Engine se pak nespouští.
+ *
+ * Verze 3 (16. 11. 2026, undogames docs/GODOT_DATA.md): data po částech a kvalita Výkon / HD; výběr, animaci
+ * a správce kreslí katalog. Část = {id, name: {cs, en}, base, files: {perf: [{url, bytes}], hd: [...]}} (základ
+ * = část s `base`, engine a hlavní balík k ní sada přidá sama). Sada pošle `undo:data-parts {version, quality,
+ * parts: [{id, name, base, size: {perf, hd}, stored: {perf, hd}}]}`, průběh `undo:data-progress {part, quality,
+ * loaded, total, state: download | done | error, blocking}` (u částí i `have: {perf, hd}` = uložené bajty) (blocking = hra čeká: katalog ukáže velkou animaci)
+ * a slyší `undo:data-plan {quality, parts, remove}`: chybějící části plánu stahuje po spuštění hry na pozadí po
+ * jedné (pozastaví se, když hra stahuje něco naléhavého), `remove` a soubory druhé kvality smaže. Hra čte
+ * `quality()`, naléhavé stahování hlásí `fileProgress(url, loaded, total)`, změnu kvality v nastavení hry
+ * `setQuality(q)` (katalog dostane `undo:data-quality`), stahování, na které hráč nečeká, `busy()`, soubor, který
+ * stránka dá enginu před startem, `boot(url)` (ukládá se jako engine). Části jdou katalogu ještě před `hello` (při prvním spuštění
+ * nabídne jejich výběr místo dotazu na uložení), katalog na `hello` vždy odpoví plánem (bez volby `quality: null`)
+ * a pak `keep`; na pozadí se stahuje, až hráč ukládání potvrdí. `overlay()` = katalog právě kreslí animaci stahování
+ * přes hru (stránka a obrazovky načítání hry schovají svůj ukazatel, ať nejsou dva na stejném místě), `catalog()` = katalog části spravuje. Bez katalogu platí poslední plán uložený ve hře, jinak
+ * všechny části a automatická kvalita (telefon a slabší počítač Výkon). Stažení předem bere plán z adresy:
+ * `?undo_offline=install&undo_quality=perf|hd&undo_parts=a,b` (uložené mimo plán pak smaže).
  */
 (function () {
   if (window.__undoOffline) return;
   var CACHE = 'undo-offline-v1';
   var RETIRED = 'undo-offline-sw-retired';
-  var mode = new URLSearchParams(location.search).get('undo_offline') || '';
+  var PLAN = 'undo-data-plan';
+  var params = new URLSearchParams(location.search);
+  var mode = params.get('undo_offline') || '';
   var config = null;
   var options = {};
   var keep = null;
@@ -45,6 +64,16 @@
   var polls = 0;
   var warmed = false;
   var waiting = [];
+  // v3: části, plán a stahování na pozadí
+  var parts = null;
+  var plan = null;
+  var filling = false;
+  var refill = false;
+  var urgentAt = 0;
+  var running = false;
+  var hub = false;
+  var overlay = false;
+  var overlayAt = 0;
 
   function post(message) {
     if (window.parent === window) return;
@@ -58,6 +87,139 @@
   function list(option) { return option ? Promise.resolve().then(typeof option === 'function' ? option : function () { return option; }).catch(function () { return []; }) : Promise.resolve([]); }
   function cs() { return /^(cs|sk)/i.test(navigator.language || ''); }
   function mb(bytes) { return Math.round(bytes / 1048576); }
+  function bytesOf(files) { return files.reduce(function (sum, f) { return sum + (f.bytes || 0); }, 0); }
+
+  // ---------------------------------------------------------------- v3: kvalita a plán
+
+  // Automatická kvalita: telefon a slabší počítač Výkon (malé textury, nízké rozlišení), jinak HD.
+  function autoQuality() {
+    var coarse = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
+    var memory = navigator.deviceMemory || 8;
+    var cores = navigator.hardwareConcurrency || 8;
+    return coarse || memory <= 4 || cores <= 4 ? 'perf' : 'hd';
+  }
+  function loadPlan() {
+    try { var saved = JSON.parse(localStorage.getItem(PLAN) || 'null'); if (saved && (saved.quality === 'perf' || saved.quality === 'hd')) return saved; } catch (e) { /* bez úložiště */ }
+    return null;
+  }
+  function savePlan() { try { localStorage.setItem(PLAN, JSON.stringify(plan)); } catch (e) { /* bez úložiště */ } }
+  function quality() { return (plan && plan.quality) || autoQuality(); }
+  function wanted(part) { return part.base || !(plan && Array.isArray(plan.parts)) || plan.parts.indexOf(part.id) >= 0; }
+
+  // Části hry, základ s enginem a hlavním balíkem; jednou za běh.
+  function getParts() {
+    if (parts) return Promise.resolve(parts);
+    return list(options.parts).then(function (got) {
+      var engine = engineFiles(config).map(function (file) { return { url: file, bytes: config.fileSizes[file] || 0 }; });
+      if (!got.some(function (part) { return part.base; })) got.unshift({ id: 'base', name: { cs: 'Základ', en: 'Base' }, base: true, files: { perf: [], hd: [] } });
+      got.forEach(function (part) {
+        part.files = part.files || {};
+        if (part.base) {
+          part.files.perf = engine.concat(part.files.perf || []);
+          part.files.hd = engine.concat(part.files.hd || []);
+        }
+      });
+      parts = got;
+      return parts;
+    });
+  }
+  function partOf(url) {
+    var k = key(url);
+    var q = quality();
+    for (var i = 0; parts && i < parts.length; i++) {
+      var files = parts[i].files[q] || [];
+      for (var j = 0; j < files.length; j++) if (key(files[j].url) === k) return parts[i];
+    }
+    return null;
+  }
+  // Katalogu: velikost částí a jestli jsou uložené v obou kvalitách.
+  function reportParts() {
+    if (!config || !kept(config) || !options.parts) return Promise.resolve();
+    return getParts().then(function (all) {
+      return caches.open(CACHE).then(function (cache) {
+        // [celá uložená, uložené bajty]
+        var stored = function (files) {
+          return Promise.all(files.map(function (f) { return cache.match(key(f.url), { ignoreVary: true }); })).then(function (found) {
+            var have = 0;
+            found.forEach(function (hit, i) { if (hit) have += files[i].bytes || 0; });
+            return [files.length > 0 && found.every(Boolean), have];
+          });
+        };
+        return Promise.all(all.map(function (part) {
+          return Promise.all([stored(part.files.perf || []), stored(part.files.hd || [])]).then(function (got) {
+            return { id: part.id, name: part.name, base: !!part.base, size: { perf: bytesOf(part.files.perf || []), hd: bytesOf(part.files.hd || []) }, stored: { perf: got[0][0], hd: got[1][0] }, have: { perf: got[0][1], hd: got[1][1] } };
+          });
+        }));
+      }).then(function (report) {
+        post({ type: 'undo:data-parts', version: version(), quality: quality(), parts: report });
+      });
+    }).catch(function () { /* bez úložiště */ });
+  }
+  // Chybějící části plánu na pozadí po jedné; čeká, dokud hra stahuje něco naléhavého (fileProgress).
+  function fill() {
+    if (!running || keep !== true || !options.parts || !config || !kept(config)) return;
+    if (filling) { refill = true; return; }
+    filling = true;
+    refill = false;
+    var q = quality();
+    getParts().then(function (all) {
+      return caches.open(CACHE).then(function (cache) {
+        return all.filter(wanted).reduce(function (chain, part) {
+          return chain.then(function () {
+            if (q !== quality()) return;
+            var files = part.files[q] || [];
+            var total = bytesOf(files);
+            var have = 0;
+            var fetched = false;
+            return files.reduce(function (inner, f) {
+              return inner.then(function () {
+                return cache.match(key(f.url), { ignoreVary: true }).then(function (hit) {
+                  if (hit) { have += f.bytes || 0; return; }
+                  fetched = true;
+                  // hra mohla soubor mezitím stáhnout sama (balík před závodem): znovu se podívat
+                  return idle().then(function () { return cache.match(key(f.url), { ignoreVary: true }); }).then(function (now) {
+                    if (now) { have += f.bytes || 0; return; }
+                    return store(cache, f.url, function (loaded) {
+                      post({ type: 'undo:data-progress', part: part.id, quality: q, loaded: Math.min(total, have + loaded), total: total, state: 'download', blocking: false });
+                    }, true).then(function () { have += f.bytes || 0; });
+                  });
+                });
+              });
+            }, Promise.resolve()).then(function () {
+              if (fetched) post({ type: 'undo:data-progress', part: part.id, quality: q, loaded: total, total: total, state: 'done', blocking: false });
+            }, function () {
+              post({ type: 'undo:data-progress', part: part.id, quality: q, loaded: have, total: total, state: 'error', blocking: false });
+            });
+          });
+        }, Promise.resolve());
+      });
+    }).then(reportParts, function () {}).then(function () {
+      filling = false;
+      if (refill) fill();
+    });
+  }
+  function idle() {
+    return new Promise(function (resolve) {
+      (function check() { if (Date.now() - urgentAt > 1500) resolve(); else setTimeout(check, 500); })();
+    });
+  }
+  // Odebrané části a soubory druhé kvality pryč (soubor, který patří i jiné části, zůstává).
+  function prune(removeIds, keepQuality) {
+    return getParts().then(function (all) {
+      var stay = {};
+      all.forEach(function (part) {
+        if (!part.base && removeIds.indexOf(part.id) >= 0) return;
+        (part.files[keepQuality] || []).forEach(function (f) { stay[key(f.url)] = true; });
+      });
+      var drop = {};
+      all.forEach(function (part) {
+        ['perf', 'hd'].forEach(function (q) { (part.files[q] || []).forEach(function (f) { if (!stay[key(f.url)]) drop[key(f.url)] = true; }); });
+      });
+      return caches.open(CACHE).then(function (cache) { return Promise.all(Object.keys(drop).map(function (url) { return cache.delete(url); })); });
+    }).then(reportParts, function () {});
+  }
+
+  // ---------------------------------------------------------------- v2
 
   // Worker sady z 16. 11. pryč (viz úvod). Stránku, kterou ještě řídí, jednou obnoví, ať jde rovnou na síť.
   function retireWorker() {
@@ -76,9 +238,11 @@
   }
 
   // Engine a hlavní balík: z paměti, jinak ze sítě a cestou kopie do paměti (pokud hráč ukládání neodmítl).
+  var netFetch = null;
+  var fetched = {};
   function wrapFetch() {
-    var original = window.fetch;
-    var files = {};
+    var original = netFetch = window.fetch;
+    var files = fetched;
     engineFiles(config).forEach(function (file) { files[key(file)] = file; });
     window.fetch = function (input, init) {
       var self = this, args = arguments, url;
@@ -137,12 +301,19 @@
     });
   }
 
-  // Soubor celý do paměti s průběhem po bajtech (stažení předem, hudba po kouscích).
-  function store(cache, url, onBytes) {
-    return fetch(url).then(function (response) {
+  // Soubor celý do paměti s průběhem po bajtech (stažení předem, hudba po kouscích, části na pozadí). Na pozadí
+  // (`background`) se čtení zastaví, dokud hra stahuje něco naléhavého: prohlížeč pak přestane brát data a linka
+  // patří hře.
+  function store(cache, url, onBytes, background) {
+    // mimo obal fetch: engine by se jinak ukládal dvakrát
+    return (netFetch || fetch).call(window, url).then(function (response) {
       if (!response.ok || !response.body) throw new Error(String(response.status));
       var loaded = 0;
-      var counted = response.body.pipeThrough(new TransformStream({ transform: function (chunk, controller) { loaded += chunk.length; if (onBytes) onBytes(loaded); controller.enqueue(chunk); } }));
+      var counted = response.body.pipeThrough(new TransformStream({ transform: function (chunk, controller) {
+        var go = function () { loaded += chunk.length; if (onBytes) onBytes(loaded); controller.enqueue(chunk); };
+        if (background && Date.now() - urgentAt <= 1500) return idle().then(go);
+        go();
+      } }));
       var headers = new Headers(response.headers);
       headers.delete('content-encoding');
       headers.delete('content-length');
@@ -170,16 +341,29 @@
     });
   }
 
-  // `?undo_offline=install`: engine, balíky z voleb a hudba předem, průběh po bajtech.
+  // `?undo_offline=install`: engine, balíky z voleb (v3: základ a části plánu v jeho kvalitě) a hudba předem.
   function install() {
     post({ type: 'undo:offline-start' });
     keep = true;
+    if (params.get('undo_quality')) {
+      plan = { quality: params.get('undo_quality') === 'hd' ? 'hd' : 'perf', parts: params.get('undo_parts') !== null ? (params.get('undo_parts') || '').split(',').filter(Boolean) : null };
+      savePlan();
+    }
     var prepared = typeof options.prepare === 'function' ? Promise.resolve().then(options.prepare).catch(function () {}) : Promise.resolve();
-    Promise.all([list(options.files), list(options.keep), list(options.packs)]).then(function (got) {
+    var planned = options.parts ? getParts().then(function (all) {
+      var q = quality();
+      return all.filter(wanted).reduce(function (out, part) { return out.concat(part.files[q] || []); }, []);
+    }) : Promise.resolve(null);
+    Promise.all([list(options.files), list(options.keep), list(options.packs), planned]).then(function (got) {
       var sizes = {};
       engineFiles(config).forEach(function (file) { sizes[key(file)] = config.fileSizes[file] || 0; });
       got[2].forEach(function (pack) { sizes[key(pack.url)] = pack.bytes || 0; });
-      var files = engineFiles(config).concat(got[0], got[1]).map(key).filter(function (url, i, all) { return all.indexOf(url) === i; });
+      var extra = got[0];
+      if (got[3]) {
+        got[3].forEach(function (f) { sizes[key(f.url)] = f.bytes || 0; });
+        extra = got[3].map(function (f) { return f.url; });
+      }
+      var files = engineFiles(config).concat(extra, got[1]).map(key).filter(function (url, i, all) { return all.indexOf(url) === i; });
       var total = files.reduce(function (sum, url) { return sum + (sizes[url] || 1048576); }, 0);
       var done = 0, bytes = 0, failed = 0;
       return caches.open(CACHE).then(function (cache) {
@@ -198,7 +382,12 @@
         }, Promise.resolve());
       }).then(function () { return prepared; }).then(function () {
         if (failed) { post({ type: 'undo:offline-failed', error: 'files' }); return; }
-        report().then(function () { post({ type: 'undo:offline-installed', bytes: bytes, files: files.length, version: version() }); });
+        // v3: uložené mimo plán (odebrané části, druhá kvalita) pryč, ať paměť odpovídá výběru ve správci
+        if (got[3]) return getParts().then(function (all) { return prune(all.filter(function (part) { return !wanted(part); }).map(function (part) { return part.id; }), quality()); }).then(function () { return 'ok'; });
+        return 'ok';
+      }).then(function (state) {
+        if (state !== 'ok') return;
+        report().then(reportParts).then(function () { post({ type: 'undo:offline-installed', bytes: bytes, files: files.length, version: version() }); });
       });
     }).catch(function () { post({ type: 'undo:offline-failed', error: 'install' }); });
   }
@@ -214,21 +403,33 @@
     return new Promise(function (resolve) {
       var timer = setTimeout(resolve, 600);
       waiting.push(function () { clearTimeout(timer); resolve(); });
-      post({ type: 'undo:offline-hello', version: version(), bytes: engineBytes() });
+      post({ type: 'undo:offline-hello', version: version(), bytes: engineBytes(), parts: !!options.parts });
     });
   }
   addEventListener('message', function (event) {
     if (event.source !== window.parent || !event.data) return;
-    if (event.data.type === 'undo:offline-status-request') report();
-    if (event.data.type === 'undo:offline-keep') {
+    var data = event.data;
+    if (data.type === 'undo:offline-status-request') { report(); reportParts(); }
+    if (data.type === 'undo:offline-keep') {
       var before = keep;
-      keep = event.data.keep === true ? true : event.data.keep === false ? false : null;
+      keep = data.keep === true ? true : data.keep === false ? false : null;
       waiting.splice(0).forEach(function (resolve) { resolve(); });
       // „Ne“: co se do té doby uložilo, pryč (i balíky hry), dál se neukládá.
-      if (keep === false && before !== false && config && kept(config)) caches.delete(CACHE).then(report, function () {});
-      if (keep === true && before !== true && config && kept(config)) { report(); polls = 0; watch(); }
+      if (keep === false && before !== false && config && kept(config)) caches.delete(CACHE).then(report, function () {}).then(reportParts);
+      if (keep === true && before !== true && config && kept(config)) { report(); polls = 0; watch(); fill(); }
+    }
+    if (data.type === 'undo:data-plan') {
+      hub = true;
+      if (data.quality !== 'perf' && data.quality !== 'hd') return;
+      var was = quality();
+      plan = { quality: data.quality === 'hd' ? 'hd' : 'perf', parts: Array.isArray(data.parts) ? data.parts.slice() : null };
+      savePlan();
+      var removed = Array.isArray(data.remove) ? data.remove : [];
+      (removed.length || was !== plan.quality ? prune(removed, plan.quality) : Promise.resolve()).then(fill);
     }
   });
+
+  plan = loadPlan();
 
   window.__undoOffline = {
     // Stránka je pokyn katalogu, ne hra ke spuštění.
@@ -246,19 +447,59 @@
         if (mode === 'install') { install(); return new Promise(function () {}); }
         if (mode === 'remove') { remove(); return new Promise(function () {}); }
         wrapFetch();
-        return ask();
+        // v3: části katalogu ještě před dotazem, ať při prvním spuštění může nabídnout jejich výběr
+        return reportParts().then(ask);
       });
     },
-    // Po startu enginu: co je uložené, katalogu; pak hudba po kouscích.
-    started: function () { if (config && kept(config)) watch(); },
+    // Po startu enginu: co je uložené, katalogu; pak hudba po kouscích a části plánu na pozadí.
+    started: function () {
+      running = true;
+      if (!config || !kept(config)) return;
+      watch();
+      reportParts().then(function () { setTimeout(fill, 3000); });
+    },
     report: report,
     // Smí hra ukládat vlastní balíky? (false = hráč ukládání odmítl.)
     keep: function () { return keep; },
-    // Stavová hláška pod ukazatelem načítání (průběh z onProgress enginu).
+    // v3: kvalita, ve které hra hraje ('perf' = Výkon, 'hd' = HD).
+    quality: quality,
+    // v3: hráč přepnul kvalitu v nastavení hry; katalog upraví plán a správce.
+    setQuality: function (q) {
+      if ((q !== 'perf' && q !== 'hd') || q === quality()) return;
+      plan = { quality: q, parts: plan && Array.isArray(plan.parts) ? plan.parts : null };
+      savePlan();
+      post({ type: 'undo:data-quality', quality: q });
+      if (config && kept(config)) prune([], q).then(fill);
+    },
+    // v3: hra naléhavě stahuje soubor (balík trati před závodem): katalog ukáže velkou animaci, pozadí počká.
+    fileProgress: function (url, loaded, total) {
+      urgentAt = overlayAt = Date.now();
+      overlay = hub && loaded < total;
+      var part = partOf(url);
+      post({ type: 'undo:data-progress', part: part ? part.id : 'base', quality: quality(), loaded: Math.min(loaded, total), total: total, state: loaded >= total ? 'done' : 'download', blocking: true });
+      if (loaded >= total) setTimeout(reportParts, 300);
+    },
+    // v3: katalog teď kreslí animaci stahování přes hru (stránka schová vlastní ukazatel, ať nejsou dva).
+    overlay: function () { return overlay && Date.now() - overlayAt < 2000; },
+    // v3: katalog části kreslí a spravuje (hra pak vlastní správce stahování neukazuje).
+    catalog: function () { return hub; },
+    // v3: soubor, který stránka dá enginu před startem (`engine.preloadFile`, Stickwound: textury podle kvality):
+    // jde stejnou cestou jako engine (z paměti, jinak ze sítě a cestou do paměti).
+    boot: function (url) { fetched[key(url)] = url; },
+    // v3: hra stahuje něco, na co hráč nečeká (fotky aut do menu): pozadí počká, katalog nic neukazuje.
+    busy: function () { urgentAt = Date.now(); },
+    // Stavová hláška pod ukazatelem načítání (průběh z onProgress enginu). v3: první stažení enginu je naléhavé.
     status: function (current, total) {
       var czech = cs();
+      var fromDevice = config && engineFiles(config).some(function (file) { return hits[file]; });
+      overlay = false;
+      if (total > 0 && !fromDevice) {
+        urgentAt = overlayAt = Date.now();
+        overlay = hub && current < total;
+        post({ type: 'undo:data-progress', part: 'base', quality: quality(), loaded: Math.min(current, total), total: total, state: current >= total ? 'done' : 'download', blocking: true });
+      }
       if (!(total > 0 && current < total)) return czech ? 'Spouštím hru…' : 'Starting the game…';
-      if (config && engineFiles(config).some(function (file) { return hits[file]; })) return czech ? 'Načítám z paměti zařízení' : 'Loading from this device';
+      if (fromDevice) return czech ? 'Načítám z paměti zařízení' : 'Loading from this device';
       return (czech ? 'Stahuji data · ' : 'Downloading · ') + mb(current) + ' / ' + mb(total) + ' MB';
     },
   };

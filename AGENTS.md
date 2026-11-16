@@ -331,7 +331,22 @@ The demo runs in a browser on undogames.cz (computers only for now). Godot's Web
   `web/undo-bridge.js`: the bar's music and effects volumes onto `scripts/audio/mixer.gd`, the time
   played (`set_playing`), a hidden page pauses (a lost focus does not: a click on the hub's bar).
 - Sound on the web plays through Godot's mixer (`audio/general/default_playback_type.web=0`):
-  the buses' effects work and the songs are not decoded whole.
+  the buses' effects work and the songs are not decoded whole. The mixer runs on the engine's one thread, so a
+  long frame is a gap in the sound (the user 16. 11.: "it stutters like hell"): `audio/driver/output_latency.web`
+  is 100 ms, and the long tracks play in the browser instead. `web/long-tracks.json` lists them (the insects,
+  the day's ambience, the pipes, the lake, wind, storm, the camp's music and the menu's theme): `tools/web/export.mjs`
+  keeps them out of the Web preset (it writes them into its `exclude_filter`) and serves them as
+  `assets/audio/<name>-<print>.mp3`, mapped in the page as `window.__ccAudio`; pack 299 -> 181 MB.
+  `scripts/audio/long_player.gd` (an AudioStreamPlayer playing a silent stream) is made by
+  `LongPlayer.make(path, loop)` where the page serves the track (`audio_manager._create_sfx_player`,
+  `music_director`, main's menu theme, the sewer game's pipes) and follows the silent player each frame into
+  `web/stream-audio.js` (an <audio> element through a low-pass and a gain): started, stopped, moved, its
+  volume and low-pass worked out down the bus chain to Master like the mixer (other bus effects are not
+  followed), `pitch_scale` as the playback rate with the pitch, the tree paused pauses it, a song's end is its
+  `finished`. Off the web, or for a track the page does not serve, the caller makes its usual player. A track
+  goes into the list only when every player of it goes through `make` (else it is silent on the web).
+  QA: `window.__ccStream.debug()` in the page. Parts for UNDO.games (kit 3): the base, Music, Weather and
+  ambience (the long tracks; streamed while not kept).
 
 ---
 

@@ -839,6 +839,13 @@ func audio_bus() -> String:
 
 
 func _make_player(path: String, db: float, loop: bool) -> AudioStreamPlayer:
+	# web: a long bed (the pipes) plays in the browser, off the engine's thread (scripts/audio/long_player.gd)
+	var long: AudioStreamPlayer = load("res://scripts/audio/long_player.gd").make(path, loop)
+	if long != null:
+		long.bus = audio_bus()
+		long.volume_db = db
+		add_child(long)
+		return long
 	var p := AudioStreamPlayer.new()
 	p.bus = audio_bus()
 	p.volume_db = db

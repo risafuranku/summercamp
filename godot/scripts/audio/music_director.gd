@@ -27,6 +27,8 @@ extends Node
 ## presence near this warden silences it for them only.
 
 const INSTANCE = preload("res://scripts/instance/instance.gd")
+## On the web the songs play in the browser, off the engine's one thread (scripts/audio/long_player.gd).
+const LONG_PLAYER = preload("res://scripts/audio/long_player.gd")
 const DIR := "res://assets/music/"
 const CUES_JSON := "res://assets/music/music_cues.json"
 const BUS := "WorldMusic"
@@ -99,7 +101,8 @@ func _ready() -> void:
 	_rng.randomize()
 	_load_cues()
 	_ensure_bus()
-	_player = AudioStreamPlayer.new()
+	# web: the browser plays the songs (they are not in the game's pack there)
+	_player = AudioStreamPlayer.new() if _cues.is_empty() or not LONG_PLAYER.available(_path(_cues.keys()[0])) else LONG_PLAYER.new()
 	_player.name = "WorldMusic"
 	_player.bus = BUS
 	_player.volume_db = SILENT_DB
@@ -119,14 +122,18 @@ func _load_cues() -> void:
 	if not (d is Dictionary):
 		return
 	for name in d:
-		if name == "title" or not ResourceLoader.exists(DIR + name + ".mp3"):
+		if name == "title" or not (ResourceLoader.exists(_path(name)) or LONG_PLAYER.available(_path(name))):
 			continue
 		_cues[name] = d[name]
 
 
+func _path(cue: String) -> String:
+	return DIR + cue + ".mp3"
+
+
 func _stream(cue: String) -> AudioStream:
 	if not _streams.has(cue):
-		_streams[cue] = load(DIR + cue + ".mp3")
+		_streams[cue] = load(_path(cue))
 	return _streams[cue]
 
 
@@ -209,12 +216,16 @@ func _start(cue: String, at: float) -> void:
 
 
 func _begin(at: float) -> void:
-	var s := _stream(_cue)
-	if s == null:
-		return
-	if s is AudioStreamMP3:
-		(s as AudioStreamMP3).loop = false
-	_player.stream = s
+	if _player.get_script() == LONG_PLAYER:
+		_player.track = _path(_cue)
+		_player.loops = false
+	else:
+		var s := _stream(_cue)
+		if s == null:
+			return
+		if s is AudioStreamMP3:
+			(s as AudioStreamMP3).loop = false
+		_player.stream = s
 	_player.pitch_scale = SPIN_FROM
 	_player.volume_db = SILENT_DB
 	_player.play(at)

@@ -30,7 +30,8 @@
 	// the game running the warm stays at most AHEAD programs ahead of where the game is in the list.
 	const AHEAD = 48;
 	let running = null;
-	const state = { done: 0, total: 0 };
+	// done / total for the curtain's line; game = where the game is in the list, next = where the warm is (tests)
+	const state = { done: 0, total: 0, game: -1, next: 0 };
 	// Where the game is: its links (Godot's context, canvas #canvas) matched to the list by the shaders' text.
 	let gamePos = -1;
 	const index = new Map();
@@ -52,7 +53,7 @@
 				const src = sh.map((x) => [this.getShaderParameter(x, this.SHADER_TYPE), (text.get(x) || [''])[0]]);
 				const vs = (src.find((x) => x[0] === this.VERTEX_SHADER) || [0, ''])[1], fs = (src.find((x) => x[0] === this.FRAGMENT_SHADER) || [0, ''])[1];
 				const at = index.get(key(vs, fs));
-				if (at !== undefined && at > gamePos) gamePos = at;
+				if (at !== undefined && at > gamePos) { gamePos = at; state.game = at; }
 			}
 			return linkProgram.call(this, program);
 		};
@@ -104,6 +105,7 @@
 					if (!window.__undoShaderKeys) chunk.programs.forEach((item, i) => index.set(key(chunk.texts[item[0]], chunk.texts[item[1]]), base + i));
 					for (let at = 0; at < chunk.programs.length; at += BATCH) {
 						// what the game has linked already is skipped; far ahead of it, wait
+						state.next = base + at;
 						while (follow && base + at > gamePos + AHEAD) await wait(100);
 						const items = chunk.programs.slice(at, at + BATCH).filter((item, i) => !follow || base + at + i > gamePos);
 						state.done += Math.min(BATCH, chunk.programs.length - at) - items.length;

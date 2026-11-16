@@ -1,0 +1,20 @@
+{
+  "_": "Long tracks the browser plays on the web (web/stream-audio.js, godot/scripts/audio/long_player.gd): not in the game's pack there (tools/web/export.mjs keeps them out of the Web preset and serves them under assets/audio/). Only tracks whose every player goes through LongPlayer.make.",
+  "tracks": [
+    "res://assets/sfx/cricketi.mp3",
+    "res://assets/sfx/ambiencesfx/dayambience.mp3",
+    "res://assets/sfx/ambiencesfx/pipesambience.mp3",
+    "res://assets/sfx/ambiencesfx/lakeinsects.mp3",
+    "res://assets/sfx/weather/wind.mp3",
+    "res://assets/sfx/weather/windstorm.mp3",
+    "res://assets/sfx/weather/rainstorm.mp3",
+    "res://assets/music/title.mp3",
+    "res://assets/music/tycoon.mp3",
+    "res://assets/music/red.mp3",
+    "res://assets/music/rain.mp3",
+    "res://assets/music/nightstart.mp3",
+    "res://assets/music/night.mp3",
+    "res://assets/music/morning.mp3",
+    "res://assets/music/golden.mp3"
+  ]
+}

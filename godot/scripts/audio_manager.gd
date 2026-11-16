@@ -2,6 +2,8 @@ extends Node3D
 
 const INSTANCE = preload("res://scripts/instance/instance.gd")
 const RES_DIR = preload("res://scripts/res_dir.gd")
+## Long tracks on the web play in the browser, off the engine's one thread (scripts/audio/long_player.gd).
+const LONG_PLAYER = preload("res://scripts/audio/long_player.gd")
 const BALANCE_CONFIG = preload("res://core/balance/balance_config.gd")
 
 const SFX_DOOR_OPEN_PATH := "res://assets/sfx/dvereotevrit.mp3"
@@ -637,6 +639,16 @@ func _create_sfx_player(
 	volume_db: float,
 	bus_name: String
 ) -> AudioStreamPlayer:
+	var long := LONG_PLAYER.make(stream_path, looping)
+	if long != null:
+		long.name = node_name
+		long.volume_db = volume_db
+		long.bus = bus_name
+		if _sfx_bus != null:
+			_sfx_bus.add_child(long)
+		else:
+			add_child(long)
+		return long
 	var p = AudioStreamPlayer.new()
 	p.name = node_name
 	p.volume_db = volume_db
