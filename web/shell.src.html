@@ -24,6 +24,11 @@
 		<script>/*CC_AUDIO*/</script>
 		<script>/*STREAM_AUDIO*/</script>
 		<style>
+/* Žádný textový kurzor (Richard 17. 11. u DRIVAHu: „během načítání bliká nahoře vlevo textovej kurzor“): ani skryté
+   pole Godotu pro psaní (div.ime vlevo nahoře, Firefox kurzor kreslí i přes průhlednost). Kurzor v textových polích
+   hry kreslí Godot sám na plátno. */
+*, *::before, *::after { caret-color: transparent !important; }
+.ime { color: transparent !important; }
 html, body, #canvas { margin: 0; padding: 0; border: 0; }
 html, body {
 	width: 100%; height: 100%; background: #030202; overflow: hidden;
