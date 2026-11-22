@@ -21,6 +21,7 @@ extends Node
 ## durations) live in core/systems/maintenance_rules.gd.
 
 const INSTANCE = preload("res://scripts/instance/instance.gd")
+const LANG = preload("res://scripts/lang.gd")
 const RULES = preload("res://core/systems/maintenance_rules.gd")
 const STINK_FX = preload("res://scripts/stink_fx.gd")
 const SFX_WORK := "res://assets/sfx/rednecksfx/rrtick.wav"
@@ -121,20 +122,22 @@ func hint_for_view(has_other_hint: bool) -> String:
 		return ""
 	var broken: bool = _target["broken"]
 	var condition: float = _target["condition"]
+	# Nothing to do here: no line over the view. "LAMP POST 100%" in English stood over the
+	# granny's face under the lamp at night (22. 11.); what is sound says nothing.
+	if not broken and condition >= 0.9:
+		return ""
 	var parts: Array[String] = []
 	if not has_other_hint:
-		parts.append("%s %d%%" % [str(_target["label"]), int(round(condition * 100.0))])
+		parts.append("%s %d%%" % [tr(str(_target["label"])), int(round(condition * 100.0))])
 	if broken and str(_target["type"]) == "sewer":
 		# A broken sewer is fixed from the inside (the pipe crawl).
-		parts.append("BROKEN - [E] go down and fix it")
+		parts.append(tr("BROKEN - [E] go down and fix it"))
 	elif broken and str(_target["type"]) == "lamp_post":
-		parts.append("[R] New bulb $%d" % int(_target["cost"]))
+		parts.append(LANG.f("[R] New bulb $%d", [int(_target["cost"])]))
 	elif broken:
-		parts.append("[R] Repair $%d" % int(_target["cost"]))
-	elif condition < 0.9:
-		parts.append("[R] Service $%d" % int(_target["cost"]))
-	elif has_other_hint:
-		return ""
+		parts.append(LANG.f("[R] Repair $%d", [int(_target["cost"])]))
+	else:
+		parts.append(LANG.f("[R] Service $%d", [int(_target["cost"])]))
 	return "   ".join(parts)
 
 

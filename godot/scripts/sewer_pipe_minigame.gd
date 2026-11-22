@@ -46,6 +46,13 @@ const PIPE_TEXTURE := "res://assets/textury/pipes/pipe_concrete.png"
 ## The old 1962 sections that the 1993 works did not reach: brick.
 const BRICK_TEXTURE := "res://assets/textury/pipes/pipe_brick.png"
 const SHOE_SPRITE := "res://assets/textury/pipes/red_shoe.png"
+## The landmarks the last worker could find his way by (Grok pictures from the camp; the
+## crack was text, the rags a brown box and the tin a bare cylinder till 22. 11.).
+const LM_CRACK := "res://assets/textury/camp/decay_crack.png"
+const LM_RAGS := "res://assets/textury/bowling/jam_rag.png"
+const LM_BUCKET := "res://assets/textury/camp/mop_bucket.png"
+## Pale pictures on the wall taken down to the wet concrete round them.
+const WALL_TINT := Color(0.52, 0.5, 0.46)
 ## The other kinds of pipe: rusted corrugated steel (it rings), concrete gone to slime.
 const STEEL_TEXTURE := "res://assets/textury/pipes/pipe_steel.png"
 const SLIME_TEXTURE := "res://assets/textury/pipes/pipe_slime.png"
@@ -1295,6 +1302,11 @@ func _build_shaft(p: Vector3) -> void:
 	_geo.add_child(lid)
 
 
+## Across the pipe a-b on the ground plan (to one side wall).
+func _pipe_side(a: Vector2i, b: Vector2i) -> Vector3:
+	return Vector3(b.y - a.y, 0, a.x - b.x).normalized()
+
+
 func _flat_mat(c: Color) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_color = c
@@ -1314,41 +1326,37 @@ func _build_landmark(lm: Dictionary) -> void:
 		"scratches":
 			if ResourceLoader.exists(SCRATCHES):
 				# Raked into the side wall halfway along, the marks running with the pipe.
-				wall_patch(lm["a"], lm["b"], PIPE_WALL.material(load(SCRATCHES), 0.9), 0.5, PI * 0.5, Vector2(0.5, 0.5))
-		"crack", "tally":
+				wall_patch(lm["a"], lm["b"], PIPE_WALL.material(load(SCRATCHES), 0.9, WALL_TINT), 0.5, PI * 0.5, Vector2(0.42, 0.42))
+		"crack":
+			# A crack through a patch gone soft, down the side wall.
+			if ResourceLoader.exists(LM_CRACK):
+				wall_patch(lm["a"], lm["b"], PIPE_WALL.material(load(LM_CRACK), 0.95, WALL_TINT), 0.5, -PI * 0.5 + 0.15, Vector2(0.36, 0.2))
+		"tally":
+			# Somebody counting, scratched into the concrete.
 			var l := Label3D.new()
-			l.text = "\\/\\_/\\" if lm["kind"] == "crack" else "IIII IIII IIII II"
+			l.text = "IIII IIII IIII II"
 			l.font = RETRO_UI.FONT_TEXT
 			l.font_size = 48
 			l.pixel_size = 0.006
-			l.modulate = Color(0.05, 0.04, 0.04, 0.9) if lm["kind"] == "crack" else Color(0.55, 0.5, 0.45, 0.9)
+			l.modulate = Color(0.55, 0.5, 0.45, 0.9)
 			l.shaded = true
 			l.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 			var side := Vector3(lm["b"].y - lm["a"].y, 0, lm["a"].x - lm["b"].x).normalized()
-			l.position = p + side * (PIPE_R * 0.75) + Vector3(0, 0.15, 0)
+			l.position = p + side * (PIPE_R * 0.85) + Vector3(0, 0.15, 0)
 			l.look_at_from_position(l.position, p + Vector3(0, 0.15, 0), Vector3.UP)
 			l.rotate_object_local(Vector3.UP, PI)
 			_geo.add_child(l)
 		"rags":
-			_lump(p + Vector3(0.12, floor_y + 0.05, 0.1), Vector3(0.3, 0.07, 0.22), Color(0.22, 0.18, 0.12))
+			# A heap of rags gone black in the trickle.
+			if ResourceLoader.exists(LM_RAGS):
+				var rags := _dress_sprite(load(LM_RAGS), 0.11)
+				rags.position = p + _pipe_side(lm["a"], lm["b"]) * 0.13 + Vector3(0, floor_y - 0.01, 0)
 		"bucket":
-			# A rusted paint tin on its side, half in the sludge.
-			var mi := MeshInstance3D.new()
-			var cyl := CylinderMesh.new()
-			cyl.top_radius = 0.09
-			cyl.bottom_radius = 0.08
-			cyl.height = 0.18
-			cyl.radial_segments = 8
-			mi.mesh = cyl
-			var tin := _flat_mat(Color(0.26, 0.15, 0.09))
-			if ResourceLoader.exists(SCUM):
-				tin.albedo_texture = load(SCUM)
-				tin.albedo_color = Color(0.7, 0.45, 0.3)
-				tin.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-			mi.material_override = tin
-			mi.position = p + Vector3(-0.14, floor_y + 0.06, 0.0)
-			mi.rotation = Vector3(PI * 0.5, 0.4, 0.0)
-			_geo.add_child(mi)
+			# The last worker's bucket and mop, left standing where he turned back.
+			if ResourceLoader.exists(LM_BUCKET):
+				# Against the wall, out of the way you crawl.
+				var bucket := _dress_sprite(load(LM_BUCKET), 0.34)
+				bucket.position = p - _pipe_side(lm["a"], lm["b"]) * 0.2 + Vector3(0, floor_y, 0)
 		"shoe":
 			# One red high-heeled shoe. You have seen someone missing one.
 			if ResourceLoader.exists(SHOE_SPRITE):
@@ -1361,18 +1369,6 @@ func _build_landmark(lm: Dictionary) -> void:
 				shoe.pixel_size = 0.22 / float(shoe.texture.get_width())
 				shoe.position = p + Vector3(0.12, floor_y + 0.08, 0.0)
 				_geo.add_child(shoe)
-			else:
-				_lump(p + Vector3(0.1, floor_y + 0.05, 0.0), Vector3(0.22, 0.08, 0.08), Color(0.62, 0.08, 0.06))
-
-
-func _lump(at: Vector3, size: Vector3, c: Color) -> void:
-	var mi := MeshInstance3D.new()
-	var b := BoxMesh.new()
-	b.size = size
-	mi.mesh = b
-	mi.material_override = _flat_mat(c)
-	mi.position = at
-	_geo.add_child(mi)
 
 
 func _build_leak() -> void:

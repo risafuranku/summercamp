@@ -23,6 +23,7 @@ extends Node
 ##   ["book", name, archetype, party, nights, arrival_min?]  confirm a booking (GuestManager path)
 ##   ["prep_all"]                                    make every room up (as if done in the interiors)
 ##   ["player", x, y, yaw_deg]  put the player on a grid tile facing yaw
+##   ["torch", on]              the torch switched on or off (F)
 ##   ["glass", pane, dist_m]    the player outside the reception looking in at a pane
 ##   ["door_front", type, dist_m]  the player in front of that building's door, facing it
 ##   ["open_door", type, seconds]  that building's door stands open
@@ -222,7 +223,7 @@ const SCENARIOS := {
 	"testsilent": [
 		["wait_menu"], ["call", "_on_menu_test_night", ["silent_man"]], ["wait", 9.0], ["eval", "_set_player_health(100)"],
 		["player", 17, 16, 90.0], ["wait", 0.3], ["eval", "_enemy_brains.back().set('_resume_at', 0.0)"], ["eval", "_enemy_brains.back()._body.set('global_position', _player.global_position + _player.global_transform.basis.z * -6.0)"],
-		["eval", "_enemy_brains.back()._set_tex(_enemy_brains.back()._look_for(6.0))"], ["look_at_enemy"], ["wait", 0.3], ["shot", "s0_near"],
+		["eval", "_enemy_brains.back()._set_tex(_enemy_brains.back()._look_for(6.0))"], ["look_at_enemy"], ["torch", true], ["wait", 0.3], ["shot", "s0_near"],
 		["eval", "_enemy_brains.back()._driven_off()"], ["wait", 0.1], ["shot", "s1_lit_flinch"], ["wait", 0.5], ["shot", "s2_lit_backing"], ["wait", 1.0],
 		["eval", "_set_player_health(100)"], ["eval", "_enemy_brains.back()._start_catch()"], ["eval", "_enemy_brains.back()._seq.merge({'kind': 'ear', 'kill': false}, true)"], ["wait", 0.5], ["shot", "k_ear_a"], ["wait", 0.6], ["shot", "k_ear_b"], ["wait", 2.8], ["eval", "_enemy_brains.back()._end_seq()"], ["eval", "_set_player_health(100)"], ["wait", 0.3],
 		["eval", "_set_player_health(100)"], ["eval", "_enemy_brains.back()._start_catch()"], ["eval", "_enemy_brains.back()._seq.merge({'kind': 'above', 'kill': false}, true)"], ["wait", 0.5], ["shot", "k_above_a"], ["wait", 0.6], ["shot", "k_above_b"], ["wait", 2.8], ["eval", "_enemy_brains.back()._end_seq()"], ["eval", "_set_player_health(100)"], ["wait", 0.3],
@@ -2784,6 +2785,16 @@ func _run_step(step: Array) -> void:
 			# The pointer to a share of the window ([x, y], 0..1), the button left as it is
 			# (eval cannot reach Input).
 			Input.warp_mouse(Vector2(DisplayServer.window_get_size()) * Vector2(float(step[1]), float(step[2])))
+		"torch":
+			# ["torch", on]: the torch's own switch (F), as the warden has it. Since 14. 11.
+			# nothing turns it on by itself at night: a night's shots without it are black.
+			var plt = _main.get("_player")
+			if plt != null:
+				plt.set("torch_carried", true)
+				if float(plt.get("flashlight_battery")) < 0.5:
+					plt.set("flashlight_battery", 1.0)
+				if bool(plt.get("torch_switch")) != bool(step[1]):
+					plt.call("toggle_flashlight")
 		"look_at_enemy":
 			# Turn the player toward the newest enemy's body.
 			var brains: Array = _main.get("_enemy_brains")

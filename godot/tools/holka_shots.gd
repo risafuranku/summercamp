@@ -291,7 +291,7 @@ const STAGE_STEPS := [
 	["call_on", "_interior_manager", "close_main_interior_if_open", []], ["wait", 1.0],
 	# The test night's girl may be on you already: her afresh, far off.
 	["call", "_stop_active_enemy_brain", []], ["wait", 1.0], ["eval", "_set_player_health(100)"],
-	["eval", "debug_spawn_enemy('girl', 3)"], ["wait", 0.5],
+	["eval", "debug_spawn_enemy('girl', 3)"], ["wait", 0.5], ["torch", true],
 	["eval", H + ".pose(0, '', 6.0)"], ["look_at_enemy"], ["wait", 0.5], ["shot", "s0_stage0"],
 	["eval", H + ".pose(1, '', 6.0)"], ["look_at_enemy"], ["wait", 0.5], ["shot", "s1_stage1"],
 	["eval", H + ".pose(2, '', 6.0)"], ["look_at_enemy"], ["wait", 0.5], ["shot", "s2_stage2"],

@@ -30,15 +30,23 @@ func hold(dist: float) -> void:
 	var at: Vector3 = b.call("_ground", p.global_position + fwd.normalized() * dist)
 	body.global_position = at
 	body.visible = true
+	# The eye level with it (a new camp's warden came in looking up at the sky: 22. 11.).
+	var eye := p.get_node_or_null("Head") as Node3D
+	var eye_y: float = eye.global_position.y if eye != null else p.global_position.y + 1.6
+	var mid_y := at.y + (float(body.pixel_size) * float(body.texture.get_height()) * 0.55 if body.texture != null else 1.0)
+	var pitch := atan2(mid_y - eye_y, dist)
+	p.set("_pitch", pitch)
+	p.set("_pitch_target", pitch)
 	print("NEPRATELE %s body at %s ground %.2f, height %.2f, player y %.2f, shaded %s" % [str(b.get_enemy_id()), str(at), at.y, float(body.pixel_size) * float(body.texture.get_height()) if body.texture != null else 0.0, p.global_position.y, str(body.shaded)])
 
 
+## The torch's own switch (F), as the warden has it.
 func torch(on: bool) -> void:
 	var p := pl()
-	if p.has_method("set_flashlight_enabled"):
-		p.call("set_flashlight_enabled", on)
-	elif p.get("_flashlight") != null:
-		(p.get("_flashlight") as SpotLight3D).visible = on
+	p.set("torch_carried", true)
+	p.set("flashlight_battery", 1.0)
+	if bool(p.get("torch_switch")) != on:
+		p.call("toggle_flashlight")
 
 
 func _ready() -> void:

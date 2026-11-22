@@ -84,10 +84,12 @@ static func _radius_at(r: float, from_corner: float) -> float:
 
 
 ## The decal material every patch of one picture shares: cut out, both sides, no repeat
-## (a turned picture's corners stay empty).
-static func material(tex: Texture2D, roughness: float = 0.6) -> StandardMaterial3D:
+## (a turned picture's corners stay empty). `tint` takes a pale picture down to the wet
+## concrete's (a plaster patch under the torch stood out as a lit square).
+static func material(tex: Texture2D, roughness: float = 0.6, tint := Color.WHITE) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_texture = tex
+	m.albedo_color = tint
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	m.texture_repeat = false

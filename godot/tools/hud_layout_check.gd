@@ -15,7 +15,8 @@ extends Node
 
 const HUD_MANAGER_SCRIPT = preload("res://scripts/hud_manager.gd")
 
-const TEST_SIZES := [Vector2i(1280, 720), Vector2i(1024, 576), Vector2i(1280, 960), Vector2i(1280, 800), Vector2i(1680, 720)]
+## (640 x 720 and 960 x 1080: a half of the split screen, its bar in two rows.)
+const TEST_SIZES := [Vector2i(1280, 720), Vector2i(1024, 576), Vector2i(1280, 960), Vector2i(1280, 800), Vector2i(1680, 720), Vector2i(640, 720), Vector2i(960, 1080)]
 const EXPECTED_CAPTIONS := ["HEALTH", "STAMINA", "LIGHT", "CASH", "21 SEP", "EVENING", "GUESTS", "MAIL", "NIGHT RISK"]
 const EXPECTED_READOUTS := ["62", "$1,234", "18:42", "RAIN", "DRUNK 27%"]
 
@@ -86,17 +87,33 @@ func _check_size(size: Vector2i) -> Array[String]:
 		hud.free()
 		return ["%s: HUD root was never built" % size] as Array[String]
 	var bar := root.get_node_or_null("StatusBar") as Control
-	var cells := bar.get_node_or_null("Cells") as Control if bar != null else null
-	if bar == null or cells == null:
+	var lines := bar.get_node_or_null("Lines") as Control if bar != null else null
+	if bar == null or lines == null or lines.get_child_count() == 0:
 		hud.free()
 		return ["%s: status bar missing" % size] as Array[String]
 
 	var scale := int(hud.get("_scale"))
-	var bar_h := float(HUD_MANAGER_SCRIPT.BAR_HEIGHT_VP * scale)
-	var inner_h := bar_h - 6.0 * scale
-	var total_w := 0.0
+	var inner_h := float(HUD_MANAGER_SCRIPT.CELL_HEIGHT_VP * scale)
 	print("")
-	print("=== logical %d x %d  (ui scale %d) ===" % [size.x, size.y, scale])
+	print("=== logical %d x %d  (ui scale %d, %d row(s)) ===" % [size.x, size.y, scale, lines.get_child_count()])
+	if scale < 2:
+		failures.append("%s: ui scale %d (the pixel font is unreadable under 2)" % [size, scale])
+	for line in lines.get_children():
+		_check_line(line as Control, size, scale, inner_h, failures)
+	# The clock caption ("DAY 12") and the weather word share one row.
+	var clock_content := bar.find_child("Cell_clock", true, false).get_node_or_null("Content") as Control if bar.find_child("Cell_clock", true, false) != null else null
+	if clock_content != null:
+		var cap_font := clock_content.get_child(0).get_theme_font("font") as Font
+		var fsize := (clock_content.get_child(0) as Label).get_theme_font_size("font_size")
+		var need := cap_font.get_string_size("DAY 12", HORIZONTAL_ALIGNMENT_LEFT, -1, fsize).x + cap_font.get_string_size("ANOMALY", HORIZONTAL_ALIGNMENT_LEFT, -1, fsize).x + float(scale) * 3.0
+		if need > clock_content.size.x + 0.5:
+			failures.append("%s: 'DAY 12' + 'ANOMALY' need %.0fpx, clock row has %.0fpx" % [size, need, clock_content.size.x])
+	return _check_rest(hud, root, size, failures)
+
+
+## One row of the bar's cells: each fits its height, its labels their cells, the row the width.
+func _check_line(cells: Control, size: Vector2i, scale: int, inner_h: float, failures: Array[String]) -> void:
+	var total_w := 0.0
 	for child in cells.get_children():
 		var cell := child as Control
 		if cell == null:
@@ -128,15 +145,10 @@ func _check_size(size: Vector2i) -> Array[String]:
 	print("  cells total width %.0f of %d" % [total_w, size.x])
 	if total_w > float(size.x):
 		failures.append("%s: status bar needs %.0fpx, viewport is %d" % [size, total_w, size.x])
-	# The clock caption ("DAY 12") and the weather word share one row.
-	var clock_content := cells.get_node_or_null("Cell_clock/Content") as Control
-	if clock_content != null:
-		var cap_font := clock_content.get_child(0).get_theme_font("font") as Font
-		var fsize := (clock_content.get_child(0) as Label).get_theme_font_size("font_size")
-		var need := cap_font.get_string_size("DAY 12", HORIZONTAL_ALIGNMENT_LEFT, -1, fsize).x + cap_font.get_string_size("ANOMALY", HORIZONTAL_ALIGNMENT_LEFT, -1, fsize).x + float(scale) * 3.0
-		if need > clock_content.size.x + 0.5:
-			failures.append("%s: 'DAY 12' + 'ANOMALY' need %.0fpx, clock row has %.0fpx" % [size, need, clock_content.size.x])
 
+
+func _check_rest(hud: Node, root: Control, size: Vector2i, failures: Array[String]) -> Array[String]:
+	var bar_h := float(hud.call("get_bar_height_px"))
 	var labels := _collect_labels(root)
 	for expected in EXPECTED_CAPTIONS:
 		if not labels.has(expected):

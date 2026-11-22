@@ -45,6 +45,10 @@ const STATUS_QUOTE := 4
 
 const BAR_HEIGHT_VP := 40
 const CELL_HEIGHT_VP := 34
+## A screen too narrow for the cells in one row at the least scale (the split screen's
+## halves: 640 px wide at 720p, NIGHT RISK and MAIL were off the edge) has them in two:
+## the warden's own first, then the camp's.
+const BAR_SPLIT := [["health", "stamina", "cash", "clock"], ["guests", "mail", "risk"]]
 ## (The pager's lines are its own since 12. 11., scripts/ui/pager.gd: the feed is what is
 ## said and done round you.)
 const FEED_MAX_LINES := 3
@@ -99,6 +103,8 @@ const HUD_MOOD_WORDS := {
 }
 
 var _scale: int = 3
+var _bar_rows := 1
+var _bar_lines: Array[HBoxContainer] = []
 var _layer: CanvasLayer
 var _hint_layer: CanvasLayer
 var _root: Control
@@ -552,17 +558,27 @@ func set_bed_metrics(occupied: int, capacity: int) -> void:
 	_refresh_guests()
 
 
-## Virtual-pixel width the status bar cells need (cells + gaps + margins).
-static func bar_width_vp() -> float:
-	var total := 0.0
-	for key in CELL_WIDTHS.keys():
-		total += float(CELL_WIDTHS[key])
-	return total + 3.0 * float(CELL_WIDTHS.size() - 1) + 10.0
+## Virtual-pixel width the status bar cells need (cells + gaps + margins), in one row or
+## in the two of BAR_SPLIT (the wider of them).
+static func bar_width_vp(rows: int = 1) -> float:
+	var lines: Array = [CELL_WIDTHS.keys()] if rows == 1 else BAR_SPLIT
+	var widest := 0.0
+	for ids in lines:
+		var total := 0.0
+		for key in ids:
+			total += float(CELL_WIDTHS[key])
+		widest = maxf(widest, total + 3.0 * float(ids.size() - 1) + 10.0)
+	return widest
+
+
+## The status bar's height in virtual pixels: one row of cells, or two.
+func _bar_height_vp() -> float:
+	return float(BAR_HEIGHT_VP) if _bar_rows == 1 else float(BAR_HEIGHT_VP + CELL_HEIGHT_VP + 2)
 
 
 ## Status bar height in real pixels (for code that must not draw under it).
 func get_bar_height_px() -> float:
-	return float(BAR_HEIGHT_VP * _scale)
+	return _vp(_bar_height_vp())
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -651,7 +667,11 @@ func _ensure_world_hud() -> void:
 func _rebuild_layout() -> void:
 	var vp_size := get_viewport().get_visible_rect().size
 	_built_for_size = vp_size
+	_bar_rows = 1
 	_scale = RETRO_UI.ui_scale(vp_size.y, vp_size.x, bar_width_vp())
+	if _vp(bar_width_vp()) > vp_size.x:
+		_bar_rows = 2
+		_scale = RETRO_UI.ui_scale(vp_size.y, vp_size.x, bar_width_vp(2))
 	for child in _root.get_children():
 		_root.remove_child(child)
 		child.queue_free()
@@ -716,28 +736,37 @@ func _build_status_bar() -> void:
 	_bar.anchor_right = 1.0
 	_bar.anchor_top = 1.0
 	_bar.anchor_bottom = 1.0
-	_bar.offset_top = -_vp(BAR_HEIGHT_VP)
+	_bar.offset_top = -_vp(_bar_height_vp())
 	_root.add_child(_bar)
 
-	var row := HBoxContainer.new()
-	row.name = "Cells"
-	row.set_anchors_preset(Control.PRESET_FULL_RECT)
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", int(_vp(3)))
-	row.offset_top = _vp(3)
-	row.offset_bottom = -_vp(3)
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_bar.add_child(row)
+	_bar_lines.clear()
+	var lines := VBoxContainer.new()
+	lines.name = "Lines"
+	lines.set_anchors_preset(Control.PRESET_FULL_RECT)
+	lines.offset_top = _vp(3)
+	lines.offset_bottom = -_vp(3)
+	lines.add_theme_constant_override("separation", int(_vp(2)))
+	lines.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_bar.add_child(lines)
+	for i in _bar_rows:
+		var line := HBoxContainer.new()
+		line.name = "Cells" if i == 0 else "Cells%d" % (i + 1)
+		line.alignment = BoxContainer.ALIGNMENT_CENTER
+		line.add_theme_constant_override("separation", int(_vp(3)))
+		line.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		lines.add_child(line)
+		_bar_lines.append(line)
 
 	# Rows inside a 34vp cell, all baseline-exact:
 	#   caption  baseline 8   Silkscreen
 	#   value    baseline 22  Jersey 10 (10px caps)
 	#   footer   baseline 31  Silkscreen   (or a 3vp bar at y 26)
-	var health := _cell(row, "health", "HEALTH")
+	var health := _cell(_line_of("health"), "health", "HEALTH")
 	_health_value = _put(health, _big("100", RETRO_UI.C_BONE), ROW_VALUE)
 	_health_bar = _put_bar(health, _segment_bar(10, RETRO_UI.C_RED_LIGHT, RETRO_UI.C_RED_DARK), 26, 3)
 
-	var stam := _cell(row, "stamina", "STAMINA")
+	var stam := _cell(_line_of("stamina"), "stamina", "STAMINA")
 	_stamina_bar = _put_bar(stam, _segment_bar(8, RETRO_UI.C_GREEN, RETRO_UI.C_AMBER), 11, 4)
 	_put(stam, _caption("LIGHT"), 22)
 	var torch := RETRO_UI.TorchGauge.new()
@@ -748,11 +777,11 @@ func _build_status_bar() -> void:
 	torch.set_day(_light_day, false)
 	_light_bar = _put_bar(stam, torch, 25, 4)
 
-	var cash := _cell(row, "cash", "CASH")
+	var cash := _cell(_line_of("cash"), "cash", "CASH")
 	_cash_value = _put(cash, _big("$0", RETRO_UI.C_AMBER), ROW_VALUE)
 	_cash_delta = _put(cash, _caption(""), ROW_FOOTER)
 
-	var clock := _cell(row, "clock", "DAY 1")
+	var clock := _cell(_line_of("clock"), "clock", "DAY 1")
 	_clock_caption = clock.get_child(0) as Label
 	_clock_caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_weather_label = _put(clock, _caption("CLEAR", RETRO_UI.C_BLUE), ROW_CAPTION)
@@ -765,7 +794,7 @@ func _build_status_bar() -> void:
 	_shift_line.size = Vector2(_vp(float(CELL_WIDTHS["clock"]) - 6.0), _vp(5))
 	clock.add_child(_shift_line)
 
-	var guests := _cell(row, "guests", "GUESTS")
+	var guests := _cell(_line_of("guests"), "guests", "GUESTS")
 	_guest_face = RETRO_UI.PixelFace.new()
 	_guest_face.ui_scale = _scale
 	_guest_face.position = Vector2(0.0, _vp(11))
@@ -776,11 +805,11 @@ func _build_status_bar() -> void:
 	_guest_mood = _put(guests, _caption("EMPTY"), ROW_FOOTER, _vp(19))
 	_guest_mood.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 
-	var mail := _cell(row, "mail", "MAIL")
+	var mail := _cell(_line_of("mail"), "mail", "MAIL")
 	_mail_cell = mail
 	_mail_value = _put(mail, _big("0", RETRO_UI.C_BONE_DIM), ROW_VALUE)
 
-	var risk := _cell(row, "risk", "NIGHT RISK")
+	var risk := _cell(_line_of("risk"), "risk", "NIGHT RISK")
 	var pip_w := 11.0
 	var gap := 2.0
 	var inner_w := float(CELL_WIDTHS["risk"]) - 4.0
@@ -805,6 +834,13 @@ func _big(text: String, color: Color) -> Label:
 
 func _body(text: String, color: Color, shadow: bool = true) -> Label:
 	return RETRO_UI.label(text, RETRO_UI.FONT_TEXT, RETRO_UI.SIZE_TEXT, color, _scale, shadow)
+
+
+## The bar's row a cell sits in (BAR_SPLIT when there are two).
+func _line_of(id: String) -> HBoxContainer:
+	if _bar_rows == 1 or _bar_lines.size() < 2:
+		return _bar_lines[0]
+	return _bar_lines[0] if (BAR_SPLIT[0] as Array).has(id) else _bar_lines[1]
 
 
 ## A recessed LCD cell. Returns the content Control (inner area, 2vp side padding) with
@@ -1188,7 +1224,7 @@ func _build_banner() -> void:
 	band.anchor_right = 1.0
 	band.offset_left = -_vp(1)
 	band.offset_right = _vp(1)
-	var world_h := _built_for_size.y - _vp(BAR_HEIGHT_VP)
+	var world_h := _built_for_size.y - get_bar_height_px()
 	band.offset_top = floorf(world_h * 0.28 / float(_scale)) * float(_scale)
 	band.visible = false
 	_root.add_child(band)
@@ -1259,7 +1295,7 @@ func _build_crosshair_and_hint() -> void:
 
 
 func _crosshair_center() -> Vector2:
-	return Vector2(_built_for_size.x * 0.5, (_built_for_size.y - _vp(BAR_HEIGHT_VP)) * 0.5)
+	return Vector2(_built_for_size.x * 0.5, (_built_for_size.y - get_bar_height_px()) * 0.5)
 
 
 func _build_waypoint_marker() -> void:
@@ -1705,7 +1741,7 @@ func _draw_waypoint() -> void:
 		return
 	var s := float(_scale)
 	var screen := _built_for_size
-	var world_h := screen.y - _vp(BAR_HEIGHT_VP)
+	var world_h := screen.y - get_bar_height_px()
 	var margin := _vp(WAYPOINT_EDGE_VP)
 	var local := cam.global_transform.affine_inverse() * _waypoint_pos
 	var at := Vector2.ZERO
