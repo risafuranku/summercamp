@@ -1193,10 +1193,10 @@ func local_warden() -> Dictionary:
 			s["act"] = chore
 		elif main._maintenance != null and main._maintenance.has_method("coop_working") and main._maintenance.coop_working():
 			s["act"] = "fix"
-	# Knocked down, lying there.
+	# Knocked down, lying there; the torch, if it was on, keeps "t": the others see it lying
+	# lit in the grass by you (remote_player.gd), the way they find you in the dark.
 	if main._coop_down:
 		s["dn"] = true
-		s["t"] = false
 	# In bed (the night passes only when both are: camp_office.gd).
 	if main.camp_office != null and is_instance_valid(main.camp_office) and main.camp_office.in_bed():
 		s["z"] = true

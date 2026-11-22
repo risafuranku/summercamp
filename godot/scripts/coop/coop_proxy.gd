@@ -45,8 +45,10 @@ func _state() -> Dictionary:
 	return INSTANCE.coop(self).state_of(int(get_meta("coop_id", 0)))
 
 
+## (Knocked down, the torch lying lit in the grass is only to be seen by: it holds nothing
+## off, remote_player.gd draws it.)
 func is_flashlight_active() -> bool:
-	return bool(_state().get("t", false))
+	return bool(_state().get("t", false)) and not bool(_state().get("dn", false))
 
 
 func get_flashlight_aim() -> Dictionary:

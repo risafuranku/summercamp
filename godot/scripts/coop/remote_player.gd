@@ -107,24 +107,26 @@ func setup(p_model: int, p_color: int, p_manual := false) -> void:
 	_shadow.set_meta("retro_pull", 0.006)
 	_shadow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_shadow)
-	# Their torch: the same beam and halo as yours (player_controller.gd), a little
-	# weaker seen from outside, and the bulb itself when it points your way.
+	# Their torch: the same beam and halo as yours (player_controller.gd's own numbers), a
+	# little weaker seen from outside, and the bulb itself when it points your way. (It was
+	# 2.4 against your 6.5 at 16 m: at night their beam lit a dim patch and a warden knocked
+	# down with it lit could not be found by it; 22. 11.)
 	_beam = SpotLight3D.new()
 	_beam.name = "TorchBeam"
 	_beam.light_color = Color(1.0, 0.94, 0.82)
-	_beam.light_energy = 2.4
-	_beam.spot_range = 16.0
-	_beam.spot_angle = 19.0
-	_beam.spot_attenuation = 0.95
+	_beam.light_energy = _torch("flashlight_energy", 6.5) * THEIR_TORCH
+	_beam.spot_range = _torch("flashlight_range", 20.0)
+	_beam.spot_angle = _torch("flashlight_angle", 19.0)
+	_beam.spot_attenuation = _torch("flashlight_attenuation", 0.5)
 	_beam.shadow_enabled = false
 	_beam.visible = false
 	add_child(_beam)
 	_halo = SpotLight3D.new()
 	_halo.name = "TorchHalo"
 	_halo.light_color = Color(1.0, 0.92, 0.8)
-	_halo.light_energy = 0.34
-	_halo.spot_range = 7.0
-	_halo.spot_angle = 34.0
+	_halo.light_energy = _torch("flashlight_halo_energy", 0.9) * THEIR_TORCH
+	_halo.spot_range = _torch("flashlight_range", 20.0) * 0.65
+	_halo.spot_angle = _torch("flashlight_halo_angle", 34.0)
 	_halo.shadow_enabled = false
 	_halo.visible = false
 	add_child(_halo)
@@ -295,15 +297,24 @@ func _process(delta: float) -> void:
 		_update_steps(true)
 		return
 	if bool(sb.get("dn", false)):
-		# Knocked down: lying where they fell, face in the grass.
+		# Knocked down: lying where they fell, face in the grass, and the torch they had on
+		# dropped beside them, still lit along the ground: at night it is how you find them
+		# (it went out with them, and lying in the corn they were not to be found: 22. 11.).
 		visible = true
 		global_position = sb.get("p", global_position)
 		_apply_pose("prone")
 		_sprite.position = Vector3.ZERO
 		_sprite.rotation.z = 0.0
-		_beam.visible = false
-		_halo.visible = false
-		_lens.visible = false
+		if bool(sb.get("t", false)):
+			var yaw_d := float(sb.get("y", 0.0))
+			var fwd_d := Vector3(-sin(yaw_d), 0.0, -cos(yaw_d))
+			var right_d := Vector3(cos(yaw_d), 0.0, -sin(yaw_d))
+			# Along the grass, not into it: it lights the tufts and the trunks a long way off.
+			_set_torch(fwd_d + right_d * 0.35 + Vector3(0.0, 0.03, 0.0), right_d * 0.35 + fwd_d * 0.3 + Vector3(0.0, 0.1, 0.0))
+		else:
+			_beam.visible = false
+			_halo.visible = false
+			_lens.visible = false
 		_update_steps(true)
 		return
 	if sb.has("att"):
@@ -546,6 +557,18 @@ func _room_doom(delta: float) -> void:
 		_doom.show(cam.global_position)
 
 
+## Their torch against yours.
+const THEIR_TORCH := 0.85
+const PLAYER_SCRIPT := preload("res://scripts/player_controller.gd")
+
+
+## One of your torch's numbers (player_controller.gd's defaults), so theirs is the same.
+static func _torch(prop: String, fallback: float) -> float:
+	var sc: Script = PLAYER_SCRIPT
+	var v = sc.get_property_default_value(prop)
+	return float(v) if v != null else fallback
+
+
 func _aim_torch(s: Dictionary, inside: bool) -> void:
 	var on := bool(s.get("t", false)) and not inside
 	_beam.visible = on
@@ -554,13 +577,21 @@ func _aim_torch(s: Dictionary, inside: bool) -> void:
 	if not on:
 		return
 	var dir: Vector3 = s.get("d", Vector3.FORWARD)
-	if dir.length() < 0.01:
-		dir = Vector3.FORWARD
-	dir = dir.normalized()
 	# The torch in their right hand, a little in front of them at chest height.
 	var yaw := float(s.get("y", 0.0))
 	var right := Vector3(cos(yaw), 0.0, -sin(yaw))
-	var hand := Vector3(0.0, 1.2, 0.0) + right * 0.28 + Vector3(-sin(yaw), 0.0, -cos(yaw)) * 0.2
+	_set_torch(dir, Vector3(0.0, 1.2, 0.0) + right * 0.28 + Vector3(-sin(yaw), 0.0, -cos(yaw)) * 0.2)
+
+
+## Their torch lit at `hand` (from their feet) shining along `dir`: the beam, its halo, and
+## the bulb when it comes your way.
+func _set_torch(dir: Vector3, hand: Vector3) -> void:
+	_beam.visible = true
+	_halo.visible = true
+	_lens.visible = false
+	if dir.length() < 0.01:
+		dir = Vector3.FORWARD
+	dir = dir.normalized()
 	var up := Vector3.UP if absf(dir.dot(Vector3.UP)) < 0.98 else Vector3.FORWARD
 	var xf := Transform3D(Basis.looking_at(dir, up), hand)
 	_beam.transform = xf

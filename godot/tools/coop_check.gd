@@ -144,7 +144,8 @@ func _ready() -> void:
 			["coop_wait_file", "client_shed_seen"], ["eval", "_interior_manager._service_interior.close_service()"], ["wait", 1.0],
 			["coop_place", 12, 14, 1.0], ["wait", 1.0],
 			["eval", "time_system.set_time_hours(21.6)"], ["eval", "_sync_runtime_state_from_systems(true)"], ["wait", 4.0],
-			["coop_face_partner"], ["wait", 1.5], ["shot", "h5_night_other_torch"],
+			# (Since 14. 11. the torch goes on only by its switch: both turn theirs on.)
+			["torch", true], ["coop_face_partner"], ["wait", 1.5], ["shot", "h5_night_other_torch"],
 			["coop_fingerprint", "host_night"],
 			# One of the night's enemies, set on the other warden.
 			["eval", "debug_spawn_enemy('silent_man', 3)"], ["wait", 1.0], ["eval", "_coop_night._aim(_enemy_brains[0], 'other')"], ["wait", 6.0],
@@ -160,7 +161,7 @@ func _ready() -> void:
 			["eval", "start_corn_hunt({})"], ["wait", 2.0], ["coop_signal", "host_corn"], ["coop_wait_file", "client_corn_took"], ["wait", 2.0],
 			["coop_fingerprint", "host_corn"], ["eval", "end_corn_hunt()"], ["wait", 1.0], ["coop_signal", "host_corn_done"],
 			# The other warden knocked down: lying there till the host gets them up.
-			["coop_wait_file", "client_down"], ["wait", 1.5], ["coop_go_to_partner", 3.5], ["wait", 1.0], ["shot", "h13_other_down"], ["coop_fingerprint", "host_down"],
+			["coop_wait_file", "client_down"], ["wait", 1.5], ["coop_face_partner"], ["wait", 0.5], ["shot", "h13a_other_down_far"], ["coop_go_to_partner", 3.5], ["wait", 1.0], ["shot", "h13_other_down"], ["coop_fingerprint", "host_down"],
 			["coop_go_to_partner", 0.6], ["wait", 0.5], ["eval", "_try_interact()"], ["wait", 1.0], ["coop_signal", "host_lifted"],
 			# The night director's touch on the other warden: it happens on their machine.
 			["coop_fx", "knock"], ["wait", 1.0],
@@ -251,7 +252,7 @@ func _ready() -> void:
 			["coop_wait_file", "host_shed_seen"], ["eval", "_interior_manager._service_interior.close_service()"], ["wait", 1.0],
 			["coop_place", 14, 14, -1.0], ["wait", 1.0],
 			["coop_wait", "night"], ["wait", 3.0],
-			["coop_face_partner"], ["wait", 1.5], ["shot", "c5_night_host_torch"],
+			["torch", true], ["coop_face_partner"], ["wait", 1.5], ["shot", "c5_night_host_torch"],
 			["coop_fingerprint", "client_night"],
 			["coop_wait_file", "host_enemy"], ["wait", 2.0], ["shot", "c5b_night_enemy"], ["coop_fingerprint", "client_enemy"], ["coop_signal", "client_enemy_seen"],
 			["coop_wait_file", "host_private"], ["wait", 2.0], ["coop_fingerprint", "client_private"], ["coop_signal", "client_private_seen"],

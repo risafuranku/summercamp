@@ -198,6 +198,7 @@ godot --headless --path godot res://tools/post_check.tscn      # the second moni
 python godot/tools/post_coop.py [OUT_DIR]   # the second monitor for two: ordered on the joining machine (paid once), the host's van and postman on both, signed for there, the monitor on both
 python godot/tools/window_coop.py [OUT_DIR] # the reception's windows for two: from outside the joining warden sees the host at the PC, in the back room, the curtain drawn, the lights out
 python godot/tools/sleep_coop.py [OUT_DIR]  # to bed for two: a tent each (host first, client first), office and tent, one kept awake; the night passes for both at once, both wake at the alarm
+python godot/tools/down_coop.py [OUT_DIR]   # a warden knocked down at night: their torch left lit in the grass, seen by the other at 4, 10 and 18 m (and with yours off); theirs is your torch at 0.85 (remote_player.THEIR_TORCH, the numbers player_controller's own)
 python godot/tools/rooms_coop.py [OUT_DIR]  # the rooms seen from the camp for two: the door swings before the warden is through it, their figure goes from window to window in the room
 python godot/tools/coop_mail.py OUT [SAVE]  # mail for two in a camp hosted from a save (a sandbox camp saved, or a copy of SAVE in the host's own APPDATA): bookings keep coming, both inboxes alike
 godot --headless --path godot --script res://tools/night_swell_check.gd   # the nights by the guests: a step at a time, up and down, what the night may have
