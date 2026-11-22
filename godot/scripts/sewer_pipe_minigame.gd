@@ -46,6 +46,7 @@ const PIPE_TEXTURE := "res://assets/textury/pipes/pipe_concrete.png"
 ## The old 1962 sections that the 1993 works did not reach: brick.
 const BRICK_TEXTURE := "res://assets/textury/pipes/pipe_brick.png"
 const SHOE_SPRITE := "res://assets/textury/pipes/red_shoe.png"
+const LID_TEXTURE := "res://assets/textury/pipes/sewer_grate.png"
 ## The landmarks the last worker could find his way by (Grok pictures from the camp; the
 ## crack was text, the rags a brown box and the tin a bare cylinder till 22. 11.).
 const LM_CRACK := "res://assets/textury/camp/decay_crack.png"
@@ -1234,7 +1235,7 @@ func _build_ladder() -> void:
 		m.size = Vector3(0.05, 3.6, 0.05)
 		rail.mesh = m
 		rail.position = p + Vector3(x * 0.8, 1.2, ARM_R * 0.85)
-		rail.material_override = _flat_mat(Color(0.35, 0.22, 0.14))
+		rail.material_override = _ladder_mat()
 		_geo.add_child(rail)
 	for i in 10:
 		var rung := MeshInstance3D.new()
@@ -1242,7 +1243,7 @@ func _build_ladder() -> void:
 		m2.size = Vector3(0.48, 0.04, 0.04)
 		rung.mesh = m2
 		rung.position = p + Vector3(0, -0.3 + float(i) * 0.32, ARM_R * 0.85)
-		rung.material_override = _flat_mat(Color(0.35, 0.22, 0.14))
+		rung.material_override = _ladder_mat()
 		_geo.add_child(rung)
 	var light := OmniLight3D.new()
 	light.light_color = Color(0.95, 0.85, 0.6)
@@ -1286,32 +1287,47 @@ func _build_shaft(p: Vector3) -> void:
 	m.roughness = 1.0
 	shaft.material_override = m
 	_geo.add_child(shaft)
-	# The cover's holes: daylight (or the night) far up.
+	# The cover far up, seen from under it: the street's grate (Grok, the junctions' street
+	# grates' own picture), the day or the night coming through its slots (a flat grey disc
+	# till 22. 11.).
 	var lid := MeshInstance3D.new()
-	var disc := CylinderMesh.new()
-	disc.top_radius = r
-	disc.bottom_radius = r
-	disc.height = 0.04
-	disc.radial_segments = segs
-	lid.mesh = disc
+	var q := QuadMesh.new()
+	q.size = Vector2(r * 2.0, r * 2.0)
+	q.orientation = PlaneMesh.FACE_Y
+	lid.mesh = q
 	var lm := StandardMaterial3D.new()
-	lm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	lm.albedo_color = Color(0.1, 0.1, 0.09) if _night else Color(0.55, 0.56, 0.5)
+	if ResourceLoader.exists(LID_TEXTURE):
+		lm.albedo_texture = load(LID_TEXTURE)
+		lm.emission_texture = lm.albedo_texture
+	lm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	lm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	lm.cull_mode = BaseMaterial3D.CULL_DISABLED
+	lm.emission_enabled = true
+	lm.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
+	lm.emission = Color(0.45, 0.5, 0.68) if _night else Color(1.0, 0.95, 0.82)
+	lm.emission_energy_multiplier = 0.6 if _night else 2.2
 	lid.material_override = lm
-	lid.position = p + Vector3(0, SHAFT_TOP, 0)
+	lid.position = p + Vector3(0, SHAFT_TOP - 0.01, 0)
 	_geo.add_child(lid)
+
+
+## The ladder's iron: the rusted steel of the pipes at its own size (brown boxes till 22. 11.).
+func _ladder_mat() -> StandardMaterial3D:
+	if not _wall_mats.has("ladder"):
+		var m := _steel_mat.duplicate() as StandardMaterial3D
+		m.cull_mode = BaseMaterial3D.CULL_BACK
+		m.uv1_triplanar = true
+		m.uv1_world_triplanar = true
+		m.uv1_triplanar_sharpness = 8.0
+		m.uv1_scale = Vector3.ONE / 0.5
+		m.albedo_color = Color(0.72, 0.6, 0.5)
+		_wall_mats["ladder"] = m
+	return _wall_mats["ladder"]
 
 
 ## Across the pipe a-b on the ground plan (to one side wall).
 func _pipe_side(a: Vector2i, b: Vector2i) -> Vector3:
 	return Vector3(b.y - a.y, 0, a.x - b.x).normalized()
-
-
-func _flat_mat(c: Color) -> StandardMaterial3D:
-	var m := StandardMaterial3D.new()
-	m.albedo_color = c
-	m.roughness = 1.0
-	return m
 
 
 func _edge_mid(a: Vector2i, b: Vector2i) -> Vector3:

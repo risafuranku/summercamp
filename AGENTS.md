@@ -1043,7 +1043,11 @@ every night's sewer, toilets and frozen pipes the moment they broke).
   checks together (`_neck_from`, `_neck_until`) are set in an order its tick survives.
 - **Rooms draw through their own viewports, far above the camp**: in a room
   `get_viewport().get_camera_3d()` is still the camera outside; the room's is
-  `<interior>._interior_camera` (silent_man_brain `_room_camera`). The rooms' ceilings have
+  the open room's `_interior_camera`: `InteriorManager.room_camera()` (enemy_base `_room_camera`,
+  `_eye(in_room)` for what a brain puts on the view; coop_night `_eye_cam` for "their camera" on
+  the other machine). Every room's viewport keeps a current camera, open or not: asking for the
+  first current one gave the office's in a cabin (22. 11.: the photographer's light came in from
+  the middle of the view whichever window he stood at). The rooms' ceilings have
   no collision (find one by its mesh: `RenderingServer.instances_cull_ray`, which takes the
   ray as endless).
 - **A 3D sound at the player's ear**: 0.3 m off with `unit_size` 3 it gets +20 dB and every

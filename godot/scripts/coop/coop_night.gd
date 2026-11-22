@@ -875,7 +875,7 @@ func _unpack(v):
 		if (v as Dictionary).has("_tex"):
 			return FX_TEX.decode((v as Dictionary)["_tex"])
 		if (v as Dictionary).has("_cam"):
-			return _view_cam()
+			return _eye_cam()
 		return v
 	if v is Array:
 		var out: Array = []
@@ -937,6 +937,14 @@ func _rfx_tick() -> void:
 		fx.callv(m, _rfx_held[m])
 	if not _view_base.is_empty():
 		_view_apply()
+
+
+## "Their camera" on this machine for the night's marks: the eye this warden sees through
+## now, a room's in a room (the head's put the photographer's light in the middle of the view).
+func _eye_cam() -> Camera3D:
+	var im = main.get("_interior_manager") if main != null else null
+	var rc = im.room_camera() if im != null and is_instance_valid(im) and im.has_method("room_camera") else null
+	return rc if rc != null else _view_cam()
 
 
 func _view_cam() -> Camera3D:

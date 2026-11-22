@@ -1943,22 +1943,6 @@ func _start_ceiling() -> bool:
 	return true
 
 
-## The camera of the room you are in (each room draws through its own viewport: the
-## game's is still the one outside, the rooms stand far off in the sky).
-func _room_camera() -> Camera3D:
-	var im = _im()
-	if im == null:
-		return null
-	for n in ["_building_interior", "_cabin_interior", "_caravan_interior", "_tent_interior", "_service_interior"]:
-		var r = im.get(n)
-		if r == null or not is_instance_valid(r):
-			continue
-		var c = r.get("_interior_camera")
-		if c is Camera3D and is_instance_valid(c) and (c as Camera3D).is_inside_tree() and (c as Camera3D).current:
-			return c
-	return null
-
-
 ## Look up: he is there (the sting, once). Look away again: he is not. Never looked at, he
 ## is gone after a while.
 func _tick_ceiling() -> void:

@@ -406,6 +406,23 @@ func _camera() -> Camera3D:
 	return _player.get_node_or_null("Head/Camera3D") as Camera3D if _player != null else null
 
 
+## The camera of the room you are in (InteriorManager.room_camera): null out in the camp.
+func _room_camera() -> Camera3D:
+	var im = _im()
+	return im.room_camera() if im != null and im.has_method("room_camera") else null
+
+
+## The eye the hunted warden sees through now, for what the night puts on their view: in a
+## room the room's; on another machine "their camera" (remote_fx sends it as such, and
+## coop_night picks their room's there).
+func _eye(in_room: bool) -> Camera3D:
+	if in_room and _quarry_peer() == 0:
+		var rc := _room_camera()
+		if rc != null:
+			return rc
+	return _camera()
+
+
 func _player_pos() -> Vector3:
 	return _player.global_position
 

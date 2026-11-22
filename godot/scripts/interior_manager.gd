@@ -492,6 +492,21 @@ func is_structure_open() -> bool:
 	return false
 
 
+## The eye of the room the warden is in now (each room draws through its own camera; the
+## warden's head stays the camp's): null out in the camp. What the night's marks and
+## jamming are placed by on the view (enemy_base._room_camera, coop_night._eye_cam).
+func room_camera() -> Camera3D:
+	# The open room's: every room's viewport keeps a current camera of its own, open or not
+	# (asking the first current one gave the office's in a cabin).
+	var r = _open_room_interior()
+	if r == null:
+		return null
+	var c = r.get("_interior_camera")
+	if c is Camera3D and is_instance_valid(c) and (c as Camera3D).is_inside_tree():
+		return c
+	return null
+
+
 func is_any_open() -> bool:
 	if is_structure_open():
 		return true

@@ -44,7 +44,8 @@ His direction (after the first try): **„uvnitř jednoho godotu poběží jeden
   - [ ] I3 the local client launched: a branch `/root/Local2` with its MultiplayerAPI, its Coop, its main (main.tscn) with `coop` set and `local_client`; joins 127.0.0.1
   - [ ] I4 main as a local client: each instance's main draws into its own screen (bring back S1's Seat1/Screen and screen_input from dbf3d9d4, per instance); no boot screen, no title, its warden's profile; on world_arrived no world of its own: its world viewport looks into the host's World3D, its body in its own subtree in the same physics space, its eye on its head; no ambient life, music or camp sounds of its own (the host's world has them); what a client applies from the host's facts, pulse, mail and guests is skipped (shared); each warden's figure on a render layer its own eye leaves out
   - [x] I5 first cut (15. 11.): `INSTANCE.input(node)` (scripts/instance/instance_input.gd for a local client); 139 polls routed (route_services.py Input), the rooms' look takes `who` (look_owner.py); pad.gd per instance (`sink`, `only_device`, `_send`; the window's leaves a claimed pad alone, its walk follows its own pad; another pad's Menu in the camp: main._on_second_pad -> LOCAL_CLIENT.start); the client's pad events pushed into its screen and its input (local_client.feed_event); its sounds on a muted bus "LocalClient"; its Menu held 1.2 s leaves; five hard paths "/root/CoreRoot" & co. routed (the client's grid wrote into the host's: freed tiles after it left). tools/local_split_check: joined by pad 1's Menu, each pad walks only its own warden, leaving: PASS, no script errors
-  - open: the client's pointer drawn on its screen (HandCursor follows the window's mouse), its prompts by its pad, its HUD's cells at half width (MAIL and NIGHT RISK off the edge), its sounds heard at all (now all muted), business_runtime's static API and ~15 helpers still on the host's services
+  - open: the client's pointer drawn on its screen (HandCursor follows the window's mouse), its prompts by its pad, its sounds heard at all (now all muted), business_runtime's static API and ~15 helpers still on the host's services
+  - [x] its HUD's cells at half width (22. 11., b348998d): the bar in two rows when even scale 2 cannot fit it (hud_manager BAR_SPLIT), hud_layout_check measures the halves (640 x 720, 960 x 1080), local_split_check PASS with both halves' bars whole
   - [ ] I5 the input per instance: Godot's Input is one per program, so a local client polling it would read the host's keys. `INSTANCE.input(node)`: the host's is the real Input, a local client's its own state (keys, buttons, actions by InputMap.event_is_action, the mouse mode, its own pointer drawn on its screen), fed by its own pad: a pad.gd of its own in its branch for its device (the host's translator leaves that pad alone), whose made events are pushed into the client's screen (push_input) instead of Input.parse_input_event. The client's screen container takes none of the window's input. 129 polls in 51 files to route (62 set_mouse_mode, 20 is_physical_key_pressed, 16 is_action_pressed, 15 is_mouse_button_pressed, 12 get_mouse_mode...). A second pad's Menu out in the camp starts the local client (hosting first if the camp is not a hosted one)
   - [ ] I6 through the co-op's own checks for two (coop_check, coop_story, coop4) on a local line; the window split, both pictures; the sound from one; frame time on Deck-class hardware
 
@@ -1475,6 +1476,14 @@ Tools: Grok Imagine (Cursor CLI) for textures, ElevenLabs for sound (key in
 
 - [ ] Pipe crawl polish: a proper shoe/bucket sprite, junction props, playtest the
       thing's pace; consider a second map style (torn, partly wrong).
+  - [x] 22. 11. (3083a8d5, b348998d): the walls' pictures at their real size (1.2 m a tile; the
+        junctions' drums world-triplanar), the thing's guts a splat on the curved wall
+        (pipe_wall.gd; they were the hanging column of blood at every angle), the torch's spill
+        without the white blades out of the wet side pipes, roots and drips in the drums'
+        corners, the lens drop Grok's, the screen's blood hurt_fx's, the map's note on the paper;
+        the landmarks from the game's pictures (the crack, the rags, the bucket and mop), the
+        ladder's iron and the manhole's grate textured
+  - open: the tally is still letters (IIII) on a card; the thing's pace played by a person
 - [ ] Atmosphere: a proper dusk skybox (generated), wind in the trees by day, distant dogs
       or a train at night; listen through a whole day/night with headphones and mix.
 - [ ] Playtest the uncanny details' frequency (station 14%/track at night, phantom glance

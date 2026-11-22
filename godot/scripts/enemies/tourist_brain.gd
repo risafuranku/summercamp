@@ -716,7 +716,7 @@ func _tick_indoors(_dt: float) -> void:
 		var progress := 1.0 - clampf(left / _frame_seconds, 0.0, 1.0)
 		var would := float(w.get("open", 1.0)) > 0.25 and float(w.get("facing", -1.0)) > 0.2
 		_framed(progress, would)
-		# (No eye of the warden in a room: the view's own, nightmare_fx._place.)
+		# (No eye of the warden in a room: the room's own, enemy_base._eye.)
 		_film(progress, would, lamp, true)
 		if _elapsed >= _in_beep:
 			_in_beep = _elapsed + lerpf(0.5, 0.1, progress)
@@ -992,7 +992,9 @@ func _film(progress: float, would_hit: bool, lens: Vector3, in_room := false) ->
 	var beep := clampf(1.0 - (_elapsed - _beep_at) / 0.16, 0.0, 1.0)
 	# (From the side or behind is where you need it most: nearly as strong as to your face.)
 	var level := (0.22 + 0.68 * progress * progress) * (0.66 + 0.34 * beep) * (1.0 if would_hit else 0.85)
-	fx.set_mark("leak", lens, null if in_room else _camera(), level, clampf(progress * 1.15, 0.0, 1.0) if would_hit else 0.0)
+	# In a room, the room's eye: with none given the light came in from the middle of the
+	# view whichever window he stood at (the main window has no camera; 22. 11.).
+	fx.set_mark("leak", lens, _eye(in_room), level, clampf(progress * 1.15, 0.0, 1.0) if would_hit else 0.0)
 
 
 ## The flash at `lens` out of your view with nothing between: your shadow out ahead of you.
