@@ -27,6 +27,9 @@ const SFX := "res://assets/sfx/pipes/"
 const HANDPRINT := "res://assets/textury/mess/decal_handprint.png"
 const SHOE := "res://assets/textury/pipes/red_shoe.png"
 const GRATE := "res://assets/textury/pipes/sewer_grate.png"
+## A drop on the view: the camp's own drop with its run (Grok, world/water_drop.png); the
+## one drawn in code was a pale brick over the picture (22. 11.).
+const LENS_DROP := "res://assets/textury/world/water_drop.png"
 
 var host
 var rng := RandomNumberGenerator.new()
@@ -40,7 +43,7 @@ var _puff_acc := 0.0
 var _motes: GPUParticles3D
 var _splash_fx: GPUParticles3D
 var _breath_t := 0.0
-var _drop_tex: ImageTexture
+var _drop_tex: Texture2D
 var _drops: Array = []              # {node, t, life, v}
 var _lens_next := 12.0
 var _surge_at := -1.0
@@ -338,15 +341,21 @@ func _grate(c: Vector2i, r: RandomNumberGenerator) -> void:
 	var drops := _particles(10, 0.55, Vector3(0, -1, 0), 4.0, Vector2(0.2, 0.6), Vector3(0, -9.0, 0), 0.012, Color(0.7, 0.76, 0.85, 0.7), true)
 	drops.local_coords = false
 	var pm: ParticleProcessMaterial = drops.process_material
-	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
-	pm.emission_box_extents = Vector3(0.22, 0.01, 0.22)
+	# Through the grate's slots round its middle, not down the middle of the junction
+	# where the eye stops: there one falling a hand from the eye was a pale bar over the
+	# view (22. 11.).
+	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_RING
+	pm.emission_ring_axis = Vector3.UP
+	pm.emission_ring_radius = 0.27
+	pm.emission_ring_inner_radius = 0.19
+	pm.emission_ring_height = 0.01
 	# Falling streaks of water as the rain's are drawn (they were little blue squares on
 	# the crown: playtest 21. 10.), grey, seen only in the light.
 	pm.particle_flag_align_y = true
 	pm.scale_min = 1.0
 	pm.scale_max = 1.0
 	var streak := QuadMesh.new()
-	streak.size = Vector2(0.012, 0.11)
+	streak.size = Vector2(0.005, 0.07)
 	var sm := StandardMaterial3D.new()
 	if ResourceLoader.exists(RAIN_STREAK):
 		sm.albedo_texture = load(RAIN_STREAK)
@@ -412,7 +421,7 @@ func _update_ambience(dt: float) -> void:
 ## A cold drop off the crown, on your face: it runs down the view and is gone.
 func lens_drop() -> void:
 	if _drop_tex == null:
-		_drop_tex = _make_drop()
+		_drop_tex = load(LENS_DROP)
 	var vp: Vector2 = host.get_viewport().get_visible_rect().size
 	var r := TextureRect.new()
 	r.texture = _drop_tex
@@ -421,26 +430,15 @@ func lens_drop() -> void:
 	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var k := float(maxi(2, int(round(vp.y / 240.0))))
 	var s := k * rng.randf_range(1.5, 3.0)
-	r.size = Vector2(6.0, 9.0) * s
+	r.size = _drop_tex.get_size() * s * 0.6
+	# The sewer's water, grey-green, half see-through.
+	r.modulate = Color(0.78, 0.84, 0.74, 0.8)
+	r.self_modulate.a = 0.75
 	r.position = Vector2(rng.randf_range(0.08, 0.92) * vp.x, rng.randf_range(0.0, 0.45) * vp.y).floor()
 	host._root.add_child(r)
 	host._root.move_child(r, 1)
 	_drops.append({"node": r, "t": 0.0, "life": rng.randf_range(2.0, 3.5), "v": rng.randf_range(6.0, 22.0) * k})
 	_sound("lensdrop.mp3", -12.0, rng.randf_range(0.9, 1.2))
-
-
-func _make_drop() -> ImageTexture:
-	var img := Image.create(6, 9, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0, 0, 0, 0))
-	for y in 9:
-		for x in 6:
-			var dx := (float(x) - 2.5) / 2.6
-			var dy := (float(y) - 5.0) / 4.0
-			if dx * dx + dy * dy * (1.0 if y > 4 else 2.2) <= 1.0:
-				var lit := 0.55 + 0.35 * (1.0 - absf(dx))
-				img.set_pixel(x, y, Color(0.75 * lit, 0.78 * lit, 0.72 * lit, 0.42))
-	img.set_pixel(2, 4, Color(1, 1, 0.95, 0.75))
-	return ImageTexture.create_from_image(img)
 
 
 func _update_drops(dt: float) -> void:

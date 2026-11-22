@@ -76,6 +76,8 @@ const WORK_HAND = preload("res://scripts/ui/work_hand.gd")
 const WATER_SHADER = preload("res://materials/pipe_water.gdshader")
 ## Two in the pipes (co-op): the other warden's body in them (scripts/pipes/pipe_mate.gd).
 const PIPE_MATE = preload("res://scripts/pipes/pipe_mate.gd")
+## What lies on the curved wall (moss, fungus, its guts, scratches) follows its faces.
+const PIPE_WALL = preload("res://scripts/pipes/pipe_wall.gd")
 const PIPE_BOY = preload("res://scripts/pipes/pipe_boy.gd")
 ## The family's boy down here tonight (scripts/pipes/pipe_boy.gd: tag), null none; his
 ## tier at the sewer's job (night_jobs.boy_tier_at): light only him, medium only the
@@ -93,7 +95,10 @@ var _s_down_at := -1.0
 var explore := false
 const HAND_TORCH := "res://assets/textury/hands/torch.png"
 ## On the view: its blood running down, and a lump of its guts (the original raccoon art).
-const GUTS_SPLATS := ["res://assets/textury/pipes/rac/rac_hblood.png", "res://assets/textury/pipes/rac/rac_hblood.png", "res://assets/textury/pipes/rac/rac_hpile.png"]
+## Its guts on your eyes when it has you: the lens blood and gore of being hurt anywhere
+## (scripts/ui/hurt_fx.gd SPLATS, GORE). Till 22. 11. the hanging column and the heap of
+## the pipes stood on the screen as red shards.
+const GUTS_SPLATS := ["res://assets/textury/ui/blood_lens_a.png", "res://assets/textury/ui/blood_lens_b.png", "res://assets/textury/ui/blood_lens_c.png", "res://assets/textury/ui/gore_lens_a.png"]
 const HANDPRINT := "res://assets/textury/mess/decal_handprint.png"
 const SCUM := "res://assets/textury/pipes/sludge.png"
 const SFX_DIR := "res://assets/sfx/pipes/"
@@ -743,9 +748,12 @@ func _build_shell() -> void:
 	_flashlight.spot_angle = 28.0
 	_flashlight.spot_attenuation = 0.9
 	_camera.add_child(_flashlight)
-	# What the torch spills on the wall a hand's breadth away: the pipe pressing in.
+	# What the torch spills on the wall a hand's breadth away: the pipe pressing in. No
+	# glint of its own: on the wet slime and the steel it drew white blades out of every
+	# side pipe at a junction (22. 11.); the beam itself still shines on them.
 	var spill := OmniLight3D.new()
 	spill.light_color = Color(0.9, 0.82, 0.66)
+	spill.light_specular = 0.0
 	spill.light_energy = 0.35
 	spill.omni_range = 1.25
 	spill.omni_attenuation = 1.6
@@ -957,6 +965,7 @@ func _build_drips() -> void:
 	var nodes := _links.keys()
 	_shuffle(nodes)
 	for i in mini(6, nodes.size()):
+		var at := _drum_corner(nodes[i], i % 4, 0.94)
 		var p := AudioStreamPlayer3D.new()
 		p.bus = audio_bus()
 		var path := SFX_DIR + "drip.mp3"
@@ -967,10 +976,17 @@ func _build_drips() -> void:
 		p.volume_db = -6.0
 		p.max_distance = 12.0
 		p.pitch_scale = _rng.randf_range(0.85, 1.15)
-		p.position = _world_pos(nodes[i]) + Vector3(0, 0.6, 0)
+		p.position = at + Vector3(0, 0.6, 0)
 		_geo.add_child(p)
 		_drips.append(p)
-		_drip_fx(_world_pos(nodes[i]))
+		_drip_fx(at)
+
+
+## Where the drum's wall meets its ceiling between two pipes (`k` 0..3 the corner), `f` of
+## its radius out from the middle: a place for what hangs there, out of the eye's way.
+func _drum_corner(c: Vector2i, k: int, f: float) -> Vector3:
+	var d := Vector3(1.0 if k % 2 == 0 else -1.0, 0.0, 1.0 if k < 2 else -1.0).normalized()
+	return _world_pos(c) + d * (ARM_R * 1.12 * f)
 
 
 ## A drop at a time from the crown: a pale streak falling into the trickle.
@@ -984,9 +1000,10 @@ func _drip_fx(at: Vector3) -> void:
 	pm.gravity = Vector3(0, -9.0, 0)
 	fx.process_material = pm
 	var q := QuadMesh.new()
-	q.size = Vector2(0.012, 0.05)
+	q.size = Vector2(0.006, 0.026)
 	var qm := StandardMaterial3D.new()
-	qm.albedo_color = Color(0.7, 0.74, 0.62, 0.85)
+	# Wet and grey down the drum's wall, not a white bar falling past the eye (22. 11.).
+	qm.albedo_color = Color(0.5, 0.55, 0.46, 0.45)
 	qm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	qm.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y
 	q.material = qm
@@ -1005,16 +1022,23 @@ func _build_dressing() -> void:
 	r.seed = _rng.seed + 4099
 	var moss: Texture2D = load(DRESS_MOSS) if ResourceLoader.exists(DRESS_MOSS) else DIRECTOR.blob_texture(Color(0.12, 0.17, 0.08), 41)
 	var fungus: Texture2D = load(DRESS_FUNGUS) if ResourceLoader.exists(DRESS_FUNGUS) else null
+	var moss_mat := PIPE_WALL.material(moss, 0.35)
+	var fungus_mat := PIPE_WALL.material(fungus, 0.35) if fungus != null else moss_mat
 	for e in _edges():
 		var kind := _pipe_kind(e[0], e[1])
 		var n := r.randi_range(2, 5) if kind == "slime" else (r.randi_range(0, 2) if kind != "steel" else 0)
 		for _i in n:
-			var tex := fungus if (fungus != null and r.randf() < 0.3) else moss
-			_wall_patch(e[0], e[1], tex, r)
+			# A hand's span to a forearm's: half a metre of shelf fungus a breath from the
+			# eye filled half the view (22. 11.).
+			var sz := r.randf_range(0.18, 0.4)
+			wall_patch(e[0], e[1], fungus_mat if r.randf() < 0.3 else moss_mat, r.randf(), r.randf_range(-PI * 0.8, PI * 0.8), Vector2(sz, sz), r.randf_range(-0.4, 0.4))
 	for c in _links.keys():
 		if c != _entry and r.randf() < 0.3 and ResourceLoader.exists(DRESS_ROOTS):
-			var roots := _dress_sprite(load(DRESS_ROOTS), r.randf_range(0.5, 0.75))
-			roots.position = Vector3(_world_pos(c).x + r.randf_range(-0.2, 0.2), ARM_R * 0.9 + ARM_R * 0.9 - roots.pixel_size * roots.texture.get_height(), _world_pos(c).z + r.randf_range(-0.2, 0.2))
+			# Down the drum's wall in a corner between two pipes: the eye stops in the
+			# middle of the junction, where they hung in its face (22. 11.).
+			var roots := _dress_sprite(load(DRESS_ROOTS), r.randf_range(0.45, 0.65))
+			var at := _drum_corner(c, r.randi() % 4, 0.78)
+			roots.position = Vector3(at.x, ARM_R * 0.9 + ARM_R * 0.9 - roots.pixel_size * roots.texture.get_height(), at.z)
 	var things := [[DRESS_HAIR, 0.22], [DRESS_RAT, 0.24], [DRESS_HAIR, 0.18], [DRESS_TEDDY, 0.26]]
 	var pool := _edges().filter(func(e): return _leak_index(e[0], e[1]) < 0 and e[0] != _entry and e[1] != _entry)
 	for t in things:
@@ -1037,31 +1061,6 @@ func _dress_sprite(tex: Texture2D, height: float) -> Sprite3D:
 	spr.offset = Vector2(0, tex.get_height() * 0.5)
 	_geo.add_child(spr)
 	return spr
-
-
-func _wall_patch(a: Vector2i, b: Vector2i, tex: Texture2D, r: RandomNumberGenerator) -> void:
-	var mi := MeshInstance3D.new()
-	var q := QuadMesh.new()
-	var sz := r.randf_range(0.25, 0.6)
-	q.size = Vector2(sz, sz)
-	mi.mesh = q
-	var m := StandardMaterial3D.new()
-	m.albedo_texture = tex
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
-	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	m.roughness = 0.35
-	mi.material_override = m
-	var al := Vector3(float(b.x - a.x), 0, float(b.y - a.y)).normalized()
-	var ang := r.randf_range(-PI * 0.8, PI * 0.8)
-	var rad := (BRICK_R if _is_brick(a, b) else PIPE_R) * 0.93
-	var centre := _edge_mid(a, b)
-	centre = Vector3(centre.x, rad / 0.93 * 0.9, centre.z) + al * r.randf_range(-1.2, 1.2)
-	var side := Vector3(al.z, 0, -al.x)
-	var out := (side * sin(ang) + Vector3.UP * cos(ang)).normalized()
-	mi.position = centre + out * rad
-	_geo.add_child(mi)
-	mi.look_at(centre, al if absf(out.dot(Vector3.UP)) > 0.9 else Vector3.UP)
-	mi.rotate_object_local(Vector3.UP, PI)
 
 
 ## Wet hand prints on the ladder rungs and the wall by it: long fingers, still running.
@@ -1101,7 +1100,7 @@ func _junction(comb: CSGCombiner3D, c: Vector2i) -> void:
 	drum.radius = ARM_R * 1.12
 	drum.height = ARM_R * 2.0
 	drum.sides = SIDES
-	drum.material = _pipe_mat
+	drum.material = _drum_material()
 	drum.position = _world_pos(c) - _floor_offset(ARM_R)
 	comb.add_child(drum)
 
@@ -1113,10 +1112,60 @@ func _pipe(comb: CSGCombiner3D, a: Vector2i, b: Vector2i) -> void:
 	cyl.radius = r
 	cyl.height = _world_pos(a).distance_to(_world_pos(b))
 	cyl.sides = SIDES
-	cyl.material = {"brick": _brick_mat, "steel": _steel_mat, "slime": _slime_mat}.get(kind, _pipe_mat)
+	cyl.material = _pipe_material(kind, r, cyl.height)
 	cyl.position = (_world_pos(a) + _world_pos(b)) * 0.5 - _floor_offset(r)
 	cyl.rotation = Vector3(0, 0, PI * 0.5) if a.y == b.y else Vector3(PI * 0.5, 0, 0)
 	comb.add_child(cyl)
+
+
+## One picture of a pipe's wall (128 px) is this much of the real thing: the bricks'
+## courses, the steel's ribs and the concrete's shuttering come out their own size. Once
+## round and once along the whole pipe, a pixel was 2-3 cm and the slime a camouflage of
+## blocks (22. 11.).
+const TILE_M := 1.2
+var _wall_mats := {}
+
+
+## A pipe's material, tiled whole times round (no seam) and along it.
+func _pipe_material(kind: String, r: float, length: float) -> StandardMaterial3D:
+	var round_n := maxf(1.0, roundf(TAU * r / TILE_M))
+	var along_n := maxf(1.0, roundf(length / TILE_M))
+	var key := "%s:%d:%d" % [kind, int(round_n), int(along_n)]
+	if not _wall_mats.has(key):
+		var base: StandardMaterial3D = {"brick": _brick_mat, "steel": _steel_mat, "slime": _slime_mat}.get(kind, _pipe_mat)
+		var m := base.duplicate() as StandardMaterial3D
+		m.uv1_scale = Vector3(round_n, along_n, 1.0)
+		_wall_mats[key] = m
+	return _wall_mats[key]
+
+
+## The junction's drum: its round wall and its flat ceiling and floor, all the concrete at
+## its own size from wherever it is looked at (the cylinder's own mapping stretched the
+## caps across the whole drum).
+func _drum_material() -> StandardMaterial3D:
+	if not _wall_mats.has("drum"):
+		var m := _pipe_mat.duplicate() as StandardMaterial3D
+		m.uv1_triplanar = true
+		m.uv1_world_triplanar = true
+		m.uv1_triplanar_sharpness = 8.0
+		m.uv1_scale = Vector3.ONE / TILE_M
+		_wall_mats["drum"] = m
+	return _wall_mats["drum"]
+
+
+## The radius of the pipe between two junctions (the old brick ones are tighter).
+func pipe_radius(a: Vector2i, b: Vector2i) -> float:
+	return BRICK_R if _is_brick(a, b) else PIPE_R
+
+
+## Something on a pipe's curved wall (scripts/pipes/pipe_wall.gd): `t` along it from a
+## (clear of the drums), `ang` round from the crown, `size` across and along.
+func wall_patch(a: Vector2i, b: Vector2i, mat: Material, t: float, ang: float, size: Vector2, spin: float = 0.0) -> MeshInstance3D:
+	var r := pipe_radius(a, b)
+	var mi := PIPE_WALL.patch(mat, _world_pos(a), _world_pos(b), r, r * 0.9, ARM_R * 1.12, t, ang, size, spin)
+	if mi != null:
+		_geo.add_child(mi)
+	return mi
 
 
 ## A seeded third of the pipes are the old 1962 brick ones: tighter, slower, and a
@@ -1264,20 +1313,8 @@ func _build_landmark(lm: Dictionary) -> void:
 	match str(lm["kind"]):
 		"scratches":
 			if ResourceLoader.exists(SCRATCHES):
-				var mi := MeshInstance3D.new()
-				var q := QuadMesh.new()
-				q.size = Vector2(0.6, 0.6)
-				mi.mesh = q
-				var m := StandardMaterial3D.new()
-				m.albedo_texture = load(SCRATCHES)
-				m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
-				m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-				mi.material_override = m
-				var side2 := Vector3(lm["b"].y - lm["a"].y, 0, lm["a"].x - lm["b"].x).normalized()
-				mi.position = p + side2 * (PIPE_R * 0.7) + Vector3(0, 0.1, 0)
-				_geo.add_child(mi)
-				mi.look_at(p + Vector3(0, 0.1, 0), Vector3.UP)
-				mi.rotate_object_local(Vector3.UP, PI)
+				# Raked into the side wall halfway along, the marks running with the pipe.
+				wall_patch(lm["a"], lm["b"], PIPE_WALL.material(load(SCRATCHES), 0.9), 0.5, PI * 0.5, Vector2(0.5, 0.5))
 		"crack", "tally":
 			var l := Label3D.new()
 			l.text = "\\/\\_/\\" if lm["kind"] == "crack" else "IIII IIII IIII II"
@@ -1538,9 +1575,12 @@ func _draw_map() -> void:
 			continue
 		var mp: Vector2 = (to_px.call(lm["a"]) + to_px.call(lm["b"])) * 0.5
 		_ink.draw_string(font, mp + Vector2(-2.0, 10.0) * s, str(LANDMARK_MAP_GLYPH[lm["kind"]]), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.25, 0.22, 0.2, 0.9))
-	# The controls, as the last worker scribbled them in the margin (no HUD bar down here).
-	_ink.draw_string(font, r.position + Vector2(margin.x, margin.y * 0.45), tr("junctions: A/D look in a side pipe, W crawl in (or point + click). S look behind. F torch. E clamp, ladder."), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.2, 0.18, 0.3, 0.75))
-	_ink.draw_string(font, r.position + Vector2(margin.x, h - margin.y * 0.35), tr("it cant see. it hears you crawl + the clamp. stand still, keep the light on it. water runs from the leak. - P."), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.2, 0.18, 0.3, 0.8))
+	# The controls, as the last worker scribbled them in the margin (no HUD bar down here),
+	# and his note at the foot: both kept on the paper, wrapped to its width (the Czech
+	# ran off its edge, 22. 11.).
+	var line_w := w - margin.x * 1.2
+	_ink.draw_multiline_string(font, r.position + Vector2(margin.x * 0.6, margin.y * 0.3), tr("junctions: A/D look in a side pipe, W crawl in (or point + click). S look behind. F torch. E clamp, ladder."), HORIZONTAL_ALIGNMENT_LEFT, line_w, fs, 2, Color(0.2, 0.18, 0.3, 0.75))
+	_ink.draw_multiline_string(font, r.position + Vector2(margin.x * 0.6, h - margin.y * 0.5), tr("it cant see. it hears you crawl + the clamp. stand still, keep the light on it. water runs from the leak. - P."), HORIZONTAL_ALIGNMENT_LEFT, line_w, fs, 2, Color(0.2, 0.18, 0.3, 0.8))
 
 
 # ── play ──────────────────────────────────────────────────────────────────────
@@ -1682,11 +1722,11 @@ func splatter(n: int) -> void:
 		r.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		r.stretch_mode = TextureRect.STRETCH_SCALE
 		r.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var side := vp.y * (_rng.randf_range(0.18, 0.42) if tex.get_width() < tex.get_height() else _rng.randf_range(0.08, 0.16))
+		var side := vp.y * _rng.randf_range(0.16, 0.36)
 		r.size = Vector2(side * float(tex.get_width()) / float(tex.get_height()), side)
 		r.pivot_offset = r.size * 0.5
-		# Runs of blood hang roughly downwards; a lump lands any way up.
-		r.rotation = _rng.randf_range(-0.35, 0.35) if tex.get_width() < tex.get_height() else _rng.randf_range(-PI, PI)
+		# They all run down the glass: only a little turned.
+		r.rotation = _rng.randf_range(-0.3, 0.3)
 		r.position = Vector2(_rng.randf_range(-0.1, 0.85) * vp.x, _rng.randf_range(-0.1, 0.7) * vp.y)
 		_root.add_child(r)
 		_root.move_child(r, _vignette.get_index() + 1)

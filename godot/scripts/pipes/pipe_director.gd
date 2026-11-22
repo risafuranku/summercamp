@@ -34,8 +34,10 @@ const SPR_BELLY := ["res://assets/textury/pipes/rac/rac_1.png", "res://assets/te
 const BURST_FRAME := 1.0 / 12.0
 const SPR_FALLBACK := "res://assets/textury/npc/pipe_thing_close.png"
 const GUTS_PILE := "res://assets/textury/pipes/rac/rac_hpile.png"
-const GUTS_TRAIL := "res://assets/textury/pipes/rac/rac_hblood.png"
-const GUTS_SPLAT := "res://assets/textury/pipes/rac/rac_hblood.png"
+## Its guts on the floor and the walls (tools/artgen/guts_splat.py; the hanging column of
+## blood stood about the pipes as poles at every angle till 22. 11.).
+const GUTS_TRAIL := "res://assets/textury/pipes/rac/rac_splat.png"
+const GUTS_SPLAT := "res://assets/textury/pipes/rac/rac_splat.png"
 ## The pipes are 80 cm across: upright, it fills them, hunched under the crown.
 ## The frames share one canvas (73 px, the raccoon 64 of it): ~0.6 m of raccoon.
 const STAND_H := 0.68
@@ -75,6 +77,7 @@ var _scene := {}                   # the staged look: {kind, t, ...}
 var _drip_mute_t := 0.0
 var _echo_left := 0
 var _lure: AudioStreamPlayer3D
+var _splat_mat: StandardMaterial3D  # its guts up the walls, one material for every splat
 var _lure_t := 0.0
 var _chitter_t := 0.0
 var _bite_t := 0.0
@@ -261,7 +264,7 @@ func _lay_trails() -> void:
 		var nxt: Vector2i = at + host.DIRS[opts[rng.randi() % opts.size()]]
 		_floor_decal(host._edge_mid(at, nxt), at, nxt, _tex(GUTS_TRAIL, Color(0.30, 0.04, 0.04)), Vector2(0.42, 1.4))
 		if rng.randf() < 0.4:
-			_wall_splat(host._edge_mid(at, nxt), at, nxt)
+			_wall_splat(0.5, at, nxt)
 		at = nxt
 
 
@@ -288,7 +291,7 @@ func _lay_traps(n: int) -> void:
 		var pile := _sprite(_tex(GUTS_PILE, Color(0.30, 0.10, 0.10)), 0.46)
 		pile.position = Vector3(mid.x, _floor_y() - 0.04, mid.z)
 		_floor_decal(mid, e[0], e[1], _tex(GUTS_TRAIL, Color(0.30, 0.04, 0.04)), Vector2(0.5, 1.0))
-		_wall_splat(mid, e[0], e[1])
+		_wall_splat(0.5, e[0], e[1])
 		_traps[_key(e[0], e[1])] = {"a": e[0], "b": e[1], "pile": pile, "sprung": false, "done": false}
 
 
@@ -358,26 +361,15 @@ func _floor_decal(mid: Vector3, a: Vector2i, b: Vector2i, tex: Texture2D, size: 
 	host._geo.add_child(mi)
 
 
-func _wall_splat(mid: Vector3, a: Vector2i, b: Vector2i) -> void:
-	var mi := MeshInstance3D.new()
-	var q := QuadMesh.new()
+## Thrown up a side wall of the pipe a-b, `t` along it from a (0..1): on the curve itself
+## (scripts/pipes/pipe_wall.gd), running down.
+func _wall_splat(t: float, a: Vector2i, b: Vector2i) -> void:
+	if _splat_mat == null:
+		_splat_mat = host.PIPE_WALL.material(_tex(GUTS_SPLAT, Color(0.32, 0.03, 0.03)), 0.2)
 	var sz := rng.randf_range(0.3, 0.55)
-	q.size = Vector2(sz, sz)
-	mi.mesh = q
-	var m := StandardMaterial3D.new()
-	m.albedo_texture = _tex(GUTS_SPLAT, Color(0.32, 0.03, 0.03))
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
-	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	m.roughness = 0.2
-	mi.material_override = m
-	var al := _along(a, b)
-	var side := Vector3(al.z, 0, -al.x) * (1.0 if rng.randf() < 0.5 else -1.0)
-	var centre := Vector3(mid.x, host.PIPE_R * 0.9, mid.z) + al * rng.randf_range(-1.0, 1.0)
-	mi.position = centre + side * (host.PIPE_R * 0.9) + Vector3(0, rng.randf_range(-0.15, 0.2), 0)
-	host._geo.add_child(mi)
-	mi.look_at(centre, Vector3.UP)
-	mi.rotate_object_local(Vector3.UP, PI)
-	mi.rotate_object_local(Vector3.FORWARD, rng.randf_range(-PI, PI))
+	var side := 1.0 if rng.randf() < 0.5 else -1.0
+	var ang := side * (PI * 0.5 + rng.randf_range(-0.35, 0.25))
+	host.wall_patch(a, b, _splat_mat, clampf(t + rng.randf_range(-0.2, 0.2), 0.0, 1.0), ang, Vector2(sz, sz * rng.randf_range(0.9, 1.3)), rng.randf_range(-0.5, 0.5))
 
 
 func _along(a: Vector2i, b: Vector2i) -> Vector3:
@@ -391,7 +383,7 @@ func _burst_at(c: Vector2i) -> void:
 	pile.position = p + Vector3(0, -0.03, 0)
 	for d in host._links[c]:
 		var n: Vector2i = c + host.DIRS[d]
-		_wall_splat(host._world_pos(c).lerp(host._world_pos(n), 0.18), c, n)
+		_wall_splat(0.0, c, n)
 		_floor_decal(host._world_pos(c).lerp(host._world_pos(n), 0.25), c, n, _tex(GUTS_TRAIL, Color(0.30, 0.04, 0.04)), Vector2(0.4, 0.8))
 	_sound_at("rac_splat.mp3", c, 2.0)
 
