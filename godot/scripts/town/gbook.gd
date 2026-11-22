@@ -326,7 +326,7 @@ func _process(delta: float) -> void:
 		INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_HIDDEN)
 	else:
 		INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
-		HandCursor.want(HandCursor.WALK if _in_exit_band(m) else HandCursor.ARROW)
+		HandCursor.want(HandCursor.WALK if _in_exit_band(m) else HandCursor.ARROW, self)
 
 
 func _on_screen(p: Vector2) -> bool:

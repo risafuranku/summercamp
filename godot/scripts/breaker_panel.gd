@@ -577,7 +577,7 @@ func _draw_board() -> void:
 		var w2 := RETRO_UI.FONT_TEXT.get_string_size(t2, HORIZONTAL_ALIGNMENT_LEFT, -1, fs2).x
 		_board.draw_string(RETRO_UI.FONT_TEXT, (band.position + Vector2((band.size.x - w2) * 0.5, 32 * k)).floor(), t2, HORIZONTAL_ALIGNMENT_LEFT, -1, fs2, Color(0.9, 0.95, 0.8, a))
 	if _hover != -2:
-		HandCursor.want(HandCursor.POINT)
+		HandCursor.want(HandCursor.POINT, self)
 
 
 ## A disc of light: transparent in the middle, black at the rim.

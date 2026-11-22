@@ -620,7 +620,7 @@ func process(delta: float, hour: float) -> bool:
 	if _hover != "":
 		var walks := _hover in ["door", "doorway", "front_door", "store_door", "store_doorway", "bench", "bench_floor", "side_floor", "back_window_spot", "back_stand_spot"] and not (_hover == "door" and where == "back")
 		# A diploma is looked at: the eye.
-		HandCursor.want(HandCursor.WALK if walks else (HandCursor.LOOK if _hover.begins_with("diploma") else HandCursor.POINT))
+		HandCursor.want(HandCursor.WALK if walks else (HandCursor.LOOK if _hover.begins_with("diploma") else HandCursor.POINT), room_root)
 		glint.show_on(hot[_hover]["meshes"])
 	else:
 		glint.clear()
@@ -634,7 +634,7 @@ func process(delta: float, hour: float) -> bool:
 		want.y = camera.rotation.y + wrapf(want.y - camera.rotation.y, -PI, PI)
 		camera.rotation = camera.rotation.lerp(want, clampf(delta * 30.0, 0.0, 1.0))
 		if INTERIOR_LOOK.in_exit_zone(vp):
-			HandCursor.want(HandCursor.WALK)
+			HandCursor.want(HandCursor.WALK, room_root)
 		return true
 	return false
 

@@ -552,27 +552,27 @@ func _update_hover() -> void:
 		var hit := _raycast_world(mouse)
 		var n = hit.get("collider", null) as Node
 		if n != null and _node_has_click_type(n, "cabin_bath_door"):
-			HandCursor.want(HandCursor.WALK)
+			HandCursor.want(HandCursor.WALK, self)
 			_glint.show_on(_bath_door_now().get("meshes", []))
 			return
 		if n != null and _node_has_click_type(n, "cabin_front_door"):
-			HandCursor.want(HandCursor.WALK)
+			HandCursor.want(HandCursor.WALK, self)
 			_glint.show_on((_front_doors.get(_cabin_level, {}) as Dictionary).get("meshes", []))
 			return
 		if n != null and _node_has_click_type(n, "cabin_window_spot"):
 			var spot := _spot_by_id(str(n.get_meta("spot_id", "")))
 			if not spot.is_empty():
-				HandCursor.want(HandCursor.WALK)
+				HandCursor.want(HandCursor.WALK, self)
 				_glint.show_on([spot["mesh"]])
 				return
 		if n != null and _node_has_click_type(n, "cabin_light_switch"):
 			var knob := _light_switch_body.get_node_or_null("SwitchVisual") if _light_switch_body != null else null
 			if knob != null:
 				meshes = [knob]
-			HandCursor.want(HandCursor.POINT)
+			HandCursor.want(HandCursor.POINT, self)
 		elif _catalog_screen_rect().has_point(mouse / get_viewport().get_visible_rect().size):
 			meshes = [_catalog_mesh]
-			HandCursor.want(HandCursor.POINT)
+			HandCursor.want(HandCursor.POINT, self)
 		else:
 			while n != null and not n.has_meta("portal_index"):
 				n = n.get_parent()
@@ -581,10 +581,10 @@ func _update_hover() -> void:
 				var i := int(n.get_meta("portal_index"))
 				if i < portals.size() and portals[i].get("curtain") != null:
 					meshes = portals[i]["curtain"].meshes
-					HandCursor.want(HandCursor.POINT)
+					HandCursor.want(HandCursor.POINT, self)
 	_glint.show_on(meshes)
 	if meshes.is_empty() and not _prep.is_busy() and not _walking() and INTERIOR_LOOK.in_exit_zone(get_viewport()):
-		HandCursor.want(HandCursor.WALK)
+		HandCursor.want(HandCursor.WALK, self)
 
 
 func close_cabin() -> void:

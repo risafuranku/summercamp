@@ -129,7 +129,7 @@ func _gui_input(event: InputEvent) -> void:
 				_sel = row
 				hovered.emit(str(items[row].get("id", "")))
 			_redraw()
-		HandCursor.want(HandCursor.POINT if row >= 0 else HandCursor.ARROW)
+		HandCursor.want(HandCursor.POINT if row >= 0 else HandCursor.ARROW, self)
 	elif event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
 		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:

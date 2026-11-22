@@ -275,7 +275,7 @@ func update_hover(mouse: Vector2) -> String:
 		id = ""
 	_hover = id
 	if id != "":
-		HandCursor.want(HandCursor.WALK if id == "door" else HandCursor.POINT)
+		HandCursor.want(HandCursor.WALK if id == "door" else HandCursor.POINT, host)
 		glint.show_on(hot[id]["meshes"])
 	else:
 		glint.clear()

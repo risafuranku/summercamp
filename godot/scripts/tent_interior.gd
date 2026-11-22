@@ -273,9 +273,9 @@ func _update_hover() -> void:
 				lit.append(m)
 	_glint.show_on(lit)
 	if not lit.is_empty():
-		HandCursor.want(HandCursor.POINT)
+		HandCursor.want(HandCursor.POINT, self)
 	elif not door_walking and INTERIOR_LOOK.in_exit_zone(vp):
-		HandCursor.want(HandCursor.WALK)
+		HandCursor.want(HandCursor.WALK, self)
 
 
 func _apply_idle_mouse_look(delta: float) -> void:

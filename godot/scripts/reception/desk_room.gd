@@ -522,7 +522,7 @@ func _point() -> void:
 	desk.stamp_3d_hover = _stamp_under(o, d) if desk.holding_nothing() else ""
 	_front_hot = desk.holding_nothing() and _front_under(o, d)
 	if _front_hot:
-		HandCursor.want(HandCursor.POINT)
+		HandCursor.want(HandCursor.POINT, room_root)
 		_glint.show_on(_drawer_pull)
 	elif desk.stamp_3d_hover != "":
 		_glint.show_on([_stamps[desk.stamp_3d_hover]["root"]])
@@ -535,7 +535,7 @@ func _point() -> void:
 		_glint.clear()
 	# The PC across the room takes a click (input).
 	if px.x < 0.0 and desk.holding_nothing() and host.crt_under(host.get_viewport().get_mouse_position()) >= 0:
-		HandCursor.want(HandCursor.POINT)
+		HandCursor.want(HandCursor.POINT, room_root)
 
 
 ## A paper or a key in hand, the pointer past the counter's far edge: it comes up off the

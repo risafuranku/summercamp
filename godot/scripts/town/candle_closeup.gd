@@ -447,7 +447,7 @@ func _tick_strike(delta: float, down: bool) -> void:
 	# The arrows of the motion wanted over the striker (the game's way: hand_cursor.gd).
 	if over:
 		_pointer = true
-		HandCursor.want(HandCursor.RUB)
+		HandCursor.want(HandCursor.RUB, self)
 	var on := down and over
 	if on and not _was_down and not _scrape_snd.playing:
 		_scrape_snd.play()

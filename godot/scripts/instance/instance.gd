@@ -26,6 +26,15 @@ const CACHE := &"_instance_root"
 static var count := 1
 
 
+## A player the split screen's second game has silenced (its camp's sound: the host's game
+## plays it, scripts/instance/local_client.gd): leave its bus be.
+const SILENT_BUS := "LocalClient"
+
+
+static func silenced(player: Node) -> bool:
+	return player != null and str(player.get("bus")) == SILENT_BUS
+
+
 ## The root of the instance `node` belongs to: a local client's branch over it, else the
 ## program's root (the host's, a lone machine's, an autoload, a node not in the tree yet).
 static func root_of(node: Node) -> Node:

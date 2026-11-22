@@ -13,9 +13,19 @@ const INSTANCE = preload("res://scripts/instance/instance.gd")
 const INPUT = preload("res://scripts/instance/instance_input.gd")
 const PAD = preload("res://scripts/input/pad.gd")
 const COOP = preload("res://scripts/coop/coop.gd")
-## The second warden's sounds go here, silent: the camp is heard once, from the host's game
-## (its own world's sounds and music would play everything twice).
-const BUS := "LocalClient"
+## The second warden's camp sounds go here, silent: the camp is heard once, from the host's
+## game (its own world's music, ambience and radio would play everything twice). What is its
+## own stays heard on its own bus: its steps, its torch, its hurt, its pager, its PC, its
+## work, the pipes, a chase at it (they were all silent till 22. 11.: it did things in silence).
+const BUS := INSTANCE.SILENT_BUS
+## The buses whose sound is the camp's, the same in both games: silent in the second's.
+const CAMP_BUSES := ["WorldMusic", "AmbientMusic", "OutdoorAmbience", "NightInsects", "Radio", "RadioMusic", "Caretaker", "Music"]
+## (And the world's sounds through walls: world_sounds.gd's "ThroughWalls..." buses.)
+const CAMP_BUS_PREFIX := "ThroughWalls"
+## How often its players are looked at again (a script may give one its bus as it plays).
+const ROUTE_EVERY := 0.5
+var _players: Array = []
+var _route_t := 0.0
 const MAIN_SCENE := "res://scenes/main.tscn"
 ## The services a co-op machine has one of, in the autoloads' order (project.godot).
 const SERVICES := [
@@ -116,9 +126,35 @@ func _quiet() -> void:
 
 func _on_node_added(node: Node) -> void:
 	if (node is AudioStreamPlayer or node is AudioStreamPlayer2D or node is AudioStreamPlayer3D) and is_ancestor_of(node):
+		_players.append(node)
+		_route(node)
+		# (Its own _ready may set a bus of its own: after that, looked at again.)
+		node.ready.connect(func() -> void: _route(node), CONNECT_ONE_SHOT)
+
+
+## A player of the second's: silent if its sound is the camp's (or 3D: its world's listener
+## is off, the camp's 3D sound is the host's), else on the bus its script gave it.
+func _route(node: Node) -> void:
+	if not is_instance_valid(node):
+		return
+	var bus := str(node.get("bus"))
+	if bus == BUS:
+		return
+	if node is AudioStreamPlayer3D or CAMP_BUSES.has(bus) or bus.begins_with(CAMP_BUS_PREFIX):
 		node.set("bus", BUS)
-		# (Its own _ready may set a bus of its own: after that, ours again.)
-		node.ready.connect(func() -> void: node.set("bus", BUS), CONNECT_ONE_SHOT)
+
+
+func _route_all(delta: float) -> void:
+	_route_t -= delta
+	if _route_t > 0.0:
+		return
+	_route_t = ROUTE_EVERY
+	for i in range(_players.size() - 1, -1, -1):
+		var p = _players[i]
+		if not is_instance_valid(p):
+			_players.remove_at(i)
+		else:
+			_route(p)
 
 
 ## The window split down the middle (true) or the host's alone (false).
@@ -141,6 +177,7 @@ func layout(split: bool) -> void:
 
 
 func _process(delta: float) -> void:
+	_route_all(delta)
 	if not Input.is_joy_button_pressed(input.device, JOY_BUTTON_START):
 		_menu_armed = true
 		_menu_held = 0.0

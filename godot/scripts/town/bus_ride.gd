@@ -807,14 +807,14 @@ func _update_hover() -> void:
 		if _hot_allowed(id):
 			_hover = id
 	if _hover != "":
-		HandCursor.want(HandCursor.POINT)
+		HandCursor.want(HandCursor.POINT, self)
 		for h in _hot:
 			if str(h["id"]) == _hover:
 				_glint.show_on(h["meshes"])
 	else:
 		_glint.clear()
 		if (_state == BOARDING or (line_mode and _state == PAUSED)) and INTERIOR_LOOK.in_exit_zone(get_viewport()):
-			HandCursor.want(HandCursor.WALK)
+			HandCursor.want(HandCursor.WALK, self)
 
 
 func _hot_allowed(id: String) -> bool:

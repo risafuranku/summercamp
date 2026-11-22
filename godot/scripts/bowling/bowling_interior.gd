@@ -440,7 +440,7 @@ func _process(delta: float) -> void:
 		_exit_hint = INTERIOR_LOOK.make_exit_hint(self, "Leave   [Esc]" if _spot == "hall" else "Back   [Esc]")
 	INTERIOR_LOOK.update_exit_hint(_exit_hint, get_viewport(), delta)
 	if not moving and _clicked() != "":
-		HandCursor.want(HandCursor.POINT)
+		HandCursor.want(HandCursor.POINT, self)
 
 
 func _input(event: InputEvent) -> void:
@@ -970,9 +970,9 @@ func _station_frame(open: String) -> void:
 	else:
 		st.call("point", vp_mouse)
 	if str(st.call("holding")) != "":
-		HandCursor.want(HandCursor.GRAB)
+		HandCursor.want(HandCursor.GRAB, self)
 	elif str(st.call("hovered")) != "" or rail != "" or ui.begins_with("#tab") or ui.begins_with("#btn") or ui in ["#back", "#serve", "#books"]:
-		HandCursor.want(HandCursor.POINT)
+		HandCursor.want(HandCursor.POINT, self)
 
 
 ## A point of the screen in the hall's picture (its viewport's pixels).

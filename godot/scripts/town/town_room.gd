@@ -838,12 +838,12 @@ func _process(delta: float) -> void:
 		if not _hot.has(_hover):
 			_hover = ""
 		if _hover != "":
-			HandCursor.want(_cursor_for(_hover))
+			HandCursor.want(_cursor_for(_hover), self)
 			_glint.show_on(_hot[_hover]["meshes"])
 		else:
 			_glint.clear()
 			if INTERIOR_LOOK.in_exit_zone(get_viewport()):
-				HandCursor.want(HandCursor.WALK)
+				HandCursor.want(HandCursor.WALK, self)
 	else:
 		_glint.clear()
 		_hover = ""

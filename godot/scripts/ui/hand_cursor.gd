@@ -9,11 +9,14 @@ extends Node
 ## where the work wants the mouse moved to and fro (scrubbing the bowl: playtest 25. 10.
 ## "where the cleaning wants the cursor moved, show arrows of the motion expected").
 ##
-## Anything may ask for a shape every frame with `HandCursor.want(kind)`; the strongest
-## request of the frame wins, and this node (added once by main, processed last)
-## applies it. Nothing asked = the arrow. The picture is scaled by a whole number to
-## the window, like the rest of the 2D, and swapped into the system cursor (hardware,
-## so it never lags behind the mouse).
+## Anything may ask for a shape every frame with `HandCursor.want(kind, self)`; the
+## strongest request of the frame in that game wins, and this node (added once by each
+## main, processed last) applies it. Nothing asked = the arrow. The picture is scaled by a
+## whole number to the window, like the rest of the 2D, and swapped into the system cursor
+## (hardware, so it never lags behind the mouse). The split screen's second game
+## (scripts/instance/local_client.gd) has no mouse of its own: its hand is drawn on its own
+## half where its pad puts its pointer (instance_input.pointer), in the shape its game asks
+## for (one shape for the whole program till 22. 11., and no pointer to be seen there).
 
 const INSTANCE = preload("res://scripts/instance/instance.gd")
 enum { ARROW, LOOK, POINT, WALK, GRAB, RUB }
@@ -23,8 +26,9 @@ const FILES := {ARROW: "cursor_arrow.png", LOOK: "cursor_look.png", POINT: "curs
 ## Where the click lands, as a share of the picture (the fingertip, the arrow's tip).
 const HOT := {ARROW: Vector2(0.06, 0.04), LOOK: Vector2(0.5, 0.5), POINT: Vector2(0.12, 0.03), WALK: Vector2(0.5, 0.3), GRAB: Vector2(0.5, 0.45), RUB: Vector2(0.5, 0.5)}
 
-static var _wanted := ARROW
-static var _shown := -1
+## The shape asked for this frame, by game (its instance's root; 0 a lone game's).
+static var _wanted_by := {}
+var _shown := -1
 static var _scale := 0
 static var _cache: Dictionary = {}   # kind -> Image at the current scale
 ## A menu over the whole view (the pause menu): the arrow whatever the room under it
@@ -33,10 +37,21 @@ static var _cache: Dictionary = {}   # kind -> Image at the current scale
 static var menu_over := false
 
 
-## The strongest shape asked for this frame wins (RUB > GRAB > WALK > POINT > LOOK > ARROW).
-static func want(kind: int) -> void:
-	if kind > _wanted:
-		_wanted = kind
+## The strongest shape asked for this frame wins (RUB > GRAB > WALK > POINT > LOOK > ARROW),
+## in the game of `who` (the node asking).
+static func want(kind: int, who: Node) -> void:
+	var k := _key(who)
+	if kind > int(_wanted_by.get(k, ARROW)):
+		_wanted_by[k] = kind
+
+
+static func _key(who: Node) -> int:
+	return INSTANCE.root_of(who).get_instance_id() if INSTANCE.count > 1 and who != null else 0
+
+
+## The second game's hand, drawn on its half (null in the host's or a lone game).
+var _drawn: TextureRect
+var _drawn_tex := {}   # kind -> ImageTexture at the current scale
 
 
 func _ready() -> void:
@@ -47,10 +62,45 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
-	var kind := ARROW if menu_over else _wanted
-	_wanted = ARROW
-	if kind != _shown:
+	var k := _key(self)
+	var kind := ARROW if menu_over else int(_wanted_by.get(k, ARROW))
+	_wanted_by.erase(k)
+	if INSTANCE.root_of(self).is_in_group(INSTANCE.GROUP):
+		_draw_hand(kind)
+	elif kind != _shown:
 		_apply(kind)
+
+
+## The second game's hand at its pointer, while its game shows a pointer at all.
+func _draw_hand(kind: int) -> void:
+	if _drawn == null:
+		var layer := CanvasLayer.new()
+		layer.layer = 128
+		add_child(layer)
+		_drawn = TextureRect.new()
+		_drawn.visible = false
+		_drawn.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_drawn.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		layer.add_child(_drawn)
+	var inp = INSTANCE.input(self)
+	var mode: int = inp.get_mouse_mode()
+	var was := _drawn.visible
+	_drawn.visible = mode == Input.MOUSE_MODE_VISIBLE or mode == Input.MOUSE_MODE_CONFINED
+	if not _drawn.visible:
+		return
+	if not was:
+		# Let go of the look (a room, the PC): the hand from the middle, as the mouse is.
+		inp.warp_mouse((get_viewport().get_visible_rect().size * 0.5).floor())
+	if kind != _shown or not _drawn_tex.has(kind):
+		_shown = kind
+		if not _drawn_tex.has(kind):
+			var img := _image(kind)
+			_drawn_tex[kind] = ImageTexture.create_from_image(img) if img != null else null
+		_drawn.texture = _drawn_tex[kind]
+		if _drawn.texture != null:
+			_drawn.size = _drawn.texture.get_size()
+	var hot: Vector2 = HOT.get(kind, Vector2.ZERO)
+	_drawn.position = (inp.pointer - (hot * _drawn.size).floor()).floor()
 
 
 func _rescale() -> void:
@@ -61,6 +111,7 @@ func _rescale() -> void:
 		return
 	_scale = k
 	_cache.clear()
+	_drawn_tex.clear()
 	_shown = -1
 
 

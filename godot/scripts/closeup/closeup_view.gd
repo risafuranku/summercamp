@@ -159,7 +159,7 @@ func _process(delta: float) -> void:
 	_mouse = m if Rect2(Vector2.ZERO, Vector2(W, H)).has_point(m) else Vector2(-1, -1)
 	_hover = _hotspot_at(_mouse)
 	if _hover != "":
-		HandCursor.want(HandCursor.POINT)
+		HandCursor.want(HandCursor.POINT, self)
 	if strip_shown >= 0 and strip_shown < strip_text.length():
 		_type_acc += delta * 48.0
 		while _type_acc >= 1.0 and strip_shown < strip_text.length():

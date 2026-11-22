@@ -750,7 +750,7 @@ func _update_far_shore(delta: float) -> void:
 	if _fish_state == "bite":
 		_hover = "water"
 	if _hover != "":
-		HandCursor.want(HandCursor.POINT)
+		HandCursor.want(HandCursor.POINT, self)
 		_glint.show_on(_hot[_hover]["meshes"] if _hot.has(_hover) else [])
 	else:
 		_glint.clear()

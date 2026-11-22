@@ -109,7 +109,7 @@ func _tick(delta: float) -> void:
 			done = true
 			close_view()
 	if _phase == "sign" and _hover == "sign":
-		HandCursor.want(HandCursor.GRAB if _drawing else HandCursor.POINT)
+		HandCursor.want(HandCursor.GRAB if _drawing else HandCursor.POINT, self)
 
 
 func _paint(c: Control) -> void:

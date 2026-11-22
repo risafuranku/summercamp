@@ -265,7 +265,7 @@ func update_hover(mouse: Vector2) -> int:
 		n = n.get_parent()
 	_hover = id
 	if id >= 0:
-		HandCursor.want(HandCursor.POINT)
+		HandCursor.want(HandCursor.POINT, host)
 		glint.show_on(_rack_meshes[id])
 	else:
 		glint.clear()

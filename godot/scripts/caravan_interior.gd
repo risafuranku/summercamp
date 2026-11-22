@@ -262,9 +262,9 @@ func _process(delta: float) -> void:
 			lit = wp.curtain.meshes
 	_glint.show_on(lit)
 	if not lit.is_empty():
-		HandCursor.want(HandCursor.WALK if way_out else HandCursor.POINT)
+		HandCursor.want(HandCursor.WALK if way_out else HandCursor.POINT, self)
 	elif INTERIOR_LOOK.in_exit_zone(get_viewport()):
-		HandCursor.want(HandCursor.WALK)
+		HandCursor.want(HandCursor.WALK, self)
 	if _fairy_mat != null:
 		_fairy_mat.emission_energy_multiplier = (0.0 if _time_state == TIME_DAY or not _grid_power_available else 1.4) * (0.8 + 0.2 * sin(Time.get_ticks_msec() * 0.003))
 

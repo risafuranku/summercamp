@@ -47,7 +47,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	_t += delta
 	if INSTANCE.input(self).get_mouse_mode() != Input.MOUSE_MODE_CAPTURED and Rect2(global_position, size * scale).has_point(get_viewport().get_mouse_position()):
-		HandCursor.want(HandCursor.POINT)
+		HandCursor.want(HandCursor.POINT, self)
 	var now := clampi(int(floorf((_t - 0.25) / EACH_SEC)), -1, items.size())
 	if now != _shown:
 		if now >= 0 and now < items.size() and play.is_valid():

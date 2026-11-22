@@ -622,27 +622,27 @@ func _process(delta: float) -> void:
 			and _staff_room.update_hover(get_viewport().get_mouse_position()) != "":
 		_hover_things(null)
 	elif INTERIOR_LOOK.in_exit_zone(get_viewport()):
-		HandCursor.want(HandCursor.WALK)
+		HandCursor.want(HandCursor.WALK, self)
 		_hover_things(null)
 	else:
 		var hit := _raycast_world(get_viewport().get_mouse_position())
 		var collider = hit.get("collider", null) as Node
 		var door_hover := _doors.hover(collider, _door_room())
 		if door_hover != "":
-			HandCursor.want(HandCursor.WALK)
+			HandCursor.want(HandCursor.WALK, self)
 			_hover_things(null)
 		elif _hover_click_type() != "":
 			# Only worth a look (a line under the room): the eye; something that does
 			# something: the finger and its glint.
 			if _hover_click_type() == "bistro_look":
-				HandCursor.want(HandCursor.LOOK)
+				HandCursor.want(HandCursor.LOOK, self)
 				_hover_things(null)
 			elif _hover_click_type() == "service_front_door":
 				# The way out: the walking hand, nothing glinting.
-				HandCursor.want(HandCursor.WALK)
+				HandCursor.want(HandCursor.WALK, self)
 				_hover_things(null)
 			else:
-				HandCursor.want(HandCursor.POINT)
+				HandCursor.want(HandCursor.POINT, self)
 				_hover_things(collider)
 		else:
 			_hover_things(null)
@@ -3261,9 +3261,9 @@ func _station_frame(open: String) -> void:
 	else:
 		st.call("point", vp_mouse)
 	if str(st.call("holding")) != "":
-		HandCursor.want(HandCursor.GRAB)
+		HandCursor.want(HandCursor.GRAB, self)
 	elif str(st.call("hovered")) != "" or rail != "" or ui.begins_with("#tab") or ui.begins_with("#btn") or ui in ["#back", "#serve", "#books"]:
-		HandCursor.want(HandCursor.POINT)
+		HandCursor.want(HandCursor.POINT, self)
 
 
 ## A point of the screen in the room's picture (its viewport's pixels).

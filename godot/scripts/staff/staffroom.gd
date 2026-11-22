@@ -181,7 +181,7 @@ func update_hover(mouse: Vector2) -> String:
 	if id == "":
 		glint.clear()
 		return ""
-	HandCursor.want(HandCursor.WALK if id.begins_with("to_") else HandCursor.POINT)
+	HandCursor.want(HandCursor.WALK if id.begins_with("to_") else HandCursor.POINT, host)
 	glint.show_on(_meshes_of(id))
 	return id
 

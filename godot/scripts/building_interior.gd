@@ -797,7 +797,7 @@ func _update_office_hover() -> void:
 		return
 	var vp := get_viewport()
 	if INTERIOR_LOOK.in_exit_zone(vp):
-		HandCursor.want(HandCursor.WALK)
+		HandCursor.want(HandCursor.WALK, self)
 		return
 	var m := vp.get_mouse_position()
 	var meshes: Array = []
@@ -816,11 +816,11 @@ func _update_office_hover() -> void:
 				if n is MeshInstance3D:
 					meshes.append(n)
 		elif collider != null and _node_has_click_type(collider, "crt_power"):
-			HandCursor.want(HandCursor.POINT)
+			HandCursor.want(HandCursor.POINT, self)
 		elif _crt_screen != null and (_map_mouse_to_screen(m, _crt_screen, false) != Vector2.INF or (_dual and _map_mouse_to_screen(m, _crt2_screen, false) != Vector2.INF)):
-			HandCursor.want(HandCursor.POINT)
+			HandCursor.want(HandCursor.POINT, self)
 	if not meshes.is_empty():
-		HandCursor.want(HandCursor.POINT)
+		HandCursor.want(HandCursor.POINT, self)
 	_extras.glint.show_on(meshes)
 
 
@@ -4143,7 +4143,7 @@ var _radio_door_k := 0.0
 
 func _radio_behind_door(delta: float) -> float:
 	var shut: bool = visible and _extras != null and _extras.in_back_room() and not _extras.back_door_open()
-	if _radio_player != null:
+	if _radio_player != null and not INSTANCE.silenced(_radio_player):
 		var want := WORLD_SOUNDS.wall_bus(RADIO_DREAD_SCRIPT.MUSIC_BUS) if shut else RADIO_DREAD_SCRIPT.MUSIC_BUS
 		if str(_radio_player.bus) != want:
 			_radio_player.bus = want

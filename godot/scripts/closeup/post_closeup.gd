@@ -125,7 +125,7 @@ func _tick(delta: float) -> void:
 			play(SFX_PARCEL, -2.0)
 			say(tr("Postman"), tr("Heavy one. Mind your back."))
 	if _phase == "sign" and _hover == "sign":
-		HandCursor.want(HandCursor.GRAB if _drawing else HandCursor.POINT)
+		HandCursor.want(HandCursor.GRAB if _drawing else HandCursor.POINT, self)
 
 
 func _paint(c: Control) -> void:

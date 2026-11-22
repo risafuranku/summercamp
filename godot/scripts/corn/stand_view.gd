@@ -307,9 +307,9 @@ func _process(delta: float) -> void:
 	else:
 		st.call("point", vp_mouse)
 	if str(st.call("holding")) != "":
-		HandCursor.want(HandCursor.GRAB)
+		HandCursor.want(HandCursor.GRAB, self)
 	elif str(st.call("hovered")) != "" or rail != "" or ui.begins_with("#tab") or ui.begins_with("#btn") or ui in ["#back", "#serve", "#books"]:
-		HandCursor.want(HandCursor.POINT)
+		HandCursor.want(HandCursor.POINT, self)
 
 
 ## A point of the screen in the view's own pixels (the camp is drawn small).

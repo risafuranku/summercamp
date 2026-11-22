@@ -244,7 +244,7 @@ func _process(delta: float) -> void:
 	var m := get_viewport().get_mouse_position()
 	if _to_os(m) == Vector2.INF:
 		INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
-		HandCursor.want(HandCursor.WALK if INTERIOR_LOOK.in_exit_zone(get_viewport()) else HandCursor.ARROW)
+		HandCursor.want(HandCursor.WALK if INTERIOR_LOOK.in_exit_zone(get_viewport()) else HandCursor.ARROW, self)
 	else:
 		INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_HIDDEN)
 

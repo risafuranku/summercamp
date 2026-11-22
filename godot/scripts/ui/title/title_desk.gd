@@ -194,7 +194,7 @@ func _on_view_input(event: InputEvent) -> void:
 		if h != _hover:
 			_hover = h
 			redraw()
-		HandCursor.want(HandCursor.POINT if h != "" else HandCursor.ARROW)
+		HandCursor.want(HandCursor.POINT if h != "" else HandCursor.ARROW, self)
 	elif event is InputEventMouseButton and (event as InputEventMouseButton).pressed:
 		var mb := event as InputEventMouseButton
 		if mb.button_index == MOUSE_BUTTON_RIGHT:

@@ -735,9 +735,9 @@ func _cursor() -> void:
 	if _mouse.x < 0.0:
 		return
 	if _drag != "" or _holding_stamp != "":
-		HandCursor.want(HandCursor.GRAB)
+		HandCursor.want(HandCursor.GRAB, self)
 	elif _thing_at(_mouse) != "":
-		HandCursor.want(HandCursor.POINT)
+		HandCursor.want(HandCursor.POINT, self)
 
 
 # ── input ────────────────────────────────────────────────────────────────────

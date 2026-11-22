@@ -215,7 +215,7 @@ func _moving() -> bool:
 
 func _tick(delta: float) -> void:
 	if not _drag.is_empty():
-		HandCursor.want(HandCursor.GRAB)
+		HandCursor.want(HandCursor.GRAB, self)
 		if INSTANCE.input(self).is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and _mouse.x >= 0.0:
 			_drag["at"] = (_mouse - _grab).floor()
 		else:
