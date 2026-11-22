@@ -15,6 +15,9 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROJECT = os.path.dirname(HERE)
+# The windows on a desktop of their own: never the user's mouse (tools/hidden_desktop.py).
+sys.path.insert(0, os.path.join(PROJECT, "..", "tools"))
+import hidden_desktop as HIDDEN  # noqa: E402
 GODOT = os.environ.get("GODOT", "C:/Users/arnold/Downloads/Godot_v4.7.1-stable_win64.exe/Godot_v4.7.1-stable_win64_console.exe")
 ARGS = [a for a in sys.argv[1:] if not a.startswith("--")]
 CASE = [a for a in sys.argv[1:] if a.startswith("--case=")]
@@ -23,7 +26,7 @@ OUT = ARGS[0] if ARGS else os.path.join(os.environ.get("TEMP", "/tmp"), "coop_ba
 
 def run(role):
     log = open(os.path.join(OUT, "%s.log" % role), "w", encoding="utf-8")
-    return subprocess.Popen([GODOT, "--audio-driver", "Dummy", "--path", PROJECT, "--resolution", "1280x720", "res://tools/coop_babka.tscn", "--", "--role=%s" % role, "--out=%s" % OUT] + CASE,
+    return HIDDEN.popen([GODOT, "--audio-driver", "Dummy", "--path", PROJECT, "--resolution", "1280x720", "res://tools/coop_babka.tscn", "--", "--role=%s" % role, "--out=%s" % OUT] + CASE,
                             stdout=log, stderr=subprocess.STDOUT)
 
 

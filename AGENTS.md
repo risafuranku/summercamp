@@ -283,6 +283,13 @@ a run you watch). Screenshots need a window: headless draws nothing. Frame times
 corner came out longer (`dvere_check` 12. 11.: medians about twice those of a run in front):
 measure smoothness with `--keep-focus`.
 
+**Every windowed run goes on a desktop of its own** (the user 22. 11.: "it drives me mad how you
+keep jerking my mouse while I am working"): a test window that captures the mouse for the look clips
+and centres the real cursor even unfocused and minimised. `python tools/hidden_desktop.py --log LOG --
+<godot> <args>` runs one there and waits (a second Windows desktop: its own pointer and keys, never
+shown, it still renders, the shots come out the same); the two-machine runners (`godot/tools/*_coop.py`,
+`coop_check.py`, `coop4_check.py`) start their copies there (`HIDDEN.popen`). Headless runs need none.
+
 Scenarios: `boot menu views hud quest pause gameover crt crtmap weather upkeep blood night backroom shed boat
 saveload guests pipes senses uncanny look gate prep prepcabin mess blockclean day night2 night3 breaker probe`.
 A night's shots need `["torch", true]` (the torch's own switch, F): since 14. 11. nothing turns it on by itself, and without it the enemies' shots are black.

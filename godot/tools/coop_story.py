@@ -18,6 +18,9 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROJECT = os.path.dirname(HERE)
+# The windows on a desktop of their own: never the user's mouse (tools/hidden_desktop.py).
+sys.path.insert(0, os.path.join(PROJECT, "..", "tools"))
+import hidden_desktop as HIDDEN  # noqa: E402
 GODOT = os.environ.get("GODOT", "C:/Users/arnold/Downloads/Godot_v4.7.1-stable_win64.exe/Godot_v4.7.1-stable_win64_console.exe")
 ARGS = [a for a in sys.argv[1:] if not a.startswith("--")]
 DEMO = "--demo" in sys.argv
@@ -30,7 +33,7 @@ def run(role):
     env["APPDATA"] = os.path.join(OUT, "appdata_" + role)
     os.makedirs(env["APPDATA"], exist_ok=True)
     extra = ["--demo"] if DEMO else []
-    return subprocess.Popen([GODOT, "--audio-driver", "Dummy", "--path", PROJECT, "--resolution", "1280x720", "res://tools/coop_story.tscn", "--",
+    return HIDDEN.popen([GODOT, "--audio-driver", "Dummy", "--path", PROJECT, "--resolution", "1280x720", "res://tools/coop_story.tscn", "--",
                              "--role=%s" % role, "--out=%s" % OUT] + extra, stdout=log, stderr=subprocess.STDOUT, env=env)
 
 
