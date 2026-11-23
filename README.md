@@ -18,7 +18,7 @@ players' saves and settings, so it must not change.)
 godot --path godot
 ```
 
-Verification (see [AGENTS.md](AGENTS.md) §3 for all harnesses):
+Verification (see [AGENTS.md](docs/testing.md) for all harnesses):
 
 ```bash
 godot --headless --path godot --quit-after 400          # smoke: must print no SCRIPT ERROR
@@ -29,19 +29,17 @@ godot --headless --path godot res://tools/hud_layout_check.tscn
 
 | Document | Read it for |
 | --- | --- |
-| [AGENTS.md](AGENTS.md) | **Start here.** Ground rules, layout, how to verify, art pipeline, gotchas |
-| [PRODUCT.md](PRODUCT.md) | What the game is; feature-by-feature status |
-| [DESIGN.md](DESIGN.md) | Vision and rules: day tycoon, night horror, enemies, upkeep, tone |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Layers, modules, state ownership, signal contract, data flows |
-| [TODO.md](TODO.md) | Current priorities |
-| [AUDIT.md](AUDIT.md) | History: the 2026-08-05 cleanup and the 2026-10-07 remaster pass |
+| [AGENTS.md](AGENTS.md) | **Start here.** The focus, the rules, the layout, how to run and check, the docs' map |
+| [TODO.md](TODO.md) | The open work, the focus („Teď“) first |
+| [docs/](docs/) | Everything in detail, one file an area (listed in AGENTS.md §4) |
+| [docs/historie/](docs/historie/) | The old TODO with every done item, the October audit, the February changelog |
 
 ## Repository layout
 
 ```
 godot/          the Godot project
-tools/          Python/Node tooling: font baker, art generation, SFX synthesis, MCP
-mementowiki/    superseded, kept only as historical changelog
+tools/          checks.py (every headless check), hidden_desktop.py, art and sound generation, geo, i18n, web
+docs/           the documentation (AGENTS.md is the entry)
 ost/            music and radio source files (not imported into the project)
 ```
 

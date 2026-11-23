@@ -2,7 +2,7 @@
 
 *Status snapshot: 2026-10-08. Engine: Godot 4.7.1.*
 
-Technical wiring. For rules of engagement see [AGENTS.md](AGENTS.md); for intent see
+Technical wiring. For rules of engagement see [AGENTS.md](../AGENTS.md); for intent see
 [DESIGN.md](DESIGN.md).
 
 ---
@@ -263,4 +263,4 @@ licence, every web page, Files, the jobs' pay, the games' tables, save and load)
 | `GameActions.end_day()` | Legacy, bypasses `day_tick` |
 | Redneck Rampage texture rips | Licensing blocker for any public build (AGENTS.md §7) |
 
-See [AUDIT.md](AUDIT.md) for history and [TODO.md](TODO.md) for priorities.
+See [AUDIT.md](historie/audit-2026-10.md) for history and [TODO.md](../TODO.md) for priorities.

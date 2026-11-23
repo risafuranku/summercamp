@@ -7,8 +7,8 @@
 > 2026-08-05 cleanup pass.
 >
 > Current documentation lives at the repository root:
-> [AGENTS.md](../AGENTS.md) · [PRODUCT.md](../PRODUCT.md) · [DESIGN.md](../DESIGN.md) ·
-> [ARCHITECTURE.md](../ARCHITECTURE.md) · [AUDIT.md](../AUDIT.md) · [TODO.md](../TODO.md)
+> [AGENTS.md](../../AGENTS.md) · [PRODUCT.md](../PRODUCT.md) · [DESIGN.md](../DESIGN.md) ·
+> [ARCHITECTURE.md](../ARCHITECTURE.md) · [AUDIT.md](audit-2026-10.md) · [TODO.md](../../TODO.md)
 
 *Last updated as onboarding doc: 2026-02-23 (16:34 CET)*
 
