@@ -1281,7 +1281,8 @@ func _update_head_motion(delta: float) -> void:
 func _wind_buffet(delta: float) -> Vector2:
 	var want := 0.0
 	var scene := INSTANCE.main_of(self)
-	if scene != null and not bool(scene.get("_menu_mode")) and not (scene.has_method("_is_any_interior_open") and bool(scene.call("_is_any_interior_open"))):
+	# (`== true`: a harness's scene has no `_menu_mode`, and bool(null) is an error.)
+	if scene != null and scene.get("_menu_mode") != true and not (scene.has_method("_is_any_interior_open") and scene.call("_is_any_interior_open") == true):
 		var wv = scene.get("_weather_visuals")
 		if wv != null and wv.has_method("buffet"):
 			want = float(wv.call("buffet"))
