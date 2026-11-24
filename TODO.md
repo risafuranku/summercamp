@@ -38,11 +38,25 @@ the pad and the split screen must keep working (do not break them), but get no n
 - [ ] Endless sandbox: randomised offers, events and enemy mixes; the new camp's setup (map
       size, other parameters); goals (last longest, earn most, best camp, best stats) and a
       score and stats screen (iteration 5 of 8. 10.).
-- [ ] D2 half-done things, in the order a camp meets them: your hands (`ui/hands.gd`) and a
-      glove a tool, work by gesture, doors without a seam, the god cursor, people from eight
-      sides; the cigarette and the bottle, the walkie-talkie and the megaphone; the
-      businesses' polish. Out of the camp (the barrier, the road, the 380, Přistoupim): the
-      land round the camp is Matěj's, see `matej_todo.md`.
+- [ ] D2 half-done things (looked through 24. 11.; done then: the hands' glove on every tool,
+      work by gesture, doors without a seam, the god cursor in fog, dusk and for two: PRODUCT).
+      Left:
+  - [ ] People from eight sides: four sheets failed in October (the drunk's run 4 and his sit,
+        the girl's run 3, Jana's run 3; the walk stands in for them). Not redone 24. 11.:
+        `figures.py stage/pack` re-cuts every sheet of a figure from `tools/artgen/out/<id>/raw.png`
+        and the out folder has been cleared since, the turnaround refs too, so adding one sheet
+        means Grokking the figure's whole set again (and its look may drift). Only if play
+        shows the missing runs.
+  - [ ] The world's own sounds: the ferns' rustle (`body_world._rustle` plays nothing), the
+        wade in the shallows (the oar's stroke now), small birds flying up (silent; the crow
+        has its own); the corn stand's three silent presses (a cob out of the pot, the butter
+        brush on the board, a husk leaf grabbed). Rows in `tools/audiogen/prompts.tsv`
+        (cob_lift, brush_dab, husk_grab, fern_rustle, wade_step, birds_up): the .env's
+        ElevenLabs key answers 401; needs a working key, then normalize and wire them.
+  - [ ] The megaphone's horns on poles round the camp (PRODUCT "Not yet"): a pole with a horn
+        (Grok sample first), the voice from the nearest ones.
+  - Out of the camp (the barrier, the road, the 380, Přistoupim): the land round the camp is
+    Matěj's, see `matej_todo.md`.
 
 ### Sandbox: the world and the feel
 
@@ -53,7 +67,7 @@ the pad and the split screen must keep working (do not break them), but get no n
       letters ("IIII", wants a picture); a second map style (torn, partly wrong).
 - [ ] The tent's canvas inside: a Grok source with the weave and a seam, no folds.
 - [ ] Movement and camera left from 21. 10.: 3b room under things outdoors, 4b the crowns'
-      calm motion, 7b the room seen through the open door.
+      calm motion (7b, the room through the open door: there since the one world, 24. 11.).
 - [ ] People: the failed figure sheets again (warden_c run3, host2 run4 and pose_sit, host3
       run3); guests at attractions facing the attraction; views 6-8 drawn apart if mirroring
       bites.
@@ -72,7 +86,9 @@ the pad and the split screen must keep working (do not break them), but get no n
 ### Sandbox: no hitch, no bug, clean code
 
 - [ ] The first hour's hitches: a thing seen first outside still compiles pipelines; the
-      Jednota's one 289 ms frame 2.5 s after the walk in. Measure on a quiet PC.
+      Jednota's one 289 ms frame 2.5 s after the walk in. Measure on a quiet PC. Through the
+      doors (`tools/dvere_check.tscn` 24. 11., a busy PC: standing median 21 ms): cabin, pub and
+      toilets 4-8 frames of 50-97 ms on each walk in and out, the process time 50-79 ms.
 - [ ] Their own sounds for the three silent presses (the counter's board, a cob in the pot,
       the husking table's cob).
 - [ ] Czech from end to end: a day and a night played in Czech (`--lang-audit`), the pictures
