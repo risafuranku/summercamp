@@ -69,6 +69,7 @@ Každé repo má stejnou kostru, aby se v něm kterýkoli agent vyznal za minutu
 - „Hotovo“ jen po ověření ve stejném stavu, jaký byl popsaný (zařízení, režim, co-op, den/noc), stejným testem nebo snímkem.
 - Testy běží bez zvuku (prohlížeč muted, Godot `--audio-driver Dummy`), nikdy nesahají na skutečné savy ani produkční účty a nikdy na Richardovu myš: bez obrázku headless, okenní běhy na skryté ploše Windows (vzor `cursedcampsimulatormanager98/tools/hidden_desktop.py`).
 - Testovací servery: zapínej jen server toho, na čem děláš (`C:\grimroot\_servers\<hra>.cmd`, viditelné okno). Běžící servery ani cizí procesy nevypínej, ukončuj jen vlastní PID.
+- **Víc hráčů nebo lidí najednou** (co-op, multiplayer, sdílený dokument): všechno, co může vidět nebo slyšet někdo další (pohyb, dveře, šuplík, světlo, obrazovka, zvuk), je sdílený stav se synchronizací, nikdy jen lokální animace jednoho klienta. Nová interakce není hotová, dokud ji test pro dva neukáže i na druhém stroji (Richard 24. 11. po šuplíku v summercampu: „takovýhle client side chyby se už nesmí nikdy opakovat! v žádných projektech!“).
 <!-- END:grimroot-common -->
 
 ## Teď

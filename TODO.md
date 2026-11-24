@@ -17,21 +17,23 @@ the pad and the split screen must keep working (do not break them), but get no n
 
 ### Playtest 24. 11. večer (Richard's words, then what it means; in the order they are done)
 
-- [ ] P4 „ESC mě nevrátí z pause menu zpět do hry“ (Esc in the pause menu must resume).
-- [ ] P13 „nevidím syncnutý šuplík při checkinu. když ho kdokoliv vysune, musí to vidět všichni.
+- [x] P4 „ESC mě nevrátí z pause menu zpět do hry“ (Esc in the pause menu must resume). d76aab07
+- [x] P13 „nevidím syncnutý šuplík při checkinu. když ho kdokoliv vysune, musí to vidět všichni.
       takovýhle client side chyby se už nesmí nikdy opakovat! v žádných projektech!“ (the check-in
       drawer for everyone; a rule for every project: state another player can see is synced).
-- [ ] P11 „"čeká na recepci" notifkace chodí moc brzo, když jsou lidé u závory. posuň to až když
-      budou fakt na recepci“.
-- [ ] P1 „když dám myš ke spodní hraně, objeví se "otočit a odejít". to chceme pryč“ (the bottom
-      edge's exit in rooms: no text, no zone; Esc and Space leave).
-- [ ] P6 „animace přechodu z pokojíku na recepci trvá moc dlouho“.
-- [ ] P15 „podržením space odejdu z obsluhování, ať mezerníkem můžu odejít stejně jako z interiérů,
-      ale ne na stisknutí protože tim vydávám objednávku“ (hold Space leaves a station).
-- [ ] P9 „podržení W u kukuřičného stánku mě zvedne, ale něco mi pak tahá pohled dolu. nech pohled
-      volný!“.
-- [ ] P14 „při vstupu do podniku stánek s kukuřicí neni smooth plynulý přechod kamery. při přechodu
-      mezi stanicemi mi zachovej můj úhel“.
+      0ff3b0e6 (desk_coop.py PASS); the rule in context/agents-common.md and CLAUDE.md, synced.
+- [x] P11 „"čeká na recepci" notifkace chodí moc brzo, když jsou lidé u závory. posuň to až když
+      budou fakt na recepci“. 0ff3b0e6
+- [x] P1 „když dám myš ke spodní hraně, objeví se "otočit a odejít". to chceme pryč“ (the band and
+      its words gone everywhere, the PC's "Stand up" too; the edge keeps the flat hand and its
+      click, Esc and Space leave). 0ff3b0e6, 1a049e47
+- [x] P6 „animace přechodu z pokojíku na recepci trvá moc dlouho“ (3.4 s → 2.4 s). 0ff3b0e6
+- [x] P15 „podržením space odejdu z obsluhování, ať mezerníkem můžu odejít stejně jako z interiérů,
+      ale ne na stisknutí protože tim vydávám objednávku“ (hold Space leaves a station). 1a049e47
+- [x] P9 „podržení W u kukuřičného stánku mě zvedne, ale něco mi pak tahá pohled dolu. nech pohled
+      volný!“. 1a049e47
+- [x] P14 „při vstupu do podniku stánek s kukuřicí neni smooth plynulý přechod kamery. při přechodu
+      mezi stanicemi mi zachovej můj úhel“. 1a049e47
 - [ ] P12 „coop hráč při check inu má divně posunutý sprite do výšky“.
 - [ ] P7 „COOP hráče vidím jak projde skrz pult když jde k počítači, měl bych vidět jak to obejde.
       vždy půjde tak aby mi šel za zády, mimo záběr“.
