@@ -7,7 +7,9 @@ extends Control
 ## (ready green, to clean red, not made up amber, taken blue) with their numbers, the
 ## rest grey with a short name, a broken one crossed. A click picks a building (`picked`),
 ## the one asked for (`focus`) blinks. What it shows is read in `rebuild()` (GuestRack's
-## refresh), not every frame.
+## refresh), not every frame. The guests are on it live (24. 11., docs/pc.md "Kemp naživo"): a
+## dot a party where it is now, read twice a second while the plan is on the screen, green
+## content, amber so-so, red unhappy; at a counter they crowd into a queue.
 
 const INSTANCE = preload("res://scripts/instance/instance.gd")
 const T = preload("res://scripts/os98/os_theme.gd")
@@ -41,6 +43,13 @@ var _boxes: Array = []   # [Rect2, origin]
 ## The part of the camp drawn: what is built and a margin, not the empty forest.
 var _view := Rect2i()
 var _t := 0.0
+## The guests now: [[coord, mood]] (read every GUESTS_SEC while shown).
+var _guests: Array = []
+var _guests_t := 0.0
+const GUESTS_SEC := 0.5
+const GUEST_OK := Color8(40, 150, 60)
+const GUEST_MEH := Color8(215, 150, 20)
+const GUEST_BAD := Color8(205, 40, 30)
 
 
 func _ready() -> void:
@@ -54,8 +63,34 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
-	if is_visible_in_tree() and focus.x >= 0:
+	if not is_visible_in_tree():
+		return
+	_guests_t -= delta
+	if _guests_t <= 0.0:
+		_guests_t = GUESTS_SEC
+		var now := _read_guests()
+		if now != _guests:
+			_guests = now
+			queue_redraw()
+	if focus.x >= 0:
 		queue_redraw()
+
+
+## Where each party is (its tile, or the door of what it is at) and how it feels.
+func _read_guests() -> Array:
+	var out: Array = []
+	var core = INSTANCE.core(self) if get_tree() != null else null
+	var state = core.get_state() if core != null else null
+	if state == null:
+		return out
+	for g in state.guests:
+		if not (g is Dictionary) or str((g as Dictionary).get("status", "")) in ["expected", "departed", "gone"]:
+			continue
+		var key := str((g as Dictionary).get("tile", ""))
+		if not key.contains(":"):
+			continue
+		out.append([Vector2i(int(key.get_slice(":", 0)), int(key.get_slice(":", 1))), float((g as Dictionary).get("mood", 60.0))])
+	return out
 
 
 func _gui_input(e: InputEvent) -> void:
@@ -196,7 +231,26 @@ func _draw() -> void:
 	for b in buildings:
 		if _view.intersects(Rect2i(b["origin"], b["footprint"])):
 			_draw_building(b, o, cell)
+	_draw_guests(o, cell)
 	draw_rect(area, INK, false, 1.0)
+
+
+## A dot a party, the ones on the same cell side by side (a queue at a door shows as one).
+func _draw_guests(o: Vector2, cell: float) -> void:
+	var on_cell := {}
+	var d := maxf(3.0, floorf(cell * 0.28))
+	for g in _guests:
+		var c: Vector2i = g[0]
+		if not _view.has_point(c):
+			continue
+		var n: int = on_cell.get(c, 0)
+		on_cell[c] = n + 1
+		var per_row := maxi(1, int(cell / (d + 1.0)))
+		var at := o + Vector2(c) * cell + Vector2(1 + (n % per_row) * (d + 1.0), cell - d - 1 - floorf(float(n / per_row)) * (d + 1.0))
+		var mood: float = g[1]
+		var col := GUEST_OK if mood >= 55.0 else (GUEST_MEH if mood >= 35.0 else GUEST_BAD)
+		draw_rect(Rect2(at - Vector2.ONE, Vector2(d + 2, d + 2)), INK)
+		draw_rect(Rect2(at, Vector2(d, d)), col)
 
 
 func _draw_building(b: Dictionary, o: Vector2, cell: float) -> void:

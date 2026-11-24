@@ -846,12 +846,12 @@ func install_status(prog: String) -> String:
 		return ""
 	var info: Dictionary = PROGRAMS[prog]
 	if p < 0.25:
-		return "Connecting to www.%s..." % str(info["site"]).split("/")[0]
+		return tr("Connecting to www.%s...") % str(info["site"]).split("/")[0]
 	if p < 0.7:
-		return "Downloading %s  (%d of %d KB)" % [info["file"], int(float(info["kb"]) * (p - 0.25) / 0.45), int(info["kb"])]
+		return tr("Downloading %s  (%d of %d KB)") % [info["file"], int(float(info["kb"]) * (p - 0.25) / 0.45), int(info["kb"])]
 	if p < 0.9:
-		return "Installing %s..." % info["title"]
-	return "Installation complete."
+		return tr("Installing %s...") % info["title"]
+	return tr("Installation complete.")
 
 
 func _tick_installs(delta: float) -> void:
@@ -1383,7 +1383,8 @@ func _make_cover(id: String, kind: String) -> Control:
 	c.add_child(bar)
 	if kind == "install":
 		var info: Dictionary = PROGRAMS[id]
-		btn.text = "Download and install  (%d KB)" % int(info["kb"])
+		# (Looked up before it is filled in: filled, it was half Czech, "Stáhnout and install".)
+		btn.text = tr("Download and install  (%d KB)") % int(info["kb"])
 		btn.pressed.connect(func():
 			play("click", -8.0)
 			begin_install(id))
@@ -1414,7 +1415,7 @@ func _update_cover(c: Control) -> void:
 				bar.value = p
 		if btn != null:
 			btn.disabled = p >= 0.0
-			btn.text = install_status(id) if p >= 0.0 else "Download and install  (%d KB)" % int(PROGRAMS[id]["kb"])
+			btn.text = install_status(id) if p >= 0.0 else tr("Download and install  (%d KB)") % int(PROGRAMS[id]["kb"])
 	c.queue_redraw()
 
 

@@ -135,6 +135,41 @@ func _process(delta: float) -> void:
 	if _tick <= 0.0 and is_visible_in_tree():
 		_tick = 2.0
 		refresh()
+	_tick_camera(delta)
+
+
+# ── the camp's camera on the TODAY page (24. 11., docs/pc.md "Kemp naživo") ──────
+
+const WEBCAM = preload("res://scripts/os98/camp_webcam.gd")
+## A new picture this often while the page is up (a phone-line camera of 1998), its size.
+const CAM_SEC := 8.0
+const CAM_SIZE := Vector2(192, 144)
+var _cam_t := 0.0
+var _cam_wait := -1
+var _cam_tex: ImageTexture
+
+
+func _tick_camera(delta: float) -> void:
+	if _page != "today" or not is_visible_in_tree():
+		return
+	var cam = WEBCAM.of(_shell.main_node())
+	if cam == null:
+		return
+	if _cam_wait >= 0:
+		_cam_wait -= 1
+		if _cam_wait < 0 and cam.get("image") != null:
+			var img: Image = (cam.get("image") as Image).duplicate()
+			if _cam_tex == null:
+				_cam_tex = ImageTexture.create_from_image(img)
+			else:
+				_cam_tex.update(img)
+			_canvas.queue_redraw()
+		return
+	_cam_t -= delta
+	if _cam_t <= 0.0:
+		_cam_t = CAM_SEC
+		cam.request()
+		_cam_wait = 4
 
 
 func refresh() -> void:
@@ -660,7 +695,18 @@ func _page_today(y: float) -> float:
 			{"t": OVERVIEW.names_short(who) if not who.is_empty() else tr("You"), "c": T.TEXT if not who.is_empty() else AMBER},
 			{"t": str(d["state"]), "c": RED if int(d["level"]) == 2 else T.TEXT},
 			{"btn": str(d["btn"]), "act": str(d["act"]), "on": bool(d["on"])} if str(d["btn"]) != "" else ""])
-	return _table(y, [["", 16, HORIZONTAL_ALIGNMENT_LEFT], ["Department", 112, HORIZONTAL_ALIGNMENT_LEFT], ["Who", 84, HORIZONTAL_ALIGNMENT_LEFT], ["How it stands", 0, HORIZONTAL_ALIGNMENT_LEFT], ["", 94, HORIZONTAL_ALIGNMENT_CENTER]], rows, 19.0)
+	y = _table(y, [["", 16, HORIZONTAL_ALIGNMENT_LEFT], ["Department", 112, HORIZONTAL_ALIGNMENT_LEFT], ["Who", 84, HORIZONTAL_ALIGNMENT_LEFT], ["How it stands", 0, HORIZONTAL_ALIGNMENT_LEFT], ["", 94, HORIZONTAL_ALIGNMENT_CENTER]], rows, 19.0)
+	# The camp now, through the camera on the reception's roof (a new picture every few seconds).
+	y += 8.0
+	y = _title(y, tr("CAMERA"), "cerne-jezero.cz/kamera")
+	var frame := Rect2(PAD, y, CAM_SIZE.x, CAM_SIZE.y)
+	_canvas.draw_rect(frame.grow(1.0), T.SHADOW, false, 1.0)
+	if _cam_tex != null:
+		_canvas.draw_texture_rect(_cam_tex, frame, false)
+	else:
+		_canvas.draw_rect(frame, Color8(20, 22, 20))
+		_text(Vector2(PAD + 8, y + CAM_SIZE.y * 0.5 - 8), tr("Connecting..."), GREY)
+	return y + CAM_SIZE.y + PAD
 
 
 ## What the camp made yesterday (the Builder's graphs keep each day's cash), null on the

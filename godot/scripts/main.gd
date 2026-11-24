@@ -1385,7 +1385,12 @@ func screen_unhandled_input(event: InputEvent) -> void:
 	# it (the user, 4. 11.), so this is the pause menu out in the camp. P and F10 open it
 	# anywhere (PauseKeys).
 	if event.is_action_pressed("ui_cancel"):
-		_open_pause_menu()
+		# The pause menu up and its own Esc not taken (a sub-page takes it): back to the game
+		# (playtest 24. 11.: "ESC mě nevrátí z pause menu zpět do hry"; it tried to open it again).
+		if _pause_menu != null and _pause_menu.is_open():
+			_close_pause_menu(true)
+		else:
+			_open_pause_menu()
 		_screen.set_input_as_handled()
 		return
 

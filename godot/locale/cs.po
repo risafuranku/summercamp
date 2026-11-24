@@ -34310,3 +34310,11 @@ msgstr "Rozhlas: %s dnes otevřeno do 23:00"
 #: scripts/audio/pa_horns.gd (24. 11.)
 msgid "PA: %s, new on the menu: %s"
 msgstr "Rozhlas: %s, nově v nabídce %s"
+
+#: scripts/os98/apps/campstat_app.gd (24. 11.)
+msgid "CAMERA"
+msgstr "KAMERA"
+
+#: scripts/os98/apps/campstat_app.gd (24. 11.)
+msgid "Connecting..."
+msgstr "Připojuji..."

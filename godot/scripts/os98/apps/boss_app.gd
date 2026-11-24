@@ -46,6 +46,10 @@ const GOLD_DIM := Color8(156, 134, 84)
 const IVORY := Color8(236, 230, 212)
 const RED := Color8(176, 0, 0)
 const GREEN := Color8(0, 112, 0)
+## A place's takings as last drawn, and until when a rise in them is lit (the overview).
+var _takings_seen: Dictionary = {}
+var _takings_flash: Dictionary = {}
+const TAKINGS_FLASH_MS := 2500
 const AMBER := Color8(176, 116, 0)
 const BAR_A := T.NAVY
 const BAR_B := Color8(220, 160, 20)
@@ -1147,7 +1151,17 @@ func _draw_overview(m: Rect2) -> void:
 		var wait := _waiting(key)
 		_tr(_col_x(tm, cols, 5) - 6, base, str(wait) if wait > 0 else "-", RED if wait > 0 else T.SHADOW)
 		var money: Dictionary = RULES.today_money(s, day)
-		_tr(_col_x(tm, cols, 6) - 6, base, _num(int(money["takings"])))
+		# Takings that grew since the last look light up green a moment (24. 11., docs/pc.md
+		# "Kemp naživo": the money as it comes in).
+		var tk := int(money["takings"])
+		var now_ms := Time.get_ticks_msec()
+		if _takings_seen.has(key) and tk > int(_takings_seen[key]):
+			_takings_flash[key] = now_ms + TAKINGS_FLASH_MS
+		_takings_seen[key] = tk
+		var flashing := int(_takings_flash.get(key, 0)) > now_ms
+		if flashing:
+			draw_rect(Rect2(_col_x(tm, cols, 5) + 1, y + 1, 54, rh - 2), Color(GREEN, 0.16))
+		_tr(_col_x(tm, cols, 6) - 6, base, _num(tk), GREEN if flashing else T.TEXT, flashing)
 		var p := int(money["profit"])
 		_tr(_col_x(tm, cols, 7) - 6, base, _signed(p), RED if p < 0 else (GREEN if p > 0 else T.SHADOW))
 		var wk := int(RULES.week_money(s, day)["profit"])
