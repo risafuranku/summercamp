@@ -98,7 +98,9 @@ give them no new work. What 100 % means and the open work, in order: [TODO.md](T
 ### Design lock — do not "improve" these without being asked
 
 - The look is a **mid-90s Build-engine game**: pixel fonts on an integer scale, palette,
-  bevelled square plates, no rounded corners, no glossy gradients, no app-store polish.
+  bevelled square plates, no rounded corners (only the hover hints and the highlights a
+  little, in whole pixels: `scripts/ui/retro_ui_shapes.gd`, Richard 24. 11.), no glossy
+  gradients, no app-store polish.
 - The tone is **serious, with rare uncanny details** (DESIGN.md §2). No jumpscare spam, no
   words at night (sounds, eyes, effects instead).
 - Every night threat is forecast before it is encountered and has a readable counter.

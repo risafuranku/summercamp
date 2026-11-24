@@ -452,6 +452,7 @@ class OptionsPage:
 		var row_h := ROW_VP * s
 		_highlight = RETRO_UI.BevelPanel.new()
 		_highlight.ui_scale = ui_scale
+		_highlight.rounded = true
 		_highlight.fill = Color(0.22, 0.14, 0.07, 0.9)
 		_highlight.light = RETRO_UI.C_AMBER_DIM
 		_highlight.dark = Color(0.05, 0.03, 0.02, 1.0)

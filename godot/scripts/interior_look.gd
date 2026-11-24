@@ -14,6 +14,7 @@ extends RefCounted
 ## stick from the middle: the whole screen turned.)
 
 const PROMPT = preload("res://scripts/input/prompt.gd")
+const RETRO_SHAPES = preload("res://scripts/ui/retro_ui_shapes.gd")
 const INSTANCE = preload("res://scripts/instance/instance.gd")
 
 ## Outer share of the screen width that holds a turn at its end (the tent's old dwell).
@@ -356,7 +357,7 @@ static func make_side_hints(layer: CanvasLayer) -> Control:
 			var box_h := fs * 1.8
 			var y := s.y * 0.5 - box_h * 0.5
 			var x := 0.0 if side == "left" else s.x - box_w
-			hint.draw_rect(Rect2(x, y, box_w, box_h), Color(0, 0, 0, 0.55))
+			RETRO_SHAPES.round_fill(hint, Rect2(x, y, box_w, box_h), maxf(1.0, floorf(fs / 8.0)), Color(0, 0, 0, 0.55))
 			hint.draw_rect(Rect2(x + (box_w - 2 if side == "left" else 0), y, 2, box_h), Color(0.95, 0.88, 0.62, 0.7))
 			var ty := y + box_h * 0.5 + fs * 0.35
 			var cy := y + box_h * 0.5

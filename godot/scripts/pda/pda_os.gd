@@ -12,6 +12,7 @@ extends Control
 ## redraws on a change, a blink or an app's own clock (`wants_tick`).
 
 const INSTANCE = preload("res://scripts/instance/instance.gd")
+const SHAPES = preload("res://scripts/ui/retro_ui_shapes.gd")
 const ICONS := "res://assets/textury/pda/icons.png"
 const ICON := 32
 const LOGO := "res://assets/textury/pda/logo.png"
@@ -195,11 +196,12 @@ func hline(x0: float, x1: float, y: float, col := Color(0, 0, 0, 0)) -> void:
 ## cannot be pressed.
 func button(r: Rect2, label: String, id: String, enabled := true) -> void:
 	var pressed := enabled and _down == id and _hover == id
+	# (Their corners a pixel round, as every highlight's: Richard 24. 11.)
 	if pressed:
-		fill(r)
+		SHAPES.round1_fill(self, r, 1.0, ink())
 		text_c(r, label, glass())
 	else:
-		frame(r, ink() if enabled else mid())
+		SHAPES.round1_edge(self, r, 1.0, ink() if enabled else mid())
 		text_c(r, label, ink() if enabled else mid())
 	if enabled:
 		hit(id, r)

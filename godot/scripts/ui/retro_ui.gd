@@ -188,6 +188,23 @@ static func flat_box(bg: Color, border: Color, scale: int, border_vp: int = 1, p
 	return sb
 
 
+## A hover's hint or a highlight: a box with its corners rounded a little (retro_ui_shapes.gd;
+## `radius_vp` 1: the corner pixel off, 2: a step of two), `border` (alpha 0: none) a pixel
+## round it. `px`: one of the UI's pixels on the screen.
+const SHAPES = preload("res://scripts/ui/retro_ui_shapes.gd")
+
+
+static func draw_round_box(ci: CanvasItem, r: Rect2, fill: Color, border: Color, px: float, radius_vp := 2) -> void:
+	if radius_vp <= 1:
+		SHAPES.round1_fill(ci, r, px, fill)
+		if border.a > 0.0:
+			SHAPES.round1_edge(ci, r, px, border)
+		return
+	SHAPES.round_fill(ci, r, px, fill)
+	if border.a > 0.0:
+		SHAPES.round_edge(ci, r, px, border, border)
+
+
 ## Bevel as a StyleBox: `light` on the top/left edge, `dark` on the bottom/right, one
 ## virtual pixel thick (swap the colours for a pressed/recessed look). A nine-patch
 ## texture, because StyleBoxFlat only has one border colour.
@@ -233,6 +250,9 @@ class BevelPanel:
 	var tile_tint: Color = Color(0.8, 0.78, 0.74, 1.0)
 	var fit_children: bool = false
 	var pad_vp: Vector4 = Vector4(4, 3, 4, 3) # left, top, right, bottom
+	## Its corners rounded by two steps (a hover's hint, a highlight: retro_ui_shapes.gd); a
+	## plate stays square.
+	var rounded: bool = false
 
 	func _init() -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -262,6 +282,11 @@ class BevelPanel:
 
 	func _draw() -> void:
 		var r := Rect2(Vector2.ZERO, size)
+		if rounded:
+			var u := float(ui_scale)
+			SHAPES.round_fill(self, r, u, fill)
+			SHAPES.round_edge(self, r, u, dark if recessed else light, light if recessed else dark)
+			return
 		draw_rect(r, fill)
 		if tile_texture != null:
 			var ts := tile_texture.get_size() * float(ui_scale) * 0.5

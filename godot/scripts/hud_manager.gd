@@ -1232,6 +1232,7 @@ func _build_crosshair_and_hint() -> void:
 
 	_hint_plate = _plate()
 	_hint_plate.name = "HintPlate"
+	_hint_plate.rounded = true
 	_hint_plate.pad_vp = Vector4(4, 2, 4, 2)
 	_hint_plate.fill = Color(0.03, 0.025, 0.02, 0.72)
 	_hint_plate.light = Color(0.30, 0.26, 0.20, 0.8)
@@ -1247,6 +1248,7 @@ func _build_crosshair_and_hint() -> void:
 
 	_work_plate = _plate()
 	_work_plate.name = "WorkPlate"
+	_work_plate.rounded = true
 	_work_plate.pad_vp = Vector4(4, 3, 4, 3)
 	_work_plate.anchor_left = 0.5
 	_work_plate.anchor_right = 0.5
