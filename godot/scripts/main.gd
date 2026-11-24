@@ -2400,13 +2400,9 @@ func _sync_active_camera() -> void:
 
 func _on_day_tick(day_index: int) -> void:
 	_day_index = max(1, day_index)
-	var income := 0
-	if economy_manager != null and economy_manager.has_method("calculate_day_income"):
-		income = int(economy_manager.calculate_day_income())
-	if income != 0 and INSTANCE.core(self).actions != null and INSTANCE.core(self).actions.has_method("add_money"):
-		INSTANCE.core(self).actions.add_money(income)
-		INSTANCE.core(self).actions.note_camp("facilities", income)
-	INSTANCE.bus(self).day_advanced.emit(_day_index, income)
+	# Nothing is paid for a building standing: only the guests pay, the businesses earn
+	# what they sell (Richard 24. 11., docs/DESIGN.md §7). The flat earnings a day are gone.
+	INSTANCE.bus(self).day_advanced.emit(_day_index, 0)
 	if EmailManager != null and INSTANCE.mail(self).has_method("settle_reputation"):
 		INSTANCE.mail(self).settle_reputation()
 	if _hud_manager != null: _hud_manager.update_time(_time_of_day_string(), _day_index)

@@ -29,13 +29,14 @@ extends RefCounted
 ## Building type -> business kind.
 const KIND_OF := {"pub": "pub", "restaurant": "rest", "vecerka": "vecerka", "corn_stand": "corn", "bowling": "bowl"}
 
-## Per kind: its name, the hand's base wage a day, the PC program, and its goods:
+## Per kind: its name, the hand's base wage a day (half as much again since 24. 11. 2026,
+## Richard: "just make what is there dearer"), the PC program, and its goods:
 ##   good -> {label, unit, price (what a guest pays), pack (units per delivery pack),
 ##            pack_cost, cap (shelf space), start (on the shelf when it is built),
 ##            life (days before it goes off on the shelf; 0 never)}
 const KINDS := {
 	"pub": {
-		"name": "Pub", "wage": 30, "hand": ["Lojza", "Franta", "Mirek"],
+		"name": "Pub", "wage": 45, "hand": ["Lojza", "Franta", "Mirek"],
 		"goods": {
 			"beer": {"label": "Beer", "unit": "pints", "price": 4, "pack": 50, "pack_cost": 60, "cap": 150, "start": 40},
 			"rum": {"label": "Rum", "unit": "shots", "price": 3, "pack": 20, "pack_cost": 26, "cap": 60, "start": 10},
@@ -45,7 +46,7 @@ const KINDS := {
 		"wants": {"beer": 0.7, "rum": 0.2, "kofola": 0.1},
 	},
 	"rest": {
-		"name": "Bistro", "wage": 35, "hand": ["Mrs Dvorakova", "Pepa", "Hanka"],
+		"name": "Bistro", "wage": 52, "hand": ["Mrs Dvorakova", "Pepa", "Hanka"],
 		"goods": {
 			"goulash": {"label": "Goulash", "unit": "portions", "price": 7, "pack": 20, "pack_cost": 70, "cap": 60, "start": 12},
 			"cheese": {"label": "Cheese", "unit": "slices", "price": 8, "pack": 20, "pack_cost": 64, "cap": 60, "start": 10},
@@ -66,7 +67,7 @@ const KINDS := {
 		"wants": {"goulash": 0.3, "cheese": 0.2, "potatoes": 0.15, "sausage": 0.15, "soup": 0.1, "kofola": 0.1},
 	},
 	"vecerka": {
-		"name": "Jednota", "wage": 40, "hand": ["Mrs Novakova", "Zdenka", "Ivan"],
+		"name": "Jednota", "wage": 60, "hand": ["Mrs Novakova", "Zdenka", "Ivan"],
 		# The village shop the guests love (DESIGN.md §7b, the Jednota): everything they
 		# need, dear to build, stock and staff; it pays back in a fortnight of a busy camp
 		# (jednota_rules.day_model, tools/jednota_check).
@@ -94,7 +95,7 @@ const KINDS := {
 		"wants": {"bread": 0.08, "roll": 0.14, "salami": 0.06, "milk": 0.1, "pickles": 0.04, "beer": 0.12, "icecream": 0.1, "sweets": 0.08, "veg": 0.06, "soap": 0.05, "cards": 0.03, "magazine": 0.04, "rum": 0.04, "cigs": 0.06},
 	},
 	"corn": {
-		"name": "Corn stand", "wage": 15, "hand": ["Pepicek", "Klara", "the Novak boy"],
+		"name": "Corn stand", "wage": 22, "hand": ["Pepicek", "Klara", "the Novak boy"],
 		"goods": {
 			"cobs": {"label": "Corn cobs", "unit": "cobs", "price": 2, "pack": 40, "pack_cost": 32, "cap": 80, "start": 20},
 			"butter": {"label": "Butter", "unit": "knobs", "price": 0, "pack": 60, "pack_cost": 15, "cap": 120, "start": 30},
@@ -109,7 +110,7 @@ const KINDS := {
 	# a pair are paid at the counter, bowling.gd); the snack bar's are, and the spray the
 	# shoes get before they go back on the shelf.
 	"bowl": {
-		"name": "Bowling", "wage": 32, "hand": ["the Novak boy", "Franta", "Ivan"],
+		"name": "Bowling", "wage": 48, "hand": ["the Novak boy", "Franta", "Ivan"],
 		"goods": {
 			"sausage": {"label": "Sausages", "unit": "sausages", "price": 5, "pack": 20, "pack_cost": 40, "cap": 60, "start": 20},
 			"roll": {"label": "Rolls", "unit": "rolls", "price": 0, "pack": 40, "pack_cost": 14, "cap": 80, "start": 30},
@@ -125,7 +126,7 @@ const KINDS := {
 	# The staffroom's hands (core/systems/staff_rules.gd): no shelves, no building of this
 	# kind (not in KIND_OF); here for the wage, the program and its licence.
 	"staff": {
-		"name": "Staffroom", "wage": 28, "hand": [],
+		"name": "Staffroom", "wage": 42, "hand": [],
 		"goods": {},
 		"wants": {},
 	},

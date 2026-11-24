@@ -15,7 +15,6 @@ extends Resource
 @export var infra_load: float = 0.0
 @export var hygiene_delta: float = 0.0
 @export var fun_delta: float = 0.0
-@export var passive_income: float = 0.0
 @export var karma_delta: float = 0.0
 
 # Legacy economy compatibility fields (used by EconomyManager utility summary paths)

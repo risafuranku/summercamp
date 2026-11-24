@@ -14,7 +14,6 @@ power_production = 0.0
 infra_load = 4.0
 hygiene_delta = 4.0
 fun_delta = 6.0
-passive_income = 0.0
 karma_delta = 0.0
 capacity = 0
 power_use = 4

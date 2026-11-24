@@ -19,9 +19,12 @@ const BALANCE_CONFIG = preload("res://core/balance/balance_config.gd")
 const ISSUE_HOUR: int = BALANCE_CONFIG.NIGHT_START_HOUR
 const ISSUE_MINUTE: int = 0
 const GRACE_DAYS: int = 3
-const PRICE_PER_KWH: float = 2.2
+## 24. 11. 2026 from 2.2 and 12 (Richard: "just make what is there dearer"): with the flat
+## earnings of buildings gone, a full camp of 40 beds pays about a fifth of what its guests
+## bring (tools/economy_sim.tscn); it was under a tenth.
+const PRICE_PER_KWH: float = 5.5
 const KWH_PER_POWER_UNIT: float = 3.0
-const DAILY_BASE_FEE: int = 12
+const DAILY_BASE_FEE: int = 30
 const UPS_DURATION_SEC: float = 360.0
 const NOTICE_SENDER := "CampGrid Energy Billing <billing@campgrid.local>"
 const NOTICE_TEMPLATES: Array[Dictionary] = [

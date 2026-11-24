@@ -1186,12 +1186,40 @@ Upkeep) fixes everything at 1.5x, daylight only. Rules: `core/systems/maintenanc
 
 ## 7. Economy
 
-- Starting money 850; demolish refunds 50%, fee 4 per tile.
-- Income per guest per day (above); the most profitable guests bring the most dangerous
-  enemy.
-- Electricity: billed at 20:00 for the previous day (2.2 per kWh, 3 kWh per power unit,
-  12/day base), due 3 days later. An overdue bill cuts the grid: lamps off, power-hungry
-  facilities closed, and a 6-minute UPS countdown to game over. Paying restores the grid.
+- Starting money 1250 (`BalanceConfig.STARTING_MONEY`); demolish refunds 50%, fee 4 per tile.
+- **Only the guests pay** (24. 11. 2026): each guest a day by archetype (§4, `email_manager`
+  `daily_pay`, ±18 % a party), paid by the minute while they stay; the businesses earn what
+  they sell. A building standing earns nothing: until 24. 11. every tent, cabin and
+  attraction paid a flat sum a day even empty (a tent of 80 paid itself back in three days
+  without a guest), about a third of all income. Attractions bring money only through the
+  guests: their mood, the reviews, the bookings. The most profitable guests bring the most
+  dangerous enemy.
+- Electricity: billed at 20:00 for the previous day (5.5 per kWh, 3 kWh per power unit,
+  30/day base; 2.2 and 12 until 24. 11.), due 3 days later. An overdue bill cuts the grid:
+  lamps off, power-hungry facilities closed, and a 6-minute UPS countdown to game over.
+  Paying restores the grid. Tents draw nothing, cabins 2-4 units: a camp of cabins pays
+  for its comfort.
+- Wages: a hand's base wage a day by place (`business_rules.KINDS`): pub 45, bistro 52,
+  Jednota 60, corn stand 22, bowling 48, staffroom 42 (half as much again since 24. 11.).
+- **The curve** (Richard 24. 11.: "a tight start, then calm"): the first week every crown
+  counts; a well-run camp is built up by the second week and earns, and can grow.
+  Measured by `godot/tools/economy_sim.tscn` (a month on the real rules, a diligent warden
+  without the nights; `--play=careful` or `--play=lazy`): docs/testing.md.
+
+### Decisions 24. 11. 2026 (balance Q&A with Richard)
+
+- *Every built cabin, tent and attraction earns money each day even empty. What with it?*
+  „Platí jen hosté“: lodging earns only for the guests sleeping in it; attractions earn
+  nothing directly, they raise the mood, the stars and so the bookings.
+- *How tight is the money in the sandbox?* „Těsný start, pak klid“: the first week every
+  crown counts (a bad booking or an unpaid bill hurts); a well-run camp earns towards the
+  end of the month and can grow.
+- *What should cost money?* „Jen zdražit, co je“: dearer electricity and wages, nothing new
+  (no new running costs; the breakdowns stay off).
+- *The bookings in CampMail?* „Karta nabídky v mailu“: a booking mail shows a card: who
+  comes (the guests' kinds and how many), what they want (icons of the facilities; what
+  the camp lacks turns red) and the price of a night per guest; now and then a tempting
+  big party for a lot of money that brings a hard night. (Open: TODO „Teď“.)
 
 ## 7b. The businesses' rooms (point and click)
 

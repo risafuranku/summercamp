@@ -969,7 +969,10 @@ func _page_money(y: float) -> float:
 	var rows: Array = []
 	for r in INCOME_ROWS:
 		var key := str(r[1])
-		rows.append(_money_row(tr(str(r[0])), days, func(d: Dictionary) -> int: return int(d[key])))
+		var of_row := func(d: Dictionary) -> int: return int(d[key])
+		# The flat earnings a day are gone (24. 11.): the row only while a save's week has them.
+		if key != "facilities" or _any_money(days, of_row):
+			rows.append(_money_row(tr(str(r[0])), days, of_row))
 	# Each place by what it left: a place that cost more than it made in red.
 	var sites: Dictionary = biz.get("sites", {}) if biz.get("sites", {}) is Dictionary else {}
 	var keys: Array = sites.keys()

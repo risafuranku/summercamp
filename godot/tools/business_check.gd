@@ -114,11 +114,6 @@ func _ready() -> void:
 	_expect(n == 3, "a basket of three dishes (%s)" % str(b))
 	_expect(RULES.needs_for("rest", {"goulash": 2}).get("dumplings", 0) == 2, "goulash comes with dumplings")
 
-	# No flat income for the businesses.
-	var econ = load("res://scripts/economy_manager.gd").new()
-	add_child(econ)
-	_expect(econ.calculate_day_income() == 0, "a pub alone earns nothing flat a day")
-
 	# The pub goes, its books go.
 	state.grid.cells.clear()
 	a.biz_prune([])

@@ -128,6 +128,25 @@ godot --headless --path godot --script res://tools/night_swell_check.gd   # the 
   "material" is null` (material_get_instance_shader_parameters), a handful a run, no script
   frames: the dummy renderer's; a windowed run has none.
 
+### The money over a month: economy_sim
+
+`godot/tools/economy_sim.tscn` (24. 11. 2026) plays a sandbox month on the real rules
+without 3D and without the nights: EmailManager's bookings, every party accepted, let in
+and every room made up at once, GuestManager's payments, the electricity bill paid the day
+it comes, and the camp built each morning from what it earned (`--play=careful`: beds and
+what the guests need; `--play=lazy`: tents and one toilet). It prints the cash, the guests'
+money, the power bill, beds, how full, the mood and the reviews day by day. It is the
+balance's measure, not a check (asserts nothing, not in `tools/checks.py`), and slow: a
+month is 10-20 minutes, so run it in the background.
+
+```bash
+godot --headless --path godot --audio-driver Dummy res://tools/economy_sim.tscn -- --play=careful --days=31
+```
+
+What it cannot see: the nights (a hurt warden, enemies that keep guests in), the Atlas
+stars pulling the bookings (no main scene), the businesses, a player slower than the
+diligent warden. Numbers of 24. 11. are in the diary (`context/summercamp.md`).
+
 ### Seeing the game: the screenshot driver
 
 ```bash

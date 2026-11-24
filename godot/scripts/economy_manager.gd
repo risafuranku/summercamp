@@ -98,10 +98,6 @@ func get_cost(building_type: String) -> int:
 	return int(def.cost) if def != null else 0
 
 
-func get_income(building_type: String) -> int:
-	var def = _def(building_type)
-	return int(round(float(def.passive_income))) if def != null else 0
-
 
 func get_label(building_type: String) -> String:
 	if building_type == DEMOLISH_TYPE:
@@ -183,29 +179,6 @@ func unregister_building_at(_coord: Vector2i, _type: String = "") -> bool:
 	# NO-OP: GridModel is now updated directly by Actions.
 	return true
 
-
-func calculate_day_income() -> int:
-	var total: int = 0
-	for entry in _get_placed_buildings():
-		var btype = str(entry.get("type", ""))
-		# The pub, the bistro, the Jednota and the corn stand earn what they sell
-		# (scripts/business/business_runtime.gd), not a flat sum a day.
-		if preload("res://core/systems/business_rules.gd").is_business(btype):
-			continue
-		# Try Registry first
-		var income = 0
-		var def = INSTANCE.core(self).registry.get_def(btype)
-		if def:
-			income = int(round(float(def.passive_income)))
-			
-		if income <= 0: continue
-		
-		if _is_failed_coord(entry.get("coord", Vector2i.ZERO)):
-			income = int(round(float(income) * 0.35))
-		
-		var comfort = float(entry.get("comfort", 1.0))
-		total += int(income * comfort)
-	return total
 
 
 func end_day() -> void:
@@ -377,26 +350,6 @@ func get_building_counts_by_category() -> Dictionary:
 			counts[cat] = 0
 		counts[cat] += 1
 	return counts
-
-
-func get_income_breakdown() -> Array:
-	var breakdown: Array = []
-	var type_totals: Dictionary = {}
-	for entry in _get_placed_buildings():
-		var btype = str(entry.get("type", ""))
-		var base := get_income(btype)
-		if base <= 0:
-			continue
-		if _is_failed_coord(entry.get("coord", Vector2i.ZERO)):
-			base = int(round(float(base) * 0.35))
-		if not type_totals.has(btype):
-			type_totals[btype] = {"count": 0, "total": 0, "label": get_label(btype)}
-		type_totals[btype]["count"] += 1
-		type_totals[btype]["total"] += base
-	for btype in type_totals.keys():
-		var info = type_totals[btype]
-		breakdown.append("%s x%d: $%d" % [info["label"], info["count"], info["total"]])
-	return breakdown
 
 
 func get_power_draw_breakdown() -> Array:
