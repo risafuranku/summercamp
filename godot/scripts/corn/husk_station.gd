@@ -160,6 +160,7 @@ func _press(id: String) -> void:
 			mark_target(Rect2(TABLE_AT - Vector2(88.0, 58.0), Vector2(176.0, 116.0)))
 		"cob":
 			if int(_cob["leaves"]) > 0:
+				sfx("husk_grab", -12.0, _rng.randf_range(0.95, 1.1))
 				_pull_from = _mouse_free
 			elif int(_cob["silk"]) > 0:
 				_pick_silk()

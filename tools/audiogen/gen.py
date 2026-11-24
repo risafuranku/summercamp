@@ -16,6 +16,7 @@ it is made of, how far away, what room.
 import json
 import os
 import sys
+import urllib.error
 import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -23,16 +24,32 @@ GODOT = os.path.join(HERE, "..", "..", "godot")
 API = "https://api.elevenlabs.io/v1/sound-generation"
 
 
-def api_key():
-    key = os.environ.get("ELEVENLABS_API_KEY", "").strip()
-    if key:
-        return key
+## Every key there is, in turn (24. 11. 2026: the .env's key answered 401; the working ones are
+## shared in ~/.greed-secrets, as GREED's and FNR's tools use them). A key that is refused or
+## out of credit hands over to the next; a key's value is never printed, only its last four.
+SECRETS = os.path.join(os.path.expanduser("~"), ".greed-secrets")
+
+
+def api_keys():
+    keys = []
+    for name in ("ELEVENLABS_API_KEY", "ELEVENLABS_API_KEYS"):
+        keys += [k.strip() for k in os.environ.get(name, "").split(",")]
     env = os.path.join(HERE, ".env")
     if os.path.exists(env):
         for line in open(env, encoding="utf-8"):
-            if line.startswith("ELEVENLABS_API_KEY="):
-                return line.split("=", 1)[1].strip()
-    sys.exit("No ElevenLabs key: set ELEVENLABS_API_KEY or write tools/audiogen/.env")
+            if line.startswith("ELEVENLABS_API_KEY"):
+                keys += [k.strip() for k in line.split("=", 1)[1].split(",")]
+    for f in ("elevenlabs_api_keys", "elevenlabs_api_key"):
+        path = os.path.join(SECRETS, f)
+        if os.path.exists(path):
+            keys += [l.strip() for l in open(path, encoding="utf-8")]
+    out = []
+    for k in keys:
+        if k and k not in out:
+            out.append(k)
+    if not out:
+        sys.exit("No ElevenLabs key: set ELEVENLABS_API_KEY, write tools/audiogen/.env or ~/.greed-secrets/elevenlabs_api_keys")
+    return out
 
 
 def rows():
@@ -78,7 +95,8 @@ def main(argv):
     table = rows()
     if "--all" in argv:
         ids = [rid for rid, (_, dest, _) in table.items() if force or not os.path.exists(os.path.join(GODOT, dest))]
-    key = api_key()
+    keys = api_keys()
+    at = 0
     failed = 0
     for rid in ids:
         if rid not in table:
@@ -89,11 +107,22 @@ def main(argv):
         if os.path.exists(os.path.join(GODOT, dest)) and not force:
             print("%s exists" % rid)
             continue
-        try:
-            generate(rid, seconds, dest, prompt, key)
-        except Exception as e:  # keep going; report at the end
-            print("%s FAILED: %s" % (rid, e))
-            failed += 1
+        while True:
+            try:
+                generate(rid, seconds, dest, prompt, keys[at])
+                break
+            except urllib.error.HTTPError as e:
+                if e.code in (401, 402, 429) and at + 1 < len(keys):
+                    at += 1
+                    print("key ..%s refused (%d), trying ..%s" % (keys[at - 1][-4:], e.code, keys[at][-4:]))
+                    continue
+                print("%s FAILED: %s" % (rid, e))
+                failed += 1
+                break
+            except Exception as e:  # keep going; report at the end
+                print("%s FAILED: %s" % (rid, e))
+                failed += 1
+                break
     sys.exit(1 if failed else 0)
 
 

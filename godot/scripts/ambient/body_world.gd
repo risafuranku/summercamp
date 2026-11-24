@@ -113,8 +113,8 @@ const PRELOAD_TEX := ["branch.png", "leaf_birch.png", "leaf_oak.png", "leaf_mapl
 	"body_bfly_tort_open.png", "body_bfly_tort_shut.png", "body_squirrel_still.png",
 	"body_squirrel_climb_a.png", "body_squirrel_climb_b.png", "body_duck_stand.png",
 	"body_duck_walk.png", "body_duck_up.png", "body_duck_down.png"]
-const PRELOAD_SFX := ["res://assets/sfx/nature/crow.mp3",
-	"res://assets/sfx/lake/stroke.mp3", "res://assets/sfx/nature/ducks_a.mp3"]
+const PRELOAD_SFX := ["res://assets/sfx/nature/crow.mp3", "res://assets/sfx/nature/birds_up.mp3",
+	"res://assets/sfx/lake/wade_step.mp3", "res://assets/sfx/nature/ducks_a.mp3", "res://assets/sfx/nature/fern_rustle.mp3"]
 var _streams: Dictionary = {}
 
 
@@ -320,6 +320,8 @@ func _rustle(w: Array, dt: float) -> void:
 		var pp: Vector3 = pl[0]
 		if Vector2(pp.x - at.x, pp.z - at.z).length() < RUSTLE_R and absf(pp.y - at.y) < 1.0:
 			f["rustle"] = _rng.randf_range(0.45, 0.8)
+			# The ferns' own swish at the warden's feet (24. 11.; it was silent).
+			_sound("res://assets/sfx/nature/fern_rustle.mp3", Vector3(pp.x, at.y, pp.z), -16.0, _rng.randf_range(0.9, 1.12))
 			if str(pl[1]) == "fern" and _rng.randf() < 0.15 and _day_life():
 				_butterfly_up(pp)
 			return
@@ -531,6 +533,9 @@ func _birds_up(t: Node3D, tp: Vector3, kind: int) -> void:
 		_sprites.append({"node": s, "v": dir, "life": 5.0, "kind": "bird", "up": up, "dn": dn, "ph": float(i)})
 	if crow:
 		_sound("res://assets/sfx/nature/crow.mp3", tp + Vector3(0, 4.0, 0), -8.0, _rng.randf_range(0.95, 1.05))
+	else:
+		# Small birds have their own wings now (24. 11.; they went up silent).
+		_sound("res://assets/sfx/nature/birds_up.mp3", tp + Vector3(0, 3.0, 0), -10.0, _rng.randf_range(0.92, 1.1))
 
 
 func _step_sprites(dt: float) -> void:
@@ -603,7 +608,7 @@ func _on_foot(left: bool) -> void:
 	if _in_lake(at):
 		_player.set("boots_wet", 1.0)
 		_splash(at + side, 1.0)
-		_sound("res://assets/sfx/lake/stroke.mp3", at, -14.0, _rng.randf_range(1.15, 1.35), 0.5)
+		_sound("res://assets/sfx/lake/wade_step.mp3", at, -12.0, _rng.randf_range(0.92, 1.08))
 	elif surf == "puddle":
 		_splash(at + side, 0.7)
 	var wet := float(_player.get("boots_wet"))

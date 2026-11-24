@@ -351,6 +351,7 @@ func hand_tool() -> String:
 
 func _press(id: String) -> void:
 	if id.begins_with("cob:"):
+		sfx("cob_lift", -10.0, _rng.randf_range(0.95, 1.08))
 		var cook := 0.0
 		for c in stand.pot(building_key):
 			if str(c["id"]) == id.substr(4):
@@ -364,6 +365,7 @@ func _press(id: String) -> void:
 			else:
 				_put_in()
 		"board", "butter":
+			sfx("brush_dab", -12.0, _rng.randf_range(0.95, 1.08))
 			_brushing = true
 			_last = _mouse_free
 			if BUSINESS.has_gear(building_key, "butter"):

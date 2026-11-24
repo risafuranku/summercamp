@@ -47,12 +47,13 @@ the pad and the split screen must keep working (do not break them), but get no n
         and the out folder has been cleared since, the turnaround refs too, so adding one sheet
         means Grokking the figure's whole set again (and its look may drift). Only if play
         shows the missing runs.
-  - [ ] The world's own sounds: the ferns' rustle (`body_world._rustle` plays nothing), the
+  - [x] The world's own sounds (24. 11., keys from ~/.greed-secrets): the ferns' rustle (`body_world._rustle` plays nothing), the
         wade in the shallows (the oar's stroke now), small birds flying up (silent; the crow
         has its own); the corn stand's three silent presses (a cob out of the pot, the butter
         brush on the board, a husk leaf grabbed). Rows in `tools/audiogen/prompts.tsv`
         (cob_lift, brush_dab, husk_grab, fern_rustle, wade_step, birds_up): the .env's
-        ElevenLabs key answers 401; needs a working key, then normalize and wire them.
+        ElevenLabs key answers 401; `gen.py` now rotates through the GREED keys: generated,
+        normalised to -23 LUFS, wired and preloaded. Not heard yet.
   - [ ] The megaphone's horns on poles round the camp (PRODUCT "Not yet"): a pole with a horn
         (Grok sample first), the voice from the nearest ones.
   - Out of the camp (the barrier, the road, the 380, Přistoupim): the land round the camp is
