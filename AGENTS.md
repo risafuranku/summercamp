@@ -28,7 +28,10 @@ Každé repo má stejnou kostru, aby se v něm kterýkoli agent vyznal za minutu
 
 - `AGENTS.md` je vstup, do ~250 řádků: co to je, **Teď** (aktuální fokus a co se nedělá), pravidla a zámky repa, rozložení kódu, spuštění a ověření (příkazy), mapa dokumentace. Nic podrobného.
 - `CLAUDE.md` obsahuje jen `@AGENTS.md` (Claude i Codex čtou totéž).
-- `TODO.md` je jen otevřená práce v pořadí důležitosti: **Teď** (fokus), **Později** (odložené směry), **Nápady**. Hotová položka dostane hash commitu a při nejbližším úklidu jde do `docs/historie/`. Chyby i funkce v jednom seznamu.
+- `TODO.md` má **jen dva oddíly: `## TODO` a `## DONE`** (Richard 24. 11. 2026: „Dvě sekce! TODO a DONE… Je to tak kurva těžký?“). Žádné podsekce podle data, playtestu, oblasti ani priority, žádné odstavce okolo.
+  - **TODO** je jeden společný seznam otevřené práce v pořadí důležitosti. Každá položka jedna řádka `- [ ] …`, co nejstručněji, ale tak, aby ji pochopil i jiný agent (co se chce, kde, případně Richardova slova zkrácená na podstatu). Chyby, funkce i Richardovy nové poznámky z playtestu jdou rovnou sem jako položky, bez nadpisů a dat. Co je odložené, zůstane dole s „(odloženo)“, nápad s „Nápad:“.
+  - Hotová položka se hned **přesune** z TODO do DONE (`- [x] … (hash)`, nejnovější nahoře). V TODO nikdy nic hotového, v DONE nic otevřeného.
+  - Rozhodnutí, QnA, plány a vysvětlování patří do `docs/<oblast>.md` nebo `docs/rozhodnuti.md`, ne do TODO. Dlouhý DONE se při úklidu přesune do `docs/historie/`.
 - `docs/<oblast>.md`: podrobnosti, jeden soubor na oblast (soubory, kontrakty, pasti, testy té oblasti). Nově zjištěná past nebo pravidlo jde do souboru své oblasti ve stejném commitu, nikdy na konec AGENTS.md.
 - `docs/historie/`: archiv (hotové úkoly, staré audity, staré zadání). Při běžné práci se nečte.
 - Deník a předávka: `C:\grimroot\context\<projekt>.md`. Nahoře oddíl **Stav** (5–10 řádků, kde projekt je a co je další, přepisuje se), pod ním záznamy sezení, novější dolů.
@@ -36,13 +39,13 @@ Každé repo má stejnou kostru, aby se v něm kterýkoli agent vyznal za minutu
 
 ### Postup práce
 
-- **Začátek:** `git status` a `git log -5` (kdo tu ještě dělá), celý `AGENTS.md`, v `TODO.md` oddíl Teď, v deníku oddíl Stav a soubor `docs/` oblasti, na kterou sáhneš.
-- **Fokus:** dělej to, co je v oddílu Teď, nebo co Richard právě zadal. Co je mimo, zapiš do TODO (Později, Nápady) a nedělej to. Odložené věci nerozbíjej.
+- **Začátek:** `git status` a `git log -5` (kdo tu ještě dělá), celý `AGENTS.md`, `TODO.md` (oddíl TODO), v deníku oddíl Stav a soubor `docs/` oblasti, na kterou sáhneš.
+- **Fokus:** dělej to, co je v oddílu Teď v AGENTS.md a nahoře v TODO, nebo co Richard právě zadal. Co je mimo, zapiš na konec TODO („(odloženo)“, „Nápad:“) a nedělej to. Odložené věci nerozbíjej.
 - **Jedna věc, jeden commit:** kód, test a dokumentace té oblasti spolu. Zpráva říká, co bylo špatně a co je teď jinak.
 - **Ověření:** spouštěč kontrol repa (příkaz je v AGENTS.md) a test nebo snímek přesně ve stavu, o kterém byla řeč. Co ověřit nejde (poslech, telefon, dva lidé), napiš jako neověřené.
-- **Konec:** odškrtni v TODO, přepiš Stav v deníku a přidej záznam, Richardovi napiš, co je hotové, jak ověřené, co ne a další kroky.
+- **Konec:** hotové přesuň z TODO do DONE (s hashem), přepiš Stav v deníku a přidej záznam, Richardovi napiš, co je hotové, jak ověřené, co ne a další kroky.
 - Dokumentace, která lže nebo bobtná, se opravuje hned, jako součást práce.
-- **O krok napřed:** co cestou uvidíš rozbitého nebo slabého mimo zadání, zapiš jednou řádkou do TODO (Teď, když to brání fokusu, jinak Nápady) a zmiň v hlášení. Ruční postup, který opakuješ podruhé, převeď na skript nebo kontrolu ve spouštěči.
+- **O krok napřed:** co cestou uvidíš rozbitého nebo slabého mimo zadání, zapiš jednou řádkou do TODO (nahoru, když to brání fokusu, jinak dolů jako „Nápad:“) a zmiň v hlášení. Ruční postup, který opakuješ podruhé, převeď na skript nebo kontrolu ve spouštěči.
 
 ### Kontext a komunikace
 
@@ -76,7 +79,7 @@ Každé repo má stejnou kostru, aby se v něm kterýkoli agent vyznal za minutu
 
 Richard, 23. 11. 2026: the main focus is the **singleplayer sandbox and co-op, to 100 %**.
 The story camp, the pad (Steam Deck) and the split screen wait until then: keep them working,
-give them no new work. What 100 % means and the open work, in order: [TODO.md](TODO.md) „Teď“.
+give them no new work. The open work: [TODO.md](TODO.md) (TODO, then DONE).
 
 ## 1. Ground rules
 
@@ -162,7 +165,7 @@ for two). Every harness, scenario and co-op test: [docs/testing.md](docs/testing
 
 | File | Read it when |
 | --- | --- |
-| [TODO.md](TODO.md) | always: the open work, „Teď“ first |
+| [TODO.md](TODO.md) | always: TODO the open work, DONE what is done |
 | [docs/map.md](docs/map.md) | before touching an area: its files |
 | [docs/DESIGN.md](docs/DESIGN.md) | the game's intent and rules, by section (§5 the night, §8 the pipes, §12 co-op...) |
 | [docs/PRODUCT.md](docs/PRODUCT.md) | what exists and how finished it is |
