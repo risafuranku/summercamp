@@ -20,12 +20,24 @@ signal closed
 const INTERIOR_LOOK = preload("res://scripts/interior_look.gd")
 const RETRO_RENDER = preload("res://scripts/retro_render.gd")
 const STATION3D = preload("res://scripts/business/station3d.gd")
+const WALK_PATH = preload("res://scripts/ui/walk_path.gd")
 const STATION_HUD = preload("res://scripts/business/station_hud.gd")
 const LAYOUT = preload("res://scripts/corn/stand_layout.gd")
 const LEDGER = preload("res://scripts/business/ledger_closeup.gd")
 const BUSINESS = preload("res://scripts/business/business_runtime.gd")
 const CREW_PLACES = preload("res://scripts/business/crew_places.gd")
 const RULES = preload("res://core/systems/business_rules.gd")
+## The stand's eyes: how wide they see. The way in from the camp (Richard 24. 11.: „neni
+## smooth plynulý přechod kamery“): from your own eyes, round the nearer end of the counter at
+## a walk (WALK_PATH, its steps), not through it; WALK_MPS metres a second, ENTER_SEC at the
+## least. The ends of the counter and the drinks' table, the stand's own x, and how far out
+## past them the way goes.
+const FOV := 68.0
+const ENTER_SEC := 0.6
+const WALK_MPS := 3.4
+const END_RIGHT := 1.3
+const END_LEFT := -2.2
+const END_CLEAR := 0.55
 
 var building_key := ""
 var _open := false
@@ -60,7 +72,7 @@ func _ready() -> void:
 	_view.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	_box.add_child(_view)
 	_cam = Camera3D.new()
-	_cam.fov = 68.0
+	_cam.fov = FOV
 	_cam.near = 0.05
 	_cam.far = 400.0
 	_cam.cull_mask = 0xFFFFF & ~LAYOUT.BACK_LAYER
@@ -77,6 +89,11 @@ func _ready() -> void:
 	_hud.alert_of = func(id: String) -> int:
 		var st = _stations.get(id, null)
 		return int(st.call("alert")) if st != null and is_instance_valid(st) else 0
+	# Space held: away from the stand, as Esc.
+	_hud.back.connect(func() -> void:
+		if _open:
+			close_view()
+	)
 	get_tree().root.size_changed.connect(_layout)
 
 
@@ -109,15 +126,19 @@ func open_for(key: String, structure: Node3D) -> void:
 		if st.get("open_books") != null:
 			st.set("open_books", _open_books)
 	_view.world_3d = structure.get_viewport().find_world_3d()
+	# From your own eyes where you stood (Richard 24. 11.: „neni smooth plynulý přechod
+	# kamery“: it started from a set point out front).
+	var eyes := structure.get_viewport().get_camera_3d()
+	var front := structure.global_transform * Vector3(0, 1.6, 2.2)
+	var from := eyes.global_transform if eyes != null else Transform3D(Basis(), front).looking_at(structure.global_transform * Vector3(0, 1.1, 0), Vector3.UP)
+	_cam.fov = eyes.fov if eyes != null else FOV
 	_stand_behind(true)
 	_open = true
 	visible = true
 	_view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_layout()
 	INSTANCE.input(self).set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
-	# From where you stood out front, round behind the counter, in steps.
-	var front := structure.global_transform * Vector3(0, 1.6, 2.2)
-	_cam.global_transform = Transform3D(Basis(), front).looking_at(structure.global_transform * Vector3(0, 1.1, 0), Vector3.UP)
+	_cam.global_transform = from
 	var last := str(STATION3D.last_station.get(key, "counter"))
 	_open_station(last if _tabs_ids().has(last) else "counter")
 
@@ -246,9 +267,17 @@ func _open_station(id: String) -> void:
 	var st: Node3D = _stations[id]
 	if _tween != null and _tween.is_valid():
 		_tween.kill()
-	_tween = STATION3D.step_camera(self, _cam, st.call("cam_pose"), STATION3D.CAM_SEC if was == "" else 0.34)
 	st.set("hud", _hud)
-	st.call("open_station", _cam)
+	if was == "":
+		# In from the camp: round behind the counter at a walk, the eyes' width to the stand's.
+		# (A fresh look: its eye is its pose.)
+		var way := _way_in(st.call("cam_pose"))
+		var sec := maxf(ENTER_SEC, float(way[1]) / WALK_MPS)
+		st.call("open_station", _cam, [], sec)
+		_tween = WALK_PATH.play(self, _cam, way[0], sec)
+		_tween.parallel().tween_property(_cam, "fov", FOV, sec).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	else:
+		_tween = STATION3D.step_to(self, _cam, st, _stations[was], STATION3D.CAM_SEC)
 	_hud.set("station", st)
 	_hud.set("tabs", _tabs())
 	_hud.set("taken", _taken())
@@ -256,6 +285,36 @@ func _open_station(id: String) -> void:
 	_hud.set("view_size", Vector2(_view.size))
 	_hud.call("clear_say")
 	_hud.visible = true
+
+
+## From where the stand's camera is now (your eyes) to `to`, round the nearer end of the
+## counter when you stood in front of it: [the walk's keys, its length in metres].
+func _way_in(to: Transform3D) -> Array:
+	var xf := _structure.global_transform
+	var inv := xf.affine_inverse()
+	var here := _cam.global_transform
+	var keys: Array = [{"pos": here.origin, "rot": here.basis.get_euler()}]
+	var lp := inv * here.origin
+	var pts: Array[Vector3] = [here.origin]
+	if lp.z > LAYOUT.VENDOR.z * 0.5:
+		var end_x := END_RIGHT + END_CLEAR if lp.x >= (END_RIGHT + END_LEFT) * 0.5 else END_LEFT - END_CLEAR
+		var y := lp.y
+		var side := xf * Vector3(end_x, y, maxf(0.45, minf(lp.z, 1.2)))
+		var back := xf * Vector3(end_x - signf(end_x) * 0.25, y, LAYOUT.VENDOR.z)
+		pts.append(side)
+		pts.append(back)
+	pts.append(to.origin)
+	for i in range(1, pts.size() - 1):
+		# Looking where it goes next (level), as one walking.
+		var dir: Vector3 = pts[i + 1] - pts[i]
+		dir.y = 0.0
+		var b := Basis.looking_at(dir.normalized() if dir.length() > 0.01 else -xf.basis.z, Vector3.UP)
+		keys.append({"pos": pts[i], "rot": b.get_euler()})
+	keys.append({"pos": to.origin, "rot": to.basis.get_euler()})
+	var length := 0.0
+	for i in range(1, pts.size()):
+		length += pts[i].distance_to(pts[i - 1])
+	return [keys, length]
 
 
 func _switch(id: String) -> void:

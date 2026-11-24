@@ -182,7 +182,6 @@ var _side_hints: Control
 var _shed
 ## The warehouse's store room, its racks (scripts/business/store_room.gd).
 var _store_room
-var _exit_hint: Control
 var _texture_style
 var _restaurant_dining_root: Node3D
 var _restaurant_kitchen_root: Node3D
@@ -650,10 +649,8 @@ func _process(delta: float) -> void:
 			_sentence.hover(_bistro_sentence(collider, door_hover))
 	_apply_idle_mouse_look(delta)
 	_update_torch(delta)
-	if _exit_hint == null:
-		_exit_hint = INTERIOR_LOOK.make_exit_hint(self)
+	if _side_hints == null:
 		_side_hints = INTERIOR_LOOK.make_side_hints(self)
-	INTERIOR_LOOK.update_exit_hint(_exit_hint, get_viewport(), delta)
 	var sides := _side_hint_texts()
 	INTERIOR_LOOK.set_side_hints(_side_hints, sides[0], sides[1])
 
@@ -3056,6 +3053,12 @@ func _hud() -> CanvasLayer:
 			var st = _stations.get(id, null)
 			return int(st.call("alert")) if st != null and is_instance_valid(st) else 0
 		_station_hud.side_of = func(dir: int) -> String: return _station_beside(dir)
+		# Space held: away from the station, as Esc.
+		_station_hud.back.connect(func() -> void:
+			var open := _station_open()
+			if open != "":
+				_stations[open].call("close_station")
+		)
 	return _station_hud
 
 
@@ -3176,10 +3179,9 @@ func _open_station(id: String) -> void:
 	var st: Node3D = _stations[id]
 	if _station_tween != null and _station_tween.is_valid():
 		_station_tween.kill()
-	_station_tween = STATION3D.step_camera(self, _interior_camera, st.call("cam_pose"), STATION3D.CAM_SEC if was == "" else 0.34)
 	var hud := _hud()
 	st.set("hud", hud)
-	st.call("open_station", _interior_camera)
+	_station_tween = STATION3D.step_to(self, _interior_camera, st, _stations.get(was) if was != "" else null)
 	hud.set("station", st)
 	hud.set("tabs", _room_tabs())
 	hud.set("taken", _bistro_taken())
@@ -3195,8 +3197,6 @@ func _open_station(id: String) -> void:
 		_bistro_marks.visible = false
 	if _pub_marks != null and is_instance_valid(_pub_marks):
 		_pub_marks.visible = false
-	if _exit_hint != null:
-		_exit_hint.modulate.a = 0.0
 
 
 ## A tab on the frame, a number key, Tab: straight to that station of the room.

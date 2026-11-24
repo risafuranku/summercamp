@@ -78,14 +78,12 @@ const LOOK := preload("res://scripts/interior_look.gd")
 ## rooms, not a locked camera: from the corn stand round the camp, say"): the pointer past a
 ## wide dead middle (it is a stick, interior_look; the work is under it) or W A S D and the
 ## arrows turn the head, up to LOOK_YAW either way; not while something is held. No sway
-## and no breath here: the work stays still under the pointer.
-const LOOK_VBAND := 0.06
-const LOOK_DWELL := 0.08
+## and no breath here: the work stays still under the pointer. Where you look stays where
+## you put it (Richard 24. 11., the corn stand: „něco mi pak tahá pohled dolu. nech pohled
+## volný!“: its peek, up while W was held and back down to the work after, went).
 const LOOK_YAW := 170.0
 ## The stick's dead middle at a station: the work fills the picture.
 const LOOK_DEAD := 0.5
-## How quickly the peek (peek_up) comes up and goes back down (an eased glide, 1/s).
-const PEEK_FOLLOW := 7.0
 ## How much of the screen's height the frame's bar takes (station_hud BAR_H of its H).
 const BAR_SHARE := 24.0 / 360.0
 
@@ -114,11 +112,6 @@ var cam_aim := 0.0
 ## How far to the side (the surface's own x) the camera stands and looks: something
 ## beside the counter in the picture too (the Jednota's trolley by its packing table).
 var cam_side := 0.0
-## Degrees the eyes come up off the work while the pointer is held at the top of the
-## picture (or the up arrow), back down to the work as soon as it is lower (the corn
-## stand, S25: "the mouse up and you look at them, down and you are back"); no tip down.
-## 0: the rooms' look, up and down as far as the pointer pushes it.
-var peek_up := 0.0
 ## The business's live state (kitchen.gd, taproom.gd...), set by the room.
 var state: Node
 ## The room's camera (set while you are at it: the pointer is cast through it).
@@ -137,9 +130,8 @@ var _mouse_free := Vector2(-1, -1)
 var _vp_mouse := Vector2(-1, -1)
 var _look = LOOK.new(LOOK_YAW, 20.0, 30.0)
 var _open_t := 0.0
-var _vband_t := 0.0
-## The peek now (degrees, eased to peek_up or 0).
-var _peek := 0.0
+## How long the room's camera takes to come over it (open_station): the look after that.
+var _settle := CAM_SEC
 ## The pointer's ray in this node's space (for things held up off the surface).
 var _ray_o := Vector3.ZERO
 var _ray_d := Vector3.ZERO
@@ -391,16 +383,27 @@ func cam_pose() -> Transform3D:
 ## The camera from where it is to `to`: one smooth, eased glide at the full frame rate
 ## (it went in steps, twelve a second, until the brief of 21. 10.: "choppy"). The name is
 ## kept for its callers.
-static func step_camera(host: Node, cam: Camera3D, to: Transform3D, seconds := CAM_SEC) -> Tween:
+static func step_camera(host: Node, cam: Camera3D, to: Transform3D, seconds := CAM_SEC, smooth := false) -> Tween:
 	var from := cam.global_transform
 	var tw := host.create_tween()
 	tw.tween_method(func(k: float) -> void:
 		if not is_instance_valid(cam):
 			return
-		var e: float = Tween.interpolate_value(0.0, 1.0, k, 1.0, Tween.TRANS_CUBIC, Tween.EASE_OUT)
+		var e: float = Tween.interpolate_value(0.0, 1.0, k, 1.0, Tween.TRANS_SINE, Tween.EASE_IN_OUT) if smooth \
+				else Tween.interpolate_value(0.0, 1.0, k, 1.0, Tween.TRANS_CUBIC, Tween.EASE_OUT)
 		cam.global_transform = from.interpolate_with(to, e), 0.0, 1.0, seconds)
 	load("res://scripts/ui/cam_move.gd").hold(host, tw)
 	return tw
+
+
+## A room steps up to station `st` from `was` (the station it leaves, null none): the look
+## you had there kept (Richard 24. 11.: „při přechodu mezi stanicemi mi zachovej můj úhel“),
+## the camera on its way to it at that look, `seconds` long (`smooth`: eased in and out, a
+## longer way). The tween back.
+static func step_to(host: Node, cam: Camera3D, st: Node, was: Node, seconds := CAM_SEC, smooth := false) -> Tween:
+	var keep: Array = was.call("look_angles") if was != null and is_instance_valid(was) else []
+	st.call("open_station", cam, keep, seconds)
+	return step_camera(host, cam, st.call("eye"), seconds, smooth)
 
 
 # ── sprites at the room's pixel ──────────────────────────────────────────────
@@ -933,14 +936,17 @@ func is_open() -> bool:
 	return _open
 
 
-## You stepped up to it (the room has started the camera on its way).
-func open_station(cam: Camera3D) -> void:
+## You stepped up to it (the room moves the camera over it, `settle` seconds: step_to), the
+## look `keep` ([yaw, pitch] degrees: the station you came from) or straight at the work.
+func open_station(cam: Camera3D, keep: Array = [], settle := CAM_SEC) -> void:
 	camera = cam
 	_open = true
 	_look.reset()
+	if keep.size() >= 2:
+		_look.yaw_deg = float(keep[0])
+		_look.pitch_deg = float(keep[1])
+	_settle = settle
 	_open_t = 0.0
-	_vband_t = 0.0
-	_peek = 0.0
 	if building_key != "":
 		last_station[building_key] = station
 	_closing_now = false
@@ -961,7 +967,6 @@ func _tick_look(delta: float) -> void:
 		return
 	var vs := camera.get_viewport().get_visible_rect().size
 	var cur := Vector2(-1, -1)
-	var peek_on := false
 	if _vp_mouse.x >= 0.0 and vs.x > 0.0 and vs.y > 0.0:
 		var c := _vp_mouse / vs
 		# The frame's bar lies over the room's bottom (the pointer there is the bar's): the
@@ -969,32 +974,30 @@ func _tick_look(delta: float) -> void:
 		if hud != null:
 			c.y = minf(1.0, c.y / (1.0 - BAR_SHARE))
 		# The pointer is the look's stick, with a wide dead middle: the work is under it.
-		# Not with a thing in hand. A peek looks up by the top band only.
-		var in_vband := c.y < LOOK_VBAND
-		_vband_t = _vband_t + delta if in_vband and holding() == "" else 0.0
+		# Not with a thing in hand.
 		if holding() == "":
 			cur = c
-		if peek_up > 0.0:
-			peek_on = _vband_t >= LOOK_DWELL
-			if cur.x >= 0.0:
-				cur.y = 0.5
-	# W A S D and the arrows turn and tip the head (up peeks).
+	# W A S D and the arrows turn and tip the head.
 	_look.dead = LOOK_DEAD
-	_look.keys_tilt = peek_up <= 0.0
-	if peek_up > 0.0:
-		peek_on = peek_on or LOOK.tilt_axis(self) > 0.0
 	_look.update(delta, cur, LOOK.turn_axis(self))
+	camera.global_transform = eye()
+
+
+## The camera over the work turned by the look now (step_to goes there, the look keeps it).
+func eye() -> Transform3D:
 	var base := cam_pose()
 	# Turned away from the work the eyes come up off the counter to the horizon (a little
 	# under it), so the camp is what you see, not the grass at your feet.
 	var down := asin(clampf(-base.basis.z.normalized().y, -1.0, 1.0))
 	var away := smoothstep(15.0, 70.0, absf(_look.yaw_deg))
 	var pitch := deg_to_rad(_look.pitch_deg) - (down + deg_to_rad(6.0)) * away
-	if peek_up > 0.0:
-		_peek = lerpf(_peek, peek_up if peek_on else 0.0, 1.0 - exp(-PEEK_FOLLOW * delta))
-		pitch = maxf(pitch, deg_to_rad(_peek))
 	var b := base.basis.rotated(base.basis.x.normalized(), pitch).rotated(Vector3.UP, deg_to_rad(_look.yaw_deg))
-	camera.global_transform = Transform3D(b, base.origin)
+	return Transform3D(b, base.origin)
+
+
+## Where the look is turned ([yaw, pitch] degrees): the next station takes it (step_to).
+func look_angles() -> Array:
+	return [_look.yaw_deg, _look.pitch_deg]
 
 
 ## You stepped away (or the room closed under you).
@@ -1126,7 +1129,7 @@ func _process(delta: float) -> void:
 		_tick(delta)
 		_open_t += delta
 		# Once the room's camera has come over the station.
-		if _open_t > CAM_SEC + 0.05:
+		if _open_t > _settle + 0.05:
 			_tick_look(delta)
 		if int(_t * 2.0) != int((_t - delta) * 2.0):
 			_check_rail()

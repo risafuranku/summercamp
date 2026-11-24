@@ -56,6 +56,7 @@ python godot/tools/boat_coop.py [OUT_DIR]    # the boat for two: the other rows 
 python godot/tools/coop_photo.py [OUT_DIR]   # co-op Photographer on the joining warden: the white and their polaroid, the run at their back, at their window, the last picture: theirs alone
 godot --headless --path godot res://tools/post_check.tscn      # the second monitor: the order paid, the van on the clock, the postman at the counter, the slip, two screens and the swap, the keys, the save, the postman who gives up
 python godot/tools/post_coop.py [OUT_DIR]   # the second monitor for two: ordered on the joining machine (paid once), the host's van and postman on both, signed for there, the monitor on both
+python godot/tools/desk_coop.py [OUT_DIR]   # the reception's counter for two: the check-in drawer the host pulls out and in goes out and in on the other machine (in the office, and out of it: it is out as they come back), the other's pulled out at the host's, two at once go the host's way
 python godot/tools/window_coop.py [OUT_DIR] # the reception's windows for two: from outside the joining warden sees the host at the PC, in the back room, the curtain drawn, the lights out
 python godot/tools/sleep_coop.py [OUT_DIR]  # to bed for two: a tent each (host first, client first), office and tent, one kept awake; the night passes for both at once, both wake at the alarm
 python godot/tools/down_coop.py [OUT_DIR]   # a warden knocked down at night: their torch left lit in the grass, seen by the other at 4, 10 and 18 m (and with yours off); theirs is your torch at 0.85 (remote_player.THEIR_TORCH, the numbers player_controller's own)
@@ -70,6 +71,7 @@ godot --headless --path godot --script res://tools/night_swell_check.gd   # the 
 #   res://tools/hlasky_check.tscn    the pager's and feed's lines as the player reads them, "EN" for any still English (-- --lang=cs --lang-audit)
 #   res://tools/hover_check.tscn     the reception's glints from behind the counter and from the bench (run alone: it moves the real pointer)
 #   res://tools/kukurice_hover.tscn  the corn stand's glints under the pointer
+#   res://tools/stand_look.tscn      the corn stand's eyes (24. 11.): the way in round the counter's end, W let go (the look stays), Q/E (it goes with you), Space tapped (serves) and held (away)
 #   res://tools/kroky_check.tscn     the walk's steps: per second, the head's dip, nod and roll
 # The polish pass of 4. 11. (evening; windowed, --audio-driver Dummy, -- --out=DIR):
 #   res://tools/pruchod_check.tscn   a first day and night as a new warden plays it: a picture at every turn, the worst frame of each stretch

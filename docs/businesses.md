@@ -6,6 +6,26 @@ The pub, the bistro, the Jednota, the corn stand and their work.
 
 ## Traps
 
+- **At a station Space serves when pressed and leaves when held** (Richard 24. 11.:
+  „podržením space odejdu z obsluhování… ale ne na stisknutí protože tím vydávám
+  objednávku“): `station_hud.key_action` gives "serve" for the press and starts
+  `_space_t`; held `HOLD_BACK_SEC` (0.6 s) the frame emits `back` (BACK fills along its foot
+  meanwhile), and the place takes it as its Esc (the pub's rooms and the bowling alley close
+  the station, the corn stand closes the stand). Enter only serves.
+
+- **The look at a station stays where you put it, and goes with you to the next one**
+  (Richard 24. 11.: „něco mi pak tahá pohled dolu. nech pohled volný!“, „při přechodu mezi
+  stanicemi mi zachovej můj úhel“): the corn stand's peek (W up while held, back down to the
+  work after) is gone, every station has the rooms' look (W and S tilt and it stays). A room
+  steps up to a station through `STATION3D.step_to(host, cam, st, was)`: the station opens
+  with the one it leaves' `look_angles()` and the camera goes to its `eye()` (the pose turned
+  by that look), so nothing snaps when the look takes over. Into the corn stand from the camp
+  the stand's camera walks from your own eyes (the camp camera, its fov) round the nearer end
+  of the counter to the station (`stand_view._way_in`, WALK_PATH and its steps, `WALK_MPS`);
+  it started from a set point out front and went through the counter in a third of a second.
+  Test: `res://tools/stand_look.tscn` (the way in a picture every 0.3 s, W let go, Q/E, Space
+  tapped and held).
+
 - **One room a kind of place** (12. 11.): `interior_manager` keeps a `service_interior` for
   every kind (`service_interior.KINDS`: rest, pub, vecerka, staff, toilet, wash, generator,
   sewer; `profile_for(building type)`), each built once behind the loading bar, one a step

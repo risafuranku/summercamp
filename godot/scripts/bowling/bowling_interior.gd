@@ -76,7 +76,6 @@ var _look = INTERIOR_LOOK.new(180.0, 20.0, 34.0)
 var _cam_base_rot := Vector3.ZERO
 var _spot := "hall"
 var _move: Tween
-var _exit_hint: Control
 var _time_state := TIME_DAY
 var _daylight := 1.0
 var _power := true
@@ -424,22 +423,15 @@ func _process(delta: float) -> void:
 	_sync_lanes()
 	_tick_machine(delta)
 	if bool(_lane_play.call("active")):
-		if _exit_hint != null:
-			_exit_hint.modulate.a = 0.0
 		return
 	var open := _station_open()
 	if open != "":
 		_station_frame(open)
-		if _exit_hint != null:
-			_exit_hint.modulate.a = 0.0
 		return
 	var moving := _station_tween != null and _station_tween.is_valid() and _station_tween.is_running()
 	if not moving and (_move == null or not _move.is_running()):
 		var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.turn_axis(self), self)
 		_interior_camera.rotation = _cam_base_rot + offset
-	if _exit_hint == null:
-		_exit_hint = INTERIOR_LOOK.make_exit_hint(self, "Leave   [Esc]" if _spot == "hall" else "Back   [Esc]")
-	INTERIOR_LOOK.update_exit_hint(_exit_hint, get_viewport(), delta)
 	if not moving and _clicked() != "":
 		HandCursor.want(HandCursor.POINT, self)
 
@@ -491,9 +483,6 @@ func _input(event: InputEvent) -> void:
 			var li := int(what.substr(4))
 			if str(_bowling.lane(key, li).get("visit", "")) == "" and bool(_lane_play.call("start", li)):
 				_spot = what
-				if _exit_hint != null:
-					_exit_hint.queue_free()
-					_exit_hint = null
 				return
 			_go(what)
 
@@ -521,9 +510,6 @@ func _clicked() -> String:
 func _go(spot: String, at_once := false) -> void:
 	var s: Array = LAYOUT.lane_spot(int(spot.substr(4))) if spot.begins_with("lane") else LAYOUT.SPOTS.get(spot, LAYOUT.SPOTS["hall"])
 	_spot = spot
-	if _exit_hint != null:
-		_exit_hint.queue_free()
-		_exit_hint = null
 	var rot := Vector3(deg_to_rad(float((s[1] as Vector3).x)), deg_to_rad(float((s[1] as Vector3).y)), 0.0)
 	_look.reset()
 	_cam_base_rot = rot
@@ -723,6 +709,12 @@ func _hud() -> CanvasLayer:
 		_station_hud.alert_of = func(id: String) -> int:
 			var st = _stations.get(id, null)
 			return int(st.call("alert")) if st != null and is_instance_valid(st) else 0
+		# Space held: away from the station, as Esc.
+		_station_hud.back.connect(func() -> void:
+			var open := _station_open()
+			if open != "":
+				_stations[open].call("close_station")
+		)
 	return _station_hud
 
 
@@ -904,25 +896,23 @@ func _open_station(id: String) -> void:
 	if _station_tween != null and _station_tween.is_valid():
 		_station_tween.kill()
 	var room := str(LAYOUT.STATIONS[id].get("room", "hall"))
+	var hud := _hud()
+	st.set("hud", hud)
 	if room != _room:
 		# Down the stairs or up them: the camera is there at once, behind a dissolve.
 		_cross_to(room)
-		_interior_camera.global_transform = st.call("cam_pose")
+		st.call("open_station", _interior_camera, [], 0.0)
+		_interior_camera.global_transform = st.call("eye")
 		_station_tween = create_tween()
 		_station_tween.tween_interval(0.01)
 	else:
-		_station_tween = STATION3D.step_camera(self, _interior_camera, st.call("cam_pose"), STATION3D.CAM_SEC if was == "" else 0.34)
-	var hud := _hud()
-	st.set("hud", hud)
-	st.call("open_station", _interior_camera)
+		_station_tween = STATION3D.step_to(self, _interior_camera, st, _stations.get(was) if was != "" else null)
 	hud.set("station", st)
 	hud.set("tabs", _room_tabs())
 	hud.set("taken", {})
 	hud.set("view_size", Vector2(_viewport.size))
 	hud.call("clear_say")
 	hud.visible = true
-	if _exit_hint != null:
-		_exit_hint.modulate.a = 0.0
 
 
 func _switch_station(id: String) -> void:

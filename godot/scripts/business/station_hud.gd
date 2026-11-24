@@ -28,6 +28,9 @@ extends CanvasLayer
 ## One per business room (scripts/service_interior.gd, scripts/corn/stand_view.gd); shown
 ## while a station is open.
 
+## Space held (HOLD_BACK_SEC): away from the station as Esc does; pressed, it serves (Richard
+## 24. 11.: „podržením space odejdu z obsluhování… ale ne na stisknutí protože tím vydávám
+## objednávku“). The place takes it as its BACK.
 signal back
 signal tab(station: String)
 signal button(id: String)
@@ -207,9 +210,28 @@ func poke() -> void:
 	_idle = 0.0
 
 
+const HOLD_BACK_SEC := 0.6
+## How long Space has been down since it served (-1 up); BACK fills along its foot with it.
+var _space_t := -1.0
+
+
+func _tick_space_hold(delta: float) -> void:
+	if _space_t < 0.0:
+		return
+	if not Input.is_physical_key_pressed(KEY_SPACE):
+		_space_t = -1.0
+		return
+	_space_t += delta
+	if _space_t >= HOLD_BACK_SEC:
+		_space_t = -1.0
+		back.emit()
+
+
 func _process(delta: float) -> void:
 	if not visible:
+		_space_t = -1.0
 		return
+	_tick_space_hold(delta)
 	_t += delta
 	_msg_t += delta
 	_card_t += delta
@@ -317,7 +339,10 @@ func key_action(e: InputEventKey) -> String:
 	if e.is_action_pressed("ui_cancel"):
 		return "back"
 	match e.physical_keycode:
-		KEY_SPACE, KEY_ENTER, KEY_KP_ENTER:
+		KEY_SPACE:
+			_space_t = 0.0
+			return "serve"
+		KEY_ENTER, KEY_KP_ENTER:
 			return "serve"
 		KEY_B:
 			return "books"
@@ -508,6 +533,11 @@ func _draw() -> void:
 	_c.draw_rect(Rect2(x0, H - BAR_H, full_w, 1), RETRO_UI.C_PLATE_LIGHT)
 	_c.draw_rect(Rect2(x0, H - 1, full_w, 1), RETRO_UI.C_PLATE_DARK)
 	_button(_back_rect(), tr("< BACK"), _hover == "#back", false, false, "Esc")
+	# Space held: BACK fills along its foot (a tap that serves shows nothing).
+	if _space_t > 0.12:
+		var br := _back_rect()
+		var k := clampf(_space_t / HOLD_BACK_SEC, 0.0, 1.0)
+		_c.draw_rect(Rect2(br.position.x + 1, br.end.y - 3, (br.size.x - 2) * k, 2), RETRO_UI.C_AMBER)
 	var cur := str(station.get("station")) if station != null else ""
 	for i in tabs.size():
 		_draw_tab(i, cur)
