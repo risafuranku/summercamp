@@ -43,7 +43,8 @@ the pad and the split screen must keep working (do not break them), but get no n
   - [x] The PA's jingle: what you change at the PC (a dish bought, open till 23:00, an offer)
         goes out of the horns as a gong and a mumble, written in the PDA; guests in reach come
         (24. 11., docs/pc.md "Hotovo").
-  - [ ] The machine as a machine: the disk, the fan, the printer, the modem heard; it never hangs.
+  - [x] The machine as a machine: the disk, the fan, the printer, the modem heard; it never hangs
+        (24. 11.: the hum and the disk, docs/pc.md; the modem was there; the printer with it).
   - [ ] The printer in the reception: a dot-matrix slip for what waits in the camp (reminders,
         no reward), the same as the PDA's Tasks.
   - [ ] The camp live in the programs: guests as dots on a plan, queues, takings as they come

@@ -28,6 +28,9 @@ signal desktop_ready
 const T = preload("res://scripts/os98/os_theme.gd")
 const LANG = preload("res://scripts/lang.gd")
 const BUILDER_WARMUP = preload("res://scripts/builder/warmup.gd")
+## The machine's own hum and disk (24. 11., docs/pc.md "Stroj jako stroj").
+const PC_NOISES = preload("res://scripts/os98/pc_noises.gd")
+var _noises: Node
 const WINDOW = preload("res://scripts/os98/os_window.gd")
 const PAGE = preload("res://scripts/os98/os_page.gd")
 const FILES = preload("res://scripts/os98/os_files.gd")
@@ -246,6 +249,9 @@ var _money2: Label
 
 
 func _ready() -> void:
+	_noises = PC_NOISES.new()
+	_noises.name = "PcNoises"
+	add_child(_noises)
 	icu.setup(self)
 	theme = T.get_theme()
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -953,6 +959,7 @@ func open_app(app_id: String, args: Dictionary = {}, _new_instance := false) -> 
 	if _state != Boot.DESKTOP:
 		return null
 	_close_start_menu()
+	_noises.seek(sound_db())
 	var a := args.duplicate()
 	var tab := app_id
 	match app_id:
@@ -1624,6 +1631,7 @@ var _blacked_out := false
 
 func _process(delta: float) -> void:
 	BUILDER_WARMUP.poll()
+	_noises.tick(delta, sound_db())
 	_power_t -= delta
 	if _power_t <= 0.0:
 		_power_t = 0.25

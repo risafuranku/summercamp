@@ -105,3 +105,11 @@ strojích) jdou z ampliónů jako gong a nesrozumitelný hlas (`assets/sfx/pa/`,
 v dosahu sloupu, kteří zrovna plánují, co dál, jdou s pravděpodobností 35 % do toho podniku (jednou
 na hlášení, 90 minut; `pa_rules.PULL_*`, `guest_life._pulled_visit`). Bez sloupu v kempu se nehlásí
 nic. Test `pa_check`, ve hře `--scenario=pa_pole` (hospoda otevře do 23:00).
+
+Hotovo 24. 11. (stroj jako stroj): `scripts/os98/pc_noises.gd` (dítě `os_shell`): když je PC zapnuté,
+hučí větrák a točí se disk (bezešvá smyčka `assets/sfx/os98/pc_hum.ogg` z ElevenLabs přes
+`tools/audiogen/ambience_loop.py`, loop v .import), disk sám občas cvakne (18-55 s) a cvakne při
+otevření programu (`seek.mp3`); hlasitost jako ostatní zvuky PC (`sound_db`: u stolu plně, přes
+místnost tišeji, venku nic). Nikdy se nesekne. Oprava cestou: odchod z kanceláře vsedě (pauza „Go
+outside“) nechával PC „otevřené“ a jeho zvuky (i pípání pošty) hrály v kempu naplno;
+`building_interior.close_interior` teď zavře panel. Ve hře `--scenario=pc_noises`.

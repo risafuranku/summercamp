@@ -1485,6 +1485,17 @@ const SCENARIOS := {
 		# (The weather blends over 70 s since 24. 11.: the storm whole after that.)
 		["eval", "weather_system.set_weather(5)"], ["wait", 12.0], ["shot", "w1_storm_a"], ["wait", 70.0], ["shot", "w2_storm_b"], ["wait", 0.7], ["shot", "w3_storm_c"], ["wait", 0.7], ["shot", "w4_storm_d"],
 	],
+	# The office PC as a machine (24. 11., docs/pc.md): at the desk its hum and disk play, out
+	# in the camp they are quiet ("PCN" evals: the hum's loudness where you are).
+	"pc_noises": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 14.0],
+		["eval", "_interior_manager._building_interior._crt_ui.get('_noises').get('_hum').playing"],
+		["eval", "_interior_manager._building_interior._crt_ui.get('_noises').get('_hum').volume_db"],
+		["eval", "_interior_manager._building_interior._crt_ui.sound_db()"],
+		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 2.0], ["player", 12, 18, 0.0], ["wait", 2.0],
+		["eval", "_interior_manager._building_interior._crt_ui.get('_noises').get('_hum').volume_db"],
+		["eval", "_interior_manager._building_interior._crt_ui.sound_db()"],
+	],
 	# The PDA (24. 11., docs/player.md): up as TAB holds it, each app, a message buzzing in,
 	# the snake, and at night with its backlight.
 	"pda": [

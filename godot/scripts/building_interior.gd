@@ -700,6 +700,10 @@ func close_interior() -> void:
 		_extras.reset_to_office()
 	if _desk_room != null:
 		_desk_room.on_left_office()
+	# Out of the office still seated (the pause's "Go outside"): the PC is no longer in front of
+	# you, its sounds (the mail's ping, its hum: os_shell.sound_db) go quiet with the distance.
+	if _crt_ui != null and _crt_ui.has_method("close_panel") and _crt_ui.get("_open") == true:
+		_crt_ui.close_panel()
 	_crt_active = false
 	_crt_orbit_enabled = false
 	_reset_crt_look_back_state()
