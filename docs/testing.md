@@ -200,7 +200,12 @@ a small animated `<movie>.webp`. The business shot drivers (`jednota_shots`, `pr
 - **Bash heredocs with long inline Python sometimes fail**; write the script to a file.
 
 - **The shot driver's mouse steers interior looks**: warp it to the centre
-  (`get_viewport().warp_mouse(...)`) before shots of a look-around view.
+  (`get_viewport().warp_mouse(...)`) before shots of a look-around view. A station's view
+  (station3d `_look`) turns the head toward a pointer left at the edge: the bowling's station
+  shots looked at the wall until `bowling_shots` warped it first (24. 11.).
+
+- **The hidden desktop's 1280x720 window has a 1264x681 client area**: the HUD's scale is 2
+  there, not 3 (a real 720p window is the same; fullscreen is 3). The PDA keeps 3 at least.
 
 - **Testing co-op on one PC**: a copy of the game takes ~50 s to boot beside another, and
   the joining one stops answering for tens of seconds while it builds the camp (ENet is
