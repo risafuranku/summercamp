@@ -20,7 +20,7 @@ the pad and the split screen must keep working (do not break them), but get no n
 - [x] Balance pass, the money (Richard 24. 11.: only the guests pay; a tight start, then
       calm; just make what is there dearer; docs/DESIGN.md §7 Decisions): the flat earnings
       of every building gone, electricity 5.5 a kWh and 30 a day, wages half as much again;
-      measured by `godot/tools/economy_sim.tscn` (docs/testing.md).
+      measured by `godot/tools/economy_sim.tscn` (docs/testing.md); 7929f987.
 - [ ] The booking card in CampMail (Richard 24. 11., DESIGN §7 Decisions): who comes as
       pictures (kinds and how many), what they want (the facilities' icons, what the camp
       lacks in red), the price of a night per guest; now and then a tempting big party for
