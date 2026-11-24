@@ -21,6 +21,16 @@ Buses, 3D sound, the mixer and the sounds' own rules.
 
 - **Footstep pitch modulation must stay subtle** (whoosh artifact otherwise).
 
+- **The voice in co-op: V is your own voice, a click while it is held the walkie** (Richard
+  24. 11.: „když držim V, kliknutím přepínám jestli mluvim lokálně nebo do vysílačky, když jí
+  mám v inventáři“; `scripts/coop/voice.gd`): "local" comes out of an AudioStreamPlayer3D on
+  the "VoiceLocal" bus at the talker's figure (the room's figure, else the camp's; neither
+  seen: silent), full within 3 m, gone at 32 m; the walkie ("radio") needs a walkie in the
+  bag at both ends (one goes into every bag as a game for two starts) and sounds out of yours,
+  crushed, the squelch with it; the choice stays for the next go; the click is the voice's
+  and does nothing else. Test `python godot/tools/voice_coop.py` (the packets only: the
+  hidden desktop has no microphone).
+
 - **A 3D sound at the player's ear**: 0.3 m off with `unit_size` 3 it gets +20 dB and every
   one hits `max_db` (+3) alike; set its `unit_size` to the distance it is at
   (`_near_you` in the Silent Man and the Girl) and the gain written is what plays.

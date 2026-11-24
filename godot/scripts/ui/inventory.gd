@@ -48,6 +48,8 @@ const KINDS := {
 	"ticket_used": {"w": 1, "h": 1, "tex": "ticket_used.png"},
 	# The camp's megaphone, from the room behind the office (scripts/coop/voice.gd).
 	"megaphone": {"w": 1, "h": 1, "tex": "megaphone.png"},
+	# The walkie-talkie, every warden's in a game for two (voice.gd: V and a click).
+	"walkie": {"w": 1, "h": 1, "tex": "walkie.png"},
 	# Number four's key from the Liblice motel (town_trip._rent_room), left in its door in the morning.
 	"key_motel": {"w": 1, "h": 1, "tex": "key_motel.png"},
 	# From Liblice's shops (scripts/town/counter_goods.gd): a box of matches (the chapel's
@@ -1055,8 +1057,7 @@ func _draw_hint(it: Dictionary, mouse: Vector2) -> void:
 	if at.x + (w + 6.0) * fs > get_viewport().get_visible_rect().size.x - 4.0:
 		at.x = floorf(mouse.x - (w + 10.0) * fs)
 	c.draw_set_transform(at, 0.0, Vector2(fs, fs))
-	c.draw_rect(Rect2(Vector2(-3, -9), Vector2(w + 6, 12)), Color(0.08, 0.06, 0.04, 0.92))
-	c.draw_rect(Rect2(Vector2(-3, -9), Vector2(w + 6, 12)), Color(0.55, 0.44, 0.28), false, 1.0)
+	RETRO_UI.draw_round_box(c, Rect2(Vector2(-3, -9), Vector2(w + 6, 12)), Color(0.08, 0.06, 0.04, 0.92), Color(0.55, 0.44, 0.28), 1.0)
 	c.draw_string(RETRO_UI.FONT_LABEL, Vector2(0, 0), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, RETRO_UI.SIZE_LABEL, RETRO_UI.C_BONE)
 	c.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 

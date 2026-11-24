@@ -1,10 +1,15 @@
 extends Node
 
 ## Your voice to the other wardens (co-op, carried by scripts/coop/coop.gd send_voice):
-##   - the walkie-talkie, every warden's in co-op: hold its key (V; rebind it in Controls,
-##     GameSettings "radio_talk") and talk; the others hear you out of their own radio's
-##     little speaker, narrow and a bit crushed, the squelch before and after. It comes
-##     up in your left hand while you talk (hands_lo/radio.png).
+##   - your own voice: hold V (rebind it in Controls, GameSettings "radio_talk") and talk;
+##     the others hear you from where you stand, near and fading with the distance
+##     (Richard 24. 11.: „pořádně zprovoznit VOIP. když držim V, kliknutím přepínám jestli
+##     mluvim lokálně nebo do vysílačky, když jí mám v inventáři“);
+##   - the walkie-talkie, in your bag in co-op ("walkie", given as the game for two starts):
+##     a click while V is held turns your talking to it and back; the others hear you out of
+##     their own radio's little speaker (theirs in their bag), narrow and a bit crushed, the
+##     squelch before and after, wherever they are. It comes up in your left hand while you
+##     talk into it (hands_lo/radio.png). The choice stays for the next time.
 ##   - the megaphone, once you have it in your bag (from the room behind the office): hold
 ##     its key (G, "megaphone_talk"); everyone hears you from where you stand, loud, far
 ##     and through the horn. In your right hand while you shout.
@@ -26,11 +31,19 @@ const PA_RULES := preload("res://core/systems/pa_rules.gd")
 const F_MEGA := 1
 const F_START := 2
 const F_END := 4
+const F_LOCAL := 8
+## Your own voice: full within LOCAL_NEAR metres, gone past LOCAL_FAR.
+const LOCAL_NEAR := 3.0
+const LOCAL_FAR := 32.0
 
 var _mic: AudioStreamPlayer
 var _capture: AudioEffectCapture
-## What you are talking into now: "", "radio", "megaphone".
+## What you are talking into now: "", "local", "radio", "megaphone".
 var _sending := ""
+## What V talks into: "local" (your voice, near) or "radio" (the walkie, with one in the bag).
+var _v_mode := "local"
+## The walkie given into the bag once a game for two is on.
+var _walkie_given := false
 var _first := true
 var _out := PackedFloat32Array()
 var _sum := 0.0
@@ -80,6 +93,12 @@ func _buses() -> void:
 		AudioServer.set_bus_mute(i, true)
 	else:
 		_capture = AudioServer.get_bus_effect(AudioServer.get_bus_index("VoiceMic"), 0) as AudioEffectCapture
+	# Your own voice, near: as it is (the 3D player fades it).
+	if AudioServer.get_bus_index("VoiceLocal") < 0:
+		var li := AudioServer.bus_count
+		AudioServer.add_bus(li)
+		AudioServer.set_bus_name(li, "VoiceLocal")
+		AudioServer.set_bus_send(li, "Master")
 	# The radio's speaker: narrow and crushed. The megaphone's horn: harder, louder.
 	for spec in [["VoiceRadio", 380.0, 3000.0, 0.22, 0.0], ["VoiceMegaphone", 520.0, 3600.0, 0.42, 4.0]]:
 		if AudioServer.get_bus_index(str(spec[0])) >= 0:
@@ -104,12 +123,13 @@ func _buses() -> void:
 # ── talking ──────────────────────────────────────────────────────────────────
 
 func _process(delta: float) -> void:
+	_give_walkie()
 	var want := ""
 	if _may_talk():
 		if _held("megaphone_talk") and _has_megaphone():
 			want = "megaphone"
 		elif _held("radio_talk") and INSTANCE.coop(self).has_partner():
-			want = "radio"
+			want = "radio" if _v_mode == "radio" and _has_walkie() else "local"
 	if want != _sending:
 		if _sending != "":
 			_stop()
@@ -144,6 +164,42 @@ func _has_megaphone() -> bool:
 	return bag != null and bag.has("megaphone")
 
 
+func _has_walkie() -> bool:
+	var bag = INVENTORY.find(get_tree())
+	return bag != null and bag.has("walkie")
+
+
+## A game for two on: the walkie into your bag, once (everyone had one before it was a thing
+## in the bag).
+func _give_walkie() -> void:
+	if _walkie_given or not INSTANCE.coop(self).has_partner():
+		return
+	var main := INSTANCE.main_of(self)
+	if main == null or main.get("_gameplay_started") != true:
+		return
+	var bag = INVENTORY.find(get_tree())
+	if bag == null:
+		return
+	_walkie_given = true
+	if not bag.has("walkie") and bag.has_method("add_item"):
+		bag.add_item("walkie")
+
+
+## A click while V is held: your voice to the walkie and back (with one in the bag). The
+## click is the voice's, nothing else's.
+func _input(event: InputEvent) -> void:
+	var mb := event as InputEventMouseButton
+	if mb == null or not mb.pressed or mb.button_index != MOUSE_BUTTON_LEFT:
+		return
+	if _sending != "local" and _sending != "radio":
+		return
+	get_viewport().set_input_as_handled()
+	if not _has_walkie():
+		return
+	_v_mode = "radio" if _v_mode == "local" else "local"
+	_stop()
+	_start(_v_mode)
+
 func _start(kind: String) -> void:
 	if _mic == null:
 		_mic = AudioStreamPlayer.new()
@@ -160,7 +216,8 @@ func _start(kind: String) -> void:
 	_sum = 0.0
 	_count = 0
 	_pos = 0.0
-	_sfx("radio_on.wav" if kind == "radio" else "megaphone_on.wav", -14.0)
+	if kind != "local":
+		_sfx("radio_on.wav" if kind == "radio" else "megaphone_on.wav", -14.0)
 	_set_hand(kind)
 
 
@@ -168,7 +225,8 @@ func _stop() -> void:
 	_send(PackedFloat32Array(), true)
 	if _mic != null:
 		_mic.stop()
-	_sfx("radio_off.wav" if _sending == "radio" else "megaphone_off.wav", -14.0)
+	if _sending != "local":
+		_sfx("radio_off.wav" if _sending == "radio" else "megaphone_off.wav", -14.0)
 	_sending = ""
 	_set_hand("")
 
@@ -197,7 +255,7 @@ func _pump() -> void:
 
 
 func _send(samples: PackedFloat32Array, last: bool) -> void:
-	var flags := (F_MEGA if _sending == "megaphone" else 0) | (F_START if _first else 0) | (F_END if last else 0)
+	var flags := (F_MEGA if _sending == "megaphone" else 0) | (F_LOCAL if _sending == "local" else 0) | (F_START if _first else 0) | (F_END if last else 0)
 	_first = false
 	var bytes := PackedByteArray()
 	bytes.resize(samples.size())
@@ -251,13 +309,17 @@ func _my_position() -> Vector3:
 ## A packet from another warden (INSTANCE.coop(self)._voice).
 func on_voice(id: int, flags: int, data: PackedByteArray) -> void:
 	var mega := (flags & F_MEGA) != 0
-	var key := "%d:%s" % [id, "megaphone" if mega else "radio"]
+	var kind := "megaphone" if mega else ("local" if (flags & F_LOCAL) != 0 else "radio")
+	# The walkie's voice out of yours: none in your bag, nothing heard.
+	if kind == "radio" and not _has_walkie():
+		return
+	var key := "%d:%s" % [id, kind]
 	var rx: Dictionary = _rx.get(key, {})
 	if rx.is_empty():
-		rx = _make_rx(id, mega)
+		rx = _make_rx(id, kind)
 		_rx[key] = rx
 	var player: Node = rx["player"]
-	if (flags & F_START) != 0:
+	if (flags & F_START) != 0 and kind != "local":
 		_sfx_at(rx, "radio_on.wav" if not mega else "megaphone_on.wav")
 	if not player.get("playing"):
 		player.call("play")
@@ -282,15 +344,28 @@ func on_voice(id: int, flags: int, data: PackedByteArray) -> void:
 				(pb2 as AudioStreamGeneratorPlayback).push_buffer(frames)
 	rx["last"] = Time.get_ticks_msec()
 	if (flags & F_END) != 0:
-		_sfx_at(rx, "radio_off.wav" if not mega else "megaphone_off.wav")
+		if kind != "local":
+			_sfx_at(rx, "radio_off.wav" if not mega else "megaphone_off.wav")
 		rx["last"] = 0
 
 
-func _make_rx(id: int, mega: bool) -> Dictionary:
+func _make_rx(id: int, kind: String) -> Dictionary:
+	var mega := kind == "megaphone"
 	var gen := AudioStreamGenerator.new()
 	gen.mix_rate = RATE
 	gen.buffer_length = 0.6
 	var player: Node
+	if kind == "local":
+		# Their own voice from where they stand (_update_rx), fading with the distance.
+		var pl := AudioStreamPlayer3D.new()
+		pl.stream = gen
+		pl.bus = "VoiceLocal"
+		pl.unit_size = LOCAL_NEAR
+		pl.max_distance = LOCAL_FAR
+		var main_l: Node = INSTANCE.main_of(self)
+		var w3l = main_l.get("_world_3d") if main_l != null else null
+		(w3l if w3l is Node else main_l).add_child(pl)
+		return {"player": pl, "playback": null, "last": 0, "id": id, "mega": false, "local": true}
 	if mega:
 		var p3 := AudioStreamPlayer3D.new()
 		p3.stream = gen
@@ -331,6 +406,9 @@ func _update_rx() -> void:
 	for key in _rx.keys():
 		var rx: Dictionary = _rx[key]
 		var talking := now - int(rx["last"]) < 400
+		if bool(rx.get("local", false)):
+			_place_local(rx)
+			continue
 		if talking:
 			on_air = "%s %s" % ["MEGAPHONE:" if bool(rx["mega"]) else "RADIO:", INSTANCE.coop(self).name_of(int(rx["id"])).to_upper()]
 		if bool(rx["mega"]):
@@ -356,10 +434,36 @@ func _update_rx() -> void:
 				else:
 					(pa3 as AudioStreamPlayer3D).global_position = h
 					(pa3 as AudioStreamPlayer3D).volume_db = -3.0
-	if _sending != "":
+	if _sending == "radio" or _sending == "megaphone":
 		on_air = "%s  TALKING" % ("MEGAPHONE" if _sending == "megaphone" else "RADIO")
 	_label.text = on_air
 	_label.visible = on_air != ""
+
+
+## Their own voice where they are: their figure in the room you are both in, else theirs in
+## the camp; nowhere to be seen, not heard.
+func _place_local(rx: Dictionary) -> void:
+	var p3: AudioStreamPlayer3D = rx["player"]
+	if p3 == null or not is_instance_valid(p3) or not p3.is_inside_tree():
+		return
+	var id := int(rx["id"])
+	var fig: Node3D = null
+	var main := INSTANCE.main_of(self)
+	var im = main.get("_interior_manager") if main != null else null
+	var figs = im.get("_coop_figs") if im != null else null
+	if figs is Dictionary and (figs as Dictionary).has(id):
+		var f = ((figs as Dictionary)[id] as Dictionary).get("fig")
+		if f != null and is_instance_valid(f) and (f as Node3D).is_visible_in_tree():
+			fig = f
+	if fig == null:
+		var camp: Node3D = INSTANCE.coop(self).figure_of(id)
+		if camp != null and is_instance_valid(camp) and camp.is_visible_in_tree():
+			fig = camp
+	if fig == null:
+		p3.volume_db = -80.0
+		return
+	p3.volume_db = 0.0
+	p3.global_position = fig.global_position + Vector3(0, 1.55, 0)
 
 
 func _sfx(file: String, db: float) -> void:
