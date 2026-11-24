@@ -19,6 +19,7 @@ extends Node3D
 const LOOKS = preload("res://scripts/coop/warden_looks.gd")
 const DOOM = preload("res://scripts/figures/doom_figure.gd")
 const BOAT_RIG = preload("res://scripts/lake/boat_rig.gd")
+const TORCH_BEAM = preload("res://scripts/torch_beam.gd")
 const SPRITE_HEIGHT_M := 1.74
 ## On their feet they are drawn this much smaller than the poses below say, so that their
 ## eyes are where yours are (1.45 m over the ground: player_controller STANCE_CAPSULE;
@@ -113,17 +114,17 @@ func setup(p_model: int, p_color: int, p_manual := false) -> void:
 	# down with it lit could not be found by it; 22. 11.)
 	_beam = SpotLight3D.new()
 	_beam.name = "TorchBeam"
-	_beam.light_color = Color(1.0, 0.94, 0.82)
 	_beam.light_energy = _torch("flashlight_energy", 6.5) * THEIR_TORCH
 	_beam.spot_range = _torch("flashlight_range", 20.0)
 	_beam.spot_angle = _torch("flashlight_angle", 19.0)
 	_beam.spot_attenuation = _torch("flashlight_attenuation", 0.5)
+	TORCH_BEAM.dress(_beam, false)
 	_beam.shadow_enabled = false
 	_beam.visible = false
 	add_child(_beam)
 	_halo = SpotLight3D.new()
 	_halo.name = "TorchHalo"
-	_halo.light_color = Color(1.0, 0.92, 0.8)
+	_halo.light_color = TORCH_BEAM.HALO_COLOR
 	_halo.light_energy = _torch("flashlight_halo_energy", 0.9) * THEIR_TORCH
 	_halo.spot_range = _torch("flashlight_range", 20.0) * 0.65
 	_halo.spot_angle = _torch("flashlight_halo_angle", 34.0)
@@ -247,6 +248,7 @@ func show_at(pos: Vector3, p_pose: String, torch_on := false, face := Vector3.ZE
 func _process(delta: float) -> void:
 	_time += delta
 	if manual:
+		_tick_way(delta)
 		_animate_work(delta)
 		return
 	if _buf.is_empty():
@@ -480,6 +482,55 @@ var _manual_walk := false
 
 func set_walking(on: bool) -> void:
 	_manual_walk = on
+
+
+## A room's copy walking a way of its own (interior_manager: from one place in the office to
+## the next, round the counter's end and behind the back of the one looking, never through
+## it: Richard 24. 11.): along `points` (global, on the floor) at WAY_MPS, moved every frame;
+## then at the last one in `then_pose`, facing `then_face`. walking_way() while it goes.
+const WAY_MPS := 1.4
+var _way := PackedVector3Array()
+var _way_d := 0.0
+var _way_pose := "stand"
+var _way_face := Vector3.ZERO
+
+
+func walk_way(points: PackedVector3Array, then_pose := "stand", then_face := Vector3.ZERO) -> void:
+	if points.size() < 2:
+		return
+	_way = points
+	_way_d = 0.0
+	_way_pose = then_pose
+	_way_face = then_face
+	show_at(points[0], "stand")
+	set_flip(false)
+	set_walking(true)
+
+
+func walking_way() -> bool:
+	return _way.size() >= 2
+
+
+## Where the way goes (its last point), Vector3.INF none.
+func way_end() -> Vector3:
+	return _way[_way.size() - 1] if _way.size() >= 2 else Vector3.INF
+
+
+func _tick_way(delta: float) -> void:
+	if _way.size() < 2:
+		return
+	_way_d += WAY_MPS * delta
+	var left := _way_d
+	for i in range(1, _way.size()):
+		var seg := _way[i].distance_to(_way[i - 1])
+		if left <= seg:
+			global_position = _way[i - 1].lerp(_way[i], left / maxf(seg, 0.0001))
+			return
+		left -= seg
+	var end := _way[_way.size() - 1]
+	_way = PackedVector3Array()
+	set_walking(false)
+	show_at(end, _way_pose, false, _way_face)
 
 
 func set_flip(on: bool) -> void:

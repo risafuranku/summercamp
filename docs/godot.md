@@ -6,6 +6,12 @@ Engine, GDScript and rendering traps that cost time.
 
 ## Traps
 
+- **A spotlight's `light_projector` needs its shadow** (4.7.1): the picture is laid by the
+  light's shadow matrix, and with `shadow_enabled` off the beam went out altogether (the
+  torch, 24. 11.). Also: a one-channel (L8) picture reads as red only; save it RGB. And
+  `spot_angle_attenuation` is an exponent (1 - rim^k): high is flat to the edge, 0.25 left
+  only the very middle lit.
+
 - **List a res:// folder with `scripts/res_dir.gd`, never DirAccess** (`RES_DIR.files(dir, exts)`,
   `RES_DIR.names(dir)`): an exported game (Steam, web) has `song.mp3.import` and `x.tres.remap`
   in the folder, not the files, so a DirAccess listing found nothing (15. 11.: the web export's

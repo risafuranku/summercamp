@@ -86,6 +86,14 @@ What the warden is and how the player drives them.
 
 - **`player.torch_fade`:** going in by a door the torch goes down over the walk; a lit room burnt white at arm's length.
 
+- **The torch is an old bulb's beam** (Richard 24. 11.: „lepší světelný kužel baterky, takový
+  co se více hodí do hry, klidně nažloutlý“; `scripts/torch_beam.gd`): warm yellow, the
+  bulb's dark dot and the reflector's rings from a picture (Grok `torch_cookie_a`, the other
+  sample showed the reflector itself), the cone 40 degrees with the picture's own falloff,
+  and it casts shadows. The night's rules still count `flashlight_angle` (19). The others'
+  torches are the yellow alone (a shadow view each). Scenario `torch_cone` (the office's
+  front with its lights off: the new beam, then the old one, the same frame).
+
 - **Made input events need device 0.** An action made in code (`InputEventKey.new()` added to
   the InputMap) answers device 0 only; an event parsed with another device does nothing
   (15. 11.: the pad's Esc and F, sent as device 77, opened nothing). The pad's events are

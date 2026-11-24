@@ -626,6 +626,21 @@ const SCENARIOS := {
 		["eval", "debug_arrivals()"],
 		["eval", "_interior_manager._building_interior._desk_room.desk.export_state()"],
 	],
+	# The torch's light at night (playtest 24. 11., P5): out of the office's front door with
+	# its lights off, at its front (the same place every game), the old beam (a plain spot)
+	# and the new (torch_beam.gd) one after the other; then aside along the camp.
+	"torch_cone": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 2.0],
+		["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 1.0],
+		["eval", "debug_jump_to(1, 22.5)"], ["wait", 2.0],
+		["eval", "_interior_manager._building_interior._toggle_office_lights()"], ["wait", 1.0],
+		["eval", "_interior_manager._building_interior._extras.go_out_front()"], ["wait", 4.0],
+		["torch", true], ["wait", 0.5], ["eval", "_player.rotate_y(PI)"], ["wait", 0.8], ["shot", "tc1_office_new"],
+		["eval", "[_player._flashlight.set('light_projector', null), _player._flashlight.set('spot_angle', 19.0), _player._flashlight.set('spot_angle_attenuation', 1.0), _player._flashlight.set('light_color', Color(1.0, 0.92, 0.78)), _player._flashlight.set('shadow_enabled', false)]"],
+		["wait", 0.5], ["shot", "tc0_office_old"],
+		["eval", "_player._ensure_flashlight()"], ["wait", 0.5],
+		["eval", "_player.rotate_y(PI * 0.5)"], ["wait", 0.8], ["shot", "tc2_side_new"],
+	],
 	# The pager's "%s is at reception." when the party is at the counter, not at the barrier
 	# (playtest 24. 11.): the feed at the barrier, then once they are in.
 	"at_desk_notice": [

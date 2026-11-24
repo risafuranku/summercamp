@@ -8,6 +8,7 @@ const FAR_TREES := preload("res://scripts/ambient/far_trees.gd")
 const PROFILES = preload("res://scripts/profiles.gd")
 const WORLD_GEN = preload("res://scripts/world_generator.gd")
 const PAD = preload("res://scripts/input/pad.gd")
+const TORCH_BEAM = preload("res://scripts/torch_beam.gd")
 const YAW_SENSITIVITY_FACTOR := 2.0
 ## Stamina: a full bar is ~7.5 s of sprinting (6 was too short: the user 20. 10., +25 %);
 ## it refills in ~9 s and, once empty, sprinting stays locked until it is back to
@@ -89,7 +90,6 @@ var _hurt_t := 0.0
 @export var flashlight_range: float = 20.0
 @export var flashlight_angle: float = 19.0
 @export var flashlight_attenuation: float = 0.5
-@export var flashlight_cast_shadows: bool = false
 @export var flashlight_fill_energy: float = 0.16
 @export var flashlight_fill_range: float = 3.0
 @export var flashlight_halo_energy: float = 0.9
@@ -1330,13 +1330,12 @@ func _ensure_flashlight() -> void:
 		_head.add_child(_flashlight)
 	_flashlight.position = Vector3(0.18, -0.08, -0.22)
 	_flashlight.rotation = Vector3(deg_to_rad(-25.0), 0.0, 0.0)
-	_flashlight.light_color = Color(1.0, 0.92, 0.78)
 	_flashlight.light_energy = flashlight_energy
 	_flashlight.light_cull_mask = 1048575
 	_flashlight.spot_range = flashlight_range
-	_flashlight.spot_angle = flashlight_angle
 	_flashlight.spot_attenuation = flashlight_attenuation
-	_flashlight.shadow_enabled = flashlight_cast_shadows
+	# The old bulb's beam: its picture, its yellow, its cone (scripts/torch_beam.gd).
+	TORCH_BEAM.dress(_flashlight)
 
 	# The dim halo round the hot spot.
 	_flashlight_halo = _head.get_node_or_null("FlashlightHalo") as SpotLight3D
@@ -1344,7 +1343,7 @@ func _ensure_flashlight() -> void:
 		_flashlight_halo = SpotLight3D.new()
 		_flashlight_halo.name = "FlashlightHalo"
 		_head.add_child(_flashlight_halo)
-	_flashlight_halo.light_color = Color(1.0, 0.9, 0.74)
+	_flashlight_halo.light_color = TORCH_BEAM.HALO_COLOR
 	_flashlight_halo.light_energy = flashlight_halo_energy
 	_flashlight_halo.light_cull_mask = 1048575
 	_flashlight_halo.spot_range = flashlight_range * 0.65

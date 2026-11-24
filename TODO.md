@@ -35,6 +35,9 @@ the pad and the split screen must keep working (do not break them), but get no n
 - [x] P14 „při vstupu do podniku stánek s kukuřicí neni smooth plynulý přechod kamery. při přechodu
       mezi stanicemi mi zachovej můj úhel“. 1a049e47
 - [ ] P12 „coop hráč při check inu má divně posunutý sprite do výšky“.
+- [ ] (Found 24. 11.) The storm's flash through a room's windows (`ambient/room_weather.gd`
+      LightningIn) has a projector and no shadow: in Godot 4.7 such a light gives nothing
+      (docs/godot.md). See it in a storm scene, then give it its shadow (or drop the picture).
 - [ ] P7 „COOP hráče vidím jak projde skrz pult když jde k počítači, měl bych vidět jak to obejde.
       vždy půjde tak aby mi šel za zády, mimo záběr“.
 - [ ] P8 „COOP hráči můžu náhlížet blíže přes rameno, když kliknu na PC a sedí u něj, je obsazen“.
