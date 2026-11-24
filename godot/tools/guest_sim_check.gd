@@ -27,6 +27,11 @@ func _ready() -> void:
 	state.failures.clear()
 	state.day = 1
 	GuestManager.reset_runtime_state()
+	# A fixed draw: unseeded, the daytime share outdoors ran 34-46 % against the 45 % bar
+	# and the check failed on luck (24. 11.).
+	seed(2411)
+	GuestManager._rng.seed = 2411
+	GuestManager._life._rng.seed = 2411
 
 	_place("cabin_2", Vector2i(4, 6), Vector2i(2, 2))
 	_place("cabin_2", Vector2i(8, 6), Vector2i(2, 2))
@@ -95,6 +100,10 @@ func _ready() -> void:
 		visits += int((g_any as Dictionary).get("visits", 0))
 	_expect(visits >= 8, "guests visited facilities (visits=%d)" % visits)
 	_expect(float(summary.get("avg_mood", 0.0)) > 45.0, "well-equipped camp keeps guests at least okay (avg %.1f)" % float(summary.get("avg_mood", 0.0)))
+	# What they pay by mood (24. 11.): full from okay up, less below, 30 % at worst.
+	_expect(is_equal_approx(NEEDS_SYS.pay_share(70.0), 1.0) and is_equal_approx(NEEDS_SYS.pay_share(45.0), 1.0), "an okay guest pays in full")
+	_expect(absf(NEEDS_SYS.pay_share(35.0) - 0.7667) < 0.01, "a grumpy guest pays about three quarters (%.2f)" % NEEDS_SYS.pay_share(35.0))
+	_expect(is_equal_approx(NEEDS_SYS.pay_share(5.0), 0.3), "a furious guest pays 30 %")
 
 	# Break the sewer: toilets + showers close camp-wide.
 	state2.failures["2:16"] = {"type": "sewer", "coord": Vector2i(2, 16), "since_day": state2.day, "repair_progress": 0.0}

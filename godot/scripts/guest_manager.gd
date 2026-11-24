@@ -1224,7 +1224,9 @@ func _process_income_minutes(elapsed_minutes: int) -> bool:
 
 		var daily_income = max(1, int(guest.get("daily_income", 1)))
 		var fraction = float(guest.get("income_fraction", 0.0))
-		var payout_float = fraction + (float(daily_income) * float(elapsed_minutes) / MINUTES_PER_DAY)
+		# By mood: an unhappy guest pays less (GuestNeedsSystem.pay_share).
+		var share := GUEST_NEEDS.pay_share(float(guest.get("mood", 100.0)))
+		var payout_float = fraction + (float(daily_income) * share * float(elapsed_minutes) / MINUTES_PER_DAY)
 		var payout = int(floor(payout_float))
 		guest["income_fraction"] = payout_float - float(payout)
 		if payout > 0:

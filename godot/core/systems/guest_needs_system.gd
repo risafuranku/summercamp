@@ -571,6 +571,20 @@ static func worst_need(needs: Dictionary) -> Dictionary:
 	return {"need": worst_need, "value": worst_value, "label": str(NEED_LABELS.get(worst_need, worst_need))}
 
 
+## What share of their price a guest pays, by mood (Richard 24. 11.: unhappy guests pay
+## less). From "Okay" (45) up the full price; below it down in a line to 30 % for the
+## furious (15 and under): a grumpy guest (35-45) pays about 80-100 %, an unhappy one
+## 45-80 %. A careless camp full of grumbling guests no longer earns like a cared-for one.
+const PAY_FULL_MOOD := 45.0
+const PAY_LEAST_MOOD := 15.0
+const PAY_LEAST_SHARE := 0.3
+
+
+static func pay_share(mood: float) -> float:
+	var t := clampf((mood - PAY_LEAST_MOOD) / (PAY_FULL_MOOD - PAY_LEAST_MOOD), 0.0, 1.0)
+	return lerpf(PAY_LEAST_SHARE, 1.0, t)
+
+
 static func mood_label(mood: float) -> String:
 	if mood >= 80.0:
 		return "Delighted"
