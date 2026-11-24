@@ -26,3 +26,25 @@ Buses, 3D sound, the mixer and the sounds' own rules.
   (`_near_you` in the Silent Man and the Girl) and the gain written is what plays.
 
 - **Paper sounds:** `rooms/task_litter.mp3` is a bag of empty bottles, for clearing a room. A sheet is `desk/paper_pick`, `desk/paper_slide`, a key `desk/keys`, `desk/key_hang`.
+
+## Rozhodnutí 24. 11. 2026: amplióny s rádiem
+
+Richard, 24. 11. 2026: „Napadlo mě že by ampliony mohly kromě hlášení taky vysílat to co běží na
+recepci v rádiu? nějak do backgroundu, s hustym efektem starýho rozhlasu. přidávalo by to happiness
+(bacha na balanc a mechaniky hry co již existují!) a taky by to mohlo dělat dobrou neplechu během noci“
+
+Kolo 1:
+- *Amplióny na sloupech: kromě hlášení megafonem potichu hrají rádio z recepce. Jak s tím má hra
+  pracovat?* „Rádio recepce + noční klid“: co hraje rádio v recepci, jde i do ampliónů; hosté v dosahu
+  mají pomalu víc zábavy; po 22:00 hraní ruší spáče (hůř se vyspí a hodnotí), tak ho večer ztišíš nebo
+  vypneš; v noci amplióny občas samy přeladí na cizí stanici, šum nebo hlasy, jako rádio v recepci při
+  děsu.
+
+Kolo 2:
+- *Kde stojí sloupy s amplióny?* „Stavíš je v Builderu“: „Rozhlasový sloup“ v Builderu za peníze a
+  proud, dosah asi 35 m; kde stojí, tam hraje rádio a lépe je slyšet megafon; rozmístění je tvoje
+  rozhodnutí (hudba u ohniště ano, u stanů spáčů opatrně).
+
+Kolo 3:
+- *Amplióny v noci: jak silná má být „neplecha“?* „Jen atmosféra“: v noci jen strašidelné zvuky
+  z ampliónů, na hosty nemají vliv.

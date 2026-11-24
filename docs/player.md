@@ -89,3 +89,26 @@ What the warden is and how the player drives them.
   the InputMap) answers device 0 only; an event parsed with another device does nothing
   (15. 11.: the pad's Esc and F, sent as device 77, opened nothing). The pad's events are
   the keyboard's device marked with meta `"pad"` (`scripts/input/pad.gd`).
+
+## Rozhodnutí 24. 11. 2026: PDA se stylusem
+
+Richard, 24. 11. 2026: „TAB mapa je hrozně clunky, co kdyby jsmě měli nějaké staré windows PDA se
+stylusem? předělali by jsme teda i ten pager na kterym ti pípaj upozornění. Měl bys na tom PDA novej
+operační systém, a custom appky který by jsme spolu navrhli.“
+
+Kolo 1:
+- *PDA se stylusem (Windows CE kolem roku 1998) místo TAB mapy a pípajícího pageru: co na něm hlavně
+  dělat?* „Jen mapa a upozornění“: přesná náhrada TAB mapy a pageru, nic víc.
+
+Kolo 2:
+- *Jak se PDA vytáhne a ovládá?* „Podržet TAB“: dokud držíš TAB, je PDA v levé ruce před tebou a
+  stylus ovládáš myší; chodíš pomaleji, kemp běží dál. Upozornění: PDA zavrní v kapse a v rohu
+  obrazovky blikne malá ikonka. Pager zmizí.
+
+Kolo 3:
+- *Jak má vypadat displej a systém PDA?* „Šedozelené LCD“: monochromní zelenkavý LCD jako Palm nebo
+  Psion z roku 1998, vlastní systém „Okna CE“ v duchu Oken 98 (spodní lišta, pixelové ikony z Groka),
+  šedá plastová krabička se stylusem v ruce v rukavici; v noci podsvícení slabě zeleně svítí.
+- *Jaké aplikace kromě plánku kempu a upozornění?* „Úkoly, Hodiny a počasí, Hra na PDA“: úkoly
+  z dnešní TAB obrazovky (Verin seznam v příběhu, co čeká v kempu); čas, předpověď a odpočet do
+  zamčení PC ve 20:00; jedna malá hra na krácení času, třeba had.

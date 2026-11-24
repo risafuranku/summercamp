@@ -15,6 +15,31 @@ příběhovej režim, controller a splitscreen.“
 end, nothing is half-done, nothing breaks, it is balanced, nothing hitches. The story camp,
 the pad and the split screen must keep working (do not break them), but get no new work.
 
+### The big step of 24. 11. (Richard: „Chci mít z toho dneska pocit že jsme udělali velkej krok… Připrav to do TOP stavu a pak dám velkej playtest v coopu“; Q&A in four rounds, answers word for word in the docs named)
+
+- [ ] Enemies for two (docs/night.md, Rozhodnutí 24. 11.): nobody moves or scares where any
+      warden looks (`enemy_base._is_seen` over every warden's eye, not the quarry's alone); a
+      scare for one only where the other cannot see it; the night as hard as alone but cleverer:
+      the straggler (over ~25 m from the others or torch off) is the one it picks.
+- [ ] The environment: the storm far stronger (rain, wind, things flying, a camera shake),
+      the weather changing smoothly, the post-processing and the light tuned.
+- [ ] The businesses step by step (docs/businesses.md, Rozhodnutí 24. 11.): the bistro starts
+      with the grilled sausage (grill + pass), the menu bought dish by dish (soup and bottles,
+      goulash, chips and fried cheese with the cellar) in the business's book (a Menu tab)
+      and in Boss 98; the pub starts with draught beer (rum, kofola, the washer, the games
+      bought); the bowling starts with the lanes, its refreshments an upgrade that works.
+- [ ] The PA horns (docs/audio.md, Rozhodnutí 24. 11.): a "PA pole" in Builder (money, power,
+      ~35 m): what the reception radio plays goes out through them as an old PA; guests near
+      them slowly more fun (at most a fire's); after 22:00 it disturbs sleepers; at night only
+      eerie sounds through them, no effect. The megaphone louder at the poles. Grok sample first.
+- [ ] The PDA (docs/player.md, Rozhodnutí 24. 11.): hold TAB, the PDA in the left hand, the
+      stylus by the mouse, you walk slower; a grey-green LCD with its own "Okna CE"; apps: the
+      camp's plan, notifications (it buzzes in your pocket, a small icon blinks; the pager
+      goes), tasks, clock and weather, a little game. Grok samples first (the device, the icons).
+- [ ] Juice at the PC and away from it, both (docs/pc.md, Rozhodnutí 24. 11.): the PC's
+      programs livelier; what you do at the PC has work and a result out in the camp.
+- [ ] Camera movement, animations, optimisation: an alpha pass before the co-op playtest.
+
 ### Sandbox: the loop and the balance
 
 - [x] Balance pass, the money (Richard 24. 11.: only the guests pay; a tight start, then

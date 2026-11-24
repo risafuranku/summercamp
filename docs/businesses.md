@@ -41,3 +41,24 @@ The pub, the bistro, the Jednota, the corn stand and their work.
 - **`pub_rules.tickets_for / more_rounds / bill_for` take `shut`** (last orders): the rail, the bills and the holds must agree on who is still coming for a round.
 
 - **Render layer 1 << 14 is the corn stand's two back posts** (`stand_layout.BACK_LAYER`): every eye sees them but the stations', a hand from them.
+
+## Rozhodnutí 24. 11. 2026: podniky postupně
+
+Richard, 24. 11. 2026: „Pojď využít to že máme groka, a totálně prostě ještě obohatit hru… management u počítače je prostě suchej… bojim se že hospoda či bistro pořád nebudou vůbec dobře implementovaný a promyšlený… v bistru je toho prostě strašně moc… přijdu a pálí se guláš a ani nevim proč, u nandavání mi chyběj věci a nevim k čemu… Co tam dát nejdřív jedno basic jídlo a pak to přidávat postupně? za peníze upgrady? to samý hospoda a kuželkárna případně? tam ani nevim jeslti občerstvení funguje“
+
+Kolo 1 (otázka → odpověď doslova):
+- *Bistro: dnes má od začátku 9 stanic a hosté objednávají všechno. Jak má nové bistro začít?*
+  „Jedno jídlo, menu za peníze“: nové bistro umí jedno jednoduché jídlo na 2–3 stanicích; další
+  jídla kupuješ do menu (v knize bistra nebo v programu na PC); každé přinese svoje stanice a hosté
+  objednávají jen to, co je v menu.
+- *Hospoda a kuželna: mají jít stejnou cestou?* „Ano, od základu“: hospoda začne jen čepovaným pivem
+  (sud a výčep); rum, kofola, myčka a hry se dokupují. Kuželna začne drahami a bufet je upgrade,
+  který spolehlivě funguje.
+
+Kolo 2:
+- *Bistro od jednoho jídla: které má být to první?* „Klobása z grilu“: gril a výdej, 2 stanice,
+  klobása s hořčicí a chlebem; menu se pak dokupuje od nejjednoduššího: polévka a lahve na bufetu,
+  guláš s knedlíkem, nakonec hranolky a smažák se sklepem.
+- *Kde se kupují další jídla do menu bistra, pití a hry v hospodě a bufet v kuželně?* „Kniha na pultu
+  i PC“: v knize podniku na pultu přibude záložka Menu s věcmi ke koupi; stejný seznam v programu
+  podniku na PC v recepci (Boss 98); koupíš tam, kde zrovna jsi.

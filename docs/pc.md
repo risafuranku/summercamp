@@ -67,3 +67,9 @@ The camp computer, its programs and Builder 98.
   keys), message boxes open on the screen looked at (`_make_dialog` adds `screen_origin`).
 
 - **What is still to come from the god cursor is on BUILDER_EYE** (`god_cursor._veil`, meta `god_waiting` till it lands). A node added to the tree again (a leaf going onto its hinge) was noted twice and came back on the Builder's eye: a cabin with no door, the first one built, the one a room stood in at once. A room does not stand in a waiting building (`_find_cabins`, `_find_vans`): the van noted its shell's layers there and put them back, the van gone whenever the room left it. Whoever keeps a building's layers to put back asks for `god_waiting` first. `tools/theatre_check`.
+
+## Rozhodnutí 24. 11. 2026: šťáva u PC i mimo něj
+
+Richard, 24. 11. 2026: „Přijde mi že samotnej management u počítače je prostě suchej, odcházení od
+kompu na dělání věcí nemá ještě uplně šťávu“. Na otázku *Kam nejvíc šlápnout?* (PC zadává práci venku
+/ živější obrazovky PC / obojí): „Obojí stejně“.

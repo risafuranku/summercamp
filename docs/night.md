@@ -29,3 +29,22 @@ Enemy brains, the director, the night's rules.
 - **The nights follow on through `core/systems/night_swell.gd`, by the guests, never by the night's number** (the user 7. 11.: "it must not be scripted"). `GameState.night_swell` is kept from night to night and moved once a night in `main._activate_runtime_enemy_for_night`; the roll says what the camp brings, the swell how much of it the night may have. Anything new that gets worse "later on" hangs on the swell. `tools/night_swell_check.gd`.
 
 - **The Whistler's rule is the other way round from before:** he listens while he whistles, you move in the quiet. `_grace` is the song's first notes. Going in through a door sends him to rest.
+
+## Rozhodnutí 24. 11. 2026: nepřátelé v co-opu
+
+Richard, 24. 11. 2026: „mám pocit že v coopu naprosto se rozpadá creepy iluze quiet guye a dalších
+enemáků“. Na otázku *Co přesně se děje?*: „vidím movement který z POV prvního hráče bude
+strašidelný, ale z POV druhýho vidím jak se ten bubák jakoby schovává. chce to aby počítal z dvoumi
+hráči, prostě podle mě na to nebyl moc stavěný a huntil jednoho, měl by hrát s námi s oboumi.
+všichni enemies by nás měli vidět jako skupinku a huntit nás jako skupinku, zkoušet různé finty jak
+nás třeba rozdělit a postupně dojebat“ + „Druhý vidí, co je pro jednoho“.
+
+Kolo 1 (otázka → odpověď doslova):
+- *Jak těžká má být noc ve dvou proti noci sám?* „Stejně těžká, chytřejší“: ve dvou není nepřátel víc
+  ani silnějších, ale hrají chytřeji: čekají, rozdělují, běží po tom, kdo zůstal sám. Kdo drží
+  pospolu, je většinou v bezpečí, ale kemp se sám neobslouží.
+- *Jakými fintami mají skupinku rozdělovat?* „Lov opozdilých“: kdo se zdrží víc než ~25 m od ostatních
+  nebo zhasne, toho si vybere.
+- *Co s nočním strašením určeným jen pro jednoho hráče?* „Druhý to nesmí vidět“: nepřítel se hýbe,
+  jen když se nekouká žádný hráč; strašení pro jednoho se odehraje jen tam, kam druhý nevidí, takže
+  iluze drží z obou pohledů.
