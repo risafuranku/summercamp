@@ -74,6 +74,9 @@ const LATE_GREY_FULL: float = 0.8
 const DAWN_SKY_START_HOUR: float = 5.25
 const DAWN_SKY_FULL_HOUR: float = 6.0
 const DAWN_SKY_END_HOUR: float = 7.25
+## How far toward the dawn's light the ground has come when the day's fade starts (6:15):
+## it has followed the sky up from DAWN_SKY_START_HOUR.
+const PRE_DAWN: float = 0.65
 ## The sun and the clouds (Grok, tools/artgen/light_sprites.py spr_sun, night_sky.py clouds).
 const SUN_TEX := "res://assets/textury/skybox/sun.png"
 const CLOUD_TEX := "res://assets/textury/skybox/cloud_%d.png"
@@ -1235,7 +1238,8 @@ func sample_time_profile(hour: float) -> Dictionary:
 	var evening_profile = _make_time_profile(
 		Color(0.94, 0.44, 0.22),
 		Color(0.50, 0.38, 0.46),
-		0.72,
+		# (0.72 -> 0.86, 24. 11.: the sun gone under, the sky's red still lights the meadow.)
+		0.86,
 		Color(0.74, 0.48, 0.48),
 		0.0078,
 		# Over the sky only a little (it washed the red salmon: the user 20. 10.).
@@ -1253,7 +1257,8 @@ func sample_time_profile(hour: float) -> Dictionary:
 	var dusk_profile = _make_time_profile(
 		Color(0.16, 0.18, 0.40),
 		Color(0.20, 0.22, 0.38),
-		0.38,
+		# (0.38 -> 0.52, 24. 11.: under the blood-red and the blue sky the camp was black.)
+		0.52,
 		Color(0.22, 0.22, 0.36),
 		0.0116,
 		0.08,
@@ -1267,12 +1272,18 @@ func sample_time_profile(hour: float) -> Dictionary:
 		0.078
 	)
 
+	# The ground comes up with the dawn sky (24. 11., the environment pass: at 6:15 the sky was
+	# pink and the camp under it black as midnight): from the dawn sky's first light the night
+	# eases toward the dawn's, PRE_DAWN of the way by the day's fade, then on as before.
+	var pre_dawn = _lerp_time_profile(night_profile, dawn_profile, PRE_DAWN)
 	var profile = night_profile
-	if h < DAY_SKY_FADE_START_HOUR:
+	if h < DAWN_SKY_START_HOUR:
 		profile = night_profile
+	elif h < DAY_SKY_FADE_START_HOUR:
+		profile = _lerp_time_profile(night_profile, pre_dawn, smoothstep(DAWN_SKY_START_HOUR, DAY_SKY_FADE_START_HOUR, h))
 	elif h < DAY_SKY_FADE_END_HOUR:
 		var t_day = (h - DAY_SKY_FADE_START_HOUR) / SKY_PHASE_BLEND_HOURS
-		profile = _lerp_time_profile(night_profile, dawn_profile, t_day)
+		profile = _lerp_time_profile(pre_dawn, dawn_profile, t_day)
 	elif h < 10.5:
 		var t_morning = (h - DAY_SKY_FADE_END_HOUR) / max(10.5 - DAY_SKY_FADE_END_HOUR, 0.001)
 		profile = _lerp_time_profile(dawn_profile, hot_day_profile, t_morning)
@@ -1509,8 +1520,11 @@ func _hour_distance_forward(start_hour: float, end_hour: float) -> float:
 func _night_overlay_factor(hour: float) -> float:
 	var h = _normalized_hour(hour)
 	# Full night darkness plateau.
-	if h >= NIGHT_SKY_FADE_END_HOUR or h < DAY_SKY_FADE_START_HOUR:
+	if h >= NIGHT_SKY_FADE_END_HOUR or h < DAWN_SKY_START_HOUR:
 		return 1.0
+	# The dawn sky's first light: it lifts as the sky does (sample_time_profile's PRE_DAWN).
+	if h < DAY_SKY_FADE_START_HOUR:
+		return 1.0 - PRE_DAWN * smoothstep(DAWN_SKY_START_HOUR, DAY_SKY_FADE_START_HOUR, h)
 	# Evening -> night ramp.
 	if h >= NIGHT_SKY_FADE_START_HOUR and h < NIGHT_SKY_FADE_END_HOUR:
 		return clampf(
@@ -1518,10 +1532,10 @@ func _night_overlay_factor(hour: float) -> float:
 			0.0,
 			1.0
 		)
-	# Night -> day ramp.
+	# Night -> day ramp (from where the dawn's first light left it).
 	if h >= DAY_SKY_FADE_START_HOUR and h < DAY_SKY_FADE_END_HOUR:
 		return clampf(
-			1.0 - ((h - DAY_SKY_FADE_START_HOUR) / max(DAY_SKY_FADE_END_HOUR - DAY_SKY_FADE_START_HOUR, 0.001)),
+			(1.0 - PRE_DAWN) * (1.0 - ((h - DAY_SKY_FADE_START_HOUR) / max(DAY_SKY_FADE_END_HOUR - DAY_SKY_FADE_START_HOUR, 0.001))),
 			0.0,
 			1.0
 		)

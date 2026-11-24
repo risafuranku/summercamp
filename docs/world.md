@@ -89,3 +89,11 @@ Guests, weather, trees, the map, Lesna and Liblice, the lake.
 - **The stove's orange in the office stays orange** (the user 7. 11.: "I liked it"; it was the sun's sprite he meant). **An eye in a room sees 600 m, the camp's 1000:** the sun and the moon hang 0.8 of the far plane off the eye; with the camp's view off (`one_world_room.camp_view`) they hang `ROOM_SKY_DISTANCE` off, else the disc went out as you looked at it and came back cut at the edge of the picture. A new camera that sees the sky needs its far past them.
 
 - **`camp_lake.in_water` is false on a jetty:** `body_world._on_foot` splashes and plays an oar's stroke on whatever it calls water.
+
+- **The dawn and the dusk light follow the sky** (24. 11., the environment pass, `tools/env_shots.tscn`,
+  `--part=twilight`): the sky's dawn texture comes in from 5:15 (`DAWN_SKY_START_HOUR`), the
+  ground's light only from 6:15, so at 6:15 a pink sky stood over a black camp. Since then the
+  night's profile eases toward the dawn's from 5:15 (`weather_visuals.PRE_DAWN` of the way by
+  6:15, the night overlay with it), and the evening's and the blue hour's ambient are higher
+  (0.86, 0.52): the meadow under the red sky after sunset is dim, not black. The full night from
+  ~20:30 is as it was.

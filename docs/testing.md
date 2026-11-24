@@ -63,6 +63,7 @@ python godot/tools/rooms_coop.py [OUT_DIR]  # the rooms seen from the camp for t
 python godot/tools/coop_mail.py OUT [SAVE]  # mail for two in a camp hosted from a save (a sandbox camp saved, or a copy of SAVE in the host's own APPDATA): bookings keep coming, both inboxes alike
 godot --headless --path godot --script res://tools/night_swell_check.gd   # the nights by the guests: a step at a time, up and down, what the night may have
 # windowed, --audio-driver Dummy, -- --out=DIR: res://tools/theatre_check.tscn   what comes down from the god cursor against the rooms in buildings: the cabin's leaf, two vans
+# windowed, --audio-driver Dummy, -- --out=DIR: res://tools/env_shots.tscn   the camp's light through a day (dawn to night), fog, rain; --part=twilight: 5:24-6:30 and 18:53-20:06
 # Playtest 4. 11. checks (windowed, --audio-driver Dummy, -- --out=DIR):
 #   res://tools/dvere_check.tscn     every building's door in and out on foot (pictures of the doorway, frame times)
 #   res://tools/okna_check.tscn      the cabins'/caravans' windows from afar (the baked room cubes) against the live view; --part=dump|debug
@@ -132,6 +133,12 @@ godot --headless --path godot --script res://tools/night_swell_check.gd   # the 
 Scenario `bookingcard` (24. 11.): a letter from each kind of guest and a tempting big party in
 CampMail, each card shot on the CRT (`card_*.png`); with `--lang=cs` the Czech, which wraps
 more. The card must show no scrollbar.
+
+Scenario `pda` (24. 11.): a message buzzing in with the PDA away (the bell in the corner), the
+PDA up and each app (home, messages, plan, tasks, clock, snake), the backlight at night, down,
+and with the bag as TAB opens it (the bag on the right). Scenario `pa_pole`: a PA pole built by
+the office, seen by day, from afar and at night; `PA` evals say it plays the reception's set, and
+a forced night drift (static, a voice, the radio ducked and back).
 
 ### The money over a month: economy_sim
 

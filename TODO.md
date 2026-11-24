@@ -21,9 +21,10 @@ the pad and the split screen must keep working (do not break them), but get no n
       warden looks (`enemy_base._is_seen` over every warden's eye, not the quarry's alone); a
       scare for one only where the other cannot see it; the night as hard as alone but cleverer:
       the straggler (over ~25 m from the others or torch off) is the one it picks.
-- [ ] The environment: the storm far stronger (rain, wind, things flying, a camera shake),
+- [x] The environment: the storm far stronger (rain, wind, things flying, a camera shake),
       the weather changing smoothly (both done 24. 11., 11b396bc), the post-processing and the
-      light tuned (still to do).
+      light tuned (24. 11.: the day, fog and rain looked through in `tools/env_shots.tscn`; the
+      dawn's and the dusk's ground light now follows the sky, docs/world.md).
 - [x] The businesses step by step (docs/businesses.md, Rozhodnutí 24. 11.; done 24. 11., "Hotovo" there): the bistro starts
       with the grilled sausage (grill + pass), the menu bought dish by dish (soup and bottles,
       goulash, chips and fried cheese with the cellar) in the business's book (a Menu tab)
