@@ -489,7 +489,7 @@ func _enter_frame() -> void:
 func _tick_frame() -> void:
 	var left := _phase_end - _elapsed
 	var progress := 1.0 - left / _frame_seconds
-	var would := _is_seen(_head(), 4.0)
+	var would := _quarry_sees(_head(), 4.0)
 	_framed(progress, would)
 	_film(progress, would, _head())
 	# The beeps speed up as he settles the focus; the red lamp blinks with them.
@@ -518,7 +518,7 @@ func _fire() -> void:
 	_flash.global_position = head + Vector3(0, 0.3, 0)
 	_flash_t = 0.35
 	_sound(SFX_SHUTTER, head, 10.0, _rng.randf_range(0.95, 1.05), 48.0)
-	_hit_last = _is_seen(head, 4.0)
+	_hit_last = _quarry_sees(head, 4.0)
 	if _hit_last:
 		_hits += 1
 		if _player_health() <= _photo_damage:

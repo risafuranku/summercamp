@@ -17,7 +17,7 @@ the pad and the split screen must keep working (do not break them), but get no n
 
 ### The big step of 24. 11. (Richard: „Chci mít z toho dneska pocit že jsme udělali velkej krok… Připrav to do TOP stavu a pak dám velkej playtest v coopu“; Q&A in four rounds, answers word for word in the docs named)
 
-- [ ] Enemies for two (docs/night.md, Rozhodnutí 24. 11.): nobody moves or scares where any
+- [x] Enemies for two (docs/night.md, Rozhodnutí 24. 11.; done 24. 11., see there): nobody moves or scares where any
       warden looks (`enemy_base._is_seen` over every warden's eye, not the quarry's alone); a
       scare for one only where the other cannot see it; the night as hard as alone but cleverer:
       the straggler (over ~25 m from the others or torch off) is the one it picks.

@@ -48,3 +48,12 @@ Kolo 1 (otázka → odpověď doslova):
 - *Co s nočním strašením určeným jen pro jednoho hráče?* „Druhý to nesmí vidět“: nepřítel se hýbe,
   jen když se nekouká žádný hráč; strašení pro jednoho se odehraje jen tam, kam druhý nevidí, takže
   iluze drží z obou pohledů.
+
+Hotovo 24. 11.: `enemy_base._is_seen` je pohled kteréhokoli hráče, který nepřítele smí vidět
+(`coop_night.eyes_on`: kamera hostitele, když loví zástupce, a kamery všech zástupců kromě jeho
+oběti; u soukromého nepřítele, kterého vidí jen oběť, nikdo další). Pohyb, objevení, krok blíž,
+odchod a výběr místa se tak dějí jen mimo pohled všech. Na pohled oběti samotné zůstaly reakce
+`_quarry_sees`: Ticháčův výpad zblízka, fotografův blesk (dvakrát) a dítě v kuželu baterky.
+Opozdilý (`coop_night._straggler`: víc než 25 m od ostatních venku, nebo venku se zhasnutou
+baterkou) váží při výběru oběti +4 a při přecílení každých 6 s si ho nepřítel vezme místo
+oběti, která drží se skupinou. `tools/coop_girl.py` PASS.

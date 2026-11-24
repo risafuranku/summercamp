@@ -37,6 +37,9 @@ var _view_off := Vector3.ZERO
 const VIEW_HZ := 10.0
 const EYE := Vector3(0.0, 1.8, 0.0)
 const TOGETHER_M := 7.0
+## A warden this far from every other one who is out, or out with the torch off, is a
+## straggler: the night goes for them (Richard 24. 11.: "Lov opozdilých").
+const STRAGGLER_M := 25.0
 var main: Node
 ## Every other warden's stand-in on the host's: who -> {body: CharacterBody3D, cam: Camera3D}.
 var _proxies: Dictionary = {}
@@ -164,6 +167,12 @@ func _hunt(delta: float, brains: Array) -> void:
 				var next := _pick_target(b)
 				if next != now and _is_out(next):
 					_aim(b, next)
+			elif not _straggler(now):
+				# Its quarry keeps with the others: someone has fallen behind, that one now.
+				for who in _all():
+					if who != now and _is_out(who) and _straggler(who):
+						_aim(b, who)
+						break
 
 
 ## Out where the night can reach: not in a room, in the boat or in town.
@@ -189,6 +198,54 @@ func _dark_at(who: String) -> float:
 	return 1.0 - clampf(float(bm.get_light_level_at(_pos(who))), 0.0, 1.0)
 
 
+## Out alone: more than STRAGGLER_M from every other warden who is out, or out in the dark
+## with the torch off (only when there is anyone else to be away from).
+func _straggler(who: String) -> bool:
+	if not _is_out(who):
+		return false
+	var others := 0
+	var near := false
+	for o in _all():
+		if o == who or not _is_out(o):
+			continue
+		others += 1
+		if _pos(o).distance_to(_pos(who)) <= STRAGGLER_M:
+			near = true
+	if others == 0:
+		return false
+	return not near or not _torch_on(who)
+
+
+func _torch_on(who: String) -> bool:
+	if who == "host":
+		var me = main.get("_player")
+		return me != null and me.has_method("is_flashlight_active") and bool(me.call("is_flashlight_active"))
+	return bool(INSTANCE.coop(self).state_of(peer_of(who)).get("t", false))
+
+
+## The eyes of the wardens other than its quarry that this brain must keep out of (Richard
+## 24. 11.: "Druhý to nesmí vidět"): the host's own when it hunts a stand-in, every
+## stand-in's camera but its quarry's; only of those out (a warden in a room sees the room).
+## None for a private one: only its quarry sees it at all (_hide_private).
+func eyes_on(brain) -> Array:
+	var out: Array = []
+	if brain == null or _is_private(brain):
+		return out
+	var quarry := str(_targets.get(brain.get_instance_id(), "host"))
+	if quarry != "host" and _is_out("host"):
+		var cam := _view_cam()
+		if cam != null:
+			out.append([cam, main.get("_player")])
+	for who in _proxies.keys():
+		if str(who) == quarry or not _is_out(str(who)):
+			continue
+		var e: Dictionary = _proxies[who]
+		var c = e.get("cam")
+		if c is Camera3D and is_instance_valid(c):
+			out.append([c, e.get("body")])
+	return out
+
+
 ## Whom a new enemy goes for: one of those out, the one in the dark sooner, the one
 ## with less left of themselves (the dice decide between the rest).
 func _pick_target(brain) -> String:
@@ -202,6 +259,8 @@ func _pick_target(brain) -> String:
 	var total := 0.0
 	for who in pool:
 		var w := 0.4 + _dark_at(who) + (100.0 - float(sanity.get(who, 100.0))) / 100.0
+		if pool.size() > 1 and _straggler(who):
+			w += 4.0
 		weights.append(w)
 		total += w
 	var rng := RandomNumberGenerator.new()

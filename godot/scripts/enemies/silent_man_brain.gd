@@ -454,7 +454,7 @@ func _on_tick(dt: float) -> void:
 	if _lunge_t >= 0.0:
 		_update_lunge(dt)
 		return
-	if _body.visible and _distance_to_player(_body.global_position) < LUNGE_DIST and _is_seen(head):
+	if _body.visible and _distance_to_player(_body.global_position) < LUNGE_DIST and _quarry_sees(head):
 		_start_lunge()
 		return
 	if _elapsed < _resume_at:

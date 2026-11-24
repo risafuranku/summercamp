@@ -438,10 +438,28 @@ func _forward_flat() -> Vector3:
 	return f.normalized() if f.length_squared() > 0.0001 else Vector3.FORWARD
 
 
-## True when `point` is inside the camera's view cone (plus margin) with a clear line.
+## True when any warden sees `point`: its quarry or, in co-op, another warden who can see
+## this enemy (coop_night.eyes_on). It moves, appears and goes only unseen by all of them,
+## so what is staged for one is never watched being staged by the other (Richard 24. 11.:
+## "z POV druhýho vidím jak se ten bubák jakoby schovává").
 func _is_seen(point: Vector3, margin_deg: float = 0.0) -> bool:
-	var cam := _camera()
-	if cam == null:
+	if _quarry_sees(point, margin_deg):
+		return true
+	for e in _other_eyes():
+		if _seen_through(e[0] as Camera3D, point, margin_deg, [e[1]]):
+			return true
+	return false
+
+
+## Its quarry's own gaze: for what answers being looked at by the one it hunts (the
+## lunge when looked at close, the photographer's flash, the child held in the torch).
+func _quarry_sees(point: Vector3, margin_deg: float = 0.0) -> bool:
+	return _seen_through(_camera(), point, margin_deg)
+
+
+## Inside `cam`'s view cone (plus margin) with a clear line.
+func _seen_through(cam: Camera3D, point: Vector3, margin_deg: float, also: Array = []) -> bool:
+	if cam == null or not is_instance_valid(cam) or not cam.is_inside_tree():
 		return false
 	var to := point - cam.global_position
 	var dist := to.length()
@@ -450,7 +468,25 @@ func _is_seen(point: Vector3, margin_deg: float = 0.0) -> bool:
 	var half := cam.fov * 0.5 * 1.25 + margin_deg
 	if (-cam.global_transform.basis.z).normalized().dot(to / dist) < cos(deg_to_rad(half)):
 		return false
-	return not _ray_blocked(cam.global_position, point)
+	return not _ray_blocked(cam.global_position, point, also)
+
+
+## The other wardens' eyes on this enemy, once a frame: [[camera, their body], ...].
+var _eyes_frame := -1
+var _eyes_cache: Array = []
+
+
+func _other_eyes() -> Array:
+	var f := Engine.get_process_frames()
+	if f == _eyes_frame:
+		return _eyes_cache
+	_eyes_frame = f
+	_eyes_cache = []
+	var scene := INSTANCE.main_of(_world_root) if _world_root != null and _world_root.is_inside_tree() else null
+	var cn = scene.get("_coop_night") if scene != null else null
+	if cn != null and cn.has_method("eyes_on"):
+		_eyes_cache = cn.eyes_on(self)
+	return _eyes_cache
 
 
 ## Lamp-post light at a point, 0..1 (BuildingManager samples the real lamps).

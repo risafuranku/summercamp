@@ -75,7 +75,7 @@ func _on_tick(dt: float) -> void:
 	if _move_t <= 0.0 and not _is_seen(pos + Vector3(0, 0.8, 0)):
 		_move_t = _rng.randf_range(35.0, 55.0)
 		_appear()
-	if _in_flashlight(pos + Vector3(0, 0.8, 0)) and _is_seen(pos + Vector3(0, 0.8, 0)):
+	if _in_flashlight(pos + Vector3(0, 0.8, 0)) and _quarry_sees(pos + Vector3(0, 0.8, 0)):
 		_lit += dt
 		if _lit >= LIT_LIMIT:
 			_running = true
