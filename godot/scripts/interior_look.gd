@@ -305,7 +305,9 @@ static func screen_rect_of(camera: Camera3D, render_size: Vector2, mesh: MeshIns
 
 # ── leaving: Esc, or the door behind you (the bottom edge of the screen) ───────
 
-## Bottom share of the screen where the door behind you is "under" the cursor.
+## Bottom share of the screen where the door behind you is "under" the cursor: the flat hand
+## shows it (HandCursor.WALK), no words (Richard 24. 11.: the band with "Turn round and leave"
+## went).
 const EXIT_BAND := 0.07
 
 
@@ -327,34 +329,6 @@ static func is_exit_event(event: InputEvent, viewport: Viewport) -> bool:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		return in_exit_zone(viewport)
 	return false
-
-
-## A dark band along the bottom with "Leave", shown when the cursor reaches it.
-static func make_exit_hint(layer: CanvasLayer, text := "Turn round and leave   [Esc]") -> Control:
-	var hint := Control.new()
-	hint.name = "ExitHint"
-	hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hint.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	hint.modulate.a = 0.0
-	hint.draw.connect(func():
-		var s := hint.size
-		var h := s.y * EXIT_BAND
-		for i in 8:
-			hint.draw_rect(Rect2(0, s.y - h * (1.0 - i / 8.0), s.x, h / 8.0), Color(0, 0, 0, 0.08 + i * 0.06))
-		var font := hint.get_theme_default_font()
-		var fs := int(maxf(14.0, s.y * 0.026))
-		var shown := PROMPT.swap(hint.tr(text))
-		var w := font.get_string_size(shown, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-		var y := s.y - h * 0.35
-		# A small arrow pointing back over your shoulder.
-		var ax := s.x * 0.5 - w * 0.5 - fs * 1.4
-		hint.draw_colored_polygon(PackedVector2Array([Vector2(ax, y - fs * 0.6), Vector2(ax + fs, y - fs * 0.6), Vector2(ax + fs * 0.5, y)]), Color(0.95, 0.88, 0.62))
-		hint.draw_string(font, Vector2(s.x * 0.5 - w * 0.5 + 2, y + 2), shown, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0, 0, 0, 0.8))
-		hint.draw_string(font, Vector2(s.x * 0.5 - w * 0.5, y), shown, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.95, 0.88, 0.62))
-	)
-	PROMPT.redraw_on_change(hint)
-	layer.add_child(hint)
-	return hint
 
 
 ## Small tabs at the left and right edge, mid height, naming the room through the door
@@ -407,13 +381,3 @@ static func set_side_hints(hint: Control, left: String, right: String) -> void:
 	hint.set_meta("left", left)
 	hint.set_meta("right", right)
 	hint.queue_redraw()
-
-
-static func update_exit_hint(hint: Control, viewport: Viewport, delta: float, allowed := true) -> void:
-	if hint == null:
-		return
-	var target := 1.0 if allowed and in_exit_zone(viewport) else 0.0
-	hint.modulate.a = move_toward(hint.modulate.a, target, delta * 5.0)
-	hint.move_to_front()
-	if hint.modulate.a > 0.0:
-		hint.queue_redraw()

@@ -108,7 +108,6 @@ var _look = INTERIOR_LOOK.new(180.0, 26.0, 34.0)
 ## Lying in this room's bed (scripts/lodge_bed.gd has the camera): no looking round,
 ## no leaving, no clicks till you are up.
 var lodge_sleeping := false
-var _exit_hint: Control
 var _prep = INTERIOR_PREP.new()
 var _brochure: MeshInstance3D
 var _brochure_cover: MeshInstance3D
@@ -242,9 +241,6 @@ func _process(delta: float) -> void:
 		var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.turn_axis(self), self)
 		_interior_camera.rotation = _cam_base_rot + offset
 	_update_torch(delta)
-	if _exit_hint == null:
-		_exit_hint = INTERIOR_LOOK.make_exit_hint(self)
-	INTERIOR_LOOK.update_exit_hint(_exit_hint, get_viewport(), delta)
 	# What you can use glints under the pointer, as in every room (the user 4. 11.: "check
 	# the hovers everywhere"): the brochure, a curtain, the van's things.
 	var under := _collider_under(get_viewport().get_mouse_position())

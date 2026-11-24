@@ -82,7 +82,6 @@ var _look = INTERIOR_LOOK.new(180.0, 24.0, 36.0)
 ## Lying in this room's bed (scripts/lodge_bed.gd has the camera): no looking round,
 ## no leaving, no clicks till you are up.
 var lodge_sleeping := false
-var _exit_hint: Control
 
 # Screen-space zones for click detection.
 var _catalog_mesh: MeshInstance3D
@@ -240,9 +239,6 @@ func _process(delta: float) -> void:
 	_tick_tear()
 	_tick_door(delta)
 	_update_torch(delta)
-	if _exit_hint == null:
-		_exit_hint = INTERIOR_LOOK.make_exit_hint(self)
-	INTERIOR_LOOK.update_exit_hint(_exit_hint, get_viewport(), delta)
 	_update_hover()
 
 

@@ -121,6 +121,8 @@ var _board_t := 0.0
 var _drawer: Node3D
 var _drawer_pull: Array = []
 var _drawer_open := false
+## The drawer's changes, numbered for co-op (coop_drawer): one past the last seen.
+var _drawer_seq := 0
 ## How far out, 0..1 in time (_drawer_k: as it moves).
 var _drawer_t := 0.0
 var _drawer_rot := Vector3.ZERO
@@ -230,6 +232,32 @@ func coop_take_register(d: Dictionary) -> void:
 		desk.coop_merge(d)
 
 
+## Co-op: the drawer out or in, the same for everyone (Richard 24. 11.: „když ho kdokoliv
+## vysune, musí to vidět všichni“). A change here is numbered one past the last seen; a newer
+## one that comes in moves it here too, two with the same number go the host's way
+## (`from_host`). Heard by who is in the office.
+func coop_drawer() -> Array:
+	return [_drawer_open, _drawer_seq]
+
+
+func coop_take_drawer(d: Array, from_host: bool) -> void:
+	if d.size() < 2:
+		return
+	var seq := int(d[1])
+	var open := bool(d[0])
+	if seq < _drawer_seq or (seq == _drawer_seq and not from_host):
+		return
+	_drawer_seq = seq
+	if open == _drawer_open:
+		return
+	_drawer_open = open
+	_shut_after = -1.0
+	if open and desk != null:
+		desk.refresh_picture()
+	if host != null and host.visible:
+		_play(SFX_DRAWER, -8.0 if open else -11.0)
+
+
 func is_open() -> bool:
 	return desk != null and desk.visible
 
@@ -261,7 +289,6 @@ func front_door() -> Node3D:
 
 func process(delta: float, in_office: bool) -> void:
 	_tick_desk(delta)
-	_tick_drawer(delta)
 	_tick_stamps(delta)
 	_tick_dymo(delta)
 	# The drawer is in the counter from the moment you come in, not only at the desk.
@@ -271,6 +298,9 @@ func process(delta: float, in_office: bool) -> void:
 		if _sheet == null or not is_instance_valid(_sheet):
 			_make_sheets()
 			_sheet.visible = _at_desk
+		# Out with nobody at the desk here: its key board as the keys hang now.
+		if _drawer_open and not desk.is_open():
+			desk.refresh_picture()
 	_poll -= delta
 	if _poll <= 0.0:
 		_poll = POLL_SEC
@@ -405,6 +435,7 @@ func _set_drawer(open: bool) -> void:
 	if open == _drawer_open or _drawer == null:
 		return
 	_drawer_open = open
+	_drawer_seq += 1
 	_shut_after = -1.0
 	_play(SFX_DRAWER, -8.0 if open else -11.0)
 
@@ -415,7 +446,9 @@ func _drawer_k() -> float:
 	return t * t * t * (t * (t * 6.0 - 15.0) + 10.0)
 
 
-func _tick_drawer(delta: float) -> void:
+## Every frame the office is shown, at the PC too (building_interior.gd): it slides for
+## whoever moved it, here or on the other machine; unseen it is where it is (tick_unseen).
+func tick_drawer(delta: float) -> void:
 	var want := 1.0 if _drawer_open else 0.0
 	if _drawer == null or _drawer_t == want:
 		return
@@ -739,8 +772,11 @@ func _build_drawer(tex: Texture2D) -> void:
 	_board.position = Vector3(0.0, DRAWER_FELT_Y, -0.02 - DRAWER_PIC.y * 0.5)
 	_board.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_board.set_meta("retro_text", true)
-	_board.visible = false
 	_drawer.add_child(_board)
+	# Where it is now: out, if the other warden pulled it out before this machine built it.
+	_drawer_t = 1.0 if _drawer_open else 0.0
+	_drawer.position.z = lerpf(DRAWER_SHUT_Z, DRAWER_OPEN_Z, _drawer_t)
+	_board.visible = _drawer_open
 
 
 ## The two stamps standing on the counter, where the picture had them: rubber, a wooden mount,
@@ -870,6 +906,10 @@ func present_queue() -> Array:
 ## checking in"). Only shown: no door, no bell, nobody's turn moves on. Their figure outside
 ## walks in and is hidden: till then it is that one you see, not two of them.
 func tick_unseen(delta: float, serving := -999) -> void:
+	if _drawer != null and _drawer_t != (1.0 if _drawer_open else 0.0):
+		_drawer_t = 1.0 if _drawer_open else 0.0
+		_drawer.position.z = lerpf(DRAWER_SHUT_Z, DRAWER_OPEN_Z, _drawer_t)
+		_board.visible = _drawer_open
 	_unseen_t -= delta
 	if _unseen_t > 0.0:
 		return

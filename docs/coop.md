@@ -104,6 +104,20 @@ Two to four wardens, the host's authority, and the split screen's instances.
   anything that rebuilds on a pulse must keep what is still open (the raccoons' bin loop
   restarted every second).
 
+- **What another warden can see is synced, always** (Richard 24. 11.: „nevidím syncnutý
+  šuplík při checkinu… takovýhle client side chyby se už nesmí nikdy opakovat!“): a thing
+  that moves where the other can see it (a drawer, a door, a lid, a light, a screen) is
+  state with a sync kind, never only a local animation, and it is not done until a test for
+  two has seen it on the other machine. The check-in drawer: `desk_room.coop_drawer()`
+  ([out, number]) as `coop_camp.sync_things` "drawer"; a change here is numbered one past the
+  last seen, a newer one that comes in is taken, two with the same number go the host's way
+  (both at once). It slides for whoever is in the office (`desk_room.tick_drawer`, every
+  frame from `building_interior._process`, at the PC too), stands where it is for whoever is
+  not (`tick_unseen`), and a machine that builds it later builds it where it is. Its key
+  board is the desk's picture, drawn once while nobody sits there here
+  (`checkin_desk.refresh_picture`: on a machine where the desk never opened it was black).
+  Test: `python godot/tools/desk_coop.py`.
+
 - **Co-op business books** (`GameState.biz`): the host's. The pulse carries them; on the
   joining machine every `actions.biz_*` change also calls `biz_remote` (main sends it as
   a "biz" request; the host replays it without money: `biz_sale(..., credit=false)`,

@@ -6,6 +6,10 @@ Interiors, the one-world rooms, doorways and windows.
 
 ## Traps
 
+- **The back room to the office is a walk of 2.4 s** (`reception_extras.BACK_RETURN_SEC`):
+  1.9 s was "crazy fast and flustered" (13. 11.), 3.4 s „trvá moc dlouho“ (24. 11.); the way
+  in is 2.1 s.
+
 - **Interiors live under InteriorManager (the full-res root view), not in World3D**: the
   world is drawn small and scaled up by the render style, and 2D inside it scaled with it
   (huge prompts). Rooms have their own 3D viewports; the office window portal gets the

@@ -232,7 +232,6 @@ var _hover := ""
 var _glint = HOVER_GLINT.new()
 var _ticket: Dictionary = {}
 var _ticket_card: Control
-var _exit_hint: Control
 var _say_label: Label
 var _say_t := 0.0
 var _ride: AudioStreamPlayer
@@ -753,9 +752,6 @@ func _process(delta: float) -> void:
 	var offset: Vector3 = _look.update(delta, INTERIOR_LOOK.cursor_of(get_viewport()), INTERIOR_LOOK.turn_axis(self), self)
 	_cam.rotation = _cam_base + offset
 	_update_hover()
-	if _exit_hint == null:
-		_exit_hint = INTERIOR_LOOK.make_exit_hint(self, "Get off   [Esc]")
-	INTERIOR_LOOK.update_exit_hint(_exit_hint, get_viewport(), delta, _state == BOARDING or (line_mode and _state == PAUSED))
 
 
 ## The road under the wheels: now and then a pothole jolts the view, in steps.

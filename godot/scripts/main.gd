@@ -1703,7 +1703,7 @@ var _arrival_events_bound: bool = false
 func _poll_arrivals(delta: float) -> void:
 	if not _arrival_events_bound:
 		_arrival_events_bound = true
-		INSTANCE.bus(self).guest_at_gate.connect(_on_guest_at_gate)
+		INSTANCE.bus(self).guest_at_desk.connect(_on_guest_at_desk)
 		INSTANCE.bus(self).guest_checked_in.connect(_on_guest_checked_in)
 		INSTANCE.bus(self).guest_gave_up.connect(_on_guest_gave_up)
 		INSTANCE.bus(self).room_prepared.connect(_on_room_prepared)
@@ -1763,8 +1763,18 @@ const TROUBLE_BOARD = preload("res://scripts/ui/trouble_board.gd")
 var _troubles: RefCounted = TROUBLE_BOARD.new(self)
 
 
-func _on_guest_at_gate(row: Dictionary) -> void:
+## A party at the counter (its figure in through the reception's door), not at the barrier
+## (Richard 24. 11.: „posuň to až když budou fakt na recepci“): the pager, with the rooms
+## still not made up.
+func _on_guest_at_desk(guest_id: int) -> void:
 	if _hud_manager == null:
+		return
+	var row := {}
+	for r in INSTANCE.guests(self).get_desk_queue():
+		if int((r as Dictionary).get("id", -2)) == guest_id:
+			row = r
+			break
+	if row.is_empty():
 		return
 	var rooms: Array = row.get("rooms", [])
 	var not_ready: Array[String] = []

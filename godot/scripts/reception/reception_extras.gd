@@ -1122,7 +1122,8 @@ func go_office() -> void:
 		store.set_bulb(false)
 	keys.append({"pos": to_pos, "rot": to_rot})
 	# From the back room: round to the door, through it, across the office at a walk (1.9 s
-	# was "crazy fast and flustered": playtest 13. 11.).
+	# was "crazy fast and flustered", playtest 13. 11.; 3.4 „trvá moc dlouho“, 24. 11.: about
+	# the way in, 2.1 s, and the door's swing).
 	var dur := BENCH_WALK_SEC if where == "bench" else (SIDE_WALK_SEC if where == "side" else (BACK_RETURN_SEC if where == "back" else 1.9))
 	_note_walk("office", dur)
 	_walk = WALK_PATH.play(host, camera, keys, dur)
@@ -1140,7 +1141,7 @@ func go_office() -> void:
 
 
 var _door_swing: Tween
-const BACK_RETURN_SEC := 3.4
+const BACK_RETURN_SEC := 2.4
 
 
 func back_door_open() -> bool:

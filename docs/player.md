@@ -13,7 +13,8 @@ What the warden is and how the player drives them.
  till, the phone, a page and the PC keep it); P and F10 pause anywhere
  (`ui/pause_keys.gd`). The pause menu's CanvasLayer is 150, above every full-screen overlay
  (the check-in desk is 140); a new overlay stays below it. Leaving is also the bottom band
- or a right click; the pause menu's "Go outside" (`main._on_pause_leave_requested`) ends any
+ (the flat hand there, `HandCursor.WALK`; no words since 24. 11., Richard of its "Turn round
+ and leave": „to chceme pryč“, nor the PC's "Stand up") or a right click; the pause menu's "Go outside" (`main._on_pause_leave_requested`) ends any
  room or job the way its own exit would. Back to the title screen closes them too, silently
  (`main._leave_everything(true)` in `_enter_main_menu`): a room left open went on taking
  clicks behind the menu. Always-processing modals return early from

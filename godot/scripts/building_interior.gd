@@ -253,9 +253,6 @@ var _crt_glow_sample_timer: float = 0.0
 
 # CRT 3D State
 var _crt_viewport: SubViewport
-var _exit_hint: Control
-## The same band at the PC: "Stand up".
-var _stand_hint: Control
 var _crt_ui: Control
 var _crt_active: bool = false
 var _camera_tween: Tween
@@ -750,15 +747,15 @@ func _process(delta: float) -> void:
 	# The title screen moves the eye itself (title_stage.gd): nothing of the office's own.
 	if _interior_camera == null or title_mode:
 		return
+	if _desk_room != null:
+		_desk_room.tick_drawer(delta)
 	if _crt_active:
 		# Seated means the computer is in use (the screen saver keys off it).
 		if _crt_ui != null and _crt_ui.has_method("is_open") and not _crt_ui.is_open():
 			_crt_ui.open_panel()
-		if _stand_hint == null:
-			_stand_hint = INTERIOR_LOOK.make_exit_hint(self, "Stand up")
-		INTERIOR_LOOK.update_exit_hint(_stand_hint, get_viewport(), delta, _crt_stand_zone())
-		if _exit_hint != null:
-			_exit_hint.modulate.a = 0.0
+		# Pushed down past the monitor: the flat hand, the way up from the chair.
+		if _crt_stand_zone():
+			HandCursor.want(HandCursor.WALK, self)
 		_update_crt_look_back_hold(delta)
 		if _is_camera_tween_running():
 			return
@@ -773,22 +770,9 @@ func _process(delta: float) -> void:
 	if _desk_room != null and (_desk_room.is_open() or _desk_room.gliding()):
 		return
 	if _extras != null and _extras.process(delta, _hour_now()):
-		_update_exit_hint_only(delta)
 		return
-	if _stand_hint != null:
-		_stand_hint.modulate.a = 0.0
 	_update_office_hover()
 	_apply_idle_mouse_look(delta)
-	if _exit_hint == null:
-		_exit_hint = INTERIOR_LOOK.make_exit_hint(self)
-	INTERIOR_LOOK.update_exit_hint(_exit_hint, get_viewport(), delta, not _crt_active)
-
-
-func _update_exit_hint_only(delta: float) -> void:
-	if _exit_hint == null:
-		_exit_hint = INTERIOR_LOOK.make_exit_hint(self)
-	var allowed: bool = _extras == null or not _extras.is_modal()
-	INTERIOR_LOOK.update_exit_hint(_exit_hint, get_viewport(), delta, allowed)
 
 
 func _hour_now() -> float:

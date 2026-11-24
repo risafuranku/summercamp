@@ -566,6 +566,9 @@ func sync_things() -> Dictionary:
 	var desk = bi.get("_desk_room")
 	if desk != null and desk.has_method("coop_register"):
 		out["register"] = desk.coop_register()
+	# The check-in drawer, out or in (whoever moved it; two at once go the host's way).
+	if desk != null and desk.has_method("coop_drawer"):
+		out["drawer"] = desk.coop_drawer()
 	# The office PC: what is installed, downloaded, binned, on the wallpaper (both ways).
 	if bi.has_method("coop_pc_state"):
 		out["pc"] = bi.coop_pc_state()
@@ -634,6 +637,10 @@ func sync(kind: String, data: Array) -> void:
 			var desk = bi.get("_desk_room") if bi != null else null
 			if desk != null and desk.has_method("coop_take_register"):
 				desk.coop_take_register(data[0])
+		"drawer":
+			var desk = bi.get("_desk_room") if bi != null else null
+			if desk != null and desk.has_method("coop_take_drawer") and not data.is_empty() and data[0] is Array:
+				desk.coop_take_drawer(data[0], INSTANCE.coop(main).sender == 1)
 		"hamlet":
 			var trip = main._interior_manager.get("_town_trip") if main._interior_manager != null else null
 			if trip != null and trip.has_method("coop_take_hamlet") and data.size() > 0 and data[0] is Dictionary:
@@ -655,7 +662,7 @@ func sync(kind: String, data: Array) -> void:
 			return
 	# Not sent back as it came; the register goes back if it merged with rows written here.
 	var now := sync_things()
-	if kind in ["office", "pc"] and now.has(kind):
+	if kind in ["office", "pc", "drawer"] and now.has(kind):
 		sync_last[kind] = hash(var_to_bytes(now[kind]))
 	elif kind == "register":
 		sync_last[kind] = hash(var_to_bytes(data[0]))

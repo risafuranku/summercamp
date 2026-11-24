@@ -626,6 +626,19 @@ const SCENARIOS := {
 		["eval", "debug_arrivals()"],
 		["eval", "_interior_manager._building_interior._desk_room.desk.export_state()"],
 	],
+	# The pager's "%s is at reception." when the party is at the counter, not at the barrier
+	# (playtest 24. 11.): the feed at the barrier, then once they are in.
+	"at_desk_notice": [
+		["auto_checkin", false],
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 2.0],
+		["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 1.0],
+		["money", 9000], ["clear", 8, 5, 6, 5], ["build", "tent_1", 9, 6, 0], ["prep_all"],
+		["book", "Pepa", "drunk", 1, 2, 0], ["hours", 0.05], ["wait", 1.5],
+		["eval", "['AT_GATE', get_node('/root/GuestManager').get_desk_queue().size(), _interior_manager._building_interior._desk_room.present_queue().size(), str(_hud_manager.feed_log)]"],
+		["until", "_interior_manager._building_interior._desk_room.present_queue().size() > 0", 120.0], ["wait", 1.0],
+		["eval", "['AT_DESK', get_node('/root/GuestManager').get_desk_queue().size(), _interior_manager._building_interior._desk_room.present_queue().size(), str(_hud_manager.feed_log)]"],
+		["shot", "n1_at_desk"],
+	],
 	"entrance": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
 		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.8],

@@ -133,7 +133,6 @@ var _base_rot := Vector3.ZERO
 var _hot: Dictionary = {}       # id -> {body, meshes}
 var _glint = HOVER_GLINT.new()
 var _hover := ""
-var _exit_hint: Control
 var _audio: AudioStreamPlayer
 var _amb: AudioStreamPlayer
 var _npc: Sprite3D
@@ -449,8 +448,6 @@ func close() -> void:
 	_glint.clear()
 	_amb.stop()
 	_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
-	if _exit_hint != null:
-		_exit_hint.modulate.a = 0.0
 	closed.emit()
 
 
@@ -847,9 +844,6 @@ func _process(delta: float) -> void:
 	else:
 		_glint.clear()
 		_hover = ""
-	if _exit_hint == null:
-		_exit_hint = INTERIOR_LOOK.make_exit_hint(self, "Go out   [Esc]")
-	INTERIOR_LOOK.update_exit_hint(_exit_hint, get_viewport(), delta, not modal)
 	_animate_npc(delta)
 	_animate_tubes()
 	_animate_regulars()

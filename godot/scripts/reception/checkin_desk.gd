@@ -294,6 +294,16 @@ func picture() -> Texture2D:
 	return _vp.get_texture()
 
 
+## The picture as things are now, drawn once while nobody sits here: the drawer out (pulled
+## by the other warden, or left out) shows its key board from it, the keys as they hang.
+func refresh_picture() -> void:
+	if is_open():
+		return
+	_refresh_keys()
+	_canvas.queue_redraw()
+	_vp.render_target_update_mode = SubViewport.UPDATE_ONCE
+
+
 func current_guest_id() -> int:
 	return int(_guest.get("id", -999)) if not _guest.is_empty() else -999
 

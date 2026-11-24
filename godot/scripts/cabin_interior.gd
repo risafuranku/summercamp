@@ -125,9 +125,6 @@ var _look = INTERIOR_LOOK.new(ROOM_YAW_DEG, 28.0, 38.0)
 ## Lying in this room's bed (scripts/lodge_bed.gd has the camera): no looking round,
 ## no leaving, no clicks till you are up.
 var lodge_sleeping := false
-var _exit_hint: Control
-## In the bathroom S takes you back into the room, as the reception's back room does.
-var _back_hint: Control
 ## The room's surfaces, re-skinned per level: {walls: [...], floor, ceiling}.
 var _shell: Dictionary = {}
 var _texture_style
@@ -623,13 +620,9 @@ func _process(delta: float) -> void:
 	_update_hover()
 	_update_torch(delta)
 	_update_fridge(delta)
-	if _exit_hint == null:
-		_exit_hint = INTERIOR_LOOK.make_exit_hint(self)
-		_back_hint = INTERIOR_LOOK.make_exit_hint(self, "Back   [Esc]")
+	if _side_hints == null:
 		_side_hints = INTERIOR_LOOK.make_side_hints(self)
 	var walking := _walking()
-	INTERIOR_LOOK.update_exit_hint(_exit_hint, get_viewport(), delta, not walking and _active_room == "main")
-	INTERIOR_LOOK.update_exit_hint(_back_hint, get_viewport(), delta, not walking and _active_room == "bathroom")
 	if walking:
 		INTERIOR_LOOK.set_side_hints(_side_hints, "", "")
 	elif _active_room == "bathroom":

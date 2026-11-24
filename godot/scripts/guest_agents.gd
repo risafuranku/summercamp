@@ -433,6 +433,9 @@ func _update_party(party: Dictionary, now: float, _delta: float) -> void:
 			# they stand inside, desk_room.present_queue).
 			if not bool(party.get("in_office", false)):
 				party["in_office"] = true
+				# At the counter now: the pager says so (not at the barrier, Richard 24. 11.).
+				if INSTANCE.bus(self).has_signal("guest_at_desk"):
+					INSTANCE.bus(self).guest_at_desk.emit(int(info.get("id", -1)))
 				var main_b := INSTANCE.main_of(self).find_child("MainBuilding", true, false) as Node3D if is_inside_tree() and INSTANCE.main_of(self) != null else null
 				DOOR_ANIM.open(DOOR_ANIM.find_door(main_b), 1.6 + 0.5 * float(members.size()))
 	else:

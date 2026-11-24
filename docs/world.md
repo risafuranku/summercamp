@@ -6,6 +6,12 @@ Guests, weather, trees, the map, Lesna and Liblice, the lake.
 
 ## Traps
 
+- **"%s is at reception." when they are at the counter** (Richard 24. 11.: „posuň to až když
+  budou fakt na recepci“): `EventBus.guest_at_desk(id)` from `guest_agents` as the party's
+  figure goes in through the reception's door (the first two of the queue; the rest wait at
+  the door and go in as it moves), main's pager line then; `guest_at_gate` (the barrier) is
+  the gate's, Builder 98's ticker's and the arrivals'. Scenario `at_desk_notice`.
+
 - **Sky/weather profiles derive from a fresh time baseline** each frame; weather changes
   crossfade over 40 s (`weather_visuals`), don't snap the environment directly.
 

@@ -37,6 +37,8 @@ signal guest_review_posted(review: Dictionary)
 signal guest_payment_received(amount: int, guest_id: int)
 # Arrivals (GuestManager): a booked party reached the barrier; it was let in; it gave up.
 signal guest_at_gate(guest: Dictionary)
+# Their figure stepped in at the reception's door (guest_agents.gd): at the counter now.
+signal guest_at_desk(guest_id: int)
 signal guest_checked_in(guest: Dictionary)
 signal guest_gave_up(guest: Dictionary)
 # Rooms (GuestManager + interiors): one preparation task done; a room became ready.
