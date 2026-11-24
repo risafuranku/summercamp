@@ -85,6 +85,11 @@ func _run() -> void:
 	var r = DREAD.new()
 	root.add_child(r)
 	await process_frame
+	# A fixed draw: unseeded, 20 minutes of the worst night now and then brought fewer than
+	# three splinters and the check failed on luck. (The events seed the radio's own RNG from
+	# the global one, so both are pinned.)
+	seed(5110)
+	r._rng.seed = 5110
 	var missing: Array = []
 	for id in DREAD.FLASHES + ["s_laugh"]:
 		if r._clip(id) == null:

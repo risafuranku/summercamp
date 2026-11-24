@@ -112,9 +112,12 @@ func _run() -> void:
 	arm.position = Vector3(0, 1, -6)
 	await process_frame
 	SM.kick(arm, Vector3(0, 0, 1), [0.05, 0.0, 0.02, 0.0])
+	# Read every frame: a step lasts 1/12 s, and sampling at that same rate sometimes slipped
+	# past the first, biggest turn (peak 0.020 instead of 0.05, about one run in five).
 	var peak := 0.0
-	for i in 20:
-		await create_timer(1.0 / 12.0).timeout
+	var until := Time.get_ticks_msec() + 1700
+	while Time.get_ticks_msec() < until:
+		await process_frame
 		peak = maxf(peak, arm.rotation.z)
 	_check(peak > 0.04 and absf(arm.rotation.z) < 0.0001, "a kick bounces it and leaves it as it was (peak %.3f)" % peak)
 	# The Karosa's dials: their needles real (the picture has none painted any more).
