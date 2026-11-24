@@ -28,10 +28,15 @@ var _invert_mouse_y: bool = false
 ## default, but let me pick it from a dropdown"); a device gone from the machine is the default.
 const MIC_DEFAULT := "Default"
 var _mic_device: String = MIC_DEFAULT
+## Music, the effects (the mixer's two channels, scripts/audio/mixer.gd) and the others'
+## voices in co-op (the "Voices" bus, scripts/coop/voice.gd), 0..1 (the settings' Audio tab).
+const CHANNELS := ["music", "sfx", "voices"]
+const VOICES_BUS := "Voices"
+var _channels := {"music": 1.0, "sfx": 1.0, "voices": 1.0}
 ## Keys you can change in Controls: action -> [its line in the list, the key it starts on].
 ## The walkie-talkie's is V (X is the cigarette's and the bottle's), the megaphone's G.
 const REBINDABLE := {
-	"radio_talk": ["Radio: talk (hold, co-op)", KEY_V],
+	"radio_talk": ["Talk: hold, co-op (a click: the walkie)", KEY_V],
 	"megaphone_talk": ["Megaphone: shout (hold)", KEY_G],
 }
 var _keys: Dictionary = {}
@@ -45,6 +50,8 @@ func _ready() -> void:
 	add_child(load("res://scripts/input/pad.gd").new())
 	# Music and effects as two channels (scripts/audio/mixer.gd; GameSettings.get_node("Mixer")).
 	add_child(load("res://scripts/audio/mixer.gd").new())
+	# (The channels' volumes once the mixer is there: apply_settings ran before it.)
+	_apply_channels()
 	# UNDO.games around the web demo (scripts/web/undo_hub.gd; GameSettings.get_node("Undo")).
 	if OS.has_feature("web"):
 		add_child(load("res://scripts/web/undo_hub.gd").new())
@@ -205,6 +212,8 @@ func reset_defaults() -> void:
 	_mouse_sensitivity = DEFAULT_MOUSE_SENSITIVITY
 	_invert_mouse_y = false
 	_mic_device = MIC_DEFAULT
+	for ch in CHANNELS:
+		_channels[ch] = 1.0
 	apply_settings()
 	save_settings()
 	_emit_changed()
@@ -234,6 +243,7 @@ func apply_frame_cap() -> void:
 func apply_settings() -> void:
 	_apply_window()
 	_apply_audio()
+	_apply_channels()
 	_apply_retro()
 	_apply_keys()
 	_apply_mic()
@@ -260,6 +270,8 @@ func load_settings() -> void:
 	_mouse_sensitivity = clampf(float(cfg.get_value("input", "look_sensitivity", DEFAULT_MOUSE_SENSITIVITY)), MOUSE_SENSITIVITY_MIN, MOUSE_SENSITIVITY_MAX)
 	_invert_mouse_y = bool(cfg.get_value("input", "invert_mouse_y", false))
 	_mic_device = str(cfg.get_value("audio", "mic_device", MIC_DEFAULT))
+	for ch in CHANNELS:
+		_channels[ch] = clampf(float(cfg.get_value("audio", ch + "_volume", 1.0)), 0.0, 1.0)
 	for action in REBINDABLE.keys():
 		_keys[action] = int(cfg.get_value("keys", action, REBINDABLE[action][1]))
 
@@ -277,6 +289,8 @@ func save_settings() -> void:
 	cfg.set_value("video", "retro_palette", _retro_palette_enabled)
 	cfg.set_value("audio", "master_db", _master_db)
 	cfg.set_value("audio", "mic_device", _mic_device)
+	for ch in CHANNELS:
+		cfg.set_value("audio", ch + "_volume", _channels[ch])
 	cfg.set_value("input", "look_sensitivity", _mouse_sensitivity)
 	cfg.set_value("input", "invert_mouse_y", _invert_mouse_y)
 	for action in REBINDABLE.keys():
@@ -363,6 +377,39 @@ func _apply_audio() -> void:
 ## The player's volume on Master again (the camp's audio sets its buses up at each start).
 func apply_audio() -> void:
 	_apply_audio()
+
+
+func get_channel_volume(channel: String) -> float:
+	return float(_channels.get(channel, 1.0))
+
+
+func set_channel_volume(channel: String, volume: float, persist: bool = true) -> void:
+	if not _channels.has(channel):
+		return
+	_channels[channel] = clampf(volume, 0.0, 1.0)
+	_apply_channels()
+	if persist:
+		save_settings()
+	_emit_changed()
+
+
+## Music and the effects onto the mixer's channels, the voices onto their bus (made by the
+## voice when a game for two starts: it asks again then, apply_voices_bus).
+func _apply_channels() -> void:
+	var mixer := get_node_or_null("Mixer")
+	if mixer != null and mixer.has_method("set_channel"):
+		for ch in ["music", "sfx"]:
+			mixer.set_channel(ch, float(_channels[ch]), float(_channels[ch]) <= 0.0)
+	apply_voices_bus()
+
+
+func apply_voices_bus() -> void:
+	var i := AudioServer.get_bus_index(VOICES_BUS)
+	if i < 0:
+		return
+	var v := float(_channels["voices"])
+	AudioServer.set_bus_volume_db(i, linear_to_db(maxf(v, 0.0001)))
+	AudioServer.set_bus_mute(i, v <= 0.0)
 
 
 func _apply_retro() -> void:

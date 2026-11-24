@@ -369,7 +369,10 @@ class MenuList:
 
 
 ## CONFIGURATION page: Duke-style option rows, LEFT/RIGHT (or click / right-click)
-## change the value, values apply immediately through GameSettings.
+## change the value, values apply immediately through GameSettings. In tabs along the top
+## (settings_rows.TABS: video, audio, controls, game; Richard 24. 11.): a click on one, LEFT /
+## RIGHT on their row, or Tab and Shift+Tab anywhere; the tab's rows under them, then what goes
+## somewhere (the keys, the credits, the defaults) and Back.
 class OptionsPage:
 	extends Control
 
@@ -381,16 +384,14 @@ class OptionsPage:
 	const ROWS = preload("res://scripts/ui/settings_rows.gd")
 	## A row's height: thirteen rows fit the title screen's plate and the pause menu's.
 	const ROW_VP := 13.0
-	## Where "View and body" is on the main rows (back from that page lands on it).
-	const BODY_ROW := 7
 	## The microphones' list, a row's height; as many as a page holds.
 	const DROP_ROW_VP := 12.0
 	const DROP_MAX := 12
 
 	var ui_scale: int = 3
-	var selected: int = 0
-	## "main" or "body" (the View and body rows).
-	var section := "main"
+	var selected: int = 1
+	## The tab open (settings_rows.TABS).
+	var tab := "video"
 	var _rows: Array[Dictionary] = []
 	var _row_nodes: Array[Control] = []
 	var _value_labels: Array[Label] = []
@@ -426,24 +427,7 @@ class OptionsPage:
 				continue
 			remove_child(child)
 			child.queue_free()
-		# The settings, then the rows that go somewhere (View and body after the mouse, as it
-		# always was: BODY_ROW).
-		_rows = []
-		var main_rows: Array = ROWS.MAIN.duplicate(true)
-		_rows.append_array(main_rows.slice(0, 7))
-		_rows.append({"id": "body", "name": "View and body", "action": true})
-		_rows.append_array(main_rows.slice(7))
-		_rows.append({"id": "controls", "name": "Controls", "action": true})
-		_rows.append({"id": "credits", "name": "Credits", "action": true})
-		_rows.append({"id": "reset", "name": "Reset defaults", "action": true})
-		_rows.append({"id": "back", "name": "Back", "action": true})
-		for r in _rows:
-			if r["id"] == "mic":
-				r["action"] = true
-		if section == "body":
-			_rows = []
-			_rows.append_array(ROWS.BODY.duplicate(true))
-			_rows.append({"id": "body_back", "name": "Back", "action": true})
+		_rows = _rows_of(tab)
 		_row_nodes.clear()
 		_value_labels.clear()
 		_name_labels.clear()
@@ -466,6 +450,9 @@ class OptionsPage:
 			row.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 			var index := i
 			row.mouse_entered.connect(func() -> void: _select(index))
+			if row_def.has("tabs"):
+				_tab_row(row, i)
+				continue
 			row.gui_input.connect(func(ev: InputEvent) -> void:
 				var mb := ev as InputEventMouseButton
 				if mb == null or not mb.pressed:
@@ -510,9 +497,100 @@ class OptionsPage:
 			else:
 				_bars.append(null)
 			_row_nodes.append(row)
-		custom_minimum_size = Vector2(0.0, row_h * float(_rows.size()))
+		# As tall as the tab with the most rows: the plate does not jump between them.
+		var most := 0
+		for t in ROWS.TABS:
+			most = maxi(most, _rows_of(str(t[0])).size())
+		custom_minimum_size = Vector2(0.0, row_h * float(most))
 		refresh()
 		_select(clampi(selected, 0, _rows.size() - 1), false)
+
+	## The tabs' row, then the tab's settings, then what goes somewhere, and Back.
+	func _rows_of(t: String) -> Array[Dictionary]:
+		var out: Array[Dictionary] = [{"id": "#tabs", "name": "", "tabs": true}]
+		for r in ROWS.rows_of(t):
+			out.append(r)
+		match t:
+			"controls":
+				out.append({"id": "controls", "name": "Keys", "action": true})
+			"game":
+				out.append({"id": "credits", "name": "Credits", "action": true})
+				out.append({"id": "reset", "name": "Reset defaults", "action": true})
+		out.append({"id": "back", "name": "Back", "action": true})
+		for r in out:
+			if r["id"] == "mic":
+				r["action"] = true
+		return out
+
+	## The tabs along a row: each its name, the open one lit and marked under it (a click on
+	## one opens it).
+	func _tab_row(row: Control, index: int) -> void:
+		var s := float(ui_scale)
+		var n := ROWS.TABS.size()
+		var w := floorf(size.x / float(n))
+		for k in n:
+			var id := str(ROWS.TABS[k][0])
+			var cell := Control.new()
+			cell.position = Vector2(float(k) * w, 0.0)
+			cell.size = Vector2(w, ROW_VP * s)
+			cell.mouse_filter = Control.MOUSE_FILTER_STOP
+			cell.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+			cell.mouse_entered.connect(func() -> void: _select(index))
+			cell.gui_input.connect(func(ev: InputEvent) -> void:
+				var mb := ev as InputEventMouseButton
+				if mb != null and mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
+					_open_tab(id)
+			)
+			row.add_child(cell)
+			var open := id == tab
+			if open:
+				var mark := RETRO_UI.BevelPanel.new()
+				mark.ui_scale = ui_scale
+				mark.rounded = true
+				mark.fill = Color(0.36, 0.22, 0.08, 0.95)
+				mark.light = RETRO_UI.C_AMBER
+				mark.dark = Color(0.08, 0.05, 0.02, 1.0)
+				mark.position = Vector2(2.0 * s, 1.0 * s)
+				mark.size = Vector2(w - 4.0 * s, (ROW_VP - 2.0) * s)
+				cell.add_child(mark)
+			var label := RETRO_UI.label(tr(str(ROWS.TABS[k][1])).to_upper(), RETRO_UI.FONT_LABEL, RETRO_UI.SIZE_LABEL, RETRO_UI.C_AMBER_LIGHT if open else RETRO_UI.C_BONE, ui_scale)
+			label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+			label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			label.anchor_right = 1.0
+			label.offset_right = 0.0
+			RETRO_UI.place_on_baseline(label, 10.0, ui_scale)
+			cell.add_child(label)
+		add_child(row)
+		# (The rows' lists stay one a row: the tabs' row has no name, value or scale.)
+		var none := Label.new()
+		none.visible = false
+		row.add_child(none)
+		_name_labels.append(none)
+		var nothing := Label.new()
+		nothing.visible = false
+		row.add_child(nothing)
+		_value_labels.append(nothing)
+		_bars.append(null)
+		_row_nodes.append(row)
+
+	func _open_tab(t: String) -> void:
+		if t == tab:
+			return
+		tab = t
+		selected = 0
+		_play(0.85)
+		build()
+
+	## The tab beside the open one (`dir` -1 / +1, round).
+	func _step_tab(dir: int) -> void:
+		var i := 0
+		for k in ROWS.TABS.size():
+			if str(ROWS.TABS[k][0]) == tab:
+				i = k
+		var keep := selected
+		_open_tab(str(ROWS.TABS[posmod(i + dir, ROWS.TABS.size())][0]))
+		selected = mini(keep, _rows.size() - 1)
+		_select(selected, false)
 
 	func refresh() -> void:
 		if GameSettings == null:
@@ -646,12 +724,13 @@ class OptionsPage:
 		if event.is_action_pressed("ui_accept"):
 			_change(1, true)
 			return true
+		if event.is_action_pressed("ui_focus_next"):
+			_step_tab(1)
+			return true
+		if event.is_action_pressed("ui_focus_prev"):
+			_step_tab(-1)
+			return true
 		if event.is_action_pressed("ui_cancel"):
-			if section == "body":
-				section = "main"
-				selected = BODY_ROW
-				build()
-				return true
 			back_requested.emit()
 			return true
 		return false
@@ -674,12 +753,8 @@ class OptionsPage:
 			return
 		var id := str(_rows[selected]["id"])
 		match id:
-			"body", "body_back":
-				if activate:
-					section = "body" if id == "body" else "main"
-					selected = 0 if id == "body" else BODY_ROW
-					_play(0.85)
-					build()
+			"#tabs":
+				_step_tab(dir)
 				return
 			"mic":
 				if activate:

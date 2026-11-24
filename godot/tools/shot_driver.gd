@@ -626,6 +626,22 @@ const SCENARIOS := {
 		["eval", "debug_arrivals()"],
 		["eval", "_interior_manager._building_interior._desk_room.desk.export_state()"],
 	],
+	# The configuration in tabs (playtest 24. 11., P2): the title's printouts sheet by sheet,
+	# then the pause menu's plate tab by tab.
+	"settings_tabs": [
+		["wait_menu"], ["call_on", "_main_menu", "show_page", ["options"]], ["wait", 0.8], ["shot", "st0_title_video"],
+		["eval", "[_main_menu._pages['options'].click('tape:audio'), _main_menu._pages['options'].desk.redraw()]"], ["wait", 0.5], ["shot", "st1_title_audio"],
+		["eval", "[_main_menu._pages['options'].click('tape:controls'), _main_menu._pages['options'].desk.redraw()]"], ["wait", 0.5], ["shot", "st2_title_controls"],
+		["eval", "[_main_menu._pages['options'].click('tape:game'), _main_menu._pages['options'].desk.redraw()]"], ["wait", 0.5], ["shot", "st3_title_game"],
+		["call_on", "_main_menu", "show_page", ["main"]], ["wait", 0.4],
+		["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.5],
+		["call", "_open_pause_menu", []], ["wait", 0.5], ["call_on", "_pause_menu", "_show", ["options"]], ["wait", 0.5], ["shot", "st4_pause_video"],
+		["eval", "_pause_menu._options._open_tab('audio')"], ["wait", 0.4], ["shot", "st5_pause_audio"],
+		["eval", "_pause_menu._options._open_tab('controls')"], ["wait", 0.4], ["shot", "st6_pause_controls"],
+		["eval", "_pause_menu._options._open_tab('game')"], ["wait", 0.4], ["shot", "st7_pause_game"],
+		["eval", "['CHANNELS', get_node('/root/GameSettings').get_channel_volume('music'), get_node('/root/GameSettings').get_channel_volume('sfx'), get_node('/root/GameSettings').get_channel_volume('voices')]"],
+	],
 	# The torch's light at night (playtest 24. 11., P5): out of the office's front door with
 	# its lights off, at its front (the same place every game), the old beam (a plain spot)
 	# and the new (torch_beam.gd) one after the other; then aside along the camp.

@@ -15,6 +15,9 @@ const SFX := "Sfx"
 ## other bus of the game (the world, the night, the rooms, the phone, the Caretaker's and the
 ## fever's treatments of songs heard as dread) is effects.
 const MUSIC_BUSES := ["WorldMusic", "AmbientMusic", "Chase", "Radio", "RadioMusic"]
+## Buses with a volume of their own in the settings, left on Master: the others' voices in
+## co-op (scripts/coop/voice.gd, GameSettings "voices").
+const OWN_BUSES := ["Voices"]
 const PLAYERS := ["AudioStreamPlayer", "AudioStreamPlayer2D", "AudioStreamPlayer3D"]
 
 var _volume := {"music": 1.0, "sfx": 1.0}
@@ -69,7 +72,7 @@ func _apply() -> void:
 func _route_buses() -> void:
 	for i in range(1, AudioServer.bus_count):
 		var bus := AudioServer.get_bus_name(i)
-		if bus == MUSIC or bus == SFX:
+		if bus == MUSIC or bus == SFX or OWN_BUSES.has(bus):
 			continue
 		var send := AudioServer.get_bus_send(i)
 		if send != &"Master" and send != StringName(MUSIC) and send != StringName(SFX):

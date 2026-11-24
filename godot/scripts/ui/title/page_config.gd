@@ -1,12 +1,13 @@
 extends RefCounted
 
 ## The configuration as printouts on the counter (a title_desk.gd page; main_menu.gd's
-## CONFIGURATION): the machine's settings typed out on the striped computer paper, each
-## value between the two arrows that step it, a scale filled in in pencil boxes; the
-## other sheets are the warden's view and body, the controls (out in the camp, indoors:
-## the keys that can be changed are changed there, a click and the new key) and the
-## credits, their names punched on the tapes beside the paper. The rows and what they do:
-## scripts/ui/settings_rows.gd (the pause menu's plate does the same with them).
+## CONFIGURATION): a sheet a tab of settings_rows.TABS (video, audio, controls, game: Richard
+## 24. 11., „pořádný settings, rozdělený audio video etc“), typed out on the striped computer
+## paper, each value between the two arrows that step it, a scale filled in in pencil boxes;
+## the other sheets are the keys (out in the camp, indoors: the keys that can be changed are
+## changed there, a click and the new key) and the credits, their names punched on the tapes
+## beside the paper. The rows and what they do: scripts/ui/settings_rows.gd (the pause menu's
+## plate does the same with them).
 
 const ROWS = preload("res://scripts/ui/settings_rows.gd")
 const PROMPT = preload("res://scripts/input/prompt.gd")
@@ -27,14 +28,14 @@ const CONTROL_PITCH := 13.0
 const TAPE_X := 428.0
 const TAPE_Y0 := 30.0
 const TAPE_PITCH := 16.0
-const SHEETS := [["main", "Configuration"], ["body", "View and body"], ["controls", "Controls"], ["credits", "Credits"]]
+const SHEETS := [["video", "Video"], ["audio", "Audio"], ["controls", "Controls"], ["keys", "Keys"], ["game", "Game"], ["credits", "Credits"]]
 const RED_TAPE := Color8(150, 26, 22)
 const BLACK_TAPE := Color8(24, 24, 26)
 
 var menu
 var desk
-## "main", "body", "controls", "credits".
-var sheet := "main"
+## A tab's (settings_rows.TABS), "keys" or "credits".
+var sheet := "video"
 ## The controls sheet's part: 0 out in the camp, 1 indoors, 2 the debug keys.
 var _part := 0
 var _sel := 0
@@ -66,7 +67,12 @@ func _on_settings(_snap: Dictionary) -> void:
 
 
 func _rows() -> Array:
-	return ROWS.BODY if sheet == "body" else ROWS.MAIN
+	return ROWS.rows_of(sheet)
+
+
+## A sheet of settings (a tab), not the keys' or the credits'.
+func _is_rows() -> bool:
+	return sheet != "keys" and sheet != "credits"
 
 
 func _row_y(i: int) -> float:
@@ -90,7 +96,7 @@ func _tapes() -> Array:
 	for s in SHEETS:
 		out.append([str(s[0]), str(s[1]), RED_TAPE if s[0] == sheet else BLACK_TAPE])
 	out.append(["", "", null])
-	if sheet == "main" or sheet == "body":
+	if _is_rows():
 		out.append(["reset", "Reset defaults", BLACK_TAPE])
 	out.append(["back", "Back", BLACK_TAPE])
 	return out
@@ -98,7 +104,7 @@ func _tapes() -> Array:
 
 func hotspots() -> Array:
 	var out: Array = []
-	if sheet == "main" or sheet == "body":
+	if _is_rows():
 		var rows := _rows()
 		for i in rows.size():
 			var id := str(rows[i]["id"])
@@ -106,7 +112,7 @@ func hotspots() -> Array:
 			out.append({"id": "dec:" + id, "rect": Rect2(LEFT_ARROW - 4, y - 9, 14, 12)})
 			out.append({"id": "inc:" + id, "rect": Rect2(RIGHT_ARROW - 6, y - 9, 14, 12)})
 			out.append({"id": "row:" + id, "rect": Rect2(X - 8, y - 9, LEFT_ARROW - X + 4, 12)})
-	elif sheet == "controls":
+	elif sheet == "keys":
 		var parts := _parts()
 		var x := X
 		for i in parts.size():
@@ -146,7 +152,7 @@ func click(id: String) -> void:
 		_note = ""
 		return
 	match id.trim_prefix("tape:"):
-		"main", "body", "controls", "credits":
+		"video", "audio", "controls", "keys", "game", "credits":
 			var to := id.trim_prefix("tape:")
 			if to != sheet:
 				sheet = to
@@ -186,7 +192,7 @@ func key(event: InputEvent) -> bool:
 			_waiting = ""
 			return true
 		return event is InputEventKey
-	if sheet == "main" or sheet == "body":
+	if _is_rows():
 		var rows := _rows()
 		if event.is_action_pressed("ui_down", true):
 			_sel = posmod(_sel + 1, rows.size())
@@ -200,7 +206,7 @@ func key(event: InputEvent) -> bool:
 		if event.is_action_pressed("ui_left", true):
 			_step(str(rows[_sel]["id"]), -1)
 			return true
-	elif sheet == "controls":
+	elif sheet == "keys":
 		if event.is_action_pressed("ui_right"):
 			_part = posmod(_part + 1, _parts().size())
 			return true
@@ -226,12 +232,12 @@ func paint(d, c: Control) -> void:
 			title = tr(str(s[1])).to_upper()
 	d.text(c, Vector2(X, SHEET.position.y + 24), title, d.RED)
 	match sheet:
-		"main", "body":
-			_paint_rows(d, c)
-		"controls":
+		"keys":
 			_paint_controls(d, c)
 		"credits":
 			_paint_credits(d, c)
+		_:
+			_paint_rows(d, c)
 	var y := TAPE_Y0
 	for t in _tapes():
 		if str(t[0]) != "":

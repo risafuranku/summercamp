@@ -34318,3 +34318,19 @@ msgstr "KAMERA"
 #: scripts/os98/apps/campstat_app.gd (24. 11.)
 msgid "Connecting..."
 msgstr "Připojuji..."
+
+#: scripts/ui/settings_rows.gd (24. 11.: the configuration in tabs)
+msgid "Video"
+msgstr "Obraz"
+
+#: scripts/ui/settings_rows.gd (24. 11.)
+msgid "Game"
+msgstr "Hra"
+
+#: scripts/ui/settings_rows.gd (24. 11.)
+msgid "Effects"
+msgstr "Efekty"
+
+#: scripts/game_settings.gd (24. 11.: V is your voice, a click the walkie)
+msgid "Talk: hold, co-op (a click: the walkie)"
+msgstr "Mluvit: držet, co-op (klik: vysílačka)"

@@ -21,28 +21,62 @@ const MOUSE_STEPS := [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0]
 const FOV_STEPS := [60.0, 64.0, 68.0, 72.0, 76.0, 80.0, 84.0, 90.0]
 const PCT_STEPS := [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 
-## The settings themselves, the machine's (no going-somewhere rows).
-const MAIN := [
-	{"id": "mode", "name": "Window mode"},
-	{"id": "resolution", "name": "Resolution"},
-	{"id": "render", "name": "Render style"},
-	{"id": "palette", "name": "256-colour palette"},
-	{"id": "volume", "name": "Master volume", "bar": 13},
-	{"id": "mic", "name": "Microphone"},
-	# The pointer's speed for every look (playtest 1. 11.: "add mouse sensitivity": it was
-	# only the warden's X and Y, two pages down); those stay as fine tuning.
-	{"id": "mouse", "name": "Mouse sensitivity", "bar": 9},
-	{"id": "hints", "name": "Work hints"},
+## Music, the effects and the others' voices (GameSettings.get_channel_volume): off to full.
+const CHANNEL_STEPS := [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+
+## Every setting: what its row is called, and for a scale its steps ("bar").
+const ROW := {
+	"mode": {"name": "Window mode"},
+	"resolution": {"name": "Resolution"},
+	"render": {"name": "Render style"},
+	"palette": {"name": "256-colour palette"},
+	"fov": {"name": "Field of view"},
+	"bob": {"name": "Head bob", "bar": 10},
+	"lean": {"name": "Lean", "bar": 10},
+	"volume": {"name": "Master volume", "bar": 13},
+	"music": {"name": "Music", "bar": 10},
+	"sfx": {"name": "Effects", "bar": 10},
+	"voices": {"name": "Voices", "bar": 10},
+	"mic": {"name": "Microphone"},
+	# The pointer's speed for every look (playtest 1. 11.: "add mouse sensitivity"); the
+	# warden's X and Y stay as fine tuning.
+	"mouse": {"name": "Mouse sensitivity", "bar": 9},
+	"mouse_x": {"name": "Mouse X", "bar": 9},
+	"mouse_y": {"name": "Mouse Y", "bar": 9},
+	"invert": {"name": "Invert mouse Y"},
+	"crouch": {"name": "Crouch (Ctrl)"},
+	"hints": {"name": "Work hints"},
+}
+## The configuration in tabs (Richard 24. 11.: „udělat pořádný settings, rozdělený audio
+## video etc“; it was one list and a page of "View and body"): [id, name, its rows]. The
+## pause menu's plate (retro_menu.OptionsPage) and the title's printouts (page_config.gd)
+## both; each adds the rows that go somewhere (the keys, the credits, the defaults).
+const TABS := [
+	["video", "Video", ["mode", "resolution", "render", "palette", "fov", "bob", "lean"]],
+	["audio", "Audio", ["volume", "music", "sfx", "voices", "mic"]],
+	["controls", "Controls", ["mouse", "mouse_x", "mouse_y", "invert", "crouch"]],
+	["game", "Game", ["hints"]],
 ]
-const BODY := [
-	{"id": "fov", "name": "Field of view"},
-	{"id": "mouse_x", "name": "Mouse X", "bar": 9},
-	{"id": "mouse_y", "name": "Mouse Y", "bar": 9},
-	{"id": "invert", "name": "Invert mouse Y"},
-	{"id": "bob", "name": "Head bob", "bar": 10},
-	{"id": "lean", "name": "Lean", "bar": 10},
-	{"id": "crouch", "name": "Crouch (Ctrl)"},
-]
+
+
+## Tab `tab`'s rows: [{id, name, bar?}].
+static func rows_of(tab: String) -> Array:
+	var out: Array = []
+	for t in TABS:
+		if str(t[0]) == tab:
+			for id in t[2]:
+				var r: Dictionary = (ROW[id] as Dictionary).duplicate()
+				r["id"] = id
+				out.append(r)
+	return out
+
+
+## Its name (English: translate it to show it).
+static func tab_name(tab: String) -> String:
+	for t in TABS:
+		if str(t[0]) == tab:
+			return str(t[1])
+	return ""
 
 
 ## What the row says now: {"text": the value in English (translate it to show it; "" for
@@ -69,6 +103,11 @@ static func value(id: String) -> Dictionary:
 			var vi := nearest(VOLUME_STEPS, db)
 			text = "OFF" if vi == 0 else "%+d DB" % int(round(db))
 			bar = float(vi) / float(VOLUME_STEPS.size() - 1)
+		"music", "sfx", "voices":
+			var cv: float = GameSettings.get_channel_volume(id)
+			var ci := nearest(CHANNEL_STEPS, cv)
+			text = "OFF" if ci == 0 else "%d%%" % int(round(cv * 100.0))
+			bar = float(ci) / float(CHANNEL_STEPS.size() - 1)
 		"mouse":
 			var m: float = GameSettings.get_mouse_sensitivity()
 			text = "%d%%" % int(round(m * 100.0))
@@ -116,6 +155,9 @@ static func change(id: String, dir: int) -> bool:
 		"volume":
 			var vi := clampi(nearest(VOLUME_STEPS, GameSettings.get_master_volume_db()) + dir, 0, VOLUME_STEPS.size() - 1)
 			GameSettings.set_master_volume_db(VOLUME_STEPS[vi], true, true)
+		"music", "sfx", "voices":
+			var ci2 := clampi(nearest(CHANNEL_STEPS, GameSettings.get_channel_volume(id)) + dir, 0, CHANNEL_STEPS.size() - 1)
+			GameSettings.set_channel_volume(id, CHANNEL_STEPS[ci2], true)
 		"mouse":
 			var mi2 := clampi(nearest(MOUSE_STEPS, GameSettings.get_mouse_sensitivity()) + dir, 0, MOUSE_STEPS.size() - 1)
 			GameSettings.set_mouse_sensitivity(MOUSE_STEPS[mi2], true)

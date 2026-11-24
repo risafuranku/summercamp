@@ -93,12 +93,21 @@ func _buses() -> void:
 		AudioServer.set_bus_mute(i, true)
 	else:
 		_capture = AudioServer.get_bus_effect(AudioServer.get_bus_index("VoiceMic"), 0) as AudioEffectCapture
+	# The others' voices together, at their own volume (the settings' Audio tab, GameSettings
+	# "voices"): every voice's bus goes into it.
+	if AudioServer.get_bus_index("Voices") < 0:
+		var vi := AudioServer.bus_count
+		AudioServer.add_bus(vi)
+		AudioServer.set_bus_name(vi, "Voices")
+		AudioServer.set_bus_send(vi, "Master")
+	if GameSettings != null and GameSettings.has_method("apply_voices_bus"):
+		GameSettings.apply_voices_bus()
 	# Your own voice, near: as it is (the 3D player fades it).
 	if AudioServer.get_bus_index("VoiceLocal") < 0:
 		var li := AudioServer.bus_count
 		AudioServer.add_bus(li)
 		AudioServer.set_bus_name(li, "VoiceLocal")
-		AudioServer.set_bus_send(li, "Master")
+		AudioServer.set_bus_send(li, "Voices")
 	# The radio's speaker: narrow and crushed. The megaphone's horn: harder, louder.
 	for spec in [["VoiceRadio", 380.0, 3000.0, 0.22, 0.0], ["VoiceMegaphone", 520.0, 3600.0, 0.42, 4.0]]:
 		if AudioServer.get_bus_index(str(spec[0])) >= 0:
@@ -117,7 +126,7 @@ func _buses() -> void:
 		dist.drive = float(spec[3])
 		AudioServer.add_bus_effect(i, dist)
 		AudioServer.set_bus_volume_db(i, float(spec[4]))
-		AudioServer.set_bus_send(i, "Master")
+		AudioServer.set_bus_send(i, "Voices")
 
 
 # ── talking ──────────────────────────────────────────────────────────────────

@@ -86,6 +86,16 @@ What the warden is and how the player drives them.
 
 - **`player.torch_fade`:** going in by a door the torch goes down over the walk; a lit room burnt white at arm's length.
 
+- **The configuration is in tabs** (Richard 24. 11.: „udělat pořádný settings, rozdělený
+  audio video etc“): `settings_rows.TABS` (Video: window, resolution, render, palette, field
+  of view, head bob, lean; Audio: master, music, effects, voices, microphone; Controls: the
+  mouse, crouch, and Keys; Game: work hints, credits, defaults), one list for both screens:
+  the pause menu's plate (`retro_menu.OptionsPage`: the tabs a row along the top, a click,
+  LEFT/RIGHT on it or Tab/Shift+Tab anywhere; the plate as tall as the longest tab, so it
+  does not jump) and the title's printouts (`page_config.gd`, a sheet a tab on the tapes,
+  then Keys and Credits). A new setting is a row in `ROW` and a place in a tab. Test:
+  `settings_check` (in `tools/checks.py`), the pictures `settings_tabs`.
+
 - **The torch is an old bulb's beam** (Richard 24. 11.: „lepší světelný kužel baterky, takový
   co se více hodí do hry, klidně nažloutlý“; `scripts/torch_beam.gd`): warm yellow, the
   bulb's dark dot and the reflector's rings from a picture (Grok `torch_cookie_a`, the other

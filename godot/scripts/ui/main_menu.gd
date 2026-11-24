@@ -11,7 +11,7 @@ extends CanvasLayer
 ##   newcamp    the application with its rubber stamp        page_form.gd
 ##   coop       the office telephone                         page_phone.gd
 ##   warden     the warden's ID card                         page_warden.gd ("profiles", "look")
-##   options    the configuration's printouts               page_config.gd ("controls", "credits")
+##   options    the configuration's printouts               page_config.gd ("controls": its keys, "credits")
 ## and the secret test nights (L on the main page: a fresh test camp at 20:00 with the
 ## chosen thing already out, nothing saved) on a plate. A new player starts at a blank
 ## ID card. A loading plate covers everything while main builds the world. Wardens and
@@ -50,7 +50,7 @@ const PAGE_CONFIG = preload("res://scripts/ui/title/page_config.gd")
 ## Old page names and the page each is now (the shot driver, main.gd's game over).
 const ALIASES := {"profiles": "warden", "look": "warden", "load": "saves", "controls": "options", "credits": "options"}
 ## The configuration's sheet an old page name opens.
-const SHEET_OF := {"options": "main", "controls": "controls", "credits": "credits"}
+const SHEET_OF := {"options": "video", "controls": "keys", "credits": "credits"}
 
 ## The test nights, in the order of the guests who bring them (main.debug_spawn_enemy ids).
 const TEST_NIGHTS: Array[Dictionary] = [

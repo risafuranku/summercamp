@@ -21,6 +21,12 @@ Buses, 3D sound, the mixer and the sounds' own rules.
 
 - **Footstep pitch modulation must stay subtle** (whoosh artifact otherwise).
 
+- **Music, the effects and the voices have their own volumes** (the settings' Audio tab,
+  24. 11.): `GameSettings.set_channel_volume("music" | "sfx" | "voices")`, kept in
+  settings.cfg; music and the effects go onto the mixer's channels (as UNDO.games' bar does
+  on the web), the voices onto the "Voices" bus every voice bus sends to (the mixer leaves it
+  on Master: `mixer.OWN_BUSES`, it is not one of the effects).
+
 - **The voice in co-op: V is your own voice, a click while it is held the walkie** (Richard
   24. 11.: „když držim V, kliknutím přepínám jestli mluvim lokálně nebo do vysílačky, když jí
   mám v inventáři“; `scripts/coop/voice.gd`): "local" comes out of an AudioStreamPlayer3D on
