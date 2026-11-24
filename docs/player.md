@@ -114,7 +114,8 @@ Kolo 3:
   zamčení PC ve 20:00; jedna malá hra na krácení času, třeba had.
 
 Hotovo 24. 11.: PDA (`scripts/pda/`). Drží se s batohem (TAB držet = nahoře, ťuknout = zůstane,
-`inventory._set_forced` nastaví `pda.force_open`), v levé ruce vpravo od batohu, aspoň 3× (na 720p
+`inventory._set_forced` nastaví `pda.force_open`), v levé ruce vlevo od středu, batoh se s ním
+otevírá vpravo (`inventory._origin`; vlevo ho rukavice zakrývala), aspoň 3× (na 720p
 v okně by HUD jel 2× a displej by byl moc úzký), displej celý vidět, tlačítka pod ním můžou
 vyjet pod spodní okraj. Ruka je Grokova (`tools/artgen/pda_art.py`: `hands/pda.png`, z ní stylus
 jako kurzor `ui/cursor_stylus.png` = `HandCursor.STYLUS`, ikony aplikací `pda/icons.png`, logo

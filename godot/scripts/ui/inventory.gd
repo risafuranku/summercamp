@@ -380,8 +380,8 @@ func is_open() -> bool:
 	return _open
 
 
-## Screen pixels the bag takes on the left while it is out (the PDA keeps right of it).
-func reserve_left() -> float:
+## Screen pixels the bag takes on the right while it is out (the PDA keeps left of it).
+func reserve_right() -> float:
 	if not _open and _k <= 0.0:
 		return 0.0
 	return _panel_size().x * float(_scale()) + 32.0
@@ -924,11 +924,12 @@ func _panel_size() -> Vector2:
 	return Vector2(COLS * CELL + PAD * 2, ROWS * CELL + TOP + PAD)
 
 
-## Top left of the bag on screen: in from the left edge as it opens.
+## Top left of the bag on screen: in from the right edge as it opens (24. 11.: the PDA is
+## in the left hand with it, scripts/pda/pda.gd; on the left the glove hid it).
 func _origin(s: int) -> Vector2:
 	var vp := get_viewport().get_visible_rect().size
 	var size := _panel_size() * float(s)
-	var x := 16.0 - (1.0 - _k) * (size.x + 32.0)
+	var x := vp.x - 16.0 - size.x + (1.0 - _k) * (size.x + 32.0)
 	return Vector2(x, (vp.y - size.y) * 0.5).floor()
 
 
@@ -1050,6 +1051,9 @@ func _draw_hint(it: Dictionary, mouse: Vector2) -> void:
 	var fs := float(_scale())
 	var w := RETRO_UI.FONT_LABEL.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, RETRO_UI.SIZE_LABEL).x
 	var at := (mouse + Vector2(10, 12) * fs).floor()
+	# (The bag is on the right since 24. 11.: a hint that would run off the edge goes left.)
+	if at.x + (w + 6.0) * fs > get_viewport().get_visible_rect().size.x - 4.0:
+		at.x = floorf(mouse.x - (w + 10.0) * fs)
 	c.draw_set_transform(at, 0.0, Vector2(fs, fs))
 	c.draw_rect(Rect2(Vector2(-3, -9), Vector2(w + 6, 12)), Color(0.08, 0.06, 0.04, 0.92))
 	c.draw_rect(Rect2(Vector2(-3, -9), Vector2(w + 6, 12)), Color(0.55, 0.44, 0.28), false, 1.0)

@@ -9,17 +9,16 @@ extends CanvasLayer
 ## night its backlight is on.
 ##
 ## The hand is Grok's (tools/artgen/pda_art.py, approved 24. 11.), drawn at the HUD's whole
-## pixel scale; the screen in it is SCREEN, two screen pixels to each of its own.
+## pixel scale; the screen in it is SCREEN, two screen pixels to each of its own. The bag
+## opens on the right of the screen with it (inventory._origin).
 
 const INSTANCE = preload("res://scripts/instance/instance.gd")
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 const OS_SCRIPT = preload("res://scripts/pda/pda_os.gd")
 const HAND_TEX := "res://assets/textury/hands/pda.png"
 const ICONS := "res://assets/textury/pda/icons.png"
-## The screen in the hand's picture (tools/artgen/pda_art.py prints it), and where the
-## device's left edge is in it (it keeps right of the bag).
+## The screen in the hand's picture (tools/artgen/pda_art.py prints it).
 const SCREEN := Rect2(233, 135, 69, 160)
-const DEVICE_X := 200.0
 ## The device's top edge in the picture (its top is kept on the screen, the buttons below
 ## the glass may go off the bottom).
 const DEVICE_TOP := 85.0
@@ -210,12 +209,9 @@ func _layout() -> void:
 	_scale = maxi(MIN_SCALE, RETRO_UI.ui_scale(vp.y, vp.x))
 	var tex_size := _hand.texture.get_size()
 	_hand.size = tex_size * float(_scale)
-	var bag_px := 0.0
-	var bag = get_tree().get_first_node_in_group("inventory")
-	if bag != null and bag.has_method("reserve_left"):
-		bag_px = float(bag.reserve_left())
+	# Left of the screen's middle (the bag opens on the right with it).
 	var screen_px := SCREEN.size * float(_scale)
-	var x := maxf(bag_px + 8.0 - DEVICE_X * float(_scale), vp.x * 0.30 - SCREEN.get_center().x * float(_scale))
+	var x := vp.x * 0.30 - SCREEN.get_center().x * float(_scale)
 	var top := maxf(12.0, minf((SCREEN.position.y - DEVICE_TOP + 3.0) * float(_scale), vp.y - screen_px.y - 12.0))
 	_hand.position.x = roundf(x)
 	_hand.set_meta("up_y", roundf(top - SCREEN.position.y * float(_scale)))
