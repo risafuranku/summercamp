@@ -173,7 +173,23 @@ Two to four wardens, the host's authority, and the split screen's instances.
   (`building_interior.coop_screen_frame`, only while the other is in the office) and the
   other puts it in the CRT glass shader's `screen_tex`; it falls back to its own PC's
   viewport when frames stop for 0.8 s. Reading the viewport stalls the GPU a moment:
-  keep the rate low.
+  keep the rate low. A click on the PC another warden sits at takes you up behind their
+  chair, over their right shoulder (`building_interior._look_over_shoulder`, SHOULDER_*;
+  Richard 24. 11.: „můžu nahlížet blíže přes rameno, když kliknu na PC a sedí u něj“; it was
+  a line that it was taken); Esc, Space, a click or their getting up take you back.
+
+- **The other warden in the office is where nobody walks through the counter** (playtest
+  24. 11.: „vidím jak projde skrz pult když jde k počítači… vždy půjde tak aby mi šel za
+  zády, mimo záběr“, „divně posunutý sprite do výšky“). Both wardens have the same eyes
+  there, so their figure stands behind yours at the back of the office
+  (`interior_manager.COOP_OFFICE_SPOTS["office"]`); at the check-in desk on their feet at the
+  counter's right end turned to the guests (`COOP_DESK_SPOT`: the hips-up "write" picture
+  stood on air there, and at the desk itself they would stand in your face); at the PC on
+  its chair. From one place to the next they walk (`remote_player.walk_way`, every frame,
+  1.4 m/s) the way `_coop_office_route` gives: behind your back from one side of the room
+  to the other (`COOP_BEHIND_L/R`), round the counter's right end to its front
+  (`COOP_BACK_END`), never across it. Test: `python godot/tools/office_figs_coop.py`
+  (standing, at the desk, desk to PC and back, a picture every 0.15 s, the shoulder).
 
 - **Warden looks** (`warden_looks.gd`): a jacket colour is the jacket's pixels moved to
   another hue, found by hue band, rows per pose and boxes left out (boots of the same

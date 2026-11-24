@@ -796,7 +796,6 @@ func click() -> bool:
 ## a time (building_interior.gd). What you think instead.
 const COOP_HOSTS_ONLY: Array[String] = []
 const COOP_REFUSALS := {
-	"pc": "The other warden is at the PC. You look over their shoulder.",
 	"phone": "You leave the phone to the other warden.",
 	"guest": "The other warden does the check-ins.",
 	"bell": "The other warden does the check-ins.",
@@ -816,15 +815,6 @@ func _desk_warden() -> int:
 	return 0
 
 
-## Another warden at the PC (0 none).
-func _pc_warden() -> int:
-	for id in INSTANCE.coop(host).others():
-		var r: Dictionary = INSTANCE.coop(host).state_of(id).get("room", {})
-		if str(r.get("t", "")) == "office" and str(r.get("w", "")) == "pc":
-			return int(id)
-	return 0
-
-
 func _partner_at_desk() -> bool:
 	return _desk_warden() != 0
 
@@ -832,8 +822,8 @@ func _partner_at_desk() -> bool:
 ## A thing in the office another warden has (the PC, the desk...): who has it is told by
 ## name (the one at it, else the first of them).
 func coop_refuse(what: String) -> void:
-	var who := _pc_warden() if what == "pc" else _desk_warden()
-	var line := str(COOP_REFUSALS.get(what, COOP_REFUSALS["pc"])).replace("The other warden", INSTANCE.coop(host).name_of(who) if who != 0 else INSTANCE.coop(host).partner_name())
+	var who := _desk_warden()
+	var line := str(COOP_REFUSALS.get(what, COOP_REFUSALS["guest"])).replace("The other warden", INSTANCE.coop(host).name_of(who) if who != 0 else INSTANCE.coop(host).partner_name())
 	_office_call("say", [line], null)
 
 

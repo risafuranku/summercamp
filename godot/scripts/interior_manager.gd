@@ -2378,28 +2378,62 @@ func coop_desk_guest() -> int:
 
 
 ## Where the other warden stands in the office building (its rooms' own coordinates,
-## on the floor): leaning on the counter from the front, by the set at the foot of the
-## bed, at the back of the store; at the PC, on its chair (beside you, at the counter).
-const COOP_OFFICE_SPOTS := {"office": Vector3(-0.6, 0.0, -0.9), "back": Vector3(-4.3, 0.0, 1.85), "store": Vector3(-0.3, 0.0, 3.95), "bench": Vector3(-1.05, 0.0, -1.5), "side": Vector3(1.8, 0.0, 1.34)}
-## At the desk: behind the counter to your right, by the phone (the "write" picture is
-## the body from the hips up; the counter top hides where it ends).
-const COOP_DESK_SPOT := Vector3(1.15, 0.84, 0.74)
+## on the floor): in the office behind the counter at your back (both have the same eyes
+## there: Richard 24. 11., „vždy půjde tak aby mi šel za zády, mimo záběr“; they stood on
+## the guests' side and walked through the counter), by the set at the foot of the bed, at
+## the back of the store; at the PC, on its chair.
+const COOP_OFFICE_SPOTS := {"office": Vector3(-0.9, 0.0, 1.75), "back": Vector3(-4.3, 0.0, 1.85), "store": Vector3(-0.3, 0.0, 3.95), "bench": Vector3(-1.05, 0.0, -1.5), "side": Vector3(1.8, 0.0, 1.34)}
+## At the check-in desk: on their feet at the counter's end to your right, turned to the
+## guests (the hips-up "write" picture stood on air there: playtest 24. 11., „divně posunutý
+## sprite do výšky“; at the desk itself they would stand in your face).
+const COOP_DESK_SPOT := Vector3(1.15, 0.0, 0.74)
 ## At the cork board on the right wall (reception_extras._build_board), and behind the
 ## counter at the phone (_build_phone), on the floor.
 const COOP_BOARD_SPOT := Vector3(1.98, 0.0, -0.45)
 const COOP_PHONE_SPOT := Vector3(1.42, 0.0, 0.8)
+## The ways between the office's places (OFFICE_ZONE: L the left behind the counter, the
+## PC; R the right behind it, the desk, the phone, the stove's window; F before the
+## counter's right end, the board): behind your back from one side to the other, round
+## the counter's end to its front.
+const COOP_BEHIND_L := Vector3(-0.6, 0.0, 1.85)
+const COOP_BEHIND_R := Vector3(0.85, 0.0, 1.85)
+const COOP_BACK_END := Vector3(1.95, 0.0, 0.62)
+const COOP_OFFICE_ZONE := {"office": "L", "pc": "L", "desk": "R", "phone": "R", "side": "R", "board": "F"}
 ## The back room's bed (back_room.BED), the mattress's top.
 const COOP_BED := Vector3(-5.1, 0.5, -1.55)
 ## From the office's own spot to the doorway and through it (the floor under the camera's
 ## way in reception_extras.go_back_room / go_store), to the room's spot.
 const COOP_OFFICE_WAYS := {
-	"back": [Vector3(-0.6, 0.0, -0.9), Vector3(-0.8, 0.0, 0.6), Vector3(-1.05, 0.0, 1.26), Vector3(-2.15, 0.0, 1.28), Vector3(-3.15, 0.0, 1.32), Vector3(-4.3, 0.0, 1.85)],
-	"store": [Vector3(-0.6, 0.0, -0.9), Vector3(-0.7, 0.0, 0.7), Vector3(0.12, 0.0, 1.85), Vector3(0.0, 0.0, 2.55), Vector3(-0.3, 0.0, 3.95)],
-	# By the bench under the window (reception_extras.go_bench): a step from the counter.
-	"bench": [Vector3(-0.6, 0.0, -0.9), Vector3(-1.05, 0.0, -1.5)],
-	# To the side window by the stove (go_side): round the counter's end.
-	"side": [Vector3(-0.6, 0.0, -0.9), Vector3(1.86, 0.0, -0.75), Vector3(1.95, 0.0, 0.62), Vector3(1.8, 0.0, 1.34)],
+	"back": [Vector3(-0.9, 0.0, 1.75), Vector3(-1.25, 0.0, 1.3), Vector3(-2.15, 0.0, 1.28), Vector3(-3.15, 0.0, 1.32), Vector3(-4.3, 0.0, 1.85)],
+	"store": [Vector3(-0.9, 0.0, 1.75), Vector3(0.0, 0.0, 1.95), Vector3(0.0, 0.0, 2.55), Vector3(-0.3, 0.0, 3.95)],
+	# By the bench under the window (reception_extras.go_bench): behind your back, round the
+	# counter's right end (as their own eyes go, BENCH_WAY).
+	"bench": [Vector3(-0.9, 0.0, 1.75), Vector3(0.85, 0.0, 1.85), Vector3(1.95, 0.0, 0.62), Vector3(1.86, 0.0, -0.75), Vector3(0.4, 0.0, -1.15), Vector3(-1.05, 0.0, -1.5)],
+	# To the side window by the stove (go_side): behind your back.
+	"side": [Vector3(-0.9, 0.0, 1.75), Vector3(0.85, 0.0, 1.85), Vector3(1.8, 0.0, 1.34)],
 }
+
+
+## From one of the office's places to another (the room's space, on the floor): straight on
+## the same side, else behind your back and round the counter's end (COOP_OFFICE_ZONE).
+func _coop_office_route(a: Vector3, za: String, b: Vector3, zb: String) -> Array:
+	var way: Array = [a]
+	if za != zb:
+		var out_a: Array = {"L": [COOP_BEHIND_L], "R": [COOP_BEHIND_R], "F": [COOP_BACK_END, COOP_BEHIND_R]}[za]
+		var in_b: Array = ({"L": [COOP_BEHIND_L], "R": [COOP_BEHIND_R], "F": [COOP_BACK_END, COOP_BEHIND_R]}[zb] as Array).duplicate()
+		in_b.reverse()
+		if (za == "R" and zb == "F") or (za == "F" and zb == "R"):
+			way.append(COOP_BACK_END)
+		else:
+			way.append_array(out_a)
+			way.append_array(in_b)
+	way.append(b)
+	# (No step of nothing: a place on the way's own corner.)
+	var out: Array = []
+	for p in way:
+		if out.is_empty() or (out[-1] as Vector3).distance_to(p) > 0.05:
+			out.append(p)
+	return out
 
 
 func _coop_office_path(from: String, to: String) -> Array:
@@ -2741,9 +2775,10 @@ func _place_office_fig(fig: Node3D, info: Dictionary, model: int, root: Node3D, 
 	if eye_fwd == Vector3.ZERO:
 		eye_fwd = Vector3.UP.cross(right)
 	var it = _building_interior
-	fig.set_walking(false)
-	fig.set_flip(false)
 	if bool(info.get("b", false)):
+		fig.set_meta("office_at", "bed")
+		fig.set_walking(false)
+		fig.set_flip(false)
 		# On their back on the bed, the head on the pillow (back_room.lie_pose's end).
 		var head: Vector3 = root.global_transform * (COOP_BED + Vector3(0.0, 0.0, -0.75))
 		var feet: Vector3 = root.global_transform * (COOP_BED + Vector3(0.0, 0.0, 0.75))
@@ -2752,32 +2787,32 @@ func _place_office_fig(fig: Node3D, info: Dictionary, model: int, root: Node3D, 
 		return
 	var go: Dictionary = info.get("go", {})
 	if not go.is_empty():
+		fig.set_meta("office_at", "go")
+		fig.set_flip(false)
 		# Through the doorway, as their camera goes (reception_extras.go_*).
 		var path := _coop_office_path(str(go.get("f", "")), str(go.get("to", "")))
 		var at := _coop_along(path, clampf(float(go.get("k", 0.0)), 0.0, 1.0))
 		fig.show_at(root.global_transform * at, "stand")
 		fig.set_walking(true)
 		return
-	# Where they are (their part of the building, not yours).
+	# Where they are (their part of the building, not yours) and what at.
+	var job := str(info.get("w", ""))
+	var key := job if job in ["desk", "board", "phone", "pc"] else str(info.get("s", "office"))
 	var spot: Vector3 = COOP_OFFICE_SPOTS.get(str(info.get("s", "office")), COOP_OFFICE_SPOTS["office"])
 	var pose := "stand"
 	var face := Vector3.ZERO
-	if str(info.get("w", "")) == "desk" and COOP_LOOKS.has_pose(model, "write"):
-		# Behind the counter, bent over the register, facing the guests' side.
+	if job == "desk":
+		# On their feet at the counter's end, turned to the guests.
 		spot = COOP_DESK_SPOT
-		pose = "write"
 		face = root.global_basis * Vector3(0, 0, -1)
-	elif str(info.get("w", "")) == "board":
+	elif job == "board":
 		# In front of the board, reading it.
 		spot = COOP_BOARD_SPOT
-		fig.set_flip(true)
-	elif str(info.get("w", "")) == "phone":
-		# At the phone behind the counter, the handset up (bent to it, if there is a picture).
+		face = root.global_basis * Vector3(1, 0, 0)
+	elif job == "phone":
+		# At the phone behind the counter, the handset up.
 		spot = COOP_PHONE_SPOT
-		if COOP_LOOKS.has_pose(model, "write"):
-			spot = COOP_DESK_SPOT + Vector3(0.12, 0.0, 0.1)
-			pose = "write"
-	if str(info.get("w", "")) == "pc":
+	if job == "pc":
 		# On the chair at the PC, their back to the room: you look over their shoulder.
 		var seat: Vector3 = it.get("_crt_full_cam_pos")
 		# The eyes' seat is a little back from the keyboard: the body sits in nearer.
@@ -2786,14 +2821,42 @@ func _place_office_fig(fig: Node3D, info: Dictionary, model: int, root: Node3D, 
 		spot = Vector3(at_desk.x, 0.0, at_desk.z)
 		pose = "desk"
 		face = root.global_basis * (screen - seat)
+	# From where they were to here they walk it, round the counter's end and behind your back
+	# (playtest 24. 11.: „vidím jak projde skrz pult když jde k počítači“: they were there at
+	# once, across it).
+	var walking: bool = fig.has_method("walking_way") and fig.walking_way()
+	if walking and str(fig.get_meta("office_to", "")) == key:
+		return
+	var was := str(fig.get_meta("office_at", ""))
+	fig.set_meta("office_at", key)
+	if COOP_OFFICE_ZONE.has(key) and (walking or (was != key and COOP_OFFICE_ZONE.has(was))):
+		var inv := root.global_transform.affine_inverse()
+		var from: Vector3 = inv * fig.global_position
+		from.y = 0.0
+		var pts := PackedVector3Array()
+		for p in _coop_office_route(from, _coop_zone_at(from), spot, str(COOP_OFFICE_ZONE[key])):
+			pts.append(root.global_transform * (p as Vector3))
+		fig.set_meta("office_to", key)
+		fig.walk_way(pts, pose, face)
+		return
+	fig.set_walking(false)
+	fig.set_flip(false)
 	var flip := false
 	if face != Vector3.ZERO:
 		var seen := _pose_seen(model, pose, face, eye_fwd)
 		pose = str(seen[0])
 		flip = bool(seen[1])
-	fig.show_at(root.global_transform * spot, pose)
+	fig.show_at(root.global_transform * spot, pose, false, face)
 	if flip:
 		fig.set_flip(true)
+
+
+## Which side of the office a point is (COOP_OFFICE_ZONE): the left behind the counter, the
+## right behind it, or before the counter's right end.
+func _coop_zone_at(p: Vector3) -> String:
+	if p.x < 0.0:
+		return "L"
+	return "F" if p.z < 0.3 and p.x > 1.5 else "R"
 
 
 ## The other wardens in the office building seen from the camp through its windows (the

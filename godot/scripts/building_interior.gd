@@ -695,6 +695,7 @@ func _show_crt_title(on: bool) -> void:
 func close_interior() -> void:
 	if _camera_tween != null:
 		_camera_tween.kill()
+	_shoulder = false
 	if _extras != null:
 		_extras.reset_to_office()
 	if _desk_room != null:
@@ -765,6 +766,11 @@ func _process(delta: float) -> void:
 		return
 	if _desk_room != null:
 		_desk_room.process(delta, _extras == null or not _extras.away())
+	if _shoulder:
+		# They got up: back where you stood (the PC is yours, a click sits you down).
+		if not _pc_taken():
+			_leave_shoulder()
+		return
 	if _is_camera_tween_running():
 		return
 	if _desk_room != null and (_desk_room.is_open() or _desk_room.gliding()):
@@ -1031,16 +1037,69 @@ func crt_under(at: Vector2) -> int:
 	return 0 if _map_mouse_to_screen(at, _crt_screen, false) != Vector2.INF else -1
 
 
-## Sat down at the PC, turned to screen `look`. Co-op: one at it at a time (the others look
-## over their shoulder).
+## Sat down at the PC, turned to screen `look`. Co-op: one at it at a time; taken, a click
+## takes you over their shoulder (_look_over_shoulder).
 func go_to_pc(look := 0) -> void:
+	if _pc_taken():
+		_look_over_shoulder()
+		return
+	enter_crt_view(false, look)
+
+
+## Another warden sits at the PC.
+func _pc_taken() -> bool:
 	for id in INSTANCE.coop(self).others():
 		var theirs: Dictionary = INSTANCE.coop(self).state_of(id).get("room", {})
 		if str(theirs.get("t", "")) == "office" and str(theirs.get("w", "")) == "pc":
-			if _extras != null:
-				_extras.coop_refuse("pc")
-			return
-	enter_crt_view(false, look)
+			return true
+	return false
+
+
+# ── co-op: over the shoulder of whoever sits at the PC ───────────────────────
+
+## Up behind their chair, over their right shoulder, their screen before you (Richard 24. 11.:
+## „COOP hráči můžu nahlížet blíže přes rameno, když kliknu na PC a sedí u něj, je obsazen“;
+## it was a line that it was taken). Esc, Space, a click or their getting up: back where you
+## stood. How far back from their eyes, to the side and up; how wide; how long the step.
+const SHOULDER_BACK := 0.5
+const SHOULDER_SIDE := 0.34
+const SHOULDER_UP := 0.24
+const SHOULDER_FOV := 52.0
+const SHOULDER_SEC := 0.7
+var _shoulder := false
+
+
+func is_over_shoulder() -> bool:
+	return _shoulder
+
+
+func _shoulder_pose() -> Array:
+	var seat: Vector3 = _crt_full_cam_pos
+	var screen: Vector3 = PC_OFFSET + CRT_PIVOT
+	var fwd := screen - seat
+	fwd.y = 0.0
+	fwd = fwd.normalized()
+	var right := fwd.cross(Vector3.UP)
+	var eye := seat - fwd * SHOULDER_BACK + right * SHOULDER_SIDE + Vector3.UP * SHOULDER_UP
+	return [eye, Transform3D(Basis(), eye).looking_at(screen + Vector3(0.0, -0.06, 0.0), Vector3.UP).basis.get_euler()]
+
+
+func _look_over_shoulder() -> void:
+	if _shoulder or _crt_active:
+		return
+	_shoulder = true
+	_look.reset()
+	var pose := _shoulder_pose()
+	if _camera_tween: _camera_tween.kill()
+	_camera_tween = CAM_MOVE.move(self, _interior_camera, {"position": pose[0], "rotation": pose[1], "fov": SHOULDER_FOV}, SHOULDER_SEC)
+
+
+func _leave_shoulder() -> void:
+	if not _shoulder:
+		return
+	_shoulder = false
+	if _camera_tween: _camera_tween.kill()
+	_camera_tween = CAM_MOVE.move(self, _interior_camera, {"position": _initial_cam_pos, "rotation": _initial_cam_rot, "fov": _initial_cam_fov}, SHOULDER_SEC)
 
 
 func _build_viewport() -> void:
@@ -1717,6 +1776,14 @@ func _input(event: InputEvent) -> void:
 		return
 	# The close-ups, the sleep and the walk through the door handle their own input.
 	if _extras != null and _extras.is_modal():
+		return
+	if _shoulder:
+		# Away from their shoulder: Esc, Space, a click.
+		var mb := event as InputEventMouseButton
+		if event.is_action_pressed("ui_cancel") or INTERIOR_LOOK.is_space(event) \
+				or (mb != null and mb.pressed and mb.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT]):
+			_leave_shoulder()
+			get_viewport().set_input_as_handled()
 		return
 
 	if _crt_active:
