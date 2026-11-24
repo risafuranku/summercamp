@@ -1485,6 +1485,23 @@ const SCENARIOS := {
 		# (The weather blends over 70 s since 24. 11.: the storm whole after that.)
 		["eval", "weather_system.set_weather(5)"], ["wait", 12.0], ["shot", "w1_storm_a"], ["wait", 70.0], ["shot", "w2_storm_b"], ["wait", 0.7], ["shot", "w3_storm_c"], ["wait", 0.7], ["shot", "w4_storm_d"],
 	],
+	# The office printer (24. 11., docs/pc.md): a reminder printed while the PC is on, the slip
+	# up out of it, the one before torn off beside it.
+	"printer": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 14.0],
+		["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 2.0],
+		["eval", "_interior_manager._building_interior.set_process(false)"],
+		["dump_nodes", "_building_interior", ["Crt", "CRT", "Monitor", "Radio", "Printer", "Case", "Desk", "Keyboard", "Mouse", "Cup", "Lamp", "Tower"]],
+		["eval", "_interior_manager._building_interior._interior_camera.look_at_from_position(_interior_manager._building_interior._room_root.get_node('PCCorner/OfficePrinter').to_global(Vector3(1.05, 1.38, -0.75)), _interior_manager._building_interior._room_root.get_node('PCCorner/OfficePrinter').to_global(Vector3(0.79, 0.95, -1.48)), Vector3(0, 1, 0))"],
+		["eval", "_interior_manager._building_interior._room_root.get_node('PCCorner/OfficePrinter')._queue.append('Toilets: broken down')"],
+		["wait", 0.6], ["shot", "pr0_printing"], ["wait", 2.5], ["shot", "pr1_slip"],
+		["eval", "_interior_manager._building_interior._room_root.get_node('PCCorner/OfficePrinter')._queue.append('Tonight: the fuse box in the generator shed - reset it')"],
+		["wait", 3.2], ["shot", "pr2_second"],
+		["eval", "_interior_manager._building_interior._room_root.get_node('PCCorner/OfficePrinter')._slips.size()"],
+		["eval", "_interior_manager._building_interior._interior_camera.look_at_from_position(_interior_manager._building_interior._room_root.get_node('PCCorner/OfficePrinter').to_global(Vector3(0.5, 2.7, -0.9)), _interior_manager._building_interior._room_root.get_node('PCCorner/OfficePrinter').to_global(Vector3(0.5, 0.8, -1.36)), Vector3(0, 1, 0))"],
+		["wait", 0.3], ["shot", "pr3_top"],
+		["eval", "_interior_manager._building_interior.set_process(true)"],
+	],
 	# The office PC as a machine (24. 11., docs/pc.md): at the desk its hum and disk play, out
 	# in the camp they are quiet ("PCN" evals: the hum's loudness where you are).
 	"pc_noises": [

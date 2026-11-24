@@ -8,16 +8,6 @@ extends "res://scripts/pda/apps/pda_app.gd"
 ## not show where you are (scripts/ui/camp_plan.gd reads the camp; once a second while open).
 
 const PLAN := preload("res://scripts/ui/camp_plan.gd")
-const NAMES := {
-	"main_building": "Office", "toilet_block": "Toilets", "shower_block": "Showers", "pub": "Pub",
-	"restaurant": "Bistro", "vecerka": "Jednota", "bonfire": "Bonfire", "sports_field": "Sports field",
-	"lake_slide": "Lake slide", "playground": "Playground", "ping_pong": "Ping-pong", "corn_stand": "Corn stand",
-	"bowling": "Bowling", "staffroom": "Staffroom", "warehouse": "Warehouse", "sewer": "Sewage",
-	"power_generator": "Generator", "water_pump": "Pump", "sewage_tank": "Tank", "dumpsters": "Bins",
-	"pa_pole": "PA pole", "lamp_post": "Lamp", "bench": "Bench", "picnic_table": "Picnic table",
-	"flower_bed": "Flower bed", "gnome": "Gnome", "mega_gnome": "Mega gnome", "flagpole": "Flagpole",
-	"hammock": "Hammock",
-}
 ## Small things drawn as a dot, not a box.
 const DOTS := ["lamp_post", "bench", "flower_bed", "gnome", "flagpole", "pa_pole", "picnic_table"]
 
@@ -155,7 +145,7 @@ func _draw_info(r: Rect2) -> void:
 		for b in _data["buildings"]:
 			if b["at"] == c:
 				t = str(b["type"])
-		line1 = os.tr(str(NAMES.get(t, t.capitalize())))
+		line1 = os.tr(PLAN.place_name(t))
 		if (_data["broken"] as Dictionary).has(_pick):
 			line2 = os.tr("Broken down")
 		else:

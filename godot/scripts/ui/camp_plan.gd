@@ -109,6 +109,59 @@ static func collect(main: Node) -> Dictionary:
 		"title": _title(main)}
 
 
+## What waits for the warden as reminders with a key that stays the same while it waits
+## (the office printer, scripts/reception/office_printer.gd): tonight's jobs, today's events,
+## what has broken down. [{key, text}] (the guests waiting at a counter are left out: their
+## count changes by the minute). No pass over the map's tiles: cheap to ask every few seconds.
+static func reminders(main: Node) -> Array:
+	var out: Array = []
+	if main == null:
+		return out
+	var nj = main.get("_night_jobs")
+	if nj != null and nj.has_method("open_jobs"):
+		for j in nj.open_jobs():
+			out.append({"key": "job:%s" % str(j.get("id", j.get("title", ""))), "text": _line(main, j)})
+	var de = main.get("_day_events")
+	if de != null and de.has_method("open_events"):
+		for ev in de.open_events():
+			out.append({"key": "event:%s" % str(ev.get("id", "")), "text": _line(main, ev)})
+	var core = INSTANCE.core(main)
+	var state = core.get_state() if core != null else null
+	if state != null:
+		for key in state.failures.keys():
+			var cell: Dictionary = state.grid.cells.get(_parse(str(key)), {})
+			var t := str(cell.get("type", ""))
+			out.append({"key": "broken:%s" % str(key), "text": main.tr("%s: broken down") % main.tr(place_name(t))})
+	return out
+
+
+static func _line(main: Node, j: Dictionary) -> String:
+	var where := str(j.get("where", ""))
+	var title := main.tr(str(j.get("title", "")))
+	return title if where == "" else "%s - %s" % [title, main.tr(where)]
+
+
+static func _parse(key: String) -> Vector2i:
+	return Vector2i(int(key.get_slice(":", 0)), int(key.get_slice(":", 1))) if key.contains(":") else Vector2i(-1, -1)
+
+
+## A building's name as the PDA's plan and the printer write it.
+const NAMES := {
+	"main_building": "Office", "toilet_block": "Toilets", "shower_block": "Showers", "pub": "Pub",
+	"restaurant": "Bistro", "vecerka": "Jednota", "bonfire": "Bonfire", "sports_field": "Sports field",
+	"lake_slide": "Lake slide", "playground": "Playground", "ping_pong": "Ping-pong", "corn_stand": "Corn stand",
+	"bowling": "Bowling", "staffroom": "Staffroom", "warehouse": "Warehouse", "sewer": "Sewage",
+	"power_generator": "Generator", "water_pump": "Pump", "sewage_tank": "Tank", "dumpsters": "Bins",
+	"pa_pole": "PA pole", "lamp_post": "Lamp", "bench": "Bench", "picnic_table": "Picnic table",
+	"flower_bed": "Flower bed", "gnome": "Gnome", "mega_gnome": "Mega gnome", "flagpole": "Flagpole",
+	"hammock": "Hammock",
+}
+
+
+static func place_name(type: String) -> String:
+	return str(NAMES.get(type, type.capitalize()))
+
+
 ## A grid cell on a plan `w` x `h` cells: the gate at the bottom (as you walk in), so left and
 ## right as they are in front of you.
 static func to_plan(c: Vector2, w: int, h: int) -> Vector2:

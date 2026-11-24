@@ -113,3 +113,12 @@ otevření programu (`seek.mp3`); hlasitost jako ostatní zvuky PC (`sound_db`: 
 místnost tišeji, venku nic). Nikdy se nesekne. Oprava cestou: odchod z kanceláře vsedě (pauza „Go
 outside“) nechával PC „otevřené“ a jeho zvuky (i pípání pošty) hrály v kempu naplno;
 `building_interior.close_interior` teď zavře panel. Ve hře `--scenario=pc_noises`.
+
+Hotovo 24. 11. (tiskárna): `scripts/reception/office_printer.gd` (v rohu s PC, `building_interior`
+ji staví na stůl mezi skříň PC a rádio; s druhým monitorem se odstěhuje na zem vedle stolu,
+`place()`). Obrázek od Groka (`camp/office_printer.png`, řádek `spr_printer`). Každé 2 s se dívá na
+`camp_plan.reminders` (noční práce, dnešní události, poruchy; hosté čekající u pultu ne, jejich počet
+se mění po minutách) a co přibylo, vytiskne, když je PC zapnuté: zvuk tisku (ElevenLabs
+`os98/printer.mp3`, hlasitost jako PC), lístek s časem a textem vyjede z tiskárny po krocích 12×/s,
+předchozí leží vedle, drží se tři. První pohled po načtení jen zjistí, co už čeká (netiskne celý
+seznam). Jen připomínka, nic se za ni nedostává. Ve hře `--scenario=printer`.

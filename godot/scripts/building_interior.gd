@@ -161,6 +161,8 @@ const MON2_SCALE := 0.84
 const POST_DELIVERY = preload("res://scripts/reception/post_delivery.gd")
 const DELIVERY_DRIVER = preload("res://scripts/reception/delivery_driver.gd")
 const DESK_ROOM = preload("res://scripts/reception/desk_room.gd")
+## The dot-matrix printer left of the PC (24. 11., docs/pc.md): the camp's reminders on paper.
+const OFFICE_PRINTER = preload("res://scripts/reception/office_printer.gd")
 ## The radio stands on the right end of the desk, clear of the monitor (its click box once
 ## lay over the monitor's left side: a click on the monitor switched the radio off).
 const RADIO_AT := Vector3(1.12, 0.82, -1.6)
@@ -1334,6 +1336,11 @@ func _build_room_things() -> void:
 	# ── CRT WORKDESK (shifted right, x+0.5) ───────────────────────────────────
 	_add_box(pc_root, "Desk",    Vector3(0.5, 0.38, -1.36), Vector3(1.80, 0.76, 0.74), Color(0.38, 0.26, 0.16))
 	_add_box(pc_root, "DeskTop", Vector3(0.5, 0.79, -1.36), Vector3(1.92, 0.06, 0.84), Color(0.56, 0.42, 0.28), true)
+	var printer = OFFICE_PRINTER.new()
+	printer.name = "OfficePrinter"
+	printer.host = self
+	pc_root.add_child(printer)
+	printer.place(_dual)
 	_add_box(pc_root, "DeskDrawerA", Vector3(0.04, 0.52, -0.96), Vector3(0.52, 0.18, 0.04), Color(0.34, 0.24, 0.16))
 	_add_box(pc_root, "DeskDrawerB", Vector3(0.82, 0.52, -0.96), Vector3(0.52, 0.18, 0.04), Color(0.34, 0.24, 0.16))
 	_add_box(pc_root, "DrawerHandleA", Vector3(0.04, 0.52, -0.93), Vector3(0.10, 0.04, 0.03), Color(0.64, 0.56, 0.42))
@@ -4936,6 +4943,9 @@ func set_second_monitor(on: bool) -> void:
 	if mat != null:
 		mat.set_shader_parameter("uv_rect", _screen_uv_rect(false))
 	_place_radio()
+	var printer = _room_root.get_node_or_null("PCCorner/OfficePrinter")
+	if printer != null:
+		printer.place(on)
 	if _crt_ui != null and _crt_ui.has_method("set_dual"):
 		_crt_ui.set_dual(on)
 
