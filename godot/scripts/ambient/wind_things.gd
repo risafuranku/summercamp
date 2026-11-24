@@ -14,7 +14,8 @@ extends Node3D
 
 const INSTANCE = preload("res://scripts/instance/instance.gd")
 const FPS := 12.0
-const POOL := 40
+## (24. 11.: 40 -> 90, the storm's twigs and paper thick in the air: "lítá málo… větru".)
+const POOL := 90
 ## Not drawn nearer the eye than this (wind_life.gd's NEAR: a thing across the lens is a blot).
 const NEAR := 2.2
 ## The bits (tools/artgen/cloud_sprites.py wind): a twig, straw, newspaper, a wrapper.
@@ -123,7 +124,7 @@ func _process(delta: float) -> void:
 	var carry := clampf(wind - 0.3, 0.0, 1.5) + gust * 1.2
 	var outside := not indoors and _cam_speed < 4.0
 	if outside and carry > 0.05:
-		_spawn += dt * carry * (22.0 if ws == 5 else 13.0)
+		_spawn += dt * carry * (32.0 if ws == 5 else 13.0)
 		while _spawn >= 1.0:
 			_spawn -= 1.0
 			_launch(cp, w3, carry, ws)

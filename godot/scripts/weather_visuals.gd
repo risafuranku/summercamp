@@ -208,7 +208,8 @@ var _storm_flash_cooldown: float = 0.0
 # ── Weather blend ──────────────────────────────────────────────────────────────
 ## Weather changes crossfade the fog/light/sky overlay instead of snapping, so the
 ## gameplay auto-cycle reads as weather moving in, not a switch being flipped.
-const WEATHER_BLEND_SECONDS := 40.0
+## (24. 11.: 40 -> 70, "plynulý přechody počasí": about an hour and a half of game time.)
+const WEATHER_BLEND_SECONDS := 70.0
 var _weather_blend_target: int = -1
 var _weather_blend_from: Dictionary = {}
 var _weather_blend_now: Dictionary = {}
@@ -426,8 +427,9 @@ func setup_weather_particles() -> void:
 		_rain_splash = _world_3d.get_node_or_null("RainSplashes")
 		_bolt = _world_3d.get_node_or_null("LightningBolt")
 		return
-	# (More of it from 25. 10.: the rain was thin; each weather takes its share.)
-	_rain_particles = _rain_layer("RainParticles", 10000, Vector3(12.0, 8.0, 12.0), 0.04, 1.0, 1.1, 1.2, 3.5)
+	# (More of it from 25. 10.: the rain was thin; each weather takes its share. 24. 11.:
+	# 16000, the storm takes all of them, the others their old count: RAIN_SHARE.)
+	_rain_particles = _rain_layer("RainParticles", RAIN_NEAR_MAX, Vector3(12.0, 8.0, 12.0), 0.04, 1.0, 1.1, 1.2, 3.5)
 	_rain_far = _rain_layer("RainFar", 5000, Vector3(34.0, 12.0, 34.0), 0.16, 2.2, 1.5, 10.0, 18.0)
 	# The drops hitting the ground round you: a crown that grows and is gone.
 	_rain_splash = GPUParticles3D.new()
@@ -765,7 +767,7 @@ const GUSTS := {
 	WEATHER_WINDY: [2.5, 8.0, 0.5, 1.0, 0.75],
 	WEATHER_LIGHT_RAIN: [7.0, 16.0, 0.25, 0.55, 0.4],
 	WEATHER_RAIN: [4.0, 11.0, 0.35, 0.75, 0.55],
-	WEATHER_STORM: [0.8, 3.5, 0.7, 1.0, 1.1],
+	WEATHER_STORM: [0.6, 2.8, 0.75, 1.0, 1.4],
 }
 var _gust_t := -1.0
 var _gust_len := 4.0
@@ -785,7 +787,7 @@ func _update_wind(delta: float) -> void:
 		WEATHER_FOG: target = 0.04
 		WEATHER_LIGHT_RAIN: target = 0.3
 		WEATHER_RAIN: target = 0.5
-		WEATHER_STORM: target = 1.6
+		WEATHER_STORM: target = 2.0
 		WEATHER_EVENT: target = 0.0
 	# The wind rising before the storm: still at first (the calm before it), then in gusts.
 	var b := storm_build if _weather_state != WEATHER_STORM and _weather_state != WEATHER_EVENT else 0.0
@@ -824,6 +826,18 @@ func _update_wind(delta: float) -> void:
 	wind_dir = dir
 	RenderingServer.global_shader_parameter_set("wind_strength", _wind_now)
 	RenderingServer.global_shader_parameter_set("wind_dir", dir)
+
+
+## The storm's push on a warden out in it, 0..1: the gusts of a storm, and of the wind before
+## it as it builds (player_controller shakes the view with it, outdoors, under Options' bob).
+func buffet() -> float:
+	if _weather_state == WEATHER_STORM:
+		return clampf(0.3 + wind_gust * 0.7, 0.0, 1.0)
+	if storm_build > 0.5 and _weather_state != WEATHER_EVENT:
+		return wind_gust * smoothstep(0.5, 1.0, storm_build) * 0.5
+	if _weather_state == WEATHER_WINDY:
+		return wind_gust * 0.25
+	return 0.0
 
 
 func update_frame(delta: float) -> void:
@@ -2027,7 +2041,7 @@ func _rain_weather_wind() -> Vector2:
 	match _weather_state:
 		WEATHER_LIGHT_RAIN: base = Vector2(0.12, 0.05); sway_s = 0.04; gust_s = 0.03
 		WEATHER_RAIN:       base = Vector2(0.22, 0.10); sway_s = 0.07; gust_s = 0.06
-		WEATHER_STORM:      base = Vector2(1.1, 0.42); sway_s = 0.25; gust_s = 0.35
+		WEATHER_STORM:      base = Vector2(1.4, 0.55); sway_s = 0.3; gust_s = 0.5
 		_: return Vector2.ZERO
 	var sway = Vector2(sin((_sky_anim_time * 0.42) + 0.9), cos((_sky_anim_time * 0.35) - 0.6)) * sway_s
 	var gust = Vector2(sin((_sky_anim_time * 1.45) + 2.1), sin((_sky_anim_time * 1.12) - 0.7)) * gust_s
@@ -2038,7 +2052,7 @@ func _rain_tilt_strength_bounds() -> Vector2:
 	match _weather_state:
 		WEATHER_LIGHT_RAIN: return Vector2(0.20, 0.38)
 		WEATHER_RAIN:       return Vector2(0.38, 0.70)
-		WEATHER_STORM:      return Vector2(0.95, 1.70)
+		WEATHER_STORM:      return Vector2(1.2, 2.2)
 		_: return Vector2.ZERO
 
 
@@ -2080,7 +2094,11 @@ func _update_dry_boxes(delta: float) -> void:
 ## The rain as it is now, going over to what the weather wants in RAIN_EASE_SEC (a drizzle
 ## turning to rain came down all at once, the user 4. 11.): how much, how fast, how clear,
 ## how long the drops; 0 much is none.
-const RAIN_EASE_SEC := 25.0
+const RAIN_EASE_SEC := 40.0
+## The near layer's drops (all of them the storm's); a drizzle's and a rain's counts stay what
+## they were at 10000 (RAIN_SHARE scales their share of the bigger pool).
+const RAIN_NEAR_MAX := 16000
+const RAIN_SHARE := 10000.0 / 16000.0
 var _rain_now := {"i": 0.0, "speed": 7.0, "alpha": 0.0, "drop": 0.38}
 
 
@@ -2114,18 +2132,19 @@ func _update_weather_particles(_delta: float) -> void:
 	# How much of it, how fast, how long the drops, how clear: a drizzle (fine short drops
 	# drifting down slowly: at full length and slow they stood in the grass like sticks),
 	# rain, a storm that comes in gusts (sheets of it, then less).
-	var intensity := 0.4
+	var intensity := 0.4 * RAIN_SHARE
 	var rain_speed := 7.0
 	var alpha := 0.26
 	var drop := 0.38
 	# (Playtest 25. 10.: "the rain more intense; the storm really intense".)
 	if _weather_state == WEATHER_RAIN:
-		intensity = 0.75; rain_speed = 24.0; alpha = 0.52; drop = 1.1
+		intensity = 0.75 * RAIN_SHARE; rain_speed = 24.0; alpha = 0.52; drop = 1.1
 	elif _weather_state == WEATHER_STORM:
 		# The sheets come with the wind's gusts (_update_wind), a slow swell under them.
 		var swell := maxf(0.0, sin(_sky_anim_time * 0.7) * sin(_sky_anim_time * 0.23 + 1.0))
 		var gust := maxf(wind_gust, swell * 0.6)
-		intensity = 0.8 + 0.2 * gust; rain_speed = 30.0 + 8.0 * gust; alpha = 0.6; drop = 1.3
+		# (24. 11.: "lítá málo vody": all the drops, longer, faster, sheets in the gusts.)
+		intensity = 0.82 + 0.18 * gust; rain_speed = 34.0 + 12.0 * gust; alpha = 0.68; drop = 1.5
 	if not is_raining:
 		# Fewer and fainter, falling as they fell: going over to a drizzle's pace as it stopped,
 		# the last drops hung long and slow, sticks all over the meadow for half a minute.

@@ -213,6 +213,12 @@ var _was_moving := 0.0
 var _mouse_impact: Vector2 = Vector2.ZERO
 var _current_tilt: float = 0.0
 var _idle_noise_time: float = 0.0
+## The wind's push on the view in a storm (weather_visuals.buffet), eased, and its own clock.
+var _buffet := 0.0
+var _buffet_t := 0.0
+## Its most, radians: a gust shoves the head this much at full storm (roll, pitch).
+const BUFFET_ROLL := 0.022
+const BUFFET_PITCH := 0.012
 ## 0 standing, 1 crouched, 2 lying on your belly (crawling).
 var stance := 0
 ## The head's drop for the stance now (m), eased to it.
@@ -1243,7 +1249,8 @@ func _update_head_motion(delta: float) -> void:
 	var visual_pitch := _pitch - _shift
 	var jitter_roll = sin(_idle_noise_time * 2.4) * handheld_idle_strength * 0.4
 	var jitter_pitch = cos(_idle_noise_time * 2.1) * handheld_idle_strength * 0.4
-	_head.rotation.x = visual_pitch + _mouse_impact.x + idle_pitch + jitter_pitch + damage_rot_jitter.x + _run_nod + _step_nod
+	var buff := _wind_buffet(delta) * bob_k
+	_head.rotation.x = visual_pitch + _mouse_impact.x + idle_pitch + jitter_pitch + damage_rot_jitter.x + _run_nod + _step_nod + buff.x
 
 	# The lean (Options "Lean"): into a sidestep, and a little into a quick turn.
 	var yaw := rotation.y
@@ -1258,7 +1265,7 @@ func _update_head_motion(delta: float) -> void:
 	_hurt_t += delta
 	var hurt_roll := (sin(_hurt_t * 0.9) * 0.035 + sin(_hurt_t * 2.3) * 0.01) * hurt
 	_head.rotation.x += (-0.035 - 0.02 * sin(_hurt_t * 0.6) - 0.025 * absf(_bob_offset.y) * 10.0) * hurt
-	_head.rotation.z = _mouse_impact.y + idle_roll + jitter_roll + _current_tilt + damage_rot_jitter.y + hurt_roll + _run_roll + gait_rot.z * bob_k
+	_head.rotation.z = _mouse_impact.y + idle_roll + jitter_roll + _current_tilt + damage_rot_jitter.y + hurt_roll + _run_roll + gait_rot.z * bob_k + buff.y
 	_head.rotation.x += gait_rot.x * bob_k
 	_head.rotation.y = gait_rot.y * bob_k
 	if _camera != null:
@@ -1266,6 +1273,25 @@ func _update_head_motion(delta: float) -> void:
 		var fov_base := float(view.get("fov", camera_fov))
 		var target_fov := fov_base + _damage_fov_push + sprint_lower * 4.0
 		_camera.fov = lerpf(_camera.fov, target_fov, 1.0 - exp(-9.0 * delta))
+
+
+## The storm leaning on you (Richard 24. 11.: "kamera shake"): out in it the gusts push the
+## head about, slow swaying shoves on a couple of overlaid waves, never a jitter; nothing in a
+## room or the menu. (pitch, roll) in radians.
+func _wind_buffet(delta: float) -> Vector2:
+	var want := 0.0
+	var scene := INSTANCE.main_of(self)
+	if scene != null and not bool(scene.get("_menu_mode")) and not (scene.has_method("_is_any_interior_open") and bool(scene.call("_is_any_interior_open"))):
+		var wv = scene.get("_weather_visuals")
+		if wv != null and wv.has_method("buffet"):
+			want = float(wv.call("buffet"))
+	_buffet = lerpf(_buffet, want, 1.0 - exp(-(2.5 if want > _buffet else 1.2) * delta))
+	if _buffet < 0.002:
+		return Vector2.ZERO
+	_buffet_t += delta * (0.8 + _buffet * 1.6)
+	var roll := (sin(_buffet_t * 1.3) * 0.6 + sin(_buffet_t * 3.1 + 1.7) * 0.3 + sin(_buffet_t * 5.3 + 0.4) * 0.1) * BUFFET_ROLL
+	var pitch := (sin(_buffet_t * 1.7 + 2.2) * 0.65 + sin(_buffet_t * 4.1 + 0.9) * 0.35) * BUFFET_PITCH
+	return Vector2(pitch, roll) * _buffet
 
 
 ## The camera's picture: with Build's shift a frustum moved up or down (the verticals stay

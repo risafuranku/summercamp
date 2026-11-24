@@ -29,7 +29,9 @@ const STATE_MINUTES := {
 	WEATHER_FOG: [90.0, 180.0],
 	WEATHER_LIGHT_RAIN: [80.0, 170.0],
 	WEATHER_RAIN: [90.0, 220.0],
-	WEATHER_STORM: [50.0, 110.0],
+	# (24. 11.: 50-110 -> 90-180: the weather's look blends over ~90 game minutes now, a short
+	# storm was over before it had come in whole.)
+	WEATHER_STORM: [90.0, 180.0],
 	WEATHER_EVENT: [30.0, 75.0],
 }
 

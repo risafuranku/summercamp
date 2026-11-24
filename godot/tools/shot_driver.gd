@@ -1482,7 +1482,8 @@ const SCENARIOS := {
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
 		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.8],
 		["clear", 10, 10, 4, 4], ["player", 12, 12, 270.0], ["wait", 1.0], ["shot", "w0_calm"],
-		["eval", "weather_system.set_weather(5)"], ["wait", 12.0], ["shot", "w1_storm_a"], ["wait", 0.7], ["shot", "w2_storm_b"], ["wait", 0.7], ["shot", "w3_storm_c"],
+		# (The weather blends over 70 s since 24. 11.: the storm whole after that.)
+		["eval", "weather_system.set_weather(5)"], ["wait", 12.0], ["shot", "w1_storm_a"], ["wait", 70.0], ["shot", "w2_storm_b"], ["wait", 0.7], ["shot", "w3_storm_c"], ["wait", 0.7], ["shot", "w4_storm_d"],
 	],
 	# The wind's gusts (wind_things.gd, wind_life.gd): a windy day looking downwind over
 	# the meadow, then the storm; a few shots a gust apart.
