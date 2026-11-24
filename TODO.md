@@ -21,15 +21,17 @@ the pad and the split screen must keep working (do not break them), but get no n
       calm; just make what is there dearer; docs/DESIGN.md §7 Decisions): the flat earnings
       of every building gone, electricity 5.5 a kWh and 30 a day, wages half as much again;
       measured by `godot/tools/economy_sim.tscn` (docs/testing.md); 7929f987.
-- [ ] The booking card in CampMail (Richard 24. 11., DESIGN §7 Decisions): who comes as
+- [x] The booking card in CampMail (Richard 24. 11., DESIGN §7 Decisions; edebe46e): who comes as
       pictures (kinds and how many), what they want (the facilities' icons, what the camp
       lacks in red), the price of a night per guest; now and then a tempting big party for
       a lot of money that brings a hard night. Today the card is lines of text
-      (`os98/apps/mail_app.gd` `_booking_card`), mind the no-explanations rule.
-- [ ] A lazy camp earns like a careful one (economy_sim 24. 11.: tents and one toilet, mood
+      (`os98/apps/mail_app.gd` `_booking_card`), mind the no-explanations rule. Done as
+      DESIGN §4 "The booking card" and "The tempting big party".
+- [x] A lazy camp earns like a careful one (economy_sim 24. 11.: tents and one toilet, mood
       35-43 and 1.3 stars, still full and paying in full, and tents draw no power). Only the
       nights and the Atlas stars punish it, which the sim cannot see: play it, then decide
-      whether unhappy guests pay less or leave sooner (ask Richard).
+      whether unhappy guests pay less or leave sooner (ask Richard). Richard: pay less
+      (1148b80a, `GuestNeedsSystem.pay_share`: full from Okay, 30 % at worst).
 - [ ] The night played and balanced: the enemies' damage, cadence, battery; how often two
       kinds cross the threshold on a lazy and on a careful booking (P0); the uncanny details'
       frequency (the station 14 %, the phantom glance 35 % of nights).
