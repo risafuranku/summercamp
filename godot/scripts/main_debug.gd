@@ -621,3 +621,13 @@ func debug_lambda_hooks() -> Array:
 ## loopback line, scripts/instance/local_client.gd), with pad `device`; its node.
 func debug_local_client(device: int) -> Node:
 	return load("res://scripts/instance/local_client.gd").start(self, device)
+
+
+## Shot driver (bookingcard): a booking letter for `archetype` in CampMail now, as the hour's
+## roll writes it; `tempting` the big party (email_manager.TEMPTING).
+func debug_mail_booking(archetype: String, tempting := false) -> void:
+	var em = INSTANCE.mail(self)
+	var mail: Dictionary = em._build_customer_mail(archetype, _day_index, int(_time_of_day_hours), tempting)
+	mail["_delivered"] = true
+	em.inbox.append(mail)
+	em.unread_count_changed.emit(em.get_unread_count())

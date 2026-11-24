@@ -1388,6 +1388,27 @@ const SCENARIOS := {
 	# 2. 11. (S7, S8, S19): a new sandbox camp: the district's first mail with its points, its
 	# Builder link opening Builder; then thirty beds built at nine and two days of letters
 	# taken as they come (SHOT DRIVER letter ...; the beds taken each evening).
+	# The booking card (24. 11.): a letter from each kind and a tempting big party, each card
+	# on the CRT (a toilet and a fire built, the rest the guests like missing: red).
+	"bookingcard": [
+		["wait_menu"], ["call", "_on_menu_new_camp", ["Card", 4242, false, true, {}]], ["wait_gameplay"], ["wait", 1.0],
+		["call_on", "_interior_manager", "open_startup_crt_view", []], ["wait", 16.0],
+		["money", 60000], ["clear", 4, 4, 18, 12],
+		["build", "tent_1", 5, 5, 0], ["build", "tent_1", 7, 5, 0], ["build", "tent_1", 9, 5, 0], ["build", "tent_1", 11, 5, 0],
+		["build", "tent_1", 13, 5, 0], ["build", "tent_1", 15, 5, 0], ["build", "tent_1", 17, 5, 0], ["build", "tent_1", 5, 7, 0],
+		["build", "cabin_1", 5, 9, 0], ["build", "cabin_1", 8, 9, 0], ["build", "toilet_block", 19, 5, 0], ["build", "bonfire", 17, 13, 0],
+		["wait", 1.0], ["prep_all"], ["eval", "debug_jump_to(2, 10.0)"], ["wait", 0.5],
+		["eval", "debug_mail_booking('quiet_guy')"], ["eval", "debug_mail_booking('drunk')"], ["eval", "debug_mail_booking('cheap_chick')"],
+		["eval", "debug_mail_booking('tramp')"], ["eval", "debug_mail_booking('family')"], ["eval", "debug_mail_booking('picker')"],
+		["eval", "debug_mail_booking('tramp', true)"],
+		["eval", "_interior_manager._building_interior._crt_ui._open_email_app()"], ["wait", 1.5],
+		["mail_show", "archetype", "quiet_guy"], ["wait", 0.6], ["crt_screen", "card_quiet"],
+		["mail_show", "archetype", "drunk"], ["wait", 0.6], ["crt_screen", "card_drunk"],
+		["mail_show", "archetype", "cheap_chick"], ["wait", 0.6], ["crt_screen", "card_chick"],
+		["mail_show", "archetype", "family"], ["wait", 0.6], ["crt_screen", "card_family"],
+		["mail_show", "archetype", "picker"], ["wait", 0.6], ["crt_screen", "card_picker"],
+		["mail_show", "tempting", true], ["wait", 0.6], ["crt_screen", "card_tempting"],
+	],
 	"bookings": [
 		["wait_menu"], ["call", "_on_menu_new_camp", ["Bookings", 4242, false, true, {}]], ["wait_gameplay"], ["wait", 1.0],
 		["eval", "_time_of_day_string()"],

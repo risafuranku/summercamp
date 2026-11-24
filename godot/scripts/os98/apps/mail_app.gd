@@ -222,7 +222,10 @@ func _layout() -> void:
 	_folders.size = Vector2(FOLDER_W - 3, h - top)
 	var x0 := float(FOLDER_W)
 	var rw := w - x0
-	var list_h := floorf((h - top) * 0.38)
+	var booking := not _current.is_empty() and _is_booking(_current)
+	var review := not _current.is_empty() and _is_review(_current)
+	# A booking open: the list a few rows shorter, the letter and its card whole (24. 11.).
+	var list_h := floorf((h - top) * (0.3 if booking else 0.38))
 	_list.position = Vector2(x0, top)
 	_list.size = Vector2(rw, list_h)
 	var y := top + list_h + 3
@@ -230,8 +233,6 @@ func _layout() -> void:
 	_header.position = Vector2(x0, y)
 	_header.size = Vector2(rw, hh)
 	y += hh + 2
-	var booking := not _current.is_empty() and _is_booking(_current)
-	var review := not _current.is_empty() and _is_review(_current)
 	_card.visible = booking or review
 	_accept.visible = booking and not bool(_current.get("_actioned", false)) and _folder == "inbox"
 	_refuse.visible = _accept.visible
@@ -551,7 +552,7 @@ func _show_message(mail: Dictionary) -> void:
 	if _is_review(mail):
 		_card.text = _review_card(mail)
 	if _is_booking(mail):
-		_card.text = _booking_card(mail)
+		_fill_booking_card(mail)
 		var can = INSTANCE.mail(self).can_accept_customer_booking(mail)
 		_accept.disabled = not can
 		_accept.text = "Accept" if can else "No free beds"
@@ -871,23 +872,83 @@ func _send() -> void:
 
 # ── bits ─────────────────────────────────────────────────────────────────────
 
-func _booking_card(mail: Dictionary) -> String:
+## The booking card (Richard 24. 11., docs/DESIGN.md §7 Decisions): who comes as their
+## figures, one a guest; what they like most as the Builder's pictures, red where the camp
+## has none; the price of a night a guest (gold for a tempting big party); the nights and
+## the whole sum; the night's risk. Pictures and numbers, no explaining.
+const GUEST_FIGURES = preload("res://scripts/guest_manager.gd").GUEST_SPRITE_PATHS
+const LIKES = preload("res://core/systems/guest_needs_system.gd").ARCHETYPES
+const BUILDER = preload("res://scripts/builder_module.gd")
+## What a kind likes this much or more is what it wants (GuestNeedsSystem "likes").
+const WANT_AT := 1.3
+const WANTS_SHOWN := 4
+const FIGURE_H := 28
+const WANT_H := 24
+const FIGURES_MAX := 3
+## Kinds whose one picture is the whole party (host_family: the parents and the child).
+const FIGURE_IS_GROUP := ["family"]
+const MISSING := Color(1.0, 0.3, 0.25)
+const TEMPTING_GOLD := "#a05a00"
+
+
+func _fill_booking_card(mail: Dictionary) -> void:
 	var p: Dictionary = INSTANCE.mail(self).get_customer_panel_data(mail)
+	var arch := str(p.get("archetype", mail.get("archetype", "")))
 	var party: int = maxi(1, int(p.get("party_size", mail.get("guests", 1))))
 	var nights: int = maxi(1, int(p.get("stay_nights", mail.get("nights", 1))))
 	var pay: int = maxi(0, int(p.get("daily_total", mail.get("daily_total", 0))))
-	var beds: Dictionary = INSTANCE.guests(self).get_bed_metrics()
-	# Line by line through the catalogue (S6: the card was English in Czech).
-	var t := "[b]%s[/b]\n" % tr("BOOKING REQUEST")
-	t += LANG.f("%s, party of %d", [_esc(str(p.get("guest_name", "Guest"))), party]) + "\n"
-	t += "%s\n" % _esc(tr(str(p.get("archetype_label", p.get("archetype", "")))))
-	t += LANG.f("%d night(s), $%d a day ([b]$%d[/b])", [nights, pay, pay * nights]) + "\n"
-	t += tr("Arrives about 1-2 hours after you accept.") + "\n"
-	t += LANG.f("Free beds: %d of %d (needs %d)", [int(beds.get("free", 0)), int(beds.get("capacity", 0)), party]) + "\n"
+	_card.clear()
+	# Line by line through the catalogue (S6: the card was English in Czech). It fits the
+	# card without a scrollbar at 640x480: the name, one row of pictures, a few lines.
+	_card.append_text("[b]%s[/b]\n" % _esc(str(p.get("guest_name", "Guest"))))
+	var fig_path := str(GUEST_FIGURES.get(arch, ""))
+	if ResourceLoader.exists(fig_path):
+		var fig: Texture2D = load(fig_path)
+		# A figure a guest up to three; more (and the family, whose picture is the three of
+		# them) one figure and the count.
+		var each_one := party <= FIGURES_MAX and not FIGURE_IS_GROUP.has(arch)
+		for i in (party if each_one else 1):
+			_card.add_image(fig, 0, FIGURE_H, Color.WHITE, INLINE_ALIGNMENT_BOTTOM, Rect2(), null, false, tr(str(p.get("archetype_label", arch))))
+		if not each_one:
+			_card.append_text("[b]x%d[/b]" % party)
+		_card.append_text("   ")
+	var built := _built_types()
+	for type in _wants(arch):
+		var icon := str(BUILDER.ITEM_ICONS.get(type, ""))
+		if not ResourceLoader.exists(icon):
+			continue
+		_card.add_image(load(icon), 0, WANT_H, Color.WHITE if built.has(type) else MISSING, INLINE_ALIGNMENT_CENTER, Rect2(), null, false, tr(str(BUILDER.SHORT_NAMES.get(type, type))))
+		_card.append_text(" ")
+	_card.append_text("\n")
+	var each := LANG.f("[b]$%d[/b] a night a guest", int(round(float(pay) / party)))
+	_card.append_text(("[color=%s]%s[/color]" % [TEMPTING_GOLD, each] if bool(mail.get("tempting", false)) else each) + "\n")
+	# Whether they fit is on the Accept button ("No free beds").
+	_card.append_text(LANG.f("%d night(s): [b]$%d[/b]", [nights, pay * nights]) + "\n")
 	if bool(mail.get("_actioned", false)):
-		t += "\n[b]%s[/b]\n" % (LANG.f("Booked by %s at the desk.", str(mail["_by_hand"])) if mail.has("_by_hand") else tr("Already answered."))
-	t += "\n" + _risk_lines(str(p.get("archetype", mail.get("archetype", ""))), party)
-	return t
+		_card.append_text("[b]%s[/b]\n" % (LANG.f("Booked by %s at the desk.", str(mail["_by_hand"])) if mail.has("_by_hand") else tr("Already answered.")))
+	_card.append_text(_risk_lines(arch, party))
+
+
+## What the kind likes most (GuestNeedsSystem "likes" at WANT_AT or more), best first.
+func _wants(arch: String) -> Array:
+	var likes: Dictionary = (LIKES.get(arch, {}) as Dictionary).get("likes", {})
+	var out: Array = []
+	for type in likes.keys():
+		if float(likes[type]) >= WANT_AT:
+			out.append(type)
+	out.sort_custom(func(a, b): return float(likes[a]) > float(likes[b]))
+	return out.slice(0, WANTS_SHOWN)
+
+
+## The kinds of building standing in the camp now.
+func _built_types() -> Dictionary:
+	var out := {}
+	var state = INSTANCE.core(self).get_state()
+	if state == null:
+		return out
+	for c in state.grid.cells:
+		out[str((state.grid.cells[c] as Dictionary).get("type", ""))] = true
+	return out
 
 
 ## The risk half of the trade: without it the player sees only the money.

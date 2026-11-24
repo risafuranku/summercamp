@@ -34096,3 +34096,53 @@ msgstr "Ondřej Bláha"
 #. manual
 msgid "Imaging - %s"
 msgstr "Imaging - %s"
+
+#: scripts/os98/apps/mail_app.gd (booking card, 24. 11.)
+msgid "[b]$%d[/b] a night a guest"
+msgstr "[b]$%d[/b] za noc a hosta"
+
+#: scripts/os98/apps/mail_app.gd (booking card, 24. 11.)
+msgid "%d night(s): [b]$%d[/b]"
+msgstr "%d {noc|noci|nocí}: [b]$%d[/b]"
+
+#: scripts/email_manager.gd TEMPTING (24. 11.)
+msgid ""
+"AHOJ!!!\n"
+"\n"
+"STAG DO. %d of us, %d nights, we roll in around %s. Ondra gets married on Saturday so this is his LAST WEEKEND OF FREEDOM. We pay whatever you say, cash, up front, just keep the beer coming and the neighbours far away.\n"
+"\n"
+"%s (best man)"
+msgstr ""
+"AHOJ!!!\n"
+"\n"
+"ROZLUČKA SE SVOBODOU. Je nás %d, na %d {noc|noci|nocí}, dorazíme kolem %s. Ondra se v sobotu žení, takže tohle je jeho POSLEDNÍ SVOBODNÝ VÍKEND. Zaplatíme, co řeknete, hotově, předem, jen ať teče pivo a sousedi jsou daleko.\n"
+"\n"
+"%s (svědek)"
+
+#: scripts/email_manager.gd TEMPTING (24. 11.)
+msgid ""
+"Hiii!!\n"
+"\n"
+"Hen party!!! %d girls, %d nights, arriving %s. Money is NOT a problem this time, Bara's dad is paying :D We want the lake at midnight, the slide, music, everything!!\n"
+"\n"
+"love, %s"
+msgstr ""
+"Ahojkyyy!!\n"
+"\n"
+"Rozlučka!!! Je nás %d holek, na %d {noc|noci|nocí}, přijedeme v %s. Peníze tentokrát NEJSOU problém, platí Bářin táta :D Chceme jezero o půlnoci, skluzavku, hudbu, všechno!!\n"
+"\n"
+"pusu, %s"
+
+#: scripts/email_manager.gd TEMPTING (24. 11.)
+msgid ""
+"Ahoj,\n"
+"\n"
+"the whole Vlci stopa settlement is coming for the potlach: %d of us, %d nights, from the station around %s. We pay properly this year, the collection was good. We need one big fire and nobody telling us to be quiet.\n"
+"\n"
+"%s, sheriff"
+msgstr ""
+"Ahoj,\n"
+"\n"
+"na potlach jede celá osada Vlčí stopa: je nás %d, na %d {noc|noci|nocí}, od vlaku kolem %s. Letos zaplatíme pořádně, sbírka se povedla. Potřebujem jeden velkej oheň a nikoho, kdo nás bude okřikovat.\n"
+"\n"
+"%s, šerif"

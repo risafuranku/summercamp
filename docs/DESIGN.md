@@ -149,6 +149,18 @@ Six archetypes, with different needs (`core/systems/guest_needs_system.gd`):
 | Family | 150 | everything at once: food, toilets, the field, the slide, safety | **The Boy** (§5a.2) |
 | Mushroom Pickers | 90 | sleep, food, the shop; quiet; up at four | **The Granny** (§5a.4) |
 
+- **The booking card** (24. 11., CampMail `mail_app._fill_booking_card`): the lead's name;
+  the party as figures (one a guest up to three, else one and "x7"; the family's picture is
+  the three of them); what the kind likes most (`GuestNeedsSystem` likes 1.3 and over, at most
+  four) as the Builder's pictures, tinted red where the camp has none (a tooltip names it);
+  the price of a night a guest, the nights and the whole sum; the NIGHT RISK. Whether they
+  fit is on the Accept button. It fits the 640x480 reader without a scrollbar (the list is
+  shorter while a booking is open). Shot driver scenario `bookingcard`.
+- **The tempting big party** (24. 11., `email_manager.TEMPTING`): from day 2, 12 % of the
+  drunks', cheap chicks' and tramps' letters (when the beds are there): a stag do of 7-8, a
+  hen party of 7-8, a whole tramp settlement of 8-10 for half as much again a head, with its
+  own letter. Seven of a kind is the medium pressure: the money comes with a hard night. The
+  card's price is gold; the letter says nothing of the risk.
 - Per-archetype pressure curve: one guest of a kind is safe; tiny at 2, small from 3, medium
   from 7, large from 11, guaranteed at 15 (repeats). Unhappy guests count double. (It
   was 3 safe until the 2026-10-09 playtest: two full cabins and nothing ever happened.)
@@ -1199,6 +1211,11 @@ Upkeep) fixes everything at 1.5x, daylight only. Rules: `core/systems/maintenanc
   lamps off, power-hungry facilities closed, and a 6-minute UPS countdown to game over.
   Paying restores the grid. Tents draw nothing, cabins 2-4 units: a camp of cabins pays
   for its comfort.
+- **Unhappy guests pay less** (Richard 24. 11.): the price by mood
+  (`GuestNeedsSystem.pay_share`): full from Okay (45) up, then down in a line to 30 % at 15
+  and under (Grumpy 35-45 about 80-100 %, Unhappy 45-80 %). economy_sim, 14 days: the lazy
+  camp 2 260 in the till instead of 4 743, the careful one (no food in the sim) 6 490
+  instead of 10 570.
 - Wages: a hand's base wage a day by place (`business_rules.KINDS`): pub 45, bistro 52,
   Jednota 60, corn stand 22, bowling 48, staffroom 42 (half as much again since 24. 11.).
 - **The curve** (Richard 24. 11.: "a tight start, then calm"): the first week every crown
@@ -1219,7 +1236,9 @@ Upkeep) fixes everything at 1.5x, daylight only. Rules: `core/systems/maintenanc
 - *The bookings in CampMail?* „Karta nabídky v mailu“: a booking mail shows a card: who
   comes (the guests' kinds and how many), what they want (icons of the facilities; what
   the camp lacks turns red) and the price of a night per guest; now and then a tempting
-  big party for a lot of money that brings a hard night. (Open: TODO „Teď“.)
+  big party for a lot of money that brings a hard night. (Done 24. 11., §4.)
+- *A lazy camp earns like a careful one: unhappy guests pay in full. Pay less or leave
+  sooner?* „platit míň“.
 
 ## 7b. The businesses' rooms (point and click)
 

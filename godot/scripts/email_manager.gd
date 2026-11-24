@@ -203,6 +203,25 @@ const CUSTOMER_SUBJECT_VARIANTS: Array[String] = [
 	"Camp booking: %s (%d beds, %d nights)",
 ]
 
+## The tempting big party (Richard 24. 11., docs/DESIGN.md §7 Decisions): now and then, from
+## the second day, a booking for a lot more people of one kind at half as much again a head.
+## Seven drunks or ten tramps at once is past their kind's medium count (seven: DESIGN §4),
+## so the money comes with a hard night; the card's NIGHT RISK says so, the letter does not.
+const TEMPTING_CHANCE := 0.12
+const TEMPTING_FROM_DAY := 2
+const TEMPTING_PAY := 1.5
+const TEMPTING := {
+	ARCHETYPE_DRUNK: {"party_min": 7, "party_max": 8, "stay_min": 2, "stay_max": 3, "letters": [
+		"AHOJ!!!\n\nSTAG DO. %d of us, %d nights, we roll in around %s. Ondra gets married on Saturday so this is his LAST WEEKEND OF FREEDOM. We pay whatever you say, cash, up front, just keep the beer coming and the neighbours far away.\n\n%s (best man)",
+	]},
+	ARCHETYPE_CHEAP_CHICK: {"party_min": 7, "party_max": 8, "stay_min": 2, "stay_max": 3, "letters": [
+		"Hiii!!\n\nHen party!!! %d girls, %d nights, arriving %s. Money is NOT a problem this time, Bara's dad is paying :D We want the lake at midnight, the slide, music, everything!!\n\nlove, %s",
+	]},
+	ARCHETYPE_TRAMP: {"party_min": 8, "party_max": 10, "stay_min": 2, "stay_max": 4, "letters": [
+		"Ahoj,\n\nthe whole Vlci stopa settlement is coming for the potlach: %d of us, %d nights, from the station around %s. We pay properly this year, the collection was good. We need one big fire and nobody telling us to be quiet.\n\n%s, sheriff",
+	]},
+}
+
 const MAIL_TO_ADDRESS := "camp.reception@camp.local"
 
 ## All delivered emails, newest last. `_folder` "deleted" puts one in Deleted Items.
@@ -540,7 +559,9 @@ func _run_hourly_roll(day: int, hour: int, base_abs: int) -> void:
 		var offsets = _spread_offsets(customer_count, 2, 58)
 		for i in range(customer_count):
 			var archetype_id = archetypes[i] if i < archetypes.size() else ARCHETYPE_QUIET_GUY
-			var mail = _build_customer_mail(archetype_id, day, hour)
+			var tempting: bool = day >= TEMPTING_FROM_DAY and TEMPTING.has(archetype_id) and _rng.randf() < TEMPTING_CHANCE \
+				and int(bed_metrics.get("free", 0)) >= int((TEMPTING[archetype_id] as Dictionary)["party_min"])
+			var mail = _build_customer_mail(archetype_id, day, hour, tempting)
 			_schedule_mail_abs(base_abs + offsets[i], mail)
 		# Atlas's report at a campaign's end counts them.
 		var g = _atlas()
@@ -893,9 +914,13 @@ func _spread_offsets(count: int, min_offset: int, max_offset: int) -> Array[int]
 	return out
 
 
-func _build_customer_mail(archetype_id: String, day: int, hour: int) -> Dictionary:
+## `tempting`: the big party of TEMPTING (more of them, half as much again a head).
+func _build_customer_mail(archetype_id: String, day: int, hour: int, tempting := false) -> Dictionary:
 	var cfg_any = CUSTOMER_ARCHETYPES.get(archetype_id, CUSTOMER_ARCHETYPES[ARCHETYPE_QUIET_GUY])
-	var cfg: Dictionary = cfg_any if cfg_any is Dictionary else CUSTOMER_ARCHETYPES[ARCHETYPE_QUIET_GUY]
+	var cfg: Dictionary = (cfg_any if cfg_any is Dictionary else CUSTOMER_ARCHETYPES[ARCHETYPE_QUIET_GUY]).duplicate()
+	tempting = tempting and TEMPTING.has(archetype_id)
+	if tempting:
+		cfg.merge(TEMPTING[archetype_id], true)
 
 	var party_min = max(1, int(cfg.get("party_min", 1)))
 	var party_max = max(party_min, int(cfg.get("party_max", party_min)))
@@ -912,6 +937,8 @@ func _build_customer_mail(archetype_id: String, day: int, hour: int) -> Dictiona
 	var arrival_time = _roll_arrival_time(archetype_id)
 
 	var base_daily_pay = max(25, int(cfg.get("daily_pay", 80))) * party_size
+	if tempting:
+		base_daily_pay = int(round(float(base_daily_pay) * TEMPTING_PAY))
 	var variance = maxi(8, int(round(float(base_daily_pay) * 0.18)))
 	var daily_total = max(30, base_daily_pay + _rng.randi_range(-variance, variance))
 
@@ -919,10 +946,10 @@ func _build_customer_mail(archetype_id: String, day: int, hour: int) -> Dictiona
 	var archetype_label = str(cfg.get("label", "Customer"))
 	var subject = subject_template % [archetype_label, party_size, stay_nights]
 
-	var letters: Array = BOOKING_LETTERS.get(archetype_id, BOOKING_LETTERS[ARCHETYPE_QUIET_GUY])
+	var letters: Array = cfg["letters"] if tempting else BOOKING_LETTERS.get(archetype_id, BOOKING_LETTERS[ARCHETYPE_QUIET_GUY])
 	var letter := str(letters[_rng.randi_range(0, letters.size() - 1)]) % [party_size, stay_nights, arrival_time, lead_name]
 	var wishes: Array = LODGING_WISHES.get(archetype_id, [])
-	if not wishes.is_empty() and _rng.randf() < 0.75:
+	if not tempting and not wishes.is_empty() and _rng.randf() < 0.75:
 		letter += "\n\nP.S. " + str(wishes[_rng.randi_range(0, wishes.size() - 1)])
 
 	return _new_mail_dict({
@@ -944,6 +971,7 @@ func _build_customer_mail(archetype_id: String, day: int, hour: int) -> Dictiona
 		"night_trouble_time": night_trouble_time,
 		"guest_name": lead_name,
 		"guest_names": guest_names,
+		"tempting": tempting,
 	})
 
 

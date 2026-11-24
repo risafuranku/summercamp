@@ -128,6 +128,10 @@ godot --headless --path godot --script res://tools/night_swell_check.gd   # the 
   "material" is null` (material_get_instance_shader_parameters), a handful a run, no script
   frames: the dummy renderer's; a windowed run has none.
 
+Scenario `bookingcard` (24. 11.): a letter from each kind of guest and a tempting big party in
+CampMail, each card shot on the CRT (`card_*.png`); with `--lang=cs` the Czech, which wraps
+more. The card must show no scrollbar.
+
 ### The money over a month: economy_sim
 
 `godot/tools/economy_sim.tscn` (24. 11. 2026) plays a sandbox month on the real rules
