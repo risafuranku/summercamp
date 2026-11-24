@@ -22,6 +22,7 @@ const NEEDS := preload("res://core/systems/guest_needs_system.gd")
 const BALANCE_CONFIG := preload("res://core/balance/balance_config.gd")
 const ORDERS := preload("res://scripts/food/orders.gd")
 const MAINT_RULES := preload("res://core/systems/maintenance_rules.gd")
+const PA := preload("res://core/systems/pa_rules.gd")
 ## Mood a guest loses using a filthy toilet or shower block (MaintenanceRules.FILTHY).
 const FILTHY_MOOD := 5.0
 
@@ -57,6 +58,12 @@ var _exits: Array[Vector2i] = []
 var _lake_shore: Array[Vector2i] = []
 var _grid_size: Vector2i = Vector2i(20, 20)
 var _power_available: bool = true
+## The PA poles (24. 11., core/systems/pa_rules.gd): where they stand (from the grid, like
+## the lamps), the grid's tile in metres, and whether the reception's radio goes out through
+## them now (GuestManager.set_camp_pa_on: the set on, the camp's power on).
+var _pa_tiles: Array[Vector2i] = []
+var _tile_m := 4.0
+var _pa_on := false
 var _weather: int = 0
 var _threat_map: Dictionary = {}  # "x:y" -> {strength, until_abs}
 var _thought_log: Array[Dictionary] = []
@@ -75,6 +82,10 @@ func _init() -> void:
 
 func set_power_available(available: bool) -> void:
 	_power_available = available
+
+
+func set_pa_on(on: bool) -> void:
+	_pa_on = on
 
 
 ## The places open but not what they should be now, by key ("x:y": true): a bonfire out in
@@ -133,11 +144,15 @@ func refresh_world(state, registry) -> void:
 	_lamp_tiles.clear()
 	_path_tiles.clear()
 	_staff_only_tiles.clear()
+	_pa_tiles.clear()
+	_tile_m = float(grid.get("tile_size")) if grid.get("tile_size") != null else 4.0
 	for coord_any in grid.cells.keys():
 		var cell: Dictionary = grid.cells[coord_any]
 		var type := str(cell.get("type", ""))
 		if type in STAFF_ONLY:
 			_staff_only_tiles[coord_any] = true
+		if type == PA.TYPE:
+			_pa_tiles.append(coord_any)
 		if type == "lamp_post":
 			_lamp_tiles.append(coord_any)
 		elif type == "path":
@@ -315,6 +330,9 @@ func _advance_guest(guest: Dictionary, now_abs: int, is_night_at: Callable, weir
 			var used: Array = NEEDS.use_stash(needs, stash, minutes)
 			needs = used[0]
 			guest["stash"] = used[1]
+		# The radio from a PA pole nearby, awake (24. 11.): a little fun, never past its cap.
+		if _pa_on and not sleeping and not night_sleep and not _pa_tiles.is_empty() and PA.near(_pa_tiles, here, _tile_m):
+			needs[NEEDS.NEED_FUN] = PA.fun_after(float(needs.get(NEEDS.NEED_FUN, 0.0)), minutes)
 		guest["needs"] = needs
 		var mood := float(guest.get("mood", 60.0))
 		var target_mood := NEEDS.sleep_mood_target(mood, needs, archetype, comfort, noise) if night_sleep \
@@ -809,17 +827,22 @@ func _collect_noise(guests: Array) -> void:
 			_noise_sources.append({"id": int(g.get("id", -1)), "coord": c, "loud": loud})
 
 
-## Comfort lost to a noisy party nearby, from nine in the evening to three in the night.
+## Comfort lost to a noisy party nearby, from nine in the evening to three in the night, or
+## to a PA pole playing by the lodging after ten (24. 11.: "po 22:00 hraní ruší spáče").
 func _noise_for(guest: Dictionary, t: int) -> float:
 	var sens := float(NEEDS.LIGHT_SLEEPERS.get(str(guest.get("archetype", "")), 0.0))
-	if sens <= 0.0 or _noise_sources.is_empty():
+	if sens <= 0.0:
 		return 0.0
 	var hour := float(t % 1440) / 60.0
-	if hour >= 3.0 and hour < 21.0:
-		return 0.0
 	var mine := lodging_coord(guest)
 	if mine.x < 0:
 		return 0.0
+	var pa := 0.0
+	if _pa_on and not _pa_tiles.is_empty() and PA.quiet_hours(hour) and PA.near(_pa_tiles, mine, _tile_m):
+		guest["pa_night"] = true
+		pa = NEEDS.NOISE_COMFORT * sens * PA.NOISE * NEEDS.walls_let_in(lodging_type(guest))
+	if _noise_sources.is_empty() or (hour >= 3.0 and hour < 21.0):
+		return pa
 	for src in _noise_sources:
 		if int(src["id"]) == int(guest.get("id", -1)):
 			continue
@@ -828,8 +851,8 @@ func _noise_for(guest: Dictionary, t: int) -> float:
 			continue
 		if maxi(absi(c.x - mine.x), absi(c.y - mine.y)) <= NEEDS.NOISE_RANGE_TILES:
 			guest["noisy_night"] = true
-			return NEEDS.NOISE_COMFORT * sens * float(src["loud"]) * NEEDS.walls_let_in(lodging_type(guest))
-	return 0.0
+			return maxf(pa, NEEDS.NOISE_COMFORT * sens * float(src["loud"]) * NEEDS.walls_let_in(lodging_type(guest)))
+	return pa
 
 
 func _door_tile(facility: Dictionary, from: Vector2i) -> Vector2i:
@@ -937,10 +960,15 @@ func _say(guest: Dictionary, text: String, t: int) -> void:
 
 func _morning_thought(guest: Dictionary) -> String:
 	var needs: Dictionary = guest.get("needs", {})
+	var pa_night := bool(guest.get("pa_night", false))
+	guest.erase("pa_night")
 	if bool(guest.get("noisy_night", false)):
 		guest.erase("noisy_night")
 		guest["complaints"] = int(guest.get("complaints", 0)) + 1
 		return ["Somebody was singing next door until three.", "Those lads next door. All night. ALL night.", "Put the drunks further away from us, please."][_rng.randi_range(0, 2)]
+	if pa_night:
+		guest["complaints"] = int(guest.get("complaints", 0)) + 1
+		return ["The loudspeaker outside played all night.", "A brass band at two in the morning. Through a horn.", "Who leaves the camp radio on all night?"][_rng.randi_range(0, 2)]
 	if float(needs.get("safety", 80.0)) < 40.0:
 		return "Something walked past the tent all night. I'm not imagining it."
 	if float(needs.get("energy", 50.0)) < 45.0:

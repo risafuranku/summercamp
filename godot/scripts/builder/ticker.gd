@@ -227,5 +227,5 @@ func _coord(key: String) -> Vector2i:
 
 func _name(t: String) -> String:
 	var names := {"toilet_block": "toilets", "shower_block": "showers", "restaurant": "bistro", "vecerka": "Jednota", "main_building": "office",
-		"lamp_post": "lamp", "power_generator": "generator", "sewer": "sewage pump", "corn_stand": "corn stand", "lake_slide": "slide"}
+		"lamp_post": "lamp", "power_generator": "generator", "sewer": "sewage pump", "corn_stand": "corn stand", "lake_slide": "slide", "pa_pole": "PA pole"}
 	return str(names.get(t, t.get_slice("_", 0)))

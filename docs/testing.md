@@ -48,6 +48,7 @@ godot --headless --path godot res://tools/pub_check.tscn        # the pub: the t
 godot --headless --path godot res://tools/stand_check.tscn      # the corn stand: the pot, the bowl, the orders, Papa's serve, the hands, the stations
 godot --headless --path godot res://tools/jednota_check.tscn    # the Jednota: the rack, the queue, the till, boxes, the hands, the stations, it pays
 godot --headless --path godot res://tools/proto_check.tscn      # PROTOTYP 540: awake hours, the sack's nights, fed, the meat in the stock
+godot --headless --path godot res://tools/pa_check.tscn         # the PA poles (24. 11.): the building, pa_rules, a light sleeper by a pole after ten
 godot --headless --path godot res://tools/podniky_check.tscn    # the businesses' polish: thirst, the Jednota's bag, the rush, corn drinks, the grill, the bufet, the deli, the Z mark
 python godot/tools/podniky_coop.py [OUT_DIR] # the four places for two: a drink, a bill, the slot, the grill, the bufet, the deli done on one machine and seen on the other
 python godot/tools/coop_check.py [OUT_DIR]   # co-op: two windowed copies (host + client on 127.0.0.1), camps compared; looks, a build, a room's jobs both ways, the boat

@@ -226,6 +226,8 @@ var _director_fx: Node
 ## The camp's own music, not the radio's (scripts/audio/music_director.gd).
 var _music_director: Node
 var _caretaker: Node
+## The camp's PA poles playing the reception's radio (scripts/audio/pa_horns.gd, 24. 11.).
+var _pa_horns: Node
 var _pending_director: Dictionary = {}
 ## The lost and found and its classifieds (scripts/bazaar.gd).
 var _bazaar = preload("res://scripts/bazaar.gd").new()
@@ -1323,6 +1325,8 @@ func _process(delta: float) -> void:
 		_music_director.tick(delta)
 	if _caretaker != null:
 		_caretaker.tick(delta)
+	if _pa_horns != null:
+		_pa_horns.tick(delta)
 	_sync_hud_player_meters()
 	# Who is coming, at the gate, the day's and the night's jobs: on the HUD of both machines
 	# (the other's from the host's pulse).
@@ -2604,6 +2608,11 @@ func _setup_audio() -> void:
 		_caretaker.name = "Caretaker"
 		_caretaker.main = self
 		_screen.add_child(_caretaker)
+	if _pa_horns == null or not is_instance_valid(_pa_horns):
+		_pa_horns = preload("res://scripts/audio/pa_horns.gd").new()
+		_pa_horns.name = "PaHorns"
+		_pa_horns.main = self
+		_screen.add_child(_pa_horns)
 
 
 func _try_interact() -> void:

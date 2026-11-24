@@ -342,6 +342,12 @@ func set_camp_power_available(available: bool) -> void:
 	_life.set_power_available(available)
 
 
+## The reception's radio out through the PA poles now, or not (scripts/audio/pa_horns.gd,
+## when it changes): the guests near a pole, and the light sleepers after ten.
+func set_camp_pa_on(on: bool) -> void:
+	_life.set_pa_on(on)
+
+
 ## Rain closes outdoor attractions (BuildingDef.requires "dry").
 func set_camp_weather(weather_state: int) -> void:
 	_life.set_weather(weather_state)

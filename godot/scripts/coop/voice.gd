@@ -22,6 +22,7 @@ const INVENTORY = preload("res://scripts/ui/inventory.gd")
 const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 const HAND_TEX := {"radio": "res://assets/textury/hands_lo/radio.png", "megaphone": "res://assets/textury/hands_lo/megaphone.png"}
 ## A packet's flags: which (radio or megaphone), the first of a go, the last.
+const PA_RULES := preload("res://core/systems/pa_rules.gd")
 const F_MEGA := 1
 const F_START := 2
 const F_END := 4
@@ -232,6 +233,11 @@ func _alert_guests(at: Vector3, delta: float) -> void:
 	var agents = main.get("_guest_agents") if main != null else null
 	if agents != null and agents.has_method("alert"):
 		agents.alert(at, 45.0, 3.0)
+		# Out of the PA's horns too (24. 11.: "lépe je slyšet megafon"): round every pole.
+		var pa = main.get("_pa_horns")
+		if pa != null and is_instance_valid(pa):
+			for h in pa.horns():
+				agents.alert(h, PA_RULES.RANGE_M, 3.0)
 
 
 func _my_position() -> Vector3:
@@ -265,6 +271,15 @@ func on_voice(id: int, flags: int, data: PackedByteArray) -> void:
 			frames[i] = Vector2(v, v)
 		if (pb as AudioStreamGeneratorPlayback).can_push_buffer(frames.size()):
 			(pb as AudioStreamGeneratorPlayback).push_buffer(frames)
+		# The same out of the PA's nearest horn (24. 11.).
+		var pa_p = rx.get("pa_player")
+		if pa_p != null and is_instance_valid(pa_p):
+			if not (pa_p as AudioStreamPlayer3D).playing:
+				(pa_p as AudioStreamPlayer3D).play()
+				rx["pa_playback"] = (pa_p as AudioStreamPlayer3D).get_stream_playback()
+			var pb2 = rx.get("pa_playback")
+			if pb2 is AudioStreamGeneratorPlayback and (pb2 as AudioStreamGeneratorPlayback).can_push_buffer(frames.size()):
+				(pb2 as AudioStreamGeneratorPlayback).push_buffer(frames)
 	rx["last"] = Time.get_ticks_msec()
 	if (flags & F_END) != 0:
 		_sfx_at(rx, "radio_off.wav" if not mega else "megaphone_off.wav")
@@ -287,6 +302,18 @@ func _make_rx(id: int, mega: bool) -> Dictionary:
 		var world: Node = INSTANCE.main_of(self)
 		var w3d = world.get("_world_3d") if world != null else null
 		(w3d if w3d is Node else world).add_child(p3)
+		# The PA's horn nearest you says it too (24. 11.), on the PA's bus; silent with no pole.
+		var gen2 := AudioStreamGenerator.new()
+		gen2.mix_rate = RATE
+		gen2.buffer_length = 0.6
+		var pa3 := AudioStreamPlayer3D.new()
+		pa3.stream = gen2
+		pa3.bus = "PA"
+		pa3.unit_size = 9.0
+		pa3.max_distance = PA_RULES.RANGE_M + 20.0
+		pa3.volume_db = -80.0
+		(w3d if w3d is Node else world).add_child(pa3)
+		return {"player": player, "playback": null, "last": 0, "id": id, "mega": mega, "pa_player": pa3, "pa_playback": null}
 	else:
 		var p2 := AudioStreamPlayer.new()
 		p2.stream = gen
@@ -317,6 +344,18 @@ func _update_rx() -> void:
 				var cam := get_viewport().get_camera_3d()
 				if cam != null:
 					p3.global_position = cam.global_position + Vector3(0, 0, -6.0)
+			# Out of the PA's horn nearest you (24. 11.).
+			var pa3 = rx.get("pa_player")
+			var main := INSTANCE.main_of(self)
+			var pa = main.get("_pa_horns") if main != null else null
+			var ear := get_viewport().get_camera_3d()
+			if pa3 != null and is_instance_valid(pa3):
+				var h: Vector3 = pa.nearest_horn(ear.global_position) if pa != null and is_instance_valid(pa) and ear != null else Vector3.INF
+				if h == Vector3.INF:
+					(pa3 as AudioStreamPlayer3D).volume_db = -80.0
+				else:
+					(pa3 as AudioStreamPlayer3D).global_position = h
+					(pa3 as AudioStreamPlayer3D).volume_db = -3.0
 	if _sending != "":
 		on_air = "%s  TALKING" % ("MEGAPHONE" if _sending == "megaphone" else "RADIO")
 	_label.text = on_air

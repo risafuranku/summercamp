@@ -48,3 +48,19 @@ Kolo 2:
 Kolo 3:
 - *Amplióny v noci: jak silná má být „neplecha“?* „Jen atmosféra“: v noci jen strašidelné zvuky
   z ampliónů, na hosty nemají vliv.
+
+Hotovo 24. 11.: stavba „Rozhlas“ (`pa_pole`, `data/buildings/pa_pole.tres`: 280 Kč×10, proud 2) je
+v Builderu mezi zábavou; při stavění ukazuje zelený kruh dosahu 35 m (`builder/map3d.gd`). Ve světě
+je to obrázek sloupu od Groka (`assets/textury/world/pa_pole.png`, 7,5 m, `building_models._pa_pole`,
+skupina `pa_poles`). `scripts/audio/pa_horns.gd` (main ho tiká) pouští do tří nejbližších sloupů
+přesně to, co hraje rádio v recepci (`building_interior.pa_feed`: stejná skladba na stejném místě,
+noční nálady sady), na sběrnici „PA“ (úzké pásmo, overdrive, odraz od lesa, dál do RadioMusic,
+takže to řídí hlasitost hudby). V noci 23:00–4:00 dvakrát až čtyřikrát amplióny samy přeladí
+(šum a pak hlas, kolébavka, hrací strojek…, 7–13 s); kdy, losuje datum noci, takže v co-opu
+na obou počítačích stejně. Hosté: pravidla v `core/systems/pa_rules.gd`; vzhůru v dosahu sloupu,
+když rádio hraje, mají +0,08 zábavy za minutu, ale jen do 60 (oheň dá 45 za návštěvu a může
+do 100); od 22 do 6 hodin hrající sloup u ubytování lehce spícího hosta (důchodce, Ticháč,
+rodina, slečna) ruší jako 0,7 hlučné party, ráno si postěžuje. Vypnuté rádio v recepci = ticho
+i spánek. Megafon: hosté u každého sloupu se otočí (`voice._alert_guests`) a druhý hráč slyší
+hlas i z nejbližšího ampliónu (`voice._make_rx` „pa_player“). Test `tools/pa_check.tscn`, snímky
+`shot_driver --scenario=pa_pole` (den, dálka, noc, vynucené přeladění).

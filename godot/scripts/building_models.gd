@@ -23,7 +23,7 @@ const FONT := "res://assets/fonts/w95b.fnt"
 const MODELS := ["toilet_block", "shower_block", "pub", "restaurant", "power_generator", "sewer",
 	"bonfire", "sports_field", "lake_slide", "dumpsters",
 	"bench", "picnic_table", "flower_bed", "gnome", "flagpole", "playground", "ping_pong", "hammock", "corn_stand", "mega_gnome",
-	"vecerka", "bowling", "staffroom", "warehouse", "tree_spruce", "tree_birch"]
+	"vecerka", "bowling", "staffroom", "warehouse", "tree_spruce", "tree_birch", "pa_pole"]
 
 var _psx: Callable           # (color, wobble, snap, steps, corrosion, category) -> Material
 var _cache: Dictionary = {}
@@ -75,6 +75,8 @@ func build(type: String, root: Node3D, tile: float, footprint: Vector2i) -> Dict
 			return _mega_gnome(root, w, d)
 		"flagpole":
 			return _flagpole(root, w, d)
+		"pa_pole":
+			return _pa_pole(root)
 		"playground":
 			return _playground(root, w, d)
 		"ping_pong":
@@ -1720,6 +1722,32 @@ func _flagpole(r: Node3D, _w: float, _d: float) -> Dictionary:
 	flag.set_meta("material", _flag_material())
 	_use_script(flag, "res://scripts/attractions/flag_wave.gd")
 	return {"size": Vector3(0.6, 6.2, 0.6), "target": Vector3(0, 1.0, 0.4)}
+
+
+## The PA pole (24. 11., docs/audio.md): the village loudspeaker pole as Build drew such
+## things, one picture turning to face you (Grok's `world/pa_pole.png`, approved 24. 11.),
+## 7.5 m tall; its horns are where scripts/audio/pa_horns.gd plays the reception's radio.
+const PA_POLE_TEX := "res://assets/textury/world/pa_pole.png"
+const PA_POLE_M := 7.5
+
+
+func _pa_pole(r: Node3D) -> Dictionary:
+	r.add_to_group("pa_poles")
+	var tex: Texture2D = load(PA_POLE_TEX) if ResourceLoader.exists(PA_POLE_TEX) else null
+	if tex != null:
+		var spr := Sprite3D.new()
+		spr.name = "Pole"
+		spr.texture = tex
+		spr.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+		spr.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		spr.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+		spr.shaded = true
+		spr.pixel_size = PA_POLE_M / float(tex.get_height())
+		spr.position = Vector3(0, PA_POLE_M * 0.5, 0)
+		r.add_child(spr)
+	# A foot of concrete it stands in.
+	_box(r, "Foot", Vector3(0.42, 0.14, 0.42), Vector3(0, 0.07, 0), _camp_or("concrete.png", Color(0.62, 0.62, 0.58), "stone"))
+	return {"size": Vector3(0.36, PA_POLE_M, 0.36), "target": Vector3(0, 1.2, 0.3)}
 
 
 ## The camp's flag: green, a white spruce, the bottom border white (made once).

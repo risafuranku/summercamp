@@ -29,7 +29,7 @@ the pad and the split screen must keep working (do not break them), but get no n
       goulash, chips and fried cheese with the cellar) in the business's book (a Menu tab)
       and in Boss 98; the pub starts with draught beer (rum, kofola, the washer, the games
       bought); the bowling starts with the lanes, its refreshments an upgrade that works.
-- [ ] The PA horns (docs/audio.md, Rozhodnutí 24. 11.): a "PA pole" in Builder (money, power,
+- [x] The PA horns (docs/audio.md, Rozhodnutí 24. 11.; done 24. 11., "Hotovo" there): a "PA pole" in Builder (money, power,
       ~35 m): what the reception radio plays goes out through them as an old PA; guests near
       them slowly more fun (at most a fire's); after 22:00 it disturbs sleepers; at night only
       eerie sounds through them, no effect. The megaphone louder at the poles. Grok sample first.

@@ -4150,6 +4150,16 @@ func _radio_behind_door(delta: float) -> float:
 	_radio_door_k = move_toward(_radio_door_k, 1.0 if shut else 0.0, delta / 0.3)
 	return RADIO_BEHIND_DOOR_DB * _radio_door_k
 var _radio_was_asleep := false
+## The night's moods on the set (the night songs' level, the dread's gain), in dB, for the
+## camp's PA poles (pa_feed).
+var _radio_pa_db := 0.0
+
+
+## The reception's set as the camp's PA poles take it (scripts/audio/pa_horns.gd, 24. 11.):
+## its player (what plays and where it is in it), whether it is on and has the camp's power,
+## and the dB of the night's moods on it.
+func pa_feed() -> Dictionary:
+	return {"player": _radio_player, "on": _radio_power_on and _grid_power_available, "db": _radio_pa_db}
 const RADIO_SLEEP_FADE_SEC := 1.0
 
 
@@ -4189,6 +4199,7 @@ func _update_radio_mix(delta: float) -> void:
 		if _dread.take_break():
 			_radio_break_in()
 	var final_target_db = target_db + character_db + night_track_db
+	_radio_pa_db = night_track_db + (linear_to_db(maxf(float(_dread.music_gain), 0.0001)) if _dread != null else 0.0)
 	if not _radio_power_on:
 		final_target_db = RADIO_POWER_OFF_VOLUME_DB
 	# Indoors the radio is in your ear; outdoors it is a place (the reception), heard

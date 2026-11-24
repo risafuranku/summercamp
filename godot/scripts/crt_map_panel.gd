@@ -29,7 +29,7 @@ const ICON_SPAN := {
 	"caravan_1": 1.27, "caravan_2": 1.27, "caravan_3": 1.27, "toilet_block": 0.85, "shower_block": 1.02,
 	"restaurant": 1.56, "pub": 1.69, "pub_2": 1.69, "corn_stand": 0.6, "bonfire": 0.95, "sports_field": 1.49,
 	"lake_slide": 1.26, "playground": 1.28, "ping_pong": 0.54, "hammock": 0.45, "bench": 0.3, "picnic_table": 0.42,
-	"flower_bed": 0.42, "tree_spruce": 0.46, "tree_birch": 0.42, "gnome": 0.2, "mega_gnome": 0.9, "flagpole": 0.3, "lamp_iso": 0.24, "lamp_post": 0.24, "sewer": 0.7, "power_generator": 0.83, "vecerka_iso": 1.8,
+	"flower_bed": 0.42, "tree_spruce": 0.46, "tree_birch": 0.42, "gnome": 0.2, "mega_gnome": 0.9, "flagpole": 0.3, "pa_pole": 0.32, "lamp_iso": 0.24, "lamp_post": 0.24, "sewer": 0.7, "power_generator": 0.83, "vecerka_iso": 1.8,
 	"staffroom": 1.6, "warehouse": 1.6,
 }
 const SFX_DIR := "res://assets/sfx/builder/"
@@ -106,6 +106,7 @@ const ICON_PATHS := {
 	"gnome": "res://assets/textury/builder/iso_gnome.png",
 	"mega_gnome": "res://assets/textury/builder/iso_gnome.png",
 	"flagpole": "res://assets/textury/builder/iso_flagpole.png",
+	"pa_pole": "res://assets/textury/builder/iso_pa_pole.png",
 	"playground": "res://assets/textury/builder/iso_playground.png",
 	"ping_pong": "res://assets/textury/builder/iso_pingpong.png",
 	"hammock": "res://assets/textury/builder/iso_hammock.png",

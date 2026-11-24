@@ -37,7 +37,7 @@ const CATEGORIES: Array = [
 	{"id": "housing", "label": "Housing", "icon": "res://assets/textury/builder/cat_housing.png", "items": ["tent_1", "cabin_1", "caravan_1"]},
 	{"id": "washrooms", "label": "Washrooms & staff", "icon": "res://assets/textury/builder/cat_facilities.png", "items": ["toilet_block", "shower_block", "staffroom", "warehouse"]},
 	{"id": "food", "label": "Businesses", "icon": "res://assets/textury/builder/cat_food.png", "items": ["corn_stand", "pub", "restaurant", "vecerka", "bowling"]},
-	{"id": "fun", "label": "Fun", "icon": "res://assets/textury/builder/cat_fun.png", "items": ["bonfire", "sports_field", "playground", "ping_pong", "hammock", "lake_slide"]},
+	{"id": "fun", "label": "Fun", "icon": "res://assets/textury/builder/cat_fun.png", "items": ["bonfire", "pa_pole", "sports_field", "playground", "ping_pong", "hammock", "lake_slide"]},
 	{"id": "decor", "label": "Decor", "icon": "res://assets/textury/builder/cat_decor.png", "items": ["bench", "picnic_table", "flower_bed", "tree_spruce", "tree_birch", "gnome", "flagpole", "mega_gnome"]},
 ]
 
@@ -64,6 +64,7 @@ const ITEM_ICONS := {
 	"gnome": "res://assets/textury/builder/iso_gnome.png",
 	"mega_gnome": "res://assets/textury/builder/iso_gnome.png",
 	"flagpole": "res://assets/textury/builder/iso_flagpole.png",
+	"pa_pole": "res://assets/textury/builder/iso_pa_pole.png",
 	"playground": "res://assets/textury/builder/iso_playground.png",
 	"ping_pong": "res://assets/textury/builder/iso_pingpong.png",
 	"hammock": "res://assets/textury/builder/iso_hammock.png",
@@ -77,6 +78,7 @@ const TINY_NAMES := {
 	"sports_field": "Pitch", "lake_slide": "Slide", "playground": "Swings", "picnic_table": "Picnic",
 	"flower_bed": "Flowers", "toilet_block": "WC", "shower_block": "Showers", "restaurant": "Bistro",
 	"ping_pong": "Pingpong", "corn_stand": "Corn", "hammock": "Hammock", "mega_gnome": "Mega gnome",
+	"pa_pole": "PA",
 }
 ## Card size in the catalogue strip: as wide as this, narrower when there are more of
 ## them than fit (the strip never scrolls: every card of a catalogue is on screen).
@@ -92,7 +94,7 @@ const SHORT_NAMES := {
 	"bench": "Bench", "picnic_table": "Picnic table", "flower_bed": "Flower bed", "gnome": "Gnome", "mega_gnome": "Mega gnome",
 	"tree_spruce": "Spruce", "tree_birch": "Birch",
 	"flagpole": "Flagpole", "playground": "Playground", "ping_pong": "Ping-pong", "hammock": "Hammock",
-	"corn_stand": "Corn stand", "bowling": "Bowling",
+	"corn_stand": "Corn stand", "bowling": "Bowling", "pa_pole": "PA pole",
 	"staffroom": "Staffroom",
 	"warehouse": "Warehouse",
 }
@@ -119,6 +121,7 @@ const BLURBS := {
 	"gnome": "Kitsch. Guests smile at it. Mostly.",
 	"mega_gnome": "As tall as a cabin. Registered copies only.",
 	"flagpole": "The camp's flag. It looks like a real camp now.",
+	"pa_pole": "The reception's radio out over the camp. Lovely by day. At night, mind the tents.",
 	"playground": "Swings and a seesaw. Families will thank you.",
 	"ping_pong": "A table, two bats and an argument.",
 	"hammock": "One guest, one book, one hour of peace.",

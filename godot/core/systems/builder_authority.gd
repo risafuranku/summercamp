@@ -33,6 +33,8 @@ const ALLOWED_BUILD_TYPES: Dictionary = {
 	"tree_birch": true,
 	"gnome": true,
 	"flagpole": true,
+	# The PA pole (24. 11., docs/audio.md): the reception's radio over the camp.
+	"pa_pole": true,
 	"playground": true,
 	"ping_pong": true,
 	"hammock": true,

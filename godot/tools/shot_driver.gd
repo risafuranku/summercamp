@@ -1485,6 +1485,26 @@ const SCENARIOS := {
 		# (The weather blends over 70 s since 24. 11.: the storm whole after that.)
 		["eval", "weather_system.set_weather(5)"], ["wait", 12.0], ["shot", "w1_storm_a"], ["wait", 70.0], ["shot", "w2_storm_b"], ["wait", 0.7], ["shot", "w3_storm_c"], ["wait", 0.7], ["shot", "w4_storm_d"],
 	],
+	# The PA pole (24. 11., docs/audio.md): one built by the office, looked at from the meadow
+	# by day, from further off, and at night; its horns playing the reception's set.
+	"pa_pole": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.8],
+		["money", 5000], ["clear", 9, 8, 7, 11], ["build", "pa_pole", 12, 10, 0], ["wait", 1.5],
+		["player", 12, 13, 0.0], ["wait", 2.0],
+		["eval", "_pa_horns._poles.size()"], ["eval", "_pa_horns.on_air()"], ["eval", "_pa_horns._horns.size()"],
+		["eval", "_pa_horns._horns.values()[0]['radio'].playing if _pa_horns._horns.size() > 0 else 'no horn'"],
+		["eval", "_pa_horns._horns.values()[0]['radio'].volume_db if _pa_horns._horns.size() > 0 else 'no horn'"],
+		["shot", "pa0_day"],
+		["player", 12, 17, 0.0], ["wait", 1.0], ["shot", "pa1_day_far"], ["player", 12, 13, 0.0],
+		["hours", 14.0], ["wait", 3.0], ["shot", "pa2_night"],
+		# A drift now (the night's draw says when): the static, then the voice.
+		["eval", "_pa_horns.set('_plan', [[_pa_horns._night_clock()[1], 'res://assets/sfx/radio/night_hajejdadej.mp3', 0.3, 9.0]])"],
+		["eval", "_pa_horns.set('_done', {})"], ["wait", 2.5],
+		["eval", "_pa_horns._drift_left"], ["eval", "_pa_horns._horns.values()[0]['noise'].playing"],
+		["eval", "_pa_horns._horns.values()[0]['drift'].playing"], ["eval", "_pa_horns._horns.values()[0]['radio'].volume_db"],
+		["wait", 8.0], ["eval", "_pa_horns._drift_left"], ["eval", "_pa_horns._horns.values()[0]['radio'].volume_db"],
+	],
 	# The wind's gusts (wind_things.gd, wind_life.gd): a windy day looking downwind over
 	# the meadow, then the storm; a few shots a gust apart.
 	"wind": [

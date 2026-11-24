@@ -34166,3 +34166,31 @@ msgstr "Automat LUCKY 7"
 #: core/systems/business_rules.gd GEAR pub (24. 11.)
 msgid "A one-armed bandit in the corner. Now and then it pays out."
 msgstr "Jednoruký bandita do rohu. Sem tam i vyplatí."
+
+#: core: data/buildings/pa_pole.tres (24. 11.)
+msgid "PA Pole (1x1)"
+msgstr "Rozhlasový sloup (1x1)"
+
+#: scripts/builder_module.gd SHORT_NAMES (24. 11.)
+msgid "PA pole"
+msgstr "Rozhlas"
+
+#: scripts/builder_module.gd TINY_NAMES (24. 11.)
+msgid "PA"
+msgstr "Rozhlas"
+
+#: scripts/builder_module.gd BLURBS (24. 11.)
+msgid "The reception's radio out over the camp. Lovely by day. At night, mind the tents."
+msgstr "Rádio z recepce do celého kempu. Ve dne paráda. V noci pozor na stany."
+
+#: scripts/guest_life.gd _morning_thought (24. 11.)
+msgid "The loudspeaker outside played all night."
+msgstr "Ten amplión venku hrál celou noc."
+
+#: scripts/guest_life.gd _morning_thought (24. 11.)
+msgid "A brass band at two in the morning. Through a horn."
+msgstr "Dechovka ve dvě ráno. Z ampliónu."
+
+#: scripts/guest_life.gd _morning_thought (24. 11.)
+msgid "Who leaves the camp radio on all night?"
+msgstr "Kdo tu nechává rozhlas hrát celou noc?"

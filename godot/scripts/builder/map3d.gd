@@ -76,6 +76,10 @@ const GOLD := Color(1.0, 0.92, 0.5)
 const LAMP := Color(1.0, 0.82, 0.42)
 ## A lamp's and a fire's light, in tiles (the 2D map's LIGHT_REACH, as plates).
 const REACH := {"lamp_post": 2.6, "bonfire": 3.4}
+## How far a PA pole carries (core/systems/pa_rules.gd), shown while placing one, in its
+## own colour (it is not light).
+const PA_RULES := preload("res://core/systems/pa_rules.gd")
+const SOUND := Color(0.62, 0.92, 0.62)
 const MINI_CELL := 3.0
 ## The night wash the view adds after dusk (_sync_env) and the lift of its darks.
 const NIGHT_WASH := Color(0.62, 0.7, 0.9)
@@ -830,14 +834,15 @@ func _update_plates() -> void:
 				for c in _footprint(coord, fp):
 					_plate(c, col, 0 if fit else 1, 0.2 if fit and pay else 0.26)
 				# Where a light would reach: plates warm and faint.
-				if REACH.has(sel):
+				if REACH.has(sel) or sel == PA_RULES.TYPE:
 					var mid := Vector2(coord) + Vector2(fp - Vector2i.ONE) * 0.5
-					var r := float(REACH[sel])
+					var sound := sel == PA_RULES.TYPE
+					var r := PA_RULES.range_tiles(float(panel.grid_manager.tile_size)) if sound else float(REACH[sel])
 					for y in range(int(floor(mid.y - r)), int(ceil(mid.y + r)) + 1):
 						for x in range(int(floor(mid.x - r)), int(ceil(mid.x + r)) + 1):
 							var dd := Vector2(x, y).distance_to(mid)
 							if dd <= r and dd > 0.6:
-								_plate(Vector2i(x, y), LAMP, 2, 0.3 * (1.0 - dd / (r + 0.5)))
+								_plate(Vector2i(x, y), SOUND if sound else LAMP, 2, (0.2 if sound else 0.3) * (1.0 - dd / (r + 0.5)))
 	elif panel._is_valid_coord(hover) and not bool(panel.get("_pan_dragging")):
 		_plate(hover, Color(BLUE.r, BLUE.g, BLUE.b, pulse), 0, 0.16 * pulse)
 	_plates.multimesh.visible_instance_count = _plate_n
@@ -1023,6 +1028,8 @@ func _ghost_model(type: String) -> Array:
 			models.caravan(src, ts * 2.0, ts, clampi(int(type.right(1)), 1, 3))
 		elif type == "lamp_post":
 			_lamp(src)
+		elif type == PA_RULES.TYPE:
+			_pa_ghost(src)
 		elif BUILDING_MODELS.has_model(type):
 			models.build(type, src, ts, fp)
 		else:
@@ -1109,6 +1116,29 @@ func _lamp(root: Node3D) -> void:
 	head.mesh = bx
 	head.position = Vector3(0.2, 3.35, 0.0)
 	root.add_child(head)
+
+
+## The PA pole's blueprint (its model is a picture turning to the eye: no meshes to copy):
+## the pole and its two horns.
+func _pa_ghost(root: Node3D) -> void:
+	var pole := MeshInstance3D.new()
+	var cy := CylinderMesh.new()
+	cy.top_radius = 0.14
+	cy.bottom_radius = 0.16
+	cy.height = 7.5
+	pole.mesh = cy
+	pole.position.y = 3.75
+	root.add_child(pole)
+	for side: float in [-1.0, 1.0]:
+		var horn := MeshInstance3D.new()
+		var cone := CylinderMesh.new()
+		cone.top_radius = 0.08
+		cone.bottom_radius = 0.42
+		cone.height = 1.1
+		horn.mesh = cone
+		horn.position = Vector3(side * 0.75, 7.0, 0.0)
+		horn.rotation.z = side * PI * 0.5
+		root.add_child(horn)
 
 
 ## Only the Builder's eye sees what it draws over the camp: its plates, the blueprint
