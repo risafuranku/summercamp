@@ -88,6 +88,42 @@ func set_pa_on(on: bool) -> void:
 	_pa_on = on
 
 
+## The PA's last news (pa_pull): {id, key, until}; a guest goes to it once (`pull_seen`).
+var _pull: Dictionary = {}
+var _pull_n := 0
+
+
+func pa_pull(key: String, now_abs: int) -> void:
+	_pull_n += 1
+	_pull = {"id": str(_pull_n), "key": key, "until": now_abs + PA.PULL_MINUTES}
+
+
+## The place the PA just named (24. 11., docs/pc.md "Hlášení do ampliónů"): a guest in a pole's
+## reach planning what to do next goes there now and then, once, while it is open to them.
+func _pulled_visit(guest: Dictionary, here: Vector2i, allowed: Array, t: int) -> Dictionary:
+	if _pull.is_empty() or t > int(_pull["until"]) or str(guest.get("pull_seen", "")) == str(_pull["id"]):
+		return {}
+	if _pa_tiles.is_empty() or not PA.near(_pa_tiles, here, _tile_m):
+		return {}
+	guest["pull_seen"] = str(_pull["id"])
+	if _rng.randf() >= PA.PULL_CHANCE:
+		return {}
+	for f in allowed:
+		if str(f.get("key", "")) != str(_pull["key"]):
+			continue
+		var services: Dictionary = f.get("services", {})
+		var need := "fun"
+		var best := -INF
+		for n in services:
+			if float(services[n]) > best:
+				best = float(services[n])
+				need = str(n)
+		var act := _make_activity("visit", here, _door_tile(f, here), t, int(f.get("use_minutes", 10)), need, f)
+		_claim_usage(act)
+		return act
+	return {}
+
+
 ## The places open but not what they should be now, by key ("x:y": true): a bonfire out in
 ## the evening with nothing split to light it (campfire.cold_evening). Their fun is DULL_FUN
 ## of what it would be.
@@ -457,6 +493,9 @@ func _plan_next(guest: Dictionary, t: int, night_now: bool) -> Dictionary:
 	var archetype := str(guest.get("archetype", "quiet_guy"))
 	var open := _open_facilities(t)
 	var allowed := _fed_filter(guest, open, t)
+	var pulled := _pulled_visit(guest, here, allowed, t)
+	if not pulled.is_empty():
+		return pulled
 	var goal: Dictionary = NEEDS.pick_goal(guest["needs"], archetype, allowed, here, _usage, _rng, float(t % 1440) / 60.0)
 	var thought := str(goal.get("thought", ""))
 	# Nowhere else for it but where they had theirs a while ago: they wait, no complaint.

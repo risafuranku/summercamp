@@ -717,8 +717,11 @@ func biz_set_late(key: String, on: bool) -> void:
 	var site: Dictionary = (_biz()["sites"] as Dictionary).get(key, {})
 	if site.is_empty():
 		return
+	var was := bool(site.get("late", false))
 	site["late"] = on
 	INSTANCE.bus(owner_node).state_changed.emit({"biz": "late"})
+	if on and not was:
+		INSTANCE.bus(owner_node).biz_news.emit(key, "late")
 	_biz_tell("late", [key, on])
 
 
@@ -769,6 +772,7 @@ func biz_add_menu(key: String, item: String) -> void:
 	# (Bought means on: a line bought and still ticked off would be money for nothing.)
 	(site.get("menu_off", []) as Array).erase(sw)
 	INSTANCE.bus(owner_node).state_changed.emit({"biz": "menu"})
+	INSTANCE.bus(owner_node).biz_news.emit(key, "menu:" + sw)
 
 
 ## The books' MENU page: `item` on or off the menu (business_rules.MENU; the place's own

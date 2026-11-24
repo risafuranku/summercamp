@@ -60,6 +60,30 @@ func _ready() -> void:
 	life.set_pa_on(false)
 	_expect(is_zero_approx(life._noise_for(picker, 23 * 60)), "with the set off, nothing")
 
+	# A place's news out of the horns (docs/pc.md 24. 11.): guests in reach go to it, once,
+	# about PULL_CHANCE of them; none out of reach, none after PULL_MINUTES.
+	life._rng.seed = 2411
+	var pub := {"key": "12:12", "coord": Vector2i(12, 12), "type": "pub", "services": {"thirst": 40.0, "fun": 30.0}, "use_minutes": 30}
+	life.pa_pull("12:12", 600)
+	var went := 0
+	for i in 200:
+		var g := {"id": 100 + i}
+		if not (life._pulled_visit(g, Vector2i(11, 10), [pub], 610) as Dictionary).is_empty():
+			went += 1
+	_expect(went > 40 and went < 100, "about a third of the guests in reach go to the place named (%d of 200)" % went)
+	var once := {"id": 999}
+	var first: Dictionary = {}
+	for i in 30:
+		life.pa_pull("12:12", 600)
+		once.erase("pull_seen")
+		first = life._pulled_visit(once, Vector2i(11, 10), [pub], 610)
+		if not first.is_empty():
+			break
+	_expect(not first.is_empty() and str(first.get("need", "")) == "thirst", "the visit is for what the place gives most (%s)" % first.get("need", ""))
+	_expect((life._pulled_visit(once, Vector2i(11, 10), [pub], 612) as Dictionary).is_empty(), "the same guest goes once a news")
+	_expect((life._pulled_visit({"id": 1000}, Vector2i(40, 40), [pub], 610) as Dictionary).is_empty(), "out of reach: nobody")
+	_expect((life._pulled_visit({"id": 1001}, Vector2i(11, 10), [pub], 600 + PA.PULL_MINUTES + 1) as Dictionary).is_empty(), "later than the news holds: nobody")
+
 	if _failures.is_empty():
 		print("PA CHECK: PASS")
 	else:

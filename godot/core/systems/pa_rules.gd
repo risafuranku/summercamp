@@ -21,6 +21,10 @@ const QUIET_FROM_H := 22.0
 const QUIET_TO_H := 6.0
 ## The building's id.
 const TYPE := "pa_pole"
+## A place's news out of the horns (docs/pc.md, 24. 11.: "jen znělka"): for this long after it
+## a guest in reach who plans what to do next goes to the place named, once, this often.
+const PULL_MINUTES := 90
+const PULL_CHANCE := 0.35
 
 
 ## The reach in tiles of `tile_size` metres.

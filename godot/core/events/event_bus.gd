@@ -50,6 +50,9 @@ signal building_serviced(coord: Vector2i, building_type: String, was_broken: boo
 # Beeternet / install system
 signal file_downloaded(filename: String)   # Beeternet -> desktop: file landed in Downloads
 signal program_installed(app_id: String)   # Wizard -> desktop: program installed, unlock icons
+# A place's news worth the PA (24. 11., docs/pc.md: a line bought for the menu, open till 23:00):
+# `what` "menu:<item>" or "late". Emitted on every machine (the co-op relays the change).
+signal biz_news(key: String, what: String)
 @warning_ignore_restore("unused_signal")
 
 # Allow global access to ease refactoring

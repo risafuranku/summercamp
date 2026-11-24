@@ -3,3 +3,6 @@ pda_buzz_short	0.6	assets/sfx/pda/buzz_short.mp3	A small plastic palmtop compute
 pda_tap	0.5	assets/sfx/pda/tap.mp3	A plastic stylus tapping once on the hard resistive touch screen of an old palmtop computer: a tiny dry click of plastic on plastic, very close. Nothing else.
 pda_beep	0.5	assets/sfx/pda/beep.mp3	One tiny high electronic beep from the piezo speaker of a 1990s pocket computer, short and thin, close, dry. Nothing else.
 pda_up	0.7	assets/sfx/pda/up.mp3	Pulling a small plastic palmtop computer out of a canvas jacket pocket and flipping its cover open: a soft fabric rustle and a light plastic snap, close. No beeps.
+pa_gong	2.5	assets/sfx/pa/gong.mp3	An old village public address system chime before an announcement: three slow descending electronic gong tones, ding dong dang, played through a horn loudspeaker on a pole, outdoors, a short echo off the woods. No voice, no music.
+pa_mumble	5.0	assets/sfx/pa/mumble.mp3	A man reading a short announcement through a distant crackling village loudspeaker on a pole across a field, the words completely unintelligible, muffled, distorted and echoing, with the hiss of an old amplifier. No music.
+pa_mumble_b	4.0	assets/sfx/pa/mumble_b.mp3	A woman reading a short notice through a faraway old public address horn in a holiday camp, the words not understandable, tinny and echoing, with crackle and hum. No music.

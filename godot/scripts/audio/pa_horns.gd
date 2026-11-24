@@ -12,6 +12,11 @@ extends Node
 ## The guests' side (fun near a pole, the light sleepers after ten) is guest_life's
 ## (core/systems/pa_rules.gd), told by GuestManager.set_camp_pa_on when the set goes on or
 ## off. The megaphone comes out of the horns too (coop/voice.gd: `nearest_horn`).
+##
+## A place's news (EventBus.biz_news: a line bought for its menu, open till 23:00; docs/pc.md
+## 24. 11. "jen znělka") goes out of the horns as the PA's gong and a voice nobody can make out,
+## the radio dipped under it; what it said is written in the PDA, and the guests in reach go
+## to the place (GuestManager.pa_pull). With no pole in the camp there is nothing to hear it.
 ## main makes it and ticks it.
 
 const INSTANCE := preload("res://scripts/instance/instance.gd")
@@ -44,6 +49,10 @@ const DRIFTS := [
 	"res://assets/sfx/radio/night_motif.mp3",
 ]
 const DRIFT_SEC := Vector2(7.0, 13.0)
+const GONG := "res://assets/sfx/pa/gong.mp3"
+const VOICES := ["res://assets/sfx/pa/mumble.mp3", "res://assets/sfx/pa/mumble_b.mp3"]
+const NEWS_DB := -3.0
+const BIZ_RULES := preload("res://core/systems/business_rules.gd")
 const DRIFT_DB := -8.0
 const STATIC_DB := -14.0
 
@@ -59,6 +68,12 @@ var _poles: Array = []
 var _night := -1
 var _plan: Array = []
 var _done: Dictionary = {}
+## News going out now: seconds of it left, when its voice comes in, the voice; news waiting.
+var _news_left := 0.0
+var _news_voice_at := 0.0
+var _news_voice := ""
+var _news_t := 0.0
+var _news_queue: Array = []
 ## A drift playing now: seconds left of it, its length, its path.
 var _drift_left := 0.0
 var _drift_len := 0.0
@@ -68,9 +83,12 @@ var _drift_at := 0.0
 
 func _ready() -> void:
 	_ensure_bus()
-	for p in [STATIC] + DRIFTS:
+	for p in [STATIC, GONG] + DRIFTS + VOICES:
 		if ResourceLoader.exists(p):
 			ResourceLoader.load_threaded_request(p)
+	var bus = INSTANCE.bus(self)
+	if bus != null and bus.has_signal("biz_news"):
+		bus.biz_news.connect(_on_news)
 
 
 ## The PA bus: an old horn speaker's narrow band, its crunch, the slap off the forest, into
@@ -159,7 +177,9 @@ func tick(delta: float) -> void:
 		if not _horns.is_empty():
 			_clear()
 		return
-	_tick_drift(delta, feed)
+	_tick_news(delta)
+	if _news_left <= 0.0:
+		_tick_drift(delta, feed)
 	var ear := _ear()
 	var near := _poles.duplicate()
 	near.sort_custom(func(a, b) -> bool: return (a as Node3D).global_position.distance_squared_to(ear) < (b as Node3D).global_position.distance_squared_to(ear))
@@ -169,12 +189,13 @@ func tick(delta: float) -> void:
 		if not is_instance_valid(h["pole"]) or not near.has(h["pole"]):
 			_free_horn(id)
 	var src: AudioStreamPlayer = feed.get("player", null)
-	var drifting := _drift_left > 0.0
+	var drifting := _drift_left > 0.0 or _news_left > 0.0
 	var radio_db := BASE_DB + float(feed.get("db", 0.0)) if bool(feed.get("on", false)) and not drifting else SILENT_DB
 	for p in near:
 		var h := _horn(p)
 		_mirror(h["radio"], src, radio_db, delta)
 		_drift_voice(h, delta)
+		_news_play(h)
 
 
 ## The camp's poles (this instance's world only: the split screen's two camps).
@@ -208,7 +229,8 @@ func _horn(pole: Node3D) -> Dictionary:
 	var id := pole.get_instance_id()
 	if _horns.has(id):
 		return _horns[id]
-	var h := {"pole": pole, "radio": _player(pole, "PaRadio"), "drift": _player(pole, "PaDrift"), "noise": _player(pole, "PaNoise")}
+	var h := {"pole": pole, "radio": _player(pole, "PaRadio"), "drift": _player(pole, "PaDrift"), "noise": _player(pole, "PaNoise"),
+		"news": _player(pole, "PaNews"), "news_n": -1}
 	_horns[id] = h
 	return h
 
@@ -245,7 +267,7 @@ func _mirror(p: AudioStreamPlayer3D, src: AudioStreamPlayer, db: float, delta: f
 
 func _free_horn(id) -> void:
 	var h: Dictionary = _horns[id]
-	for k in ["radio", "drift", "noise"]:
+	for k in ["radio", "drift", "noise", "news"]:
 		if is_instance_valid(h[k]):
 			(h[k] as Node).queue_free()
 	_horns.erase(id)
@@ -254,6 +276,93 @@ func _free_horn(id) -> void:
 func _clear() -> void:
 	for id in _horns.keys():
 		_free_horn(id)
+
+
+# ── a place's news ───────────────────────────────────────────────────────────
+
+var _news_n := 0
+
+
+## EventBus.biz_news: out of the horns, if the camp has any.
+func _on_news(key: String, what: String) -> void:
+	if main == null or main.get("_gameplay_started") != true:
+		return
+	if _poles.is_empty():
+		_poles = _camp_poles()
+	if _poles.is_empty() or not _grid_on():
+		return
+	_news_queue.append([key, what])
+
+
+func _tick_news(delta: float) -> void:
+	if _news_left > 0.0:
+		_news_left = maxf(0.0, _news_left - delta)
+		_news_t += delta
+		return
+	if _news_queue.is_empty():
+		return
+	var item: Array = _news_queue.pop_front()
+	var gong := _stream(GONG)
+	if gong == null:
+		return
+	_news_n += 1
+	_news_t = 0.0
+	_news_voice = str(VOICES[_news_n % VOICES.size()])
+	var voice := _stream(_news_voice)
+	_news_voice_at = gong.get_length() * 0.8
+	_news_left = _news_voice_at + (voice.get_length() if voice != null else 0.0) + 0.6
+	# What it said, in the PDA; the guests in reach go to the place.
+	var text := _news_text(str(item[0]), str(item[1]))
+	var pda = main.get("_pda")
+	if text != "" and pda != null and is_instance_valid(pda):
+		pda.notify(text, 0, "")
+	var gm = INSTANCE.guests(self)
+	if gm != null and gm.has_method("pa_pull"):
+		gm.pa_pull(str(item[0]))
+
+
+## Each horn: the gong at the start, the voice under it as it fades (`news_n` the item it plays).
+func _news_play(h: Dictionary) -> void:
+	var p: AudioStreamPlayer3D = h["news"]
+	if _news_left <= 0.0:
+		if p.playing and not _stream_is(p, GONG) and _news_t > _news_voice_at + 30.0:
+			p.stop()
+		return
+	if int(h["news_n"]) != _news_n:
+		h["news_n"] = _news_n
+		var g := _stream(GONG)
+		if g != null:
+			p.stream = g
+			p.volume_db = NEWS_DB
+			p.play()
+		h["news_voice"] = false
+	elif not bool(h.get("news_voice", false)) and _news_t >= _news_voice_at:
+		h["news_voice"] = true
+		var v := _stream(_news_voice)
+		if v != null:
+			p.stream = v
+			p.volume_db = NEWS_DB
+			p.play()
+
+
+func _stream_is(p: AudioStreamPlayer3D, path: String) -> bool:
+	return p.stream != null and p.stream.resource_path == path
+
+
+## "PA: the bistro, new on the menu: goulash" (the place's name and the line's, in the game's
+## language), "" for news it has no words for.
+func _news_text(key: String, what: String) -> String:
+	var site: Dictionary = (INSTANCE.core(self).get_state().biz.get("sites", {}) as Dictionary).get(key, {}) if INSTANCE.core(self) != null else {}
+	var kind := str(site.get("kind", ""))
+	var place := tr(str((BIZ_RULES.info(kind) as Dictionary).get("name", kind)))
+	if what == "late":
+		return tr("PA: %s open till 23:00 tonight") % place
+	if what.begins_with("menu:"):
+		var row: Array = BIZ_RULES.menu_row(kind, what.substr(5))
+		if row.is_empty():
+			return ""
+		return tr("PA: %s, new on the menu: %s") % [place, tr(str(row[1]))]
+	return ""
 
 
 # ── the night's drifts ───────────────────────────────────────────────────────
@@ -319,15 +428,25 @@ func _grid_on() -> bool:
 	return bi == null or bool(bi.get("_grid_power_available"))
 
 
+## The sounds loaded on a thread at the start, kept once fetched (a threaded load is handed
+## over once: a second ask finds nothing, and nothing else holds the gong to keep it cached).
+var _loaded: Dictionary = {}
+
+
 func _stream(path: String) -> AudioStream:
+	if _loaded.has(path):
+		return _loaded[path]
 	if not ResourceLoader.exists(path):
 		return null
+	var s: AudioStream = null
 	var st := ResourceLoader.load_threaded_get_status(path)
 	if st == ResourceLoader.THREAD_LOAD_LOADED:
-		return ResourceLoader.load_threaded_get(path) as AudioStream
-	if st == ResourceLoader.THREAD_LOAD_INVALID_RESOURCE and ResourceLoader.has_cached(path):
-		return load(path) as AudioStream
-	return null
+		s = ResourceLoader.load_threaded_get(path) as AudioStream
+	elif st == ResourceLoader.THREAD_LOAD_INVALID_RESOURCE and ResourceLoader.has_cached(path):
+		s = load(path) as AudioStream
+	if s != null:
+		_loaded[path] = s
+	return s
 
 
 ## A drift on a horn: the voice from its place in the song, the static under it, both in

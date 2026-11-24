@@ -1517,6 +1517,12 @@ const SCENARIOS := {
 		["eval", "_pa_horns._horns.values()[0]['radio'].volume_db if _pa_horns._horns.size() > 0 else 'no horn'"],
 		["shot", "pa0_day"],
 		["player", 12, 17, 0.0], ["wait", 1.0], ["shot", "pa1_day_far"], ["player", 12, 13, 0.0],
+		# A place's news: a pub by it opens late; the gong, the voice, the PDA's line.
+		["build", "pub", 14, 12, 0], ["wait", 1.5], ["eval", "get_node('/root/CoreRoot').actions.biz_site('14:12', 'pub')"],
+		["eval", "get_node('/root/CoreRoot').actions.biz_set_late('14:12', true)"], ["wait", 1.0],
+		["eval", "_pa_horns._news_left"], ["eval", "_pa_horns._horns.values()[0]['news'].playing"],
+		["eval", "_pda._os.app_node('inbox').messages[0]['text'] if _pda._os.app_node('inbox').messages.size() > 0 else 'no message'"],
+		["wait", 4.0], ["eval", "_pa_horns._horns.values()[0]['news'].stream.resource_path"],
 		["hours", 14.0], ["wait", 3.0], ["shot", "pa2_night"],
 		# A drift now (the night's draw says when): the static, then the voice.
 		["eval", "_pa_horns.set('_plan', [[_pa_horns._night_clock()[1], 'res://assets/sfx/radio/night_hajejdadej.mp3', 0.3, 9.0]])"],

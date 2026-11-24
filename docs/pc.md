@@ -73,3 +73,35 @@ The camp computer, its programs and Builder 98.
 Richard, 24. 11. 2026: „Přijde mi že samotnej management u počítače je prostě suchej, odcházení od
 kompu na dělání věcí nemá ještě uplně šťávu“. Na otázku *Kam nejvíc šlápnout?* (PC zadává práci venku
 / živější obrazovky PC / obojí): „Obojí stejně“.
+
+Kolo 2 (24. 11. večer, otázka → odpověď doslova; vybíral víc možností):
+- *Co má práce u počítače v recepci viditelně spustit venku v kempu? (Teď objednávka, stavba i nábor
+  proběhnou hned a beze stopy.)* „Výsledek vidět venku“ (objednávka přijede dodávkou a vykládá se před
+  podnikem, stavba z Builderu se pár hodin staví s dělníky a lešením, nový zaměstnanec přijede
+  autobusem a dojde do práce), „Úkoly z tiskárny“ (jehličková tiskárna v recepci vytiskne lístek
+  s prací: oprava, úklid, rozvoz; lístek se objeví v Úkolech v PDA a za splnění venku je odměna),
+  „Hlášení do ampliónů“ (co změníš na PC: nové jídlo, otevřeno do 23:00, akce, se samo ohlásí
+  z ampliónů a hosté se podle toho seběhnou).
+- *Co nejvíc oživí samotné sezení u počítače v recepci?* „Kemp naživo v programech“ (CampStat
+  a Boss 98 ukazují hosty jako tečky na plánku, fronty u podniků a tržby, jak přibývají; v okně běží
+  webkamera kempu), „Stroj jako stroj“ (je slyšet disk, ventilátor, tiskárna a modem; občas se něco
+  sekne a musíš počítač restartovat).
+
+Kolo 3 (24. 11. večer):
+- *Stavby z Builderu: jak dlouho má stavba trvat, než jde používat? (Teď stojí hned, jak klikneš.)*
+  „Pár hodin podle velikosti“: stan a lavička hned, chatka a podniky 2 až 4 herní hodiny; mezitím
+  lešení, dělníci a bouchání, hosté dovnitř nemůžou.
+- *Tiskárna v recepci: co má tisknout a co je za splnění lístku venku?* „Jen připomínky“: tiskne, co
+  v kempu čeká, bez odměny; lístek je jen v PDA a na papíře.
+- *Hlášení do ampliónů: jak má hlášení znít, když na PC přidáš jídlo, otevřeš do 23:00 nebo vyhlásíš
+  akci?* „Jen znělka“: gong a nesrozumitelné brumlání, co se hlásí, je napsané v PDA.
+- *Stroj jako stroj: jak často se má PC v recepci seknout a co restart stojí?* „Jen zvuky, nesekat“:
+  disk, ventilátor, tiskárna a modem jsou slyšet, ale PC nikdy nezamrzne.
+
+Hotovo 24. 11. (hlášení do ampliónů): koupený řádek menu a otevření do 23:00 (z knihy i z Boss 98,
+jedno místo: `actions.biz_add_menu`, `biz_set_late` vysílají `EventBus.biz_news`, v co-opu na obou
+strojích) jdou z ampliónů jako gong a nesrozumitelný hlas (`assets/sfx/pa/`, ElevenLabs,
+`tools/audiogen/prompts_pda.tsv`), rádio se pod tím ztlumí, do PDA přijde „Rozhlas: …“ a hosté
+v dosahu sloupu, kteří zrovna plánují, co dál, jdou s pravděpodobností 35 % do toho podniku (jednou
+na hlášení, 90 minut; `pa_rules.PULL_*`, `guest_life._pulled_visit`). Bez sloupu v kempu se nehlásí
+nic. Test `pa_check`, ve hře `--scenario=pa_pole` (hospoda otevře do 23:00).

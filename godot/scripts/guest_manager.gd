@@ -348,6 +348,12 @@ func set_camp_pa_on(on: bool) -> void:
 	_life.set_pa_on(on)
 
 
+## A place's news just went out of the PA's horns (pa_horns.gd): guests in reach go to it.
+func pa_pull(key: String) -> void:
+	var now := _absolute_minutes(maxi(1, _last_known_day), _last_known_hour, _last_known_minute)
+	_life.pa_pull(key, now)
+
+
 ## Rain closes outdoor attractions (BuildingDef.requires "dry").
 func set_camp_weather(weather_state: int) -> void:
 	_life.set_weather(weather_state)

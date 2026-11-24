@@ -34302,3 +34302,11 @@ msgstr "Plánek"
 #: scripts/pda/apps/clock_app.gd (24. 11.)
 msgid "Clear skies"
 msgstr "Jasno"
+
+#: scripts/audio/pa_horns.gd (24. 11.)
+msgid "PA: %s open till 23:00 tonight"
+msgstr "Rozhlas: %s dnes otevřeno do 23:00"
+
+#: scripts/audio/pa_horns.gd (24. 11.)
+msgid "PA: %s, new on the menu: %s"
+msgstr "Rozhlas: %s, nově v nabídce %s"

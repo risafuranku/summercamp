@@ -38,8 +38,19 @@ the pad and the split screen must keep working (do not break them), but get no n
       stylus by the mouse, you walk slower; a grey-green LCD with its own "Okna CE"; apps: the
       camp's plan, notifications (it buzzes in your pocket, a small icon blinks; the pager
       goes), tasks, clock and weather, a little game. Grok samples first (the device, the icons).
-- [ ] Juice at the PC and away from it, both (docs/pc.md, Rozhodnutí 24. 11.): the PC's
-      programs livelier; what you do at the PC has work and a result out in the camp.
+- [ ] Juice at the PC and away from it, both (docs/pc.md, Rozhodnutí 24. 11., three rounds), in
+      steps:
+  - [x] The PA's jingle: what you change at the PC (a dish bought, open till 23:00, an offer)
+        goes out of the horns as a gong and a mumble, written in the PDA; guests in reach come
+        (24. 11., docs/pc.md "Hotovo").
+  - [ ] The machine as a machine: the disk, the fan, the printer, the modem heard; it never hangs.
+  - [ ] The printer in the reception: a dot-matrix slip for what waits in the camp (reminders,
+        no reward), the same as the PDA's Tasks.
+  - [ ] The camp live in the programs: guests as dots on a plan, queues, takings as they come
+        (CampStat, Boss 98), the camp's webcam in a window.
+  - [ ] Building takes hours by size (tents and benches at once, cabins and businesses 2-4 h):
+        scaffolding, workers, banging, no guests till done.
+  - [ ] What you order comes by van and is carried to the place; a new hand comes by bus.
 - [ ] Camera movement, animations, optimisation: an alpha pass before the co-op playtest.
 
 ### Sandbox: the loop and the balance
