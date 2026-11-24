@@ -32,7 +32,7 @@ Každé repo má stejnou kostru, aby se v něm kterýkoli agent vyznal za minutu
 - `docs/<oblast>.md`: podrobnosti, jeden soubor na oblast (soubory, kontrakty, pasti, testy té oblasti). Nově zjištěná past nebo pravidlo jde do souboru své oblasti ve stejném commitu, nikdy na konec AGENTS.md.
 - `docs/historie/`: archiv (hotové úkoly, staré audity, staré zadání). Při běžné práci se nečte.
 - Deník a předávka: `C:\grimroot\context\<projekt>.md`. Nahoře oddíl **Stav** (5–10 řádků, kde projekt je a co je další, přepisuje se), pod ním záznamy sezení, novější dolů.
-- V kořeni repa nezakládej další .md (NOTES, AUDIT, HANDOFF2…) ani zadání mimo repo. Dočasné skripty a výstupy patří do scratchpadu; co musí být v repu (dočasná Godot scéna), se jmenuje `_tmp_*` a smaže se v téže práci.
+- Zadání pro agenty: `docs/zadani/<datum>-<tema>.md`, hotová jdou do `docs/historie/`. V kořeni repa nezakládej další .md (NOTES, AUDIT, HANDOFF2…). Dočasné skripty a výstupy patří do scratchpadu; co musí být v repu (dočasná Godot scéna), se jmenuje `_tmp_*` a smaže se v téže práci.
 
 ### Postup práce
 
@@ -42,6 +42,7 @@ Každé repo má stejnou kostru, aby se v něm kterýkoli agent vyznal za minutu
 - **Ověření:** spouštěč kontrol repa (příkaz je v AGENTS.md) a test nebo snímek přesně ve stavu, o kterém byla řeč. Co ověřit nejde (poslech, telefon, dva lidé), napiš jako neověřené.
 - **Konec:** odškrtni v TODO, přepiš Stav v deníku a přidej záznam, Richardovi napiš, co je hotové, jak ověřené, co ne a další kroky.
 - Dokumentace, která lže nebo bobtná, se opravuje hned, jako součást práce.
+- **O krok napřed:** co cestou uvidíš rozbitého nebo slabého mimo zadání, zapiš jednou řádkou do TODO (Teď, když to brání fokusu, jinak Nápady) a zmiň v hlášení. Ruční postup, který opakuješ podruhé, převeď na skript nebo kontrolu ve spouštěči.
 
 ### Kontext a komunikace
 
