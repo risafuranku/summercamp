@@ -1501,7 +1501,7 @@ const SCENARIOS := {
 		["eval", "_pda._os.open_app('snake')"], ["eval", "_pda._os.app_node('snake').press('play')"], ["wait", 1.6], ["shot", "pda6_snake"],
 		["eval", "_pda._os.go_home()"], ["hours", 13.0], ["wait", 2.5], ["shot", "pda7_night"],
 		["eval", "_pda.set('force_open', false)"], ["wait", 0.6], ["shot", "pda8_down"],
-		# As TAB has it: the bag open on the left, the PDA right of it.
+		# As TAB has it: the bag open on the right, the PDA in the left hand left of the middle.
 		["eval", "get_tree().get_first_node_in_group('inventory')._open_bag()"], ["wait", 1.0], ["shot", "pda9_bag"],
 		["eval", "get_tree().get_first_node_in_group('inventory').close()"], ["wait", 0.6],
 	],
