@@ -34194,3 +34194,111 @@ msgstr "Dechovka ve dvě ráno. Z ampliónu."
 #: scripts/guest_life.gd _morning_thought (24. 11.)
 msgid "Who leaves the camp radio on all night?"
 msgstr "Kdo tu nechává rozhlas hrát celou noc?"
+
+#: scripts/pda (24. 11.)
+msgid "Messages"
+msgstr "Zprávy"
+
+#: scripts/pda (24. 11.)
+msgid "Tasks"
+msgstr "Úkoly"
+
+#: scripts/pda (24. 11.)
+msgid "Snake"
+msgstr "Had"
+
+#: scripts/pda (24. 11.)
+msgid "No messages."
+msgstr "Žádné zprávy."
+
+#: scripts/pda (24. 11.)
+msgid "Tap a place."
+msgstr "Ťukni na místo."
+
+#: scripts/pda (24. 11.)
+msgid "At the gate: %d"
+msgstr "U brány: %d"
+
+#: scripts/pda (24. 11.)
+msgid "On the way: %d"
+msgstr "Na cestě: %d"
+
+#: scripts/pda (24. 11.)
+msgid "Broken down"
+msgstr "Porucha"
+
+#: scripts/pda (24. 11.)
+msgid "Guests in"
+msgstr "Obsazeno"
+
+#: scripts/pda (24. 11.)
+msgid "To clean"
+msgstr "Uklidit"
+
+#: scripts/pda (24. 11.)
+msgid "Not made up"
+msgstr "Nepřipraveno"
+
+#: scripts/pda (24. 11.)
+msgid "Nothing waits for you."
+msgstr "Nic nečeká."
+
+#: scripts/pda (24. 11.)
+msgid "Now:"
+msgstr "Teď:"
+
+#: scripts/pda (24. 11.)
+msgid "Then:"
+msgstr "Potom:"
+
+#: scripts/pda (24. 11.)
+msgid "For about %s"
+msgstr "Ještě asi %s"
+
+#: scripts/pda (24. 11.)
+msgid "Builder 98:"
+msgstr "Builder 98:"
+
+#: scripts/pda (24. 11.)
+msgid "Shuts in %s"
+msgstr "Zavře za %s"
+
+#: scripts/pda (24. 11.)
+msgid "Opens in %s"
+msgstr "Otevře za %s"
+
+#: scripts/pda (24. 11.)
+msgid "Score %d"
+msgstr "Body %d"
+
+#: scripts/pda (24. 11.)
+msgid "Best %d"
+msgstr "Rekord %d"
+
+#: scripts/pda (24. 11.)
+msgid "Game over"
+msgstr "Konec hry"
+
+#: scripts/pda (24. 11.)
+msgid "Pump"
+msgstr "Čerpadlo"
+
+#: scripts/pda (24. 11.)
+msgid "Bins"
+msgstr "Popelnice"
+
+#: scripts/pda (24. 11.)
+msgid "Vera's checklist"
+msgstr "Věřin seznam"
+
+#: scripts/pda/apps/map_app.gd (24. 11.)
+msgid "Ready to let"
+msgstr "Připraveno"
+
+#: scripts/pda/pda_os.gd (24. 11.)
+msgid "Site plan"
+msgstr "Plánek"
+
+#: scripts/pda/apps/clock_app.gd (24. 11.)
+msgid "Clear skies"
+msgstr "Jasno"

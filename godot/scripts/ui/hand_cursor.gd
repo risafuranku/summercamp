@@ -19,12 +19,13 @@ extends Node
 ## for (one shape for the whole program till 22. 11., and no pointer to be seen there).
 
 const INSTANCE = preload("res://scripts/instance/instance.gd")
-enum { ARROW, LOOK, POINT, WALK, GRAB, RUB }
+## STYLUS: the PDA's (24. 11.), over its screen while it is up; it wins over the rest.
+enum { ARROW, LOOK, POINT, WALK, GRAB, RUB, STYLUS }
 
 const DIR := "res://assets/textury/ui/"
-const FILES := {ARROW: "cursor_arrow.png", LOOK: "cursor_look.png", POINT: "cursor_point.png", WALK: "cursor_walk.png", GRAB: "cursor_grab.png", RUB: "cursor_rub.png"}
+const FILES := {ARROW: "cursor_arrow.png", LOOK: "cursor_look.png", POINT: "cursor_point.png", WALK: "cursor_walk.png", GRAB: "cursor_grab.png", RUB: "cursor_rub.png", STYLUS: "cursor_stylus.png"}
 ## Where the click lands, as a share of the picture (the fingertip, the arrow's tip).
-const HOT := {ARROW: Vector2(0.06, 0.04), LOOK: Vector2(0.5, 0.5), POINT: Vector2(0.12, 0.03), WALK: Vector2(0.5, 0.3), GRAB: Vector2(0.5, 0.45), RUB: Vector2(0.5, 0.5)}
+const HOT := {ARROW: Vector2(0.06, 0.04), LOOK: Vector2(0.5, 0.5), POINT: Vector2(0.12, 0.03), WALK: Vector2(0.5, 0.3), GRAB: Vector2(0.5, 0.45), RUB: Vector2(0.5, 0.5), STYLUS: Vector2(0.03, 0.0)}
 
 ## The shape asked for this frame, by game (its instance's root; 0 a lone game's).
 static var _wanted_by := {}

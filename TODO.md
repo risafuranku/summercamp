@@ -33,7 +33,7 @@ the pad and the split screen must keep working (do not break them), but get no n
       ~35 m): what the reception radio plays goes out through them as an old PA; guests near
       them slowly more fun (at most a fire's); after 22:00 it disturbs sleepers; at night only
       eerie sounds through them, no effect. The megaphone louder at the poles. Grok sample first.
-- [ ] The PDA (docs/player.md, Rozhodnutí 24. 11.): hold TAB, the PDA in the left hand, the
+- [x] The PDA (docs/player.md, Rozhodnutí 24. 11.; done 24. 11., "Hotovo" there): hold TAB, the PDA in the left hand, the
       stylus by the mouse, you walk slower; a grey-green LCD with its own "Okna CE"; apps: the
       camp's plan, notifications (it buzzes in your pocket, a small icon blinks; the pager
       goes), tasks, clock and weather, a little game. Grok samples first (the device, the icons).

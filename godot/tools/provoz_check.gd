@@ -242,11 +242,11 @@ func _pictures(tag: String) -> void:
 	await get_tree().create_timer(0.6).timeout
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png(_out_dir.path_join("hud_%s.png" % tag))
-	_main.get("_paper_map").set("force_open", true)
+	_main.get("_pda").set("force_open", true)
 	await get_tree().create_timer(1.0).timeout
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png(_out_dir.path_join("map_%s.png" % tag))
-	_main.get("_paper_map").set("force_open", false)
+	_main.get("_pda").set("force_open", false)
 	Engine.time_scale = was
 
 

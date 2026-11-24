@@ -81,7 +81,7 @@ What the warden is and how the player drives them.
   (`_moved_outside`, checked at the top of `_physics_process`) is drawn where it is (14. 11.:
   every walk out of a door shook, the head a part of a frame behind after each step).
 
-- **The site plan on TAB draws the Builder's pictures** (`assets/textury/builder/iso3d/<type>_0.png`, anchors in views.json, scaled once by `_picture` with the camp's own proportions, warmed one a frame before the first TAB). A new building needs a picture there or in `FILE_OF`, and a name in `NAMES` unless its picture says it.
+- **TAB is the PDA since 24. 11.** (the paper site plan `paper_map.gd` and the belt pager `ui/pager.gd` are gone): a new building needs a name in `scripts/pda/apps/map_app.gd` `NAMES` (small ones in `DOTS`).
 
 - **`player.torch_fade`:** going in by a door the torch goes down over the walk; a lit room burnt white at arm's length.
 
@@ -112,3 +112,20 @@ Kolo 3:
 - *Jaké aplikace kromě plánku kempu a upozornění?* „Úkoly, Hodiny a počasí, Hra na PDA“: úkoly
   z dnešní TAB obrazovky (Verin seznam v příběhu, co čeká v kempu); čas, předpověď a odpočet do
   zamčení PC ve 20:00; jedna malá hra na krácení času, třeba had.
+
+Hotovo 24. 11.: PDA (`scripts/pda/`). Drží se s batohem (TAB držet = nahoře, ťuknout = zůstane,
+`inventory._set_forced` nastaví `pda.force_open`), v levé ruce vpravo od batohu, aspoň 3× (na 720p
+v okně by HUD jel 2× a displej by byl moc úzký), displej celý vidět, tlačítka pod ním můžou
+vyjet pod spodní okraj. Ruka je Grokova (`tools/artgen/pda_art.py`: `hands/pda.png`, z ní stylus
+jako kurzor `ui/cursor_stylus.png` = `HandCursor.STYLUS`, ikony aplikací `pda/icons.png`, logo
+`pda/logo.png`). Displej má vlastní pixely (2 obrazovkové na jeden; 104 x 240 při 3×, víc při
+větším okně), kreslí ho `pda_os.gd` („Okna CE“: titulek s časem, domov s ikonami, lišta s oknem
+domů a obálkou nepřečtených) a aplikace `apps/`: Plánek (`map_app`, data `scripts/ui/camp_plan.gd`,
+co potřebuje tebe bliká, ťuknutí napíše, co to je a jak na tom je), Zprávy (`inbox_app`, sem jde
+`hud_manager.push_pager`; stejná skupina nahradí nepřečtenou), Úkoly (`tasks_app`: Věřin seznam,
+dnešní/noční práce, co čeká v kempu a kde, hosté u brány a na cestě), Hodiny (`clock_app`: čas,
+den, počasí teď a jak dlouho, co přijde, když už je vidět, odpočet do zavření Builderu ve 20:00) a
+Had (`snake_app`, stylus nebo šipky). Zpráva s PDA v kapse: zavrní (`hud_manager.page` a zpráva
+dohromady jednou) a vlevo dole bliká jantarový zvonek 14 s. S PDA nahoře chodíš na 60 %
+(`player_controller.pda_speed_mult`). V noci 20-6 h podsvícení zezelená. Zvuky ElevenLabs
+(`tools/audiogen/prompts_pda.tsv`). Snímky `shot_driver --scenario=pda`.

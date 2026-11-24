@@ -31,9 +31,8 @@ const LANG = preload("res://scripts/lang.gd")
 
 const HUD_LAYER_INDEX := 65
 const HINT_LAYER_INDEX := 70
-## The right column (checklist, arrivals, night jobs): above the interiors (80-85),
-## so it is there at the PC and in the rooms too.
-## Over the site plan (paper_map.gd, 95): TAB shows both.
+## The right column (checklist, arrivals, night jobs): above the interiors (80-85). Since
+## 24. 11. its lines are the PDA's Tasks (scripts/pda/): only tools show it (`force_side`).
 const SIDE_LAYER_INDEX := 97
 
 # Message kinds (push_status).
@@ -49,7 +48,7 @@ const CELL_HEIGHT_VP := 34
 ## halves: 640 px wide at 720p, NIGHT RISK and MAIL were off the edge) has them in two:
 ## the warden's own first, then the camp's.
 const BAR_SPLIT := [["health", "stamina", "cash", "clock"], ["guests", "mail", "risk"]]
-## (The pager's lines are its own since 12. 11., scripts/ui/pager.gd: the feed is what is
+## (The pager's lines are its own since 12. 11., the PDA's since 24. 11.: the feed is what is
 ## said and done round you.)
 const FEED_MAX_LINES := 3
 const FEED_WIDTH_VP := 200
@@ -138,11 +137,6 @@ var _feed_box: VBoxContainer
 ## pager's lines still come up along the top (playtest 17. 10.: "at the PC I can't see
 ## the messages and I miss them"). Hidden with the rest for the week report, game over.
 var _feed_layer: CanvasLayer
-## The belt pager (scripts/ui/pager.gd) on a layer of its own over the feed's, made once (a
-## new layout keeps what it has to say), in the bottom left corner (`_place_pager`).
-const PAGER = preload("res://scripts/ui/pager.gd")
-var _pager_layer: CanvasLayer
-var _pager_view: Control
 var _objective_panel: Control
 var _arrivals_panel: Control
 ## The plates at the right edge: parties on the way or at the desk (scripts/ui/arrival_strip.gd).
@@ -196,8 +190,6 @@ var _risk_level_index: int = 0
 var _risk_level_known: bool = false
 var _risk_payload: Dictionary = {}
 var _unread: int = 0
-var _pager: AudioStreamPlayer
-const PAGER_SFX := "res://assets/sfx/ui/pager.mp3"
 var _objective: Dictionary = {}
 var _hint_text: String = ""
 var _feed: Array[Dictionary] = []
@@ -271,8 +263,8 @@ func on_money_changed(new_amount: int) -> void:
 	_apply_money(new_amount)
 
 
-## `side`: the checklist column may show (in interiors too). It is up only while TAB is
-## held (playtest 2026-10-16): outdoors next to the site plan (paper_map.gd), indoors alone.
+## `side`: the checklist column may show (in interiors too). Since 24. 11. it is the PDA's
+## Tasks on TAB (scripts/pda/); the column only for tools (`force_side`).
 func set_world_hud_visible(visible: bool, side := visible) -> void:
 	_world_visible = visible
 	if _feed_layer != null:
@@ -284,10 +276,8 @@ func set_world_hud_visible(visible: bool, side := visible) -> void:
 			var w := _feed_box.size.x
 			var screen_w := get_viewport().get_visible_rect().size.x
 			_feed_box.position.x = (screen_w - w - _vp(4)) if room else _vp(4)
-	if _pager_layer != null:
-		_pager_layer.visible = visible or side
 	if _side_layer != null:
-		_side_layer.visible = side and (INSTANCE.input(self).is_physical_key_pressed(KEY_TAB) or force_side)
+		_side_layer.visible = side and force_side
 	if _layer != null:
 		_layer.visible = visible
 	if _hint_layer != null:
@@ -400,9 +390,9 @@ func push_status(text: String, kind: int = STATUS_INFO, group: String = "") -> v
 
 
 ## What happens away from you (a day's trouble starting, a breakdown, the post, the mains, the
-## hands' news): on the belt pager, one message at a time (scripts/ui/pager.gd), in
-## CampStat's log too. The lines keep their "Pager: " (their Czech has it); the screen does
-## not show it.
+## hands' news): to the PDA's messages (since 24. 11., instead of the belt pager: it buzzes in
+## your pocket, scripts/pda/pda.gd), in CampStat's log too. The lines keep their "Pager: "
+## (their Czech has it); the screen does not show it.
 func push_pager(text: String, kind: int = STATUS_INFO, group: String = "") -> void:
 	if text.strip_edges().is_empty():
 		return
@@ -420,32 +410,16 @@ func push_pager(text: String, kind: int = STATUS_INFO, group: String = "") -> vo
 			break
 	# (Its own sentence on the screen: "new mail at the office" behind "Pager: ".)
 	shown = shown.substr(0, 1).to_upper() + shown.substr(1)
-	_ensure_pager()
-	_pager_view.show_line(shown, kind, group)
+	var pda = _pda()
+	if pda != null:
+		pda.notify(shown, kind, group)
 
 
-func _ensure_pager() -> void:
-	if _pager_layer == null:
-		_pager_layer = CanvasLayer.new()
-		_pager_layer.name = "PagerLayer"
-		_pager_layer.layer = HUD_LAYER_INDEX + 2
-		add_child(_pager_layer)
-		_pager_view = PAGER.new()
-		_pager_view.name = "Pager"
-		_pager_layer.add_child(_pager_view)
-	_pager_view.ui_scale = _scale
-
-
-## The pager in the bottom left corner, off the status bar's top edge (the screen's bottom
-## edge in a room, with no bar): it comes up out of it.
-func _place_pager() -> void:
-	if _pager_view == null:
-		return
-	var bottom := get_viewport().get_visible_rect().size.y
-	if _layer != null and _layer.visible:
-		bottom -= get_bar_height_px()
-	_pager_view.gap_px = _vp(3)
-	_pager_view.position = Vector2(_vp(4), bottom - _pager_view.size.y)
+## The warden's PDA (main's).
+func _pda() -> Node:
+	var m := INSTANCE.main_of(self)
+	var p = m.get("_pda") if m != null else null
+	return p if p != null and is_instance_valid(p) else null
 
 
 ## A guest line in the Duke3D quote feed.
@@ -607,7 +581,6 @@ func _process(delta: float) -> void:
 		_poll_guests = 1.5
 		_poll_guest_state()
 	_update_feed(delta)
-	_place_pager()
 	_update_money_flash(delta)
 	_update_card(delta)
 	_update_banner(delta)
@@ -905,7 +878,6 @@ func _build_feed() -> void:
 		_feed_layer.layer = HUD_LAYER_INDEX + 1
 		add_child(_feed_layer)
 	_feed_layer.add_child(_feed_box)
-	_ensure_pager()
 
 
 ## The feed may not run under the tracker: it gets whatever is left of the top row.
@@ -1880,15 +1852,11 @@ func _page_new_mail() -> void:
 	push_pager("Pager: new mail at the office", STATUS_INFO, "mail")
 
 
-## Two beeps from the belt pager (mail, night jobs).
+## The PDA buzzing in your pocket (mail, night jobs): once for a message and its page.
 func page() -> void:
-	if _pager == null:
-		_pager = AudioStreamPlayer.new()
-		_pager.stream = load(PAGER_SFX) as AudioStream
-		_pager.volume_db = -2.0
-		add_child(_pager)
-	if _pager.stream != null:
-		_pager.play()
+	var pda = _pda()
+	if pda != null:
+		pda.buzz()
 
 
 func _get_unread_count() -> int:

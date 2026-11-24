@@ -241,8 +241,10 @@ var _goggle_fresh := true
 var _day_graph = preload("res://scripts/builder/day_graph.gd").new()
 var _pending_graph: Dictionary = {}
 var _night_jobs: Node
-var _paper_map: Node
-const PAPER_MAP_SCRIPT = preload("res://scripts/paper_map.gd")
+## The warden's palmtop (scripts/pda/pda.gd, 24. 11.: instead of the TAB site plan and the
+## belt pager).
+var _pda: Node
+const PDA_SCRIPT = preload("res://scripts/pda/pda.gd")
 var _breaker_panel: CanvasLayer
 var _pending_night_jobs: Dictionary = {}
 var _day_events: Node
@@ -535,16 +537,16 @@ func _setup_quest_manager() -> void:
 
 
 ## Night work: the director and the distribution board (scripts/night_jobs.gd).
-func _setup_paper_map() -> void:
-	if _paper_map == null or not is_instance_valid(_paper_map):
-		_paper_map = PAPER_MAP_SCRIPT.new()
-		_paper_map.name = "PaperMap"
-		_screen.add_child(_paper_map)
-		_paper_map.setup(self)
+func _setup_pda() -> void:
+	if _pda == null or not is_instance_valid(_pda):
+		_pda = PDA_SCRIPT.new()
+		_pda.name = "Pda"
+		_screen.add_child(_pda)
+		_pda.setup(self)
 
 
 func _setup_night_jobs() -> void:
-	_setup_paper_map()
+	_setup_pda()
 	if _night_jobs == null or not is_instance_valid(_night_jobs):
 		_night_jobs = NIGHT_JOBS_SCRIPT.new()
 		_night_jobs.name = "NightJobs"

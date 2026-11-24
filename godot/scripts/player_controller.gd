@@ -326,6 +326,8 @@ var _look_locks := {}
 var gesture_motion := Vector2.ZERO
 ## Something heavy in your arms (scripts/ambient/carry.gd): you go at this.
 var carry_speed_mult := 1.0
+## The PDA held up (scripts/pda/pda.gd): you walk slower.
+var pda_speed_mult := 1.0
 ## Your boots (0..1): mud caked on from the mud (it wears off on the grass, step by step),
 ## wet through from a puddle, the lake's edge or the snow (dries in a minute or two). The
 ## feet you see looking down show it (ui/body_view.gd), and so do the prints you leave.
@@ -520,7 +522,7 @@ func _physics_process(delta: float) -> void:
 		base_speed = crouch_speed
 	elif stance == 2:
 		base_speed = crawl_speed
-	var current_speed: float = base_speed * terrain_speed_mult * held_speed_mult * _surface_speed * winded * carry_speed_mult
+	var current_speed: float = base_speed * terrain_speed_mult * held_speed_mult * _surface_speed * winded * carry_speed_mult * pda_speed_mult
 	var target: Vector2 = Vector2(move_dir.x, move_dir.z) * current_speed
 	var hv := Vector2(velocity.x, velocity.z)
 	if is_on_floor():

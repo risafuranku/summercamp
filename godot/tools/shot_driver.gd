@@ -1233,7 +1233,7 @@ const SCENARIOS := {
 		["eval", "start_corn_hunt({})"], ["eval", "[_corn_hunt.guest_name, _corn_hunt._guest.global_position, _corn_field().scarecrow.global_position]"],
 		["eval", "debug_goto_corn_gate(-3.0)"], ["wait", 2.0], ["shot", "h0_corn_night"],
 		["eval", "debug_corn_face(_corn_hunt._trail[0].global_position, 3.0)"], ["wait", 1.0], ["shot", "h0b_trail"],
-		["eval", "_paper_map.set('force_open', true)"], ["wait", 1.0], ["shot", "h0c_map"], ["eval", "_paper_map.set('force_open', false)"], ["wait", 0.5],
+		["eval", "_pda.set('force_open', true)"], ["wait", 1.0], ["shot", "h0c_map"], ["eval", "_pda.set('force_open', false)"], ["wait", 0.5],
 		["eval", "debug_corn_face(_corn_hunt._guest.global_position, 3.0)"], ["wait", 1.5], ["shot", "h1_found"],
 		["eval", "debug_corn_face(_corn_field().scarecrow.global_position, 4.0)"], ["wait", 1.0], ["shot", "h2_scarecrow"],
 		["eval", "_corn_hunt.set('_following', true)"], ["eval", "debug_goto_corn_gate(3.0)"], ["eval", "_corn_hunt._guest.set('global_position', Vector3(_corn_field().fence_x + 1.5, 0.0, _corn_field().gate_z))"], ["wait", 1.0],
@@ -1484,6 +1484,23 @@ const SCENARIOS := {
 		["clear", 10, 10, 4, 4], ["player", 12, 12, 270.0], ["wait", 1.0], ["shot", "w0_calm"],
 		# (The weather blends over 70 s since 24. 11.: the storm whole after that.)
 		["eval", "weather_system.set_weather(5)"], ["wait", 12.0], ["shot", "w1_storm_a"], ["wait", 70.0], ["shot", "w2_storm_b"], ["wait", 0.7], ["shot", "w3_storm_c"], ["wait", 0.7], ["shot", "w4_storm_d"],
+	],
+	# The PDA (24. 11., docs/player.md): up as TAB holds it, each app, a message buzzing in,
+	# the snake, and at night with its backlight.
+	"pda": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.8],
+		["player", 12, 14, 0.0], ["wait", 1.0],
+		["eval", "_hud_manager.push_pager('Pager: the toilets are blocked again', 2, 'x')"], ["wait", 0.6],
+		["eval", "_pda._blink_left"], ["eval", "_pda._blink.position"], ["until", "_pda._blink.visible", 2.0], ["shot", "pda0_buzz"],
+		["eval", "_pda.set('force_open', true)"], ["wait", 0.8], ["shot", "pda1_home"],
+		["eval", "_pda._os.open_app('inbox')"], ["wait", 0.4], ["shot", "pda2_inbox"],
+		["eval", "_pda._os.open_app('map')"], ["wait", 1.4], ["shot", "pda3_map"],
+		["eval", "_pda._os.open_app('tasks')"], ["wait", 0.4], ["shot", "pda4_tasks"],
+		["eval", "_pda._os.open_app('clock')"], ["wait", 0.4], ["shot", "pda5_clock"],
+		["eval", "_pda._os.open_app('snake')"], ["eval", "_pda._os.app_node('snake').press('play')"], ["wait", 1.6], ["shot", "pda6_snake"],
+		["eval", "_pda._os.go_home()"], ["hours", 13.0], ["wait", 2.5], ["shot", "pda7_night"],
+		["eval", "_pda.set('force_open', false)"], ["wait", 0.6], ["shot", "pda8_down"],
 	],
 	# The PA pole (24. 11., docs/audio.md): one built by the office, looked at from the meadow
 	# by day, from further off, and at night; its horns playing the reception's set.
@@ -2308,7 +2325,7 @@ const SCENARIOS := {
 		["build", "path", 9, 3, 0], ["build", "path", 9, 4, 0], ["build", "path", 9, 5, 0], ["build", "path", 10, 5, 0], ["build", "path", 11, 5, 0],
 		["build", "tent_1", 8, 4, 0], ["build", "tent_1", 8, 6, 0], ["build", "cabin_1", 10, 6, 0], ["build", "toilet_block", 12, 3, 0], ["build", "lamp_post", 9, 4, 0], ["wait", 0.5],
 		["prep_all"], ["auto_checkin", false], ["book", "Pepa", "drunk", 1, 2, 0], ["build", "tent_1", 12, 7, 0], ["hours", 0.2], ["wait", 1.0],
-		["eval", "_paper_map.set('force_open', true)"], ["eval", "_hud_manager.set('force_side', true)"], ["wait", 1.2], ["shot", "m0_map"],
+		["eval", "_pda.set('force_open', true)"], ["eval", "_hud_manager.set('force_side', true)"], ["wait", 1.2], ["shot", "m0_map"],
 	],
 	"corn": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],

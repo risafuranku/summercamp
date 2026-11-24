@@ -380,7 +380,7 @@ func is_open() -> bool:
 	return _open
 
 
-## Screen pixels the bag takes on the left while it is out (paper_map.gd keeps clear).
+## Screen pixels the bag takes on the left while it is out (the PDA keeps right of it).
 func reserve_left() -> float:
 	if not _open and _k <= 0.0:
 		return 0.0
@@ -417,12 +417,10 @@ func _set_forced(on: bool) -> void:
 	var main := _main()
 	if main == null:
 		return
-	var pm = main.get("_paper_map")
-	if pm != null and "force_open" in pm:
-		pm.force_open = on
-	var hud = main.get("_hud_manager")
-	if hud != null and "force_side" in hud:
-		hud.force_side = on
+	# The PDA comes up with the bag (24. 11.: in the left hand while TAB is held).
+	var pda = main.get("_pda")
+	if pda != null and "force_open" in pda:
+		pda.force_open = on
 
 
 func _allowed() -> bool:
