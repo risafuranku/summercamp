@@ -34,19 +34,26 @@ the pad and the split screen must keep working (do not break them), but get no n
       volný!“. 1a049e47
 - [x] P14 „při vstupu do podniku stánek s kukuřicí neni smooth plynulý přechod kamery. při přechodu
       mezi stanicemi mi zachovej můj úhel“. 1a049e47
-- [ ] P12 „coop hráč při check inu má divně posunutý sprite do výšky“.
+- [x] P12 „coop hráč při check inu má divně posunutý sprite do výšky“ (the hips-up picture stood
+      on air at the counter's end: now on their feet there, turned to the guests). da1c21cc
 - [ ] (Found 24. 11.) The storm's flash through a room's windows (`ambient/room_weather.gd`
       LightningIn) has a projector and no shadow: in Godot 4.7 such a light gives nothing
       (docs/godot.md). See it in a storm scene, then give it its shadow (or drop the picture).
-- [ ] P7 „COOP hráče vidím jak projde skrz pult když jde k počítači, měl bych vidět jak to obejde.
-      vždy půjde tak aby mi šel za zády, mimo záběr“.
-- [ ] P8 „COOP hráči můžu náhlížet blíže přes rameno, když kliknu na PC a sedí u něj, je obsazen“.
-- [ ] P5 „udělat lepší světelný kužel baterky, takový co se více hodí do hry, klidně nažloutlý“.
-- [ ] P3 „pořádně zprovoznit VOIP. když držim V, kliknutím přepínám jestli mluvim lokálně nebo do
-      vysílačky, když jí mám v inventáři“.
-- [ ] P10 „všem čtvercovým higlightům a hoverům udělej lehce zaoblené hrany“ (the highlights and
-      hovers only; the plates keep their square bevels).
-- [ ] P2 „udělat pořádný settings, rozdělený audio video etc“.
+- [x] P7 „COOP hráče vidím jak projde skrz pult když jde k počítači, měl bych vidět jak to obejde.
+      vždy půjde tak aby mi šel za zády, mimo záběr“ (they stand behind you, walk behind your back
+      and round the counter's end, never across it). da1c21cc
+- [x] P8 „COOP hráči můžu náhlížet blíže přes rameno, když kliknu na PC a sedí u něj, je obsazen“
+      (a click on the taken PC: over their shoulder, their screen; Esc, Space, a click back). da1c21cc
+- [x] P5 „udělat lepší světelný kužel baterky, takový co se více hodí do hry, klidně nažloutlý“
+      (an old bulb's beam from a Grok picture: yellow, the dot, the rings; it casts shadows).
+      57f5d4a5
+- [x] P3 „pořádně zprovoznit VOIP. když držim V, kliknutím přepínám jestli mluvim lokálně nebo do
+      vysílačky, když jí mám v inventáři“ (V your own voice near, a click the walkie; the walkie a
+      thing in the bag, everyone's as a game for two starts). abb89818
+- [x] P10 „všem čtvercovým higlightům a hoverům udělej lehce zaoblené hrany“ (the highlights and
+      hovers only; the plates keep their square bevels). 1fb654ab, abb89818 (the bag's hint)
+- [x] P2 „udělat pořádný settings, rozdělený audio video etc“ (Video, Audio, Controls, Game in
+      the pause menu and on the title; music, effects and voices each their own volume). a97d2e0a
 
 ### The big step of 24. 11. (Richard: „Chci mít z toho dneska pocit že jsme udělali velkej krok… Připrav to do TOP stavu a pak dám velkej playtest v coopu“; Q&A in four rounds, answers word for word in the docs named)
 
