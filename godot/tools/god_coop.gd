@@ -8,6 +8,9 @@ extends "res://tools/coop_check.gd"
 
 const MAP := "debug_builder_map()"
 const UI := "_interior_manager._building_interior._crt_ui"
+## How high over the work the watching warden looks: the pointer rides under the clouds
+## (at 14 m the watcher saw the falling parts only, and from (9, 16) a spruce; 24. 11.).
+const WATCH_UP := 60.0
 const GOD := "_god_cursor"
 
 
@@ -54,9 +57,9 @@ func _ready() -> void:
 			["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 0.5],
 			["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.5],
 			["coop_place", 10, 16, 1.0],
-			["god_look", 9, 7, 14.0]])
+			["god_look", 9, 7, WATCH_UP]])
 		s.append_array(_burst("h_own", 30, 0.25))
-		s.append_array([["coop_signal", "host_outside"], ["coop_wait_file", "client_built"], ["god_look", 13, 10, 14.0]])
+		s.append_array([["coop_signal", "host_outside"], ["coop_wait_file", "client_built"], ["god_look", 13, 10, WATCH_UP]])
 		s.append_array(_burst("h_other", 40, 0.25))
 		s.append_array([["eval", "[%s.busy(), %s._vis]" % [GOD, GOD]], ["coop_signal", "host_done"], ["wait", 2.0]])
 		_steps = s
@@ -65,7 +68,7 @@ func _ready() -> void:
 			["wait_menu"], ["coop_port"], ["coop_look", CLIENT_LOOK[0], CLIENT_LOOK[1]], ["coop_wait_file", "host_up"], ["coop_join", "127.0.0.1"],
 			["wait_gameplay"], ["wait", 3.0],
 			["eval", "_interior_manager.close_everything()"], ["wait", 1.0],
-			["coop_place", 9, 16, -1.0], ["coop_wait", "partner_seen"], ["god_look", 9, 7, 14.0], ["coop_signal", "client_ready"],
+			["coop_place", 11, 17, -1.0], ["coop_wait", "partner_seen"], ["god_look", 11, 7, WATCH_UP], ["coop_signal", "client_ready"],
 			["coop_wait_file", "host_built"]]
 		c.append_array(_burst("c_host_builds", 48, 0.25))
 		c.append_array([["eval", "[%s.busy(), %s._queue.size()]" % [GOD, GOD]], ["coop_signal", "client_watched"],

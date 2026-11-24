@@ -4,11 +4,14 @@ extends "res://tools/shot_driver.gd"
 ## coming down one after another, a cabin and a pub in their parts, a bulldozed wood
 ## pressed flat; runs of shots a twelfth of a second apart from a warden's eye height,
 ## by day, in the fog and at dusk; one from the office window.
-##   godot --path godot --resolution 1280x720 res://tools/god_shots.tscn -- --out=<dir> [--part=day|fog|dusk|window]
+##   godot --path godot --resolution 1280x720 res://tools/god_shots.tscn -- --out=<dir> [--part=day|fog|dusk|window] [--look=90]
 
 const GOD := "_god_cursor"
 
 var _part := "day"
+## --look=<m>: how high over the work the eye looks (14: the falling parts; ~90: the pointer
+## itself under the clouds, 24. 11.).
+var _look := 14.0
 
 
 func _burst(name: String, n: int, dt: float) -> Array:
@@ -24,6 +27,8 @@ func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--part="):
 			_part = a.substr(7)
+		elif a.begins_with("--look="):
+			_look = float(a.substr(7))
 	var hour: float = {"day": 11.0, "fog": 8.0, "dusk": 18.6, "window": 11.0}.get(_part, 11.0)
 	var s: Array = [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
@@ -35,7 +40,7 @@ func _ready() -> void:
 		s.append_array([["eval", "weather_system.set_weather(2)"], ["wait", 45.0]])
 	s.append_array([
 		["eval", GOD + ".set('debug_force', true)"],
-		["god_eye", 11, 17, 11, 7, 14.0], ["wait", 1.0],
+		["god_eye", 11, 17, 11, 7, _look], ["wait", 1.0],
 	])
 	if _part == "window":
 		s.append_array([["call_on", "_interior_manager", "open_startup_crt_view", []], ["wait", 6.0],
