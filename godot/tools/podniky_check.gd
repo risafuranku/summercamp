@@ -56,6 +56,10 @@ func _ready() -> void:
 	state.grid.occupy_cell(Vector2i(14, 4), "vecerka", "vecerka_14_4", Vector2i(14, 4))
 	a.biz_site(CORN_KEY, "corn_stand")
 	a.biz_site(REST_KEY, "restaurant")
+	# The whole menu had (since 24. 11. a new bistro starts with the sausage alone): the split
+	# of the tickets below needs the soup and the bottles too.
+	for line in RULES.priced_lines("rest"):
+		(state.biz["sites"][REST_KEY]["menu_bought"] as Array).append(line)
 	a.biz_site(SHOP_KEY, "vecerka")
 	await _corn(state, a)
 	await _bistro(state, a)

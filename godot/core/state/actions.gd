@@ -233,6 +233,17 @@ func biz_site(key: String, building_type: String) -> Dictionary:
 
 ## What an older record lacks (saves before 20. 10.).
 func _biz_upgrade(site: Dictionary) -> void:
+	# Books from before 24. 11. (the businesses step by step): what the place sold stays
+	# bought, and an old pub keeps its games.
+	if not site.has("menu_bought"):
+		var k0 := str(site.get("kind", ""))
+		site["menu_bought"] = BIZ_RULES.priced_lines(k0)
+		if k0 == "pub":
+			if not site.has("gear"):
+				site["gear"] = []
+			for g in BIZ_RULES.PUB_GAMES:
+				if not (site["gear"] as Array).has(g):
+					(site["gear"] as Array).append(g)
 	if site.has("crew") and site.has("lots"):
 		return
 	var kind := str(site.get("kind", ""))
@@ -719,6 +730,45 @@ func biz_set_auto(key: String, on: bool) -> void:
 	site["auto_order"] = on
 	INSTANCE.bus(owner_node).state_changed.emit({"biz": "auto"})
 	_biz_tell("auto", [key, on])
+
+
+## A line put on the menu for good (business_rules.MENU's price; 24. 11. "od základu"): the
+## money, the place's books, the stations it opens. False when it cannot be had.
+func biz_buy_menu(key: String, item: String) -> bool:
+	var site: Dictionary = (_biz()["sites"] as Dictionary).get(key, {})
+	if site.is_empty():
+		return false
+	var kind := str(site["kind"])
+	var price := BIZ_RULES.menu_price(kind, item)
+	if price <= 0 or BIZ_RULES.menu_owned(kind, site, item):
+		return false
+	var needs := BIZ_RULES.menu_needs(kind, item)
+	if needs != "" and not BIZ_RULES.menu_owned(kind, site, needs):
+		return false
+	if not spend_money(price):
+		return false
+	var tot: Dictionary = site.get("total", {}) if site.get("total", {}) is Dictionary else {}
+	tot["gear"] = int(tot.get("gear", 0)) + price
+	site["total"] = tot
+	note_camp("invest", price)
+	biz_add_menu(key, item)
+	_biz_tell("menu_buy", [key, item])
+	return true
+
+
+## The same line had, as another warden's machine bought it (no money here: theirs paid).
+func biz_add_menu(key: String, item: String) -> void:
+	var site: Dictionary = (_biz()["sites"] as Dictionary).get(key, {})
+	if site.is_empty():
+		return
+	var bought: Array = (site.get("menu_bought", []) as Array).duplicate()
+	var sw := BIZ_RULES.menu_switch(str(site["kind"]), item)
+	if not bought.has(sw):
+		bought.append(sw)
+	site["menu_bought"] = bought
+	# (Bought means on: a line bought and still ticked off would be money for nothing.)
+	(site.get("menu_off", []) as Array).erase(sw)
+	INSTANCE.bus(owner_node).state_changed.emit({"biz": "menu"})
 
 
 ## The books' MENU page: `item` on or off the menu (business_rules.MENU; the place's own

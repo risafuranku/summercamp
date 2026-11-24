@@ -3100,13 +3100,8 @@ func _room_tabs(_room: String = "") -> Array:
 			continue
 		if _subroom_of(str(st.get("room", ""))) != here:
 			continue
-		var items: Array = st.get("menu", [])
-		if not items.is_empty() and kind != "":
-			var any := false
-			for it in items:
-				any = any or BIZ_RULES.menu_on(kind, site, str(it))
-			if not any:
-				continue
+		if not BIZ_RULES.station_open(kind, site, st):
+			continue
 		out.append([str(id), str(st.get("tab_label", str(id).to_upper())), str(st.get("icon", ""))])
 	return out
 
@@ -3129,6 +3124,10 @@ func _subroom_of(station_room: String) -> String:
 ## over it in steps, the station takes the pointer.
 func _open_station(id: String) -> void:
 	if not _station_scripts().has(id):
+		return
+	# Not bought yet (24. 11.: the businesses step by step): nothing to step up to.
+	var site0 := _business_site()
+	if not site0.is_empty() and not BIZ_RULES.station_open(str(site0.get("kind", "")), site0, _station_layout().STATIONS.get(id, {})):
 		return
 	var who := str(_bistro_taken().get(id, ""))
 	if who != "":
@@ -3728,6 +3727,11 @@ func _apply_pub_gear() -> void:
 	var gw := _pub_main_root.get_node_or_null("GearGlassWasher") as Node3D
 	if gw != null:
 		gw.visible = gear.has("glasswasher")
+	# The games come with the gear bought for them (24. 11.: the pub from the beer alone).
+	for pair in [["PubDartBoard", "darts"], ["SlotMachine", "slot"]]:
+		var n := _pub_main_root.get_node_or_null(str(pair[0])) as Node3D
+		if n != null:
+			n.visible = gear.has(str(pair[1]))
 	var cooler := _pub_cellar_root.get_node_or_null("Cooler") as Node3D
 	if cooler != null:
 		cooler.visible = gear.has("cooler")

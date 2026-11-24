@@ -646,6 +646,9 @@ func _click(id: String) -> void:
 		INSTANCE.core(self).actions.biz_set_menu(_place, item, not RULES.menu_on(kind, s, item))
 		_shell.play("click", -12.0)
 		return
+	if id.begins_with("mbuy:"):
+		_buy_menu(id.substr(5))
+		return
 	if id.begins_with("gear:"):
 		_buy_gear(id.substr(5))
 		return
@@ -701,6 +704,24 @@ func _fire() -> void:
 			_pick = ""
 			_say(LANG.f("%s has been let go.", name), T.TEXT_DISABLED)
 			queue_redraw())
+
+
+## A line put on a place's menu for good (24. 11.: the businesses step by step), as the
+## books on its counter do it.
+func _buy_menu(item: String) -> void:
+	var kind := _kind_of(_place)
+	var key := _place
+	var price := RULES.menu_price(kind, item)
+	var label := tr(str(RULES.menu_row(kind, item)[1]))
+	_shell.message_box(tr("Boss 98"), LANG.f("Buy %s for $%d?", [label, price]), "question", [tr("Yes"), tr("No")], func(b: String):
+		if b != tr("Yes"):
+			return
+		if INSTANCE.core(self).actions.biz_buy_menu(key, item):
+			_say(LANG.f("%s bought.", label), GREEN)
+			_shell.play("ding", -10.0)
+		else:
+			_shell.message_box(tr("Boss 98"), LANG.f("The purchase of $%d could not be made.\n\nThe camp has $%d.", [price, INSTANCE.core(self).get_money()]), "error")
+		queue_redraw())
 
 
 func _buy_gear(gid: String) -> void:
@@ -1689,6 +1710,15 @@ func _draw_menu(r: Rect2, s: Dictionary, kind: String) -> void:
 		var id := str(rows[i][0])
 		var locked := bool(rows[i][2])
 		var y := r.position.y + 23 + i * rh
+		# Not had yet: its price and Buy (24. 11.), the same as the books on the counter.
+		if not RULES.menu_owned(kind, s, id):
+			var needs := RULES.menu_needs(kind, id)
+			var can := needs == "" or RULES.menu_owned(kind, s, needs)
+			var price := RULES.menu_price(kind, id)
+			_t(Vector2(r.position.x + 27, y + floorf((rh - 13.0) * 0.5) + 11), tr(str(rows[i][1])), T.TEXT if can else T.SHADOW)
+			_tr(r.end.x - 66, y + floorf((rh - 13.0) * 0.5) + 11, _money(price), T.TEXT)
+			_button(Rect2(r.end.x - 60, y + floorf((rh - minf(17.0, rh - 1.0)) * 0.5), 54, minf(17.0, rh - 1.0)), tr("Buy"), "mbuy:" + id, can and INSTANCE.core(self).get_money() >= price)
+			continue
 		_check(Vector2(r.position.x + 8, y + floorf((rh - 13.0) * 0.5)), tr(str(rows[i][1])), RULES.menu_on(kind, s, id), "menu:" + id, not locked)
 
 

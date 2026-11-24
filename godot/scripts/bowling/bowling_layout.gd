@@ -81,7 +81,7 @@ const CELLAR_SIZE := Vector3(7.0, 2.5, 5.0)
 const ENTRY_STATION := "desk"
 const STATIONS := {
 	"desk": {"room": "hall", "label": "the shoe counter", "tab_label": "COUNTER", "icon": "res://assets/textury/bowling/shoes_red.png"},
-	"bufet": {"room": "hall", "label": "the snack bar", "tab_label": "SNACK BAR", "icon": "res://assets/textury/bowling/hotdog.png", "lanes": [0, 1, 2, 3]},
+	"bufet": {"room": "hall", "menu": ["kofola", "crisps", "tatranka", "hotdog", "pickled", "beer"], "label": "the snack bar", "tab_label": "SNACK BAR", "icon": "res://assets/textury/bowling/hotdog.png", "lanes": [0, 1, 2, 3]},
 	"pit_a": {"room": "hall", "label": "the pit of lanes 1 and 2", "tab_label": "PIT 1-2", "icon": "res://assets/textury/bowling/pin.png", "lanes": [0, 1]},
 	"pit_b": {"room": "hall", "label": "the pit of lanes 3 and 4", "tab_label": "PIT 3-4", "icon": "res://assets/textury/bowling/pin.png", "lanes": [2, 3]},
 	"cellar": {"room": "cellar", "label": "the pinsetter in the cellar", "tab_label": "CELLAR", "icon": "res://assets/textury/bowling/gear_small.png"},

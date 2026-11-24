@@ -178,7 +178,7 @@ static func new_site(kind: String, day := 1) -> Dictionary:
 		var n := int(goods(kind)[g]["start"])
 		stock[g] = n
 		lots[g] = [[n, day]] if n > 0 else []
-	return {"kind": kind, "stock": stock, "lots": lots, "spoiled": {}, "gear": [], "crew": [], "late": false,
+	return {"kind": kind, "stock": stock, "lots": lots, "spoiled": {}, "gear": [], "crew": [], "late": false, "menu_bought": [],
 		"staff": false, "staff_name": "", "since_day": 0, "today": empty_day(), "yesterday": empty_day(),
 		"shift": empty_shift()}
 
@@ -505,6 +505,10 @@ const GEAR := {
 		"clock": {"label": "Ticket clock", "price": 90, "what": "The guests see the order is up: they wait longer."},
 	},
 	"pub": {
+		# The games (24. 11., "od základu": the pub starts with the beer alone).
+		"darts": {"label": "Dartboard", "price": 140, "what": "A board on the wall and a box of darts: the guests play for a round."},
+		"cards": {"label": "Card table", "price": 110, "what": "A table, a pack and an ashtray: oko bere for the house."},
+		"slot": {"label": "LUCKY 7 machine", "price": 320, "what": "A one-armed bandit in the corner. Now and then it pays out."},
 		"tap2": {"label": "Second tap", "price": 260, "what": "A second spout on the line: the beer comes faster, a hand draws two at once."},
 		"glasswasher": {"label": "Glass washer", "price": 220, "what": "The mugs come out clean by themselves."},
 		"coupler": {"label": "Quick coupler", "price": 90, "what": "A keg changed in a moment."},
@@ -815,13 +819,19 @@ static func day_grade(z: Dictionary) -> Dictionary:
 ## switches. The tickets of each place leave out what is off.
 const MENU := {
 	"corn": [["cob", "Corn on the cob", false], ["tea", "Iced tea", false], ["limo", "Lemonade in a bag", false]],
-	"pub": [["beer", "Draught beer", true], ["rum", "Rum", false], ["zelena", "Zelena", false], ["slivovice", "Slivovice", false], ["kofola", "Kofola", false]],
-	"rest": [["smazak", "Fried cheese", true], ["fries", "Chips", false], ["goulash", "Goulash and dumplings", false], ["sausage", "Grilled sausage", false], ["soup", "Soup of the day", false], ["drinks", "Bottled drinks", false]],
+	# (24. 11., "od základu": the fourth is what it costs to put on the menu, bought in the
+	# books or in Boss 98; 0, or the place's own line, is there from the start.)
+	"pub": [["beer", "Draught beer", true, 0], ["kofola", "Kofola", false, 80], ["rum", "Rum", false, 120], ["zelena", "Zelena", false, 120], ["slivovice", "Slivovice", false, 140]],
+	# The bistro from one dish (24. 11.: "Klobása z grilu"): the grill and the pass, then the
+	# rest in the order of how much there is to it.
+	"rest": [["sausage", "Grilled sausage", true, 0], ["soup", "Soup of the day", false, 150], ["drinks", "Bottled drinks", false, 90],
+		["goulash", "Goulash and dumplings", false, 300], ["fries", "Chips", false, 360], ["smazak", "Fried cheese", false, 240]],
 	"vecerka": [["bread", "Bread and rolls", true], ["salami", "Salami", false], ["milk", "Milk", false], ["pickles", "Pickles", false], ["beer", "Beer", false], ["icecream", "Ice cream", false],
 		["sweets", "Sweets", false], ["veg", "Fruit and veg", false], ["soap", "Soap and paper", false], ["cards", "Playing cards", false], ["magazine", "Magazines", false],
 		["rum", "Tuzemak", false], ["cigs", "Cigarettes", false], ["deli", "The deli counter", false]],
-	"bowl": [["games", "Lanes and shoes", true], ["hotdog", "Hot dog", false], ["pickled", "Utopenec", false], ["crisps", "Crisps", false],
-		["tatranka", "Tatranka", false], ["kofola", "Kofola", false], ["beer", "Draught beer", false]],
+	# The bowling from its lanes (24. 11.); the bar's things bought one by one.
+	"bowl": [["games", "Lanes and shoes", true, 0], ["kofola", "Kofola", false, 80], ["crisps", "Crisps", false, 60], ["tatranka", "Tatranka", false, 60],
+		["hotdog", "Hot dog", false, 160], ["pickled", "Utopenec", false, 90], ["beer", "Draught beer", false, 220]],
 }
 ## What a menu switch covers when it is not the item's own name (the Jednota's bread is the
 ## rolls too, its deli all three cuts; the pub's beer is all three pours).
@@ -833,13 +843,81 @@ const MENU_COVERS := {
 }
 
 
-## Whether `item` (a dish, a drink, a good) is on the menu of a place (`site`: its books).
+## Every line of a place's menu that has to be bought (a price over 0), for an old place's
+## books that had them all (actions._biz_upgrade).
+static func priced_lines(kind: String) -> Array:
+	var out: Array = []
+	for row in MENU.get(kind, []):
+		if not bool(row[2]) and row.size() > 3 and int(row[3]) > 0:
+			out.append(str(row[0]))
+	return out
+
+
+## The pub's games bought as gear since 24. 11.; an older pub had them from the start.
+const PUB_GAMES := ["darts", "cards", "slot"]
+
+
+## What must be on the menu before a line can be bought (the fried cheese comes with chips).
+const MENU_NEEDS := {"rest": {"smazak": "fries"}}
+
+
+## The menu line a dish, drink or good falls under (MENU_COVERS), and its row ([] when none).
+static func menu_switch(kind: String, item: String) -> String:
+	return str((MENU_COVERS.get(kind, {}) as Dictionary).get(item, item))
+
+
+static func menu_row(kind: String, item: String) -> Array:
+	var sw := menu_switch(kind, item)
+	for row in MENU.get(kind, []):
+		if str(row[0]) == sw:
+			return row
+	return []
+
+
+## What putting the line on the menu costs (0: there from the start).
+static func menu_price(kind: String, item: String) -> int:
+	var row := menu_row(kind, item)
+	if row.is_empty() or bool(row[2]) or row.size() < 4:
+		return 0
+	return int(row[3])
+
+
+static func menu_needs(kind: String, item: String) -> String:
+	return str((MENU_NEEDS.get(kind, {}) as Dictionary).get(menu_switch(kind, item), ""))
+
+
+## Whether the place has the line at all: from the start, or bought. A place whose books are
+## older than 24. 11. (no "menu_bought") keeps everything it had.
+static func menu_owned(kind: String, site: Dictionary, item: String) -> bool:
+	if menu_price(kind, item) == 0 or not site.has("menu_bought"):
+		return true
+	return (site["menu_bought"] as Array).has(menu_switch(kind, item))
+
+
+## Whether `item` (a dish, a drink, a good) is on the menu of a place (`site`: its books): had
+## (menu_owned) and not ticked off.
 static func menu_on(kind: String, site: Dictionary, item: String) -> bool:
-	var sw := str((MENU_COVERS.get(kind, {}) as Dictionary).get(item, item))
+	var sw := menu_switch(kind, item)
+	if not menu_owned(kind, site, sw):
+		return false
 	for row in MENU.get(kind, []):
 		if str(row[0]) == sw and bool(row[2]):
 			return true
 	return not (site.get("menu_off", []) as Array).has(sw)
+
+
+## A station the place has the use of now (its `gear` bought; of its `menu` lines at least one
+## had and on): a shut one has no tab, cannot be stepped up to and stands empty.
+static func station_open(kind: String, site: Dictionary, st: Dictionary) -> bool:
+	if st.has("gear") and not has_gear(site, str(st["gear"])):
+		return false
+	var items: Array = st.get("menu", [])
+	if items.is_empty() or kind == "":
+		return true
+	for it in items:
+		if menu_on(kind, site, str(it)):
+			return true
+	return false
 
 
 ## Nothing ticked on the menu (the user 9. 11.: "let me not sell corn at the stand; selling

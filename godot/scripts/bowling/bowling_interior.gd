@@ -37,6 +37,7 @@ const STATION_HUD = preload("res://scripts/business/station_hud.gd")
 const LEDGER = preload("res://scripts/business/ledger_closeup.gd")
 const KIT = preload("res://scripts/interior_kit.gd")
 const BUSINESS_RT = preload("res://scripts/business/business_runtime.gd")
+const BIZ_RULES = preload("res://core/systems/business_rules.gd")
 const LANE_PLAY = preload("res://scripts/bowling/lane_play.gd")
 ## One world (W26): the hall stands in the alley's building in the camp's own world
 ## (scripts/one_world_room.gd), the cellar under it.
@@ -737,8 +738,16 @@ func _room_tabs() -> Array:
 		if str(id) == "cellar" and mach != "machine":
 			continue
 		var st: Dictionary = LAYOUT.STATIONS[id]
+		# The snack bar only once something for it is bought (24. 11.: from the lanes alone).
+		if not _station_had(st):
+			continue
 		out.append([str(id), str(st.get("tab_label", str(id).to_upper())), str(st.get("icon", ""))])
 	return out
+
+
+func _station_had(st: Dictionary) -> bool:
+	var site: Dictionary = BUSINESS_RT.site(key) if key != "" else {}
+	return site.is_empty() or BIZ_RULES.station_open("bowl", site, st)
 
 
 ## The machine as the books have it: the cellar's frame in the Stavomat's grey-green or the
@@ -875,6 +884,8 @@ func _make_stations() -> void:
 ## Steps up to the station `id`: the hall's camera glides over it, the station takes the
 ## pointer, the frame comes up round the room.
 func _open_station(id: String) -> void:
+	if LAYOUT.STATIONS.has(id) and not _station_had(LAYOUT.STATIONS[id]):
+		return
 	_make_stations()
 	if not _stations.has(id):
 		return

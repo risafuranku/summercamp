@@ -31,13 +31,17 @@ func _ready() -> void:
 		["prep_all"], ["book", "Kaja", "cheap_chick", 1, 3], ["prep_all"], ["book", "Bobr", "tramp", 1, 3],
 		["hours", 0.4], ["checkin"], ["hours", 3.0], ["wait", 4.0],
 		["eval", "debug_send_guests_to('bowling', 240)"], ["wait", 1.0],
+		# (The pointer is a station's look stick: off in a corner it turns the head to the wall.)
+		["eval", "get_viewport().warp_mouse(get_viewport().get_visible_rect().size * Vector2(0.5, 0.5))"],
 		["eval", "_interior_manager.handle_structure_interact(debug_structure_of_type('bowling'))"], ["wait", 3.0],
 		["n_state"], ["shot", "b01_desk"],
 		["eval", _st("desk") + ".debug_serve_right()"], ["wait", 0.5], ["shot", "b02_desk_served"],
 		["eval", _st("desk") + ".debug_click('cubby:47')"], ["wait", 0.5], ["shot", "b03_desk_wrong"],
 		["eval", _st("desk") + ".debug_click('slot:0')"], ["wait", 0.3],
 		["desk_all"], ["wait", 1.0], ["shot", "b04_desk_empty"], ["n_state"],
-		# The snack bar: an order from a lane, a beer poured to the line, the tray, SERVE.
+		# The snack bar: shut while nothing of it is bought (24. 11.), then its lines bought in
+		# the books; an order from a lane, a beer poured to the line, the tray, SERVE.
+		["bar_shut"], ["menu_all"], ["wait", 0.5],
 		["order_now"], ["wait", 1.0], ["eval", "get_viewport().warp_mouse(get_viewport().get_visible_rect().size * Vector2(0.5, 0.5))"],
 		["eval", BI + "._switch_station('bufet')"], ["wait", 1.5], ["shot", "b04a_bufet"],
 		["eval", _st("bufet") + ".debug_pour('beer', 0.62)"], ["wait", 0.3], ["shot", "b04b_bufet_pour"],
@@ -121,7 +125,7 @@ func _bi() -> Node:
 
 
 func _run_step(step: Array) -> void:
-	if not (str(step[0]) in ["n_state", "desk_all", "pit_step", "pit_finish", "gear", "jam", "order_now", "lp"]):
+	if not (str(step[0]) in ["n_state", "desk_all", "pit_step", "pit_finish", "gear", "jam", "order_now", "lp", "bar_shut", "menu_all"]):
 		super._run_step(step)
 		return
 	var bi = _bi()
@@ -152,6 +156,16 @@ func _run_step(step: Array) -> void:
 				ev = mb
 			bi._lane_play.call("handle", ev)
 			print("BOWL SHOTS: lane play %s at %s -> %s" % [step[1], at, bi._lane_play.get("phase")])
+		"bar_shut":
+			var tabs: Array = bi.call("_room_tabs") if bi.has_method("_room_tabs") else []
+			var has_bar := false
+			for t in tabs:
+				has_bar = has_bar or str(t[0]) == "bufet"
+			print("BOWL SHOTS: bar shut before it is bought -> %s (menu %s)" % [not has_bar, get_tree().get_first_node_in_group("bowlings").bufet_menu(str(bi.key))])
+		"menu_all":
+			for item in preload("res://core/systems/business_rules.gd").priced_lines("bowl"):
+				print("BOWL SHOTS: menu %s -> %s" % [item, CoreRoot.actions.biz_buy_menu(str(bi.key), str(item))])
+			print("BOWL SHOTS: the bar's menu now %s" % [get_tree().get_first_node_in_group("bowlings").bufet_menu(str(bi.key))])
 		"order_now":
 			# Every party on a lane wants something now.
 			var nxt: Dictionary = get_tree().get_first_node_in_group("bowlings").site(str(bi.key))["next_order"]

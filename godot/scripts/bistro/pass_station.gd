@@ -273,8 +273,12 @@ func _spots() -> Array:
 			if have > 0:
 				var r: Rect2 = {"cheese": SHELF_CHEESE, "fries": SHELF_FRIES, "dumpling": SHELF_DUMPLING, "sausage": SHELF_SAUSAGE}[part]
 				out.append({"id": part, "rect": r, "verb": "Put %s on the plate (%d)" % [_label(part), have], "carry": _food_carry(part)})
-		out.append({"id": "tartar", "rect": TARTAR, "verb": "Put tartar on the plate", "carry": _food_carry("tartar")})
-		out.append({"id": "onion", "rect": ONION, "verb": "Put onion on the plate", "carry": _food_carry("onion")})
+		# The tartar and the onion only with what they go on (24. 11.: a bistro of sausages
+		# had a bowl of tartar nothing on its menu wanted).
+		if on_menu("fries") or on_menu("smazak"):
+			out.append({"id": "tartar", "rect": TARTAR, "verb": "Put tartar on the plate", "carry": _food_carry("tartar")})
+		if on_menu("goulash"):
+			out.append({"id": "onion", "rect": ONION, "verb": "Put onion on the plate", "carry": _food_carry("onion")})
 		out.append({"id": "mustard", "rect": MUSTARD, "verb": "A spoon of mustard on the plate", "carry": _food_carry("mustard")})
 		if BUSINESS.stock_of(building_key, "bread") != 0:
 			out.append({"id": "bread", "rect": BREAD, "verb": "A slice of bread on the plate", "carry": _food_carry("bread")})

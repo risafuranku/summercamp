@@ -13,6 +13,7 @@ extends "res://scripts/business/station3d.gd"
 const RULES := preload("res://core/systems/bistro_rules.gd")
 const KITCHEN := preload("res://scripts/bistro/kitchen.gd")
 const BUSINESS := preload("res://scripts/business/business_runtime.gd")
+const BIZ_RULES := preload("res://core/systems/business_rules.gd")
 const TEX := "res://assets/textury/bistro/"
 const FOOD_ICONS := "res://assets/textury/closeup/food/"
 ## Each dish's picture on a ticket, and the sides'.
@@ -21,6 +22,12 @@ const ICONS := {"goulash": "icon_goulash", "smazak": "icon_cheese", "fries": "ic
 ## The pictures were drawn for the surface two to one: a design pixel is half a
 ## picture's pixel (station3d.room_tex shrinks them to the room's pixel).
 const PIX := 2.0
+
+
+## Whether `dish` is on the bistro's menu now (bought and ticked on, 24. 11.: the bistro
+## from one dish): what is not on it offers nothing at a station.
+func on_menu(dish: String) -> bool:
+	return BIZ_RULES.menu_on("rest", BUSINESS.site(building_key), dish)
 
 ## The ticket picked on the rail, the same for every station of the bistro (the pass
 ## plates for it).

@@ -51,6 +51,12 @@ func _ready() -> void:
 	state.grid.occupy_cell(Vector2i(6, 6), "pub", "pub_6_6", Vector2i(6, 6))
 	var site: Dictionary = a.biz_site(KEY, "pub")
 	_expect(not site.is_empty() and str(site["kind"]) == "pub", "a pub's books")
+	# A new pub sells the beer alone (24. 11., "od základu"); the rest of the check needs it all.
+	_expect(RULES.menu_on("pub", site, "beer") and not RULES.menu_on("pub", site, "rum") and not RULES.has_gear(site, "darts"), "a new pub: the beer alone")
+	for line in RULES.priced_lines("pub"):
+		(site["menu_bought"] as Array).append(line)
+	for g in RULES.PUB_GAMES:
+		(site["gear"] as Array).append(g)
 	var beer0 := int(site["stock"]["beer"])
 
 	var tr = TAPROOM.of(get_tree())
@@ -226,6 +232,9 @@ func _ready() -> void:
 	var takings0 := int(site["today"]["takings"])
 	var hour0: int = GuestManager._last_known_hour
 	GuestManager._last_known_hour = hour0 + 1
+	# (The washer's test above cleared the gear: the games back for the guests' go.)
+	for g in RULES.PUB_GAMES:
+		(site["gear"] as Array).append(g)
 	tr._guests_play(KEY, TAPROOM.now_min())
 	var played: Dictionary = tr.fun(KEY)["played"]
 	_expect(not played.is_empty(), "the guests have their go (%d)" % played.size())

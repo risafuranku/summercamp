@@ -34146,3 +34146,23 @@ msgstr ""
 "na potlach jede celá osada Vlčí stopa: je nás %d, na %d {noc|noci|nocí}, od vlaku kolem %s. Letos zaplatíme pořádně, sbírka se povedla. Potřebujem jeden velkej oheň a nikoho, kdo nás bude okřikovat.\n"
 "\n"
 "%s, šerif"
+
+#: core/systems/business_rules.gd GEAR pub (24. 11.)
+msgid "A board on the wall and a box of darts: the guests play for a round."
+msgstr "Terč na zeď a krabička šipek. Hosti hrajou o rundu."
+
+#: core/systems/business_rules.gd GEAR pub (24. 11.)
+msgid "Card table"
+msgstr "Karetní stůl"
+
+#: core/systems/business_rules.gd GEAR pub (24. 11.)
+msgid "A table, a pack and an ashtray: oko bere for the house."
+msgstr "Stůl, balík karet a popelník. Hraje se oko bere."
+
+#: core/systems/business_rules.gd GEAR pub (24. 11.)
+msgid "LUCKY 7 machine"
+msgstr "Automat LUCKY 7"
+
+#: core/systems/business_rules.gd GEAR pub (24. 11.)
+msgid "A one-armed bandit in the corner. Now and then it pays out."
+msgstr "Jednoruký bandita do rohu. Sem tam i vyplatí."

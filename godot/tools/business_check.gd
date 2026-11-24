@@ -90,6 +90,28 @@ func _ready() -> void:
 	_expect(a.biz_buy_gear("8:8", "pallet"), "gear bought")
 	_expect(not a.biz_buy_gear("8:8", "pallet"), "gear is bought once")
 
+	# The menu bought line by line (24. 11.): a new bistro has its sausage, the rest is bought;
+	# the fried cheese only after the chips; a station opens with what it makes.
+	state.grid.occupy_cell(Vector2i(12, 12), "restaurant", "restaurant_12_12", Vector2i(12, 12))
+	var rest: Dictionary = a.biz_site("12:12", "restaurant")
+	_expect(RULES.menu_on("rest", rest, "sausage") and not RULES.menu_on("rest", rest, "soup"), "a new bistro: the sausage on, the soup not had")
+	_expect(not RULES.station_open("rest", rest, {"menu": ["fries", "smazak"]}), "the fryer shut while nothing of it is bought")
+	state.money = 5000
+	_expect(not a.biz_buy_menu("12:12", "smazak") and state.money == 5000, "no fried cheese before the chips, and no money for it")
+	_expect(a.biz_buy_menu("12:12", "fries") and state.money == 5000 - RULES.menu_price("rest", "fries"), "the chips bought at their price")
+	_expect(RULES.menu_on("rest", rest, "fries") and RULES.station_open("rest", rest, {"menu": ["fries", "smazak"]}), "the chips on the menu, the fryer open")
+	_expect(not a.biz_buy_menu("12:12", "fries"), "a line is bought once")
+	_expect(not a.biz_buy_menu("12:12", "sausage"), "the place's own line is not for sale")
+	_expect(a.biz_buy_menu("12:12", "smazak"), "the fried cheese after the chips")
+	state.money = 10
+	_expect(not a.biz_buy_menu("12:12", "goulash") and not RULES.menu_on("rest", rest, "goulash"), "no goulash without the money")
+	# Books from before 24. 11. keep what they sold.
+	var old_pub := RULES.new_site("pub")
+	old_pub.erase("menu_bought")
+	a._biz_upgrade(old_pub)
+	_expect(RULES.menu_owned("pub", old_pub, "rum") and (old_pub["gear"] as Array).has("darts"), "an old pub keeps its rum and its darts")
+	state.money = 5000
+
 	# One order for every place: one van.
 	var m2: int = state.money
 	_expect(a.biz_order_all({"8:8": {"milk": 1}, key: {"rum": 1}}, 14), "one order for two places")

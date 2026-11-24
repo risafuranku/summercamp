@@ -342,6 +342,8 @@ func _biz_change(kind: String, a: Array) -> void:
 			act.biz_set_auto(str(a[0]), bool(a[1]))
 		"menu":
 			act.biz_set_menu(str(a[0]), str(a[1]), bool(a[2]))
+		"menu_buy":
+			act.biz_add_menu(str(a[0]), str(a[1]))
 		"score":
 			act.biz_score(str(a[0]), a[1])
 		# The staffroom's hands (actions.staff_*).

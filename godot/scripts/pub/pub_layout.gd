@@ -72,9 +72,9 @@ const STATIONS := {
 	"back": {"room": "bar", "at": Vector3(0.64, 0.8, -1.25), "size": Vector3(0.66, 1.5, 0.72), "stand": Vector3(0.63, 0.05, -1.99), "pose": "pour", "mark": Vector3(0.63, 1.7, -1.4), "label": "the bottles", "tab_label": "BOTTLES", "icon": "res://assets/textury/ui/mark_shot.png", "menu": ["rum", "zelena", "slivovice", "kofola"]},
 	"wash": {"room": "bar", "at": Vector3(2.07, 0.8, -1.25), "size": Vector3(0.68, 1.5, 0.72), "stand": Vector3(2.12, 0.05, -1.99), "pose": "wash", "mark": Vector3(2.12, 1.6, -1.4), "label": "the washer", "tab_label": "WASH", "icon": "res://assets/textury/ui/mark_wash.png"},
 	# The fun (pub_fun.gd): clicked in the room, not on the frame's bar ("tab": false).
-	"slot": {"room": "bar", "at": Vector3(-2.35, 0.8, -1.9), "size": Vector3(0.7, 1.55, 0.5), "stand": Vector3(-2.35, 0.05, -1.2), "pose": "stand", "mark": Vector3(-2.35, 1.85, -1.85), "label": "the LUCKY 7", "tab_label": "LUCKY 7", "tab": false},
-	"darts": {"room": "bar", "at": Vector3(-2.82, 1.70, -1.0), "size": Vector3(0.15, 0.55, 0.55), "stand": Vector3(-0.6, 0.05, -1.0), "pose": "stand", "mark": Vector3(-2.75, 2.08, -1.0), "label": "the darts", "tab_label": "DARTS", "tab": false},
-	"cards": {"room": "bar", "at": Vector3(-1.6, 0.8, 0.9), "size": Vector3(0.9, 0.2, 0.7), "stand": Vector3(-1.6, 0.05, 1.6), "pose": "stand", "mark": Vector3(-1.6, 1.3, 0.9), "label": "the cards", "tab_label": "CARDS", "tab": false},
+	"slot": {"room": "bar", "gear": "slot", "at": Vector3(-2.35, 0.8, -1.9), "size": Vector3(0.7, 1.55, 0.5), "stand": Vector3(-2.35, 0.05, -1.2), "pose": "stand", "mark": Vector3(-2.35, 1.85, -1.85), "label": "the LUCKY 7", "tab_label": "LUCKY 7", "tab": false},
+	"darts": {"room": "bar", "gear": "darts", "at": Vector3(-2.82, 1.70, -1.0), "size": Vector3(0.15, 0.55, 0.55), "stand": Vector3(-0.6, 0.05, -1.0), "pose": "stand", "mark": Vector3(-2.75, 2.08, -1.0), "label": "the darts", "tab_label": "DARTS", "tab": false},
+	"cards": {"room": "bar", "gear": "cards", "at": Vector3(-1.6, 0.8, 0.9), "size": Vector3(0.9, 0.2, 0.7), "stand": Vector3(-1.6, 0.05, 1.6), "pose": "stand", "mark": Vector3(-1.6, 1.3, 0.9), "label": "the cards", "tab_label": "CARDS", "tab": false},
 }
 ## Where each station is worked (scripts/business/station3d.gd): its centre, size in
 ## metres, which way the worker faces it (yaw), flat (a top) or a wall; how far back and

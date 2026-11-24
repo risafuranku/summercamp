@@ -297,6 +297,18 @@ func _clicked(id: String) -> void:
 	var kind := _kind()
 	if id.begins_with("menu:"):
 		var item := id.substr(5)
+		# Not had yet (24. 11.: the businesses step by step): the click buys it.
+		if not RULES.menu_owned(kind, site, item):
+			var needs := RULES.menu_needs(kind, item)
+			if needs != "" and not RULES.menu_owned(kind, site, needs):
+				say("", LANG.f("Needs: %s", tr(str(RULES.menu_row(kind, needs)[1]))))
+				return
+			if INSTANCE.core(self).actions.biz_buy_menu(building_key, item):
+				_stamp("BOUGHT")
+				say("", LANG.f("%s. It is in.", tr(str(RULES.menu_row(kind, item)[1]))))
+			else:
+				say("", LANG.f("That is $%d. The camp has not got it.", RULES.menu_price(kind, item)))
+			return
 		var on := not RULES.menu_on(kind, site, item)
 		if CoreRoot != null and INSTANCE.core(self).actions != null:
 			INSTANCE.core(self).actions.biz_set_menu(building_key, item, on)
@@ -620,6 +632,15 @@ func _paint_menu(c: Control, site: Dictionary, kind: String) -> void:
 		var box := Rect2(r.position + Vector2(0, 2), Vector2(9, 9))
 		if hovered() == "menu:" + id:
 			c.draw_rect(r, Color(1, 0.9, 0.5, 0.18))
+		# Not had yet: its price in the margin, no box to tick (24. 11.).
+		if not RULES.menu_owned(kind, site, id):
+			var needs := RULES.menu_needs(kind, id)
+			var can := needs == "" or RULES.menu_owned(kind, site, needs)
+			var col2 := PENCIL if can else Color(PENCIL.r, PENCIL.g, PENCIL.b, 0.45)
+			_text(c, Vector2(r.position.x + 12, r.position.y + 9), tr(str(rows[i][1])), col2)
+			var price := LANG.money("$%d" % RULES.menu_price(kind, id))
+			_right(c, r.end.x - 2, r.position.y + 9, price, RED if can else col2)
+			continue
 		_pencil_box(c, box, INK if locked else PENCIL)
 		if on:
 			var col := INK if locked else GREEN

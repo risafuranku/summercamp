@@ -395,6 +395,9 @@ const DARTS_ODDS := {"drunk": 0.5, "tramp": 0.4, "cheap_chick": 0.3, "quiet_guy"
 
 func _guests_play(key: String, now: int) -> void:
 	var f: Dictionary = fun(key)
+	# Only what the pub has (24. 11.: the games are bought as gear).
+	var slot_in := BUSINESS.has_gear(key, "slot")
+	var darts_in := BUSINESS.has_gear(key, "darts")
 	for v in ORDERS.visitors(key):
 		var visit := str(v["visit"])
 		var arch := str(v["archetype"])
@@ -403,14 +406,14 @@ func _guests_play(key: String, now: int) -> void:
 		var at := int(v.get("arrive", now)) + 6 + h % 30
 		if now < at:
 			continue
-		if not f["played"].has(visit + ":slot") and float(h % 100) / 100.0 < float(SLOT_ODDS.get(arch, 0.2)):
+		if slot_in and not f["played"].has(visit + ":slot") and float(h % 100) / 100.0 < float(SLOT_ODDS.get(arch, 0.2)):
 			act(key, "played", [visit + ":slot"])
 			var games := 4 + h % 9
 			var take := maxi(1, int(round(float(games * FUN.COIN) * maxf(0.2, FUN.house_edge()))))
 			slot_play(key, h, str(v["name"]))
 			_take_money(key, take, false)
 			ORDERS.mood(int(v["id"]), 0.5, "")
-		elif not f["played"].has(visit + ":darts") and float((h / 100) % 100) / 100.0 < float(DARTS_ODDS.get(arch, 0.2)) and now >= at + 10:
+		elif darts_in and not f["played"].has(visit + ":darts") and float((h / 100) % 100) / 100.0 < float(DARTS_ODDS.get(arch, 0.2)) and now >= at + 10:
 			act(key, "played", [visit + ":darts"])
 			var darts := FUN.guest_turn(arch, h)
 			var total := 0

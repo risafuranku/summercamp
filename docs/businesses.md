@@ -62,3 +62,19 @@ Kolo 2:
 - *Kde se kupují další jídla do menu bistra, pití a hry v hospodě a bufet v kuželně?* „Kniha na pultu
   i PC“: v knize podniku na pultu přibude záložka Menu s věcmi ke koupi; stejný seznam v programu
   podniku na PC v recepci (Boss 98); koupíš tam, kde zrovna jsi.
+
+Hotovo 24. 11.: řádek `business_rules.MENU` má čtvrtý údaj, cenu (0 = podnik ho má od začátku).
+Nový podnik má v knize `menu_bought: []`, takže bistro umí jen klobásu, hospoda jen čepované pivo
+a kuželna jen dráhy. Koupě jde přes `actions.biz_buy_menu` (peníze, kniha, v co-opu `menu_buy`
+přes `_biz_tell`), smažák až po hranolkách (`MENU_NEEDS`). Hosté objednávají jen to, co je
+`menu_on` (koupené a zaškrtnuté). Stanice podniku má v layoutu `"menu"` (jídla, která dělá) nebo
+`"gear"` (vybavení) a `business_rules.station_open` rozhoduje, jestli má záložku a jde k ní
+přistoupit: v bistru gril (klobása), polévka (polévka a lahve), hrnec (guláš), sporák a brambory
+(hranolky, smažák), obalování (smažák); v kuželně bufet; v hospodě LUCKY 7, šipky a karty jako
+vybavení (`PUB_GAMES`, hosté hrají jen to, co hospoda má). Na výdeji v bistru je tatarka jen
+s hranolkami nebo smažákem a cibule jen s gulášem. Kupuje se v knize na pultu (záložka MENU:
+nekoupený řádek má cenu, klik ho koupí) i v Boss 98 (podnik → Menu: cena a Koupit). Kniha
+uložená před 24. 11. (bez `menu_bought`) má všechno, co prodávala, koupené a stará hospoda má
+svoje hry (`actions._biz_upgrade`). Testy: `business_check` (koupě, pořadí, peníze, stará kniha),
+`pub_check`, `podniky_check`; obrazem `provoz_check --part=boss` a `bowling_shots` (bufet zavřený,
+po koupi objednávka od dráhy, natočit, podat).
