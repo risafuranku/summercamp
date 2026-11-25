@@ -1,19 +1,21 @@
 extends Node
 
-## The wholesaler's van and its driver (the user 1. 11.: "the delivery does not work, no
-## man from the van came to the reception, only the folder showed; do it like the
-## postman: he gets out of the van and goes to the reception"). The day's event
-## (scripts/day_events.gd "delivery", its `started` game minute) is the clock: the van
-## comes up the road and stands outside the barrier (VAN_IN game minutes), the driver
-## walks the guests' way to the office door, and then waits across the counter, left of
-## the guests' place, his folder on the desk (building_interior: the note signed with the
-## mouse, scripts/closeup/delivery_closeup.gd). Signed for, taken by a hand at the van, or
-## given up on: he walks back from wherever he was, the van turns in its own length and
-## goes off down the road. Drawn on every machine from the event as each one has it, like
-## the postman (scripts/reception/post_delivery.gd), whose way in and walk this shares.
+## The wholesaler's van and its driver (the user 1. 11.: "do it like the postman: he gets out
+## of the van"; 25. 11. „Krabice u závory“, docs/businesses.md: no note to sign at the
+## reception any more). The day's event (scripts/day_events.gd "delivery", its `started`
+## game minute) is the clock: the van comes up the road and stands outside the barrier
+## (VAN_IN game minutes), the driver walks through the barrier to the pallet beside the lane
+## (scripts/business/delivery_pallet.gd) and stacks the boxes there (UNLOAD_MIN; then the
+## event is done: day_events.sign_delivery, the host's or a camp alone), he walks back, the
+## van turns in its own length and goes off down the road. Drawn on every machine from the
+## event as each one has it, like the postman (scripts/reception/post_delivery.gd), whose
+## walk this shares.
 
 const INSTANCE = preload("res://scripts/instance/instance.gd")
 const POST = preload("res://scripts/reception/post_delivery.gd")
+const PALLET = preload("res://scripts/business/delivery_pallet.gd")
+## Game minutes at the pallet stacking the boxes.
+const UNLOAD_MIN := 6.0
 const VAN_IN := 5.0
 const VAN_TURN := 2.0
 const VAN_OUT := 6.0
@@ -31,9 +33,6 @@ const CAB_FLOOR := 0.14
 const BOX_FLOOR := 0.22
 const WHEELS_Z := [0.29, -0.245, -0.385]
 const WHEEL_R := 0.12
-## Across the counter, left of the guests' place (desk_room.COUNTER_SPOT; the postman
-## stands right of it, post_delivery.DESK_SPOT).
-const DESK_SPOT := Vector3(-0.22, 0.0, -0.6)
 
 var host        # building_interior.gd
 var _main: Node
@@ -50,9 +49,9 @@ var _park := Vector3.INF
 var _van: Node3D
 var _man: Node3D
 var _man_sprite: Sprite3D
-var _desk_man: Sprite3D
 var _anim_t := 0.0
-var _said_desk := -1
+## The delivery whose boxes are stacked (its id).
+var _unloaded := -1
 var _audio: AudioStreamPlayer
 
 
@@ -80,8 +79,8 @@ func _day_events() -> Node:
 	return de as Node if de is Node and is_instance_valid(de) else null
 
 
-## He stands across the counter with his folder (the note can be signed).
-func at_desk() -> bool:
+## He is at the pallet stacking the boxes.
+func at_pallet() -> bool:
 	return _ev_id >= 0 and _ensure_path() and _now() >= _arrives()
 
 
@@ -98,7 +97,6 @@ func _process(delta: float) -> void:
 		_poll = 0.25
 		_watch_event()
 	_draw_world()
-	_draw_desk()
 
 
 ## The open delivery, or its end: he turns back from where he is.
@@ -113,12 +111,11 @@ func _watch_event() -> void:
 			# Not the van coming for a camp loaded with it standing there already.
 			if _now() - _started < VAN_IN:
 				_sound_world(POST.SFX_ARRIVE, -2.0)
-		if at_desk() and _said_desk != _ev_id:
-			_said_desk = _ev_id
-			if host.visible:
-				_play(POST.SFX_BELL, -4.0)
-			else:
-				_say("The van's driver is waiting at the reception with the delivery note.")
+		# The boxes stacked: the van's visit is done (the host's day events, or one alone).
+		if at_pallet() and _now() >= _arrives() + UNLOAD_MIN and _unloaded != _ev_id and not INSTANCE.coop(self).is_client():
+			_unloaded = _ev_id
+			if de != null and de.has_method("sign_delivery"):
+				de.sign_delivery()
 		return
 	if _ev_id >= 0:
 		# Gone from the list: signed for, taken by a hand, or given up.
@@ -127,7 +124,7 @@ func _watch_event() -> void:
 		_ev_id = -1
 
 
-## How far up the way to the office he is (metres) at `now`.
+## How far up the way to the pallet he is (metres) at `now`.
 func _walked(now: float) -> float:
 	if not _ensure_path():
 		return 0.0
@@ -137,24 +134,18 @@ func _walked(now: float) -> float:
 # ── the way in ───────────────────────────────────────────────────────────────
 
 ## The van's place on the road outside the barrier (west of the postman's), his way from
-## its door to the office door (the guests' way: guest_agents._walk_to_reception).
+## its door through the barrier to the pallet (beside it, the side the van stands).
 func _ensure_path() -> bool:
 	if not _path.is_empty():
 		return true
 	var gate := get_tree().get_first_node_in_group("camp_gate") if get_tree() != null else null
 	var m := _resolve_main()
-	if gate == null or m == null or not m.has_method("get_reception_door_position"):
-		return false
-	var door: Vector3 = m.get_reception_door_position()
-	if door == Vector3.INF:
+	if gate == null or m == null:
 		return false
 	var road: Vector3 = gate.road_spot()
 	_park = Vector3(float(gate.gap_center_x) - 3.6, 0.0, float(gate.fence_z) - 8.5)
-	var pts := PackedVector3Array([_park + Vector3(1.3, 0.0, 1.6), road])
-	if gate.has_method("way_in"):
-		for p in gate.way_in():
-			pts.append(p)
-	pts.append(door)
+	var pts := PackedVector3Array([_park + Vector3(1.3, 0.0, 1.6), road, Vector3(float(gate.gap_center_x), 0.0, float(gate.fence_z) + 1.0)])
+	pts.append(PALLET.spot(gate) + Vector3(0.9, 0.0, 0.0))
 	var gm = m.get("grid_manager")
 	var y := float(gm.grid_to_world(Vector2i.ZERO).y) if gm != null else 0.0
 	for i in pts.size():
@@ -192,7 +183,7 @@ func _draw_world() -> void:
 			show_van = true
 			# In from the south along the road, slowing to a stop.
 			van_at = _park + Vector3(0.0, 0.0, -70.0 * pow(1.0 - clampf(e / VAN_IN, 0.0, 1.0), 2.0))
-			if e >= VAN_IN and now < _arrives():
+			if e >= VAN_IN:
 				man_at = _along(_walked(now))
 		elif _leave_t0 >= 0.0:
 			var t := now - _leave_t0
@@ -354,31 +345,6 @@ func _quad(parent: Node3D, tex: Texture2D, size: Vector2, pos: Vector3, yaw: flo
 	mi.position = pos
 	mi.rotation.y = yaw
 	parent.add_child(mi)
-
-
-# ── in the office: across the counter ────────────────────────────────────────
-
-func _draw_desk() -> void:
-	var here := at_desk()
-	if _desk_man == null:
-		if not here:
-			return
-		var root: Node3D = host.get("_room_root")
-		var extras = host.get("_extras")
-		if root == null or extras == null:
-			return
-		_desk_man = _person_sprite()
-		_desk_man.name = "DeskVanDriver"
-		# The room's sprites are a little shorter than the camp's (desk_room._show).
-		if _desk_man.texture != null:
-			_desk_man.pixel_size = 1.72 / float(_desk_man.texture.get_height())
-		_desk_man.position = DESK_SPOT
-		root.add_child(_desk_man)
-		extras._hot_body("van_driver", root, DESK_SPOT + Vector3(0, 0.9, 0), Vector3(0.6, 1.8, 0.5), [])
-	_desk_man.visible = here
-	var hb = host.get("_extras").hot.get("van_driver", {}).get("body", null)
-	if hb is CollisionObject3D:
-		(hb as CollisionObject3D).collision_layer = 1 if here else 0
 
 
 # ── sounds and words ─────────────────────────────────────────────────────────

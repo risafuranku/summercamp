@@ -3,8 +3,10 @@ extends "res://tools/shot_driver.gd"
 ## The wholesaler's van as a plate like the post's and the orders on one van (TODO W1), the
 ## shelves running low as plates (W51). A pub's books in a new camp: beer down to 5 (its
 ## plate), an order (the plate goes, the van's comes, the fee), a second the same day (no
-## fee: the same van), the next morning a third joins the van on its way, the van comes and
-## waits at the counter (the note), signed. Lines "VAN ..." and pictures.
+## fee: the same van), the next morning a third joins the van on its way, the van comes, its
+## driver stacks the boxes on the pallet by the barrier (25. 11. „Krabice u závory“: no note
+## at the counter), you carry the pub's box in: its beer on the shelves. Lines "VAN ..." and
+## pictures.
 ##   godot --path godot --audio-driver Dummy --resolution 1280x720 res://tools/van_check.tscn -- --out=DIR
 
 const C := "get_tree().root.get_node('VanCheck')"
@@ -74,6 +76,33 @@ func to_van(extra_min: int) -> void:
 	_main.call("debug_jump_to", at / 1440 + 1, float(posmod(at, 1440)) / 60.0)
 
 
+## You by the pallet inside the barrier, looking at it and the road past it.
+func by_pallet() -> void:
+	var gate := get_tree().get_first_node_in_group("camp_gate")
+	var pal: Vector3 = preload("res://scripts/business/delivery_pallet.gd").spot(gate)
+	var me: Node3D = _main.get("_player")
+	me.global_position = pal + Vector3(1.6, 0.6, 5.5)
+	var to := pal - me.global_position
+	me.rotation.y = atan2(-to.x, -to.z)
+
+
+## The first box on the pallet into your arms, you at the pub, into it.
+func carry_in() -> void:
+	var carry := get_tree().get_first_node_in_group("carry")
+	var boxes: Array = CoreRoot.actions.biz_boxes()
+	if boxes.is_empty():
+		print("VAN no box")
+		return
+	carry.call("_take_box", int(boxes[0]["id"]))
+	print("VAN took box %d held=%s" % [int(boxes[0]["id"]), str(carry.get("held"))])
+	var parts := key.split(":")
+	var gm = _main.get("grid_manager")
+	var o := Vector2i(int(parts[0]), int(parts[1]))
+	(_main.get("_player") as Node3D).global_position = gm.get_footprint_center(o, CoreRoot.get_state().grid.footprint_of(o)) + Vector3(0, 0.6, 4.0)
+	carry.call("_box_down")
+	print("VAN carried in, boxes left %d" % CoreRoot.actions.biz_boxes().size())
+
+
 func _ready() -> void:
 	super._ready()
 	_steps = [
@@ -97,9 +126,10 @@ func _ready() -> void:
 		["eval", C + ".log_state('joined')"],
 		["eval", C + ".to_van(5)"], ["wait", 1.5],
 		["eval", C + ".log_state('arrived')"],
-		["eval", C + ".to_van(50)"], ["wait", 1.5],
-		["eval", C + ".log_state('at_desk')"], ["shot", "v2_at_desk"],
-		["eval", "_day_events.sign_delivery()"], ["wait", 1.5],
-		["eval", C + ".log_state('signed')"],
+		["eval", C + ".by_pallet()"], ["wait", 1.0], ["shot", "v2_van_here"],
+		["eval", C + ".to_van(14)"], ["wait", 1.5], ["eval", C + ".log_state('at_pallet')"], ["shot", "v3_stacking"],
+		["eval", C + ".to_van(26)"], ["wait", 2.0], ["eval", C + ".log_state('unloaded')"],
+		["eval", "get_node('/root/CoreRoot').get_state().biz.get('boxes')"], ["shot", "v4_boxes"],
+		["eval", C + ".carry_in()"], ["wait", 1.0], ["eval", C + ".log_state('carried')"],
 		["eval", "get_tree().quit()"],
 	]

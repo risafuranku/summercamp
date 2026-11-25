@@ -12,6 +12,10 @@ extends Node3D
 ##     (hands_lo/carry_*): slower, the torch in your pocket and dark; the sack goes in the
 ##     dumpsters (E at them) and only then is the rubbish done; set down anywhere it lies
 ##     there to be picked up again;
+##   - the wholesaler's boxes (scripts/business/delivery_pallet.gd, 25. 11.): a box off the
+##     pallet by the barrier in both arms (hands_lo/carry_box); by its place E carries it in
+##     (its goods on the shelves), anywhere else E sets it down, by the pallet back onto it;
+##     the box's state is the books' (actions.biz_box_*), the host's in co-op;
 ##   - what is in your hand is not in the bag (inventory.gd: the bag is for pockets).
 ## At night a thrown thing is a noise where it lands: `heard(pos, loudness)` goes to the
 ## group "night_ears" (no enemy listens yet: the hook for the night's code).
@@ -20,6 +24,7 @@ extends Node3D
 
 const INSTANCE = preload("res://scripts/instance/instance.gd")
 const HANDS = preload("res://scripts/ui/hands.gd")
+const LANG = preload("res://scripts/lang.gd")
 const HL := "res://assets/textury/hands_lo/"
 const REACH := 2.4
 ## kind -> the hand's picture (one hand), or two hands for work things.
@@ -168,7 +173,13 @@ func _update_hint() -> void:
 	if not _can_act():
 		return
 	if not held.is_empty():
-		if str(held["kind"]) == "sack" and _dumpsters_near() != null:
+		if held.has("box"):
+			var pal := _pallet()
+			if pal != null and pal.by_its_place(int(held["box"]), _player().global_position):
+				_hint = LANG.f("[E] Carry it into the %s", [pal.place_name(int(held["box"]))])
+			else:
+				_hint = "[E] Put it down"
+		elif str(held["kind"]) == "sack" and _dumpsters_near() != null:
 			_hint = "[E] Into the dumpster"
 		elif bool(held.get("work", false)):
 			_hint = "[E] Put it down"
@@ -176,6 +187,17 @@ func _update_hint() -> void:
 			_hint = "[E] Put down   [LMB] Throw"
 		return
 	_target = _find_target()
+	if _target.is_empty():
+		# A box from the van (on the pallet, or set down somewhere).
+		var pal2 := _pallet()
+		var p2 := _player()
+		var cam2 := p2.get("_camera") as Camera3D if p2 != null else null
+		if pal2 != null and cam2 != null:
+			var id := int(pal2.box_in_view(cam2.global_position, -(p2.call("look_basis") as Basis).z, REACH))
+			if id >= 0:
+				_target = {"kind": "box", "box": id}
+				_hint = LANG.f("[E] Take the box for the %s", [pal2.place_name(id)])
+				return
 	if not _target.is_empty():
 		_hint = "[E] Pick up the %s" % tr(str(KIND_NAMES.get(str(_target["kind"]), _target["kind"])))
 
@@ -197,15 +219,63 @@ func _input(event: InputEvent) -> void:
 			throw_held()
 			get_viewport().set_input_as_handled()
 		elif e_press or (lmb and bool(held.get("work", false))):
-			if str(held["kind"]) == "sack" and _dumpsters_near() != null:
+			if held.has("box"):
+				_box_down()
+			elif str(held["kind"]) == "sack" and _dumpsters_near() != null:
 				_bin_sack()
 			else:
 				put_down()
 			get_viewport().set_input_as_handled()
 		return
 	if (e_press or lmb) and not _target.is_empty():
-		take(_target)
+		if _target.has("box"):
+			_take_box(int(_target["box"]))
+		else:
+			take(_target)
 		get_viewport().set_input_as_handled()
+
+
+# ── the van's boxes (scripts/business/delivery_pallet.gd) ────────────────────────
+
+func _pallet() -> Node:
+	return get_tree().get_first_node_in_group("delivery_pallet") if get_tree() != null else null
+
+
+## Who carries a box here: this warden ("p" and the machine's peer id; 1 alone or the host).
+func _me() -> String:
+	return "p%d" % (multiplayer.get_unique_id() if multiplayer.has_multiplayer_peer() else 1)
+
+
+func _take_box(id: int) -> void:
+	var act = INSTANCE.core(self).actions
+	if act == null or not held.is_empty() or not act.biz_box_carry(id, _me()):
+		return
+	held = {"kind": "box", "id": "", "work": true, "box": id}
+	_claim()
+	_pallet().play_box(_player().global_position, "lift")
+
+
+## The box in your arms down: into its place (on the shelves), back on the pallet, or
+## where you stand.
+func _box_down() -> void:
+	var act = INSTANCE.core(self).actions
+	var pal := _pallet()
+	var id := int(held.get("box", -1))
+	var p := _player()
+	if act != null and pal != null and p != null:
+		if pal.by_its_place(id, p.global_position):
+			var place: String = pal.place_name(id)
+			act.biz_box_in(id)
+			pal.play_box(p.global_position, "down")
+			var hud = _main().get("_hud_manager") if _main() != null else null
+			if hud != null:
+				hud.push_status(LANG.f("The box is on the shelves of the %s.", [place]), 1)
+		else:
+			var at := _floor_ahead(1.0)
+			act.biz_box_down(id, at, pal.by_pallet(at))
+			pal.play_box(at, "down")
+	held = {}
+	_release()
 
 
 func take(pr: Dictionary) -> void:

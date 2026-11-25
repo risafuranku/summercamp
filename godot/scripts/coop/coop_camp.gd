@@ -328,6 +328,14 @@ func _biz_change(kind: String, a: Array) -> void:
 				act.biz_hire(str(a[0]), a[1], int(a[2]))
 		"fire":
 			act.biz_fire(str(a[0]), str(a[1]) if a.size() > 1 else "")
+		"box_carry":
+			# A van's box taken up or put back by the other warden.
+			act.biz_box_carry(int(a[0]), str(a[1]) if a.size() > 1 else "", float(a[2]) if a.size() > 2 else -1.0)
+		"box_in":
+			act.biz_box_in(int(a[0]))
+		"box_down":
+			if a.size() > 2:
+				act.biz_box_down(int(a[0]), a[1], bool(a[2]))
 		"waste":
 			act.biz_waste(str(a[0]), a[1])
 		"gear":

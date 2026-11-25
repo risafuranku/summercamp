@@ -34342,3 +34342,29 @@ msgstr "%d:%d  %s  -  staví se, zbývá %d:%02d práce"
 #: data/buildings/site.tres (25. 11.: a building going up)
 msgid "Building site"
 msgstr "Staveniště"
+
+#: scripts/day_events.gd (25. 11.: the van's boxes by the barrier)
+msgid "Boxes by the barrier"
+msgstr "Krabice u závory"
+
+msgid "The wholesaler's van is here. The driver is stacking the boxes by the barrier."
+msgstr "Přijela dodávka z velkoobchodu. Řidič skládá krabice u závory."
+
+msgid "The van left %d box(es) on the pallet by the barrier."
+msgstr "Dodávka nechala u závory na paletě krabic: %d."
+
+msgid "The van has been."
+msgstr "Dodávka byla a odjela."
+
+msgid "The van left its boxes by the barrier."
+msgstr "Dodávka nechala krabice u závory."
+
+#: scripts/ambient/carry.gd (25. 11.: the van's boxes)
+msgid "[E] Carry it into the %s"
+msgstr "[E] Odnést dovnitř (%s)"
+
+msgid "[E] Take the box for the %s"
+msgstr "[E] Vzít krabici (%s)"
+
+msgid "The box is on the shelves of the %s."
+msgstr "%s: zboží je na regálech."

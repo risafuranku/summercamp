@@ -9,11 +9,11 @@ extends Node
 ##   litter    rubbish dumped by a facility: hold E to bag it
 ##   raccoons  raccoons in the bins behind the bistro / shop / pub: E to shoo them
 ##   delivery  the wholesaler's van at the gate with what you ordered at the businesses'
-##             desks (scripts/business/): its driver walks to the reception and waits
-##             across the counter with his folder (scripts/reception/delivery_driver.gd,
-##             the van and the man from `started`), the note signed there with the mouse
-##             (scripts/closeup/delivery_closeup.gd), and it goes on the shelves; missed,
-##             it comes again the next morning
+##             desks (scripts/business/): its driver stacks a box a place on the pallet
+##             just inside the barrier (scripts/reception/delivery_driver.gd, the van and
+##             the man from `started`; 25. 11. „Krabice u závory“, no note to sign any
+##             more) and drives off; a place's hand or you carry each box in
+##             (scripts/business/delivery_pallet.gd), only then is it on the shelves
 ##   lost_kid  a family's boy has wandered off (families only): find him, E
 ##   noise     tramps or lads keeping the quiet ones awake: talk to the loud party
 ##   tree      a branch down across a path after the wind: hold E to saw it up
@@ -34,6 +34,7 @@ signal changed
 
 const INTERIOR_PREP = preload("res://scripts/interior_prep.gd")
 const BUSINESS = preload("res://scripts/business/business_runtime.gd")
+const LANG = preload("res://scripts/lang.gd")
 const FIRST_HOUR := 8.5
 const LAST_HOUR := 18.5
 const REACH := 3.4
@@ -96,7 +97,7 @@ var _last_abs := 0
 var coop_follow := false
 ## What you see of it done, on that machine (the host's own line has the takings in it).
 const COOP_DONE_LINES := {
-	"litter": "Rubbish bagged.", "raccoons": "The raccoons are gone. For now.", "delivery": "Signed for the delivery.",
+	"litter": "Rubbish bagged.", "raccoons": "The raccoons are gone. For now.", "delivery": "The van left its boxes by the barrier.",
 	"lost_kid": "Found the boy.", "noise": "The noise is down. For tonight.", "tree": "The path is clear.",
 }
 
@@ -339,7 +340,8 @@ func delivery_orders() -> int:
 	return n
 
 
-## The note signed in the folder: the van unloads (as the hands' or the gate's sign did).
+## The boxes are off the van (its driver at the pallet, or a hand helping him): the van's
+## boxes go on the pallet by the barrier.
 func sign_delivery() -> bool:
 	var ev := _event_by_id(delivery_waiting())
 	if ev.is_empty():
@@ -620,7 +622,7 @@ func _make(kind: String, at: int, guests: Array) -> Dictionary:
 				return {}
 			ev.merge({"title": "Raccoons in the bins", "short": "Raccoons", "where": "Behind the %s" % _label_at(r), "coord": [r.x, r.y]}, true)
 		"delivery":
-			ev.merge({"title": "The wholesaler's van", "short": "Van", "where": "Delivery note at the reception", "gate": true}, true)
+			ev.merge({"title": "The wholesaler's van", "short": "Van", "where": "Boxes by the barrier", "gate": true}, true)
 		"lost_kid":
 			var fam: Array = guests.filter(func(g): return str(g.get("archetype", "")) == "family")
 			if fam.is_empty():
@@ -690,7 +692,7 @@ func _start_line(ev: Dictionary) -> String:
 		"raccoons":
 			line = "Something is in the bins behind the %s." % _label_at(_coord(ev))
 		"delivery":
-			line = "The wholesaler's van is here. The driver is walking to the reception and will not wait long."
+			line = "The wholesaler's van is here. The driver is stacking the boxes by the barrier."
 		"lost_kid":
 			line = "%s: \"Have you seen our boy? Red cap. He was right here.\"" % str(ev.get("family", "The family"))
 		"noise":
@@ -722,8 +724,8 @@ func _resolve(ev: Dictionary, by := "") -> void:
 			text = "The raccoons are gone. For now."
 			_sfx_at("shoo.mp3", _event_pos(ev), 0.0)
 		"delivery":
-			var n: int = INSTANCE.core(self).actions.biz_receive(INSTANCE.core(self).get_day()) if INSTANCE.core(self).actions != null else 0
-			text = "Signed for the delivery: %d order(s) unloaded onto the shelves." % n if n > 0 else "Signed for the delivery."
+			var n: int = INSTANCE.core(self).actions.biz_unload(INSTANCE.core(self).get_day()) if INSTANCE.core(self).actions != null else 0
+			text = LANG.f("The van left %d box(es) on the pallet by the barrier.", [n]) if n > 0 else "The van has been."
 		"lost_kid":
 			text = "Found the boy. %s: \"Thank God. Here, for your trouble.\" +$%d" % [str(ev.get("family", "The family")), int(rules.get("tip", 0))]
 			if INSTANCE.core(self).actions != null:
@@ -755,10 +757,9 @@ func _fail(ev: Dictionary) -> void:
 			if INSTANCE.core(self).actions != null:
 				INSTANCE.core(self).actions.add_money(-int(rules.get("fail_money", 0)))
 		"delivery":
-			text = "The van left without anybody signing. It comes back tomorrow morning."
-			thought = "No bread at the shop. In a camp. Unbelievable."
-			if INSTANCE.core(self).actions != null:
-				INSTANCE.core(self).actions.biz_postpone(INSTANCE.core(self).get_day())
+			# (The van never waits for anybody now: its boxes are on the pallet all the same.)
+			_resolve(ev)
+			return
 		"lost_kid":
 			text = "The boy came back by himself at dusk. He will not say where he was."
 			thought = "He came back by himself. He keeps humming something."

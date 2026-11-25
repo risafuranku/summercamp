@@ -587,24 +587,117 @@ func biz_receive(day: int) -> int:
 		var site: Dictionary = (b["sites"] as Dictionary).get(str(o.get("key", "")), {})
 		if site.is_empty():
 			continue
-		_biz_upgrade(site)
-		var kind := str(site["kind"])
-		var g_all: Dictionary = BIZ_RULES.goods(kind)
-		for g in o["goods"]:
-			var pack := int((g_all.get(g, {}) as Dictionary).get("pack", 1))
-			var cap := BIZ_RULES.cap_of(kind, str(g), site)
-			var before := int(site["stock"].get(g, 0))
-			var after := mini(cap, before + pack * int(o["goods"][g]))
-			site["stock"][g] = after
-			if after > before:
-				var lots: Array = site["lots"].get(g, [])
-				lots.append([after - before, day])
-				site["lots"][g] = lots
+		_stock(site, o["goods"], day)
 		n += 1
 	b["orders"] = keep
 	if n > 0:
 		INSTANCE.bus(owner_node).state_changed.emit({"biz": "delivered"})
 	return n
+
+
+## Packs of goods ({good: packs}) onto a place's shelves as a lot dated `day`, as much as
+## the shelves take.
+func _stock(site: Dictionary, goods: Dictionary, day: int) -> void:
+	_biz_upgrade(site)
+	var kind := str(site["kind"])
+	var g_all: Dictionary = BIZ_RULES.goods(kind)
+	for g in goods:
+		var pack := int((g_all.get(g, {}) as Dictionary).get("pack", 1))
+		var cap := BIZ_RULES.cap_of(kind, str(g), site)
+		var before := int(site["stock"].get(g, 0))
+		var after := mini(cap, before + pack * int(goods[g]))
+		site["stock"][g] = after
+		if after > before:
+			var lots: Array = site["lots"].get(g, [])
+			lots.append([after - before, day])
+			site["lots"][g] = lots
+
+
+# ── the van's boxes (docs/businesses.md, Rozhodnutí 25. 11., kolo 2) ─────────────
+
+## The wholesaler's van unloaded on the pallet by the barrier („Krabice u závory“): every
+## order due by `day` is a box for its place in biz["boxes"] ({id, key, goods, by: who
+## carries it, "" nobody}); its goods are on the shelves only once it is carried in
+## (biz_box_in). Returns how many boxes.
+func biz_unload(day: int) -> int:
+	var b := _biz()
+	var keep: Array = []
+	var boxes: Array = b.get("boxes", [])
+	var n := 0
+	for o in b["orders"]:
+		if int(o.get("due_day", 0)) > day:
+			keep.append(o)
+			continue
+		if not (b["sites"] as Dictionary).has(str(o.get("key", ""))):
+			continue
+		var id := int(b.get("box_next", 1))
+		b["box_next"] = id + 1
+		boxes.append({"id": id, "key": str(o["key"]), "goods": (o["goods"] as Dictionary).duplicate(), "by": ""})
+		n += 1
+	b["orders"] = keep
+	b["boxes"] = boxes
+	if n > 0:
+		INSTANCE.bus(owner_node).state_changed.emit({"biz": "unloaded"})
+	return n
+
+
+func biz_boxes() -> Array:
+	return _biz().get("boxes", [])
+
+
+## Box `id` taken up by `by` (a warden "p<peer>", a place's hand "s<slug>", from the game
+## hour `t0` (absolute) when it is a hand's fetch: hands_commute draws the walk from it); ""
+## puts it back on the pallet. False when somebody else has it already.
+func biz_box_carry(id: int, by: String, t0 := -1.0) -> bool:
+	for bx in biz_boxes():
+		if int(bx["id"]) != id:
+			continue
+		if by != "" and str(bx.get("by", "")) != "" and str(bx["by"]) != by:
+			return false
+		bx["by"] = by
+		if t0 >= 0.0:
+			bx["t0"] = t0
+			bx.erase("at")
+		else:
+			bx.erase("t0")
+		_biz_tell("box_carry", [id, by, t0])
+		INSTANCE.bus(owner_node).state_changed.emit({"biz": "box"})
+		return true
+	return false
+
+
+## Box `id` set down by whoever had it: at `at` (lying there to be picked up), or back on the
+## pallet (`on_pallet`).
+func biz_box_down(id: int, at: Vector3, on_pallet := false) -> bool:
+	for bx in biz_boxes():
+		if int(bx["id"]) != id:
+			continue
+		bx["by"] = ""
+		if on_pallet:
+			bx.erase("at")
+		else:
+			bx["at"] = [at.x, at.y, at.z]
+		_biz_tell("box_down", [id, at, on_pallet])
+		INSTANCE.bus(owner_node).state_changed.emit({"biz": "box"})
+		return true
+	return false
+
+
+## Box `id` carried into its place: its goods on the shelves (a lot of today's).
+func biz_box_in(id: int) -> bool:
+	var boxes := biz_boxes()
+	for i in boxes.size():
+		var bx: Dictionary = boxes[i]
+		if int(bx["id"]) != id:
+			continue
+		var site: Dictionary = (_biz()["sites"] as Dictionary).get(str(bx["key"]), {})
+		if not site.is_empty():
+			_stock(site, bx["goods"], maxi(1, int(_state.day)))
+		boxes.remove_at(i)
+		_biz_tell("box_in", [id])
+		INSTANCE.bus(owner_node).state_changed.emit({"biz": "delivered"})
+		return true
+	return false
 
 
 ## Goods that came with no order and no bill (the bistro cellar's machine): onto the shelf

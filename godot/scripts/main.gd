@@ -230,6 +230,8 @@ var _caretaker: Node
 var _pa_horns: Node
 ## The workers' hours on the sites going up (scripts/camp/construction_works.gd, 25. 11.).
 var _construction: Node
+## The van's boxes on the pallet by the barrier (scripts/business/delivery_pallet.gd, 25. 11.).
+var _pallet: Node3D
 var _pending_director: Dictionary = {}
 ## The lost and found and its classifieds (scripts/bazaar.gd).
 var _bazaar = preload("res://scripts/bazaar.gd").new()
@@ -2637,6 +2639,11 @@ func _setup_audio() -> void:
 		_construction.name = "ConstructionWorks"
 		_construction.main = self
 		_screen.add_child(_construction)
+	if (_pallet == null or not is_instance_valid(_pallet)) and _world_3d != null:
+		_pallet = preload("res://scripts/business/delivery_pallet.gd").new()
+		_pallet.name = "DeliveryPallet"
+		_pallet.main = self
+		_world_3d.add_child(_pallet)
 
 
 func _try_interact() -> void:

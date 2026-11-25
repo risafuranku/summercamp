@@ -15,6 +15,13 @@ extends Node
 ##         the counter, no figure behind it) till they get there.
 ##   out   when their shift is over, from their place the same way out to the road, for
 ##         the works bus after the closing (the day's and the late shift's)
+##   boxes the van's boxes (docs/businesses.md, 25. 11. „Krabice u závory“): a place's hand
+##         on shift fetches its box from the pallet by the barrier and carries it in. The
+##         host gives a free box on the pallet to a hand of its place who is in (one box a
+##         place at a time: actions.biz_box_carry "s<slug>" from the hour `t0`), every machine
+##         draws the walk from that (to the pallet, back with the box in their arms; away from
+##         their place meanwhile: business_runtime.arriving), the host puts the goods on the
+##         shelves when they are back (biz_box_in).
 ## The way is the staffroom hands' (staff_runtime.way: the guests' grid, quicker on the
 ## paths); the figures the businesses' own (their Doom sets, standing, bobbing a step).
 
@@ -27,6 +34,8 @@ const CREW := preload("res://scripts/business/crew_figures.gd")
 const STAND := preload("res://scripts/business/corn_stand_life.gd")
 const TIMES := preload("res://scripts/town/bus_timetable.gd")
 const GEO := preload("res://scripts/geo/geo_data.gd")
+const PALLET := preload("res://scripts/business/delivery_pallet.gd")
+const BOX_SIZE := Vector3(0.46, 0.32, 0.36)
 ## How long a hand stands at the stop for the works bus at most (hours): past that there is
 ## none tonight and they are gone down the road.
 const STOP_WAIT_H := 2.5
@@ -43,6 +52,7 @@ static func _late_in() -> float:
 const BOB_HZ := 2.4
 
 var _figs: Dictionary = {}      # "key/slug" -> Sprite3D
+var _carried: Dictionary = {}   # "key/slug/box" -> MeshInstance3D (the box in their arms)
 var _ways: Dictionary = {}      # "key/slug/in|out/day" -> PackedVector3Array
 var _t := 0.0
 var _poll := 0.0
@@ -165,7 +175,70 @@ func _now_walking(h: float) -> Array:
 				if hh < gone:
 					var k := (hh - ends) / out_h
 					out.append({"id": id, "slug": slug, "path": path_out, "k": minf(k, 1.0), "standing": k >= 1.0})
+	_box_walks(out, sr, road)
 	return out
+
+
+## The game's hour since the camp began (day 1 at 0).
+func _abs_h() -> float:
+	return float(int(INSTANCE.core(self).get_day()) - 1) * 24.0 + _hour()
+
+
+func _role_of(key: String, slug: String) -> String:
+	var st = INSTANCE.core(self).get_state()
+	for p in ((st.biz.get("sites", {}) as Dictionary).get(key, {}) as Dictionary).get("crew", []):
+		if str(p.get("slug", "")) == slug:
+			return str(p.get("role", ""))
+	return ""
+
+
+## The hands' fetches of the van's boxes (see the head): given out (the host), walked.
+func _box_walks(out: Array, sr: Node, road: Vector3) -> void:
+	var st = INSTANCE.core(self).get_state()
+	var boxes: Array = (st.biz as Dictionary).get("boxes", [])
+	var fetching := {}
+	var gate := get_tree().get_first_node_in_group("camp_gate") if get_tree() != null else null
+	if boxes.is_empty() or gate == null:
+		PALLET.fetching = fetching
+		return
+	var pal := PALLET.spot(gate) + Vector3(0.9, 0.0, 0.0)
+	pal.y = road.y
+	var now := _abs_h()
+	var host: bool = not INSTANCE.coop(self).is_client()
+	var busy := {}
+	for bx in boxes:
+		if str(bx.get("by", "")).begins_with("s"):
+			busy[str(bx["key"])] = true
+	var done: Array = []
+	for bx in boxes:
+		var key := str(bx["key"])
+		var by := str(bx.get("by", ""))
+		if by.begins_with("s") and bx.has("t0"):
+			var slug := by.substr(1)
+			var place := _place_of(key, _role_of(key, slug))
+			if place.is_empty():
+				continue
+			var go := _way("%s/%s/box/%d" % [key, slug, int(bx["id"])], sr, place["at"], pal)
+			var leg := maxf(0.5, _len(go) / M_PER_MIN) / 60.0
+			var t0 := float(bx["t0"])
+			var id := "%s/%s/box" % [key, slug]
+			if now < t0 + leg:
+				fetching[int(bx["id"])] = true
+				out.append({"id": id, "slug": slug, "path": go, "k": (now - t0) / leg, "away": true})
+			elif now < t0 + 2.0 * leg:
+				var back := PackedVector3Array(go)
+				back.reverse()
+				out.append({"id": id, "slug": slug, "path": back, "k": (now - t0 - leg) / leg, "away": true, "box": true})
+			elif host:
+				done.append(int(bx["id"]))
+		elif by == "" and not bx.has("at") and host and not busy.has(key):
+			var crew: Array = BUSINESS.crew_now(key)
+			if not crew.is_empty():
+				busy[key] = true
+				INSTANCE.core(self).actions.biz_box_carry(int(bx["id"]), "s" + str((crew[0] as Dictionary).get("slug", "")), now)
+	for id2 in done:
+		INSTANCE.core(self).actions.biz_box_in(id2)
+	PALLET.fetching = fetching
 
 
 ## Where the hands wait for the bus: by the camp's stop, on the ground.
@@ -216,6 +289,9 @@ func _draw(delta: float) -> void:
 	for w in walking:
 		if bool(w.get("in", false)):
 			arriving[str(w["id"])] = true
+		elif bool(w.get("away", false)):
+			# Gone to fetch a box: not at their place meanwhile.
+			arriving[str(w["id"]).trim_suffix("/box")] = true
 	BUSINESS.arriving = arriving
 	var seen := {}
 	_view += delta
@@ -239,6 +315,7 @@ func _draw(delta: float) -> void:
 			var ph := floorf((_t + float(absi(hash(id)) % 100) * 0.01) * 12.0) / 12.0
 			at.y += absf(sin(ph * TAU * BOB_HZ * 0.5)) * 0.04
 		spr.position = at
+		_carry_box(id, at, bool(w.get("box", false)), world, cam)
 		if spr.has_meta("doom"):
 			var d: DOOM = spr.get_meta("doom")
 			d.set_anim("stand")
@@ -250,6 +327,43 @@ func _draw(delta: float) -> void:
 			if is_instance_valid(_figs[id]):
 				(_figs[id] as Node).queue_free()
 			_figs.erase(id)
+	for id2 in _carried.keys():
+		if not seen.has(id2):
+			if is_instance_valid(_carried[id2]):
+				(_carried[id2] as Node).queue_free()
+			_carried.erase(id2)
+
+
+## The box in a hand's arms on the way back from the pallet: at their chest, a little toward
+## your eye (in front of their picture).
+func _carry_box(id: String, at: Vector3, on: bool, world: Node3D, cam: Camera3D) -> void:
+	var m: MeshInstance3D = _carried.get(id, null)
+	if not on:
+		if m != null and is_instance_valid(m):
+			m.visible = false
+		return
+	if m == null or not is_instance_valid(m):
+		m = MeshInstance3D.new()
+		m.name = "CarriedBox"
+		var bm := BoxMesh.new()
+		bm.size = BOX_SIZE
+		m.mesh = bm
+		var mat := StandardMaterial3D.new()
+		mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		mat.uv1_triplanar = true
+		mat.uv1_scale = Vector3(1.4, 1.4, 1.4)
+		if ResourceLoader.exists(PALLET.BOX_TEX):
+			mat.albedo_texture = load(PALLET.BOX_TEX)
+		m.material_override = mat
+		world.add_child(m)
+		_carried[id] = m
+	var toward := Vector3.ZERO
+	if cam != null:
+		toward = cam.global_position - at
+		toward.y = 0.0
+		toward = toward.normalized() * 0.28 if toward.length() > 0.01 else Vector3.ZERO
+	m.visible = true
+	m.global_position = at + Vector3(0, 1.0, 0) + toward
 
 
 func _exit_tree() -> void:

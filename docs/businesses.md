@@ -130,3 +130,20 @@ zakryla), protože se do nich kladou klasy; máslenka, slánka, ubrousky a kasi�
 nakloněné k oku jako ležící klas (`corn_station.standing`), takže se při rozhlížení hýbou jako
 věci. Klikací místa (`BUTTER`, `SALT`, `NAPKINS`, `CASH`) zůstala, kde byla. Ubrousek v ruce je
 obrázek hromádky ubrousků. Snímky `tools/stand_look.tscn`.
+
+Hotovo 25. 11. (krabice od dodávky, kolo 2): dodávka stojí za závorou jako dřív, řidič dojde
+k paletě kousek za závorou vedle cesty (`business/delivery_pallet.gd`, `spot`), 6 herních minut
+skládá krabice (`delivery_driver.UNLOAD_MIN`) a pak je událost hotová (`day_events.sign_delivery`
+→ `actions.biz_unload`): každá objednávka je krabice pro svůj podnik v `biz["boxes"]` ({id, key,
+goods, by, at, t0}), na regálu zatím nic. Podpis na recepci (složka na stole, close-up
+`delivery_closeup.gd`, řidič u pultu) je pryč, dodávka už nikdy „neodjede bez podpisu“. Krabice
+nosí: pomocník podniku ve službě (hostitel mu přidělí volnou krabici na paletě, jednu na podnik
+naráz, `biz_box_carry("s<slug>", t0)`; `hands_commute.gd` kreslí jeho cestu k paletě a zpět s
+krabicí v náručí na každém stroji z `t0`, mezitím není u pultu; po návratu `biz_box_in`), jinak
+hráč: E na krabici ji vezme do náruče (`ambient/carry.gd`, ruce `carry_box`, pomalejší chůze),
+u jejího podniku E odnese dovnitř (zboží na regálu), jinde ji E položí (leží tam), u palety ji
+vrátí na paletu. Zvuky krabice ElevenLabs (`assets/sfx/world/box_lift/down.mp3`). V co-opu jsou
+krabice ve stavu podniků hostitele (puls), co udělá druhý, jde hostiteli (`_biz_tell`
+"box_carry", "box_down", "box_in"); cizí krabici v náručí vzít nejde. Sandbox bez denních
+událostí dál dostane zboží rovnou na regály (`biz_receive`). Testy `box_check`,
+`python godot/tools/box_coop.py`, obrazem `tools/van_check.tscn`.
