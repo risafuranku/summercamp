@@ -2,7 +2,6 @@
 
 ## TODO
 
-- [ ] Odstranit veškerý PS jiggle (třesení vrcholů po PS1): hlavně stromy, sklad a další modely.
 - [ ] Co-op stánek s kukuřicí: ostatní vidí druhého hráče vedle sebe a co se mu hýbe pod rukama (věci na pultu, jeho práce); vše, co vidí jeden hráč, vidí i ostatní.
 - [ ] Stánek s kukuřicí: všechny předměty na pultu z 2D textury převést na 3D sprity, které na pultu stojí (jako vařící se kukuřice).
 - [ ] Programy na PC ukazují kemp naživo: hosté jako tečky na plánku (GuestRack, ověřit záložku Pokoje), fronty, tržby, kamera v CampStatu.
@@ -44,6 +43,7 @@
 
 ## DONE
 
+- [x] Bez PS jiggle: vrcholy se už nepřichytávají k mřížce obrazovky (všechny modely, stromy, třpyt), textury dál plavou (fbd11418)
 - [x] Nastavení v záložkách Obraz, Zvuk, Ovládání, Hra; vlastní hlasitost hudby, efektů a hlasů (a97d2e0a)
 - [x] Lehce zaoblené rohy nápověd a zvýraznění (1fb654ab)
 - [x] Hlas: V místně, klik během V vysílačka z batohu (abb89818)
