@@ -23,7 +23,7 @@ const SURFACES := {
 	# counter, the work's front half under the frame's bar; now the eye stands back over
 	# the cook's edge and looks down at it, the whole surface from under the guests' chins
 	# to just over the bar, the cob in the middle.)
-	"counter": {"at": Vector3(-0.65, 1.13, -0.28), "size": Vector2(1.3, 0.73125), "yaw": 180.0, "flat": true, "cam_back": 0.64, "cam_up": 0.6, "cam_aim": 0.08, "tex": "res://assets/textury/corn/st_counter.png"},
+	"counter": {"at": Vector3(-0.65, 1.13, -0.28), "size": Vector2(1.3, 0.73125), "yaw": 180.0, "flat": true, "cam_back": 0.64, "cam_up": 0.6, "cam_aim": 0.08, "tex": "res://assets/textury/corn/st_counter_bare.png"},
 	"husk": {"at": Vector3(0.65, 1.13, -0.28), "size": Vector2(1.3, 0.73125), "yaw": 180.0, "flat": true, "cam_back": 0.64, "cam_up": 0.6, "cam_aim": 0.08, "tex": "res://assets/textury/corn/st_husk.png"},
 	"drinks": {"at": Vector3(-1.78, 0.922, -0.42), "size": Vector2(0.8, 0.45), "yaw": 180.0, "flat": true, "cam_back": 0.46, "cam_up": 0.42, "cam_aim": 0.16, "tex": "res://assets/textury/corn/st_drinks.png"},
 }

@@ -116,3 +116,11 @@ nový zaměstnanec přijede autobusem a dojde do práce“) se Richard 25. 11. v
 - *Nový zaměstnanec najatý v Boss 98: jak má nastoupit?* „Ranním autobusem“: najmeš ho dnes, přijede
   zítra ranním autobusem k zastávce u brány, dojde do práce a od té chvíle pracuje.
 - *Vzorky* (dělník na staveništi, máslenka na pultu stánku): „Obojí OK“, dodělat ve stejném stylu.
+
+Hotovo 25. 11. (věci na pultu stánku): pult má holou desku (`corn/st_counter_bare.png`, Grok) a
+věci jsou sprity od Groka (`corn/prop_*.png`, `tools/artgen/corn_props_art.py`, řádky
+`prompts_corn_props.tsv`): hrnec a prkénko leží na desce (6 mm nad ní, při 2 mm je deska
+zakryla), protože se do nich kladou klasy; máslenka, slánka, ubrousky a kasička stojí a jsou
+nakloněné k oku jako ležící klas (`corn_station.standing`), takže se při rozhlížení hýbou jako
+věci. Klikací místa (`BUTTER`, `SALT`, `NAPKINS`, `CASH`) zůstala, kde byla. Ubrousek v ruce je
+obrázek hromádky ubrousků. Snímky `tools/stand_look.tscn`.

@@ -4,9 +4,10 @@ into the game's files.
 
     python tools/artgen/site_art.py
 
-- the workers' sheets (site_worker_<x>): standing, the hammer up, the hammer down (kneeling),
-  cut apart and scaled alike (standing 128 px tall, the people's pixel), the rim defringed,
-  into assets/textury/npc/site/worker_<x>_stand.png, _up.png, _down.png.
+- the workers' sheets (site_worker_<x>), cut apart and scaled alike (standing 128 px tall, the
+  people's pixel), the rim defringed, into assets/textury/npc/site/worker_<x>_<frame>.png:
+  a: standing, the hammer up, the hammer down (kneeling); b: standing, two steps carrying
+  planks on the shoulder.
 Then `godot --headless --path godot --import`.
 """
 import os
@@ -25,6 +26,9 @@ DEST = os.path.join(GODOT, "assets", "textury", "npc", "site")
 STAND_PX = 128
 
 
+FRAMES = {"a": ("stand", "up", "down"), "b": ("stand", "carry_a", "carry_b")}
+
+
 def worker(x):
     src = os.path.join(HERE, "out", "site_worker_" + x, "raw.png")
     if not os.path.exists(src):
@@ -39,7 +43,7 @@ def worker(x):
         return
     scale = STAND_PX / float(parts[0].height)
     os.makedirs(DEST, exist_ok=True)
-    for name, part in zip(("stand", "up", "down"), parts):
+    for name, part in zip(FRAMES[x], parts):
         small = split_sheet.shrink(part, scale)
         path = os.path.join(DEST, "worker_%s_%s.png" % (x, name))
         small.save(path)
@@ -47,4 +51,5 @@ def worker(x):
 
 
 if __name__ == "__main__":
-    worker("a")
+    for x in (sys.argv[1:] or ["a", "b"]):
+        worker(x)

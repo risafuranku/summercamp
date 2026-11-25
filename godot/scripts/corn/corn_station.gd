@@ -67,6 +67,18 @@ func cretex(s: Sprite3D, name: String, metres: float) -> void:
 	retex(s, CORN_TEX + name + ".png", metres)
 
 
+## A thing standing on the counter (Richard 25. 11.: „všechny předměty na pultu… převést
+## z 2D textury na 3D sprites co tam stojí“): its foot at the point it is put, leant back to
+## face the eye over the counter as a lying cob is, so its picture (drawn from above at three
+## quarters) reads as it was drawn and moves with the eye as you look about.
+func standing(name: String, metres: float) -> Sprite3D:
+	var s := sprite(CORN_TEX + name + ".png", metres, false)
+	if s.texture != null:
+		s.offset = Vector2(0, float(s.texture.get_height()) * 0.5)
+	s.rotation = Vector3(-atan2(cam_up, cam_back) if cam_back > 0.0 else 0.0, 0.0, 0.0)
+	return s
+
+
 ## A cob (or a leaf of its husk) lying on its side, turned to you: a standing sprite laid
 ## over, its middle at the point it is put, leant back to face the eye over the counter
 ## (S25: upright, it was seen from above as a thin sliver); `tilt` fans it a little.

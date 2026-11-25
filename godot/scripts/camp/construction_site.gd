@@ -4,7 +4,8 @@ extends Node3D
 ## a bouchání, hosté dovnitř nemůžou“): on a concrete slab the plank walls rise with the work
 ## done, a wooden scaffold round them, a pile of planks by the front corner and two workers
 ## at it in the workers' day: one kneeling at the front driving nails (a blow every
-## BLOW_SEC, the blow heard), the other standing by the pile. At night the site stands empty
+## BLOW_SEC, the blow heard), the other carrying planks on his shoulder between the pile and
+## the scaffold's side (a step every STEP_SEC, turned the way he goes). At night the site stands empty
 ## and still. building_manager.place_site_at makes it on the site's structure; it reads how
 ## far the work is (GameState.sites) a few times a second, the walls only move when that
 ## changed.
@@ -13,6 +14,10 @@ const INSTANCE = preload("res://scripts/instance/instance.gd")
 const RULES = preload("res://core/systems/construction_rules.gd")
 const CAMP := "res://assets/textury/camp/"
 const WORKER := "res://assets/textury/npc/site/worker_a_"
+const CARRIER := "res://assets/textury/npc/site/worker_b_"
+## The plank carrier: his pace (m/s) and a step's picture this long.
+const CARRY_MPS := 0.8
+const STEP_SEC := 0.3
 const SFX := "res://assets/sfx/site/"
 ## The people's pixel (128 px to 1.74 m, staff_runtime).
 const PERSON_M := 1.74
@@ -38,6 +43,10 @@ var _t := 0.0
 var _look_t := 0.0
 var _down := false
 var _tex := {}
+## The carrier's way: from the pile to the scaffold's side and back.
+var _way_a := Vector3.ZERO
+var _way_b := Vector3.ZERO
+var _way_t := 0.0
 
 
 ## `mat_of`: (file, tint, category, uv) -> Material (building_models._camp_or).
@@ -129,10 +138,15 @@ func _build() -> void:
 		add_child(s)
 		_workers.append(s)
 	(_workers[0] as Sprite3D).position = Vector3(-w * 0.18, 0.0, hz + 0.55)
-	(_workers[1] as Sprite3D).position = Vector3(-hx - 0.6, 0.0, hz + 0.95)
+	_way_a = Vector3(-hx - 0.7, 0.0, hz + 0.95)
+	_way_b = Vector3(-hx - 0.45, 0.0, -hz * 0.5)
+	(_workers[1] as Sprite3D).position = _way_a
 	for f in ["stand", "up", "down"]:
 		var p: String = WORKER + str(f) + ".png"
 		_tex[f] = load(p) if ResourceLoader.exists(p) else null
+	for f in ["carry_a", "carry_b"]:
+		var p2: String = CARRIER + str(f) + ".png"
+		_tex[f] = load(p2) if ResourceLoader.exists(p2) else null
 	_hammer = AudioStreamPlayer3D.new()
 	_hammer.max_distance = 45.0
 	_hammer.unit_size = 4.0
@@ -140,15 +154,17 @@ func _build() -> void:
 	_hammer.bus = "OutdoorAmbience" if AudioServer.get_bus_index("OutdoorAmbience") >= 0 else "Master"
 	_hammer.position = (_workers[0] as Sprite3D).position + Vector3(0.4, 0.3, 0)
 	add_child(_hammer)
-	_dress(_workers[1], "stand")
+	_dress(_workers[1], "carry_a")
 
 
 ## A worker's picture, its feet (its left edge: the back boot in every frame) on the ground.
 func _dress(s: Sprite3D, frame: String) -> void:
 	var t: Texture2D = _tex.get(frame)
+	if s.texture == t:
+		return
 	s.texture = t
 	if t != null:
-		s.offset = Vector2(-float(t.get_width()) * 0.5 if frame == "stand" else -28.0, 0.0)
+		s.offset = Vector2(-28.0 if frame in ["up", "down"] else -float(t.get_width()) * 0.5, 0.0)
 
 
 func _process(delta: float) -> void:
@@ -159,6 +175,7 @@ func _process(delta: float) -> void:
 	if not (_workers[0] as Sprite3D).visible:
 		return
 	_t += delta
+	_carry(delta)
 	var down := fmod(_t, BLOW_SEC) > BLOW_SEC - DOWN_SEC
 	if down != _down:
 		_down = down
@@ -167,6 +184,22 @@ func _process(delta: float) -> void:
 			_hammer.stream = load(SFX + ("hammer_a.mp3" if randf() < 0.6 else "hammer_b.mp3"))
 			_hammer.pitch_scale = randf_range(0.92, 1.06)
 			_hammer.play()
+
+
+## The carrier on his way, a step a picture, facing the way he goes as you see him.
+func _carry(delta: float) -> void:
+	var s: Sprite3D = _workers[1]
+	var span := _way_a.distance_to(_way_b)
+	if span < 0.1:
+		return
+	_way_t = fmod(_way_t + delta * CARRY_MPS / span, 2.0)
+	var k := _way_t if _way_t < 1.0 else 2.0 - _way_t
+	s.position = _way_a.lerp(_way_b, k)
+	_dress(s, "carry_a" if int(_t / STEP_SEC) % 2 == 0 else "carry_b")
+	var cam := get_viewport().get_camera_3d() if get_viewport() != null else null
+	if cam != null:
+		var dir := (_way_b - _way_a) * (1.0 if _way_t < 1.0 else -1.0)
+		s.flip_h = (global_basis * dir).dot(cam.global_basis.x) < 0.0
 
 
 ## How far the work is (the walls), whether the workers are at it now.

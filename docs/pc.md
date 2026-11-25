@@ -142,9 +142,9 @@ stan, karavan, lavička, lampy, cesty, atrakce a výzdoba stojí hned. Dělníci
 od 7 do 19 (moje rozhodnutí, ne Richardovo: objednáno večer, staví se ráno; v noci na staveništi
 nikdo není). Zaplaceno při objednávce; zbouraný rozestavěný dům vrátí, co by vrátila hotová budova.
 V kempu (`scripts/camp/construction_site.gd`): betonová deska, zdi z prken rostou s odvedenou
-prací, dřevěné lešení, hromada prken a dva dělníci (Grok, `site_worker_a`, vzorek čeká na
-Richardovo schválení; `tools/artgen/site_art.py`): jeden klečí a zatlouká (úder každých 0,75 s,
-slyšet `assets/sfx/site/hammer_a/b.mp3`), druhý stojí u prken. Hotovo: lešení dolů (`done.mp3`)
+prací, dřevěné lešení, hromada prken a dva dělníci (Grok, `site_worker_a` a `_b`, schválené
+25. 11.; `tools/artgen/site_art.py`): jeden klečí a zatlouká (úder každých 0,75 s, slyšet
+`assets/sfx/site/hammer_a/b.mp3`), druhý nosí prkna na rameni mezi hromadou a bokem lešení. Hotovo: lešení dolů (`done.mp3`)
 a stojí budova. Odpracované hodiny počítá `scripts/camp/construction_works.gd` na hodinách hry
 (skok hodin přes 48 h, třeba načtení, nic nepočítá), dokončení dělá hostitel nebo hra pro jednoho
 (`actions.finish_site`). Builder 98: staveniště na plánku ve fázích základy, zdi, střecha podle

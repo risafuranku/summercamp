@@ -2,8 +2,10 @@ extends "res://scripts/corn/corn_station.gd"
 
 ## The counter of the corn stand (DESIGN.md §7b "The corn stand"), worked on the stand's
 ## counter out in the camp: the pot of boiling water at the left, the board, the butter and
-## its brush, the salt, the napkins, the cash box (the stand's Build picture,
-## corn/st_counter.png). Things are sprites at the room's pixel.
+## its brush, the salt, the napkins, the cash box. Things are sprites at the room's pixel
+## (25. 11.: the counter's own things too, on the bare top corn/st_counter_bare.png, Grok's
+## corn/prop_*.png): the pot and the board lie (the cobs go into them), the butter, the
+## salt, the napkins and the cash box stand (corn_station.standing).
 ##   the bowl    (at the husking's end, beside the pot) carry a husked cob into the pot, or
 ##               a click on the bowl or the pot; it boils pale, then bright yellow (done),
 ##               then grey and soft
@@ -38,6 +40,9 @@ const SALT := Rect2(456, 124, 34, 56)
 const NAPKINS := Rect2(448, 178, 72, 72)
 const CASH := Rect2(522, 118, 96, 124)
 const HAND := Rect2(170, 0, 300, 96)
+## The things standing on the counter: [picture, metres (its long side), where its foot is].
+const PROPS := [["prop_butter", 0.14, Vector2(418, 196)], ["prop_salt", 0.09, Vector2(473, 166)],
+	["prop_napkins", 0.13, Vector2(484, 238)], ["prop_cash", 0.2, Vector2(570, 232)]]
 ## The cobs aside: on the counter's far edge over the board, then on the tray over the
 ## butter and the salt.
 const SIDE_AT := [Vector2(244, 104), Vector2(348, 104), Vector2(472, 85), Vector2(472, 100), Vector2(472, 115)]
@@ -83,6 +88,11 @@ var open_books: Callable
 func _build() -> void:
 	super._build()
 	_rng.randomize()
+	# The counter's things on its bare top (laid ones 6 mm over it: at 2 mm the top hid them).
+	for f in [["prop_pot.png", 0.31, POT.get_center()], ["prop_board.png", 0.35, BOARD.get_center()]]:
+		put(sprite(CORN_TEX + str(f[0]), float(f[1]), true), f[2], 0.006)
+	for t in PROPS:
+		put(standing(str(t[0]), float(t[1])), t[2], 0.0)
 	_boil = sprite(CORN_TEX + "boil_0.png", 0.27, true)
 	put(_boil, POT.get_center(), 0.012)
 	_board_spr = lying("cob_boiled", COB_M)
@@ -413,12 +423,7 @@ func _take_in_hand(what: String, tex: String, target: Rect2) -> void:
 ## A napkin off the pile as the counter's picture has it.
 func _set_napkin_picture() -> void:
 	if _napkin_tex == null:
-		var pic: Texture2D = load(CORN_TEX + "st_counter.png")
-		var k := Vector2(pic.get_size()) / DESIGN
-		var a := AtlasTexture.new()
-		a.atlas = pic
-		a.region = Rect2(NAPKINS.position * k, NAPKINS.size * k)
-		_napkin_tex = a
+		_napkin_tex = load(CORN_TEX + "prop_napkins.png")
 	_hand_spr.texture = _napkin_tex
 	_hand_spr.pixel_size = 0.13 / float(_napkin_tex.get_width())
 	_hand_spr.set_meta("tex_key", "#napkin")
