@@ -2,8 +2,6 @@
 
 ## TODO
 
-- [ ] Staveniště: druhý dělník (nese prkna) ve stylu schváleného `site_worker_a` (Richard 25. 11.: „Obojí OK“).
-- [ ] Stánek s kukuřicí: všechny předměty na pultu z 2D textury převést na 3D sprity, které na pultu stojí (jako vařící se kukuřice); vzorek máslenky schválený 25. 11., dál hrnec, prkénko, sůl, ubrousky, kasička a holá deska pultu (`tools/artgen/prompts_corn_props.tsv`).
 - [ ] Dodávka zboží: zastaví u podniku, krabice před dveře, odnese je pomocník podniku, jinak hráč kliknutím; na regálu až po odnesení (docs/businesses.md, Rozhodnutí 25. 11.).
 - [ ] Nový zaměstnanec přijede ráno po najmutí autobusem k zastávce u brány a dojde do práce (docs/businesses.md, Rozhodnutí 25. 11.).
 - [ ] Kamera, animace a optimalizace: projít před co-op playtestem.
@@ -41,6 +39,7 @@
 
 ## DONE
 
+- [x] Stánek s kukuřicí: věci na pultu jako sprity na holé desce (hrnec a prkénko leží, máslenka, slánka, ubrousky a kasička stojí); druhý dělník nosí prkna (ac844e92)
 - [x] Megafon z ampliónů: zní ze tří nejbližších jako rádio; dřív nehrál vůbec (kamera hledaná ve špatném viewportu) (8a8c2530)
 - [x] Blesk za okny místností: se stínem má okenní kříž a věci vrhají stíny; bez něj svítil jako obyčejný reflektor (e64ea484)
 - [x] Stavba trvá podle velikosti: staveniště s lešením, dělníky a bouchaním, 1–4 h práce přes den, pak stojí budova; i pro dva (db5e7189)
