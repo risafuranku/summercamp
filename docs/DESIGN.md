@@ -2386,3 +2386,14 @@ and taken out the same day.
   into the bow (E by the boat while it is at the camp jetty) and rides facing the rower
   (they sat in the rower's face, 0.6 m off); ashore on the keeper's jetty each stands on
   a spot of their own, and back into the bow when the rower takes the boat home.
+
+### Decisions 25. 11. 2026: the endless sandbox, first steps
+
+Richard, asked what of the endless sandbox comes first (TODO „Nekonečný sandbox“), picked three
+(of four; the weekly mixes of night enemies wait):
+- „Nastavení nového kempu“: before the start you pick the map's size, the money you start with
+  and how bad the nights are.
+- „Cíle, skóre a statistiky“: optional goals (fifty guests at once and the like) and a screen
+  with the score and graphs over the camp's whole life.
+- „Náhodné nabídky a události“: tours, a sponsor, an inspection and offers in CampMail, drawn
+  all through the game.

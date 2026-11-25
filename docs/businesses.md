@@ -104,3 +104,15 @@ po koupi objednávka od dráhy, natočit, podat).
 - Richardova poznámka: „nevidím jak COOP hráči připravují kukuřici, nevidím ho vedle sebe, jak se jím tam hýbe pod rukama (vše co vidí jeden hráč musí vidět i ostatní)“.
 - Otázka: stanice si rozdělanou práci drží lokálně, ve všech podnicích. Odpověď: **„Všechny podniky“** (jeden společný mechanismus pro stanice všech podniků, rozdělaná práce i věc v ruce se posílá ostatním).
 - Poznámka: „všechny předměty na pultu s kukuřicí převést z 2D textury na 3D sprites co tam stojí, podobně jako když se kukuřice vaří“. Otázka na obrázky, odpověď: **„Grok, nejdřív vzorek“** (každá věc zvlášť šikmo shora, vzorek ke schválení, pult s čistou deskou).
+
+## Rozhodnutí 25. 11. 2026: dodávka zboží a nástup zaměstnance
+
+Z rozhodnutí 24. 11. (docs/pc.md, kolo 2: „objednávka přijede dodávkou a vykládá se před podnikem…
+nový zaměstnanec přijede autobusem a dojde do práce“) se Richard 25. 11. vybíral z otázek
+(otázka → odpověď doslova):
+- *Dodávka zboží: kdo krabice odnese dovnitř a kdy je zboží na regálu?* „Pomocník podniku, jinak ty“:
+  dodávka zastaví u podniku a vyloží krabice před dveře; odnese je zaměstnanec podniku, bez něj je
+  odneseš ty (klikneš na krabici); na regálu je zboží až po odnesení.
+- *Nový zaměstnanec najatý v Boss 98: jak má nastoupit?* „Ranním autobusem“: najmeš ho dnes, přijede
+  zítra ranním autobusem k zastávce u brány, dojde do práce a od té chvíle pracuje.
+- *Vzorky* (dělník na staveništi, máslenka na pultu stánku): „Obojí OK“, dodělat ve stejném stylu.
