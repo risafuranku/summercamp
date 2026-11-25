@@ -8,6 +8,7 @@ const INSTANCE = preload("res://scripts/instance/instance.gd")
 const BALANCE_CONFIG = preload("res://core/balance/balance_config.gd")
 const CONSTRUCTION = preload("res://core/systems/construction_rules.gd")
 const PLOT = preload("res://core/systems/plot_rules.gd")
+const GOAL_RULES = preload("res://core/systems/goal_rules.gd")
 
 var _state
 var _registry
@@ -82,6 +83,46 @@ func buy_plot_strip(side: String) -> bool:
 	var grown := PLOT.grow(rect, grid, side)
 	_state.plot = {"rect": grown, "bought": bought + 1} if not grown.is_empty() else {}
 	INSTANCE.bus(owner_node).plot_changed.emit()
+	return true
+
+
+# ── a camp's goals and score (core/systems/goal_rules.gd) ──────────────────────
+
+func _goals() -> Dictionary:
+	if not (_state.goals is Dictionary):
+		_state.goals = {}
+	for k in ["chosen", "done", "peak", "safe", "safe_best"]:
+		if not _state.goals.has(k):
+			_state.goals[k] = [] if k == "chosen" else ({} if k == "done" else 0)
+	return _state.goals
+
+
+## The goals a camp is made with (one to three of goal_rules.GOALS).
+func set_goals(ids: Array) -> void:
+	_state.goals = {}
+	_goals()["chosen"] = GOAL_RULES.chosen(ids)
+
+
+## The most guests at once so far.
+func goals_note(peak: int) -> void:
+	var g := _goals()
+	g["peak"] = maxi(int(g["peak"]), peak)
+
+
+## A night over: one more in a row without a lost guest, or the count from nought again.
+func goals_night(lost_one: bool) -> void:
+	var g := _goals()
+	g["safe"] = 0 if lost_one else int(g["safe"]) + 1
+	g["safe_best"] = maxi(int(g["safe_best"]), int(g["safe"]))
+
+
+## Goal `id` met on `day` (false when it was met before).
+func goal_done(id: String, day: int) -> bool:
+	var g := _goals()
+	if (g["done"] as Dictionary).has(id):
+		return false
+	g["done"][id] = day
+	INSTANCE.bus(owner_node).state_changed.emit({"goals": id})
 	return true
 
 

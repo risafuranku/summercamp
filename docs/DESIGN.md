@@ -2434,3 +2434,16 @@ in co-op the other's goes to the host (request "plot"), the host's fact "plot" s
 machine. Nothing is built or bulldozed off the plot ("outside_plot"). In the camp the plot's edge
 is stakes with the barrier's red-and-white tape (`scripts/camp/plot_stakes.gd`), not on the
 camp's own fence. Tests `plot_check`, `python godot/tools/plot_coop.py`, `--scenario=plot`.
+
+Done 25. 11. (the goals and the score): `core/systems/goal_rules.gd` (pure): six goals (fifty
+guests at once, $10,000 in the till, fourteen nights without a lost guest, twenty lodgings, four
+businesses, four stars from the last ten guests), one to three ticked on the new camp's form
+(rows below the rules; the first ticked by default, the last does not come off),
+`GameState.goals` {chosen, done: {id: day}, peak, safe, safe_best} (saved; in co-op the host's,
+in the pulse). `scripts/camp/goal_watch.gd` (main makes it): every 2 s on the host or alone the
+camp's numbers, each morning the night that went (a lost guest starts the count again), a goal
+met: `actions.goal_done`, the banner GOAL MET in green and the Builder's diploma fanfare, on the
+other machines too (fact "goal"); the first look 5 s after the game starts (the day's banner
+first). CampStat's ninth page GOALS (a pennant): the score (a met goal 1000, the camp's bests),
+the chosen goals with their bars (met: the day), the camp's numbers. Tests `goal_check`,
+`python godot/tools/goals_coop.py`, `--scenario=goals`.

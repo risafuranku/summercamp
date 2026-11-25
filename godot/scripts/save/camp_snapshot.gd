@@ -69,6 +69,7 @@ func build(slot_name: String, kind: String) -> Dictionary:
 			"biz": (state.biz as Dictionary).duplicate(true),
 			"sites": (state.sites as Dictionary).duplicate(true),
 			"plot": (state.plot as Dictionary).duplicate(true),
+			"goals": (state.goals as Dictionary).duplicate(true),
 			"lost_guests": main.SAVE_CODEC.duplicate_dict_array(state.lost_guests),
 			"electricity": main._billing.export_state()
 		},
@@ -347,7 +348,8 @@ func apply(snapshot: Dictionary, preview_only: bool) -> bool:
 			"next_guest_id": max(1, int(state_data.get("next_guest_id", 1))),
 			"biz": (state_data.get("biz", {}) as Dictionary).duplicate(true) if state_data.get("biz", {}) is Dictionary else {},
 			"sites": (state_data.get("sites", {}) as Dictionary).duplicate(true) if state_data.get("sites", {}) is Dictionary else {},
-			"plot": (state_data.get("plot", {}) as Dictionary).duplicate(true) if state_data.get("plot", {}) is Dictionary else {}
+			"plot": (state_data.get("plot", {}) as Dictionary).duplicate(true) if state_data.get("plot", {}) is Dictionary else {},
+			"goals": (state_data.get("goals", {}) as Dictionary).duplicate(true) if state_data.get("goals", {}) is Dictionary else {}
 		})
 		# (A camp saved before there was a swell: what the ledger says has come so far.)
 		var ledger_any = snapshot.get("week_ledger", {})
@@ -530,6 +532,7 @@ func reset_for_new_game() -> void:
 	state.biz = {}
 	state.sites = {}
 	state.plot = {}
+	state.goals = {}
 	if EmailManager != null and INSTANCE.mail(main).has_method("reset_runtime"):
 		INSTANCE.mail(main).reset_runtime(true)
 	if GuestManager != null and INSTANCE.guests(main).has_method("reset_runtime_state"):

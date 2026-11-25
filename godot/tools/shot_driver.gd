@@ -1553,6 +1553,20 @@ const SCENARIOS := {
 		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 2.0],
 		["player", 2, 6, 270.0], ["wait", 2.0], ["shot", "pl3_stakes_moved"],
 	],
+	# A sandbox camp's goals (25. 11., core/systems/goal_rules.gd): two chosen on the form, the till
+	# one met at once (the banner, the fanfare), CampStat's GOALS page with the other's progress,
+	# the score and the camp's numbers; the form with the goals ticked.
+	"goals": [
+		["wait_menu"], ["call_on", "_main_menu", "show_page", ["newcamp"]], ["wait", 0.6],
+		["eval", "_main_menu.get('_desk').page.click('sandbox')"], ["eval", "_main_menu.get('_desk').page.click('goal:money')"], ["eval", "_main_menu.get('_desk').redraw()"], ["wait", 0.4], ["shot", "gl0_form"],
+		["call", "_start_new_camp", [true, "", "", 0, false, {"goals": ["guests", "money"], "money": 50000}]], ["wait_gameplay"], ["wait", 1.0],
+		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 5.5], ["shot", "gl1_met"], ["wait", 1.0], ["shot", "gl1b_met"],
+		["eval", "get_node('/root/CoreRoot').get_state().goals"],
+		["call_on", "_interior_manager", "open_startup_crt_view", []], ["wait", 16.0],
+		["eval", "_interior_manager._building_interior._crt_ui.open_app('camp_status')"], ["wait", 3.0],
+		["eval", "_interior_manager._building_interior._crt_ui.app_of('camp_status').set('_page', 'goals')"],
+		["eval", "_interior_manager._building_interior._crt_ui.app_of('camp_status').refresh()"], ["wait", 1.5], ["crt_screen", "gl2_campstat"],
+	],
 	"staff_first_day": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
 		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.8],

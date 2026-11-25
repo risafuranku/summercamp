@@ -38,6 +38,10 @@ extends Resource
 ## A sandbox camp's land (core/systems/plot_rules.gd): {"rect": [x0, y0, x1, y1] ([] the whole
 ## camp), "bought": strips bought so far}; {} the whole camp.
 @export var plot: Dictionary = {}
+## A camp's goals and what its score counts (core/systems/goal_rules.gd, scripts/camp/goal_watch.gd):
+## {"chosen": [ids], "done": {id: day}, "peak": the most guests at once, "safe": nights in a row
+## without a lost guest, "safe_best"}.
+@export var goals: Dictionary = {}
 ## Guests the camp lost in the night (actions.note_lost_guest): {name, day, archetype, room};
 ## the district's paper and police read it (os98 browser: the Courier, the search for them).
 @export var lost_guests: Array[Dictionary] = []

@@ -24,6 +24,13 @@ const RULE_TEXT := {"threats": "Nights", "weather": "Weather", "events": "Day ev
 ## The land the camp starts on, stepped by a click (25. 11.: plot_rules.SIZES; the rest bought
 ## in Builder 98).
 const PLOT_WORD := ["Small plot", "Middle plot", "Whole camp"]
+## The goals ticked below the rules (25. 11. „Vybereš si je při založení“: one to three of
+## goal_rules.GOALS), from this row.
+const GOALS_ROW := 12
+## The rules' first row (the goals follow them; all of it on the paper, 25. 11.).
+const RULES_ROW := 6
+const GOAL_RULES = preload("res://core/systems/goal_rules.gd")
+const LANG = preload("res://scripts/lang.gd")
 ## The nights' row, stepped by a click (25. 11. „Tři stupně“): off, then quiet, usual, bad
 ## (rules "threats" off, or on with "nights" 0..2: night_swell.SEVERITY_*).
 const NIGHT_WORD := ["Nights off", "Quiet nights", "Usual nights", "Bad nights"]
@@ -50,7 +57,7 @@ func _init(main_menu, title_desk) -> void:
 
 func opened() -> void:
 	sandbox = false
-	rules = {"threats": true, "weather": true, "events": true, "wear": true, "money": 0, "nights": 1, "plot": 2}
+	rules = {"threats": true, "weather": true, "events": true, "wear": true, "money": 0, "nights": 1, "plot": 2, "goals": ["guests"]}
 	_stamped = -1.0
 	_name = desk.field(Rect2(X + 58, Y0 + PITCH * 1 - 8, 96, 10))
 	_name.text = PROFILES.default_camp_name()
@@ -104,13 +111,27 @@ func hotspots() -> Array:
 	out.append({"id": "sandbox", "rect": Rect2(X + 84, _row(4) - 8, 56, 11)})
 	if sandbox:
 		for i in RULES.size():
-			out.append({"id": "rule:" + str(RULES[i]), "rect": Rect2(X - 2, _row(7 + i) - 8, 150, 11)})
+			out.append({"id": "rule:" + str(RULES[i]), "rect": Rect2(X - 2, _row(RULES_ROW + i) - 8, 150, 11)})
+		for i in GOAL_RULES.GOALS.size():
+			out.append({"id": "goal:" + str(GOAL_RULES.GOALS[i][0]), "rect": Rect2(X - 2, _row(GOALS_ROW + 1 + i) - 8, 150, 11)})
 	out.append({"id": "stamp", "rect": Rect2(STAMP_AT, Vector2(84, 76))})
 	out.append({"id": "back", "rect": desk.tape_rect(Vector2(430, 242), tr("Back"))})
 	return out
 
 
 func click(id: String) -> void:
+	if id.begins_with("goal:"):
+		# Ticked or not; a fourth does not go on (three at most), the last does not come off.
+		var gid := id.trim_prefix("goal:")
+		var on: Array = (rules.get("goals", []) as Array).duplicate()
+		if on.has(gid):
+			if on.size() > 1:
+				on.erase(gid)
+		elif on.size() < GOAL_RULES.MAX_CHOSEN:
+			on.append(gid)
+		rules["goals"] = on
+		desk.play(SFX_PEN, -10.0)
+		return
 	if id.begins_with("rule:"):
 		_flip(id.trim_prefix("rule:"))
 		desk.play(SFX_PEN, -10.0)
@@ -163,7 +184,7 @@ func paint(d, c: Control) -> void:
 	if sandbox:
 		for i in RULES.size():
 			var id: String = RULES[i]
-			var y := _row(7 + i)
+			var y := _row(RULES_ROW + i)
 			if id == "money":
 				var m := int(rules.get("money", 0))
 				d.text(c, Vector2(X + 12, y), tr(str(RULE_TEXT[id])).to_upper(), d.INK)
@@ -185,6 +206,21 @@ func paint(d, c: Control) -> void:
 				d.text(c, Vector2(X + 12, y), tr(str(RULE_TEXT[id])).to_upper(), d.INK if on else d.PENCIL)
 			if d.hovered() == "rule:" + id:
 				c.draw_rect(Rect2(X + 12, y + 1, 120, 1), d.RED)
+		# The goals, ticked as the rules are.
+		d.text(c, Vector2(X, _row(GOALS_ROW)), tr("Goals").to_upper(), d.PENCIL)
+		var chosen: Array = rules.get("goals", [])
+		for i in GOAL_RULES.GOALS.size():
+			var gid := str(GOAL_RULES.GOALS[i][0])
+			var gy := _row(GOALS_ROW + 1 + i)
+			var gon := chosen.has(gid)
+			var gbox := Rect2(X, gy - 7, 7, 7)
+			c.draw_rect(gbox, Color(d.PENCIL, 0.8), false, 1.0)
+			if gon:
+				c.draw_line(gbox.position + Vector2(1, 4), gbox.position + Vector2(3, 6), Color8(26, 100, 36), 1.0)
+				c.draw_line(gbox.position + Vector2(3, 6), gbox.position + Vector2(7, 0), Color8(26, 100, 36), 1.0)
+			d.text(c, Vector2(X + 12, gy), LANG.money(tr(str(GOAL_RULES.GOALS[i][1]))).to_upper(), d.INK if gon else d.PENCIL)
+			if d.hovered() == "goal:" + gid:
+				c.draw_rect(Rect2(X + 12, gy + 1, 140, 1), d.RED)
 	# The stamp beside the form, and what it leaves.
 	var stamp: Texture2D = d.tex(STAMP)
 	var lift := Vector2(0, -3) if d.hovered() == "stamp" and _stamped < 0.0 else Vector2.ZERO
@@ -192,7 +228,8 @@ func paint(d, c: Control) -> void:
 		c.draw_texture_rect(stamp, Rect2(STAMP_AT + Vector2(6, 8), stamp.get_size() * 2), false, Color(0, 0, 0, 0.3))
 		c.draw_texture_rect(stamp, Rect2(STAMP_AT + lift, stamp.get_size() * 2), false)
 	if _stamped >= 0.0:
-		var sr := Rect2(X + 40, _row(13) - 12, 92, 18)
+		# (Over the mode's row: the rules and the goals fill the sheet below.)
+		var sr := Rect2(X + 60, _row(3) - 12, 92, 18)
 		c.draw_rect(sr, Color(0.72, 0.1, 0.08, 0.85), false, 2.0)
 		var s := tr("APPROVED")
 		d.text(c, Vector2(sr.position.x + (sr.size.x - d.text_w(s)) * 0.5, sr.position.y + 12), s, Color(0.72, 0.1, 0.08, 0.9))

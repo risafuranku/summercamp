@@ -433,7 +433,7 @@ func camp_pulse() -> Dictionary:
 		"hrot": float(state.hrotfaktor), "elec": main._billing.export_state(), "baz": main._bazaar.export_state(), "gog": main._goggle.export_state()}
 	# Vera's checklist, the host's (a story camp's): shown on every machine.
 	var quest: Dictionary = main._quest_manager.coop_state() if main._quest_manager != null and is_instance_valid(main._quest_manager) else {}
-	return {"guests": state.guests, "failures": state.failures, "maint": maint, "maint_lr": halves, "rooms": state.accommodation_states, "mail": mail, "shed_key": key, "day": day, "nj": nj, "biz": state.biz, "books": books, "lost": state.lost_guests, "quest": quest}
+	return {"guests": state.guests, "failures": state.failures, "maint": maint, "maint_lr": halves, "rooms": state.accommodation_states, "mail": mail, "shed_key": key, "day": day, "nj": nj, "biz": state.biz, "books": books, "lost": state.lost_guests, "quest": quest, "goals": state.goals}
 
 
 var last_day_hash := 0
@@ -504,6 +504,9 @@ func apply_pulse(p: Dictionary) -> void:
 				INSTANCE.coop(main).send_request("biz", [kind, args])
 	if p.get("biz", null) is Dictionary and not (p["biz"] as Dictionary).is_empty():
 		state.biz = (p["biz"] as Dictionary).duplicate(true)
+	# The camp's goals and score (the host's).
+	if p.get("goals", null) is Dictionary:
+		state.goals = (p["goals"] as Dictionary).duplicate(true)
 	var nj: Dictionary = p.get("nj", {})
 	if main._night_jobs != null and not nj.is_empty():
 		main._night_jobs.breaker_tripped = bool(nj.get("bt", false))
@@ -838,6 +841,10 @@ func apply_fact(kind: String, data: Array) -> void:
 			_god_from_peer(false)
 		"site_done":
 			INSTANCE.core(main).actions.finish_site(data[0])
+		"goal":
+			# A goal met in the host's camp: its celebration here too (the books come in the pulse).
+			if main._goal_watch != null and data.size() > 0:
+				main._goal_watch.celebrate(str(data[0]))
 		"plot":
 			var pl: Dictionary = data[0] if data.size() > 0 and data[0] is Dictionary else {}
 			INSTANCE.core(main).get_state().plot = pl.duplicate(true)

@@ -14,7 +14,8 @@ extends Control
 const INSTANCE = preload("res://scripts/instance/instance.gd")
 const T = preload("res://scripts/os98/os_theme.gd")
 const LANG = preload("res://scripts/lang.gd")
-const TABS := [["today", "Today"], ["log", "Log"], ["power", "Power"], ["bills", "Bills"], ["night", "Night"], ["upkeep", "Upkeep"], ["money", "Money"], ["reviews", "Reviews"]]
+const TABS := [["today", "Today"], ["log", "Log"], ["power", "Power"], ["bills", "Bills"], ["night", "Night"], ["upkeep", "Upkeep"], ["money", "Money"], ["reviews", "Reviews"], ["goals", "Goals"]]
+const GOAL_RULES = preload("res://core/systems/goal_rules.gd")
 const RED := Color8(176, 0, 0)
 const AMBER := Color8(160, 112, 0)
 const GREEN := Color8(0, 120, 0)
@@ -371,6 +372,8 @@ func _draw_page() -> void:
 			y = _page_money(y)
 		"reviews":
 			y = _page_reviews(y)
+		"goals":
+			y = _page_goals(y)
 	var h := y + _scroll.value + PAD
 	if absf(h - _content_h) > 0.5:
 		_content_h = h
@@ -627,6 +630,11 @@ func _glyph(c: Control, id: String, p: Vector2, _k: float) -> void:
 			c.draw_circle(p + Vector2(8, 8), 7.0, Color8(120, 90, 0))
 			c.draw_circle(p + Vector2(8, 8), 6.0, Color8(240, 200, 40))
 			c.draw_string(T.FONT_BOLD, p + Vector2(5, 13), "$", HORIZONTAL_ALIGNMENT_LEFT, -1, T.FONT_SIZE, Color8(120, 80, 0))
+		"goals":
+			# A pennant on its pole.
+			c.draw_rect(Rect2(p + Vector2(3, 0), Vector2(2, 16)), Color8(120, 90, 50))
+			c.draw_colored_polygon(PackedVector2Array([p + Vector2(5, 1), p + Vector2(15, 4), p + Vector2(5, 8)]), Color8(60, 170, 70))
+			c.draw_polyline(PackedVector2Array([p + Vector2(5, 1), p + Vector2(15, 4), p + Vector2(5, 8)]), Color8(20, 80, 30), 1.0)
 		"reviews":
 			var pts := PackedVector2Array()
 			for k in 10:
@@ -635,6 +643,45 @@ func _glyph(c: Control, id: String, p: Vector2, _k: float) -> void:
 			c.draw_colored_polygon(pts, Color8(240, 200, 0))
 			pts.append(pts[0])
 			c.draw_polyline(pts, Color8(96, 72, 0), 1.0)
+
+
+# ── the goals and the score (core/systems/goal_rules.gd, 25. 11.) ────────────
+
+## A camp's goals with how far each is (met: the day), its score, the numbers it counts.
+func _page_goals(y: float) -> float:
+	var st = INSTANCE.core(self).get_state() if CoreRoot != null else null
+	var main = _shell.main_node()
+	var watch = main.get("_goal_watch") if main != null else null
+	var nums: Dictionary = watch.numbers() if watch != null and is_instance_valid(watch) and st != null else {}
+	var g: Dictionary = st.goals if st != null and st.goals is Dictionary else {}
+	var done: Dictionary = g.get("done", {})
+	var chosen: Array = g.get("chosen", [])
+	y = _title(y, tr("GOALS"), LANG.f("day %d", INSTANCE.core(self).get_day() if CoreRoot != null else 1))
+	y = _lcd(y, [["Score", str(GOAL_RULES.score(nums, done.size()))], ["Goals met", "%d / %d" % [done.size(), chosen.size()]]])
+	if not chosen.is_empty():
+		var rows: Array = []
+		for id in chosen:
+			var gl := GOAL_RULES.goal(str(id))
+			if gl.is_empty():
+				continue
+			var met: bool = done.has(str(id))
+			rows.append([{"t": LANG.money(tr(str(gl[1]))), "b": met, "c": GREEN if met else T.TEXT},
+				{"bar": 1.0 if met else GOAL_RULES.progress(str(id), nums), "c": GREEN if met else T.NAVY},
+				{"t": LANG.f("day %d", int(done[str(id)])) if met else "%d%%" % int(round(GOAL_RULES.progress(str(id), nums) * 100.0)), "c": GREEN if met else GREY}])
+		y = _table(y, [["Goal", 0, HORIZONTAL_ALIGNMENT_LEFT], ["", 110, HORIZONTAL_ALIGNMENT_LEFT], ["", 64, HORIZONTAL_ALIGNMENT_RIGHT]], rows, 19.0)
+		y += 8.0
+	var stats: Array = [
+		["Days", str(int(nums.get("days", 0)))],
+		["Most guests at once", str(int(nums.get("peak", 0)))],
+		["Nights without a lost guest", "%d (%d)" % [int(nums.get("safe", 0)), int(nums.get("safe_best", 0))]],
+		["Lodgings", str(int(nums.get("lodgings", 0)))],
+		["Businesses", str(int(nums.get("places", 0)))],
+		["Stars from the last guests", "%.1f" % float(nums.get("stars", 0.0))],
+	]
+	var srows: Array = []
+	for s in stats:
+		srows.append([tr(str(s[0])), {"t": str(s[1]), "b": true}])
+	return _table(y, [["The camp", 0, HORIZONTAL_ALIGNMENT_LEFT], ["", 90, HORIZONTAL_ALIGNMENT_RIGHT]], srows, 17.0)
 
 
 # ── the log ─────────────────────────────────────────────────────────────────

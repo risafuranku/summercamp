@@ -34409,3 +34409,54 @@ msgstr "Pozemek: tenhle pás za $%d"
 
 msgid "The strip beside the camp's land, bought with a click."
 msgstr "Pás vedle pozemku kempu, koupí se kliknutím."
+
+#: core/systems/goal_rules.gd, scripts/ui/title/page_form.gd (25. 11.: a sandbox's goals)
+msgid "Goals"
+msgstr "Cíle"
+
+msgid "GOAL MET"
+msgstr "CÍL SPLNĚN"
+
+msgid "Fifty guests at once"
+msgstr "Padesát hostů naráz"
+
+msgid "$10,000 in the till"
+msgstr "$10,000 v pokladně"
+
+msgid "Fourteen nights, nobody lost"
+msgstr "Čtrnáct nocí bez ztráty"
+
+msgid "Twenty lodgings"
+msgstr "Dvacet ubytování"
+
+msgid "Four businesses"
+msgstr "Čtyři podniky"
+
+msgid "Four stars from guests"
+msgstr "Čtyři hvězdy od hostů"
+
+#: scripts/os98/apps/campstat_app.gd (25. 11.: the goals page)
+msgid "GOALS"
+msgstr "CÍLE"
+
+msgid "Score"
+msgstr "Skóre"
+
+msgid "Goals met"
+msgstr "Splněno"
+
+msgid "Goal"
+msgstr "Cíl"
+
+msgid "Most guests at once"
+msgstr "Nejvíc hostů naráz"
+
+msgid "Nights without a lost guest"
+msgstr "Nocí bez ztraceného hosta"
+
+msgid "Stars from the last guests"
+msgstr "Hvězdy od posledních hostů"
+
+msgid "The camp"
+msgstr "Kemp"
+

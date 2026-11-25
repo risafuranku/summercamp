@@ -234,6 +234,8 @@ var _construction: Node
 var _pallet: Node3D
 ## The stakes at the edge of a sandbox camp's land (scripts/camp/plot_stakes.gd, 25. 11.).
 var _plot_stakes: Node3D
+## A camp's goals and score kept up (scripts/camp/goal_watch.gd, 25. 11.).
+var _goal_watch: Node
 var _pending_director: Dictionary = {}
 ## The lost and found and its classifieds (scripts/bazaar.gd).
 var _bazaar = preload("res://scripts/bazaar.gd").new()
@@ -2653,6 +2655,11 @@ func _setup_audio() -> void:
 		_plot_stakes = preload("res://scripts/camp/plot_stakes.gd").new()
 		_plot_stakes.main = self
 		_world_3d.add_child(_plot_stakes)
+	if _goal_watch == null or not is_instance_valid(_goal_watch):
+		_goal_watch = preload("res://scripts/camp/goal_watch.gd").new()
+		_goal_watch.name = "GoalWatch"
+		_goal_watch.main = self
+		_screen.add_child(_goal_watch)
 
 
 func _try_interact() -> void:
@@ -3267,6 +3274,9 @@ func _start_new_camp(sandbox: bool, test_enemy: String = "", camp_name: String =
 	if sandbox and grid_manager != null and world_generator != null:
 		var grid := Vector2i(int(grid_manager.grid_width), int(grid_manager.grid_height))
 		INSTANCE.core(self).actions.set_plot(PLOT_RULES.start(int(_camp_rules.get("plot", 2)), grid, world_generator.gate_tile().x))
+	# A sandbox's goals, chosen on its form (core/systems/goal_rules.gd).
+	if sandbox:
+		INSTANCE.core(self).actions.set_goals(_camp_rules.get("goals", []) if _camp_rules.get("goals", []) is Array else [])
 	# The warden's new camp (scripts/profiles.gd), its saves from now on (a test night's
 	# camp and the tools' are nobody's).
 	if test_enemy.is_empty() and camp_name != "":
@@ -3318,8 +3328,8 @@ var _sandbox := false
 ## "nights": how bad they are when they come (0 quiet, 1 usual, 2 bad: night_swell.SEVERITY_*;
 ## 25. 11.), a story camp's usual.
 ## "plot": the land a sandbox camp starts on (0 small, 1 middle, 2 the whole camp:
-## plot_rules.SIZES; 25. 11.).
-const CAMP_RULES := {"threats": true, "weather": true, "events": true, "wear": true, "money": 0, "nights": 1, "plot": 2}
+## plot_rules.SIZES; 25. 11.). "goals": the ones chosen (goal_rules.GOALS ids).
+const CAMP_RULES := {"threats": true, "weather": true, "events": true, "wear": true, "money": 0, "nights": 1, "plot": 2, "goals": []}
 var _camp_rules: Dictionary = CAMP_RULES.duplicate()
 
 
