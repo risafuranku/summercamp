@@ -26,7 +26,7 @@ const MAP3D_SCRIPT = preload("res://scripts/builder/map3d.gd")
 const UPKEEP_RULES = preload("res://core/systems/maintenance_rules.gd")
 ## Keys (the panel's 1-9 are the computer's tabs; S stands you up, D leans you out).
 const CATEGORY_KEYS := {KEY_F1: "housing", KEY_F2: "washrooms", KEY_F3: "food", KEY_F4: "fun", KEY_F5: "decor"}
-const TOOL_KEYS := {KEY_B: "demolish", KEY_P: "path", KEY_L: "lamp_post"}
+const TOOL_KEYS := {KEY_B: "demolish", KEY_P: "path", KEY_L: "lamp_post", KEY_K: "plot"}
 const OVERLAY_SHORT := {"": "Off", "condition": "Wear", "power": "Power", "rooms": "Rooms", "light": "Light"}
 
 ## Sorted the way a camp is planned (the user 30. 10.: "sort it better, why is the sewer
@@ -90,7 +90,7 @@ const SHORT_NAMES := {
 	"tent_1": "Tent", "cabin_1": "Cabin", "caravan_1": "Caravan", "toilet_block": "Toilets",
 	"shower_block": "Showers", "vecerka": "Jednota", "restaurant": "Bistro", "pub": "Pub",
 	"bonfire": "Bonfire", "sports_field": "Sports field", "lake_slide": "Lake slide", "sewer": "Sewage",
-	"path": "Path", "lamp_post": "Lamp", "demolish": "Bulldozer",
+	"path": "Path", "lamp_post": "Lamp", "demolish": "Bulldozer", "plot": "Land",
 	"bench": "Bench", "picnic_table": "Picnic table", "flower_bed": "Flower bed", "gnome": "Gnome", "mega_gnome": "Mega gnome",
 	"tree_spruce": "Spruce", "tree_birch": "Birch",
 	"flagpole": "Flagpole", "playground": "Playground", "ping_pong": "Ping-pong", "hammock": "Hammock",
@@ -130,9 +130,10 @@ const BLURBS := {
 	"path": "Drag to lay a path. Guests walk on paths.",
 	"lamp_post": "Light at night. A lit path is a safe path.",
 	"demolish": "Drag over trees or buildings, then click inside to clear them.",
+	"plot": "The strip beside the camp's land, bought with a click.",
 }
 
-const TOOLS := ["demolish", "path", "lamp_post"]
+const TOOLS := ["demolish", "path", "lamp_post", "plot"]
 const TOOLBAR_H := 40
 const CATALOGUE_H := 64
 const PROGRESS = preload("res://scripts/os98/os_progress.gd")
@@ -186,6 +187,7 @@ const TOOL_CURSORS := {
 	"demolish": "res://assets/textury/builder/tb2_bulldoze.png",
 	"path": "res://assets/textury/builder/tb2_path.png",
 	"lamp_post": "res://assets/textury/builder/tb2_lamp.png",
+	"plot": "res://assets/textury/builder/tb2_plot.png",
 	"": "",
 	"*": "res://assets/textury/builder/cur_blueprint.png",
 }
@@ -436,7 +438,7 @@ func _build_toolbar() -> void:
 	row.position = Vector2(4, 3)
 	row.add_theme_constant_override("separation", 2)
 	_toolbar.add_child(row)
-	var tool_keys := {"demolish": "B", "path": "P", "lamp_post": "L"}
+	var tool_keys := {"demolish": "B", "path": "P", "lamp_post": "L", "plot": "K"}
 	for id in TOOLS:
 		var b := _tool_button(_tool_art(id), "%s  (%s)\n%s" % [SHORT_NAMES[id], tool_keys.get(id, ""), BLURBS[id]])
 		var tool: String = id
@@ -1573,6 +1575,10 @@ func _tooltip(type: String) -> String:
 
 
 func _cost(type: String) -> int:
+	# The land tool: the next strip's price (plot_rules.gd).
+	if type == "plot":
+		var st = INSTANCE.core(self).get_state()
+		return preload("res://core/systems/plot_rules.gd").price(int(st.plot.get("bought", 0))) if st != null and st.plot is Dictionary else 0
 	var def = INSTANCE.core(self).registry.get_def(StringName(type)) if INSTANCE.core(self).registry != null else null
 	return int(def.cost) if def != null else 0
 
@@ -1583,7 +1589,21 @@ var _card_side := 0
 var _card_t := 0.0
 
 
+## The land tool only while the camp has land to buy (a sandbox's plot, plot_rules.gd).
+func _show_plot_tool() -> void:
+	var b: Button = _tool_buttons.get("plot")
+	if b == null:
+		return
+	var st = INSTANCE.core(self).get_state()
+	var has := st != null and st.plot is Dictionary and not (st.plot.get("rect", []) as Array).is_empty()
+	if b.visible != has:
+		b.visible = has
+		if not has and _selected == "plot":
+			_select("")
+
+
 func _process(delta: float) -> void:
+	_show_plot_tool()
 	_deny_cd -= delta
 	_tick_night()
 	if _inspect != null and _inspect.visible:

@@ -232,6 +232,8 @@ var _pa_horns: Node
 var _construction: Node
 ## The van's boxes on the pallet by the barrier (scripts/business/delivery_pallet.gd, 25. 11.).
 var _pallet: Node3D
+## The stakes at the edge of a sandbox camp's land (scripts/camp/plot_stakes.gd, 25. 11.).
+var _plot_stakes: Node3D
 var _pending_director: Dictionary = {}
 ## The lost and found and its classifieds (scripts/bazaar.gd).
 var _bazaar = preload("res://scripts/bazaar.gd").new()
@@ -1824,6 +1826,7 @@ func _on_eventbus_state_changed(changes: Dictionary) -> void:
 ## The night's roll and the things it sends (scripts/night/night_roll.gd).
 const NIGHT_ROLL = preload("res://scripts/night/night_roll.gd")
 const NIGHT_SWELL = preload("res://core/systems/night_swell.gd")
+const PLOT_RULES = preload("res://core/systems/plot_rules.gd")
 var _night_roll: RefCounted = NIGHT_ROLL.new(self)
 
 
@@ -2646,6 +2649,10 @@ func _setup_audio() -> void:
 		_pallet.name = "DeliveryPallet"
 		_pallet.main = self
 		_world_3d.add_child(_pallet)
+	if (_plot_stakes == null or not is_instance_valid(_plot_stakes)) and _world_3d != null:
+		_plot_stakes = preload("res://scripts/camp/plot_stakes.gd").new()
+		_plot_stakes.main = self
+		_world_3d.add_child(_plot_stakes)
 
 
 func _try_interact() -> void:
@@ -3256,6 +3263,10 @@ func _start_new_camp(sandbox: bool, test_enemy: String = "", camp_name: String =
 	_test_night = test_enemy
 	_pending_world_seed = seed
 	await _generate_new_camp()
+	# A sandbox's land: the plot it starts on (core/systems/plot_rules.gd), the rest bought.
+	if sandbox and grid_manager != null and world_generator != null:
+		var grid := Vector2i(int(grid_manager.grid_width), int(grid_manager.grid_height))
+		INSTANCE.core(self).actions.set_plot(PLOT_RULES.start(int(_camp_rules.get("plot", 2)), grid, world_generator.gate_tile().x))
 	# The warden's new camp (scripts/profiles.gd), its saves from now on (a test night's
 	# camp and the tools' are nobody's).
 	if test_enemy.is_empty() and camp_name != "":
@@ -3306,7 +3317,9 @@ var _sandbox := false
 ## starting till (0: the usual). A story camp has them all on. Saved as "rules".
 ## "nights": how bad they are when they come (0 quiet, 1 usual, 2 bad: night_swell.SEVERITY_*;
 ## 25. 11.), a story camp's usual.
-const CAMP_RULES := {"threats": true, "weather": true, "events": true, "wear": true, "money": 0, "nights": 1}
+## "plot": the land a sandbox camp starts on (0 small, 1 middle, 2 the whole camp:
+## plot_rules.SIZES; 25. 11.).
+const CAMP_RULES := {"threats": true, "weather": true, "events": true, "wear": true, "money": 0, "nights": 1, "plot": 2}
 var _camp_rules: Dictionary = CAMP_RULES.duplicate()
 
 

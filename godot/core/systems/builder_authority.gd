@@ -3,6 +3,7 @@ extends Node
 const INSTANCE = preload("res://scripts/instance/instance.gd")
 const BALANCE_CONFIG = preload("res://core/balance/balance_config.gd")
 const CONSTRUCTION = preload("res://core/systems/construction_rules.gd")
+const PLOT = preload("res://core/systems/plot_rules.gd")
 
 ## The bulldozer is paid by the tile it clears (a tree, corn, a building's footprint),
 ## not by the empty grass the box happens to cover.
@@ -75,6 +76,9 @@ func _connect_event_bus() -> void:
 	var order_cb := Callable(self, "_on_request_order")
 	if INSTANCE.bus(self).has_signal("RequestOrder") and not EventBus.RequestOrder.is_connected(order_cb):
 		EventBus.RequestOrder.connect(order_cb)
+	var plot_cb := Callable(self, "_on_request_plot")
+	if INSTANCE.bus(self).has_signal("RequestPlot") and not EventBus.RequestPlot.is_connected(plot_cb):
+		EventBus.RequestPlot.connect(plot_cb)
 	var demolish_cb := Callable(self, "_on_request_demolish")
 	if INSTANCE.bus(self).has_signal("RequestDemolish") and not EventBus.RequestDemolish.is_connected(demolish_cb):
 		EventBus.RequestDemolish.connect(demolish_cb)
@@ -91,6 +95,22 @@ func _on_request_build(building_type: String, pos: Vector2i, rot: int) -> void:
 ## (construction_rules.gd: chatka a podniky 2 až 4 herní hodiny, stan a lavička hned).
 func _on_request_order(building_type: String, pos: Vector2i, rot: int) -> void:
 	_build(building_type, pos, rot, true)
+
+
+## The land tool (a sandbox's plot, plot_rules.gd): the strip along `side` bought.
+func _on_request_plot(side: String) -> void:
+	if _state == null or _actions == null or _state.grid == null:
+		EventBus.PlotRejected.emit(side, "authority_not_ready")
+		return
+	var rect: Array = _actions.plot_rect()
+	if rect.is_empty() or PLOT.strip(rect, _state.grid.get_grid_size(), side).size == Vector2i.ZERO:
+		EventBus.PlotRejected.emit(side, "no_land")
+		return
+	var cost := PLOT.price(int(_state.plot.get("bought", 0)))
+	if INSTANCE.core(self).get_money() < cost or not _actions.buy_plot_strip(side):
+		EventBus.PlotRejected.emit(side, "insufficient_funds")
+		return
+	EventBus.PlotBought.emit(side, cost)
 
 
 func _build(building_type: String, pos: Vector2i, rot: int, ordered: bool) -> void:
@@ -144,6 +164,10 @@ func _build(building_type: String, pos: Vector2i, rot: int, ordered: bool) -> vo
 				EventBus.BuildRejected.emit(normalized_type, pos, normalized_rot, "only_one")
 				return
 	var footprint := GridModel.turned(_resolve_footprint(normalized_type), normalized_rot)
+	# Off the camp's own land (a sandbox's plot): not yours to build on.
+	if not PLOT.fits(_actions.plot_rect(), _state.grid.get_grid_size(), pos, footprint):
+		EventBus.BuildRejected.emit(normalized_type, pos, normalized_rot, "outside_plot")
+		return
 	if not _state.grid.can_place_footprint(pos, footprint):
 		EventBus.BuildRejected.emit(normalized_type, pos, normalized_rot, "blocked_or_out_of_bounds")
 		return
@@ -241,6 +265,9 @@ func _collect_demolish_targets(rect: Rect2i) -> Dictionary:
 	for y in range(rect.position.y, rect.position.y + rect.size.y):
 		for x in range(rect.position.x, rect.position.x + rect.size.x):
 			var coord = Vector2i(x, y)
+			# Off the camp's own land (a sandbox's plot): its trees and all are not yours.
+			if not PLOT.contains(_actions.plot_rect(), _state.grid.get_grid_size(), coord):
+				continue
 
 			if _state.grid.cells.has(coord):
 				var data: Dictionary = _state.grid.cells[coord]

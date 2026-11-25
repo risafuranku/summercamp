@@ -2420,3 +2420,17 @@ off, quiet, usual, bad (`page_form.NIGHT_WORD`; rules "threats" off, or on with 
 camp's capped at 0.5 (never the Antlered Man at 0.7), the blows 0.6 / 1.0 / 1.4 of themselves
 (`main.damage_player`). A story camp is "usual". Tested in `night_swell_check`, the form in
 `--scenario=new_camp_form`.
+
+Done 25. 11. (the land; round 3: „Hranice z kolíků“, the outer fence stays where it is: moving it
+would have meant the world's generation, the guests' and the hands' ways and the night redone):
+`core/systems/plot_rules.gd` (pure). The form's row LAND: small 12x12, middle 20x18, the whole camp
+(from the south fence, the gate lane in the middle; `main._start_new_camp` -> `actions.set_plot`).
+`GameState.plot` {"rect": [x0, y0, x1, y1], "bought"} ({} the whole camp; saved, in the world a
+joining machine gets). Builder 98's tool LAND (K, Grok icon `tb2_plot`, shown only while there is
+land to buy): the land off the plot is in shade on the map, the strip under the pointer lit and
+its price on the status line; a click is `EventBus.RequestPlot(side)` -> builder_authority ->
+`actions.buy_plot_strip` (strips of 4 along west, east or north, the first 260, each next x1.5);
+in co-op the other's goes to the host (request "plot"), the host's fact "plot" sets it on every
+machine. Nothing is built or bulldozed off the plot ("outside_plot"). In the camp the plot's edge
+is stakes with the barrier's red-and-white tape (`scripts/camp/plot_stakes.gd`), not on the
+camp's own fence. Tests `plot_check`, `python godot/tools/plot_coop.py`, `--scenario=plot`.

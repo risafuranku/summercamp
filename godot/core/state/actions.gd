@@ -7,6 +7,7 @@ extends RefCounted
 const INSTANCE = preload("res://scripts/instance/instance.gd")
 const BALANCE_CONFIG = preload("res://core/balance/balance_config.gd")
 const CONSTRUCTION = preload("res://core/systems/construction_rules.gd")
+const PLOT = preload("res://core/systems/plot_rules.gd")
 
 var _state
 var _registry
@@ -53,6 +54,35 @@ func _occupy(building_id: String, origin: Vector2i, footprint: Vector2i, rotatio
 			var tile = origin + Vector2i(x, y)
 			_state.grid.occupy_cell(tile, building_id, instance_id, origin, footprint)
 	INSTANCE.bus(owner_node).building_placed.emit(building_id, origin, footprint, rotation)
+
+
+# ── the sandbox's land (core/systems/plot_rules.gd) ─────────────────────────────
+
+## The camp's plot ([] the whole camp).
+func plot_rect() -> Array:
+	return (_state.plot.get("rect", []) as Array) if _state.plot is Dictionary else []
+
+
+func set_plot(rect: Array) -> void:
+	_state.plot = {"rect": rect.duplicate(), "bought": 0} if not rect.is_empty() else {}
+	INSTANCE.bus(owner_node).plot_changed.emit()
+
+
+## The strip along `side` bought (its price paid): false when there is none or no money.
+func buy_plot_strip(side: String) -> bool:
+	var grid: Vector2i = _state.grid.get_grid_size()
+	var rect := plot_rect()
+	if rect.is_empty() or PLOT.strip(rect, grid, side).size == Vector2i.ZERO:
+		return false
+	var bought := int(_state.plot.get("bought", 0))
+	var cost := PLOT.price(bought)
+	if not spend_money(cost):
+		return false
+	note_camp("invest", cost)
+	var grown := PLOT.grow(rect, grid, side)
+	_state.plot = {"rect": grown, "bought": bought + 1} if not grown.is_empty() else {}
+	INSTANCE.bus(owner_node).plot_changed.emit()
+	return true
 
 
 # ── building takes time (core/systems/construction_rules.gd) ────────────────────

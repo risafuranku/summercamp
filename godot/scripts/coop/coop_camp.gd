@@ -45,6 +45,11 @@ func wire() -> void:
 			var site: bool = INSTANCE.core(main).get_state().sites.has(CONSTRUCTION.key(at))
 			INSTANCE.coop(main).send_fact("build", [t, at, rot, site])
 	)
+	# The camp's land bought bigger (plot_rules.gd): the same plot on every machine.
+	EventBus.PlotBought.connect(func(_side: String, _cost: int) -> void:
+		if INSTANCE.coop(main).is_host():
+			INSTANCE.coop(main).send_fact("plot", [INSTANCE.core(main).get_state().plot])
+	)
 	# A site's work done on the host's clock: the building stands on every machine.
 	INSTANCE.bus(main).site_finished.connect(func(_t: String, at: Vector2i, _rot: int) -> void:
 		if INSTANCE.coop(main).is_host():
@@ -833,6 +838,10 @@ func apply_fact(kind: String, data: Array) -> void:
 			_god_from_peer(false)
 		"site_done":
 			INSTANCE.core(main).actions.finish_site(data[0])
+		"plot":
+			var pl: Dictionary = data[0] if data.size() > 0 and data[0] is Dictionary else {}
+			INSTANCE.core(main).get_state().plot = pl.duplicate(true)
+			INSTANCE.bus(main).plot_changed.emit()
 		"demolish":
 			_god_from_peer(true)
 			INSTANCE.core(main).builder_authority._on_request_demolish(data[0])
@@ -868,6 +877,7 @@ func request(kind: String, data: Array) -> void:
 			var cb := func(t: String, at: Vector2i, rot: int, reason: String) -> void: turned.append([t, at, rot, reason])
 			EventBus.BuildRejected.connect(cb)
 			_god_from_peer(true)
+			# (The land: the other's Builder 98 bought a strip, request "plot".)
 			# Ordered in the other's Builder 98: a site where it takes the workers hours.
 			if data.size() >= 4 and bool(data[3]):
 				EventBus.RequestOrder.emit(str(data[0]), data[1], int(data[2]))
@@ -877,6 +887,9 @@ func request(kind: String, data: Array) -> void:
 			EventBus.BuildRejected.disconnect(cb)
 			if not turned.is_empty():
 				INSTANCE.coop(main).send_fact("build_rejected", turned[0])
+		"plot":
+			# The other warden's land tool: bought here, the fact goes back to everybody.
+			EventBus.RequestPlot.emit(str(data[0]))
 		"demolish":
 			var turned2: Array = []
 			var cb2 := func(rect: Rect2i, reason: String) -> void: turned2.append([rect, reason])
@@ -984,6 +997,8 @@ func _forward_builds(on: bool) -> void:
 	build_forwarding = on
 	var b := Callable(auth, "_on_request_build")
 	var o := Callable(auth, "_on_request_order")
+	var pl := Callable(auth, "_on_request_plot")
+	var fpl := Callable(self, "_send_plot")
 	var d := Callable(auth, "_on_request_demolish")
 	var fb := Callable(self, "_send_build")
 	var fo := Callable(self, "_send_order")
@@ -993,16 +1008,21 @@ func _forward_builds(on: bool) -> void:
 			EventBus.RequestBuild.disconnect(b)
 		if EventBus.RequestOrder.is_connected(o):
 			EventBus.RequestOrder.disconnect(o)
+		if EventBus.RequestPlot.is_connected(pl):
+			EventBus.RequestPlot.disconnect(pl)
 		if EventBus.RequestDemolish.is_connected(d):
 			EventBus.RequestDemolish.disconnect(d)
 		EventBus.RequestBuild.connect(fb)
 		EventBus.RequestOrder.connect(fo)
+		EventBus.RequestPlot.connect(fpl)
 		EventBus.RequestDemolish.connect(fd)
 	else:
 		if EventBus.RequestBuild.is_connected(fb):
 			EventBus.RequestBuild.disconnect(fb)
 		if EventBus.RequestOrder.is_connected(fo):
 			EventBus.RequestOrder.disconnect(fo)
+		if EventBus.RequestPlot.is_connected(fpl):
+			EventBus.RequestPlot.disconnect(fpl)
 		if EventBus.RequestDemolish.is_connected(fd):
 			EventBus.RequestDemolish.disconnect(fd)
 		auth._connect_event_bus()
@@ -1015,6 +1035,14 @@ func _send_build(t: String, at: Vector2i, rot: int) -> void:
 		INSTANCE.core(main).builder_authority._on_request_build(t, at, rot)
 		return
 	INSTANCE.coop(main).send_request("build", [t, at, rot])
+
+
+func _send_plot(side: String) -> void:
+	if not INSTANCE.coop(main).is_client():
+		_forward_builds(false)
+		INSTANCE.core(main).builder_authority._on_request_plot(side)
+		return
+	INSTANCE.coop(main).send_request("plot", [side])
 
 
 func _send_order(t: String, at: Vector2i, rot: int) -> void:

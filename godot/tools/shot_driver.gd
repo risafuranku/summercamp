@@ -1533,6 +1533,26 @@ const SCENARIOS := {
 		["eval", "_main_menu.get('_desk').page.click('rule:threats')"], ["eval", "_main_menu.get('_desk').redraw()"], ["wait", 0.3], ["shot", "nf3_quiet"],
 		["eval", "_main_menu.get('_desk').page.rules"],
 	],
+	# A sandbox camp on the small plot (25. 11., core/systems/plot_rules.gd): the stakes and tape
+	# at its west edge, Builder 98 with the land tool over the west strip, the strip bought and
+	# the stakes moved out.
+	"plot": [
+		["wait_menu"], ["call", "_start_new_camp", [true, "", "", 0, false, {"plot": 0}]], ["wait_gameplay"], ["wait", 2.0],
+		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.5],
+		["eval", "get_node('/root/CoreRoot').get_state().plot"],
+		["player", 6, 6, 270.0], ["wait", 2.0], ["shot", "pl0_stakes"],
+		["call_on", "_interior_manager", "open_startup_crt_view", []], ["wait", 16.0],
+		["eval", "_interior_manager._building_interior._crt_ui._on_program_installed('builder')"],
+		["eval", "_interior_manager._building_interior._crt_ui.open_app('builder')"], ["wait", 4.0], ["key", "Enter"], ["wait", 1.0],
+		["eval", "_interior_manager._building_interior._crt_ui.app_of('builder')._module._select('plot')"],
+		["eval", "_interior_manager._building_interior._crt_ui.app_of('builder')._module._map_panel.set('hover_coord', Vector2i(7, 5))"], ["wait", 0.6],
+		["crt_screen", "pl1_builder_land"],
+		["eval", "get_node('/root/EventBus').RequestPlot.emit('west')"], ["wait", 1.0],
+		["eval", "get_node('/root/CoreRoot').get_state().plot"], ["crt_screen", "pl2_bought"],
+		["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 1.0],
+		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 2.0],
+		["player", 2, 6, 270.0], ["wait", 2.0], ["shot", "pl3_stakes_moved"],
+	],
 	"staff_first_day": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
 		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.8],

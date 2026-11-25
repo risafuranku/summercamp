@@ -34385,3 +34385,27 @@ msgstr "Běžné"
 
 msgid "Bad nights"
 msgstr "Zlé"
+
+#: scripts/ui/title/page_form.gd (25. 11.: the land a sandbox camp starts on)
+msgid "Land"
+msgstr "Pozemek"
+
+msgid "Small plot"
+msgstr "Malý"
+
+msgid "Middle plot"
+msgstr "Střední"
+
+msgid "Whole camp"
+msgstr "Celý"
+
+#: scripts/crt_map_panel.gd (25. 11.: a build off a sandbox camp's plot)
+msgid "not the camp's land"
+msgstr "tohle už není pozemek kempu"
+
+#: scripts/crt_map_panel.gd, builder_module.gd (25. 11.: Builder 98's land tool)
+msgid "Land: this strip for $%d"
+msgstr "Pozemek: tenhle pás za $%d"
+
+msgid "The strip beside the camp's land, bought with a click."
+msgstr "Pás vedle pozemku kempu, koupí se kliknutím."

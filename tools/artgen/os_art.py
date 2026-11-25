@@ -125,7 +125,7 @@ def walls():
 
 def builder():
     # (Builder 98's title picture, bld_splash, went 2. 11.: the title window is drawn, scripts/builder/splash.gd.)
-    for n in ["bulldoze", "path", "lamp", "housing", "services", "fun", "utilities", "rotate", "zoom"]:
+    for n in ["bulldoze", "path", "lamp", "housing", "services", "fun", "utilities", "rotate", "zoom", "plot"]:
         k = keyed("tb2_" + n)
         if k is None:
             continue

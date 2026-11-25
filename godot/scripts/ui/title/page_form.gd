@@ -19,8 +19,11 @@ const X := 92.0
 const Y0 := 40.0
 const PITCH := 11.0
 const STAMP_AT := Vector2(318, 120)
-const RULES := ["threats", "weather", "events", "wear", "money"]
-const RULE_TEXT := {"threats": "Nights", "weather": "Weather", "events": "Day events", "wear": "Breakdowns", "money": "Money"}
+const RULES := ["threats", "weather", "events", "wear", "money", "plot"]
+const RULE_TEXT := {"threats": "Nights", "weather": "Weather", "events": "Day events", "wear": "Breakdowns", "money": "Money", "plot": "Land"}
+## The land the camp starts on, stepped by a click (25. 11.: plot_rules.SIZES; the rest bought
+## in Builder 98).
+const PLOT_WORD := ["Small plot", "Middle plot", "Whole camp"]
 ## The nights' row, stepped by a click (25. 11. „Tři stupně“): off, then quiet, usual, bad
 ## (rules "threats" off, or on with "nights" 0..2: night_swell.SEVERITY_*).
 const NIGHT_WORD := ["Nights off", "Quiet nights", "Usual nights", "Bad nights"]
@@ -47,7 +50,7 @@ func _init(main_menu, title_desk) -> void:
 
 func opened() -> void:
 	sandbox = false
-	rules = {"threats": true, "weather": true, "events": true, "wear": true, "money": 0, "nights": 1}
+	rules = {"threats": true, "weather": true, "events": true, "wear": true, "money": 0, "nights": 1, "plot": 2}
 	_stamped = -1.0
 	_name = desk.field(Rect2(X + 58, Y0 + PITCH * 1 - 8, 96, 10))
 	_name.text = PROFILES.default_camp_name()
@@ -64,6 +67,8 @@ func _flip(id: String) -> void:
 	if id == "money":
 		var i := MONEY.find(int(rules.get("money", 0)))
 		rules["money"] = MONEY[(i + 1) % MONEY.size()]
+	elif id == "plot":
+		rules["plot"] = (int(rules.get("plot", 2)) + 1) % PLOT_WORD.size()
 	elif id == "threats":
 		var step := (_night_step() + 1) % NIGHT_WORD.size()
 		rules["threats"] = step > 0
@@ -163,6 +168,9 @@ func paint(d, c: Control) -> void:
 				var m := int(rules.get("money", 0))
 				d.text(c, Vector2(X + 12, y), tr(str(RULE_TEXT[id])).to_upper(), d.INK)
 				d.text(c, Vector2(X + 100, y), "$" + CAMP_TEXT.money(m if m > 0 else BALANCE_CONFIG.STARTING_MONEY), d.INK)
+			elif id == "plot":
+				d.text(c, Vector2(X + 12, y), tr(str(RULE_TEXT[id])).to_upper(), d.INK)
+				d.text(c, Vector2(X + 100, y), tr(str(PLOT_WORD[clampi(int(rules.get("plot", 2)), 0, 2)])).to_upper(), d.INK)
 			elif id == "threats":
 				var st := _night_step()
 				d.text(c, Vector2(X + 12, y), tr(str(RULE_TEXT[id])).to_upper(), d.INK)

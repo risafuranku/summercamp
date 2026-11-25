@@ -19,6 +19,12 @@ signal RequestBuild(building_type: String, pos: Vector2i, rot: int)
 signal RequestOrder(building_type: String, pos: Vector2i, rot: int)
 ## A site's work done: the building itself stands at `origin` now.
 signal site_finished(building_type: String, origin: Vector2i, rotation: int)
+## The camp's plot bought bigger or set (core/systems/plot_rules.gd).
+signal plot_changed()
+## Builder 98's land tool: the strip along `side` ("west", "east", "north") to buy.
+signal RequestPlot(side: String)
+signal PlotBought(side: String, cost: int)
+signal PlotRejected(side: String, reason: String)
 signal RequestDemolish(area: Rect2i)
 signal RequestRotate(dir: int)
 

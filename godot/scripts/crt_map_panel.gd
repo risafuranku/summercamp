@@ -2,6 +2,10 @@ extends Control
 
 const INSTANCE = preload("res://scripts/instance/instance.gd")
 const CONSTRUCTION = preload("res://core/systems/construction_rules.gd")
+const PLOT = preload("res://core/systems/plot_rules.gd")
+## Off the camp's land (a sandbox's plot): the tiles in shade; the strip the land tool would buy.
+const OFF_PLOT := Color(0.0, 0.0, 0.0, 0.34)
+const PLOT_STRIP := Color(1.0, 0.86, 0.3, 0.3)
 signal status_changed(text: String, kind: int)
 signal tool_canceled
 signal submenu_close_requested
@@ -1010,6 +1014,11 @@ func _handle_left_press(local_pos: Vector2) -> void:
 	if selected_building == "demolish":
 		_begin_demolish_press(local_pos)
 		return
+	if selected_building == "plot":
+		var side := _plot_side(_local_to_grid(local_pos))
+		if side != "":
+			EventBus.RequestPlot.emit(side)
+		return
 	if ROW_TYPES.has(selected_building) and _get_footprint(selected_building) == Vector2i.ONE:
 		var c0 := _local_to_grid(local_pos)
 		if _is_valid_coord(c0):
@@ -1868,6 +1877,7 @@ func _draw_dynamic() -> void:
 		_bfx.draw_grid(_cv, iso_c, valid_c, hover_coord, tile_w, tile_h)
 		_bfx.draw_wave(_cv, iso_c, valid_c, tile_w, tile_h)
 	_bfx.draw_ripples(_cv, iso_c, tile_w, tile_h)
+	_draw_plot(origin, tile_w, tile_h)
 	_draw_path_drag_preview(origin, tile_w, tile_h)
 	_draw_ghost_preview(origin, tile_w, tile_h)
 	_draw_demolish_preview(origin, tile_w, tile_h)
@@ -1877,6 +1887,44 @@ func _draw_dynamic() -> void:
 	_draw_rotation_panel()
 	_draw_minimap(origin, tile_w, tile_h)
 	_draw_hover_card()
+
+
+## The camp's land (a sandbox's plot, plot_rules.gd): every tile off it in shade; with the
+## land tool the strip beside it under the pointer lit, its price on the status line.
+func _draw_plot(origin: Vector2, tile_w: float, tile_h: float) -> void:
+	var st = INSTANCE.core(self).get_state()
+	if st == null or grid_manager == null:
+		return
+	var plot: Array = (st.plot.get("rect", []) as Array) if st.plot is Dictionary else []
+	if plot.is_empty():
+		return
+	var grid := Vector2i(int(grid_manager.grid_width), int(grid_manager.grid_height))
+	var r := PLOT.rect(plot, grid)
+	var lit := Rect2i()
+	if selected_building == "plot":
+		var side := _plot_side(hover_coord)
+		if side != "":
+			lit = PLOT.strip(plot, grid, side)
+	for y in grid.y:
+		for x in grid.x:
+			var c := Vector2i(x, y)
+			if r.has_point(c):
+				continue
+			var col := PLOT_STRIP if lit.has_point(c) else OFF_PLOT
+			_cv.draw_colored_polygon(_diamond_points(_grid_to_iso(c, origin, tile_w, tile_h), tile_w, tile_h), col)
+
+
+## The side whose strip `c` is on ("" none: on the land already, or past the next strip).
+func _plot_side(c: Vector2i) -> String:
+	var st = INSTANCE.core(self).get_state()
+	if st == null or grid_manager == null or not _is_valid_coord(c):
+		return ""
+	var plot: Array = (st.plot.get("rect", []) as Array) if st.plot is Dictionary else []
+	var grid := Vector2i(int(grid_manager.grid_width), int(grid_manager.grid_height))
+	for side in PLOT.SIDES:
+		if PLOT.strip(plot, grid, str(side)).has_point(c):
+			return str(side)
+	return ""
 
 
 ## Every lodging's name over its roof, small: T1, C2, V1 (as on its key at the desk and
@@ -3521,6 +3569,8 @@ func _supports_rotation(building_type: String) -> bool:
 
 
 func _display_name(building_type: String) -> String:
+	if building_type == "plot":
+		return "Land"
 	var econ = _resolve_economy_manager()
 	if econ != null and econ.has_method("get_label"):
 		# "Tent Lv1 (1x1)" -> "Tent Lv1": the footprint is the catalogue's business.
@@ -3540,6 +3590,8 @@ func _reason_text(reason: String) -> String:
 			return "tool is not buildable"
 		"only_one":
 			return "the camp has one already"
+		"outside_plot":
+			return "not the camp's land"
 		"area_too_large":
 			return "area too large"
 		"protected_structure":
@@ -4165,6 +4217,12 @@ func sound_under_pointer() -> String:
 func _describe(coord: Vector2i) -> String:
 	if not _is_valid_coord(coord):
 		return ""
+	# The land tool over a strip it would buy: its price.
+	if selected_building == "plot":
+		var side := _plot_side(coord)
+		if side != "":
+			var st = INSTANCE.core(self).get_state()
+			return LANG.money(LANG.f("Land: this strip for $%d", [PLOT.price(int(st.plot.get("bought", 0)))]))
 	var tile = grid_manager.get_tile(coord)
 	var what := "Forest floor"
 	if tile != null:
