@@ -13,9 +13,6 @@ const SHADER := preload("res://materials/hover_glint.gdshader")
 const GLINT_TEX := "res://assets/textury/ui/hover_glint.png"
 
 static var _mat: ShaderMaterial
-## The camp's own (its surfaces snap: retro_materials.SNAP_LINES; a room's do not).
-static var _mat_camp: ShaderMaterial
-const SNAP_LINES := 150.0
 ## The sprites' copies, by picture and turn.
 static var _sprite_mats: Dictionary = {}
 
@@ -41,27 +38,12 @@ func show_on(nodes: Array) -> void:
 	if meshes == _meshes:
 		return
 	for m in _meshes:
-		if is_instance_valid(m) and ((m as MeshInstance3D).material_overlay == _mat or (m as MeshInstance3D).material_overlay == _mat_camp or _sprite_mats.values().has((m as MeshInstance3D).material_overlay)):
+		if is_instance_valid(m) and ((m as MeshInstance3D).material_overlay == _mat or _sprite_mats.values().has((m as MeshInstance3D).material_overlay)):
 			(m as MeshInstance3D).material_overlay = null
 	_meshes = meshes
 	var mat := material()
 	for m in _meshes:
-		(m as MeshInstance3D).material_overlay = _for_mesh(m as MeshInstance3D, mat if _in_room(m) else camp_material())
-
-
-## The glint for the camp's world (the corn stand, the pipes, the lake): snapped as it is.
-static func camp_material() -> ShaderMaterial:
-	if _mat_camp == null:
-		_mat_camp = material().duplicate() as ShaderMaterial
-		_mat_camp.set_shader_parameter("snap_lines", SNAP_LINES)
-	return _mat_camp
-
-
-## In a room (retro_materials._in_room: its own world, or built in the camp's): nothing
-## snaps there, and a glint that did slid off what it lay on.
-static func _in_room(n: Node) -> bool:
-	var vp := n.get_viewport()
-	return vp is SubViewport and ((vp as SubViewport).own_world_3d or vp.has_meta("retro_room"))
+		(m as MeshInstance3D).material_overlay = _for_mesh(m as MeshInstance3D, mat)
 
 
 ## The overlay for this mesh: the shared one, or for a sprite its own copy.

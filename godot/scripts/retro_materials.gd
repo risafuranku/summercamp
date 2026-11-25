@@ -3,11 +3,8 @@ extends Node
 ## The PS1/Build look on every surface in the game's 3D (playtest 17. 10.: "wobbly vertex
 ## edges, textures stretching with the view, sprites lit properly by the lamps, the torch
 ## on the corn, real mood"):
-##   - vertices snap to a coarse grid on the screen, so edges shiver as the view moves
-##     (not the ground and what lies flat on it: the ground box, the grass overlay 3 cm
-##     over it, paths and verges are a few huge triangles each, and snapped apart they
-##     cut through each other and flickered; nor the tiny grass tufts, which blinked
-##     from one grid cell to the next: playtest 18. 10.);
+##   - no vertex shiver (Richard 25. 11.: „odstranit veškerý PS jiggle (hlavně stromy, sklad
+##     apod)“): the vertices used to snap to a coarse screen grid, edges shook as you moved;
 ##   - textures are mapped affine (as the PlayStation did), so they swim and stretch with
 ##     the angle you see them at (less on big surfaces, none on the ground);
 ##   - sprites, cut-outs and the corn are lit by every lamp and the torch whichever way
@@ -23,13 +20,12 @@ extends Node
 ## Started by RetroRender.register(), one per game (root/RetroMaterials).
 
 const INSTANCE = preload("res://scripts/instance/instance.gd")
-const SNAP_LINES := 150.0
 const AFFINE := 0.6
 const CHECK_PER_FRAME := 400
 const HOT_SECONDS := 4.0
-## Size buckets (how much a surface may swim and shiver): 0 small, 1 medium, 2 big (the
-## ground, the lake), 3 lying flat on the ground or a tiny tuft: neither swims nor snaps,
-## 4 inside a room (a viewport with its own world): neither either. A room is all near
+## Size buckets (how much a surface's texture may swim): 0 small, 1 medium, 2 big (the
+## ground, the lake), 3 lying flat on the ground or a tiny tuft: no swim, 4 inside a room
+## (a viewport with its own world): none either. A room is all near
 ## surfaces in layers a centimetre apart (rugs, skirting, posters, bedding): snapped they
 ## cut into each other and the walls' big triangles tore along the diagonal (playtest
 ## 18. 10.: "terrible clipping of the textures, mostly in interiors").
@@ -42,12 +38,6 @@ const AFFINE_TRIPLANAR := [AFFINE * 0.7, AFFINE * 0.2, 0.0, 0.0, 0.0, 0.0]
 ## a poster: meta "retro_text" from the code that makes it, or a picture named for it.
 const B_TEXT := 5
 const TEXT_PICTURES := ["sign", "poster", "noticeboard", "lettering", "label", "menu_board", "timetable"]
-## The buildings a room stands in (W26, one world), its walls a few centimetres inside
-## theirs. Nothing of them snaps: a wall's corners moved on the screen while the room behind
-## them did not, and seen along the wall a whole triangle of it went behind the room's
-## wallpaper, the room's textures out on the building (the user 5. and 6. 11.). They keep
-## their swim, a texture's and not a corner's.
-const HOLDS_ROOM := ["main_building", "cabin", "caravan", "tent", "pub", "restaurant", "vecerka", "staffroom", "bowling", "corn_stand"]
 
 var enabled := true
 var _shaders: Dictionary = {}       # variant key -> Shader
@@ -389,12 +379,11 @@ func _apply_mesh(mi: MeshInstance3D, rec: Dictionary) -> void:
 		big = B_TEXT
 	# (A flat thing's own say counts too: the rain's puddles over the bumps of the ground.)
 	var pull := _pull_of(mi) if big != B_FLAT or mi.has_meta("retro_pull") else 0.0
-	var still := _holds_room(mi)
 	var no_snow := _bare(mi)
 	var over := mi.material_override
 	rec["over"] = over
 	if over != null:
-		var m := _converted(over, big, pull, still, no_snow)
+		var m := _converted(over, big, pull, no_snow)
 		RenderingServer.instance_geometry_set_material_override(rid, m.get_rid() if m != null else (over as Material).get_rid())
 		return
 	RenderingServer.instance_geometry_set_material_override(rid, RID())
@@ -404,7 +393,7 @@ func _apply_mesh(mi: MeshInstance3D, rec: Dictionary) -> void:
 		if src == null:
 			src = mi.mesh.surface_get_material(i)
 		slots.append(src)
-		var m := _converted(src, big, pull, still, no_snow)
+		var m := _converted(src, big, pull, no_snow)
 		if m != null:
 			RenderingServer.instance_set_surface_override_material(rid, i, m.get_rid())
 		elif src != null:
@@ -539,19 +528,6 @@ func _bare(n: Node) -> bool:
 	return false
 
 
-## Part of a building a room stands in (HOLDS_ROOM).
-func _holds_room(n: Node) -> bool:
-	while n != null:
-		if n.has_meta("building_type"):
-			var t := str(n.get_meta("building_type"))
-			for kind in HOLDS_ROOM:
-				if t.begins_with(kind):
-					return true
-			return false
-		n = n.get_parent()
-	return false
-
-
 func _track_sprite(s: Sprite3D) -> void:
 	var rid := s.get_instance()
 	if not rid.is_valid() or s.material_override != null:
@@ -562,10 +538,6 @@ func _track_sprite(s: Sprite3D) -> void:
 	m.set_shader_parameter("albedo_tex", s.texture)
 	m.set_shader_parameter("has_tex", s.texture != null)
 	m.set_shader_parameter("albedo_color", Color(1, 1, 1, 1))
-	# A sprite laid flat on the floor (litter, a puddle) does not snap: it would flicker
-	# against the floor under it.
-	var flat := s.billboard == BaseMaterial3D.BILLBOARD_DISABLED and absf(s.global_basis.z.normalized().y) > 0.9
-	m.set_shader_parameter("snap_lines", 0.0 if flat or _in_room(s) else SNAP_LINES)
 	m.set_shader_parameter("affine", 0.0)
 	RenderingServer.instance_geometry_set_material_override(rid, m.get_rid())
 	_sprites.append({"node": weakref(s), "mat": m, "tex": s.texture, "key": key})
@@ -589,17 +561,17 @@ func _sprite_variant(s: Sprite3D) -> Dictionary:
 
 ## The ShaderMaterial for a StandardMaterial3D (made once, kept), or null when it is not
 ## one we can stand in for.
-func _converted(src, big: int, pull := 0.0, still := false, no_snow := false) -> ShaderMaterial:
+func _converted(src, big: int, pull := 0.0, no_snow := false) -> ShaderMaterial:
 	var std := src as StandardMaterial3D
 	if std == null or not _supported(std):
 		return null
-	var key := "%d|%d|%d|%d|%d" % [std.get_instance_id(), big, roundi(pull * 10000.0), int(still), int(no_snow)]
+	var key := "%d|%d|%d|%d" % [std.get_instance_id(), big, roundi(pull * 10000.0), int(no_snow)]
 	if _conv.has(key):
 		return _conv[key]["mat"]
 	var m := ShaderMaterial.new()
 	m.shader = _shader(_variant(std))
 	m.render_priority = std.render_priority
-	var c := {"std": weakref(std), "mat": m, "sig": [], "hot": 0.0, "big": big, "pull": pull, "still": still, "no_snow": no_snow}
+	var c := {"std": weakref(std), "mat": m, "sig": [], "hot": 0.0, "big": big, "pull": pull, "no_snow": no_snow}
 	_conv[key] = c
 	if not _by_std.has(std.get_instance_id()):
 		_by_std[std.get_instance_id()] = []
@@ -682,7 +654,6 @@ func _sync(c: Dictionary, force := false) -> void:
 	m.set_shader_parameter("depth_pull", float(c.get("pull", 0.0)))
 	m.set_shader_parameter("room_thing", big == B_ROOM)
 	m.set_shader_parameter("bare", bool(c.get("no_snow", false)))
-	m.set_shader_parameter("snap_lines", SNAP_LINES if big < 2 and not bool(c.get("still", false)) else 0.0)
 	m.set_shader_parameter("affine", AFFINE_BY_BUCKET[big] if not std.uv1_triplanar else AFFINE_TRIPLANAR[big])
 
 
@@ -728,12 +699,10 @@ uniform vec4 emission_color : source_color = vec4(0.0);
 uniform float emission_energy = 0.0;
 uniform sampler2D emission_tex : source_color, filter_nearest, repeat_enable;
 uniform bool has_emission_tex = false;
-uniform float snap_lines = 150.0;
 // Pulled towards the eye along its own ray (a face or a sign on a wall, a thin board on a
 // box: their own material, retro_materials _pull_of): on the screen exactly where it was,
-// in depth a little in front of what it lies on. The snap moves corners a different way
-// for a face and the wall under it, and a centimetre between them was not enough: they
-// fought. (A plain uniform: an instance uniform took a slot for every instance drawn with
+// in depth a little in front of what it lies on (a centimetre between them was not enough:
+// they fought). (A plain uniform: an instance uniform took a slot for every instance drawn with
 // this shader, ran out of them and crashed the game on quitting.)
 uniform float depth_pull = 0.0;
 // A room's own thing: pulled only for the room's eye. From the camp (a room built in the
@@ -799,20 +768,12 @@ void vertex() {
 	uv = UV * uv_scale.xy + uv_offset.xy;
 #endif
 	vec4 vpos = MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
-	// The sun's shadow pass (an orthographic view): no snap and no pull there. Snapped to
-	// the shadow map's grid every shadow jumped as the sun moved (it flickered).
+	// The sun's shadow pass (an orthographic view): no pull there.
 	bool ortho = PROJECTION_MATRIX[3][3] > 0.5;
 	if (!ortho && !(room_thing && (CAMERA_VISIBLE_LAYERS & 655360u) == 524288u)) {
 		vpos.xyz *= 1.0 - depth_pull;
 	}
 	vec4 clip = PROJECTION_MATRIX * vpos;
-	// The PlayStation's whole-pixel vertices, on a coarse grid: edges shiver as you move.
-	if (snap_lines > 0.0 && clip.w > 0.05 && !ortho) {
-		vec2 grid = vec2(snap_lines * VIEWPORT_SIZE.x / max(VIEWPORT_SIZE.y, 1.0), snap_lines) * 0.5;
-		vec2 ndc = clip.xy / clip.w;
-		ndc = floor(ndc * grid + 0.5) / grid;
-		clip.xy = ndc * clip.w;
-	}
 	POSITION = clip;
 	v_uv = uv;
 	v_uv_w = uv * clip.w;
@@ -825,25 +786,6 @@ void fragment() {
 	if (CAMERA_POSITION_WORLD.y < -0.4 && (INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).y < 0.1) {
 		discard;
 	}
-#ifdef LIT
-#ifndef SPRITE_LIGHT
-	// The light and the sun's shadow at the true point under this pixel: on the face's own
-	// plane, along this pixel's ray. VERTEX here is where the snap moved the face to, and
-	// the shadows warped and flickered with it as you moved (the user 21. 10.: "na stíny
-	// warpování nesmí být"). The face still warps; its shadows stay put on the world.
-	if (snap_lines > 0.0) {
-		vec4 rv = INV_PROJECTION_MATRIX * vec4(SCREEN_UV * 2.0 - 1.0, 0.5, 1.0);
-		vec3 ray = normalize(rv.xyz / rv.w);
-		float den = dot(ray, NORMAL);
-		if (abs(den) > 0.08) {
-			float t = dot(VERTEX, NORMAL) / den;
-			if (t > 0.0) {
-				LIGHT_VERTEX = ray * t;
-			}
-		}
-	}
-#endif
-#endif
 	// Affine: interpolated across the screen, not in depth (the stretch and the swim).
 	// Not right in your face: a wall a step away would swirl into arcs (the PS1 cut its
 	// big polygons up for that); the swim is for what is a few metres off.

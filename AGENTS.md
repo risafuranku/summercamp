@@ -95,7 +95,7 @@ give them no new work. The open work: [TODO.md](TODO.md) (TODO, then DONE).
 | Refactor strangler-style | New module → route through it → delete the legacy block; one concern per change, verify between |
 | Tabs, not spaces; the files keep their line endings (most are CRLF) | Edits that rewrite a whole file change every line |
 | `config/name` stays `"icloud ccs2"` | It names the `user://` folder holding players' saves; the title is set at runtime (`main.WINDOW_TITLE`) |
-| Push `main` to both remotes, `origin` (GitLab) and `github` | No Vercel: a push costs nothing; push verified batches |
+| Push only branch `dev`, to both remotes `origin` (GitLab) and `github`; commit onto `refs/heads/dev` through a private index, never switch branches here | Richard 25. 11.: „pushuj do DEV only“; `main` (and the launcher's `undogameslauncher`) only on his word |
 | Commit through a private index (the working copy is shared) | `context/context.md` 02: `GIT_INDEX_FILE=<tmp> git read-tree HEAD`, your blobs only, `commit-tree`, `update-ref` |
 
 ### Design lock — do not "improve" these without being asked
