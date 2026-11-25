@@ -236,6 +236,7 @@ var _pallet: Node3D
 var _plot_stakes: Node3D
 ## A camp's goals and score kept up (scripts/camp/goal_watch.gd, 25. 11.).
 var _goal_watch: Node
+var _week_offers: Node
 var _pending_director: Dictionary = {}
 ## The lost and found and its classifieds (scripts/bazaar.gd).
 var _bazaar = preload("res://scripts/bazaar.gd").new()
@@ -2660,6 +2661,11 @@ func _setup_audio() -> void:
 		_goal_watch.name = "GoalWatch"
 		_goal_watch.main = self
 		_screen.add_child(_goal_watch)
+	if _week_offers == null or not is_instance_valid(_week_offers):
+		_week_offers = preload("res://scripts/camp/week_offers.gd").new()
+		_week_offers.name = "WeekOffers"
+		_week_offers.main = self
+		_screen.add_child(_week_offers)
 
 
 func _try_interact() -> void:

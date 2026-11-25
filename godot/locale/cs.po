@@ -24904,19 +24904,19 @@ msgstr "Přihlásit a stáhnout  (%d KB)"
 
 #: scripts/os98/apps/mail_app.gd:33
 msgid "A tiny chance of trouble tonight (~%d%%)."
-msgstr "Mizivá šance na potíže dnes v noci (~%d %%)."
+msgstr "Mizivá šance na potíže dnes v noci (~%d%%)."
 
 #: scripts/os98/apps/mail_app.gd:34
 msgid "A small chance of trouble tonight (~%d%%)."
-msgstr "Malá šance na potíže dnes v noci (~%d %%)."
+msgstr "Malá šance na potíže dnes v noci (~%d%%)."
 
 #: scripts/os98/apps/mail_app.gd:35
 msgid "A fair chance of trouble tonight (~%d%%)."
-msgstr "Slušná šance na potíže dnes v noci (~%d %%)."
+msgstr "Slušná šance na potíže dnes v noci (~%d%%)."
 
 #: scripts/os98/apps/mail_app.gd:36
 msgid "A big chance of trouble tonight (~%d%%)."
-msgstr "Velká šance na potíže dnes v noci (~%d %%)."
+msgstr "Velká šance na potíže dnes v noci (~%d%%)."
 
 #: scripts/os98/apps/mail_app.gd:38
 msgid "kemp.cj@bohemia-online.cz"
@@ -34459,4 +34459,80 @@ msgstr "Hvězdy od posledních hostů"
 
 msgid "The camp"
 msgstr "Kemp"
+
+#: scripts/email_manager.gd (25. 11.: the week's tour)
+msgid "Group trip: %s / %d beds / %d night(s)"
+msgstr "Zájezd: %s / %d {lůžko|lůžka|lůžek} / %d {noc|noci|nocí}"
+
+msgid "Jitrenka pensioners' club"
+msgstr "Klub důchodců Jitřenka"
+
+msgid "Zasmuky parish families"
+msgstr "Rodiny z farnosti Zásmuky"
+
+msgid "Hrib mycological society"
+msgstr "Mykologický spolek Hřib"
+
+msgid "Kovolis works union"
+msgstr "ROH Kovolis"
+
+msgid ""
+"Dear Sir or Madam,\n"
+"\n"
+"we are bringing the Jitrenka pensioners' club from Kolin to your lake: %d people, %d nights, on the 380 that reaches you at %s. Quiet beds, please, a toilet close by, and no music after nine.\n"
+"\n"
+"%s\n"
+"CK Pohoda Tour, Kolin"
+msgstr ""
+"Vážení,\n"
+"\n"
+"vezeme k vašemu jezeru klub důchodců Jitřenka z Kolína: %d {osoba|osoby|osob}, %d {noc|noci|nocí}, linkou 380, která k vám přijíždí v %s. Prosíme tiché postele, záchod nablízku a po deváté žádnou hudbu.\n"
+"\n"
+"%s\n"
+"CK Pohoda Tour, Kolín"
+
+msgid ""
+"Dear Sir or Madam,\n"
+"\n"
+"we have the families of the Zasmuky parish for you: %d people with the children, %d nights, on the 380 at %s. The children want the lake, the parents want sleep.\n"
+"\n"
+"%s\n"
+"CK Pohoda Tour, Kolin"
+msgstr ""
+"Vážení,\n"
+"\n"
+"máme pro vás rodiny z farnosti Zásmuky: %d {osoba|osoby|osob} i s dětmi, %d {noc|noci|nocí}, linkou 380 v %s. Děti chtějí k jezeru, rodiče se chtějí vyspat.\n"
+"\n"
+"%s\n"
+"CK Pohoda Tour, Kolín"
+
+msgid ""
+"Dear Sir or Madam,\n"
+"\n"
+"the Hrib mycological society travels with us this year: %d members, %d nights, on the 380 at %s. They are in the forest from first light and back after dark with full baskets, and will need somewhere dry for the baskets.\n"
+"\n"
+"%s\n"
+"CK Pohoda Tour, Kolin"
+msgstr ""
+"Vážení,\n"
+"\n"
+"letos s námi jede mykologický spolek Hřib: %d {člen|členové|členů}, %d {noc|noci|nocí}, linkou 380 v %s. Od svítání jsou v lese, vracejí se po setmění s plnými košíky a budou potřebovat suché místo na košíky.\n"
+"\n"
+"%s\n"
+"CK Pohoda Tour, Kolín"
+
+msgid ""
+"Dear Sir or Madam,\n"
+"\n"
+"the union of the Kovolis works has its summer outing with us: %d comrades, %d nights, on the 380 at %s. The union pays the beds. What they drink is their own business.\n"
+"\n"
+"%s\n"
+"CK Pohoda Tour, Kolin"
+msgstr ""
+"Vážení,\n"
+"\n"
+"ROH závodu Kovolis s námi jede na letní zájezd: %d {soudruh|soudruzi|soudruhů}, %d {noc|noci|nocí}, linkou 380 v %s. Postele platí odbory. Co vypijí, je jejich věc.\n"
+"\n"
+"%s\n"
+"CK Pohoda Tour, Kolín"
 

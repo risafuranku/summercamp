@@ -1453,6 +1453,18 @@ const SCENARIOS := {
 		["mail_show", "archetype", "picker"], ["wait", 0.6], ["crt_screen", "card_picker"],
 		["mail_show", "tempting", true], ["wait", 0.6], ["crt_screen", "card_tempting"],
 	],
+	# The week's tour (email_manager.offer_tour, 25. 11.): the travel agency's letter and its card.
+	"tourcard": [
+		["wait_menu"], ["call", "_on_menu_new_camp", ["Tour", 4242, false, true, {}]], ["wait_gameplay"], ["wait", 1.0],
+		["call_on", "_interior_manager", "open_startup_crt_view", []], ["wait", 16.0],
+		["money", 60000], ["clear", 4, 4, 18, 12],
+		["build", "cabin_1", 5, 5, 0], ["build", "cabin_1", 8, 5, 0], ["build", "cabin_1", 11, 5, 0], ["build", "cabin_1", 14, 5, 0],
+		["build", "cabin_1", 5, 9, 0], ["build", "cabin_1", 8, 9, 0], ["build", "cabin_1", 11, 9, 0], ["build", "cabin_1", 14, 9, 0],
+		["wait", 1.0], ["prep_all"], ["eval", "debug_jump_to(3, 10.0)"], ["wait", 0.5],
+		["eval", "debug_mail_tour()"],
+		["eval", "_interior_manager._building_interior._crt_ui._open_email_app()"], ["wait", 1.5],
+		["mail_show", "by_bus", true], ["wait", 0.6], ["crt_screen", "card_tour"],
+	],
 	"bookings": [
 		["wait_menu"], ["call", "_on_menu_new_camp", ["Bookings", 4242, false, true, {}]], ["wait_gameplay"], ["wait", 1.0],
 		["eval", "_time_of_day_string()"],

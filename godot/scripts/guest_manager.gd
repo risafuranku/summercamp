@@ -26,6 +26,10 @@ const STATUS_WAITING := "waiting"
 ## Game minutes from accepting a booking to the party reaching the barrier.
 const ARRIVAL_DELAY_MIN := 60
 const ARRIVAL_DELAY_MAX := 110
+## A party that comes on the 380 (a tour: email_manager.offer_tour, `by_bus`): from the camp's
+## stop up to the barrier on foot.
+const BUS_WALK_MIN := 4
+const BUS_TIMES := preload("res://scripts/town/bus_timetable.gd")
 ## Parties only turn up at the gate between these hours (minute of day). A booking
 ## accepted in the evening arrives the next morning.
 const ARRIVAL_WINDOW_FROM := 8 * 60
@@ -505,6 +509,8 @@ func _on_customer_booking_confirmed(mail: Dictionary) -> void:
 	state.next_guest_id += 1
 
 	var arrival_abs: int = daytime_arrival(now_abs + int(mail.get("arrival_minutes", _rng.randi_range(ARRIVAL_DELAY_MIN, ARRIVAL_DELAY_MAX))), _rng.randi_range(0, 90))
+	if bool(mail.get("by_bus", false)):
+		arrival_abs = bus_run(now_abs) + BUS_WALK_MIN
 	var guest := {
 		"id": guest_id,
 		"name": booking_name,
@@ -2501,6 +2507,12 @@ func _parse_time_to_minutes(raw: String, fallback_minutes: int) -> int:
 
 ## `abs_minute` moved into the arrival window: unchanged by day, otherwise the next
 ## morning at 08:00 + `morning_jitter` minutes.
+## The 380's run a party booked at `now_abs` comes on (absolute minutes at the camp's stop):
+## the first an hour or more off, in the arrival hours.
+static func bus_run(now_abs: int) -> int:
+	return BUS_TIMES.next_camp_arrival(now_abs + ARRIVAL_DELAY_MIN, ARRIVAL_WINDOW_FROM, ARRIVAL_WINDOW_TO)
+
+
 static func daytime_arrival(abs_minute: int, morning_jitter: int = 0) -> int:
 	var mod := posmod(abs_minute, 1440)
 	if mod >= ARRIVAL_WINDOW_FROM and mod <= ARRIVAL_WINDOW_TO:

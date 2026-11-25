@@ -49,6 +49,7 @@ godot --headless --path godot res://tools/stand_check.tscn      # the corn stand
 godot --headless --path godot res://tools/jednota_check.tscn    # the Jednota: the rack, the queue, the till, boxes, the hands, the stations, it pays
 godot --headless --path godot res://tools/proto_check.tscn      # PROTOTYP 540: awake hours, the sack's nights, fed, the meat in the stock
 godot --headless --path godot res://tools/pa_check.tscn         # the PA poles (24. 11.): the building, pa_rules, a light sleeper by a pole after ten
+godot --headless --path godot res://tools/offer_check.tscn      # the week's offer (25. 11.): its day, due once in office hours, a tour's size for the beds, the agency's letter (cs too), on the 380, week_offers sends once
 godot --headless --path godot res://tools/goal_check.tscn       # a camp's goals (25. 11.): chosen, progress, the score, nights without a lost guest, a goal met once, the camp's numbers
 godot --headless --path godot res://tools/plot_check.tscn       # a sandbox's land (25. 11.): the plots, the strips, their price, a strip bought, nothing built or bulldozed off it
 godot --headless --path godot res://tools/box_check.tscn        # the van's boxes (25. 11.): unloaded onto the pallet, taken (nobody else's), set down, back on the pallet, carried in (on the shelves)
@@ -61,6 +62,7 @@ python godot/tools/coop_photo.py [OUT_DIR]   # co-op Photographer on the joining
 godot --headless --path godot res://tools/post_check.tscn      # the second monitor: the order paid, the van on the clock, the postman at the counter, the slip, two screens and the swap, the keys, the save, the postman who gives up
 python godot/tools/post_coop.py [OUT_DIR]   # the second monitor for two: ordered on the joining machine (paid once), the host's van and postman on both, signed for there, the monitor on both
 python godot/tools/desk_coop.py [OUT_DIR]   # the reception's counter for two: the check-in drawer the host pulls out and in goes out and in on the other machine (in the office, and out of it: it is out as they come back), the other's pulled out at the host's, two at once go the host's way
+python godot/tools/tour_coop.py [OUT_DIR]   # the week's tour for two: the host's letter in the other's CampMail, accepted there, booked in the host's camp on the 380, come on both
 python godot/tools/goals_coop.py [OUT_DIR]  # a camp's goals for two: the till's goal met on the host is met and celebrated on the other machine
 python godot/tools/plot_coop.py [OUT_DIR]   # a sandbox's land for two: the other has the host's plot, buys a strip (the host pays, grown on both), a cabin off it is turned down
 python godot/tools/box_coop.py [OUT_DIR]    # the van's boxes for two: the other takes the host's pub's box (the host cannot then), carries it in: on the host's shelves, gone on both

@@ -42,6 +42,9 @@ extends Resource
 ## {"chosen": [ids], "done": {id: day}, "peak": the most guests at once, "safe": nights in a row
 ## without a lost guest, "safe_best"}.
 @export var goals: Dictionary = {}
+## A sandbox camp's offer of the week (core/systems/offer_rules.gd, scripts/camp/week_offers.gd):
+## {"done": {week: the kind sent}}.
+@export var offers: Dictionary = {}
 ## Guests the camp lost in the night (actions.note_lost_guest): {name, day, archetype, room};
 ## the district's paper and police read it (os98 browser: the Courier, the search for them).
 @export var lost_guests: Array[Dictionary] = []

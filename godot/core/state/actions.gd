@@ -126,6 +126,23 @@ func goal_done(id: String, day: int) -> bool:
 	return true
 
 
+# ── a sandbox camp's offer of the week (core/systems/offer_rules.gd) ───────────
+
+## The weeks that have had theirs: week (as text) -> kind.
+func offers_done() -> Dictionary:
+	if not (_state.offers is Dictionary):
+		_state.offers = {}
+	if not (_state.offers.get("done", null) is Dictionary):
+		_state.offers["done"] = {}
+	return _state.offers["done"]
+
+
+## Week `week`'s offer sent.
+func offer_done(week: int, kind: String) -> void:
+	offers_done()[str(week)] = kind
+	INSTANCE.bus(owner_node).state_changed.emit({"offers": kind})
+
+
 # ── building takes time (core/systems/construction_rules.gd) ────────────────────
 
 ## A building ordered in Builder 98 that takes the workers `hours`: paid now, its cells a

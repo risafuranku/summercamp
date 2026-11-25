@@ -98,6 +98,21 @@ static func standing(arrive: Array, leave: Array, hour: float) -> int:
 	return -1
 
 
+## The first run at the camp (CAMP_ARRIVE) at or after `abs_minute` (game minutes from day
+## 1's midnight) at the hours of a day between `from_min` and `to_min`, in absolute minutes
+## (guest_manager.bus_run: a tour comes on it).
+static func next_camp_arrival(abs_minute: int, from_min: int, to_min: int) -> int:
+	var day_start := abs_minute - posmod(abs_minute, 1440)
+	for d in 3:
+		for t in CAMP_ARRIVE:
+			var m := int(round(float(t) * 60.0))
+			if m < from_min or m > to_min:
+				continue
+			if day_start + d * 1440 + m >= abs_minute:
+				return day_start + d * 1440 + m
+	return abs_minute
+
+
 ## The next departure from `leave` after `hour` (wrapping to tomorrow), as hours.
 static func next_after(leave: Array, hour: float) -> float:
 	for t in leave:

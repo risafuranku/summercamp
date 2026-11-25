@@ -2459,3 +2459,14 @@ Round 4 (25. 11., the random offers and events, question -> answer word for word
   walks the camp: dirty toilets and rooms, broken lamps and mess are a fine, a clean camp a reward
   and a better name.
 - *How often?* „Jednou týdně“.
+
+The offer of the week (made 25. 11.): `core/systems/offer_rules.gd` picks the day (the week's
+2nd to 6th, from the camp's seed) and the kind (in turn); `scripts/camp/week_offers.gd` sends
+it on the host from ten, in office hours, once a week (the books: `state.offers`), only in a
+sandbox with its events on. The tour: CK Pohoda Tour's letter (`email_manager.TOURS`: the
+Jitrenka pensioners, the Zasmuky parish families, the Hrib mushroom society, the Kovolis works
+union, each their kind's night), as many as the free beds take up to fifteen, 2-4 nights, half
+as much again a head (gold on the card like the tempting party); waits an hour at a time while
+fewer than eight beds are free. Booked, they come on the first 380 an hour or more off
+(9:42, 13:12 or 18:37) and walk up from the stop (`guest_manager.bus_run`). A party is drawn
+as four figures at most, a tour too.

@@ -222,6 +222,27 @@ const TEMPTING := {
 	]},
 }
 
+## The week's tour (Richard 25. 11., docs/DESIGN.md "Round 4": „Velká parta za lepší cenu“;
+## core/systems/offer_rules.gd, sent by scripts/camp/week_offers.gd): a travel agency's letter
+## for a party of one kind, TOUR_PARTY of them for TOUR_NIGHTS at half as much again a head,
+## coming together on the 380 (`by_bus`: guest_manager.bus_run). Their kind is their night as
+## ever (DESIGN §4: fourteen mushroom pickers bring the forest's things); the card's NIGHT RISK
+## says so, the letter does not.
+const OFFER_RULES = preload("res://core/systems/offer_rules.gd")
+const GUEST_MANAGER = preload("res://scripts/guest_manager.gd")
+const TOUR_AGENCY := "CK Pohoda Tour <zajezdy@pohoda-tour.cz>"
+const TOUR_SUBJECT := "Group trip: %s / %d beds / %d night(s)"
+const TOURS := [
+	{"archetype": ARCHETYPE_QUIET_GUY, "group": "Jitrenka pensioners' club", "letter":
+		"Dear Sir or Madam,\n\nwe are bringing the Jitrenka pensioners' club from Kolin to your lake: %d people, %d nights, on the 380 that reaches you at %s. Quiet beds, please, a toilet close by, and no music after nine.\n\n%s\nCK Pohoda Tour, Kolin"},
+	{"archetype": ARCHETYPE_FAMILY, "group": "Zasmuky parish families", "letter":
+		"Dear Sir or Madam,\n\nwe have the families of the Zasmuky parish for you: %d people with the children, %d nights, on the 380 at %s. The children want the lake, the parents want sleep.\n\n%s\nCK Pohoda Tour, Kolin"},
+	{"archetype": ARCHETYPE_PICKER, "group": "Hrib mycological society", "letter":
+		"Dear Sir or Madam,\n\nthe Hrib mycological society travels with us this year: %d members, %d nights, on the 380 at %s. They are in the forest from first light and back after dark with full baskets, and will need somewhere dry for the baskets.\n\n%s\nCK Pohoda Tour, Kolin"},
+	{"archetype": ARCHETYPE_DRUNK, "group": "Kovolis works union", "letter":
+		"Dear Sir or Madam,\n\nthe union of the Kovolis works has its summer outing with us: %d comrades, %d nights, on the 380 at %s. The union pays the beds. What they drink is their own business.\n\n%s\nCK Pohoda Tour, Kolin"},
+]
+
 const MAIL_TO_ADDRESS := "camp.reception@camp.local"
 
 ## All delivered emails, newest last. `_folder` "deleted" puts one in Deleted Items.
@@ -914,13 +935,31 @@ func _spread_offsets(count: int, min_offset: int, max_offset: int) -> Array[int]
 	return out
 
 
-## `tempting`: the big party of TEMPTING (more of them, half as much again a head).
-func _build_customer_mail(archetype_id: String, day: int, hour: int, tempting := false) -> Dictionary:
+## The week's tour offered at `day` `hour` (scripts/camp/week_offers.gd): one of TOURS for
+## as many as the free beds take (offer_rules.tour_size), in CampMail within the hour; false
+## (nothing sent) while too few beds are free.
+func offer_tour(day: int, hour: int) -> bool:
+	var size := OFFER_RULES.tour_size(int(_collect_bed_metrics().get("free", 0)), _rng.randf())
+	if size <= 0:
+		return false
+	var tour: Dictionary = TOURS[_rng.randi_range(0, TOURS.size() - 1)]
+	var mail := _build_customer_mail(str(tour["archetype"]), day, hour, false, tour.merged({"party_min": size, "party_max": size}))
+	_schedule_mail_abs(_absolute_minutes(day, hour, 0) + _rng.randi_range(5, 40), mail)
+	return true
+
+
+## `tempting`: the big party of TEMPTING (more of them, half as much again a head). `tour`: one
+## of TOURS with its party's size (offer_tour): the agency's letter, half as much again a head,
+## on the 380.
+func _build_customer_mail(archetype_id: String, day: int, hour: int, tempting := false, tour := {}) -> Dictionary:
 	var cfg_any = CUSTOMER_ARCHETYPES.get(archetype_id, CUSTOMER_ARCHETYPES[ARCHETYPE_QUIET_GUY])
 	var cfg: Dictionary = (cfg_any if cfg_any is Dictionary else CUSTOMER_ARCHETYPES[ARCHETYPE_QUIET_GUY]).duplicate()
-	tempting = tempting and TEMPTING.has(archetype_id)
+	tempting = tempting and TEMPTING.has(archetype_id) and tour.is_empty()
 	if tempting:
 		cfg.merge(TEMPTING[archetype_id], true)
+	if not tour.is_empty():
+		cfg.merge({"party_min": int(tour["party_min"]), "party_max": int(tour["party_max"]),
+			"stay_min": OFFER_RULES.TOUR_NIGHTS.x, "stay_max": OFFER_RULES.TOUR_NIGHTS.y}, true)
 
 	var party_min = max(1, int(cfg.get("party_min", 1)))
 	var party_max = max(party_min, int(cfg.get("party_max", party_min)))
@@ -935,21 +974,32 @@ func _build_customer_mail(archetype_id: String, day: int, hour: int, tempting :=
 	var guest_names = _build_guest_name_list(lead_name, party_size, archetype_id)
 	var sender = "%s <%s@%s>" % [lead_name, _slugify_name(lead_name), _pick_random(MAIL_DOMAINS)]
 	var arrival_time = _roll_arrival_time(archetype_id)
+	if not tour.is_empty():
+		# The 380 they would come on if booked now (guest_manager.bus_run).
+		var run := GUEST_MANAGER.bus_run(_absolute_minutes(day, hour, 30))
+		arrival_time = "%d:%02d" % [posmod(run, 1440) / 60, posmod(run, 60)]
+		sender = TOUR_AGENCY
 
 	var base_daily_pay = max(25, int(cfg.get("daily_pay", 80))) * party_size
 	if tempting:
 		base_daily_pay = int(round(float(base_daily_pay) * TEMPTING_PAY))
+	elif not tour.is_empty():
+		base_daily_pay = int(round(float(base_daily_pay) * OFFER_RULES.TOUR_PAY))
 	var variance = maxi(8, int(round(float(base_daily_pay) * 0.18)))
 	var daily_total = max(30, base_daily_pay + _rng.randi_range(-variance, variance))
 
 	var subject_template = _pick_random(CUSTOMER_SUBJECT_VARIANTS)
 	var archetype_label = str(cfg.get("label", "Customer"))
 	var subject = subject_template % [archetype_label, party_size, stay_nights]
+	if not tour.is_empty():
+		subject = TOUR_SUBJECT % [str(tour["group"]), party_size, stay_nights]
 
 	var letters: Array = cfg["letters"] if tempting else BOOKING_LETTERS.get(archetype_id, BOOKING_LETTERS[ARCHETYPE_QUIET_GUY])
+	if not tour.is_empty():
+		letters = [tour["letter"]]
 	var letter := str(letters[_rng.randi_range(0, letters.size() - 1)]) % [party_size, stay_nights, arrival_time, lead_name]
 	var wishes: Array = LODGING_WISHES.get(archetype_id, [])
-	if not tempting and not wishes.is_empty() and _rng.randf() < 0.75:
+	if not tempting and tour.is_empty() and not wishes.is_empty() and _rng.randf() < 0.75:
 		letter += "\n\nP.S. " + str(wishes[_rng.randi_range(0, wishes.size() - 1)])
 
 	return _new_mail_dict({
@@ -971,7 +1021,10 @@ func _build_customer_mail(archetype_id: String, day: int, hour: int, tempting :=
 		"night_trouble_time": night_trouble_time,
 		"guest_name": lead_name,
 		"guest_names": guest_names,
-		"tempting": tempting,
+		# The tour's price is the tempting party's gold on the card too.
+		"tempting": tempting or not tour.is_empty(),
+		"tour": str(tour.get("group", "")),
+		"by_bus": not tour.is_empty(),
 	})
 
 

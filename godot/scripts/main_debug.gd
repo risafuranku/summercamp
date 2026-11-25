@@ -623,6 +623,17 @@ func debug_local_client(device: int) -> Node:
 	return load("res://scripts/instance/local_client.gd").start(self, device)
 
 
+## Shot driver (tourcard): the week's tour (email_manager.offer_tour) in CampMail now.
+func debug_mail_tour() -> void:
+	var em = INSTANCE.mail(self)
+	if not em.offer_tour(_day_index, int(_time_of_day_hours)) or em._scheduled_mails.is_empty():
+		return
+	var mail: Dictionary = (em._scheduled_mails.pop_back() as Dictionary)["mail"]
+	mail["_delivered"] = true
+	em.inbox.append(mail)
+	em.unread_count_changed.emit(em.get_unread_count())
+
+
 ## Shot driver (bookingcard): a booking letter for `archetype` in CampMail now, as the hour's
 ## roll writes it; `tempting` the big party (email_manager.TEMPTING).
 func debug_mail_booking(archetype: String, tempting := false) -> void:
