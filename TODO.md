@@ -2,8 +2,8 @@
 
 ## TODO
 
+- [ ] Dělník na staveništi: vzorek od Groka (`site_worker_a`) čeká na schválení; po něm druhý dělník s prkny.
 - [ ] Stánek s kukuřicí: všechny předměty na pultu z 2D textury převést na 3D sprity, které na pultu stojí (jako vařící se kukuřice); vzorek máslenky od Groka čeká na schválení (`tools/artgen/prompts_corn_props.tsv`).
-- [ ] Stavba trvá podle velikosti: stan a lavička hned, chatka a podnik 2–4 herní hodiny; lešení, dělníci, bouchání, hosté až po dokončení (docs/pc.md).
 - [ ] Objednané zboží přiveze dodávka a někdo ho donese na místo; nový zaměstnanec přijede autobusem.
 - [ ] Kamera, animace a optimalizace: projít před co-op playtestem.
 - [ ] Blesk za okny místností (`ambient/room_weather.gd` LightningIn) má masku světla bez stínu, takže v Godotu 4.7 nesvítí. Ověřit v bouřce a opravit (docs/godot.md).
@@ -25,6 +25,7 @@
 - [ ] Úklid kódu: `main.gd` (~3,7k řádků) jen na průběh hry, `BuildingManager` jako čistý pohled na `GridModel`, pryč `GameActions.end_day()`, mrtvý kód a nepoužité assety.
 - [ ] Nahradit vykradené textury z Redneck Rampage vygenerovanými (docs/art.md).
 - [ ] Co-op: konec měsíce (týdenní report, inspekce) jen u hostitele, má být u všech.
+- [ ] HUD: u druhého hráče v co-opu sahají šesticiferné peníze s „Kč“ až k okraji rámečku, hostitel „Kč“ nemá (snímek site_coop sc2).
 - [ ] Co-op: v Lesné se správci občas nevidí (viděno jednou).
 - [ ] Co-op: boží kurzor na dvou kopiích v noci a v mlze, tempo podle pocitu.
 - [ ] Co-op: okna zvenku ukazují na PC poslední vlastní snímek; okna chatek, karavanů a podniků jen interior mapping, ne skutečnou místnost.
@@ -41,6 +42,7 @@
 
 ## DONE
 
+- [x] Stavba trvá podle velikosti: staveniště s lešením, dělníky a bouchaním, 1–4 h práce přes den, pak stojí budova; i pro dva (db5e7189)
 - [x] Programy na PC ukazují kemp naživo: tečky hostů v GuestRacku (Pokoje), fronty a zelené tržby v Boss 98, kamera kempu v CampStatu míří na kemp a vejde se (995cccd6)
 - [x] Kuželna pro dva: tác, točení, kolíky, pult a sklep vidí i druhý správce (test `bowling_coop`); stav stanice se posílá znovu každou sekundu, vidí ho i ten, kdo přijde později (800db2c1)
 - [x] Co-op u stanic všech podniků: ostatní vidí rozdělanou práci a věc v ruce; u stánku stojí každý u své stanice a pracuje (5e6cd4f8)
