@@ -2447,3 +2447,15 @@ other machines too (fact "goal"); the first look 5 s after the game starts (the 
 first). CampStat's ninth page GOALS (a pennant): the score (a met goal 1000, the camp's bests),
 the chosen goals with their bars (met: the day), the camp's numbers. Tests `goal_check`,
 `python godot/tools/goals_coop.py`, `--scenario=goals`.
+
+Round 4 (25. 11., the random offers and events, question -> answer word for word):
+- *A TOUR?* „Velká parta za lepší cenu“: an offer in CampMail, a tour of 8-15 people wants beds
+  for 2-4 nights at half again the price; accepted as a booking when the beds are free; they come
+  by bus together.
+- *A SPONSOR?* „peníze za ceduli nebo bilboard který zabírá místo v kempu, ručně to umístíš
+  v builderu“: money for a sign or a billboard that takes room in the camp, placed by hand in
+  Builder 98.
+- *An INSPECTION?* „Ohlášená na zítřek“: the district writes ahead; the next day the inspector
+  walks the camp: dirty toilets and rooms, broken lamps and mess are a fine, a clean camp a reward
+  and a better name.
+- *How often?* „Jednou týdně“.

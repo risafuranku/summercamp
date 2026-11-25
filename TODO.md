@@ -4,7 +4,10 @@
 
 - [ ] Kamera, animace a optimalizace: projít před co-op playtestem.
 - [ ] Noc vyvážit hraním: poškození od nepřátel, jejich četnost, baterie; jak často se potkají dva druhy nepřátel; četnost divných detailů.
-- [ ] Sandbox: náhodné nabídky a události po celou hru (zájezdy, sponzor, inspekce, nabídky v CampMailu); mixy nepřátel podle týdnů později.
+- [ ] Sandbox, jednou týdně jedna z: zájezd (8–15 lidí, 2–4 noci, cena o polovinu vyšší, nabídka v CampMailu, přijedou spolu autobusem) (docs/DESIGN.md, Round 4 25. 11.).
+- [ ] Sandbox: ohlášená inspekce (dopis den předem, inspektor druhý den projde kemp: špinavé záchody a pokoje, rozbité lampy a nepořádek = pokuta, čistý kemp = odměna a lepší pověst).
+- [ ] Sandbox: sponzor (peníze za ceduli nebo billboard, který zabírá místo v kempu a ručně se umístí v Builderu); billboard od Groka, nejdřív vzorek.
+- [ ] Sandbox: mixy nepřátel podle týdnů (později).
 - [ ] Atmosféra: obloha za soumraku, vítr ve stromech přes den, v noci psi nebo vlak v dálce, ranní mlha, místo v hlubokém lese, kam hosté chodí; den a noc projít poslechem a smíchat.
 - [ ] Potrubí: tempo tvora vyzkoušet člověkem, čárky na zdi jako obrázek (ne „IIII“), druhý styl mapy (roztržená, částečně špatně).
 - [ ] Plátno stanu zevnitř: Grok textura s osnovou a švem, bez záhybů.
