@@ -1530,20 +1530,26 @@ const SCENARIOS := {
 		["eval", "weather_system.set_weather(5)"], ["wait", 12.0], ["shot", "w1_storm_a"], ["wait", 70.0], ["shot", "w2_storm_b"], ["wait", 0.7], ["shot", "w3_storm_c"], ["wait", 0.7], ["shot", "w4_storm_d"],
 	],
 	# The camp live in the PC's programs (24. 11., docs/pc.md "Kemp naživo"): guests checked in
-	# and out about the camp, GuestRack's plan with their dots, CampStat's TODAY with the camera.
+	# and out about the camp, GuestRack's plan with their dots, CampStat's TODAY with the camera,
+	# Boss 98's places with a sale just rung up at the pub lit green.
 	"live_pc": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0], ["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 1.0],
 		["money", 5000], ["clear", 7, 3, 9, 5], ["build", "tent_1", 8, 5, 0], ["build", "tent_1", 10, 5, 0], ["build", "tent_1", 12, 5, 0], ["build", "tent_1", 14, 5, 0],
+		["money", 40000], ["clear", 7, 9, 9, 6], ["build", "pub", 9, 10, 0],
 		["prep_all"], ["book", "Pepa", "drunk", 1, 4], ["book", "Mirek", "quiet_guy", 1, 4], ["book", "Babi", "picker", 1, 4], ["book", "Kaja", "cheap_chick", 1, 4], ["wait", 0.5],
 		["hours", 3.0], ["checkin"], ["hours", 2.0], ["wait", 1.0],
 		["eval", "get_node('/root/CoreRoot').get_state().guests.size()"],
 		["call_on", "_interior_manager", "open_startup_crt_view", []], ["wait", 16.0],
 		["eval", "_interior_manager._building_interior._crt_ui._on_program_installed('guestrack')"],
 		["eval", "_interior_manager._building_interior._crt_ui._open_guestrack_app()"], ["wait", 2.0],
-		["eval", "_interior_manager._building_interior._crt_ui.app_of('guestrack').get('_tabs').set('current_tab', 1)"], ["wait", 1.5],
+		["eval", "_interior_manager._building_interior._crt_ui.app_of('guestrack').get('_tabs').set('current_tab', 2)"], ["wait", 1.5],
 		["eval", "_interior_manager._building_interior._crt_ui.app_of('guestrack').get('_plan').get('_guests')"],
 		["crt_screen", "lp0_guestrack_plan"], ["hours", 0.5], ["wait", 1.5], ["crt_screen", "lp1_guestrack_later"],
 		["eval", "_interior_manager._building_interior._crt_ui.open_app('camp_status')"], ["wait", 12.0], ["crt_screen", "lp2_campstat_camera"],
+		["eval", "_interior_manager._building_interior._crt_ui._on_program_installed('boss_app')"],
+		["eval", "_interior_manager._building_interior._crt_ui.open_app('shops')"], ["wait", 2.5], ["crt_screen", "lp3_boss"],
+		["eval", "get_node('/root/CoreRoot').actions.biz_sale(get_node('/root/CoreRoot').get_state().biz['sites'].keys()[0], 120, 3, false)"], ["wait", 1.3], ["crt_screen", "lp4_boss_sale"],
+		["wait", 3.0], ["crt_screen", "lp5_boss_after"],
 	],
 	# The office printer (24. 11., docs/pc.md): a reminder printed while the PC is on, the slip
 	# up out of it, the one before torn off beside it.

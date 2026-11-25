@@ -238,7 +238,8 @@ func _draw() -> void:
 ## A dot a party, the ones on the same cell side by side (a queue at a door shows as one).
 func _draw_guests(o: Vector2, cell: float) -> void:
 	var on_cell := {}
-	var d := maxf(3.0, floorf(cell * 0.28))
+	# Big enough to tell at a glance on the 640x480 screen (3 px got lost in the grid).
+	var d := maxf(4.0, floorf(cell * 0.4))
 	for g in _guests:
 		var c: Vector2i = g[0]
 		if not _view.has_point(c):

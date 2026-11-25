@@ -8,9 +8,16 @@ extends Node
 
 const INSTANCE = preload("res://scripts/instance/instance.gd")
 const SIZE := Vector2i(160, 120)
-## On the reception (MainBuilding, front +Z): where it hangs, where it looks (its own space).
+## On the reception (MainBuilding, front +Z): where it hangs, where it looks (its own space)
+## while nothing is built about the camp.
 const AT := Vector3(3.2, 4.3, 3.4)
 const LOOK := Vector3(-3.0, 0.4, 24.0)
+## It is turned to the middle of what is built (the tents, the cabins, the places: where the
+## guests are; 25. 11., in a new camp it showed the forest past the reception and the tents off
+## to its side), as far as it turns on its corner: this many degrees off the front.
+const TURN_MAX := 75.0
+## What it is not turned to: what nobody stays at or goes to.
+const NOT_AIMED := ["main_building", "path", "tree_", "lamp_post", "sewer", "sewage_tank", "pa_pole", "power_generator", "water_pump", "flagpole"]
 
 var image: Image
 ## A new picture is in `image` (the browser takes it and clears this).
@@ -134,7 +141,36 @@ func _place() -> void:
 	if b == null:
 		return
 	var xf := b.global_transform
-	_cam.global_transform = Transform3D(Basis(), xf * AT).looking_at(xf * LOOK, Vector3.UP)
+	_cam.global_transform = Transform3D(Basis(), xf * AT).looking_at(_aim(xf), Vector3.UP)
+
+
+## The point it looks at: the middle of what is built, turned to no more than TURN_MAX off the
+## reception's front; straight out (LOOK) while nothing is.
+func _aim(xf: Transform3D) -> Vector3:
+	var out := xf * LOOK
+	var gm = _main.get("grid_manager")
+	var st = INSTANCE.core(self).get_state() if gm != null else null
+	if st == null or st.grid == null:
+		return out
+	var sum := Vector3.ZERO
+	var n := 0
+	for coord in st.grid.cells:
+		var tp := str((st.grid.cells[coord] as Dictionary).get("type", ""))
+		if tp == "" or NOT_AIMED.any(func(x: String) -> bool: return tp.begins_with(x)):
+			continue
+		sum += gm.grid_to_world(coord)
+		n += 1
+	if n == 0:
+		return out
+	var at := xf * AT
+	var mid := sum / float(n)
+	var front := Vector2((out - at).x, (out - at).z)
+	var to := Vector2((mid - at).x, (mid - at).z)
+	if to.length() < 4.0:
+		return out
+	var off := clampf(front.angle_to(to), -deg_to_rad(TURN_MAX), deg_to_rad(TURN_MAX))
+	var dir := front.normalized().rotated(off) * maxf(to.length(), 14.0)
+	return Vector3(at.x + dir.x, out.y, at.z + dir.y)
 
 
 ## An aerial photograph's print: its colours a little faded, grain.

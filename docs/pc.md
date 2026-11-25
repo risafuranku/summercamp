@@ -122,3 +122,13 @@ se mění po minutách) a co přibylo, vytiskne, když je PC zapnuté: zvuk tisk
 `os98/printer.mp3`, hlasitost jako PC), lístek s časem a textem vyjede z tiskárny po krocích 12×/s,
 předchozí leží vedle, drží se tři. První pohled po načtení jen zjistí, co už čeká (netiskne celý
 seznam). Jen připomínka, nic se za ni nedostává. Ve hře `--scenario=printer`.
+
+Hotovo 25. 11. (kemp naživo): GuestRack, záložka Pokoje: plánek kreslí každou partu jako tečku
+(zelená spokojení, oranžová tak napůl, červená nešťastní) tam, kde zrovna je, u pultu se tečky
+skládají do fronty; čte se 2× za sekundu, jen když je plánek vidět (`camp_plan._read_guests`), tečka
+má 4 px a víc (3 px se v mřížce ztrácely). Boss 98, Přehled: tržby podniku, které od minulého
+překreslení vzrostly, svítí 2,5 s zeleně, sloupec Čeká je fronta. CampStat, DNES: kamera kempu
+vpravo nahoře vedle pokladny (128×96, čas snímku vpálený dole, nový snímek po 8 s); pod tabulkou
+byla useknutá u spodní hrany okna. Kamera (`camp_webcam.gd`, i stránka cerne-jezero.cz/kamera) se
+otáčí na střed toho, co je postavené (stany, chatky, podniky; ne cesty, stromy, sloupy), nejvýš 75°
+od čela recepce: v novém kempu ukazovala jen les za recepcí. Ve hře `--scenario=live_pc`.

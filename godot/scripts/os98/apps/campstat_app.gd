@@ -141,12 +141,16 @@ func _process(delta: float) -> void:
 # ── the camp's camera on the TODAY page (24. 11., docs/pc.md "Kemp naživo") ──────
 
 const WEBCAM = preload("res://scripts/os98/camp_webcam.gd")
-## A new picture this often while the page is up (a phone-line camera of 1998), its size.
+## A new picture this often while the page is up (a phone-line camera of 1998), its size: in
+## the page's corner beside the money, so the departments' table under it is whole (25. 11.:
+## under the table it was cut off at the window's foot).
 const CAM_SEC := 8.0
-const CAM_SIZE := Vector2(192, 144)
+const CAM_SIZE := Vector2(128, 96)
 var _cam_t := 0.0
 var _cam_wait := -1
 var _cam_tex: ImageTexture
+## The game time the picture was taken ("15:16").
+var _cam_at := ""
 
 
 func _tick_camera(delta: float) -> void:
@@ -163,6 +167,7 @@ func _tick_camera(delta: float) -> void:
 				_cam_tex = ImageTexture.create_from_image(img)
 			else:
 				_cam_tex.update(img)
+			_cam_at = str(_snap.get("time", ""))
 			_canvas.queue_redraw()
 		return
 	_cam_t -= delta
@@ -467,9 +472,9 @@ func _para(y: float, s: String, col := T.TEXT, x := PAD, bold := false) -> float
 
 
 ## The green LCD: cells of [label, value] side by side.
-func _lcd(y: float, cells: Array) -> float:
+func _lcd(y: float, cells: Array, wide := -1.0) -> float:
 	var c := _canvas
-	var r := Rect2(PAD, y, c.size.x - PAD * 2, 42)
+	var r := Rect2(PAD, y, c.size.x - PAD * 2 if wide < 0.0 else wide, 42)
 	c.draw_style_box(T.box("field", LCD_BG, Vector4.ZERO), r)
 	var cw := (r.size.x - 8) / float(cells.size())
 	for i in cells.size():
@@ -685,7 +690,9 @@ func _page_today(y: float) -> float:
 	var yest: Variant = _yesterday()
 	if yest != null:
 		cells.append(["Yesterday", ("+" if int(yest) >= 0 else "-") + LANG.money("$" + _shell._group(absi(int(yest)))), LCD_ON if int(yest) >= 0 else Color8(255, 90, 70)])
-	y = _lcd(y, cells)
+	var cam_y := y
+	y = maxf(_lcd(y, cells, _canvas.size.x - PAD * 3 - CAM_SIZE.x), cam_y + CAM_SIZE.y + 8.0)
+	_draw_camera(Vector2(_canvas.size.x - PAD - CAM_SIZE.x, cam_y))
 	var m: Node = _shell.main_node()
 	var rows: Array = []
 	for d_any in OVERVIEW.rows(m, _snap, _upkeep, _forecast):
@@ -695,18 +702,22 @@ func _page_today(y: float) -> float:
 			{"t": OVERVIEW.names_short(who) if not who.is_empty() else tr("You"), "c": T.TEXT if not who.is_empty() else AMBER},
 			{"t": str(d["state"]), "c": RED if int(d["level"]) == 2 else T.TEXT},
 			{"btn": str(d["btn"]), "act": str(d["act"]), "on": bool(d["on"])} if str(d["btn"]) != "" else ""])
-	y = _table(y, [["", 16, HORIZONTAL_ALIGNMENT_LEFT], ["Department", 112, HORIZONTAL_ALIGNMENT_LEFT], ["Who", 84, HORIZONTAL_ALIGNMENT_LEFT], ["How it stands", 0, HORIZONTAL_ALIGNMENT_LEFT], ["", 94, HORIZONTAL_ALIGNMENT_CENTER]], rows, 19.0)
-	# The camp now, through the camera on the reception's roof (a new picture every few seconds).
-	y += 8.0
-	y = _title(y, tr("CAMERA"), "cerne-jezero.cz/kamera")
-	var frame := Rect2(PAD, y, CAM_SIZE.x, CAM_SIZE.y)
+	return _table(y, [["", 16, HORIZONTAL_ALIGNMENT_LEFT], ["Department", 112, HORIZONTAL_ALIGNMENT_LEFT], ["Who", 84, HORIZONTAL_ALIGNMENT_LEFT], ["How it stands", 0, HORIZONTAL_ALIGNMENT_LEFT], ["", 94, HORIZONTAL_ALIGNMENT_CENTER]], rows, 19.0)
+
+
+## The camp now, through the camera on the reception's corner (a new picture every few
+## seconds), the time of the picture burnt into its foot the way such cameras stamped it.
+func _draw_camera(at: Vector2) -> void:
+	var frame := Rect2(at, CAM_SIZE)
 	_canvas.draw_rect(frame.grow(1.0), T.SHADOW, false, 1.0)
-	if _cam_tex != null:
-		_canvas.draw_texture_rect(_cam_tex, frame, false)
-	else:
+	if _cam_tex == null:
 		_canvas.draw_rect(frame, Color8(20, 22, 20))
-		_text(Vector2(PAD + 8, y + CAM_SIZE.y * 0.5 - 8), tr("Connecting..."), GREY)
-	return y + CAM_SIZE.y + PAD
+		_text(at + Vector2(8, CAM_SIZE.y * 0.5 - 8), tr("Connecting..."), GREY)
+		return
+	_canvas.draw_texture_rect(_cam_tex, frame, false)
+	var stamp := "CAM1 " + _cam_at
+	_canvas.draw_string(T.FONT_MONO, at + Vector2(4, CAM_SIZE.y - 5), stamp, HORIZONTAL_ALIGNMENT_LEFT, CAM_SIZE.x - 8, T.FONT_SIZE, Color8(10, 10, 10))
+	_canvas.draw_string(T.FONT_MONO, at + Vector2(3, CAM_SIZE.y - 6), stamp, HORIZONTAL_ALIGNMENT_LEFT, CAM_SIZE.x - 8, T.FONT_SIZE, Color8(235, 235, 220))
 
 
 ## What the camp made yesterday (the Builder's graphs keep each day's cash), null on the
