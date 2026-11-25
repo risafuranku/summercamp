@@ -2,7 +2,6 @@
 
 ## TODO
 
-- [ ] Co-op test kuželny pro dva: bufet (tác, točení), jáma (kolíky, kolík v ruce), pult s botami a sklep viděné z druhého stroje (kód hotový, test chybí).
 - [ ] Stánek s kukuřicí: všechny předměty na pultu z 2D textury převést na 3D sprity, které na pultu stojí (jako vařící se kukuřice); vzorek máslenky od Groka čeká na schválení (`tools/artgen/prompts_corn_props.tsv`).
 - [ ] Programy na PC ukazují kemp naživo: hosté jako tečky na plánku (GuestRack, ověřit záložku Pokoje), fronty, tržby, kamera v CampStatu.
 - [ ] Stavba trvá podle velikosti: stan a lavička hned, chatka a podnik 2–4 herní hodiny; lešení, dělníci, bouchání, hosté až po dokončení (docs/pc.md).
@@ -43,6 +42,7 @@
 
 ## DONE
 
+- [x] Kuželna pro dva: tác, točení, kolíky, pult a sklep vidí i druhý správce (test `bowling_coop`); stav stanice se posílá znovu každou sekundu, vidí ho i ten, kdo přijde později (800db2c1)
 - [x] Co-op u stanic všech podniků: ostatní vidí rozdělanou práci a věc v ruce; u stánku stojí každý u své stanice a pracuje (5e6cd4f8)
 - [x] Bez PS jiggle: vrcholy se už nepřichytávají k mřížce obrazovky (všechny modely, stromy, třpyt), textury dál plavou (fbd11418)
 - [x] Nastavení v záložkách Obraz, Zvuk, Ovládání, Hra; vlastní hlasitost hudby, efektů a hlasů (a97d2e0a)
