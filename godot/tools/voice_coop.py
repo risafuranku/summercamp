@@ -79,6 +79,9 @@ def main():
         failures.append("the host heard no local voice: %s" % h.get("heard_local"))
     if ":radio" not in h.get("heard_radio", ""):
         failures.append("the host heard no radio: %s" % h.get("heard_radio"))
+    # The megaphone out of the three horns nearest the host (four poles stand).
+    if ':megaphone", 3, 3]' not in h.get("heard_mega", ""):
+        failures.append("the megaphone out of the nearest horns: want 3 of 3, got %s" % h.get("heard_mega"))
     print("VOICE COOP: %s" % ("PASS" if not failures else "FAIL"))
     for f in failures:
         print("  " + f)

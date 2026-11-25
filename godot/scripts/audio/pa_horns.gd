@@ -132,17 +132,24 @@ func on_air() -> bool:
 
 ## The horn nearest to `at` (a pole of this camp's, its horns' height), or Vector3.INF.
 func nearest_horn(at: Vector3) -> Vector3:
-	var best := Vector3.INF
-	var bd := INF
+	var hs := nearest_horns(at, 1)
+	return hs[0] if not hs.is_empty() else Vector3.INF
+
+
+## The horns of the `n` poles nearest the one listening (_ear: the player in the camp).
+func nearest_horns_to_ear(n: int) -> Array:
+	return nearest_horns(_ear(), n)
+
+
+## The horns of the `n` poles nearest `at`, nearest first (the megaphone out of as many
+## horns as the radio plays from: NEAREST).
+func nearest_horns(at: Vector3, n: int) -> Array:
+	var hs: Array = []
 	for p in _poles:
-		if not is_instance_valid(p):
-			continue
-		var h: Vector3 = (p as Node3D).global_position + Vector3(0, HORN_Y, 0)
-		var d := h.distance_squared_to(at)
-		if d < bd:
-			bd = d
-			best = h
-	return best
+		if is_instance_valid(p):
+			hs.append((p as Node3D).global_position + Vector3(0, HORN_Y, 0))
+	hs.sort_custom(func(a, b) -> bool: return (a as Vector3).distance_squared_to(at) < (b as Vector3).distance_squared_to(at))
+	return hs.slice(0, n)
 
 
 ## The horns of every pole of this camp (coop/voice.gd: the guests near them hear the

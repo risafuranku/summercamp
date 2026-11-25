@@ -28,6 +28,7 @@ const RETRO_UI = preload("res://scripts/ui/retro_ui.gd")
 const HAND_TEX := {"radio": "res://assets/textury/hands_lo/radio.png", "megaphone": "res://assets/textury/hands_lo/megaphone.png"}
 ## A packet's flags: which (radio or megaphone), the first of a go, the last.
 const PA_RULES := preload("res://core/systems/pa_rules.gd")
+const PA_HORNS := preload("res://scripts/audio/pa_horns.gd")
 const F_MEGA := 1
 const F_START := 2
 const F_END := 4
@@ -342,13 +343,15 @@ func on_voice(id: int, flags: int, data: PackedByteArray) -> void:
 			frames[i] = Vector2(v, v)
 		if (pb as AudioStreamGeneratorPlayback).can_push_buffer(frames.size()):
 			(pb as AudioStreamGeneratorPlayback).push_buffer(frames)
-		# The same out of the PA's nearest horn (24. 11.).
-		var pa_p = rx.get("pa_player")
-		if pa_p != null and is_instance_valid(pa_p):
+		# The same out of the PA's nearest horns (24. 11.).
+		var pbs: Dictionary = rx.get("pa_playbacks", {})
+		for pa_p in rx.get("pa_players", []):
+			if pa_p == null or not is_instance_valid(pa_p):
+				continue
 			if not (pa_p as AudioStreamPlayer3D).playing:
 				(pa_p as AudioStreamPlayer3D).play()
-				rx["pa_playback"] = (pa_p as AudioStreamPlayer3D).get_stream_playback()
-			var pb2 = rx.get("pa_playback")
+				pbs[pa_p.get_instance_id()] = (pa_p as AudioStreamPlayer3D).get_stream_playback()
+			var pb2 = pbs.get(pa_p.get_instance_id())
 			if pb2 is AudioStreamGeneratorPlayback and (pb2 as AudioStreamGeneratorPlayback).can_push_buffer(frames.size()):
 				(pb2 as AudioStreamGeneratorPlayback).push_buffer(frames)
 	rx["last"] = Time.get_ticks_msec()
@@ -386,18 +389,22 @@ func _make_rx(id: int, kind: String) -> Dictionary:
 		var world: Node = INSTANCE.main_of(self)
 		var w3d = world.get("_world_3d") if world != null else null
 		(w3d if w3d is Node else world).add_child(p3)
-		# The PA's horn nearest you says it too (24. 11.), on the PA's bus; silent with no pole.
-		var gen2 := AudioStreamGenerator.new()
-		gen2.mix_rate = RATE
-		gen2.buffer_length = 0.6
-		var pa3 := AudioStreamPlayer3D.new()
-		pa3.stream = gen2
-		pa3.bus = "PA"
-		pa3.unit_size = 9.0
-		pa3.max_distance = PA_RULES.RANGE_M + 20.0
-		pa3.volume_db = -80.0
-		(w3d if w3d is Node else world).add_child(pa3)
-		return {"player": player, "playback": null, "last": 0, "id": id, "mega": mega, "pa_player": pa3, "pa_playback": null}
+		# The PA's horns nearest you say it too (24. 11.; 25. 11. as many as play the radio,
+		# PA_HORNS.NEAREST), on the PA's bus; silent with no pole.
+		var pas: Array = []
+		for k in PA_HORNS.NEAREST:
+			var gen2 := AudioStreamGenerator.new()
+			gen2.mix_rate = RATE
+			gen2.buffer_length = 0.6
+			var pa3 := AudioStreamPlayer3D.new()
+			pa3.stream = gen2
+			pa3.bus = "PA"
+			pa3.unit_size = 9.0
+			pa3.max_distance = PA_RULES.RANGE_M + 20.0
+			pa3.volume_db = -80.0
+			(w3d if w3d is Node else world).add_child(pa3)
+			pas.append(pa3)
+		return {"player": player, "playback": null, "last": 0, "id": id, "mega": mega, "pa_players": pas, "pa_playbacks": {}}
 	else:
 		var p2 := AudioStreamPlayer.new()
 		p2.stream = gen
@@ -405,6 +412,15 @@ func _make_rx(id: int, kind: String) -> Dictionary:
 		player = p2
 		add_child(p2)
 	return {"player": player, "playback": null, "last": 0, "id": id, "mega": mega}
+
+
+## The camp's camera (in the camp's own viewport, not this node's: the window's).
+func _camp_camera() -> Camera3D:
+	var main := INSTANCE.main_of(self)
+	var w3d = main.get("_world_3d") if main != null else null
+	if w3d is Node3D and (w3d as Node3D).is_inside_tree():
+		return (w3d as Node3D).get_viewport().get_camera_3d()
+	return null
 
 
 ## The megaphone sounds from the one shouting (their figure in your world); the radio
@@ -428,20 +444,24 @@ func _update_rx() -> void:
 				if talking:
 					_alert_guests(fig.global_position, get_process_delta_time())
 			else:
-				var cam := get_viewport().get_camera_3d()
+				var cam := _camp_camera()
 				if cam != null:
 					p3.global_position = cam.global_position + Vector3(0, 0, -6.0)
-			# Out of the PA's horn nearest you (24. 11.).
-			var pa3 = rx.get("pa_player")
+			# Out of the PA's horns nearest you (24. 11.), as many as play the radio. (Where
+			# you are is the PA's own ear: this node's viewport is the window's, which has no
+			# camera of the camp; asked there, the horns stayed silent till 25. 11.)
 			var main := INSTANCE.main_of(self)
 			var pa = main.get("_pa_horns") if main != null else null
-			var ear := get_viewport().get_camera_3d()
-			if pa3 != null and is_instance_valid(pa3):
-				var h: Vector3 = pa.nearest_horn(ear.global_position) if pa != null and is_instance_valid(pa) and ear != null else Vector3.INF
-				if h == Vector3.INF:
+			var pas: Array = rx.get("pa_players", [])
+			var hs: Array = pa.nearest_horns_to_ear(pas.size()) if pa != null and is_instance_valid(pa) else []
+			for k in pas.size():
+				var pa3 = pas[k]
+				if pa3 == null or not is_instance_valid(pa3):
+					continue
+				if k >= hs.size():
 					(pa3 as AudioStreamPlayer3D).volume_db = -80.0
 				else:
-					(pa3 as AudioStreamPlayer3D).global_position = h
+					(pa3 as AudioStreamPlayer3D).global_position = hs[k]
 					(pa3 as AudioStreamPlayer3D).volume_db = -3.0
 	if _sending == "radio" or _sending == "megaphone":
 		on_air = "%s  TALKING" % ("MEGAPHONE" if _sending == "megaphone" else "RADIO")

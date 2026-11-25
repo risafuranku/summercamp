@@ -19,6 +19,12 @@ Buses, 3D sound, the mixer and the sounds' own rules.
   outdoors); a sound heard through a building's walls goes on `world_sounds.wall_bus(...)`
   (a low-pass bus; the 3D player's own filter only works with distance).
 
+- **A node outside the camp's SubViewport has no camera of the camp** (25. 11.): an autoload's
+  child (the co-op voice under `Coop`) asking `get_viewport().get_camera_3d()` gets the
+  window's viewport and null; the megaphone out of the PA horns was silent from the day it was
+  made for that. Ask the camp (`main._world_3d.get_viewport()`) or the player's position
+  (`pa_horns._ear`).
+
 - **Footstep pitch modulation must stay subtle** (whoosh artifact otherwise).
 
 - **Music, the effects and the voices have their own volumes** (the settings' Audio tab,
@@ -78,5 +84,6 @@ když rádio hraje, mají +0,08 zábavy za minutu, ale jen do 60 (oheň dá 45 z
 do 100); od 22 do 6 hodin hrající sloup u ubytování lehce spícího hosta (důchodce, Ticháč,
 rodina, slečna) ruší jako 0,7 hlučné party, ráno si postěžuje. Vypnuté rádio v recepci = ticho
 i spánek. Megafon: hosté u každého sloupu se otočí (`voice._alert_guests`) a druhý hráč slyší
-hlas i z nejbližšího ampliónu (`voice._make_rx` „pa_player“). Test `tools/pa_check.tscn`, snímky
+hlas i z ampliónů: od 25. 11. ze tří nejbližších, jako rádio (`voice._make_rx` „pa_players“,
+`pa_horns.nearest_horns`; dřív jen z jednoho). Test `tools/pa_check.tscn`, snímky
 `shot_driver --scenario=pa_pole` (den, dálka, noc, vynucené přeladění).
