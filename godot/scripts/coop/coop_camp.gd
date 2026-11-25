@@ -651,6 +651,13 @@ func sync(kind: String, data: Array) -> void:
 			if not data.is_empty():
 				main.set_camp_name(str(data[0]), true)
 			return
+		"sview":
+			# A station another warden works, as they see it (business/station3d.gd).
+			if data.size() >= 3 and data[2] is Dictionary:
+				for st in main.get_tree().get_nodes_in_group("stations3d"):
+					if str(st.get("building_key")) == str(data[0]) and str(st.get("station")) == str(data[1]):
+						st.coop_take_view(data[2])
+			return
 		"gate":
 			var gate = main.get_tree().get_first_node_in_group("camp_gate")
 			if gate == null:
@@ -1171,16 +1178,17 @@ func local_warden() -> Dictionary:
 	var att: Dictionary = main._warden_play.coop_state() if main._warden_play != null and is_instance_valid(main._warden_play) else {}
 	if not att.is_empty():
 		s["att"] = att
-	# Behind the corn stand: stood behind its counter at the pot (the close-up hides you).
+	# Behind the corn stand: at the station you work, at work (stand_view.coop_spot; it asked
+	# the view for a "_stand" it never had, so nobody was ever seen at work there: 25. 11.).
 	var corn = main._interior_manager.get("_corn_stand") if main._interior_manager != null else null
-	if corn != null and is_instance_valid(corn) and corn.visible:
-		var stand = corn.get("_stand")
-		if stand != null and is_instance_valid(stand):
-			s["p"] = (stand as Node3D).global_transform * Vector3(0.0, 0.0, -0.85)
-			s["in"] = false
-			s["t"] = false
-			s["v"] = 0.0
-			s["act"] = "cook"
+	if corn != null and is_instance_valid(corn) and corn.visible and corn.has_method("coop_spot") and corn.get("_structure") != null:
+		var spot: Transform3D = corn.coop_spot()
+		s["p"] = spot.origin
+		s["y"] = spot.basis.get_euler().y
+		s["in"] = false
+		s["t"] = false
+		s["v"] = 0.0
+		s["act"] = "cook"
 	# Crouched or on your belly, or something carried in your arms (player_controller
 	# stance, scripts/ambient/carry.gd): the other machine draws that pose.
 	if not s.has("act") and main._player != null and not bool(s.get("in", false)):

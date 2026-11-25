@@ -182,6 +182,22 @@ func _show() -> void:
 			(sp as Sprite3D).visible = false
 
 
+## Co-op: the board, the cobs aside and what is in the hand go to the others (station3d).
+func _coop_vars() -> Array:
+	return ["_board", "_side", "_hand"]
+
+
+func _coop_sprites() -> Array:
+	return ["_hand_spr"]
+
+
+func _coop_retex(s: Sprite3D, key: String) -> void:
+	if key == "#napkin":
+		_set_napkin_picture()
+		return
+	super._coop_retex(s, key)
+
+
 ## A cob's picture by how done it came out.
 func _cook_tex(cook: float) -> String:
 	if cook < 0.4:
@@ -405,6 +421,7 @@ func _set_napkin_picture() -> void:
 		_napkin_tex = a
 	_hand_spr.texture = _napkin_tex
 	_hand_spr.pixel_size = 0.13 / float(_napkin_tex.get_width())
+	_hand_spr.set_meta("tex_key", "#napkin")
 
 
 func _salt_once() -> void:

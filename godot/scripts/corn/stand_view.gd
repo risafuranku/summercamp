@@ -171,11 +171,22 @@ func _stand_behind(on: bool) -> void:
 	_player = p
 	if on:
 		_player_was = _player.global_transform
-		var at := _structure.global_transform * LAYOUT.VENDOR
-		var face := _structure.global_transform.basis.z
-		_player.global_transform = Transform3D(Basis.looking_at(-face, Vector3.UP), at)
+		_player.global_transform = coop_spot()
 	elif _player_was != Transform3D.IDENTITY:
 		_player.global_transform = _player_was
+
+
+## Where your warden stands behind the counter: at the station you work, turned to the
+## counter, so the others see you beside them at your work (Richard 25. 11.: „nevidím ho
+## vedle sebe“; everybody stood on the one spot in the middle).
+func coop_spot() -> Transform3D:
+	var st := _station_open()
+	var x := LAYOUT.VENDOR.x
+	if LAYOUT.SURFACES.has(st):
+		x = float((LAYOUT.SURFACES[st]["at"] as Vector3).x)
+	var at := _structure.global_transform * Vector3(x, 0.0, LAYOUT.VENDOR.z)
+	var face := _structure.global_transform.basis.z
+	return Transform3D(Basis.looking_at(-face, Vector3.UP), at)
 
 
 func _layout() -> void:
@@ -285,6 +296,9 @@ func _open_station(id: String) -> void:
 	_hud.set("view_size", Vector2(_view.size))
 	_hud.call("clear_say")
 	_hud.visible = true
+	# Your warden steps along the counter to it (the others see where you work).
+	if _player != null and is_instance_valid(_player) and _structure != null:
+		_player.global_transform = coop_spot()
 
 
 ## From where the stand's camera is now (your eyes) to `to`, round the nearer end of the

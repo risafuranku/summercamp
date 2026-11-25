@@ -104,6 +104,23 @@ Two to four wardens, the host's authority, and the split screen's instances.
   anything that rebuilds on a pulse must keep what is still open (the raccoons' bin loop
   restarted every second).
 
+- **A station another warden works is drawn as they have it** (Richard 25. 11.: „nevidím jak
+  COOP hráči připravují kukuřici… jak se jím tam hýbe pod rukama“, for every business;
+  `business/station3d.gd`): while you work a station, `coop_view()` (what you carry, the
+  station's own work named by `_coop_vars()` and the sprites by `_coop_sprites()`) goes out
+  as sync kind "sview" ([building, station, view]) ten times a second when it changed and once
+  as you step away; the others' station of that name (group `stations3d`) takes it
+  (`coop_take_view`, not while they work it themselves), draws it and puts the sprites back
+  after each of its own `_show()`. The pub, the bistro and the Jednota keep their work in
+  the place's shared state already (podniky_coop): only what is carried. The corn stand:
+  the board, the cobs aside, the cob being husked, the drink, what is in the hand. The
+  bowling: the bufet's tray and the glass under the tap, the pit's pins (lane.coop_pins) and
+  the one in the hand, the desk's pairs laid out, the cellar's jam and crank. A sprite's
+  picture goes as its `tex_key` meta (sprite(): "path|metres"; a station's own picture
+  answers its key in `_coop_retex`). At the corn stand each warden stands at the station they
+  work (`stand_view.coop_spot`, pose "cook"; coop_camp asked the view for a `_stand` it never
+  had, so nobody was seen at work there). Test: `python godot/tools/stand_coop.py`.
+
 - **What another warden can see is synced, always** (Richard 24. 11.: „nevidím syncnutý
   šuplík při checkinu… takovýhle client side chyby se už nesmí nikdy opakovat!“): a thing
   that moves where the other can see it (a drawer, a door, a lid, a light, a screen) is

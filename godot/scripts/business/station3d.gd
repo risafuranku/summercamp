@@ -192,8 +192,137 @@ func _ready() -> void:
 	_hot.visible = false
 	_hot.set_meta("retro_skip", true)
 	add_child(_hot)
+	# The others' stations find it by its place and name (coop_take_view).
+	add_to_group("stations3d")
 	_build()
 	_show()
+
+
+# ── co-op: what the warden at a station sees, the others see ─────────────────
+
+## Richard 25. 11.: „nevidím jak COOP hráči připravují kukuřici… jak se jím tam hýbe pod rukama
+## (vše co vidí jeden hráč musí vidět i ostatní)“, for every business. While you work a
+## station its view goes to the others ten times a second when it changes (coop_view: what
+## you carry, and the station's own work that is not in the place's shared state); a station
+## another warden works takes theirs (coop_take_view) and is drawn as they have it.
+## A station names that work: _coop_vars() its member variables (plain data: the corn stand's
+## board, the cobs aside, what is in the hand), _coop_sprites() its sprites whose look and
+## place go with them (the thing in the hand).
+const COOP_VIEW_SEC := 0.1
+var _coop_t := 0.0
+var _coop_sent := 0
+## The last view taken here: its sprites are put back after every _show (which would put
+## them where this machine's state has them), and what they carry as a ghost.
+var _coop_seen: Dictionary = {}
+var _coop_ghost: Sprite3D
+
+
+func _coop_vars() -> Array:
+	return []
+
+
+func _coop_sprites() -> Array:
+	return []
+
+
+func coop_view() -> Dictionary:
+	var v := {}
+	for n in _coop_vars():
+		v[n] = get(str(n))
+	var sp := {}
+	for n in _coop_sprites():
+		var s = get(str(n))
+		if s is Sprite3D and is_instance_valid(s):
+			sp[n] = _coop_look(s)
+	v["#sp"] = sp
+	if not _carried.is_empty() and _carry_spr != null and is_instance_valid(_carry_spr):
+		v["#carry"] = _coop_look(_carry_spr)
+	return v
+
+
+static func _coop_look(s: Sprite3D) -> Dictionary:
+	var d := {"v": s.visible, "p": s.position, "r": s.rotation, "px": s.pixel_size, "k": str(s.get_meta("tex_key", "")),
+		"o": s.offset, "b": int(s.billboard), "ax": int(s.axis)}
+	if s.region_enabled:
+		d["rg"] = s.region_rect
+	return d
+
+
+## Sends this station's view when it changed (while you are at it), or at once (`now`: on
+## stepping away, so the others see it put down).
+func _coop_send(now := false) -> void:
+	var coop = INSTANCE.coop(self)
+	if not coop.is_active() or building_key == "" or station == "":
+		return
+	var v := coop_view()
+	var h := hash(var_to_bytes(v))
+	if h == _coop_sent and not now:
+		return
+	_coop_sent = h
+	coop.send_sync("sview", [building_key, station, v])
+
+
+## Another warden's view of this station (scripts/coop/coop_camp.gd "sview"). Not while you
+## are at it yourself (one warden a station).
+func coop_take_view(v: Dictionary) -> void:
+	if _open:
+		return
+	for n in _coop_vars():
+		if v.has(n):
+			set(str(n), v[n])
+	_coop_seen = v
+	_show()
+	_coop_put_back()
+
+
+## The view's sprites as they have them, and the ghost of what they carry.
+func _coop_put_back() -> void:
+	if _coop_seen.is_empty():
+		return
+	var sp: Dictionary = _coop_seen.get("#sp", {})
+	for n in sp:
+		var s = get(str(n))
+		if s is Sprite3D and is_instance_valid(s):
+			_coop_dress(s, sp[n])
+	var c: Dictionary = _coop_seen.get("#carry", {})
+	if c.is_empty():
+		if _coop_ghost != null and is_instance_valid(_coop_ghost):
+			_coop_ghost.queue_free()
+		_coop_ghost = null
+		return
+	if _coop_ghost == null or not is_instance_valid(_coop_ghost):
+		_coop_ghost = Sprite3D.new()
+		_coop_ghost.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		_coop_ghost.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+		_coop_ghost.double_sided = true
+		_coop_ghost.shaded = true
+		add_child(_coop_ghost)
+	_coop_dress(_coop_ghost, c)
+
+
+func _coop_dress(s: Sprite3D, d: Dictionary) -> void:
+	var k := str(d.get("k", ""))
+	if k != "" and k != str(s.get_meta("tex_key", "")):
+		_coop_retex(s, k)
+	s.visible = bool(d.get("v", true))
+	s.position = d.get("p", s.position)
+	s.rotation = d.get("r", s.rotation)
+	s.pixel_size = float(d.get("px", s.pixel_size))
+	s.offset = d.get("o", s.offset)
+	s.billboard = int(d.get("b", s.billboard)) as BaseMaterial3D.BillboardMode
+	s.axis = int(d.get("ax", s.axis)) as Vector3.Axis
+	s.region_enabled = d.has("rg")
+	if d.has("rg"):
+		s.region_rect = d["rg"]
+
+
+## A sprite's picture by its key ("path|metres", sprite()'s meta); a station with pictures of
+## its own makes (the counter's napkin off its picture) answers its own keys.
+func _coop_retex(s: Sprite3D, key: String) -> void:
+	var at := key.rfind("|")
+	if at <= 0:
+		return
+	retex(s, key.left(at), float(key.substr(at + 1)))
 
 
 # ── the surface ──────────────────────────────────────────────────────────────
@@ -994,6 +1123,8 @@ func close_station() -> void:
 	release()
 	_closing()
 	_open = false
+	# The others see what you left as you left it.
+	_coop_send(true)
 	_glint_off()
 	_hint_off()
 	_hover = ""
@@ -1133,12 +1264,19 @@ func _process(delta: float) -> void:
 	if _open and is_visible_in_tree():
 		_show()
 		_carry_follow()
+	# Your work to the others (co-op), ten times a second when it changed.
+	if _open:
+		_coop_t -= delta
+		if _coop_t <= 0.0:
+			_coop_t = COOP_VIEW_SEC
+			_coop_send()
 	_acc += delta
 	if _acc < STEP:
 		return
 	_acc = 0.0
 	if is_visible_in_tree() and not _open:
 		_show()
+		_coop_put_back()
 	var keep: Array = []
 	for p in _pops:
 		var l: Label3D = p["node"]

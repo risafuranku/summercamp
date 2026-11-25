@@ -854,6 +854,34 @@ func pit_pin(k: int) -> void:
 	_anims.append({"node": pin, "from": pin.position, "to": to, "t": 0.0, "dur": 0.22, "axis": Vector3(1, 0, 0.3).normalized(), "tilt": PI * 0.5})
 
 
+## Co-op: where each pin is for the warden working the pit ([where, spot] a pin), and taken
+## from them on the others (pit_station.coop_view): stood up, into the pit, in a hand (the
+## pit's view puts that one); one lying on the deck stays where this lane's ball left it.
+func coop_pins() -> Array:
+	var out: Array = []
+	for k in 10:
+		out.append([str(_pin_state[k]["where"]), int(_pin_state[k]["spot"])])
+	return out
+
+
+func coop_take_pins(a: Array) -> void:
+	for k in mini(10, a.size()):
+		var where := str(a[k][0])
+		var s := int(a[k][1])
+		if where == str(_pin_state[k]["where"]) and s == int(_pin_state[k]["spot"]):
+			continue
+		match where:
+			"up":
+				_stand_now(k, s)
+			"pit":
+				_to_pit_now(k, k)
+			"hand":
+				_anims = _anims.filter(func(x) -> bool: return x["node"] != _pins[k])
+				_pin_state[k]["where"] = "hand"
+				_pin_state[k]["spot"] = -1
+				(_pins[k] as Node3D).visible = true
+
+
 func _stand_now(k: int, s: int) -> void:
 	_anims = _anims.filter(func(a) -> bool: return a["node"] != _pins[k])
 	_pin_state[k]["where"] = "up"

@@ -264,6 +264,11 @@ func checklist(t: Dictionary) -> Array:
 
 # ── what is shown ────────────────────────────────────────────────────────────
 
+## Co-op: the pairs laid out for each party and the one picked go to the others (station3d).
+func _coop_vars() -> Array:
+	return ["_given", "_pick"]
+
+
 func _show() -> void:
 	if state == null or building_key == "":
 		return

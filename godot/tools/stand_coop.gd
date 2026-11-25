@@ -37,6 +37,8 @@ func _ready() -> void:
 			["eval", CS + ".debug_boil(" + KEY + ", 10.0)"],
 			["eval", SV + "._stations['counter'].debug_take_first()"],
 			["eval", SV + "._stations['counter'].debug_dress_right()"],
+			# The other at the husking sees the dressed cob on the board (25. 11., station3d.coop_view).
+			["wait", 0.5], ["coop_signal", "host_dressed"], ["coop_wait_file", "client_saw_board"],
 			["eval", "['STAND host tickets', " + CS + ".tickets(" + KEY + ").size()]"],
 			["eval", SV + "._stations['counter'].debug_click('hand')"], ["wait", 2.0], ["shot", "sh1_served"],
 			["eval", "['STAND host served', " + CS + ".site(" + KEY + ")['served'].size(), " + CS + ".tickets(" + KEY + ").size()]"],
@@ -56,7 +58,15 @@ func _ready() -> void:
 			["eval", "_interior_manager._on_corn_stand_interact(" + STRUCT + ")"], ["wait", 2.0],
 			["eval", "['STAND client taken', (" + SV + "._taken())]"],
 			["eval", "['STAND client open', " + SV + "._station_open()]"],
-			["coop_signal", "client_at_stand"], ["coop_wait_file", "host_served"], ["wait", 2.0],
+			# The host beside you at the counter, at work (25. 11.: stood on one spot, no pose).
+			["wait", 1.0], ["host_fig"],
+			["eval", SV + "._stations['husk']._look.set('yaw_deg', -55.0)"], ["wait", 0.8], ["shot", "sc0_host_beside"],
+			["coop_signal", "client_at_stand"],
+			["coop_wait_file", "host_dressed"], ["wait", 1.0],
+			["eval", "['STAND client board', " + SV + "._stations['counter']._board.get('salt', -1), " + SV + "._stations['counter']._board.get('napkin', false), " + SV + "._stations['counter']._board_spr.visible or " + SV + "._stations['counter']._napkin_spr.visible]"],
+			["shot", "sc0b_board"],
+			["eval", SV + "._stations['husk']._look.set('yaw_deg', 0.0)"],
+			["coop_signal", "client_saw_board"], ["coop_wait_file", "host_served"], ["wait", 2.0],
 			["eval", "['STAND client served', " + CS + ".site(" + KEY + ")['served'].size(), " + CS + ".tickets(" + KEY + ").size()]"],
 			["eval", SV + "._stations['husk'].debug_click('crate')"],
 			["eval", SV + "._stations['husk'].debug_husk()"],
@@ -64,3 +74,18 @@ func _ready() -> void:
 			["eval", "['STAND client bowl', " + CS + ".bowl(" + KEY + ")]"],
 			["coop_signal", "client_done"], ["coop_wait_file", "host_done"], ["wait", 1.0], ["eval", "get_tree().quit()"],
 		]
+
+
+func _run_step(step: Array) -> void:
+	match str(step[0]):
+		"host_fig":
+			# Where the host's figure stands, in the stand's own space, and in what pose.
+			var fig: Node3D = Coop.remote_figure()
+			var s: Node3D = _main.call("debug_structure_of_type", "corn_stand")
+			if fig == null or s == null:
+				print("STAND client host_fig none")
+				return
+			var at := s.global_transform.affine_inverse() * fig.global_position
+			print("STAND client host_fig %.2f %.2f %s %s" % [at.x, at.z, str(fig.get("pose")), str(fig.visible).to_lower()])
+		_:
+			super._run_step(step)

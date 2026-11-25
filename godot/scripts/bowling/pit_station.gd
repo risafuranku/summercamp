@@ -143,6 +143,39 @@ func _work_done(li: int) -> bool:
 
 # ── what is shown ────────────────────────────────────────────────────────────
 
+## Co-op: the pins of the lanes this pit works and the one in the hand go to the others
+## (station3d.coop_view; the lane keeps where its pins are, its own).
+func coop_view() -> Dictionary:
+	var v := super.coop_view()
+	var pins := {}
+	for l in lanes:
+		pins[str(_li(l))] = l.coop_pins()
+	v["pins"] = pins
+	if not _carry.is_empty():
+		var pin: Node3D = _carry[0].pin_node(int(_carry[1]))
+		if is_instance_valid(pin):
+			v["held"] = [_li(_carry[0]), int(_carry[1]), global_transform.affine_inverse() * pin.global_position, pin.global_basis]
+	return v
+
+
+func coop_take_view(v: Dictionary) -> void:
+	if _open:
+		return
+	var pins: Dictionary = v.get("pins", {})
+	for l in lanes:
+		if pins.has(str(_li(l))):
+			l.coop_take_pins(pins[str(_li(l))])
+	var held: Array = v.get("held", [])
+	if held.size() >= 4:
+		for l in lanes:
+			if _li(l) == int(held[0]):
+				var pin: Node3D = l.pin_node(int(held[1]))
+				if is_instance_valid(pin):
+					pin.global_position = global_transform * (held[2] as Vector3)
+					pin.global_basis = held[3]
+	super.coop_take_view(v)
+
+
 func _show() -> void:
 	if _carry.is_empty():
 		return

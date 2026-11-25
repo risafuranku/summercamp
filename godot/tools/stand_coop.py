@@ -76,6 +76,14 @@ def main():
         failures.append("the joining warden did not get the husking: %s" % c.get("open"))
     if not c.get("bowl") or h.get("after_client", "").strip() != c.get("bowl", "").strip():
         failures.append("the cob husked on the joining machine is not in the host's bowl (host %s, client %s)" % (h.get("after_client"), c.get("bowl")))
+    # The host beside the joining warden at the counter's station, at work (25. 11.).
+    hf = re.search(r"STAND client host_fig (-?[\d.]+) (-?[\d.]+) (\w+) (\w+)", ct)
+    if not hf or abs(float(hf.group(1)) - (-0.65)) > 0.1 or hf.group(3) != "cook" or hf.group(4) != "true":
+        failures.append("the host not at the counter's station at work: %s" % (hf.group(0) if hf else "none"))
+    # The host's dressed cob on the board, seen at the husking (station3d.coop_view, 25. 11.).
+    bd = c.get("board", "")
+    if not bd or bd.startswith("-1") or not bd.endswith("true"):
+        failures.append("the joining warden does not see the host's cob on the board: %s" % bd)
     print("STAND COOP: %s" % ("PASS" if not failures else "FAIL"))
     for f in failures:
         print("  -", f)

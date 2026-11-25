@@ -177,6 +177,54 @@ func checklist(t: Dictionary) -> Array:
 
 # ── what is shown ────────────────────────────────────────────────────────────
 
+## A thing standing on the tray; the glass under a tap.
+func _tray_thing(item: String) -> Sprite3D:
+	var s := sprite(BTEX + str(ITEM_TEX.get(item, item)) + ".png", float(ITEM_M.get(item, 0.16)), false)
+	if s.texture != null:
+		s.offset = Vector2(0, float(s.texture.get_height()) * 0.5)
+	return s
+
+
+func _glass(item: String) -> Sprite3D:
+	var g := sprite(BTEX + ("glass_beer.png" if item == "beer" else "glass_tall.png"), 0.16 if item == "beer" else 0.14, false)
+	if g.texture != null:
+		g.offset = Vector2(0, float(g.texture.get_height()) * 0.5)
+	return g
+
+
+## Co-op: the tray as it is laid and the glass under the tap go to the others (station3d).
+func coop_view() -> Dictionary:
+	var v := super.coop_view()
+	v["tray"] = _tray.map(func(e) -> Array: return [str(e["item"]), float(e["q"])])
+	v["pour"] = [str(_pour["item"]), float(_pour["fill"])] if not _pour.is_empty() else []
+	return v
+
+
+func coop_take_view(v: Dictionary) -> void:
+	if _open:
+		return
+	var want: Array = v.get("tray", [])
+	# What is the same from the first on stays; the rest goes and is laid as theirs.
+	var same := 0
+	while same < mini(_tray.size(), want.size()) and str(_tray[same]["item"]) == str(want[same][0]):
+		same += 1
+	while _tray.size() > same:
+		((_tray.pop_back() as Dictionary)["s"] as Node).queue_free()
+	for i in range(_tray.size(), want.size()):
+		_tray.append({"item": str(want[i][0]), "q": float(want[i][1]), "s": _tray_thing(str(want[i][0]))})
+	var p: Array = v.get("pour", [])
+	if p.is_empty() and not _pour.is_empty():
+		(_pour["s"] as Node).queue_free()
+		_pour = {}
+	elif not p.is_empty():
+		if not _pour.is_empty() and str(_pour["item"]) != str(p[0]):
+			(_pour["s"] as Node).queue_free()
+			_pour = {}
+		if _pour.is_empty():
+			_pour = {"item": str(p[0]), "fill": 0.0, "s": _glass(str(p[0]))}
+		_pour["fill"] = float(p[1])
+	super.coop_take_view(v)
+
 func _show() -> void:
 	for i in _tray.size():
 		var e: Dictionary = _tray[i]
@@ -237,10 +285,7 @@ func _press(id: String) -> void:
 		return
 	if id.begins_with("tap:"):
 		var it := id.substr(4)
-		var g := sprite(BTEX + ("glass_beer.png" if it == "beer" else "glass_tall.png"), 0.16 if it == "beer" else 0.14, false)
-		if g.texture != null:
-			g.offset = Vector2(0, float(g.texture.get_height()) * 0.5)
-		_pour = {"item": it, "fill": 0.0, "s": g}
+		_pour = {"item": it, "fill": 0.0, "s": _glass(it)}
 		sfx("tap_open", -12.0)
 		sfx("tap_pour", -10.0, 1.0 if it == "beer" else 1.15)
 		return
@@ -288,9 +333,7 @@ func _src_of(item: String) -> Vector2:
 func _add(item: String, q: float, _from: Vector2) -> void:
 	if _tray.size() >= TRAY_MAX:
 		return
-	var s := sprite(BTEX + str(ITEM_TEX.get(item, item)) + ".png", float(ITEM_M.get(item, 0.16)), false)
-	if s.texture != null:
-		s.offset = Vector2(0, float(s.texture.get_height()) * 0.5)
+	var s := _tray_thing(item)
 	_tray.append({"item": item, "q": q, "s": s})
 	hop(s)
 	put(s, TRAY_SLOTS[(_tray.size() - 1) % TRAY_SLOTS.size()], 0.03)

@@ -240,6 +240,15 @@ func _into_bowl() -> void:
 		hop(_bowl_spr[n - 1])
 
 
+## Co-op: the cob being husked and what is carried go to the others (station3d).
+func _coop_vars() -> Array:
+	return ["_cob", "_carry"]
+
+
+func _coop_sprites() -> Array:
+	return ["_hand_cob", "_cob_spr"]
+
+
 func _tick(delta: float) -> void:
 	if _carry == "new":
 		_hand_cob.position = held_at(CARRY_LIFT)

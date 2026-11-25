@@ -278,6 +278,15 @@ func draw_big_ticket(c: Control, r: Rect2, t: Dictionary) -> void:
 
 # ── what is shown ────────────────────────────────────────────────────────────
 
+## Co-op: how far the jam is pulled and the crank turned goes to the others (station3d).
+func _coop_vars() -> Array:
+	return ["_step", "_tugs", "_turned", "_crank_rot"]
+
+
+func _coop_sprites() -> Array:
+	return ["_jam"]
+
+
 func _show() -> void:
 	if state == null or building_key == "":
 		return

@@ -327,6 +327,15 @@ func _new(kind: String) -> void:
 	hop(_cup_empty if kind == "tea" else _bag_empty)
 
 
+## Co-op: the cup or the bag being filled and what is carried go to the others (station3d).
+func _coop_vars() -> Array:
+	return ["_drink", "_pouring", "_carry"]
+
+
+func _coop_sprites() -> Array:
+	return ["_hand_spr"]
+
+
 func _tick(delta: float) -> void:
 	if _hand_spr.visible:
 		_hand_spr.position = held_at(CARRY_LIFT)

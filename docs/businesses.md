@@ -98,3 +98,9 @@ uložená před 24. 11. (bez `menu_bought`) má všechno, co prodávala, koupen�
 svoje hry (`actions._biz_upgrade`). Testy: `business_check` (koupě, pořadí, peníze, stará kniha),
 `pub_check`, `podniky_check`; obrazem `provoz_check --part=boss` a `bowling_shots` (bufet zavřený,
 po koupi objednávka od dráhy, natočit, podat).
+
+## Rozhodnutí 25. 11. 2026: co-op u stanic a věci na pultu stánku
+
+- Richardova poznámka: „nevidím jak COOP hráči připravují kukuřici, nevidím ho vedle sebe, jak se jím tam hýbe pod rukama (vše co vidí jeden hráč musí vidět i ostatní)“.
+- Otázka: stanice si rozdělanou práci drží lokálně, ve všech podnicích. Odpověď: **„Všechny podniky“** (jeden společný mechanismus pro stanice všech podniků, rozdělaná práce i věc v ruce se posílá ostatním).
+- Poznámka: „všechny předměty na pultu s kukuřicí převést z 2D textury na 3D sprites co tam stojí, podobně jako když se kukuřice vaří“. Otázka na obrázky, odpověď: **„Grok, nejdřív vzorek“** (každá věc zvlášť šikmo shora, vzorek ke schválení, pult s čistou deskou).
