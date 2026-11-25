@@ -109,7 +109,10 @@ Two to four wardens, the host's authority, and the split screen's instances.
   `business/station3d.gd`): while you work a station, `coop_view()` (what you carry, the
   station's own work named by `_coop_vars()` and the sprites by `_coop_sprites()`) goes out
   as sync kind "sview" ([building, station, view]) ten times a second when it changed and once
-  as you step away; the others' station of that name (group `stations3d`) takes it
+  as you step away, and whoever worked it last sends it again once a second, at it or not
+  (`COOP_KEEP_SEC`): sent only on a change it never reached a warden who came in later or whose
+  station was not built yet (the bowling's tray stayed empty for the other one now and then);
+  the others' station of that name (group `stations3d`) takes it
   (`coop_take_view`, not while they work it themselves), draws it and puts the sprites back
   after each of its own `_show()`. The pub, the bistro and the Jednota keep their work in
   the place's shared state already (podniky_coop): only what is carried. The corn stand:
@@ -119,7 +122,9 @@ Two to four wardens, the host's authority, and the split screen's instances.
   picture goes as its `tex_key` meta (sprite(): "path|metres"; a station's own picture
   answers its key in `_coop_retex`). At the corn stand each warden stands at the station they
   work (`stand_view.coop_spot`, pose "cook"; coop_camp asked the view for a `_stand` it never
-  had, so nobody was seen at work there). Test: `python godot/tools/stand_coop.py`.
+  had, so nobody was seen at work there). Tests: `python godot/tools/stand_coop.py`, the
+  bowling `python godot/tools/bowling_coop.py` (a new bowling has no snack bar until its menu
+  is bought, and one comes in at the shoe counter: step off it to see the others' work there).
 
 - **What another warden can see is synced, always** (Richard 24. 11.: „nevidím syncnutý
   šuplík při checkinu… takovýhle client side chyby se už nesmí nikdy opakovat!“): a thing

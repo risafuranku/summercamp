@@ -205,12 +205,21 @@ func _ready() -> void:
 ## station its view goes to the others ten times a second when it changes (coop_view: what
 ## you carry, and the station's own work that is not in the place's shared state); a station
 ## another warden works takes theirs (coop_take_view) and is drawn as they have it.
+## Whoever worked a station last keeps sending its view once a second (COOP_KEEP_SEC), at it
+## or not: a warden who comes into the place later, or whose station was not built yet when
+## the change went, sees it too; taking another's view hands that over to them.
 ## A station names that work: _coop_vars() its member variables (plain data: the corn stand's
 ## board, the cobs aside, what is in the hand), _coop_sprites() its sprites whose look and
 ## place go with them (the thing in the hand).
 const COOP_VIEW_SEC := 0.1
+const COOP_KEEP_SEC := 1.0
 var _coop_t := 0.0
 var _coop_sent := 0
+## This machine's warden worked it last (the one who keeps sending it), and how many views of
+## the others' it took (the tests read it).
+var _coop_mine := false
+var _coop_keep := 0.0
+var coop_views_taken := 0
 ## The last view taken here: its sprites are put back after every _show (which would put
 ## them where this machine's state has them), and what they carry as a ghost.
 var _coop_seen: Dictionary = {}
@@ -267,6 +276,8 @@ func _coop_send(now := false) -> void:
 func coop_take_view(v: Dictionary) -> void:
 	if _open:
 		return
+	_coop_mine = false
+	coop_views_taken += 1
 	for n in _coop_vars():
 		if v.has(n):
 			set(str(n), v[n])
@@ -1057,6 +1068,7 @@ func is_open() -> bool:
 func open_station(cam: Camera3D, keep: Array = [], settle := CAM_SEC) -> void:
 	camera = cam
 	_open = true
+	_coop_mine = true
 	_look.reset()
 	if keep.size() >= 2:
 		_look.yaw_deg = float(keep[0])
@@ -1270,6 +1282,11 @@ func _process(delta: float) -> void:
 		if _coop_t <= 0.0:
 			_coop_t = COOP_VIEW_SEC
 			_coop_send()
+	if _coop_mine:
+		_coop_keep -= delta
+		if _coop_keep <= 0.0:
+			_coop_keep = COOP_KEEP_SEC
+			_coop_send(true)
 	_acc += delta
 	if _acc < STEP:
 		return
