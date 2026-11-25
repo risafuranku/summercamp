@@ -8,7 +8,6 @@
 - [ ] Kamera, animace a optimalizace: projít před co-op playtestem.
 - [ ] Noc vyvážit hraním: poškození od nepřátel, jejich četnost, baterie; jak často se potkají dva druhy nepřátel; četnost divných detailů.
 - [ ] Nekonečný sandbox: náhodné nabídky, události a mixy nepřátel; nastavení nového kempu (velikost mapy aj.); cíle a obrazovka se skóre a statistikami.
-- [ ] Megafonové amplióny na sloupech: hlas megafonu z nejbližších.
 - [ ] Atmosféra: obloha za soumraku, vítr ve stromech přes den, v noci psi nebo vlak v dálce, ranní mlha, místo v hlubokém lese, kam hosté chodí; den a noc projít poslechem a smíchat.
 - [ ] Potrubí: tempo tvora vyzkoušet člověkem, čárky na zdi jako obrázek (ne „IIII“), druhý styl mapy (roztržená, částečně špatně).
 - [ ] Plátno stanu zevnitř: Grok textura s osnovou a švem, bez záhybů.
@@ -41,6 +40,7 @@
 
 ## DONE
 
+- [x] Megafon z ampliónů: zní ze tří nejbližších jako rádio; dřív nehrál vůbec (kamera hledaná ve špatném viewportu) (8a8c2530)
 - [x] Blesk za okny místností: se stínem má okenní kříž a věci vrhají stíny; bez něj svítil jako obyčejný reflektor (e64ea484)
 - [x] Stavba trvá podle velikosti: staveniště s lešením, dělníky a bouchaním, 1–4 h práce přes den, pak stojí budova; i pro dva (db5e7189)
 - [x] Programy na PC ukazují kemp naživo: tečky hostů v GuestRacku (Pokoje), fronty a zelené tržby v Boss 98, kamera kempu v CampStatu míří na kemp a vejde se (995cccd6)
