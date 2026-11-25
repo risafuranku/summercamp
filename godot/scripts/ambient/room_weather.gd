@@ -57,6 +57,8 @@ void fragment() {
 ## Callable() -> bool: you are in this room now (unset: the first room up the tree that
 ## answers is_open(), the interior this one is built in).
 var is_open: Callable
+## The tools: a flash of this strength held (-1: the sky's own).
+var debug_flash := -1.0
 ## A tent: no glass, the canvas itself lit by the lightning and moved by the wind.
 var canvas := false
 ## Torn open (the granny's slit, tent_interior): its flaps snap in any breeze.
@@ -200,7 +202,10 @@ func add_window(glass: MeshInstance3D) -> void:
 	l.light_color = Color(0.78, 0.86, 1.0)
 	l.light_energy = 0.0
 	l.light_specular = 0.0
-	l.shadow_enabled = false
+	# The window's cross is its projector, laid by the light's shadow (docs/godot.md): with the
+	# shadow off (till 25. 11.) the flash lit the room as a plain spot; with it, the cross and
+	# the desk's things throwing shadows. Only on while a bolt is in the sky (visible below).
+	l.shadow_enabled = _cookie != null
 	if _cookie != null:
 		l.light_projector = _cookie
 	l.visible = false
@@ -265,6 +270,8 @@ func _process(delta: float) -> void:
 	_rain = move_toward(_rain, target, delta * (0.25 if target > _rain else 0.05))
 	var wet: float = float(sl.get("wet")) if sl != null and sl.get("wet") != null else 0.0
 	var flash: float = float(wv.get("_storm_flash_strength")) if wv != null and wv.get("_storm_flash_strength") != null else 0.0
+	if debug_flash >= 0.0:
+		flash = debug_flash
 	var wind: float = float({1: 0.6, 3: 0.3, 4: 0.5, 5: 1.0}.get(w, 0.08))
 	wind_now = wind
 	_day = float(wv.compute_daylight_factor()) if wv != null and wv.has_method("compute_daylight_factor") else 1.0

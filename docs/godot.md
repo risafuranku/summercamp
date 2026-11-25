@@ -10,7 +10,9 @@ Engine, GDScript and rendering traps that cost time.
   light's shadow matrix, and with `shadow_enabled` off the beam went out altogether (the
   torch, 24. 11.). Also: a one-channel (L8) picture reads as red only; save it RGB. And
   `spot_angle_attenuation` is an exponent (1 - rim^k): high is flat to the edge, 0.25 left
-  only the very middle lit.
+  only the very middle lit. The rooms' lightning (`room_weather` LightningIn) did light the room
+  with its shadow off, as a plain spot with no window cross; with the shadow on the cross is
+  there and the things in the room throw shadows (measured 25. 11., `--scenario=room_flash`).
 
 - **List a res:// folder with `scripts/res_dir.gd`, never DirAccess** (`RES_DIR.files(dir, exts)`,
   `RES_DIR.names(dir)`): an exported game (Steam, web) has `song.mp3.import` and `x.tres.remap`

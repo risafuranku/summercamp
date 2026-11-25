@@ -1522,6 +1522,18 @@ const SCENARIOS := {
 		["eval", "weather_system.set_weather(2)"], ["wait", 45.0], ["shot", "83_fog"],
 		["hours", 13.0], ["eval", "weather_system.set_weather(6)"], ["wait", 45.0], ["shot", "84_anomaly_night"],
 	],
+	# The lightning through the office's window at night (25. 11., room_weather LightningIn): a
+	# bolt held, the room lit with the shadow off (as it was: a plain spot) and on (the window's
+	# cross, the desk's things throwing shadows).
+	"room_flash": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["eval", "_interior_manager._building_interior._exit_crt_view()"], ["wait", 1.0],
+		["hours", 12.5], ["eval", "weather_system.set_weather(5)"], ["wait", 4.0], ["shot", "rf0_dark"],
+		["eval", "_interior_manager._building_interior.room_weather.set('debug_flash', 1.0)"],
+		["eval", "_interior_manager._building_interior.find_child('LightningIn', true, false).set('shadow_enabled', false)"], ["wait", 0.4], ["shot", "rf1_flash_no_shadow"],
+		["eval", "_interior_manager._building_interior.find_child('LightningIn', true, false).set('shadow_enabled', true)"], ["wait", 0.4], ["shot", "rf2_flash"],
+		["eval", "_interior_manager._building_interior.room_weather.set('debug_flash', -1.0)"],
+	],
 	"storm": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
 		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.8],

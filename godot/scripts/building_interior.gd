@@ -335,6 +335,8 @@ var _reception_notebook_click_body: StaticBody3D
 
 # Window / outdoor scene
 var _window_quad: MeshInstance3D
+## The weather at the office's windows (scripts/ambient/room_weather.gd).
+var room_weather: Node
 var _window_outdoor_sky: MeshInstance3D
 var _weather_state: int = 0
 
@@ -1328,6 +1330,7 @@ func _build_room() -> void:
 	var rw = ROOM_WEATHER.new()
 	rw.is_open = func(): return visible
 	_room_root.add_child(rw)
+	room_weather = rw
 	rw.add_window(_window_quad)
 	_build_side_window(rw)
 
