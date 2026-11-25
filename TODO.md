@@ -4,7 +4,6 @@
 
 - [ ] Kamera, animace a optimalizace: projít před co-op playtestem.
 - [ ] Noc vyvážit hraním: poškození od nepřátel, jejich četnost, baterie; jak často se potkají dva druhy nepřátel; četnost divných detailů.
-- [ ] Sandbox, jednou týdně jedna z: zájezd (8–15 lidí, 2–4 noci, cena o polovinu vyšší, nabídka v CampMailu, přijedou spolu autobusem) (docs/DESIGN.md, Round 4 25. 11.).
 - [ ] Sandbox: ohlášená inspekce (dopis den předem, inspektor druhý den projde kemp: špinavé záchody a pokoje, rozbité lampy a nepořádek = pokuta, čistý kemp = odměna a lepší pověst).
 - [ ] Sandbox: sponzor (peníze za ceduli nebo billboard, který zabírá místo v kempu a ručně se umístí v Builderu); billboard od Groka, nejdřív vzorek.
 - [ ] Sandbox: mixy nepřátel podle týdnů (později).
@@ -37,9 +36,11 @@
 - [ ] Nápad: něco schovaného v kůlně, víc na druhém břehu, stěny bludiště
 - [ ] Nápad: lore chatky elektrikářů, zima, skryté stránky
 - [ ] Nápad: hlídka po kempu, viditelné cesty ven z kempu
+- [ ] Nápad: velká parta (zájezd 8–15, lákavá 7–10) se kreslí jen jako 4 postavy (guest_agents MAX_MEMBERS_PER_PARTY); víc postav chce jiné rozestavení při chůzi.
 
 ## DONE
 
+- [x] Sandbox: nabídka týdne, zájezd z CK Pohoda Tour (8–15 lidí podle volných lůžek, 2–4 noci, cena ×1,5, přijedou linkou 380 a jdou od zastávky), i pro dva (898b56e2)
 - [x] Sandbox: 1–3 cíle vybrané při založení, oslava splněného cíle, stránka Cíle v CampStatu se skóre a čísly kempu, i pro dva (eee602f3)
 - [x] Sandbox: pozemek (malý, střední, celý), nástroj Pozemek v Builderu kupuje pásy po 4 políčkách za rostoucí cenu, hranice z kolíků s páskou, i pro dva (703d0601)
 - [x] Sandbox: noci ve třech stupních (klidné, běžné, zlé) a vypnuté v nastavení nového kempu (3036f13f)
