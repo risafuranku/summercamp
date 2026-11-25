@@ -1524,6 +1524,15 @@ const SCENARIOS := {
 	],
 	# A camp hand taken on today comes in the next morning through the barrier from the road
 	# and walks to the staffroom (25. 11., TODO: „nový zaměstnanec přijede ráno autobusem“).
+	# The new camp's form, a sandbox's rows (25. 11.: the nights' four steps).
+	"new_camp_form": [
+		["wait_menu"], ["call_on", "_main_menu", "show_page", ["newcamp"]], ["wait", 0.6],
+		["eval", "_main_menu.get('_desk').page.click('sandbox')"], ["eval", "_main_menu.get('_desk').redraw()"], ["wait", 0.4], ["shot", "nf0_usual"],
+		["eval", "_main_menu.get('_desk').page.click('rule:threats')"], ["eval", "_main_menu.get('_desk').redraw()"], ["wait", 0.3], ["shot", "nf1_bad"],
+		["eval", "_main_menu.get('_desk').page.click('rule:threats')"], ["eval", "_main_menu.get('_desk').redraw()"], ["wait", 0.3], ["shot", "nf2_off"],
+		["eval", "_main_menu.get('_desk').page.click('rule:threats')"], ["eval", "_main_menu.get('_desk').redraw()"], ["wait", 0.3], ["shot", "nf3_quiet"],
+		["eval", "_main_menu.get('_desk').page.rules"],
+	],
 	"staff_first_day": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
 		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.8],

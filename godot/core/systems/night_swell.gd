@@ -60,9 +60,30 @@ static func reading(guests: int, unhappy: int, kinds: int, lost := 0) -> float:
 	return clampf(0.72 * crowd + 0.38 * misery + 0.14 * mix + 0.1 * float(lost), 0.0, 1.0)
 
 
-## Tonight's swell from last night's and the guests' reading.
-static func next(swell: float, read: float) -> float:
-	return clampf(swell + clampf(read - swell, -FALL, RISE), 0.0, 1.0)
+## How bad a sandbox camp's nights are (its setup, Richard 25. 11. „Tři stupně“, DESIGN.md
+## "Decisions 25. 11."): 0 quiet, 1 usual (a story camp's), 2 bad. The guests' reading is taken
+## as so much of itself (and a bad camp's a little more), the swell rises so fast at most and
+## goes no higher than its cap: a quiet camp never gets to the Antlered Man (ANTLERED_FROM)
+## and hardly to the hells; a bad one gets there sooner.
+const SEVERITY_READ := [0.6, 1.0, 1.3]
+const SEVERITY_ADD := [0.0, 0.0, 0.1]
+const SEVERITY_RISE := [0.12, RISE, 0.3]
+const SEVERITY_CAP := [0.5, 1.0, 1.0]
+## The blows the night deals you, as so much of themselves (main.damage_player).
+const SEVERITY_HIT := [0.6, 1.0, 1.4]
+
+
+## Tonight's swell from last night's and the guests' reading (`severity` the camp's nights).
+static func next(swell: float, read: float, severity := 1) -> float:
+	var s := clampi(severity, 0, 2)
+	var r := clampf(read * float(SEVERITY_READ[s]) + float(SEVERITY_ADD[s]), 0.0, 1.0)
+	var cap := float(SEVERITY_CAP[s])
+	return clampf(swell + clampf(r - swell, -FALL, float(SEVERITY_RISE[s])), 0.0, cap)
+
+
+## A blow of `amount` as the camp's nights deal it.
+static func hit(amount: int, severity := 1) -> int:
+	return maxi(1, int(round(float(amount) * float(SEVERITY_HIT[clampi(severity, 0, 2)])))) if amount > 0 else 0
 
 
 ## A camp saved before there was a swell: what has come so far.

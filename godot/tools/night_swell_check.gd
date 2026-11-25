@@ -53,6 +53,20 @@ func _init() -> void:
 	_expect(miserable > 0.85, "a full miserable one reads near the top (%.2f)" % miserable)
 	_expect(SWELL.reading(10, 5, 2) > SWELL.reading(10, 0, 2), "unhappy guests read higher")
 	_expect(SWELL.reading(10, 0, 2, 1) > SWELL.reading(10, 0, 2), "and so does one the night took")
+	# How bad the nights are (a sandbox camp's setup, 25. 11.): a quiet camp's swell rises
+	# slower and stops short of the Antlered Man, a bad one's faster; the blows likewise.
+	var sq := 0.0
+	var su := 0.0
+	var sb := 0.0
+	for i in 8:
+		sq = SWELL.next(sq, miserable, 0)
+		su = SWELL.next(su, miserable, 1)
+		sb = SWELL.next(sb, miserable, 2)
+	_expect(sq <= SWELL.SEVERITY_CAP[0] and sq < SWELL.ANTLERED_FROM, "quiet nights never get to the Antlered Man (%.2f)" % sq)
+	_expect(is_equal_approx(SWELL.next(0.0, miserable, 1), SWELL.next(0.0, miserable)), "usual nights are the story camp's")
+	_expect(SWELL.next(0.0, miserable, 2) > SWELL.next(0.0, miserable, 1) and SWELL.next(0.0, miserable, 1) > SWELL.next(0.0, miserable, 0), "bad nights rise faster than usual, usual than quiet")
+	_expect(su > sq and sb >= su, "and stay as high (%.2f %.2f %.2f)" % [sq, su, sb])
+	_expect(SWELL.hit(20, 0) < SWELL.hit(20, 1) and SWELL.hit(20, 1) == 20 and SWELL.hit(20, 2) > 20 and SWELL.hit(1, 0) == 1, "the blows: %d %d %d" % [SWELL.hit(20, 0), SWELL.hit(20, 1), SWELL.hit(20, 2)])
 	# How it moves.
 	var worst := _run(0.0, miserable, 8)
 	_expect(float(worst[0]) <= SWELL.RISE + 0.001, "however full the camp, the first night is a step")

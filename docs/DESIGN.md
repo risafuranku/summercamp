@@ -2400,3 +2400,23 @@ Richard, asked what of the endless sandbox comes first (TODO „Nekonečný sand
 - The map's size (the camp is a fixed 28x28 inside Matěj's land): „Pozemek se kupuje“: the
   setup picks the plot (small, middle, whole); the camp starts fenced round the smaller plot
   and buys more in Builder, up to 28x28; the land round it stays as it is.
+
+Round 2 (25. 11., question -> answer word for word):
+- *Buying land: how?* „Po pásech od plotu“: in Builder you click a side of the fence and buy a
+  strip 4 tiles wide along it; the fence moves out, the trees on the new strip stay.
+- *Its price?* „Rostoucí“: the first strip cheap (about a cabin), each next half again dearer.
+- *How bad the nights are, in the setup?* „Tři stupně“: quiet, usual, bad (fewer or more enemies
+  a night, weaker or stronger blows, the swell growing slower or faster); nights off stay as a
+  fourth choice.
+- *Goals, score and statistics?* „Vybereš si je při založení“: tick 1-3 goals from a list when
+  making the camp (fifty guests at once, $100 000, fourteen nights without a lost guest...),
+  CampStat shows them with their progress, a goal met has a short celebration, the score
+  counts all along.
+
+Done 25. 11. (the nights' steps): the new camp's form has a row NIGHTS stepped by a click:
+off, quiet, usual, bad (`page_form.NIGHT_WORD`; rules "threats" off, or on with "nights" 0-2,
+`main.night_severity()`). `core/systems/night_swell.gd` SEVERITY_*: the guests' reading taken as
+0.6 / 1.0 / 1.3 of itself (+0.1 bad), the swell rising 0.12 / 0.2 / 0.3 a night at most, a quiet
+camp's capped at 0.5 (never the Antlered Man at 0.7), the blows 0.6 / 1.0 / 1.4 of themselves
+(`main.damage_player`). A story camp is "usual". Tested in `night_swell_check`, the form in
+`--scenario=new_camp_form`.

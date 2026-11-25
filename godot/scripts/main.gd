@@ -2116,6 +2116,8 @@ func player_hurt() -> bool:
 func damage_player(amount: int) -> void:
 	if amount <= 0 or _coop_down:
 		return
+	# The night's blows as hard as the camp's nights are (a sandbox camp's setup).
+	amount = NIGHT_SWELL.hit(amount, night_severity())
 	if _week_ledger != null:
 		_week_ledger.note_hit(amount)
 	_set_player_health(_player_health - amount)
@@ -3302,12 +3304,19 @@ var _sandbox := false
 ## A sandbox camp's switches (NEW CAMP): the night's things (brains, director, omens),
 ## weather (off: always clear), day events, breakdowns (wear and the night's jobs), the
 ## starting till (0: the usual). A story camp has them all on. Saved as "rules".
-const CAMP_RULES := {"threats": true, "weather": true, "events": true, "wear": true, "money": 0}
+## "nights": how bad they are when they come (0 quiet, 1 usual, 2 bad: night_swell.SEVERITY_*;
+## 25. 11.), a story camp's usual.
+const CAMP_RULES := {"threats": true, "weather": true, "events": true, "wear": true, "money": 0, "nights": 1}
 var _camp_rules: Dictionary = CAMP_RULES.duplicate()
 
 
 func camp_rule(id: String) -> bool:
 	return bool(_camp_rules.get(id, true))
+
+
+## How bad the nights are (0 quiet, 1 usual, 2 bad).
+func night_severity() -> int:
+	return clampi(int(_camp_rules.get("nights", 1)), 0, 2)
 ## The other warden's machine: whether the host's camp has power (its lamps follow).
 var _coop_powered := true
 ## The host's storm on its way (coop_clock "sb"), 0..1.

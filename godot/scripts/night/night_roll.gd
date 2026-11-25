@@ -98,7 +98,7 @@ func _lamps(forecast: Dictionary, level: int) -> int:
 		return 1
 	if level <= 1 or not main.camp_rule("threats"):
 		return level
-	return mini(level, NIGHT_SWELL.lamps_cap(NIGHT_SWELL.next(float(INSTANCE.core(main).get_state().night_swell), guests_reading(kinds))))
+	return mini(level, NIGHT_SWELL.lamps_cap(NIGHT_SWELL.next(float(INSTANCE.core(main).get_state().night_swell), guests_reading(kinds), main.night_severity())))
 
 
 ## How many kinds of guest are in the camp, in the forecast's rows or the roll's.
@@ -218,7 +218,7 @@ func activate(night_index: int) -> void:
 	var swell := float(INSTANCE.core(main).get_state().night_swell)
 	if night_index != swell_moved:
 		swell_moved = night_index
-		swell = NIGHT_SWELL.next(swell, guests_reading(kinds_in_camp(rolled)))
+		swell = NIGHT_SWELL.next(swell, guests_reading(kinds_in_camp(rolled)), main.night_severity())
 		INSTANCE.core(main).actions.set_night_swell(swell)
 		night_lost = 0
 	var entries: Array = NIGHT_SWELL.shape(rolled, swell, last_night_kinds, main.ENEMY_FOR_ARCHETYPE, rng.randf())
