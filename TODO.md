@@ -2,11 +2,11 @@
 
 ## TODO
 
-- [ ] Dodávka zboží: zastaví u podniku, krabice před dveře, odnese je pomocník podniku, jinak hráč kliknutím; na regálu až po odnesení (docs/businesses.md, Rozhodnutí 25. 11.).
+- [ ] Dodávka zboží: zastaví za závorou, krabice na paletu u brány (bez podpisu na recepci), odnese je pomocník podniku, jinak hráč; na regálu až po odnesení (docs/businesses.md, Rozhodnutí 25. 11., kolo 2).
 - [ ] Nový zaměstnanec přijede ráno po najmutí autobusem k zastávce u brány a dojde do práce (docs/businesses.md, Rozhodnutí 25. 11.).
 - [ ] Kamera, animace a optimalizace: projít před co-op playtestem.
 - [ ] Noc vyvážit hraním: poškození od nepřátel, jejich četnost, baterie; jak často se potkají dva druhy nepřátel; četnost divných detailů.
-- [ ] Nekonečný sandbox, nejdřív: nastavení nového kempu (velikost mapy, peníze, zlé noci), cíle se skóre a statistikami, náhodné nabídky a události (docs/DESIGN.md, Decisions 25. 11.); mixy nepřátel podle týdnů později.
+- [ ] Nekonečný sandbox, nejdřív: nastavení nového kempu (velikost mapy, peníze, zlé noci), cíle se skóre a statistikami, náhodné nabídky a události, pozemek se přikupuje až do 28×28 (docs/DESIGN.md, Decisions 25. 11.); mixy nepřátel podle týdnů později.
 - [ ] Atmosféra: obloha za soumraku, vítr ve stromech přes den, v noci psi nebo vlak v dálce, ranní mlha, místo v hlubokém lese, kam hosté chodí; den a noc projít poslechem a smíchat.
 - [ ] Potrubí: tempo tvora vyzkoušet člověkem, čárky na zdi jako obrázek (ne „IIII“), druhý styl mapy (roztržená, částečně špatně).
 - [ ] Plátno stanu zevnitř: Grok textura s osnovou a švem, bez záhybů.

@@ -2397,3 +2397,6 @@ Richard, asked what of the endless sandbox comes first (TODO „Nekonečný sand
   with the score and graphs over the camp's whole life.
 - „Náhodné nabídky a události“: tours, a sponsor, an inspection and offers in CampMail, drawn
   all through the game.
+- The map's size (the camp is a fixed 28x28 inside Matěj's land): „Pozemek se kupuje“: the
+  setup picks the plot (small, middle, whole); the camp starts fenced round the smaller plot
+  and buys more in Builder, up to 28x28; the land round it stays as it is.
