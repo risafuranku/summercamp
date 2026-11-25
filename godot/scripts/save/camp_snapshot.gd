@@ -67,6 +67,7 @@ func build(slot_name: String, kind: String) -> Dictionary:
 			"guest_transactions": main.SAVE_CODEC.duplicate_dict_array(state.guest_transactions),
 			"next_guest_id": max(1, int(state.next_guest_id)),
 			"biz": (state.biz as Dictionary).duplicate(true),
+			"sites": (state.sites as Dictionary).duplicate(true),
 			"lost_guests": main.SAVE_CODEC.duplicate_dict_array(state.lost_guests),
 			"electricity": main._billing.export_state()
 		},
@@ -254,6 +255,11 @@ func apply(snapshot: Dictionary, preview_only: bool) -> bool:
 		return aid < bid
 	)
 
+	# The sites going up (construction_rules) before their structures: each one's picture
+	# reads what it will be.
+	var state_any = snapshot.get("state", {})
+	var sites_any = (state_any as Dictionary).get("sites", {}) if state_any is Dictionary else {}
+	state.sites = (sites_any as Dictionary).duplicate(true) if sites_any is Dictionary else {}
 	for entry_any in buildings:
 		if not (entry_any is Dictionary):
 			continue
@@ -265,6 +271,11 @@ func apply(snapshot: Dictionary, preview_only: bool) -> bool:
 		var origin_dict := origin_dict_any as Dictionary if origin_dict_any is Dictionary else {}
 		var origin := Vector2i(int(origin_dict.get("x", 0)), int(origin_dict.get("y", 0)))
 		var rotation := int(entry.get("rotation", 0))
+		if building_id == main.building_manager.CONSTRUCTION.TYPE:
+			var fp_any = entry.get("footprint", {})
+			var fp_d := fp_any as Dictionary if fp_any is Dictionary else {}
+			main.building_manager.place_site_at(origin, Vector2i(int(fp_d.get("x", 1)), int(fp_d.get("y", 1))), rotation)
+			continue
 		main.building_manager.place_building_at_visual_only(origin, building_id, rotation)
 		var root: Node3D = main._structures.root_at(origin)
 		if root == null:
@@ -333,7 +344,8 @@ func apply(snapshot: Dictionary, preview_only: bool) -> bool:
 			"guest_transactions": main.SAVE_CODEC.duplicate_dict_array(state_data.get("guest_transactions", [])),
 			"lost_guests": main.SAVE_CODEC.duplicate_dict_array(state_data.get("lost_guests", [])),
 			"next_guest_id": max(1, int(state_data.get("next_guest_id", 1))),
-			"biz": (state_data.get("biz", {}) as Dictionary).duplicate(true) if state_data.get("biz", {}) is Dictionary else {}
+			"biz": (state_data.get("biz", {}) as Dictionary).duplicate(true) if state_data.get("biz", {}) is Dictionary else {},
+			"sites": (state_data.get("sites", {}) as Dictionary).duplicate(true) if state_data.get("sites", {}) is Dictionary else {}
 		})
 		# (A camp saved before there was a swell: what the ledger says has come so far.)
 		var ledger_any = snapshot.get("week_ledger", {})
@@ -514,6 +526,7 @@ func reset_for_new_game() -> void:
 	# The businesses' books too (the menu's preview of the last save left them in: its
 	# places, stock, orders and licences); actions._biz starts them anew with a new stamp.
 	state.biz = {}
+	state.sites = {}
 	if EmailManager != null and INSTANCE.mail(main).has_method("reset_runtime"):
 		INSTANCE.mail(main).reset_runtime(true)
 	if GuestManager != null and INSTANCE.guests(main).has_method("reset_runtime_state"):

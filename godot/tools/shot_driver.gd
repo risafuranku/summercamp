@@ -1601,6 +1601,28 @@ const SCENARIOS := {
 	],
 	# The PA pole (24. 11., docs/audio.md): one built by the office, looked at from the meadow
 	# by day, from further off, and at night; its horns playing the reception's set.
+	# Building takes time (25. 11., core/systems/construction_rules.gd): a cabin and the pub
+	# ordered at nine go up as sites with the workers at them, the walls higher an hour and a
+	# half on, the cabin standing at half past eleven, a cabin ordered in the evening waits for
+	# the morning with nobody on it, the sites on Builder 98's map.
+	"site": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.8],
+		["money", 40000], ["clear", 9, 8, 9, 9],
+		["eval", "get_node('/root/EventBus').RequestOrder.emit('cabin_1', Vector2i(10, 10), 0)"],
+		["eval", "get_node('/root/EventBus').RequestOrder.emit('pub', Vector2i(14, 10), 0)"], ["wait", 1.5],
+		["eval", "get_node('/root/CoreRoot').get_state().sites"],
+		["player", 13, 16, 0.0], ["wait", 2.0], ["shot", "site0_nine"], ["wait", 0.35], ["shot", "site0b_nine_blow"],
+		["hours", 1.5], ["wait", 1.5], ["eval", "get_node('/root/CoreRoot').get_state().sites"], ["shot", "site1_half_ten"],
+		["player", 11, 13, -15.0], ["wait", 1.0], ["shot", "site1b_close"], ["wait", 0.4], ["shot", "site1c_close_blow"], ["player", 13, 16, 0.0],
+		["hours", 1.0], ["wait", 2.0], ["eval", "get_node('/root/CoreRoot').get_state().sites"], ["shot", "site2_half_eleven"],
+		["hours", 8.0], ["wait", 1.0],
+		["eval", "get_node('/root/EventBus').RequestOrder.emit('cabin_1', Vector2i(10, 13), 0)"], ["wait", 2.0],
+		["player", 13, 16, 0.0], ["wait", 1.0], ["shot", "site3_evening"],
+		["call_on", "_interior_manager", "open_startup_crt_view", []], ["wait", 16.0],
+		["eval", "_interior_manager._building_interior._crt_ui._on_program_installed('builder')"],
+		["eval", "_interior_manager._building_interior._crt_ui.open_app('builder')"], ["wait", 4.0], ["crt_screen", "site4_builder"],
+	],
 	"pa_pole": [
 		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
 		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.8],

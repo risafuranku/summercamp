@@ -104,6 +104,13 @@ Two to four wardens, the host's authority, and the split screen's instances.
   anything that rebuilds on a pulse must keep what is still open (the raccoons' bin loop
   restarted every second).
 
+- **A building going up is the host's** (25. 11., docs/pc.md "stavba trvá"): an order from
+  either Builder 98 (`RequestOrder`; the other's goes to the host as request "build" with a
+  fourth `true`) comes back as fact "build" [type, at, rot, site] and every machine puts up
+  the same site; the work is counted on every machine's clock for its picture, only the host
+  stands what is done and sends fact "site_done" [origin] (actions.finish_site there too). A
+  joining machine gets `GameState.sites` with the camp. Test: `python godot/tools/site_coop.py`.
+
 - **A station another warden works is drawn as they have it** (Richard 25. 11.: „nevidím jak
   COOP hráči připravují kukuřici… jak se jím tam hýbe pod rukama“, for every business;
   `business/station3d.gd`): while you work a station, `coop_view()` (what you carry, the

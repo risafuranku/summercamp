@@ -6,6 +6,7 @@ extends RefCounted
 
 const INSTANCE = preload("res://scripts/instance/instance.gd")
 const BALANCE_CONFIG = preload("res://core/balance/balance_config.gd")
+const CONSTRUCTION = preload("res://core/systems/construction_rules.gd")
 
 var _state
 var _registry
@@ -39,19 +40,70 @@ func place_building(building_id: String, origin: Vector2i, footprint: Vector2i =
 	# 3. Execute
 	_state.money -= cost
 	note_camp("invest", int(cost))
-	
+	_occupy(building_id, origin, footprint, rotation)
+	INSTANCE.bus(owner_node).money_changed.emit(_state.money)
+	return true
+
+
+## A building's cells taken and the world told (building_placed).
+func _occupy(building_id: String, origin: Vector2i, footprint: Vector2i, rotation: int) -> void:
 	var instance_id = str(Time.get_ticks_msec()) + "_" + str(randi()) # Simple unique ID for now
-	
 	for y in range(footprint.y):
 		for x in range(footprint.x):
 			var tile = origin + Vector2i(x, y)
 			_state.grid.occupy_cell(tile, building_id, instance_id, origin, footprint)
-	
-	# 4. Notify
-	# EventBus should be global
 	INSTANCE.bus(owner_node).building_placed.emit(building_id, origin, footprint, rotation)
+
+
+# ── building takes time (core/systems/construction_rules.gd) ────────────────────
+
+## A building ordered in Builder 98 that takes the workers `hours`: paid now, its cells a
+## site ("site") until the work is done (finish_site); GameState.sites keeps what it will be.
+func place_site(building_id: String, origin: Vector2i, footprint: Vector2i, rotation: int, hours: float) -> bool:
+	var cost = _get_building_cost(building_id)
+	if _state.money < cost:
+		return false
+	for y in range(footprint.y):
+		for x in range(footprint.x):
+			if not _state.grid.is_cell_free(origin + Vector2i(x, y)):
+				return false
+	_state.money -= cost
+	note_camp("invest", int(cost))
+	_state.sites[CONSTRUCTION.key(origin)] = {"type": building_id, "rot": rotation, "fp": [footprint.x, footprint.y], "total": hours, "left": hours}
+	_occupy(CONSTRUCTION.TYPE, origin, footprint, rotation)
 	INSTANCE.bus(owner_node).money_changed.emit(_state.money)
-	
+	return true
+
+
+## The workers' `hours` on every site; the keys ("x:y") of those whose work is now done.
+func site_work(hours: float) -> Array:
+	var done: Array = []
+	if hours <= 0.0:
+		return done
+	for k in _state.sites:
+		var s: Dictionary = _state.sites[k]
+		s["left"] = maxf(0.0, float(s.get("left", 0.0)) - hours)
+		if float(s["left"]) <= 0.0:
+			done.append(k)
+	return done
+
+
+## The site at `origin` done: the building itself stands there (paid for with the order).
+func finish_site(origin: Vector2i) -> bool:
+	var k := CONSTRUCTION.key(origin)
+	var s: Dictionary = _state.sites.get(k, {})
+	if s.is_empty():
+		return false
+	# Off the books first: taken down, a site with no entry gives nothing back.
+	_state.sites.erase(k)
+	var fp_a: Array = s.get("fp", [1, 1])
+	var fp := Vector2i(int(fp_a[0]), int(fp_a[1]))
+	if str(_state.grid.get_cell_data(origin).get("type", "")) == CONSTRUCTION.TYPE:
+		remove_building(origin)
+	var type := str(s.get("type", ""))
+	var rot := int(s.get("rot", 0))
+	_occupy(type, origin, fp, rot)
+	INSTANCE.bus(owner_node).site_finished.emit(type, origin, rot)
 	return true
 
 
@@ -84,6 +136,12 @@ func remove_building(cell: Vector2i) -> bool:
 	var type = data.get("type", "")
 	
 	var refund = _get_building_refund(type)
+	# A site taken down before it was done: what it was to be is paid back as that would be.
+	if str(type) == CONSTRUCTION.TYPE and root is Vector2i:
+		var site: Dictionary = _state.sites.get(CONSTRUCTION.key(root), {})
+		if not site.is_empty():
+			refund = _get_building_refund(str(site.get("type", "")))
+			_state.sites.erase(CONSTRUCTION.key(root))
 
 	# GridModel has no instance_id -> cells reverse index, so sweep the whole grid to
 	# collect every cell of this footprint. Fine at 20x20; add an index if the map grows.

@@ -14,6 +14,11 @@ signal building_removed(origin: Vector2i)
 
 # Builder contract (request -> authority -> confirmation)
 signal RequestBuild(building_type: String, pos: Vector2i, rot: int)
+## A build ordered in Builder 98: what takes the workers hours goes up as a site first
+## (core/systems/construction_rules.gd); RequestBuild stands it at once (loads, the tools).
+signal RequestOrder(building_type: String, pos: Vector2i, rot: int)
+## A site's work done: the building itself stands at `origin` now.
+signal site_finished(building_type: String, origin: Vector2i, rotation: int)
 signal RequestDemolish(area: Rect2i)
 signal RequestRotate(dir: int)
 

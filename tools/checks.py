@@ -30,7 +30,7 @@ OUT = os.path.join(os.environ.get("TEMP", "/tmp"), "summercamp-checks")
 SCENES = ["hud_layout_check", "guest_sim_check", "upkeep_check", "billing_check", "pipes_check", "uncanny_check",
 	"radio_game_check", "chase_check", "look_check", "mail_check", "arrival_check", "enemy_check", "nightjobs_check",
 	"dayevents_check", "os98_check", "business_check", "staff_check", "pub_check", "stand_check", "jednota_check",
-	"proto_check", "podniky_check", "post_check", "pa_check", "settings_check"]
+	"proto_check", "podniky_check", "post_check", "pa_check", "settings_check", "site_check"]
 SCRIPTS = ["radio_dread_check", "radio_tiers_check", "steps_check", "bus_turn_check", "weather_check", "week_check",
 	"omens_check", "corn_check", "checkin_check", "season_check", "director_check", "bazaar_check", "goggle_check",
 	"builder98_check", "lang_check", "bistro_check", "bowling_check", "night_swell_check"]

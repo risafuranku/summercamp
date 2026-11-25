@@ -11,6 +11,7 @@ extends RefCounted
 ## step. The menu's co-op: host a new camp, a saved one, join.
 
 const INSTANCE = preload("res://scripts/instance/instance.gd")
+const CONSTRUCTION = preload("res://core/systems/construction_rules.gd")
 var main: Node
 
 
@@ -40,7 +41,14 @@ func wire() -> void:
 	# stand goes to the other machine (which does it again, apply_fact).
 	EventBus.BuildConfirmed.connect(func(t: String, at: Vector2i, rot: int) -> void:
 		if INSTANCE.coop(main).is_host():
-			INSTANCE.coop(main).send_fact("build", [t, at, rot])
+			# A site (ordered in Builder 98, construction_rules) goes up as one there too.
+			var site: bool = INSTANCE.core(main).get_state().sites.has(CONSTRUCTION.key(at))
+			INSTANCE.coop(main).send_fact("build", [t, at, rot, site])
+	)
+	# A site's work done on the host's clock: the building stands on every machine.
+	INSTANCE.bus(main).site_finished.connect(func(_t: String, at: Vector2i, _rot: int) -> void:
+		if INSTANCE.coop(main).is_host():
+			INSTANCE.coop(main).send_fact("site_done", [at])
 	)
 	EventBus.DemolishConfirmed.connect(func(rect: Rect2i, _n: int, _fee: int, _refund: int) -> void:
 		if INSTANCE.coop(main).is_host():
@@ -810,8 +818,13 @@ func apply_fact(kind: String, data: Array) -> void:
 		# The host built it at its PC: the god cursor brings it down here too.
 		"build":
 			_god_from_peer(true)
-			INSTANCE.core(main).builder_authority._on_request_build(str(data[0]), data[1], int(data[2]))
+			if data.size() >= 4 and bool(data[3]):
+				INSTANCE.core(main).builder_authority._on_request_order(str(data[0]), data[1], int(data[2]))
+			else:
+				INSTANCE.core(main).builder_authority._on_request_build(str(data[0]), data[1], int(data[2]))
 			_god_from_peer(false)
+		"site_done":
+			INSTANCE.core(main).actions.finish_site(data[0])
 		"demolish":
 			_god_from_peer(true)
 			INSTANCE.core(main).builder_authority._on_request_demolish(data[0])
@@ -847,7 +860,11 @@ func request(kind: String, data: Array) -> void:
 			var cb := func(t: String, at: Vector2i, rot: int, reason: String) -> void: turned.append([t, at, rot, reason])
 			EventBus.BuildRejected.connect(cb)
 			_god_from_peer(true)
-			EventBus.RequestBuild.emit(str(data[0]), data[1], int(data[2]))
+			# Ordered in the other's Builder 98: a site where it takes the workers hours.
+			if data.size() >= 4 and bool(data[3]):
+				EventBus.RequestOrder.emit(str(data[0]), data[1], int(data[2]))
+			else:
+				EventBus.RequestBuild.emit(str(data[0]), data[1], int(data[2]))
 			_god_from_peer(false)
 			EventBus.BuildRejected.disconnect(cb)
 			if not turned.is_empty():
@@ -958,19 +975,26 @@ func _forward_builds(on: bool) -> void:
 		return
 	build_forwarding = on
 	var b := Callable(auth, "_on_request_build")
+	var o := Callable(auth, "_on_request_order")
 	var d := Callable(auth, "_on_request_demolish")
 	var fb := Callable(self, "_send_build")
+	var fo := Callable(self, "_send_order")
 	var fd := Callable(self, "_send_demolish")
 	if on:
 		if EventBus.RequestBuild.is_connected(b):
 			EventBus.RequestBuild.disconnect(b)
+		if EventBus.RequestOrder.is_connected(o):
+			EventBus.RequestOrder.disconnect(o)
 		if EventBus.RequestDemolish.is_connected(d):
 			EventBus.RequestDemolish.disconnect(d)
 		EventBus.RequestBuild.connect(fb)
+		EventBus.RequestOrder.connect(fo)
 		EventBus.RequestDemolish.connect(fd)
 	else:
 		if EventBus.RequestBuild.is_connected(fb):
 			EventBus.RequestBuild.disconnect(fb)
+		if EventBus.RequestOrder.is_connected(fo):
+			EventBus.RequestOrder.disconnect(fo)
 		if EventBus.RequestDemolish.is_connected(fd):
 			EventBus.RequestDemolish.disconnect(fd)
 		auth._connect_event_bus()
@@ -983,6 +1007,14 @@ func _send_build(t: String, at: Vector2i, rot: int) -> void:
 		INSTANCE.core(main).builder_authority._on_request_build(t, at, rot)
 		return
 	INSTANCE.coop(main).send_request("build", [t, at, rot])
+
+
+func _send_order(t: String, at: Vector2i, rot: int) -> void:
+	if not INSTANCE.coop(main).is_client():
+		_forward_builds(false)
+		INSTANCE.core(main).builder_authority._on_request_order(t, at, rot)
+		return
+	INSTANCE.coop(main).send_request("build", [t, at, rot, true])
 
 
 func _send_demolish(rect: Rect2i) -> void:

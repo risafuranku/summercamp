@@ -34334,3 +34334,11 @@ msgstr "Efekty"
 #: scripts/game_settings.gd (24. 11.: V is your voice, a click the walkie)
 msgid "Talk: hold, co-op (a click: the walkie)"
 msgstr "Mluvit: držet, co-op (klik: vysílačka)"
+
+#: scripts/crt_map_panel.gd (25. 11.: a building going up, Builder 98's line)
+msgid "%d:%d  %s  -  going up, %d:%02d of work left"
+msgstr "%d:%d  %s  -  staví se, zbývá %d:%02d práce"
+
+#: data/buildings/site.tres (25. 11.: a building going up)
+msgid "Building site"
+msgstr "Staveniště"

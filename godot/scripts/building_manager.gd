@@ -14,6 +14,8 @@ const BUILDING_MODELS = preload("res://scripts/building_models.gd")
 const PATH_TILES = preload("res://scripts/path_tiles.gd")
 const RECEPTION_LAYOUT = preload("res://scripts/reception/reception_layout.gd")
 const LAMP_SPOT = preload("res://scripts/lamp_spot.gd")
+const CONSTRUCTION = preload("res://core/systems/construction_rules.gd")
+const CONSTRUCTION_SITE = preload("res://scripts/camp/construction_site.gd")
 const PSX_TEXTURE_DEFAULT_UV := Vector2(1.35, 1.35)
 const PATH_MESH_TILE_COVERAGE := 1.0
 const PATH_MESH_Y_OFFSET := 0.06
@@ -93,7 +95,9 @@ func _on_building_placed_event(building_id: String, origin: Vector2i, _footprint
 	# We can reuse existing place_ methods but we might need to bypass some checks if they are redundant or rely on old state logic that might conflict?
 	# Actually, existing place_ methods call `_grid_manager.occupy_footprint` which updates `GridManager`.
 	# We should keep this for now to keep GridManager in sync with GridModel until GridManager is fully replaced.
-	
+	if building_id == CONSTRUCTION.TYPE:
+		place_site_at(origin, _footprint, rotation_steps)
+		return
 	place_building_at_visual_only(origin, building_id, rotation_steps)
 
 func _on_building_removed_event(origin: Vector2i) -> void:
@@ -369,6 +373,41 @@ func place_building_at_visual_only(origin: Vector2i, building_id: String, rotati
 		
 	if building_manager_has_remove_logic() and false: # Just to use the helper to avoid warning if not unused
 		pass 
+
+## A building going up (core/systems/construction_rules.gd): the slab, the walls rising, the
+## scaffold and the workers (scripts/camp/construction_site.gd) on `cells` (the footprint
+## as it stands, turned); what it will be is in GameState.sites under its origin.
+func place_site_at(origin: Vector2i, cells: Vector2i, rotation := 0) -> bool:
+	_ensure_structures_root()
+	if _grid_manager == null or not _grid_manager.can_place_footprint(origin, cells):
+		return false
+	var structure := StaticBody3D.new()
+	structure.name = "Site"
+	structure.add_to_group("sites")
+	_tag_structure(structure, origin, cells, CONSTRUCTION.TYPE, false)
+	structure.set_meta("build_rotation", wrapi(rotation, 0, 4))
+	_structures_root.add_child(structure)
+	structure.position = _grid_manager.get_footprint_center(origin, cells) + Vector3(0.0, -0.05, 0.0)
+	var ts: float = _grid_manager.tile_size
+	var metres := Vector2(ts * cells.x, ts * cells.y)
+	if _models == null:
+		_models = BUILDING_MODELS.new(Callable(self, "_make_psx_material"))
+	var key := CONSTRUCTION.key(origin)
+	var state = INSTANCE.core(self).get_state()
+	var site: Dictionary = state.sites.get(key, {}) if state != null else {}
+	var view := CONSTRUCTION_SITE.new()
+	view.name = "SiteView"
+	view.setup(key, str(site.get("type", "")), metres, Callable(_models, "_camp_or"))
+	structure.add_child(view)
+	var col := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(metres.x * 0.96, 2.4, metres.y * 0.96)
+	col.shape = shape
+	col.position = Vector3(0.0, 1.2, 0.0)
+	structure.add_child(col)
+	_grid_manager.occupy_footprint(origin, cells, structure)
+	return true
+
 
 ## `rotation`: quarter turns; an oblong one takes its footprint turned (GridModel.turned).
 func place_building_at(origin: Vector2i, building_type: String, rotation := 0) -> bool:

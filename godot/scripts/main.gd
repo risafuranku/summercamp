@@ -228,6 +228,8 @@ var _music_director: Node
 var _caretaker: Node
 ## The camp's PA poles playing the reception's radio (scripts/audio/pa_horns.gd, 24. 11.).
 var _pa_horns: Node
+## The workers' hours on the sites going up (scripts/camp/construction_works.gd, 25. 11.).
+var _construction: Node
 var _pending_director: Dictionary = {}
 ## The lost and found and its classifieds (scripts/bazaar.gd).
 var _bazaar = preload("res://scripts/bazaar.gd").new()
@@ -2630,6 +2632,11 @@ func _setup_audio() -> void:
 		_pa_horns.name = "PaHorns"
 		_pa_horns.main = self
 		_screen.add_child(_pa_horns)
+	if _construction == null or not is_instance_valid(_construction):
+		_construction = preload("res://scripts/camp/construction_works.gd").new()
+		_construction.name = "ConstructionWorks"
+		_construction.main = self
+		_screen.add_child(_construction)
 
 
 func _try_interact() -> void:

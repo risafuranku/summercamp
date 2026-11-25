@@ -2,6 +2,7 @@ extends Node
 
 const INSTANCE = preload("res://scripts/instance/instance.gd")
 const BALANCE_CONFIG = preload("res://core/balance/balance_config.gd")
+const CONSTRUCTION = preload("res://core/systems/construction_rules.gd")
 
 ## The bulldozer is paid by the tile it clears (a tree, corn, a building's footprint),
 ## not by the empty grass the box happens to cover.
@@ -71,6 +72,9 @@ func _connect_event_bus() -> void:
 	var build_cb := Callable(self, "_on_request_build")
 	if not EventBus.RequestBuild.is_connected(build_cb):
 		EventBus.RequestBuild.connect(build_cb)
+	var order_cb := Callable(self, "_on_request_order")
+	if INSTANCE.bus(self).has_signal("RequestOrder") and not EventBus.RequestOrder.is_connected(order_cb):
+		EventBus.RequestOrder.connect(order_cb)
 	var demolish_cb := Callable(self, "_on_request_demolish")
 	if INSTANCE.bus(self).has_signal("RequestDemolish") and not EventBus.RequestDemolish.is_connected(demolish_cb):
 		EventBus.RequestDemolish.connect(demolish_cb)
@@ -80,6 +84,16 @@ func _connect_event_bus() -> void:
 
 
 func _on_request_build(building_type: String, pos: Vector2i, rot: int) -> void:
+	_build(building_type, pos, rot, false)
+
+
+## Ordered in Builder 98: what takes the workers hours goes up as a site first
+## (construction_rules.gd: chatka a podniky 2 až 4 herní hodiny, stan a lavička hned).
+func _on_request_order(building_type: String, pos: Vector2i, rot: int) -> void:
+	_build(building_type, pos, rot, true)
+
+
+func _build(building_type: String, pos: Vector2i, rot: int, ordered: bool) -> void:
 	var normalized_type = building_type.strip_edges()
 	var normalized_rot = wrapi(rot, 0, 4)
 	if _state == null or _actions == null or _state.grid == null:
@@ -139,7 +153,8 @@ func _on_request_build(building_type: String, pos: Vector2i, rot: int) -> void:
 		EventBus.BuildRejected.emit(normalized_type, pos, normalized_rot, "insufficient_funds")
 		return
 
-	var success = _actions.place_building(normalized_type, pos, footprint, normalized_rot)
+	var hours := CONSTRUCTION.hours(normalized_type) if ordered else 0.0
+	var success = _actions.place_site(normalized_type, pos, footprint, normalized_rot, hours) if hours > 0.0 else _actions.place_building(normalized_type, pos, footprint, normalized_rot)
 	if success:
 		EventBus.BuildConfirmed.emit(normalized_type, pos, normalized_rot)
 	else:

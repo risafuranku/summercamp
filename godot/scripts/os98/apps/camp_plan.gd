@@ -24,6 +24,9 @@ const UNMADE := Color8(214, 160, 40)
 const TAKEN := Color8(80, 110, 210)
 const SERVICE := Color8(200, 200, 190)
 const BLINK := Color8(255, 220, 0)
+## A building going up (construction_rules): the bare boards' colour, hatched.
+const SITE := Color8(186, 150, 96)
+const CONSTRUCTION = preload("res://core/systems/construction_rules.gd")
 const SHORT := {
 	"toilet_block": "WC", "shower_block": "Sh", "pub": "Pub", "pub_2": "Pub", "restaurant": "Bis", "vecerka": "Jed",
 	"corn_stand": "Crn", "bonfire": "Fire", "sewer": "Sew", "power_generator": "Gen", "main_building": "Office",
@@ -150,6 +153,12 @@ func rebuild() -> void:
 			var row := {"type": t, "origin": og, "footprint": root.get_meta("grid_footprint", Vector2i.ONE),
 				"col": SERVICE, "label": str(SHORT.get(t, "")), "lodging": not rs.is_empty(), "broken": bool((wear.get(og, {}) as Dictionary).get("broken", false)),
 				"condition": float((wear.get(og, {}) as Dictionary).get("condition", -1.0)), "room": rs}
+			if t == CONSTRUCTION.TYPE:
+				# What it will be, on the boards' colour (camp_plan draws it hatched).
+				var will := str((st.sites.get(key, {}) as Dictionary).get("type", "")) if st != null else ""
+				row["col"] = SITE
+				row["label"] = str(SHORT.get(will, ""))
+				row["site"] = true
 			if not rs.is_empty():
 				var s := str(rs.get("status", ""))
 				row["col"] = TAKEN if bool(rs.get("occupied", false)) else ({"ready": READY, "dirty": DIRTY}.get(s, UNMADE) as Color)
@@ -259,6 +268,15 @@ func _draw_building(b: Dictionary, o: Vector2, cell: float) -> void:
 	var r := Rect2(o + Vector2(og) * cell + Vector2(1, 1), Vector2(b["footprint"]) * cell - Vector2(2, 2))
 	var lit := og == focus and int(_t * 3.0) % 2 == 0
 	draw_rect(r, b["col"])
+	if bool(b.get("site", false)):
+		# Going up: the boards' hatch.
+		var step := 5.0
+		var k := 0.0
+		while k < r.size.x + r.size.y:
+			var a := r.position + Vector2(minf(k, r.size.x), maxf(0.0, k - r.size.x))
+			var z := r.position + Vector2(maxf(0.0, k - r.size.y), minf(k, r.size.y))
+			draw_line(a, z, INK.lerp(SITE, 0.55), 1.0)
+			k += step
 	if og == focus:
 		draw_rect(r.grow(1.0), BLINK if lit else INK, false, 3.0)
 	else:

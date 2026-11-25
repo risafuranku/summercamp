@@ -32,6 +32,9 @@ extends Resource
 @export var next_guest_id: int = 1
 # The businesses (core/systems/business_rules.gd): {sites, orders, licences}
 @export var biz: Dictionary = {}
+## Buildings going up (core/systems/construction_rules.gd): origin "x:y" -> {type, rot, fp: [w, h],
+## total, left (hours of work)}; their cells are a "site" till then.
+@export var sites: Dictionary = {}
 ## Guests the camp lost in the night (actions.note_lost_guest): {name, day, archetype, room};
 ## the district's paper and police read it (os98 browser: the Courier, the search for them).
 @export var lost_guests: Array[Dictionary] = []

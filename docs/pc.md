@@ -132,3 +132,23 @@ vpravo nahoře vedle pokladny (128×96, čas snímku vpálený dole, nový sním
 byla useknutá u spodní hrany okna. Kamera (`camp_webcam.gd`, i stránka cerne-jezero.cz/kamera) se
 otáčí na střed toho, co je postavené (stany, chatky, podniky; ne cesty, stromy, sloupy), nejvýš 75°
 od čela recepce: v novém kempu ukazovala jen les za recepcí. Ve hře `--scenario=live_pc`.
+
+Hotovo 25. 11. (stavba trvá podle velikosti, kolo 3): co objednáš v Builderu 98
+(`EventBus.RequestOrder`), stojí nejdřív jako staveniště, svůj typ `"site"` (žádný host, pokoj ani
+podnik ho nepočítá, nikdo dovnitř), co z něj bude, je v `GameState.sites` ("x:y" → typ, otočení,
+půdorys, hodin celkem a zbývá). Hodiny (`core/systems/construction_rules.gd`): záchody a sprchy 1,
+chatka, místnost pro personál, sklad a stánek s kukuřicí 2, hospoda a bistro 3, Jednota a kuželna 4;
+stan, karavan, lavička, lampy, cesty, atrakce a výzdoba stojí hned. Dělníci pracují jen přes den
+od 7 do 19 (moje rozhodnutí, ne Richardovo: objednáno večer, staví se ráno; v noci na staveništi
+nikdo není). Zaplaceno při objednávce; zbouraný rozestavěný dům vrátí, co by vrátila hotová budova.
+V kempu (`scripts/camp/construction_site.gd`): betonová deska, zdi z prken rostou s odvedenou
+prací, dřevěné lešení, hromada prken a dva dělníci (Grok, `site_worker_a`, vzorek čeká na
+Richardovo schválení; `tools/artgen/site_art.py`): jeden klečí a zatlouká (úder každých 0,75 s,
+slyšet `assets/sfx/site/hammer_a/b.mp3`), druhý stojí u prken. Hotovo: lešení dolů (`done.mp3`)
+a stojí budova. Odpracované hodiny počítá `scripts/camp/construction_works.gd` na hodinách hry
+(skok hodin přes 48 h, třeba načtení, nic nepočítá), dokončení dělá hostitel nebo hra pro jednoho
+(`actions.finish_site`). Builder 98: staveniště na plánku ve fázích základy, zdi, střecha podle
+postupu, najetí myší řekne co a kolik práce zbývá; dokončená budova se jen postaví (bez nové
+krátké animace). GuestRack: šrafované, zkratka toho, co z něj bude. RequestBuild (nástroje, testy,
+oprava zbořené chatky) dál staví hned. Test `site_check`, ve hře `--scenario=site`, pro dva
+`python godot/tools/site_coop.py`.

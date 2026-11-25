@@ -1,6 +1,7 @@
 extends Control
 
 const INSTANCE = preload("res://scripts/instance/instance.gd")
+const CONSTRUCTION = preload("res://core/systems/construction_rules.gd")
 signal status_changed(text: String, kind: int)
 signal tool_canceled
 signal submenu_close_requested
@@ -428,6 +429,8 @@ const WORKER_TEX := [
 	"res://assets/textury/builder/site_worker_b.png",
 ]
 ## Small things go up in a moment; a building takes longer the bigger it is.
+## The camp's sites' stages as last drawn (_tick_sites).
+var _sites_seen := 0
 const SITE_QUICK := ["bench", "lamp_post", "flower_bed", "gnome", "flagpole", "picnic_table", "hammock", "tree_spruce", "tree_birch"]
 const HAMMER_EVERY := 0.36
 const RUBBLE_LIFE := 4.0
@@ -557,6 +560,13 @@ func _on_world_placed(id: String, o: Vector2i, f: Vector2i, _r: int) -> void:
 	_demolish_hatch_key = ""
 	if id == "path" and _path_batch.has(o):
 		return
+	# A site's work done (construction_rules): it stands up out of its site (still what the
+	# map knows there: no redraw between the site going and this), the thump.
+	if id != CONSTRUCTION.TYPE and _known.has(o) and str(_known[o][0]) == CONSTRUCTION.TYPE:
+		if is_visible_in_tree():
+			_bfx.built(_footprint_cells(o, f))
+			_play("site_done", -8.0)
+		return
 	if id != "tree" and id != "corn" and is_visible_in_tree():
 		_bfx.built(_footprint_cells(o, f))
 		if id != "path":
@@ -567,7 +577,8 @@ func _on_world_removed(o: Vector2i) -> void:
 	_static_dirty = true
 	_demolish_sum = {}
 	_demolish_hatch_key = ""
-	if is_visible_in_tree() and _known.has(o):
+	# (A site leaves no rubble: done, the building stands up there; taken down, nothing was.)
+	if is_visible_in_tree() and _known.has(o) and str(_known[o][0]) != CONSTRUCTION.TYPE:
 		_leave_rubble(o, _known[o])
 	if _pending_demolish_wait:
 		_demolish_removed.append(o)
@@ -604,6 +615,15 @@ func _leave_rubble(o: Vector2i, known: Array) -> void:
 func _tick_sites(delta: float, quiet := false) -> void:
 	_hammer_cd -= delta
 	_rubble_cd -= delta
+	# The camp's own sites (construction_rules): the map again when one of them moved a stage.
+	var cst = INSTANCE.core(self).get_state()
+	if cst != null and not cst.sites.is_empty():
+		var sh := 0
+		for k in cst.sites:
+			sh = hash([sh, k, int(CONSTRUCTION.progress(cst.sites[k]) * 3.0)])
+		if sh != _sites_seen:
+			_sites_seen = sh
+			_static_dirty = true
 	var busy := false
 	for o in _dropped.keys():
 		var age := _time - float(_dropped[o])
@@ -1047,8 +1067,9 @@ func _end_row() -> void:
 	for i in n:
 		_row_batch[todo[i]] = selected_building
 	_row_sending = true
+	# Ordered: what takes the workers hours goes up as a site (construction_rules).
 	for i in n:
-		EventBus.RequestBuild.emit(selected_building, todo[i], _rotation_steps)
+		EventBus.RequestOrder.emit(selected_building, todo[i], _rotation_steps)
 	_row_sending = false
 	if _row_batch.is_empty():
 		_flush_row()
@@ -1263,8 +1284,8 @@ func _send_build_request(building_type: String, coord: Vector2i, rot: int) -> vo
 	_pending_build_type = building_type
 	_pending_build_coord = coord
 	_pending_build_rot = wrapi(rot, 0, 4)
-	if INSTANCE.bus(self).has_signal("RequestBuild"):
-		EventBus.RequestBuild.emit(building_type, coord, _pending_build_rot)
+	if INSTANCE.bus(self).has_signal("RequestOrder"):
+		EventBus.RequestOrder.emit(building_type, coord, _pending_build_rot)
 		_emit_status("Build request: %s [%d,%d]" % [_display_name(building_type), coord.x, coord.y])
 	else:
 		_pending_build_wait = false
@@ -2830,6 +2851,14 @@ func _draw_structure(entry: Dictionary, tile_w: float, tile_h: float) -> void:
 				_draw_icon(lc, Vector2(tile_w * 0.6, tile_h * 1.5), _icon_key_for_type("lamp_post"), 0, Color.WHITE)
 		return
 
+	# A building going up (construction_rules): its site as far as the work is.
+	if building_type == CONSTRUCTION.TYPE:
+		var so: Vector2i = entry.get("origin", Vector2i.ZERO)
+		var sst = INSTANCE.core(self).get_state()
+		var site_now: Dictionary = sst.sites.get(CONSTRUCTION.key(so), {}) if sst != null else {}
+		_draw_site(center, footprint, CONSTRUCTION.progress(site_now) * 2.99, tile_w, tile_h, 3.0)
+		return
+
 	var icon_key = _icon_key_for_type(building_type)
 	if icon_key != "":
 		var squash := 1.0
@@ -4150,6 +4179,11 @@ func _describe(coord: Vector2i) -> String:
 			elif root != null:
 				what = _display_name(str(root.get_meta("building_type", "")))
 				var o = root.get_meta("grid_origin", null)
+				# A building going up (construction_rules): what it will be, the work left.
+				if str(root.get_meta("building_type", "")) == CONSTRUCTION.TYPE and o is Vector2i:
+					var site: Dictionary = INSTANCE.core(self).get_state().sites.get(CONSTRUCTION.key(o), {})
+					var left_min := int(ceil(float(site.get("left", 0.0)) * 60.0))
+					return LANG.f("%d:%d  %s  -  going up, %d:%02d of work left", [coord.x, coord.y, tr(_display_name(str(site.get("type", "")))), left_min / 60, left_min % 60])
 				if o is Vector2i and GuestManager != null and INSTANCE.guests(self).room_number("%d:%d" % [o.x, o.y]) > 0:
 					# The room and how it stands: ready, dirty, taken.
 					var key := "%d:%d" % [o.x, o.y]
