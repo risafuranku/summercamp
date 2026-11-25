@@ -2,8 +2,8 @@
 
 ## TODO
 
-- [ ] Dodávka zboží: zastaví za závorou, krabice na paletu u brány (bez podpisu na recepci), odnese je pomocník podniku, jinak hráč; na regálu až po odnesení (docs/businesses.md, Rozhodnutí 25. 11., kolo 2).
-- [ ] Nový zaměstnanec přijede ráno po najmutí autobusem k zastávce u brány a dojde do práce (docs/businesses.md, Rozhodnutí 25. 11.).
+- [ ] Nový zaměstnanec kempu (místnost pro personál) přijede první ráno autobusem a dojde do práce; pomocníci podniků už autobusem jezdí (`business/hands_commute.gd`) (docs/businesses.md, Rozhodnutí 25. 11.).
+- [ ] Krabice od dodávky: plaketa vpravo s počtem krabic, které čekají u závory (teď ji nic neukazuje).
 - [ ] Kamera, animace a optimalizace: projít před co-op playtestem.
 - [ ] Noc vyvážit hraním: poškození od nepřátel, jejich četnost, baterie; jak často se potkají dva druhy nepřátel; četnost divných detailů.
 - [ ] Nekonečný sandbox, nejdřív: nastavení nového kempu (velikost mapy, peníze, zlé noci), cíle se skóre a statistikami, náhodné nabídky a události, pozemek se přikupuje až do 28×28 (docs/DESIGN.md, Decisions 25. 11.); mixy nepřátel podle týdnů později.
@@ -39,6 +39,7 @@
 
 ## DONE
 
+- [x] Dodávka zboží: krabice na paletě u závory, odnese je pomocník podniku nebo hráč, na regálu až po odnesení; podpis na recepci zrušený; i pro dva (3ee0c286)
 - [x] Stánek s kukuřicí: věci na pultu jako sprity na holé desce (hrnec a prkénko leží, máslenka, slánka, ubrousky a kasička stojí); druhý dělník nosí prkna (ac844e92)
 - [x] Megafon z ampliónů: zní ze tří nejbližších jako rádio; dřív nehrál vůbec (kamera hledaná ve špatném viewportu) (8a8c2530)
 - [x] Blesk za okny místností: se stínem má okenní kříž a věci vrhají stíny; bez něj svítil jako obyčejný reflektor (e64ea484)
