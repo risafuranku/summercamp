@@ -6,7 +6,6 @@
 - [ ] Stánek s kukuřicí: všechny předměty na pultu z 2D textury převést na 3D sprity, které na pultu stojí (jako vařící se kukuřice); vzorek máslenky od Groka čeká na schválení (`tools/artgen/prompts_corn_props.tsv`).
 - [ ] Objednané zboží přiveze dodávka a někdo ho donese na místo; nový zaměstnanec přijede autobusem.
 - [ ] Kamera, animace a optimalizace: projít před co-op playtestem.
-- [ ] Blesk za okny místností (`ambient/room_weather.gd` LightningIn) má masku světla bez stínu, takže v Godotu 4.7 nesvítí. Ověřit v bouřce a opravit (docs/godot.md).
 - [ ] Noc vyvážit hraním: poškození od nepřátel, jejich četnost, baterie; jak často se potkají dva druhy nepřátel; četnost divných detailů.
 - [ ] Nekonečný sandbox: náhodné nabídky, události a mixy nepřátel; nastavení nového kempu (velikost mapy aj.); cíle a obrazovka se skóre a statistikami.
 - [ ] Megafonové amplióny na sloupech: hlas megafonu z nejbližších.
@@ -42,6 +41,7 @@
 
 ## DONE
 
+- [x] Blesk za okny místností: se stínem má okenní kříž a věci vrhají stíny; bez něj svítil jako obyčejný reflektor (e64ea484)
 - [x] Stavba trvá podle velikosti: staveniště s lešením, dělníky a bouchaním, 1–4 h práce přes den, pak stojí budova; i pro dva (db5e7189)
 - [x] Programy na PC ukazují kemp naživo: tečky hostů v GuestRacku (Pokoje), fronty a zelené tržby v Boss 98, kamera kempu v CampStatu míří na kemp a vejde se (995cccd6)
 - [x] Kuželna pro dva: tác, točení, kolíky, pult a sklep vidí i druhý správce (test `bowling_coop`); stav stanice se posílá znovu každou sekundu, vidí ho i ten, kdo přijde později (800db2c1)
