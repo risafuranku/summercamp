@@ -34368,3 +34368,7 @@ msgstr "[E] Vzít krabici (%s)"
 
 msgid "The box is on the shelves of the %s."
 msgstr "%s: zboží je na regálech."
+
+#: scripts/ui/trouble_board.gd (25. 11.: the van's boxes by the barrier, a plate)
+msgid "Boxes"
+msgstr "Krabice"

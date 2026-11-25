@@ -801,7 +801,8 @@ static func on_order(key: String, good: String) -> int:
 	if site_rec.is_empty():
 		return 0
 	var pack := int((RULES.goods(str(site_rec["kind"])).get(good, {}) as Dictionary).get("pack", 1))
-	for o in CoreRoot.get_state().biz.get("orders", []):
+	# Ordered, and off the van in a box by the barrier not yet carried in (25. 11.).
+	for o in CoreRoot.get_state().biz.get("orders", []) + CoreRoot.get_state().biz.get("boxes", []):
 		if str(o.get("key", "")) == key:
 			n += int((o["goods"] as Dictionary).get(good, 0)) * pack
 	return n

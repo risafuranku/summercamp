@@ -147,3 +147,7 @@ krabice ve stavu podniků hostitele (puls), co udělá druhý, jde hostiteli (`_
 "box_carry", "box_down", "box_in"); cizí krabici v náručí vzít nejde. Sandbox bez denních
 událostí dál dostane zboží rovnou na regály (`biz_receive`). Testy `box_check`,
 `python godot/tools/box_coop.py`, obrazem `tools/van_check.tscn`.
+Plaketa vpravo „Krabice“ (`trouble_board._box_rows`, ikona `trouble_crate`): kolik krabic nikdo
+nemá v náručí, s tváří pomocníka, který je zrovna nese. Krabice u závory se počítají jako „na
+objednávce“ (`business_runtime.on_order`), takže plaketa docházejícího zboží nesvítí, dokud zboží
+leží u závory.

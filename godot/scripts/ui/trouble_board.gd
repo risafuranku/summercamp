@@ -68,6 +68,9 @@ func mark_taken(rows: Array) -> Array:
 				var t := "corn" if str(r.get("kind", "")) == "corn" else "service"
 				if not CREW_PLACES_M.wardens_at(main.get_tree(), site_key, t).is_empty():
 					who = "@"
+		# (A row that knows who has it already: the van's boxes a hand is fetching.)
+		if who == "" and str(r.get("who", "")) != "":
+			who = str(r["who"])
 		if who == "" and str(r.get("fix", "")) != "":
 			who = str(held.get("room:fix:" + str(r["fix"]), ""))
 		if who == "" and str(r.get("job", "")) != "" and staff is Dictionary and STAFF_RULES_M.covered(staff, str(r["job"]), main._time_of_day_hours, main._day_index):
@@ -136,7 +139,30 @@ func rows(biz) -> Array:
 			rows.append(r)
 	if biz != null and biz.has_method("_live_sites"):
 		rows.append_array(_stock_rows(biz))
+	rows.append_array(_box_rows())
 	return rows
+
+
+## The van's boxes waiting by the barrier (25. 11., business/delivery_pallet.gd): a plate with
+## how many nobody has in their arms; a place's hand fetching them has their face on it.
+func _box_rows() -> Array:
+	var state = INSTANCE.core(main).get_state() if CoreRoot != null else null
+	if state == null or not (state.biz is Dictionary):
+		return []
+	var free := 0
+	var hand := ""
+	for bx in (state.biz as Dictionary).get("boxes", []):
+		var by := str((bx as Dictionary).get("by", ""))
+		if by == "":
+			free += 1
+		elif by.begins_with("s") and hand == "":
+			hand = by.substr(1)
+	if free == 0 and hand == "":
+		return []
+	var row := {"id": "vboxes", "kind": "crate", "word": "Boxes", "cat": "work", "left": -1.0, "n": free}
+	if hand != "":
+		row["who"] = hand
+	return [row]
 
 
 ## The office's own (Richard 8. 11.: "I must be told about everything"): the booking letters

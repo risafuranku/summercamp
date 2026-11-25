@@ -41,8 +41,8 @@ func log_state(tag: String) -> void:
 	var strip = hud.get("_arrival_rings")
 	var rows: Array = []
 	for r in hud.get("_troubles"):
-		if str(r.get("id", "")).begins_with("s"):
-			rows.append("%s:%s:%.2f" % [str(r["id"]), str(r["word"]), float(r["left"])])
+		if str(r.get("id", "")).begins_with("s") or str(r.get("id", "")) == "vboxes":
+			rows.append("%s:%s:%.2f:%d" % [str(r["id"]), str(r["word"]), float(r["left"]), int(r.get("n", 0))])
 	var orders: Array = []
 	for o in CoreRoot.get_state().biz.get("orders", []):
 		orders.append("%s d%d $%d" % [JSON.stringify(o["goods"]), int(o["due_day"]), int(o["cost"])])
