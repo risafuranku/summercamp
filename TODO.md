@@ -3,7 +3,6 @@
 ## TODO
 
 - [ ] Stánek s kukuřicí: všechny předměty na pultu z 2D textury převést na 3D sprity, které na pultu stojí (jako vařící se kukuřice); vzorek máslenky od Groka čeká na schválení (`tools/artgen/prompts_corn_props.tsv`).
-- [ ] Programy na PC ukazují kemp naživo: hosté jako tečky na plánku (GuestRack, ověřit záložku Pokoje), fronty, tržby, kamera v CampStatu.
 - [ ] Stavba trvá podle velikosti: stan a lavička hned, chatka a podnik 2–4 herní hodiny; lešení, dělníci, bouchání, hosté až po dokončení (docs/pc.md).
 - [ ] Objednané zboží přiveze dodávka a někdo ho donese na místo; nový zaměstnanec přijede autobusem.
 - [ ] Kamera, animace a optimalizace: projít před co-op playtestem.
@@ -42,6 +41,7 @@
 
 ## DONE
 
+- [x] Programy na PC ukazují kemp naživo: tečky hostů v GuestRacku (Pokoje), fronty a zelené tržby v Boss 98, kamera kempu v CampStatu míří na kemp a vejde se (995cccd6)
 - [x] Kuželna pro dva: tác, točení, kolíky, pult a sklep vidí i druhý správce (test `bowling_coop`); stav stanice se posílá znovu každou sekundu, vidí ho i ten, kdo přijde později (800db2c1)
 - [x] Co-op u stanic všech podniků: ostatní vidí rozdělanou práci a věc v ruce; u stánku stojí každý u své stanice a pracuje (5e6cd4f8)
 - [x] Bez PS jiggle: vrcholy se už nepřichytávají k mřížce obrazovky (všechny modely, stromy, třpyt), textury dál plavou (fbd11418)
