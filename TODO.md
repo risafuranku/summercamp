@@ -4,7 +4,6 @@
 
 - [ ] Kamera, animace a optimalizace: projít před co-op playtestem.
 - [ ] Noc vyvážit hraním: poškození od nepřátel, jejich četnost, baterie; jak často se potkají dva druhy nepřátel; četnost divných detailů.
-- [ ] Sandbox: pozemek se přikupuje po pásech 4 políček od plotu (klik na stranu plotu v Builderu, plot se posune), cena roste o polovinu; v nastavení velikost pozemku (malý, střední, celý) (docs/DESIGN.md, Decisions 25. 11.).
 - [ ] Sandbox: 1–3 cíle vybrané při založení (50 hostů naráz, 100 000 Kč, 14 nocí bez ztraceného hosta…), v CampStatu s postupem, splněný cíl krátce oslaví, skóre a statistiky za celý kemp.
 - [ ] Sandbox: náhodné nabídky a události po celou hru (zájezdy, sponzor, inspekce, nabídky v CampMailu); mixy nepřátel podle týdnů později.
 - [ ] Atmosféra: obloha za soumraku, vítr ve stromech přes den, v noci psi nebo vlak v dálce, ranní mlha, místo v hlubokém lese, kam hosté chodí; den a noc projít poslechem a smíchat.
@@ -39,6 +38,7 @@
 
 ## DONE
 
+- [x] Sandbox: pozemek (malý, střední, celý), nástroj Pozemek v Builderu kupuje pásy po 4 políčkách za rostoucí cenu, hranice z kolíků s páskou, i pro dva (703d0601)
 - [x] Sandbox: noci ve třech stupních (klidné, běžné, zlé) a vypnuté v nastavení nového kempu (3036f13f)
 - [x] Plaketa „Krabice“ vpravo s počtem krabic u závory; docházející zboží nesvítí, dokud leží u závory (fe013937)
 - [x] Nový zaměstnanec ráno přijde od silnice přes závoru do práce: fungovalo už dřív (personál kempu i pomocníci podniků, od dne nástupu), ověřeno scénářem staff_first_day (fb03a653)
