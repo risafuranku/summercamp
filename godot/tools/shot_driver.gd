@@ -1522,6 +1522,19 @@ const SCENARIOS := {
 		["eval", "weather_system.set_weather(2)"], ["wait", 45.0], ["shot", "83_fog"],
 		["hours", 13.0], ["eval", "weather_system.set_weather(6)"], ["wait", 45.0], ["shot", "84_anomaly_night"],
 	],
+	# A camp hand taken on today comes in the next morning through the barrier from the road
+	# and walks to the staffroom (25. 11., TODO: „nový zaměstnanec přijede ráno autobusem“).
+	"staff_first_day": [
+		["wait_menu"], ["call", "_on_menu_new_game_pressed", []], ["wait_gameplay"], ["wait", 1.0],
+		["eval", "_interior_manager._building_interior.close_interior()"], ["wait", 0.8],
+		["money", 40000], ["clear", 9, 8, 9, 9], ["build", "staffroom", 13, 9, 0], ["wait", 1.0],
+		["staff_hire", "marta"],
+		["eval", "debug_jump_to(1, 12.0)"], ["wait", 2.0], ["eval", "get_tree().get_first_node_in_group('staff_runtime')._acts()"],
+		["eval", "debug_jump_to(2, 4.0)"], ["wait", 2.0], ["hours", 1.5], ["wait", 2.0], ["eval", "get_tree().get_first_node_in_group('staff_runtime')._acts()"],
+		["player", 13, 4, 0.0], ["hours", 1.55], ["wait", 2.0], ["eval", "get_tree().get_first_node_in_group('staff_runtime')._acts()"], ["shot", "sf0_coming"],
+		["hours", 0.1], ["wait", 2.0], ["shot", "sf1_through"],
+		["eval", "get_tree().get_first_node_in_group('staff_runtime')._acts()"],
+	],
 	# The lightning through the office's window at night (25. 11., room_weather LightningIn): a
 	# bolt held, the room lit with the shadow off (as it was: a plain spot) and on (the window's
 	# cross, the desk's things throwing shadows).
